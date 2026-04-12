@@ -2,15 +2,14 @@
 
 import dynamic from "next/dynamic";
 
-export type GeoJsonPointGeometry = {
-  type: "Point";
-  coordinates: [number, number];
-};
-
-export type GeoJsonMultiPolygonGeometry = {
-  type: "MultiPolygon";
-  coordinates: number[][][][];
-};
+export type {
+  GeoJsonPointGeometry,
+  GeoJsonMultiPolygonGeometry
+} from "../types/geo-json.types";
+import type {
+  GeoJsonPointGeometry,
+  GeoJsonMultiPolygonGeometry
+} from "../types/geo-json.types";
 
 export type AdminMapPopup = {
   title?: string;

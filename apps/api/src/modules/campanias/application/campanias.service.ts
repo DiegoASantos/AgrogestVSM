@@ -8,7 +8,11 @@ import { InjectRepository } from "@nestjs/typeorm";
 import type { FindOptionsWhere } from "typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { CultivoEntity } from "../../cultivos/infrastructure/persistence/entities/cultivo.entity";
 import { FindCampaniasQueryDto } from "../presentation/dto/find-campanias-query.dto";
 import { CampaniaEntity } from "../infrastructure/persistence/entities/campania.entity";
@@ -45,7 +49,10 @@ export class CampaniasService {
     }
   }
 
-  async findAll(query: FindCampaniasQueryDto) {
+  async findAll(
+    query: FindCampaniasQueryDto,
+    pagination: PaginationQueryDto
+  ) {
     const where: FindOptionsWhere<CampaniaEntity> = {};
 
     if (query.cultivo_id !== undefined) {
@@ -56,20 +63,19 @@ export class CampaniasService {
       where.isActive = query.activa;
     }
 
-    const campanias = await this.campaniasRepository.find({
+    const [campanias, total] = await this.campaniasRepository.findAndCount({
       where,
       order: {
         startDate: "DESC",
         name: "ASC"
       },
-      take: 500
+      skip: pagination.skip,
+      take: pagination.take
     });
 
     return createSuccessResponse(
       campanias.map((campania) => this.toResponse(campania)),
-      {
-        count: campanias.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 

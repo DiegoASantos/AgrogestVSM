@@ -5,7 +5,8 @@ import {
   Get,
   Param,
   Patch,
-  Post
+  Post,
+  Query
 } from "@nestjs/common";
 import {
   ApiConflictResponse,
@@ -17,6 +18,7 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { IngredientesActivosService } from "../application/ingredientes-activos.service";
@@ -50,8 +52,8 @@ export class IngredientesActivosController {
   @ApiOkResponse({
     description: "Lista de ingredientes activos."
   })
-  getIngredientesActivos() {
-    return this.ingredientesActivosService.findAll();
+  getIngredientesActivos(@Query() pagination: PaginationQueryDto) {
+    return this.ingredientesActivosService.findAll(pagination);
   }
 
   @Get(":id")

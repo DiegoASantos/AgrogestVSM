@@ -17,7 +17,10 @@ import type {
   LoginValues
 } from "../types/auth.types";
 
-const AUTH_STORAGE_KEY = "agrogest-admin-auth-session";
+// Only the refresh token is persisted — in sessionStorage (tab-lifetime),
+// so the short-lived access token never hits disk and a new browser
+// session always requires a fresh login.
+const REFRESH_STORAGE_KEY = "agrogest-admin-refresh-token";
 
 export const AuthSessionContext = createContext<AuthContextValue | null>(null);
 
@@ -26,39 +29,36 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<AuthSession | null>(null);
 
   const logout = useCallback(() => {
-    clearStoredSession();
+    clearStoredRefreshToken();
     setSession(null);
     setStatus("guest");
   }, []);
 
   const refreshUser = useCallback(async () => {
-    setSession((currentSession) => currentSession);
+    const storedRefreshToken = readStoredRefreshToken();
 
-    const storedSession = readStoredSession();
-
-    if (!storedSession) {
+    if (!storedRefreshToken) {
       setSession(null);
       setStatus("guest");
       return;
     }
 
-    if (isAccessTokenExpired(storedSession.accessToken)) {
-      logout();
-      return;
-    }
-
     try {
+      const refreshed = await authService.refresh(storedRefreshToken);
       const user = await authService.getCurrentUser(
-        storedSession.accessToken,
-        storedSession.tokenType
+        refreshed.accessToken,
+        refreshed.tokenType
       );
 
-      const nextSession = {
-        ...storedSession,
+      const nextSession: AuthSession = {
+        accessToken: refreshed.accessToken,
+        refreshToken: refreshed.refreshToken,
+        tokenType: refreshed.tokenType,
+        expiresIn: refreshed.expiresIn,
         user
       };
 
-      persistSession(nextSession);
+      persistRefreshToken(refreshed.refreshToken);
       setSession(nextSession);
       setStatus("authenticated");
     } catch {
@@ -70,20 +70,47 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     void refreshUser();
   }, [refreshUser]);
 
-  // Register a global 401 hook so any API call can trigger auto-logout
-  // instead of leaving the UI in a broken authenticated-but-unauthorized state.
+  // Global 401 hook: attempt a silent refresh once; if it fails, log out.
   useEffect(() => {
     return setUnauthorizedHandler(() => {
-      clearStoredSession();
-      setSession(null);
-      setStatus("guest");
+      const storedRefreshToken = readStoredRefreshToken();
+
+      if (!storedRefreshToken) {
+        clearStoredRefreshToken();
+        setSession(null);
+        setStatus("guest");
+        return;
+      }
+
+      void authService
+        .refresh(storedRefreshToken)
+        .then(async (refreshed) => {
+          const user = await authService.getCurrentUser(
+            refreshed.accessToken,
+            refreshed.tokenType
+          );
+          persistRefreshToken(refreshed.refreshToken);
+          setSession({
+            accessToken: refreshed.accessToken,
+            refreshToken: refreshed.refreshToken,
+            tokenType: refreshed.tokenType,
+            expiresIn: refreshed.expiresIn,
+            user
+          });
+          setStatus("authenticated");
+        })
+        .catch(() => {
+          clearStoredRefreshToken();
+          setSession(null);
+          setStatus("guest");
+        });
     });
   }, []);
 
   const login = useCallback(async (values: LoginValues) => {
     const nextSession = await authService.login(values);
 
-    persistSession(nextSession);
+    persistRefreshToken(nextSession.refreshToken);
     setSession(nextSession);
     setStatus("authenticated");
 
@@ -108,80 +135,34 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
   );
 }
 
-function persistSession(session: AuthSession) {
+function persistRefreshToken(refreshToken: string) {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  window.sessionStorage.setItem(REFRESH_STORAGE_KEY, refreshToken);
 }
 
-function readStoredSession() {
+function readStoredRefreshToken(): string | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  const rawValue = window.localStorage.getItem(AUTH_STORAGE_KEY);
+  const rawValue = window.sessionStorage.getItem(REFRESH_STORAGE_KEY);
 
-  if (!rawValue) {
+  if (!rawValue || typeof rawValue !== "string") {
     return null;
   }
 
-  try {
-    const parsedSession = JSON.parse(rawValue) as Partial<AuthSession>;
-
-    if (
-      !parsedSession ||
-      typeof parsedSession.accessToken !== "string" ||
-      typeof parsedSession.tokenType !== "string" ||
-      typeof parsedSession.expiresIn !== "string" ||
-      !parsedSession.user
-    ) {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      return null;
-    }
-
-    return parsedSession as AuthSession;
-  } catch {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    return null;
-  }
+  return rawValue;
 }
 
-function clearStoredSession() {
+function clearStoredRefreshToken() {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.removeItem(AUTH_STORAGE_KEY);
-}
-
-function isAccessTokenExpired(accessToken: string) {
-  const payload = parseJwtPayload(accessToken);
-  const expiresAt = payload?.exp;
-
-  if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) {
-    return false;
-  }
-
-  return Date.now() >= expiresAt * 1000;
-}
-
-function parseJwtPayload(accessToken: string): { exp?: number } | null {
-  const tokenParts = accessToken.split(".");
-
-  if (tokenParts.length < 2) {
-    return null;
-  }
-
-  try {
-    const normalizedPayload = tokenParts[1]
-      .replace(/-/g, "+")
-      .replace(/_/g, "/")
-      .padEnd(Math.ceil(tokenParts[1].length / 4) * 4, "=");
-
-    return JSON.parse(window.atob(normalizedPayload)) as { exp?: number };
-  } catch {
-    return null;
-  }
+  window.sessionStorage.removeItem(REFRESH_STORAGE_KEY);
+  // Also clean up the legacy localStorage key from older sessions.
+  window.localStorage.removeItem("agrogest-admin-auth-session");
 }

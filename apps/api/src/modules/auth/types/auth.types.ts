@@ -19,9 +19,19 @@ export type AuthenticatedUserProfile = {
 
 export type LoginResponse = {
   accessToken: string;
+  refreshToken: string;
   tokenType: "Bearer";
   expiresIn: string;
+  refreshExpiresIn: string;
   user: AuthenticatedUserProfile;
+};
+
+export type RefreshResponse = {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: "Bearer";
+  expiresIn: string;
+  refreshExpiresIn: string;
 };
 
 export type AccessTokenPayload = {
@@ -29,6 +39,11 @@ export type AccessTokenPayload = {
   userId: string;
   email: string;
   roles: string[];
+};
+
+export type RefreshTokenPayload = {
+  sub: string;
+  type: "refresh";
 };
 
 export type AuthenticatedRequest = FastifyRequest & {

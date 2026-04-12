@@ -19,6 +19,7 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { ProductoIngredientesService } from "../application/producto-ingredientes.service";
@@ -65,8 +66,11 @@ export class ProductoIngredientesController {
   @ApiOkResponse({
     description: "Lista de relaciones producto ingrediente."
   })
-  getProductoIngredientes(@Query() query: FindProductoIngredientesQueryDto) {
-    return this.productoIngredientesService.findAll(query);
+  getProductoIngredientes(
+    @Query() query: FindProductoIngredientesQueryDto,
+    @Query() pagination: PaginationQueryDto
+  ) {
+    return this.productoIngredientesService.findAll(query, pagination);
   }
 
   @Patch(":productId/:ingredientActiveId")

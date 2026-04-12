@@ -5,7 +5,8 @@ import {
   Get,
   Param,
   Patch,
-  Post
+  Post,
+  Query
 } from "@nestjs/common";
 import {
   ApiConflictResponse,
@@ -17,6 +18,7 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { CultivosService } from "../application/cultivos.service";
@@ -46,8 +48,8 @@ export class CultivosController {
   @ApiOkResponse({
     description: "Lista de cultivos."
   })
-  getCultivos() {
-    return this.cultivosService.findAll();
+  getCultivos(@Query() pagination: PaginationQueryDto) {
+    return this.cultivosService.findAll(pagination);
   }
 
   @Get(":id")

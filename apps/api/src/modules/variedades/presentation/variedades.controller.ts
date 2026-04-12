@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import {
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -7,6 +7,7 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { VariedadesService } from "../application/variedades.service";
 
@@ -20,8 +21,8 @@ export class VariedadesController {
   @ApiOkResponse({
     description: "Lista de variedades."
   })
-  getVariedades() {
-    return this.variedadesService.findAll();
+  getVariedades(@Query() pagination: PaginationQueryDto) {
+    return this.variedadesService.findAll(pagination);
   }
 
   @Get(":id")

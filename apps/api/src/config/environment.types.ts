@@ -14,6 +14,8 @@ export type EnvironmentVariables = {
   DB_SSL: boolean;
   JWT_ACCESS_SECRET: string;
   JWT_ACCESS_EXPIRES_IN: string;
+  JWT_REFRESH_SECRET: string;
+  JWT_REFRESH_EXPIRES_IN: string;
 };
 
 export type AppRuntimeConfig = {
@@ -43,6 +45,8 @@ export type DatabaseRuntimeConfig = {
 export type AuthRuntimeConfig = {
   accessSecret: string;
   accessExpiresIn: string;
+  refreshSecret: string;
+  refreshExpiresIn: string;
 };
 
 export type AppConfig = {

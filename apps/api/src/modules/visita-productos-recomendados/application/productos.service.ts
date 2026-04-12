@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ProductoEntity } from "../infrastructure/persistence/entities/producto.entity";
 import { CreateProductoDto } from "../presentation/dto/create-producto.dto";
 import { UpdateProductoDto } from "../presentation/dto/update-producto.dto";
@@ -35,19 +39,18 @@ export class ProductosService {
     }
   }
 
-  async findAll() {
-    const productos = await this.productosRepository.find({
+  async findAll(pagination: PaginationQueryDto) {
+    const [productos, total] = await this.productosRepository.findAndCount({
       order: {
         name: "ASC"
       },
-      take: 500
+      skip: pagination.skip,
+      take: pagination.take
     });
 
     return createSuccessResponse(
       productos.map((producto) => this.toResponse(producto)),
-      {
-        count: productos.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 

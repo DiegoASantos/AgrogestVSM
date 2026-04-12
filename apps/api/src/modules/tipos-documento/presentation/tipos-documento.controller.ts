@@ -5,7 +5,8 @@ import {
   Get,
   Param,
   Patch,
-  Post
+  Post,
+  Query
 } from "@nestjs/common";
 import {
   ApiConflictResponse,
@@ -17,6 +18,7 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { TiposDocumentoService } from "../application/tipos-documento.service";
@@ -48,8 +50,8 @@ export class TiposDocumentoController {
   @ApiOkResponse({
     description: "Lista de tipos de documento."
   })
-  getTiposDocumento() {
-    return this.tiposDocumentoService.findAll();
+  getTiposDocumento(@Query() pagination: PaginationQueryDto) {
+    return this.tiposDocumentoService.findAll(pagination);
   }
 
   @Get(":id")

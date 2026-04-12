@@ -8,7 +8,11 @@ import { InjectRepository } from "@nestjs/typeorm";
 import type { FindOptionsWhere } from "typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { CultivoEntity } from "../../cultivos/infrastructure/persistence/entities/cultivo.entity";
 import { EtapaFenologicaEntity } from "../infrastructure/persistence/entities/etapa-fenologica.entity";
 import { CreateEtapaFenologicaDto } from "../presentation/dto/create-etapa-fenologica.dto";
@@ -44,7 +48,10 @@ export class EtapasFenologicasService {
     }
   }
 
-  async findAll(query: FindEtapasFenologicasQueryDto) {
+  async findAll(
+    query: FindEtapasFenologicasQueryDto,
+    pagination: PaginationQueryDto
+  ) {
     const where: FindOptionsWhere<EtapaFenologicaEntity> = {};
 
     if (query.cultivo_id !== undefined) {
@@ -55,22 +62,22 @@ export class EtapasFenologicasService {
       where.isActive = query.activa;
     }
 
-    const etapasFenologicas = await this.etapasFenologicasRepository.find({
-      where,
-      order: {
-        cultivoId: "ASC",
-        name: "ASC"
-      },
-      take: 500
-    });
+    const [etapasFenologicas, total] =
+      await this.etapasFenologicasRepository.findAndCount({
+        where,
+        order: {
+          cultivoId: "ASC",
+          name: "ASC"
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      });
 
     return createSuccessResponse(
       etapasFenologicas.map((etapaFenologica) =>
         this.toResponse(etapaFenologica)
       ),
-      {
-        count: etapasFenologicas.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 

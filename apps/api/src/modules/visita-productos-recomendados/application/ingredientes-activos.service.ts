@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { IngredienteActivoEntity } from "../infrastructure/persistence/entities/ingrediente-activo.entity";
 import { CreateIngredienteActivoDto } from "../presentation/dto/create-ingrediente-activo.dto";
 import { UpdateIngredienteActivoDto } from "../presentation/dto/update-ingrediente-activo.dto";
@@ -36,21 +40,21 @@ export class IngredientesActivosService {
     }
   }
 
-  async findAll() {
-    const ingredientesActivos = await this.ingredientesActivosRepository.find({
-      order: {
-        name: "ASC"
-      },
-      take: 500
-    });
+  async findAll(pagination: PaginationQueryDto) {
+    const [ingredientesActivos, total] =
+      await this.ingredientesActivosRepository.findAndCount({
+        order: {
+          name: "ASC"
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      });
 
     return createSuccessResponse(
       ingredientesActivos.map((ingredienteActivo) =>
         this.toResponse(ingredienteActivo)
       ),
-      {
-        count: ingredientesActivos.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 

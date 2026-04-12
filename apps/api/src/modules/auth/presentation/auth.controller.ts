@@ -19,6 +19,7 @@ import {
 
 import { AuthService } from "../application/auth.service";
 import { LoginDto } from "./dto/login.dto";
+import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { CurrentAuthUser } from "./decorators/current-auth-user.decorator";
 import { Public } from "./decorators/public.decorator";
 import { Roles } from "./decorators/roles.decorator";
@@ -127,6 +128,24 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Post("refresh")
+  @Public()
+  @ApiOperation({
+    summary: "Intercambia un refresh token por un nuevo par access/refresh."
+  })
+  @ApiBody({ type: RefreshTokenDto })
+  @ApiOkResponse({
+    description: "Refresh valido. Devuelve un nuevo access token y refresh rotado."
+  })
+  @ApiUnauthorizedResponse({
+    description: "Refresh token ausente, invalido o expirado."
+  })
+  @Header("Cache-Control", "no-store")
+  @HttpCode(HttpStatus.OK)
+  refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refresh(refreshTokenDto.refreshToken);
   }
 
   @Get("status")

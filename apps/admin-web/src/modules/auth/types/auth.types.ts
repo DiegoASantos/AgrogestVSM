@@ -27,6 +27,7 @@ export type AuthSessionStatus = "loading" | "guest" | "authenticated";
 
 export type AuthSession = {
   accessToken: string;
+  refreshToken: string;
   tokenType: string;
   expiresIn: string;
   user: AuthUser;

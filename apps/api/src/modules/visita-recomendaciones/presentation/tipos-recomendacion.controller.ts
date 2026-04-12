@@ -1,6 +1,7 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Query } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { RecommendationTypesService } from "../application/recommendation-types.service";
 
 @ApiTags("Tipos de Recomendacion")
@@ -17,7 +18,7 @@ export class TiposRecomendacionController {
   @ApiOkResponse({
     description: "Catalogo de tipos de recomendacion."
   })
-  getRecommendationTypes() {
-    return this.recommendationTypesService.findAll();
+  getRecommendationTypes(@Query() pagination: PaginationQueryDto) {
+    return this.recommendationTypesService.findAll(pagination);
   }
 }

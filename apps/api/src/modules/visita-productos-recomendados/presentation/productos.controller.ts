@@ -5,7 +5,8 @@ import {
   Get,
   Param,
   Patch,
-  Post
+  Post,
+  Query
 } from "@nestjs/common";
 import {
   ApiConflictResponse,
@@ -17,6 +18,7 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { ProductosService } from "../application/productos.service";
@@ -46,8 +48,8 @@ export class ProductosController {
   @ApiOkResponse({
     description: "Lista de productos."
   })
-  getProducts() {
-    return this.productosService.findAll();
+  getProducts(@Query() pagination: PaginationQueryDto) {
+    return this.productosService.findAll(pagination);
   }
 
   @Get(":id")

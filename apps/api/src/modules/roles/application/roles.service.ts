@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { RoleEntity } from "../infrastructure/persistence/entities/role.entity";
 import { CreateRoleDto } from "../presentation/dto/create-role.dto";
 import { UpdateRoleDto } from "../presentation/dto/update-role.dto";
@@ -34,17 +38,19 @@ export class RolesService {
     });
   }
 
-  async findAllAdmin() {
-    const roles = await this.rolesRepository.find({
+  async findAllAdmin(pagination: PaginationQueryDto) {
+    const [roles, total] = await this.rolesRepository.findAndCount({
       order: {
         name: "ASC"
       },
-      take: 500
+      skip: pagination.skip,
+      take: pagination.take
     });
 
-    return createSuccessResponse(roles.map((role) => this.toResponse(role)), {
-      count: roles.length
-    });
+    return createSuccessResponse(
+      roles.map((role) => this.toResponse(role)),
+      createPaginatedMeta(total, pagination.page, pagination.limit)
+    );
   }
 
   async findAdminById(id: string) {

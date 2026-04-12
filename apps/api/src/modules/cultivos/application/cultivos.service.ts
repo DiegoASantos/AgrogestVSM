@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { CultivoEntity } from "../infrastructure/persistence/entities/cultivo.entity";
 import { CreateCultivoDto } from "../presentation/dto/create-cultivo.dto";
 import { UpdateCultivoDto } from "../presentation/dto/update-cultivo.dto";
@@ -34,19 +38,18 @@ export class CultivosService {
     }
   }
 
-  async findAll() {
-    const cultivos = await this.cultivosRepository.find({
+  async findAll(pagination: PaginationQueryDto) {
+    const [cultivos, total] = await this.cultivosRepository.findAndCount({
       order: {
         name: "ASC"
       },
-      take: 500
+      skip: pagination.skip,
+      take: pagination.take
     });
 
     return createSuccessResponse(
       cultivos.map((cultivo) => this.toResponse(cultivo)),
-      {
-        count: cultivos.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 

@@ -10,7 +10,9 @@ export const authConfig = registerAs(
 
     return {
       accessSecret: environment.JWT_ACCESS_SECRET,
-      accessExpiresIn: environment.JWT_ACCESS_EXPIRES_IN
+      accessExpiresIn: environment.JWT_ACCESS_EXPIRES_IN,
+      refreshSecret: environment.JWT_REFRESH_SECRET,
+      refreshExpiresIn: environment.JWT_REFRESH_EXPIRES_IN
     };
   }
 );

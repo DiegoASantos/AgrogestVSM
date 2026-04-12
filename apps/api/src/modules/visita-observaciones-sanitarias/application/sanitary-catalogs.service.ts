@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { NivelIncidenciaEntity } from "../infrastructure/persistence/entities/nivel-incidencia.entity";
 import { PlagaEnfermedadEntity } from "../infrastructure/persistence/entities/plaga-enfermedad.entity";
 import { CreateNivelIncidenciaDto } from "../presentation/dto/create-nivel-incidencia.dto";
@@ -23,20 +27,20 @@ export class SanitaryCatalogsService {
     private readonly nivelesIncidenciaRepository: Repository<NivelIncidenciaEntity>
   ) {}
 
-  async findAllPestDiseases() {
-    const pestDiseases = await this.plagasEnfermedadesRepository.find({
-      order: {
-        type: "ASC",
-        name: "ASC"
-      },
-      take: 500
-    });
+  async findAllPestDiseases(pagination: PaginationQueryDto) {
+    const [pestDiseases, total] =
+      await this.plagasEnfermedadesRepository.findAndCount({
+        order: {
+          type: "ASC",
+          name: "ASC"
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      });
 
     return createSuccessResponse(
       pestDiseases.map((pestDisease) => this.toPestDiseaseResponse(pestDisease)),
-      {
-        count: pestDiseases.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 
@@ -113,22 +117,22 @@ export class SanitaryCatalogsService {
     return createSuccessResponse(this.toPestDiseaseResponse(savedPestDisease));
   }
 
-  async findAllIncidenceLevels() {
-    const incidenceLevels = await this.nivelesIncidenciaRepository.find({
-      order: {
-        sortOrder: "ASC",
-        id: "ASC"
-      },
-      take: 500
-    });
+  async findAllIncidenceLevels(pagination: PaginationQueryDto) {
+    const [incidenceLevels, total] =
+      await this.nivelesIncidenciaRepository.findAndCount({
+        order: {
+          sortOrder: "ASC",
+          id: "ASC"
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      });
 
     return createSuccessResponse(
       incidenceLevels.map((incidenceLevel) =>
         this.toIncidenceLevelResponse(incidenceLevel)
       ),
-      {
-        count: incidenceLevels.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 

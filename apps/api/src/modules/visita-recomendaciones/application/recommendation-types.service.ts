@@ -2,7 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { TipoRecomendacionEntity } from "../infrastructure/persistence/entities/tipo-recomendacion.entity";
 
 @Injectable()
@@ -12,13 +16,15 @@ export class RecommendationTypesService {
     private readonly tiposRecomendacionRepository: Repository<TipoRecomendacionEntity>
   ) {}
 
-  async findAll() {
-    const recommendationTypes = await this.tiposRecomendacionRepository.find({
-      order: {
-        name: "ASC"
-      },
-      take: 500
-    });
+  async findAll(pagination: PaginationQueryDto) {
+    const [recommendationTypes, total] =
+      await this.tiposRecomendacionRepository.findAndCount({
+        order: {
+          name: "ASC"
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      });
 
     return createSuccessResponse(
       recommendationTypes.map((recommendationType) => ({
@@ -26,9 +32,7 @@ export class RecommendationTypesService {
         name: recommendationType.name,
         isActive: recommendationType.isActive
       })),
-      {
-        count: recommendationTypes.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 }

@@ -2,7 +2,11 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { VariedadEntity } from "../infrastructure/persistence/entities/variedad.entity";
 
 @Injectable()
@@ -12,20 +16,19 @@ export class VariedadesService {
     private readonly variedadesRepository: Repository<VariedadEntity>
   ) {}
 
-  async findAll() {
-    const variedades = await this.variedadesRepository.find({
+  async findAll(pagination: PaginationQueryDto) {
+    const [variedades, total] = await this.variedadesRepository.findAndCount({
       order: {
         cultivoId: "ASC",
         name: "ASC"
       },
-      take: 500
+      skip: pagination.skip,
+      take: pagination.take
     });
 
     return createSuccessResponse(
       variedades.map((variedad) => this.toResponse(variedad)),
-      {
-        count: variedades.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 

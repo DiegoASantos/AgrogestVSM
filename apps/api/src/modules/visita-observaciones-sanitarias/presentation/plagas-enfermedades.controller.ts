@@ -5,7 +5,8 @@ import {
   Get,
   Param,
   Patch,
-  Post
+  Post,
+  Query
 } from "@nestjs/common";
 import {
   ApiConflictResponse,
@@ -17,6 +18,7 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { SanitaryCatalogsService } from "../application/sanitary-catalogs.service";
@@ -56,8 +58,8 @@ export class PlagasEnfermedadesController {
   @ApiOkResponse({
     description: "Catalogo de plagas y enfermedades."
   })
-  getPestDiseases() {
-    return this.sanitaryCatalogsService.findAllPestDiseases();
+  getPestDiseases(@Query() pagination: PaginationQueryDto) {
+    return this.sanitaryCatalogsService.findAllPestDiseases(pagination);
   }
 
   @Get(":id")

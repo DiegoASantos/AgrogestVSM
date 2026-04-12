@@ -1,7 +1,7 @@
 import type {
   GeoJsonMultiPolygonGeometry,
   GeoJsonPointGeometry
-} from "../../../shared/components/admin-map";
+} from "../../../shared/types/geo-json.types";
 
 export type ParcelaMapApiItem = {
   id: string;

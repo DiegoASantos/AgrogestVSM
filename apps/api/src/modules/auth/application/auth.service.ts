@@ -1,13 +1,20 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
+import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
 import { compare } from "bcrypt";
+
+type JwtExpiresIn = NonNullable<JwtSignOptions["expiresIn"]>;
 
 import { createSuccessResponse } from "../../../common/http/api-response";
 import { AppConfigService } from "../../../config/app-config.service";
 import { RolesService } from "../../roles/application/roles.service";
 import { UsersService } from "../../users/application/users.service";
 import { LoginDto } from "../presentation/dto/login.dto";
-import type { AccessTokenPayload, LoginResponse } from "../types/auth.types";
+import type {
+  AccessTokenPayload,
+  LoginResponse,
+  RefreshResponse,
+  RefreshTokenPayload
+} from "../types/auth.types";
 import { toAccessTokenPayload, toAuthenticatedUserProfile } from "./auth.mapper";
 import { UserRolesService } from "./user-roles.service";
 
@@ -44,13 +51,51 @@ export class AuthService {
     }
 
     const accessTokenPayload = toAccessTokenPayload(user);
-    const accessToken = await this.jwtService.signAsync(accessTokenPayload);
+    const accessToken = await this.signAccessToken(accessTokenPayload);
+    const refreshToken = await this.signRefreshToken(user.publicId);
 
     return createSuccessResponse<LoginResponse>({
       accessToken,
+      refreshToken,
       tokenType: "Bearer",
       expiresIn: this.appConfig.auth.accessExpiresIn,
+      refreshExpiresIn: this.appConfig.auth.refreshExpiresIn,
       user: toAuthenticatedUserProfile(user)
+    });
+  }
+
+  async refresh(refreshToken: string) {
+    let payload: RefreshTokenPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
+        refreshToken,
+        { secret: this.appConfig.auth.refreshSecret }
+      );
+    } catch {
+      throw new UnauthorizedException("Invalid refresh token.");
+    }
+
+    if (!payload || payload.type !== "refresh" || typeof payload.sub !== "string") {
+      throw new UnauthorizedException("Invalid refresh token.");
+    }
+
+    const user = await this.usersService.findByPublicIdWithRoles(payload.sub);
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException("Authentication is required.");
+    }
+
+    const accessTokenPayload = toAccessTokenPayload(user);
+    const accessToken = await this.signAccessToken(accessTokenPayload);
+    const rotatedRefreshToken = await this.signRefreshToken(user.publicId);
+
+    return createSuccessResponse<RefreshResponse>({
+      accessToken,
+      refreshToken: rotatedRefreshToken,
+      tokenType: "Bearer",
+      expiresIn: this.appConfig.auth.accessExpiresIn,
+      refreshExpiresIn: this.appConfig.auth.refreshExpiresIn
     });
   }
 
@@ -64,5 +109,20 @@ export class AuthService {
     }
 
     return createSuccessResponse(toAuthenticatedUserProfile(user));
+  }
+
+  private signAccessToken(payload: AccessTokenPayload): Promise<string> {
+    return this.jwtService.signAsync(payload, {
+      secret: this.appConfig.auth.accessSecret,
+      expiresIn: this.appConfig.auth.accessExpiresIn as JwtExpiresIn
+    });
+  }
+
+  private signRefreshToken(publicId: string): Promise<string> {
+    const payload: RefreshTokenPayload = { sub: publicId, type: "refresh" };
+    return this.jwtService.signAsync(payload, {
+      secret: this.appConfig.auth.refreshSecret,
+      expiresIn: this.appConfig.auth.refreshExpiresIn as JwtExpiresIn
+    });
   }
 }

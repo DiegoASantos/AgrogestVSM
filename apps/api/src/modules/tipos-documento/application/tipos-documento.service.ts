@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { TipoDocumentoEntity } from "../infrastructure/persistence/entities/tipo-documento.entity";
 import { CreateTipoDocumentoDto } from "../presentation/dto/create-tipo-documento.dto";
 import { UpdateTipoDocumentoDto } from "../presentation/dto/update-tipo-documento.dto";
@@ -34,19 +38,19 @@ export class TiposDocumentoService {
     }
   }
 
-  async findAll() {
-    const tiposDocumento = await this.tiposDocumentoRepository.find({
-      order: {
-        name: "ASC"
-      },
-      take: 500
-    });
+  async findAll(pagination: PaginationQueryDto) {
+    const [tiposDocumento, total] =
+      await this.tiposDocumentoRepository.findAndCount({
+        order: {
+          name: "ASC"
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      });
 
     return createSuccessResponse(
       tiposDocumento.map((tipoDocumento) => this.toResponse(tipoDocumento)),
-      {
-        count: tiposDocumento.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 

@@ -5,7 +5,8 @@ import {
   DEFAULT_DB_PORT,
   DEFAULT_DB_SCHEMA,
   DEFAULT_DB_USER,
-  DEFAULT_JWT_ACCESS_EXPIRES_IN
+  DEFAULT_JWT_ACCESS_EXPIRES_IN,
+  DEFAULT_JWT_REFRESH_EXPIRES_IN
 } from "../common/constants/application.constants";
 import type { EnvironmentVariables, NodeEnvironment } from "./environment.types";
 
@@ -36,10 +37,15 @@ function buildEnvironmentVariables(
     DB_PASSWORD: getRequiredString(source.DB_PASSWORD, "DB_PASSWORD"),
     DB_SCHEMA: getString(source.DB_SCHEMA, DEFAULT_DB_SCHEMA),
     DB_SSL: parseBoolean(source.DB_SSL, false),
-    JWT_ACCESS_SECRET: getJwtSecret(source.JWT_ACCESS_SECRET),
+    JWT_ACCESS_SECRET: getJwtSecret(source.JWT_ACCESS_SECRET, "JWT_ACCESS_SECRET"),
     JWT_ACCESS_EXPIRES_IN: getString(
       source.JWT_ACCESS_EXPIRES_IN,
       DEFAULT_JWT_ACCESS_EXPIRES_IN
+    ),
+    JWT_REFRESH_SECRET: getJwtSecret(source.JWT_REFRESH_SECRET, "JWT_REFRESH_SECRET"),
+    JWT_REFRESH_EXPIRES_IN: getString(
+      source.JWT_REFRESH_EXPIRES_IN,
+      DEFAULT_JWT_REFRESH_EXPIRES_IN
     )
   };
 }
@@ -98,8 +104,8 @@ function getRequiredString(value: unknown, variableName: string): string {
   return normalizedValue;
 }
 
-function getJwtSecret(value: unknown): string {
-  const normalizedValue = getRequiredString(value, "JWT_ACCESS_SECRET");
+function getJwtSecret(value: unknown, variableName: string): string {
+  const normalizedValue = getRequiredString(value, variableName);
   const insecureSecrets = new Set([
     "change-this-jwt-secret",
     "changeme",
@@ -109,11 +115,11 @@ function getJwtSecret(value: unknown): string {
   ]);
 
   if (normalizedValue.length < 32) {
-    throw new Error("JWT_ACCESS_SECRET must be at least 32 characters long.");
+    throw new Error(`${variableName} must be at least 32 characters long.`);
   }
 
   if (insecureSecrets.has(normalizedValue.toLowerCase())) {
-    throw new Error("JWT_ACCESS_SECRET must not use a default or predictable value.");
+    throw new Error(`${variableName} must not use a default or predictable value.`);
   }
 
   return normalizedValue;

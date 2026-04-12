@@ -3,9 +3,19 @@ import type { AuthRole, AuthSession, AuthUser, LoginValues } from "../types/auth
 
 type LoginApiResponse = {
   accessToken: string;
+  refreshToken: string;
   tokenType: string;
   expiresIn: string;
+  refreshExpiresIn: string;
   user: AuthUserApiResponse;
+};
+
+type RefreshApiResponse = {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: string;
+  refreshExpiresIn: string;
 };
 
 type AuthUserApiResponse = {
@@ -29,10 +39,18 @@ export const authService = {
 
     return {
       accessToken: response.accessToken,
+      refreshToken: response.refreshToken,
       tokenType: response.tokenType,
       expiresIn: response.expiresIn,
       user
     };
+  },
+
+  async refresh(refreshToken: string): Promise<RefreshApiResponse> {
+    return apiRequest<RefreshApiResponse>("/auth/refresh", {
+      method: "POST",
+      body: { refreshToken }
+    });
   },
 
   async getCurrentUser(accessToken: string, tokenType = "Bearer") {

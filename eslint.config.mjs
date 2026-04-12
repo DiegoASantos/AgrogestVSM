@@ -14,7 +14,10 @@ export default [
       "**/.qodo/**",
       "**/coverage/**",
       "**/*.d.ts",
-      "**/*.tsbuildinfo"
+      "**/*.tsbuildinfo",
+      "apps/admin-web/e2e/**",
+      "apps/admin-web/playwright.config.ts",
+      "tools/load-tests/**"
     ]
   },
   js.configs.recommended,

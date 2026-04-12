@@ -5,7 +5,8 @@ import {
   Get,
   Param,
   Patch,
-  Post
+  Post,
+  Query
 } from "@nestjs/common";
 import {
   ApiConflictResponse,
@@ -17,6 +18,7 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { RolesService } from "../application/roles.service";
@@ -46,8 +48,8 @@ export class RolesController {
   @ApiOkResponse({
     description: "Lista de roles."
   })
-  getRoles() {
-    return this.rolesService.findAllAdmin();
+  getRoles(@Query() pagination: PaginationQueryDto) {
+    return this.rolesService.findAllAdmin(pagination);
   }
 
   @Get(":id")

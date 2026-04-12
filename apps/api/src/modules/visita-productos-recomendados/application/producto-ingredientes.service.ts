@@ -6,7 +6,11 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { IngredienteActivoEntity } from "../infrastructure/persistence/entities/ingrediente-activo.entity";
 import { ProductoIngredienteEntity } from "../infrastructure/persistence/entities/producto-ingrediente.entity";
 import { ProductoEntity } from "../infrastructure/persistence/entities/producto.entity";
@@ -50,28 +54,33 @@ export class ProductoIngredientesService {
     }
   }
 
-  async findAll(query: FindProductoIngredientesQueryDto) {
-    const productoIngredientes = await this.productoIngredientesRepository.find({
-      relations: {
-        producto: true,
-        ingredienteActivo: true
-      },
-      where: {
-        ...(query.producto_id ? { productoId: query.producto_id } : {}),
-        ...(query.ingrediente_activo_id
-          ? { ingredientActiveId: query.ingrediente_activo_id }
-          : {})
-      },
-      order: {
-        producto: {
-          name: "ASC"
+  async findAll(
+    query: FindProductoIngredientesQueryDto,
+    pagination: PaginationQueryDto
+  ) {
+    const [productoIngredientes, total] =
+      await this.productoIngredientesRepository.findAndCount({
+        relations: {
+          producto: true,
+          ingredienteActivo: true
         },
-        ingredienteActivo: {
-          name: "ASC"
-        }
-      },
-      take: 500
-    });
+        where: {
+          ...(query.producto_id ? { productoId: query.producto_id } : {}),
+          ...(query.ingrediente_activo_id
+            ? { ingredientActiveId: query.ingrediente_activo_id }
+            : {})
+        },
+        order: {
+          producto: {
+            name: "ASC"
+          },
+          ingredienteActivo: {
+            name: "ASC"
+          }
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      });
 
     return createSuccessResponse(
       productoIngredientes.map((productoIngrediente) =>
@@ -81,9 +90,7 @@ export class ProductoIngredientesService {
           productoIngrediente.ingredienteActivo
         )
       ),
-      {
-        count: productoIngredientes.length
-      }
+      createPaginatedMeta(total, pagination.page, pagination.limit)
     );
   }
 

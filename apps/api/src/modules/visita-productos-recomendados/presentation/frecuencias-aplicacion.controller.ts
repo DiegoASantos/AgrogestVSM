@@ -1,6 +1,7 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Query } from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ProductCatalogsService } from "../application/product-catalogs.service";
 
 @ApiTags("Frecuencias de Aplicacion")
@@ -17,7 +18,7 @@ export class FrecuenciasAplicacionController {
   @ApiOkResponse({
     description: "Catalogo de frecuencias de aplicacion."
   })
-  getApplicationFrequencies() {
-    return this.productCatalogsService.findAllApplicationFrequencies();
+  getApplicationFrequencies(@Query() pagination: PaginationQueryDto) {
+    return this.productCatalogsService.findAllApplicationFrequencies(pagination);
   }
 }
