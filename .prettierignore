@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+.expo
+.expo-shared
+.pnpm-store
+.qodo
+coverage
+*.tsbuildinfo
+pnpm-lock.yaml
+

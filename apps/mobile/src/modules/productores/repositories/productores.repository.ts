@@ -1,0 +1,70 @@
+import { getDatabase } from "../../../shared/database/connection";
+import { fromSqliteBoolean } from "../../../shared/database/sqlite-utils";
+import type { Productor } from "../types";
+
+type ProductorRow = {
+  id: string;
+  public_id: string;
+  document_type_id: number;
+  document_number: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+};
+
+const PRODUCTOR_COLUMNS = `
+  id,
+  public_id,
+  document_type_id,
+  document_number,
+  phone,
+  email,
+  address,
+  is_active,
+  created_at,
+  updated_at
+`;
+
+export const productoresRepository = {
+  getAll() {
+    const db = getDatabase();
+    const rows = db.getAllSync<ProductorRow>(
+      `SELECT ${PRODUCTOR_COLUMNS}
+       FROM productores
+       ORDER BY document_number ASC, id ASC`
+    );
+
+    return rows.map(mapProductorRow);
+  },
+
+  getById(id: string) {
+    const db = getDatabase();
+    const row = db.getFirstSync<ProductorRow>(
+      `SELECT ${PRODUCTOR_COLUMNS}
+       FROM productores
+       WHERE id = ?
+       LIMIT 1`,
+      id
+    );
+
+    return row ? mapProductorRow(row) : null;
+  }
+};
+
+function mapProductorRow(row: ProductorRow): Productor {
+  return {
+    id: row.id,
+    publicId: row.public_id,
+    documentTypeId: row.document_type_id,
+    documentNumber: row.document_number,
+    phone: row.phone,
+    email: row.email,
+    address: row.address,
+    isActive: fromSqliteBoolean(row.is_active),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}

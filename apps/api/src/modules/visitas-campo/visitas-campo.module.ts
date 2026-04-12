@@ -1,0 +1,44 @@
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+
+import { CampaniaEntity } from "../campanias/infrastructure/persistence/entities/campania.entity";
+import { CultivoEntity } from "../cultivos/infrastructure/persistence/entities/cultivo.entity";
+import { ParcelaEntity } from "../parcelas/infrastructure/persistence/entities/parcela.entity";
+import { ProductorEntity } from "../productores/infrastructure/persistence/entities/productor.entity";
+import { SectorEntity } from "../sectores/infrastructure/persistence/entities/sector.entity";
+import { UserEntity } from "../users/infrastructure/persistence/entities/user.entity";
+import { VariedadEntity } from "../variedades/infrastructure/persistence/entities/variedad.entity";
+import { VisitaEvaluacionEntity } from "../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
+import { VisitaObservacionSanitariaEntity } from "../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
+import { VisitaProductoRecomendadoEntity } from "../visita-productos-recomendados/infrastructure/persistence/entities/visita-producto-recomendado.entity";
+import { VisitaRecomendacionEntity } from "../visita-recomendaciones/infrastructure/persistence/entities/visita-recomendacion.entity";
+import { EtapasFenologicasService } from "./application/etapas-fenologicas.service";
+import { VisitasCampoService } from "./application/visitas-campo.service";
+import { EtapaFenologicaEntity } from "./infrastructure/persistence/entities/etapa-fenologica.entity";
+import { VisitaCampoEntity } from "./infrastructure/persistence/entities/visita-campo.entity";
+import { EtapasFenologicasController } from "./presentation/etapas-fenologicas.controller";
+import { VisitasCampoController } from "./presentation/visitas-campo.controller";
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      VisitaCampoEntity,
+      EtapaFenologicaEntity,
+      CultivoEntity,
+      VariedadEntity,
+      ParcelaEntity,
+      CampaniaEntity,
+      UserEntity,
+      SectorEntity,
+      ProductorEntity,
+      VisitaEvaluacionEntity,
+      VisitaObservacionSanitariaEntity,
+      VisitaRecomendacionEntity,
+      VisitaProductoRecomendadoEntity
+    ])
+  ],
+  controllers: [VisitasCampoController, EtapasFenologicasController],
+  providers: [VisitasCampoService, EtapasFenologicasService],
+  exports: [TypeOrmModule, VisitasCampoService, EtapasFenologicasService]
+})
+export class VisitasCampoModule {}
