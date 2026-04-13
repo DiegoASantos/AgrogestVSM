@@ -36,6 +36,10 @@ export const visitasCampoService = {
     });
   },
 
+  async getByParcelaId(parcelaId: string) {
+    return visitasCampoRepository.getByParcelaId(parcelaId);
+  },
+
   async getById(id: string) {
     const visita = visitasCampoRepository.getById(id);
 

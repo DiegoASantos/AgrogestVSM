@@ -113,6 +113,21 @@ export type ProductorVisitasHistory = {
   count: number;
 };
 
+export type ParcelaVisitadaPorAgronomo = {
+  parcelaId: string;
+  parcelaLabel: string;
+  visitCount: number;
+  firstVisitDate: string;
+  lastVisitDate: string;
+};
+
+export type ParcelasVisitadasPorAgronomoResponse = {
+  agronomistUserId: string;
+  agronomistLabel: string;
+  parcelas: ParcelaVisitadaPorAgronomo[];
+  totalVisitas: number;
+};
+
 export type ParcelaVisitasHistory = {
   parcela: {
     id: string;

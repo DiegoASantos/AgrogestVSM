@@ -13,13 +13,15 @@ import type {
   CropLookupItem,
   IncidenceLevelLookupItem,
   ParcelaLookupItem,
+  ParcelasVisitadasPorAgronomoResponse,
+  ParcelaVisitadaPorAgronomo,
+  ParcelaVisitasHistory,
   PestDiseaseLookupItem,
   PhenologicalStageLookupItem,
   ProductLookupItem,
   ProductorVisitasHistory,
   RecommendationTypeLookupItem,
   VarietyLookupItem,
-  ParcelaVisitasHistory,
   VisitaCampo,
   VisitaDetailData,
   VisitaEvaluacion,
@@ -208,6 +210,65 @@ export const visitasService = {
     return {
       ...response.data,
       count: readCount(response, response.data.visitas.length)
+    };
+  },
+
+  async getParcelasVisitadasByAgronomo(
+    session: AuthSessionInput,
+    agronomistUserId: string,
+    agronomistLabel: string
+  ): Promise<ParcelasVisitadasPorAgronomoResponse> {
+    const headers = createAuthHeaders(session.accessToken, session.tokenType);
+    const path = `/visitas-campo?agronomo_usuario_id=${encodeURIComponent(
+      agronomistUserId
+    )}`;
+    const [visitas, parcelas] = await Promise.all([
+      fetchAllPaginated<VisitaCampo>(path, { headers }),
+      fetchAllPaginated<ParcelaApiItem>("/parcelas", { headers })
+    ]);
+
+    const parcelaLabels = new Map(
+      parcelas.map((parcela) => [parcela.id, buildParcelaLabel(parcela)])
+    );
+
+    const grouped = new Map<string, ParcelaVisitadaPorAgronomo>();
+
+    for (const visita of visitas) {
+      const existing = grouped.get(visita.parcelaId);
+
+      if (existing) {
+        existing.visitCount += 1;
+
+        if (visita.visitDate > existing.lastVisitDate) {
+          existing.lastVisitDate = visita.visitDate;
+        }
+
+        if (visita.visitDate < existing.firstVisitDate) {
+          existing.firstVisitDate = visita.visitDate;
+        }
+
+        continue;
+      }
+
+      grouped.set(visita.parcelaId, {
+        parcelaId: visita.parcelaId,
+        parcelaLabel:
+          parcelaLabels.get(visita.parcelaId) ?? `Parcela #${visita.parcelaId}`,
+        visitCount: 1,
+        firstVisitDate: visita.visitDate,
+        lastVisitDate: visita.visitDate
+      });
+    }
+
+    const sortedParcelas = [...grouped.values()].sort((leftParcela, rightParcela) =>
+      rightParcela.lastVisitDate.localeCompare(leftParcela.lastVisitDate)
+    );
+
+    return {
+      agronomistUserId,
+      agronomistLabel,
+      parcelas: sortedParcelas,
+      totalVisitas: visitas.length
     };
   },
 

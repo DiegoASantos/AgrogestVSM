@@ -155,6 +155,19 @@ export const visitasCampoRepository = {
     return rows.map(mapVisitaCampoRow);
   },
 
+  getByParcelaId(parcelaId: string) {
+    const db = getDatabase();
+    const rows = db.getAllSync<VisitaCampoRow>(
+      `SELECT ${VISITA_COLUMNS}
+       FROM visitas_campo
+       WHERE parcela_id = ? AND is_active = 1
+       ORDER BY visit_date DESC, start_visit_time DESC, created_at DESC`,
+      parcelaId
+    );
+
+    return rows.map(mapVisitaCampoRow);
+  },
+
   getById(localId: string) {
     const db = getDatabase();
     const row = db.getFirstSync<VisitaCampoRow>(

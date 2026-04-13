@@ -102,6 +102,12 @@ export function VisitasOverview() {
               >
                 Abrir mapa
               </Link>
+              <Link
+                className="ui-button ui-button--secondary"
+                href="/visitas/parcelas-visitadas"
+              >
+                Parcelas visitadas por agronomo
+              </Link>
               <Link className="ui-button ui-button--secondary" href={adminRoutes.dashboard}>
                 Volver a dashboard
               </Link>

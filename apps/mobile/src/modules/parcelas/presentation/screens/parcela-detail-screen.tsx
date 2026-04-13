@@ -141,6 +141,16 @@ export function ParcelaDetailScreen() {
 
             <View style={styles.actions}>
               <AppButton
+                label="Historial de visitas"
+                onPress={() =>
+                  router.push({
+                    pathname: "/parcelas/[id]/historial",
+                    params: { id: parcela.id }
+                  })
+                }
+                variant="outline"
+              />
+              <AppButton
                 label="Nueva visita de campo"
                 onPress={() =>
                   router.push({
