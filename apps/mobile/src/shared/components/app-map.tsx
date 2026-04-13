@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import MapView, { Marker, Polygon } from "react-native-maps";
 
@@ -19,6 +19,7 @@ const DEFAULT_POLYGON_STROKE = theme.colors.primary;
 const DEFAULT_POLYGON_FILL = "rgba(45, 106, 79, 0.18)";
 
 type SelectedFeature = {
+  key: string;
   title?: string;
   description?: string;
 } | null;
@@ -29,7 +30,7 @@ export function AppMap({
   minHeight = 280,
   emptyMessage = "No hay geodatos disponibles."
 }: AppMapProps) {
-  const [selectedFeature, setSelectedFeature] = useState<SelectedFeature>(null);
+  const [selectedFeatureKey, setSelectedFeatureKey] = useState<string | null>(null);
   const hasFeatures = points.length > 0 || polygons.length > 0;
   const region = useMemo(
     () =>
@@ -47,22 +48,12 @@ export function AppMap({
       }),
     [points, polygons]
   );
-
-  useEffect(() => {
-    if (points[0]) {
-      setSelectedFeature(buildSelectedFeature(points[0].title, points[0].description));
-      return;
-    }
-
-    if (polygons[0]) {
-      setSelectedFeature(
-        buildSelectedFeature(polygons[0].title, polygons[0].description)
-      );
-      return;
-    }
-
-    setSelectedFeature(null);
-  }, [featureKey, points, polygons]);
+  const selectedFeature = useMemo(
+    () =>
+      resolveSelectedFeature(selectedFeatureKey, points, polygons) ??
+      getDefaultSelectedFeature(points, polygons),
+    [points, polygons, selectedFeatureKey]
+  );
 
   return (
     <View style={styles.wrapper}>
@@ -76,9 +67,7 @@ export function AppMap({
                 holes={shape.holes.length > 0 ? shape.holes : undefined}
                 key={`${polygon.id}-${index}`}
                 onPress={() =>
-                  setSelectedFeature(
-                    buildSelectedFeature(polygon.title, polygon.description)
-                  )
+                  setSelectedFeatureKey(`polygon:${polygon.id}`)
                 }
                 strokeColor={polygon.strokeColor ?? DEFAULT_POLYGON_STROKE}
                 tappable
@@ -94,9 +83,7 @@ export function AppMap({
               }}
               description={point.description}
               key={point.id}
-              onPress={() =>
-                setSelectedFeature(buildSelectedFeature(point.title, point.description))
-              }
+              onPress={() => setSelectedFeatureKey(`point:${point.id}`)}
               pinColor={point.pinColor ?? DEFAULT_POINT_COLOR}
               title={point.title}
             />
@@ -161,13 +148,68 @@ const styles = StyleSheet.create({
   }
 });
 
-function buildSelectedFeature(title?: string, description?: string): SelectedFeature {
+function buildSelectedFeature(
+  key: string,
+  title?: string,
+  description?: string
+): SelectedFeature {
   if (!title && !description) {
     return null;
   }
 
   return {
+    key,
     title,
     description
   };
+}
+
+function getDefaultSelectedFeature(points: AppMapProps["points"], polygons: AppMapProps["polygons"]) {
+  if (points?.[0]) {
+    return buildSelectedFeature(
+      `point:${points[0].id}`,
+      points[0].title,
+      points[0].description
+    );
+  }
+
+  if (polygons?.[0]) {
+    return buildSelectedFeature(
+      `polygon:${polygons[0].id}`,
+      polygons[0].title,
+      polygons[0].description
+    );
+  }
+
+  return null;
+}
+
+function resolveSelectedFeature(
+  key: string | null,
+  points: AppMapProps["points"],
+  polygons: AppMapProps["polygons"]
+) {
+  if (!key) {
+    return null;
+  }
+
+  if (key.startsWith("point:")) {
+    const pointId = key.slice("point:".length);
+    const point = points?.find((item) => item.id === pointId);
+
+    return point
+      ? buildSelectedFeature(key, point.title, point.description)
+      : null;
+  }
+
+  if (key.startsWith("polygon:")) {
+    const polygonId = key.slice("polygon:".length);
+    const polygon = polygons?.find((item) => item.id === polygonId);
+
+    return polygon
+      ? buildSelectedFeature(key, polygon.title, polygon.description)
+      : null;
+  }
+
+  return null;
 }

@@ -1,5 +1,9 @@
 import type { AuthSession } from "../../auth/types/auth.types";
-import { apiRequest, createAuthHeaders } from "../../../shared/services";
+import {
+  apiRequest,
+  createAuthHeaders,
+  fetchAllPaginated
+} from "../../../shared/services";
 import type {
   ActiveIngredientItem,
   ActiveIngredientPayload,
@@ -13,7 +17,7 @@ type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 
 export const productFormulationsService = {
   getProducts(session: AuthSessionInput) {
-    return apiRequest<ProductItem[]>("/productos", {
+    return fetchAllPaginated<ProductItem>("/productos", {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
     });
   },
@@ -46,7 +50,7 @@ export const productFormulationsService = {
   },
 
   getActiveIngredients(session: AuthSessionInput) {
-    return apiRequest<ActiveIngredientItem[]>("/ingredientes-activos", {
+    return fetchAllPaginated<ActiveIngredientItem>("/ingredientes-activos", {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
     });
   },
@@ -103,7 +107,7 @@ export const productFormulationsService = {
         ? `/producto-ingredientes?${searchParams.toString()}`
         : "/producto-ingredientes";
 
-    return apiRequest<ProductIngredientItem[]>(path, {
+    return fetchAllPaginated<ProductIngredientItem>(path, {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
     });
   },

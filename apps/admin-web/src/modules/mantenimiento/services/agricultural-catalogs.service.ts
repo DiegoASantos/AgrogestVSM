@@ -2,6 +2,7 @@ import type { AuthSession } from "../../auth/types/auth.types";
 import {
   apiRequest,
   createAuthHeaders,
+  fetchAllPaginated,
   type ApiRequestOptions
 } from "../../../shared/services";
 import type {
@@ -71,7 +72,7 @@ type TipoDocumentoApiItem = {
 
 export const agriculturalCatalogsService = {
   async getCultivos(session: AuthSessionInput): Promise<CultivoCatalogItem[]> {
-    const items = await request<CultivoApiItem[]>(session, "/cultivos");
+    const items = await requestAll<CultivoApiItem>(session, "/cultivos");
 
     return items.map((item) => ({
       id: item.id,
@@ -125,7 +126,7 @@ export const agriculturalCatalogsService = {
   async getCampanias(
     session: AuthSessionInput
   ): Promise<CampaniaCatalogItem[]> {
-    const items = await request<CampaniaApiItem[]>(session, "/campanias");
+    const items = await requestAll<CampaniaApiItem>(session, "/campanias");
 
     return items.map(mapCampaniaItem);
   },
@@ -164,7 +165,7 @@ export const agriculturalCatalogsService = {
   async getEtapasFenologicas(
     session: AuthSessionInput
   ): Promise<EtapaFenologicaCatalogItem[]> {
-    const items = await request<EtapaFenologicaApiItem[]>(
+    const items = await requestAll<EtapaFenologicaApiItem>(
       session,
       "/etapas-fenologicas"
     );
@@ -232,7 +233,7 @@ export const agriculturalCatalogsService = {
   async getNivelesIncidencia(
     session: AuthSessionInput
   ): Promise<NivelIncidenciaCatalogItem[]> {
-    const items = await request<NivelIncidenciaApiItem[]>(
+    const items = await requestAll<NivelIncidenciaApiItem>(
       session,
       "/niveles-incidencia"
     );
@@ -294,7 +295,7 @@ export const agriculturalCatalogsService = {
   async getPlagasEnfermedades(
     session: AuthSessionInput
   ): Promise<PlagaEnfermedadCatalogItem[]> {
-    const items = await request<PlagaEnfermedadApiItem[]>(
+    const items = await requestAll<PlagaEnfermedadApiItem>(
       session,
       "/plagas-enfermedades"
     );
@@ -362,7 +363,7 @@ export const agriculturalCatalogsService = {
   async getTiposDocumento(
     session: AuthSessionInput
   ): Promise<TipoDocumentoCatalogItem[]> {
-    const items = await request<TipoDocumentoApiItem[]>(
+    const items = await requestAll<TipoDocumentoApiItem>(
       session,
       "/tipos-documento"
     );
@@ -444,6 +445,15 @@ async function request<T>(
       ...createAuthHeaders(session.accessToken, session.tokenType),
       ...(options.headers ?? {})
     }
+  });
+}
+
+async function requestAll<T>(
+  session: AuthSessionInput,
+  path: string
+): Promise<T[]> {
+  return fetchAllPaginated<T>(path, {
+    headers: createAuthHeaders(session.accessToken, session.tokenType)
   });
 }
 

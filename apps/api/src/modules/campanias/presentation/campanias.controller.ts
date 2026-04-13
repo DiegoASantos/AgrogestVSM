@@ -20,7 +20,6 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
-import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { CampaniasService } from "../application/campanias.service";
@@ -66,11 +65,8 @@ export class CampaniasController {
   @ApiOkResponse({
     description: "Lista de campanias."
   })
-  getCampanias(
-    @Query() query: FindCampaniasQueryDto,
-    @Query() pagination: PaginationQueryDto
-  ) {
-    return this.campaniasService.findAll(query, pagination);
+  getCampanias(@Query() query: FindCampaniasQueryDto) {
+    return this.campaniasService.findAll(query, query);
   }
 
   @Get(":id")

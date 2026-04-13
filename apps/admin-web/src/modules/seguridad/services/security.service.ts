@@ -1,5 +1,9 @@
 import type { AuthSession } from "../../auth/types/auth.types";
-import { apiRequest, createAuthHeaders } from "../../../shared/services";
+import {
+  apiRequest,
+  createAuthHeaders,
+  fetchAllPaginated
+} from "../../../shared/services";
 import type {
   SecurityRoleItem,
   SecurityRolePayload,
@@ -46,7 +50,7 @@ export const securityService = {
   },
 
   getRoles(session: AuthSessionInput) {
-    return apiRequest<SecurityRoleItem[]>("/roles", {
+    return fetchAllPaginated<SecurityRoleItem>("/roles", {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
     });
   },
@@ -100,7 +104,7 @@ export const securityService = {
         ? `/usuario-roles?${searchParams.toString()}`
         : "/usuario-roles";
 
-    return apiRequest<SecurityUserRoleItem[]>(path, {
+    return fetchAllPaginated<SecurityUserRoleItem>(path, {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
     });
   },

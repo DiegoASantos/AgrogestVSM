@@ -20,7 +20,6 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
-import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { EtapasFenologicasService } from "../application/etapas-fenologicas.service";
@@ -71,11 +70,8 @@ export class EtapasFenologicasController {
   @ApiOkResponse({
     description: "Lista de etapas fenologicas."
   })
-  getEtapasFenologicas(
-    @Query() query: FindEtapasFenologicasQueryDto,
-    @Query() pagination: PaginationQueryDto
-  ) {
-    return this.etapasFenologicasService.findAll(query, pagination);
+  getEtapasFenologicas(@Query() query: FindEtapasFenologicasQueryDto) {
+    return this.etapasFenologicasService.findAll(query, query);
   }
 
   @Get(":id")

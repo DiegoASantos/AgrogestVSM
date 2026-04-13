@@ -1,8 +1,9 @@
+import { PaginationQueryDto } from "../../../../common/dto/pagination-query.dto";
 import { Transform } from "class-transformer";
 import { IsBoolean, IsOptional, Matches } from "class-validator";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
-export class FindCampaniasQueryDto {
+export class FindCampaniasQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
     name: "cultivo_id",
     example: "1",

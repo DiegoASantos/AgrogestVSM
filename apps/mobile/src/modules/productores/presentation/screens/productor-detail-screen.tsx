@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppButton,
@@ -38,80 +38,85 @@ export function ProductorDetailScreen() {
   return (
     <ScreenContainer contentStyle={styles.container}>
       <StatusBar style="light" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
 
-      {isLoading ? (
-        <AppCard>
-          <AppText variant="muted">Cargando detalle del productor...</AppText>
-        </AppCard>
-      ) : null}
-
-      {!isLoading && error ? (
-        <AppCard>
-          <AppHeader title="Error" subtitle={error} />
-          <AppButton
-            label="Volver al listado"
-            onPress={() => router.replace("/productores")}
-          />
-        </AppCard>
-      ) : null}
-
-      {!isLoading && !error && productor ? (
-        <>
+        {isLoading ? (
           <AppCard>
-            <View style={styles.headerRow}>
-              <AppHeader
-                title={`Productor ${productor.documentNumber}`}
-                style={styles.headerText}
-              />
-              <AppStatusBadge
-                label={productor.isActive ? "Activo" : "Inactivo"}
-                variant={productor.isActive ? "success" : "neutral"}
-              />
-            </View>
-
-            <View style={styles.details}>
-              <AppDetailRow
-                label="Tipo doc."
-                value={String(productor.documentTypeId)}
-              />
-              <AppDetailRow label="Documento" value={productor.documentNumber} />
-              <AppDetailRow
-                label="Correo"
-                value={productor.email || "No registrado"}
-              />
-              <AppDetailRow
-                label="Telefono"
-                value={productor.phone || "No registrado"}
-              />
-              <AppDetailRow
-                label="Direccion"
-                value={productor.address || "No registrada"}
-              />
-              <AppDetailRow label="Public ID" value={productor.publicId} />
-            </View>
+            <AppText variant="muted">Cargando detalle del productor...</AppText>
           </AppCard>
+        ) : null}
 
-          <View style={styles.actions}>
-            <AppButton
-              label="Ver sectores"
-              onPress={() =>
-                router.push({
-                  pathname: "/productores/sectores",
-                  params: {
-                    productorId: productor.id,
-                    documentNumber: productor.documentNumber
-                  }
-                })
-              }
-            />
+        {!isLoading && error ? (
+          <AppCard>
+            <AppHeader title="Error" subtitle={error} />
             <AppButton
               label="Volver al listado"
-              onPress={() => router.back()}
-              variant="outline"
+              onPress={() => router.replace("/productores")}
             />
-          </View>
-        </>
-      ) : null}
+          </AppCard>
+        ) : null}
+
+        {!isLoading && !error && productor ? (
+          <>
+            <AppCard>
+              <View style={styles.headerRow}>
+                <AppHeader
+                  title={`Productor ${productor.documentNumber}`}
+                  style={styles.headerText}
+                />
+                <AppStatusBadge
+                  label={productor.isActive ? "Activo" : "Inactivo"}
+                  variant={productor.isActive ? "success" : "neutral"}
+                />
+              </View>
+
+              <View style={styles.details}>
+                <AppDetailRow
+                  label="Tipo doc."
+                  value={String(productor.documentTypeId)}
+                />
+                <AppDetailRow label="Documento" value={productor.documentNumber} />
+                <AppDetailRow
+                  label="Correo"
+                  value={productor.email || "No registrado"}
+                />
+                <AppDetailRow
+                  label="Telefono"
+                  value={productor.phone || "No registrado"}
+                />
+                <AppDetailRow
+                  label="Direccion"
+                  value={productor.address || "No registrada"}
+                />
+                <AppDetailRow label="Public ID" value={productor.publicId} />
+              </View>
+            </AppCard>
+
+            <View style={styles.actions}>
+              <AppButton
+                label="Ver sectores"
+                onPress={() =>
+                  router.push({
+                    pathname: "/productores/sectores",
+                    params: {
+                      productorId: productor.id,
+                      documentNumber: productor.documentNumber
+                    }
+                  })
+                }
+              />
+              <AppButton
+                label="Volver al listado"
+                onPress={() => router.back()}
+                variant="outline"
+              />
+            </View>
+          </>
+        ) : null}
+      </ScrollView>
     </ScreenContainer>
   );
 
@@ -141,6 +146,10 @@ function toSingleParam(value?: string | string[]) {
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: 0,
+    paddingVertical: 0
+  },
+  scrollContent: {
     gap: 16
   },
   headerRow: {
@@ -156,6 +165,7 @@ const styles = StyleSheet.create({
     gap: 2
   },
   actions: {
-    gap: 10
+    gap: 10,
+    paddingBottom: 12
   }
 });

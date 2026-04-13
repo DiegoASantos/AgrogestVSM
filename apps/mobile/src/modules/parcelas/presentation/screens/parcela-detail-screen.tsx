@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppMap,
@@ -72,91 +72,96 @@ export function ParcelaDetailScreen() {
   return (
     <ScreenContainer contentStyle={styles.container}>
       <StatusBar style="light" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
 
-      {isLoading ? (
-        <AppCard>
-          <AppText variant="muted">Cargando detalle de la parcela...</AppText>
-        </AppCard>
-      ) : null}
-
-      {!isLoading && error ? (
-        <AppCard>
-          <AppHeader title="Error" subtitle={error} />
-          <AppButton label="Volver" onPress={() => router.back()} />
-        </AppCard>
-      ) : null}
-
-      {!isLoading && !error && parcela ? (
-        <>
+        {isLoading ? (
           <AppCard>
-            <View style={styles.headerRow}>
+            <AppText variant="muted">Cargando detalle de la parcela...</AppText>
+          </AppCard>
+        ) : null}
+
+        {!isLoading && error ? (
+          <AppCard>
+            <AppHeader title="Error" subtitle={error} />
+            <AppButton label="Volver" onPress={() => router.back()} />
+          </AppCard>
+        ) : null}
+
+        {!isLoading && !error && parcela ? (
+          <>
+            <AppCard>
+              <View style={styles.headerRow}>
+                <AppHeader
+                  title={parcela.name}
+                  subtitle={`Codigo ${parcela.code}`}
+                  style={styles.headerText}
+                />
+                <AppStatusBadge
+                  label={parcela.isActive ? "Activa" : "Inactiva"}
+                  variant={parcela.isActive ? "success" : "neutral"}
+                />
+              </View>
+
+              <View style={styles.details}>
+                <AppDetailRow label="Codigo" value={parcela.code} />
+                <AppDetailRow label="Nombre" value={parcela.name} />
+                <AppDetailRow label="Area" value={formatArea(parcela.areaHectares)} />
+                <AppDetailRow
+                  label="Geodatos"
+                  value={describeParcelaGeodata(parcela)}
+                />
+                <AppDetailRow
+                  label="Descripcion"
+                  value={parcela.description || "Sin descripcion"}
+                />
+                <AppDetailRow label="Public ID" value={parcela.publicId} />
+              </View>
+            </AppCard>
+
+            <AppCard>
               <AppHeader
-                title={parcela.name}
-                subtitle={`Codigo ${parcela.code}`}
-                style={styles.headerText}
+                title="Mapa de parcela"
+                subtitle={
+                  parcela.geometry
+                    ? "Visualizacion del poligono y punto de referencia."
+                    : parcela.referencePoint
+                      ? "Visualizacion del punto de referencia."
+                      : "La parcela aun no tiene geodatos registrados."
+                }
               />
-              <AppStatusBadge
-                label={parcela.isActive ? "Activa" : "Inactiva"}
-                variant={parcela.isActive ? "success" : "neutral"}
+              <AppMap
+                emptyMessage="La parcela no tiene punto ni poligono registrado."
+                points={mapPoints}
+                polygons={mapPolygons}
+              />
+            </AppCard>
+
+            <View style={styles.actions}>
+              <AppButton
+                label="Nueva visita de campo"
+                onPress={() =>
+                  router.push({
+                    pathname: "/parcelas/[id]/nueva-visita",
+                    params: {
+                      id: parcela.id,
+                      parcelaCode: parcela.code,
+                      parcelaName: parcela.name
+                    }
+                  })
+                }
+              />
+              <AppButton
+                label="Volver"
+                onPress={() => router.back()}
+                variant="outline"
               />
             </View>
-
-            <View style={styles.details}>
-              <AppDetailRow label="Codigo" value={parcela.code} />
-              <AppDetailRow label="Nombre" value={parcela.name} />
-              <AppDetailRow label="Area" value={formatArea(parcela.areaHectares)} />
-              <AppDetailRow
-                label="Geodatos"
-                value={describeParcelaGeodata(parcela)}
-              />
-              <AppDetailRow
-                label="Descripcion"
-                value={parcela.description || "Sin descripcion"}
-              />
-              <AppDetailRow label="Public ID" value={parcela.publicId} />
-            </View>
-          </AppCard>
-
-          <AppCard>
-            <AppHeader
-              title="Mapa de parcela"
-              subtitle={
-                parcela.geometry
-                  ? "Visualizacion del poligono y punto de referencia."
-                  : parcela.referencePoint
-                    ? "Visualizacion del punto de referencia."
-                    : "La parcela aun no tiene geodatos registrados."
-              }
-            />
-            <AppMap
-              emptyMessage="La parcela no tiene punto ni poligono registrado."
-              points={mapPoints}
-              polygons={mapPolygons}
-            />
-          </AppCard>
-
-          <View style={styles.actions}>
-            <AppButton
-              label="Nueva visita de campo"
-              onPress={() =>
-                router.push({
-                  pathname: "/parcelas/[id]/nueva-visita",
-                  params: {
-                    id: parcela.id,
-                    parcelaCode: parcela.code,
-                    parcelaName: parcela.name
-                  }
-                })
-              }
-            />
-            <AppButton
-              label="Volver"
-              onPress={() => router.back()}
-              variant="outline"
-            />
-          </View>
-        </>
-      ) : null}
+          </>
+        ) : null}
+      </ScrollView>
     </ScreenContainer>
   );
 
@@ -224,6 +229,10 @@ function buildParcelaMapDescription(parcela: Parcela) {
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: 0,
+    paddingVertical: 0
+  },
+  scrollContent: {
     gap: 16
   },
   headerRow: {
@@ -239,6 +248,7 @@ const styles = StyleSheet.create({
     gap: 2
   },
   actions: {
-    gap: 10
+    gap: 10,
+    paddingBottom: 12
   }
 });

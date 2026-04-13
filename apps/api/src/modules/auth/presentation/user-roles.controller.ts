@@ -19,7 +19,6 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
-import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { UserRolesService } from "../application/user-roles.service";
 import { Roles } from "./decorators/roles.decorator";
@@ -62,11 +61,8 @@ export class UserRolesController {
   @ApiOkResponse({
     description: "Lista de asignaciones."
   })
-  getUserRoles(
-    @Query() query: FindUserRolesQueryDto,
-    @Query() pagination: PaginationQueryDto
-  ) {
-    return this.userRolesService.findAllAdmin(query, pagination);
+  getUserRoles(@Query() query: FindUserRolesQueryDto) {
+    return this.userRolesService.findAllAdmin(query, query);
   }
 
   @Patch(":userId/:roleId")

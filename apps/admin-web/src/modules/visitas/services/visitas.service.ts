@@ -93,11 +93,11 @@ export const visitasService = {
 
   async getFilterCatalogs(session: AuthSessionInput): Promise<VisitaFilterCatalogs> {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
-    // productores and parcelas are paginated; fetch all pages so the filter
-    // dropdowns are complete. campanias and usuarios are capped server-side.
+    // productores, parcelas and campanias are paginated; fetch all pages so the
+    // filter dropdowns are complete. usuarios is capped server-side.
     const [productores, campanias, parcelas, agronomos] = await Promise.all([
       fetchAllPaginated<ProductorApiItem>("/productores", { headers }),
-      apiRequest<CampaniaApiItem[]>("/campanias", { headers }),
+      fetchAllPaginated<CampaniaApiItem>("/campanias", { headers }),
       fetchAllPaginated<ParcelaApiItem>("/parcelas", { headers }),
       safeRequestList<UserApiItem>(session, "/usuarios")
     ]);
@@ -153,14 +153,14 @@ export const visitasService = {
       products,
       applicationFrequencies
     ] = await Promise.all([
-      safeRequestList<PestDiseaseLookupItem>(session, "/plagas-enfermedades"),
-      safeRequestList<IncidenceLevelLookupItem>(session, "/niveles-incidencia"),
-      safeRequestList<RecommendationTypeLookupItem>(
+      safeRequestAll<PestDiseaseLookupItem>(session, "/plagas-enfermedades"),
+      safeRequestAll<IncidenceLevelLookupItem>(session, "/niveles-incidencia"),
+      safeRequestAll<RecommendationTypeLookupItem>(
         session,
         "/tipos-recomendacion"
       ),
-      safeRequestList<ProductLookupItem>(session, "/productos"),
-      safeRequestList<ApplicationFrequencyLookupItem>(
+      safeRequestAll<ProductLookupItem>(session, "/productos"),
+      safeRequestAll<ApplicationFrequencyLookupItem>(
         session,
         "/frecuencias-aplicacion"
       )
@@ -354,6 +354,19 @@ async function safeRequestList<T>(
 ): Promise<T[]> {
   try {
     return await apiRequest<T[]>(path, {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function safeRequestAll<T>(
+  session: AuthSessionInput,
+  path: string
+): Promise<T[]> {
+  try {
+    return await fetchAllPaginated<T>(path, {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
     });
   } catch {

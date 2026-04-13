@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppMap,
@@ -32,6 +32,16 @@ import type {
   VariedadCatalogItem
 } from "../../types";
 
+type ActiveVisitaField =
+  | "crop"
+  | "variety"
+  | "campaign"
+  | "phenologicalStage"
+  | "sowingDate"
+  | "visitDate"
+  | "startVisitTime"
+  | "endVisitTime";
+
 export function NewVisitaCampoScreen() {
   const router = useRouter();
   const { session } = useAuthSession();
@@ -45,9 +55,7 @@ export function NewVisitaCampoScreen() {
   const parcelaCode = toSingleParam(params.parcelaCode);
   const parcelaName = toSingleParam(params.parcelaName);
   const parcelaLabel = [parcelaCode, parcelaName].filter(Boolean).join(" - ");
-  const [activeCatalog, setActiveCatalog] = useState<
-    "crop" | "variety" | "campaign" | "phenologicalStage" | null
-  >(null);
+  const [activeCatalog, setActiveCatalog] = useState<ActiveVisitaField | null>(null);
 
   const [cultivos, setCultivos] = useState<CultivoCatalogItem[]>([]);
   const [isLoadingCultivos, setIsLoadingCultivos] = useState(true);
@@ -296,37 +304,49 @@ export function NewVisitaCampoScreen() {
               value={values.plantsCount}
               error={errors.plantsCount}
             />
-            <AppInput
-              label="Fecha de siembra"
-              onChangeText={(value) => updateField("sowingDate", value)}
-              placeholder="AAAA-MM-DD"
-              value={values.sowingDate}
+            <DatePickerField
+              allowClear
               error={errors.sowingDate}
+              isOpen={activeCatalog === "sowingDate"}
+              label="Fecha de siembra"
+              onClear={() => handleDateSelection("sowingDate", "")}
+              onSelect={(value) => handleDateSelection("sowingDate", value)}
+              onToggle={() => toggleCatalog("sowingDate")}
+              placeholder="Selecciona una fecha"
+              value={values.sowingDate}
             />
-            <AppInput
-              label="Fecha de visita"
-              onChangeText={(value) => updateField("visitDate", value)}
-              placeholder="AAAA-MM-DD"
-              value={values.visitDate}
+            <DatePickerField
               error={errors.visitDate}
+              isOpen={activeCatalog === "visitDate"}
+              label="Fecha de visita"
+              onSelect={(value) => handleDateSelection("visitDate", value)}
+              onToggle={() => toggleCatalog("visitDate")}
+              placeholder="Selecciona la fecha de visita"
+              value={values.visitDate}
             />
             <View style={styles.timeRow}>
               <View style={styles.timeField}>
-                <AppInput
-                  label="Hora inicio"
-                  onChangeText={(value) => updateField("startVisitTime", value)}
-                  placeholder="08:30"
-                  value={values.startVisitTime}
+                <TimePickerField
                   error={errors.startVisitTime}
+                  isOpen={activeCatalog === "startVisitTime"}
+                  label="Hora inicio"
+                  onSelect={(value) => handleTimeSelection("startVisitTime", value)}
+                  onToggle={() => toggleCatalog("startVisitTime")}
+                  placeholder="Selecciona una hora"
+                  value={values.startVisitTime}
                 />
               </View>
               <View style={styles.timeField}>
-                <AppInput
-                  label="Hora fin"
-                  onChangeText={(value) => updateField("endVisitTime", value)}
-                  placeholder="09:15"
-                  value={values.endVisitTime}
+                <TimePickerField
+                  allowClear
                   error={errors.endVisitTime}
+                  isOpen={activeCatalog === "endVisitTime"}
+                  label="Hora fin"
+                  onClear={() => handleTimeSelection("endVisitTime", "")}
+                  onSelect={(value) => handleTimeSelection("endVisitTime", value)}
+                  onToggle={() => toggleCatalog("endVisitTime")}
+                  placeholder="Selecciona una hora"
+                  value={values.endVisitTime}
                 />
               </View>
             </View>
@@ -444,7 +464,7 @@ export function NewVisitaCampoScreen() {
     }));
   }
 
-  function toggleCatalog(field: "crop" | "variety" | "campaign" | "phenologicalStage") {
+  function toggleCatalog(field: ActiveVisitaField) {
     setActiveCatalog((currentField) => (currentField === field ? null : field));
   }
 
@@ -470,6 +490,22 @@ export function NewVisitaCampoScreen() {
       updateField(field, value);
     }
 
+    setActiveCatalog(null);
+  }
+
+  function handleDateSelection(
+    field: "sowingDate" | "visitDate",
+    value: string
+  ) {
+    updateField(field, value);
+    setActiveCatalog(null);
+  }
+
+  function handleTimeSelection(
+    field: "startVisitTime" | "endVisitTime",
+    value: string
+  ) {
+    updateField(field, value);
     setActiveCatalog(null);
   }
 
@@ -611,6 +647,342 @@ export function NewVisitaCampoScreen() {
   }
 }
 
+type InlinePickerFieldProps = {
+  label: string;
+  placeholder: string;
+  valueLabel?: string;
+  isOpen: boolean;
+  disabled?: boolean;
+  error?: string | null;
+  onToggle: () => void;
+  children: ReactNode;
+};
+
+type DatePickerFieldProps = {
+  label: string;
+  placeholder: string;
+  value: string;
+  isOpen: boolean;
+  error?: string | null;
+  allowClear?: boolean;
+  onToggle: () => void;
+  onSelect: (value: string) => void;
+  onClear?: () => void;
+};
+
+type TimePickerFieldProps = {
+  label: string;
+  placeholder: string;
+  value: string;
+  isOpen: boolean;
+  error?: string | null;
+  allowClear?: boolean;
+  onToggle: () => void;
+  onSelect: (value: string) => void;
+  onClear?: () => void;
+};
+
+function InlinePickerField({
+  label,
+  placeholder,
+  valueLabel,
+  isOpen,
+  disabled = false,
+  error,
+  onToggle,
+  children
+}: InlinePickerFieldProps) {
+  return (
+    <View style={styles.pickerFieldWrapper}>
+      <AppText variant="label">{label}</AppText>
+      <Pressable
+        accessibilityRole="button"
+        disabled={disabled}
+        onPress={onToggle}
+        style={({ pressed }) => [
+          styles.pickerTrigger,
+          isOpen && styles.pickerTriggerOpen,
+          error && styles.pickerTriggerError,
+          disabled && styles.pickerTriggerDisabled,
+          pressed && !disabled && styles.pickerTriggerPressed
+        ]}
+      >
+        <AppText
+          style={!valueLabel ? styles.pickerPlaceholderText : undefined}
+          variant="body"
+        >
+          {valueLabel || placeholder}
+        </AppText>
+        <AppText style={styles.pickerChevron} variant="caption">
+          {isOpen ? "\u25B2" : "\u25BC"}
+        </AppText>
+      </Pressable>
+      {error ? (
+        <AppText style={styles.pickerErrorText} variant="caption">
+          {error}
+        </AppText>
+      ) : null}
+      {isOpen ? <View style={styles.pickerPanel}>{children}</View> : null}
+    </View>
+  );
+}
+
+function DatePickerField({
+  label,
+  placeholder,
+  value,
+  isOpen,
+  error,
+  allowClear = false,
+  onToggle,
+  onSelect,
+  onClear
+}: DatePickerFieldProps) {
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    getMonthStart(parseDateValue(value) ?? new Date())
+  );
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setVisibleMonth(getMonthStart(parseDateValue(value) ?? new Date()));
+  }, [isOpen, value]);
+
+  const calendarWeeks = useMemo(
+    () => buildCalendarWeeks(visibleMonth),
+    [visibleMonth]
+  );
+
+  return (
+    <InlinePickerField
+      error={error}
+      isOpen={isOpen}
+      label={label}
+      onToggle={onToggle}
+      placeholder={placeholder}
+      valueLabel={formatDisplayDate(value)}
+    >
+      <View style={styles.calendarHeader}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, -1))}
+          style={({ pressed }) => [
+            styles.calendarNavButton,
+            pressed && styles.calendarNavButtonPressed
+          ]}
+        >
+          <AppText variant="label">{"<"}</AppText>
+        </Pressable>
+        <AppText variant="label">{formatMonthYear(visibleMonth)}</AppText>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))}
+          style={({ pressed }) => [
+            styles.calendarNavButton,
+            pressed && styles.calendarNavButtonPressed
+          ]}
+        >
+          <AppText variant="label">{">"}</AppText>
+        </Pressable>
+      </View>
+
+      <View style={styles.calendarWeekHeader}>
+        {DAY_LABELS.map((dayLabel) => (
+          <View key={dayLabel} style={styles.calendarDayLabelCell}>
+            <AppText style={styles.calendarDayLabelText} variant="caption">
+              {dayLabel}
+            </AppText>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.calendarGrid}>
+        {calendarWeeks.map((week, weekIndex) => (
+          <View key={`${visibleMonth.toISOString()}-${weekIndex}`} style={styles.calendarWeekRow}>
+            {week.map((day, dayIndex) => (
+              <Pressable
+                accessibilityRole="button"
+                disabled={!day.isCurrentMonth}
+                key={`${weekIndex}-${dayIndex}-${day.value || "empty"}`}
+                onPress={() => {
+                  if (day.value) {
+                    onSelect(day.value);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.calendarDayCell,
+                  !day.isCurrentMonth && styles.calendarDayCellOutsideMonth,
+                  day.value === value && styles.calendarDayCellSelected,
+                  pressed &&
+                    day.isCurrentMonth &&
+                    day.value !== value &&
+                    styles.calendarDayCellPressed
+                ]}
+              >
+                <AppText
+                  style={[
+                    !day.isCurrentMonth && styles.calendarDayTextOutsideMonth,
+                    day.value === value && styles.calendarDayTextSelected
+                  ]}
+                  variant="body"
+                >
+                  {day.dayNumber > 0 ? String(day.dayNumber) : ""}
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
+        ))}
+      </View>
+
+      {allowClear && value && onClear ? (
+        <View style={styles.pickerActionRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onClear}
+            style={({ pressed }) => [
+              styles.pickerActionButton,
+              pressed && styles.pickerActionButtonPressed
+            ]}
+          >
+            <AppText variant="label">Limpiar fecha</AppText>
+          </Pressable>
+        </View>
+      ) : null}
+    </InlinePickerField>
+  );
+}
+
+function TimePickerField({
+  label,
+  placeholder,
+  value,
+  isOpen,
+  error,
+  allowClear = false,
+  onToggle,
+  onSelect,
+  onClear
+}: TimePickerFieldProps) {
+  const [draftTime, setDraftTime] = useState(() => parseTimeValue(value));
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setDraftTime(parseTimeValue(value));
+  }, [isOpen, value]);
+
+  return (
+    <InlinePickerField
+      error={error}
+      isOpen={isOpen}
+      label={label}
+      onToggle={onToggle}
+      placeholder={placeholder}
+      valueLabel={formatDisplayTime(value)}
+    >
+      <View style={styles.timePickerSection}>
+        <AppText variant="label">Hora</AppText>
+        <View style={styles.timeChipGrid}>
+          {HOUR_OPTIONS.map((hour) => {
+            const isSelected = draftTime.hour === hour;
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                key={`hour-${hour}`}
+                onPress={() =>
+                  setDraftTime((currentTime) => ({
+                    ...currentTime,
+                    hour
+                  }))
+                }
+                style={({ pressed }) => [
+                  styles.timeChip,
+                  isSelected && styles.timeChipSelected,
+                  pressed && !isSelected && styles.timeChipPressed
+                ]}
+              >
+                <AppText
+                  style={isSelected ? styles.timeChipTextSelected : undefined}
+                  variant="label"
+                >
+                  {padTimeValue(hour)}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.timePickerSection}>
+        <AppText variant="label">Minutos</AppText>
+        <View style={styles.timeChipGrid}>
+          {MINUTE_OPTIONS.map((minute) => {
+            const isSelected = draftTime.minute === minute;
+
+            return (
+              <Pressable
+                accessibilityRole="button"
+                key={`minute-${minute}`}
+                onPress={() =>
+                  setDraftTime((currentTime) => ({
+                    ...currentTime,
+                    minute
+                  }))
+                }
+                style={({ pressed }) => [
+                  styles.timeChip,
+                  isSelected && styles.timeChipSelected,
+                  pressed && !isSelected && styles.timeChipPressed
+                ]}
+              >
+                <AppText
+                  style={isSelected ? styles.timeChipTextSelected : undefined}
+                  variant="label"
+                >
+                  {padTimeValue(minute)}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.pickerActionRow}>
+        {allowClear && value && onClear ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onClear}
+            style={({ pressed }) => [
+              styles.pickerActionButton,
+              pressed && styles.pickerActionButtonPressed
+            ]}
+          >
+            <AppText variant="label">Limpiar</AppText>
+          </Pressable>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onSelect(formatTimeFromParts(draftTime.hour, draftTime.minute))}
+          style={({ pressed }) => [
+            styles.pickerActionButton,
+            styles.pickerActionButtonPrimary,
+            pressed && styles.pickerActionButtonPressed
+          ]}
+        >
+          <AppText style={styles.pickerActionButtonPrimaryText} variant="label">
+            Aplicar
+          </AppText>
+        </Pressable>
+      </View>
+    </InlinePickerField>
+  );
+}
+
 function toSingleParam(value?: string | string[]) {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -745,8 +1117,206 @@ function formatCoordinates(point: GeoJsonPointGeometry) {
   return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 }
 
+function parseDateValue(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!DATE_PATTERN.test(trimmedValue)) {
+    return null;
+  }
+
+  const [yearValue, monthValue, dayValue] = trimmedValue
+    .split("-")
+    .map((item) => Number(item));
+
+  if (
+    !Number.isInteger(yearValue) ||
+    !Number.isInteger(monthValue) ||
+    !Number.isInteger(dayValue)
+  ) {
+    return null;
+  }
+
+  const parsedDate = new Date(yearValue, monthValue - 1, dayValue);
+
+  if (
+    parsedDate.getFullYear() !== yearValue ||
+    parsedDate.getMonth() !== monthValue - 1 ||
+    parsedDate.getDate() !== dayValue
+  ) {
+    return null;
+  }
+
+  return parsedDate;
+}
+
+function formatDisplayDate(value: string) {
+  const parsedDate = parseDateValue(value);
+
+  if (!parsedDate) {
+    return undefined;
+  }
+
+  return `${padTimeValue(parsedDate.getDate())}/${padTimeValue(parsedDate.getMonth() + 1)}/${parsedDate.getFullYear()}`;
+}
+
+function getMonthStart(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function formatMonthYear(date: Date) {
+  return `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function buildCalendarWeeks(date: Date) {
+  const firstDayOfMonth = getMonthStart(date);
+  const startOffset = (firstDayOfMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+  const weeks: Array<
+    Array<{ value: string | null; dayNumber: number; isCurrentMonth: boolean }>
+  > = [];
+
+  for (let cellIndex = 0; cellIndex < totalCells; cellIndex += 1) {
+    const dayOffset = cellIndex - startOffset + 1;
+    const isCurrentMonth = dayOffset >= 1 && dayOffset <= daysInMonth;
+    const weekIndex = Math.floor(cellIndex / 7);
+    const targetWeek = weeks[weekIndex] ?? [];
+
+    if (isCurrentMonth) {
+      const currentDate = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        dayOffset
+      );
+
+      targetWeek.push({
+        value: formatDateForApi(currentDate),
+        dayNumber: dayOffset,
+        isCurrentMonth: true
+      });
+    } else {
+      targetWeek.push({
+        value: null,
+        dayNumber: 0,
+        isCurrentMonth: false
+      });
+    }
+
+    weeks[weekIndex] = targetWeek;
+  }
+
+  return weeks;
+}
+
+function formatDateForApi(date: Date) {
+  return `${date.getFullYear()}-${padTimeValue(date.getMonth() + 1)}-${padTimeValue(date.getDate())}`;
+}
+
+function parseTimeValue(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return getDefaultTimeParts();
+  }
+
+  const segments = trimmedValue.split(":");
+  const [hourValue, minuteValue] = segments.map((item) => Number(item));
+
+  if (
+    !Number.isInteger(hourValue) ||
+    !Number.isInteger(minuteValue) ||
+    hourValue < 0 ||
+    hourValue > 23 ||
+    minuteValue < 0 ||
+    minuteValue > 59
+  ) {
+    return getDefaultTimeParts();
+  }
+
+  return {
+    hour: hourValue,
+    minute: getClosestMinuteOption(minuteValue)
+  };
+}
+
+function getDefaultTimeParts() {
+  const now = new Date();
+
+  return {
+    hour: now.getHours(),
+    minute: getClosestMinuteOption(now.getMinutes())
+  };
+}
+
+function getClosestMinuteOption(minute: number) {
+  return MINUTE_OPTIONS.reduce((closestMinute, currentMinute) =>
+    Math.abs(currentMinute - minute) < Math.abs(closestMinute - minute)
+      ? currentMinute
+      : closestMinute
+  );
+}
+
+function formatTimeFromParts(hour: number, minute: number) {
+  return `${padTimeValue(hour)}:${padTimeValue(minute)}`;
+}
+
+function formatDisplayTime(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return undefined;
+  }
+
+  const segments = trimmedValue.split(":");
+
+  if (segments.length < 2) {
+    return undefined;
+  }
+
+  const hourValue = Number(segments[0]);
+  const minuteValue = Number(segments[1]);
+
+  if (
+    !Number.isInteger(hourValue) ||
+    !Number.isInteger(minuteValue) ||
+    hourValue < 0 ||
+    hourValue > 23 ||
+    minuteValue < 0 ||
+    minuteValue > 59
+  ) {
+    return undefined;
+  }
+
+  return `${padTimeValue(hourValue)}:${padTimeValue(minuteValue)}`;
+}
+
+function padTimeValue(value: number) {
+  return String(value).padStart(2, "0");
+}
+
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+const DAY_LABELS = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"] as const;
+const MONTH_LABELS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre"
+] as const;
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, index) => index);
+const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, index) => index * 5);
 
 const styles = StyleSheet.create({
   container: {
@@ -761,12 +1331,151 @@ const styles = StyleSheet.create({
   fields: {
     gap: 14
   },
+  pickerFieldWrapper: {
+    gap: 6
+  },
+  pickerTrigger: {
+    minHeight: 48,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: 14,
+    paddingRight: 40,
+    justifyContent: "center",
+    backgroundColor: theme.colors.surfaceElevated
+  },
+  pickerTriggerOpen: {
+    borderColor: theme.colors.primary,
+    borderWidth: 2
+  },
+  pickerTriggerError: {
+    borderColor: theme.colors.error,
+    backgroundColor: theme.colors.errorMuted
+  },
+  pickerTriggerDisabled: {
+    opacity: 0.5
+  },
+  pickerTriggerPressed: {
+    opacity: 0.85
+  },
+  pickerChevron: {
+    position: "absolute",
+    right: 14,
+    color: theme.colors.textMuted,
+    fontSize: 10
+  },
+  pickerPlaceholderText: {
+    color: theme.colors.textMuted
+  },
+  pickerErrorText: {
+    color: theme.colors.error
+  },
+  pickerPanel: {
+    gap: 12,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    padding: 12,
+    backgroundColor: theme.colors.surface,
+    ...theme.shadow.md
+  },
+  calendarHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  calendarNavButton: {
+    minWidth: 40,
+    minHeight: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight
+  },
+  calendarNavButtonPressed: {
+    backgroundColor: theme.colors.primaryMuted
+  },
+  calendarWeekHeader: {
+    flexDirection: "row"
+  },
+  calendarDayLabelCell: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 4
+  },
+  calendarDayLabelText: {
+    fontWeight: "600"
+  },
+  calendarGrid: {
+    gap: 6
+  },
+  calendarWeekRow: {
+    flexDirection: "row",
+    gap: 6
+  },
+  calendarDayCell: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.colors.surfaceElevated
+  },
+  calendarDayCellOutsideMonth: {
+    backgroundColor: "transparent"
+  },
+  calendarDayCellSelected: {
+    backgroundColor: theme.colors.primary
+  },
+  calendarDayCellPressed: {
+    backgroundColor: theme.colors.primaryMuted
+  },
+  calendarDayTextOutsideMonth: {
+    color: theme.colors.textMuted,
+    opacity: 0.35
+  },
+  calendarDayTextSelected: {
+    color: theme.colors.textInverse,
+    fontWeight: "700"
+  },
   timeRow: {
     flexDirection: "row",
     gap: 12
   },
   timeField: {
     flex: 1
+  },
+  timePickerSection: {
+    gap: 8
+  },
+  timeChipGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  timeChip: {
+    minWidth: 52,
+    minHeight: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    backgroundColor: theme.colors.surfaceElevated,
+    paddingHorizontal: 10
+  },
+  timeChipSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary
+  },
+  timeChipPressed: {
+    backgroundColor: theme.colors.primaryMuted
+  },
+  timeChipTextSelected: {
+    color: theme.colors.textInverse
   },
   multilineInput: {
     minHeight: 100,
@@ -790,6 +1499,31 @@ const styles = StyleSheet.create({
   },
   locationErrorText: {
     color: theme.colors.error
+  },
+  pickerActionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
+  pickerActionButton: {
+    minHeight: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceElevated,
+    paddingHorizontal: 12
+  },
+  pickerActionButtonPrimary: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary
+  },
+  pickerActionButtonPressed: {
+    opacity: 0.85
+  },
+  pickerActionButtonPrimaryText: {
+    color: theme.colors.textInverse
   },
   actions: {
     gap: 10,

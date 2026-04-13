@@ -196,8 +196,7 @@ El repositorio ya cuenta con:
 
 ## Alcance academico y estado del proyecto
 
-AgroGest VSM se encuentra en una etapa funcional avanzada. Su estado actual es
-coherente con un proyecto de tesis con implementacion real y cobertura integral
+AgroGest VSM se encuentra en una etapa funcional avanzada. Su estado actual es coherente con un proyecto de tesis con implementacion real y cobertura integral
 de capas:
 
 - backend
