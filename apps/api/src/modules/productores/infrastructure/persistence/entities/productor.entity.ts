@@ -31,6 +31,22 @@ export class ProductorEntity {
   documentNumber!: string;
 
   @Column({
+    name: "nombres",
+    type: "varchar",
+    length: 100,
+    nullable: true
+  })
+  firstName!: string | null;
+
+  @Column({
+    name: "apellidos",
+    type: "varchar",
+    length: 100,
+    nullable: true
+  })
+  lastName!: string | null;
+
+  @Column({
     name: "telefono",
     type: "varchar",
     length: 20,

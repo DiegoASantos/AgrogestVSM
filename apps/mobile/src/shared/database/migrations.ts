@@ -60,6 +60,13 @@ const MIGRATIONS: Migration[] = [
     statements: [
       "CREATE INDEX IF NOT EXISTS idx_sync_outbox_entity ON sync_outbox(entity_type, entity_local_id)"
     ]
+  },
+  {
+    version: 7,
+    statements: [
+      "ALTER TABLE productores ADD COLUMN first_name TEXT",
+      "ALTER TABLE productores ADD COLUMN last_name TEXT"
+    ]
   }
 ];
 

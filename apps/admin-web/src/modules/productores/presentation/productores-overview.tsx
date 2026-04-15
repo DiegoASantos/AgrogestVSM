@@ -31,6 +31,8 @@ type ProductorFormState = {
   id: string | null;
   documentTypeId: string;
   documentNumber: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   email: string;
   address: string;
@@ -41,6 +43,8 @@ const emptyForm: ProductorFormState = {
   id: null,
   documentTypeId: "",
   documentNumber: "",
+  firstName: "",
+  lastName: "",
   phone: "",
   email: "",
   address: "",
@@ -89,6 +93,8 @@ export function ProductoresOverview() {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         item.documentNumber.toLowerCase().includes(normalizedSearch) ||
+        (item.firstName ?? "").toLowerCase().includes(normalizedSearch) ||
+        (item.lastName ?? "").toLowerCase().includes(normalizedSearch) ||
         (item.email ?? "").toLowerCase().includes(normalizedSearch) ||
         (item.address ?? "").toLowerCase().includes(normalizedSearch) ||
         documentTypeLabel.toLowerCase().includes(normalizedSearch);
@@ -103,10 +109,13 @@ export function ProductoresOverview() {
       header: "Productor",
       cell: (item) => (
         <div className="table-copy">
-          <strong>{item.documentNumber}</strong>
+          <strong>
+            {buildFullName(item.firstName, item.lastName) || item.documentNumber}
+          </strong>
           <span>
             {documentTypeLookup[String(item.documentTypeId)] ??
               `Tipo ${item.documentTypeId}`}
+            {` - ${item.documentNumber}`}
           </span>
         </div>
       )
@@ -203,6 +212,8 @@ export function ProductoresOverview() {
       id: item.id,
       documentTypeId: String(item.documentTypeId),
       documentNumber: item.documentNumber,
+      firstName: item.firstName ?? "",
+      lastName: item.lastName ?? "",
       phone: item.phone ?? "",
       email: item.email ?? "",
       address: item.address ?? "",
@@ -226,6 +237,8 @@ export function ProductoresOverview() {
 
     const documentTypeId = Number(formState.documentTypeId);
     const documentNumber = formState.documentNumber.trim();
+    const firstName = formState.firstName.trim();
+    const lastName = formState.lastName.trim();
     const phone = formState.phone.trim();
     const email = formState.email.trim().toLowerCase();
     const address = formState.address.trim();
@@ -243,6 +256,8 @@ export function ProductoresOverview() {
       const payload = {
         documentTypeId,
         documentNumber,
+        firstName: firstName || null,
+        lastName: lastName || null,
         phone: phone || null,
         email: email || null,
         address: address || null,
@@ -461,6 +476,36 @@ export function ProductoresOverview() {
 
             <div className="field-grid">
               <label className="field-group">
+                <span>Nombres</span>
+                <input
+                  onChange={(event) =>
+                    setFormState((currentState) => ({
+                      ...currentState,
+                      firstName: event.target.value
+                    }))
+                  }
+                  placeholder="Juan"
+                  value={formState.firstName}
+                />
+              </label>
+
+              <label className="field-group">
+                <span>Apellidos</span>
+                <input
+                  onChange={(event) =>
+                    setFormState((currentState) => ({
+                      ...currentState,
+                      lastName: event.target.value
+                    }))
+                  }
+                  placeholder="Perez"
+                  value={formState.lastName}
+                />
+              </label>
+            </div>
+
+            <div className="field-grid">
+              <label className="field-group">
                 <span>Telefono</span>
                 <input
                   onChange={(event) =>
@@ -544,4 +589,8 @@ export function ProductoresOverview() {
       />
     </section>
   );
+}
+
+function buildFullName(firstName: string | null, lastName: string | null) {
+  return [firstName, lastName].filter(Boolean).join(" ").trim();
 }

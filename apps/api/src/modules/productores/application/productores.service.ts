@@ -38,6 +38,8 @@ export class ProductoresService {
     const productor = this.productoresRepository.create({
       documentTypeId: createProductorDto.documentTypeId,
       documentNumber: createProductorDto.documentNumber,
+      firstName: createProductorDto.firstName ?? null,
+      lastName: createProductorDto.lastName ?? null,
       phone: createProductorDto.phone ?? null,
       email: createProductorDto.email ?? null,
       address: createProductorDto.address ?? null,
@@ -144,6 +146,12 @@ export class ProductoresService {
         : {}),
       ...(updateProductorDto.documentNumber !== undefined
         ? { documentNumber: updateProductorDto.documentNumber }
+        : {}),
+      ...(updateProductorDto.firstName !== undefined
+        ? { firstName: updateProductorDto.firstName }
+        : {}),
+      ...(updateProductorDto.lastName !== undefined
+        ? { lastName: updateProductorDto.lastName }
         : {}),
       ...(updateProductorDto.phone !== undefined
         ? { phone: updateProductorDto.phone }
@@ -252,6 +260,8 @@ export class ProductoresService {
       publicId: productor.publicId,
       documentTypeId: productor.documentTypeId,
       documentNumber: productor.documentNumber,
+      firstName: productor.firstName,
+      lastName: productor.lastName,
       phone: productor.phone,
       email: productor.email,
       address: productor.address,

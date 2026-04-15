@@ -7,6 +7,8 @@ type ProductorRow = {
   public_id: string;
   document_type_id: number;
   document_number: string;
+  first_name: string | null;
+  last_name: string | null;
   phone: string | null;
   email: string | null;
   address: string | null;
@@ -20,6 +22,8 @@ const PRODUCTOR_COLUMNS = `
   public_id,
   document_type_id,
   document_number,
+  first_name,
+  last_name,
   phone,
   email,
   address,
@@ -60,6 +64,8 @@ function mapProductorRow(row: ProductorRow): Productor {
     publicId: row.public_id,
     documentTypeId: row.document_type_id,
     documentNumber: row.document_number,
+    firstName: row.first_name,
+    lastName: row.last_name,
     phone: row.phone,
     email: row.email,
     address: row.address,

@@ -31,6 +31,24 @@ export class CreateProductorDto {
   documentNumber!: string;
 
   @ApiPropertyOptional({
+    example: "Juan"
+  })
+  @Transform(({ value }) => trimOptionalString(value))
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  firstName?: string | null;
+
+  @ApiPropertyOptional({
+    example: "Perez"
+  })
+  @Transform(({ value }) => trimOptionalString(value))
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  lastName?: string | null;
+
+  @ApiPropertyOptional({
     example: "999888777"
   })
   @Transform(({ value }) => trimOptionalString(value))

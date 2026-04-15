@@ -33,10 +33,21 @@ import type {
 } from "../../../productos-recomendados/types";
 import { recomendacionesService } from "../../../recomendaciones/services";
 import type { RecommendationTypeCatalogItem } from "../../../recomendaciones/types";
-import { visitasCampoService } from "../../services";
-import type { VisitaCampoFull, VisitaSyncSummary } from "../../types";
+import { visitaCampoCatalogsService, visitasCampoService } from "../../services";
+import type {
+  CampaniaCatalogItem,
+  CultivoCatalogItem,
+  EtapaFenologicaCatalogItem,
+  VariedadCatalogItem,
+  VisitaCampoFull,
+  VisitaSyncSummary
+} from "../../types";
 
 type DetailCatalogs = {
+  cultivos: CultivoCatalogItem[];
+  variedades: VariedadCatalogItem[];
+  campanias: CampaniaCatalogItem[];
+  etapasFenologicas: EtapaFenologicaCatalogItem[];
   pestDiseases: PestDiseaseCatalogItem[];
   incidenceLevels: IncidenceLevelCatalogItem[];
   recommendationTypes: RecommendationTypeCatalogItem[];
@@ -45,6 +56,10 @@ type DetailCatalogs = {
 };
 
 const EMPTY_CATALOGS: DetailCatalogs = {
+  cultivos: [],
+  variedades: [],
+  campanias: [],
+  etapasFenologicas: [],
   pestDiseases: [],
   incidenceLevels: [],
   recommendationTypes: [],
@@ -92,16 +107,22 @@ export function VisitaCampoDetailScreen() {
       return [];
     }
 
+    const campaignLabel = getCatalogNameById(
+      visita.campaignId,
+      catalogs.campanias,
+      "Sin campaña"
+    );
+
     return [
       {
         id: `visita-location-${visita.id}`,
         geometry: visita.visitLocation,
         title: visita.nroFicha || `Visita ${visita.publicId}`,
-        description: buildVisitMapDescription(visita),
+        description: buildVisitMapDescription(visita, campaignLabel),
         pinColor: "#c77700"
       }
     ];
-  }, [visita]);
+  }, [catalogs.campanias, visita]);
 
   return (
     <ScreenContainer contentStyle={styles.container}>
@@ -156,9 +177,18 @@ export function VisitaCampoDetailScreen() {
                   label="Ubicacion"
                   value={visita.visitLocation ? "Punto registrado" : "Sin ubicacion"}
                 />
-                <AppDetailRow label="Cultivo" value={visita.cropId} />
-                <AppDetailRow label="Variedad" value={visita.varietyId} />
-                <AppDetailRow label="Campania" value={visita.campaignId} />
+                <AppDetailRow
+                  label="Cultivo"
+                  value={getCatalogNameById(visita.cropId, catalogs.cultivos)}
+                />
+                <AppDetailRow
+                  label="Variedad"
+                  value={getCatalogNameById(visita.varietyId, catalogs.variedades)}
+                />
+                <AppDetailRow
+                  label="Campaña"
+                  value={getCatalogNameById(visita.campaignId, catalogs.campanias)}
+                />
                 <AppDetailRow
                   label="Plantas"
                   value={formatNullableNumber(visita.plantsCount)}
@@ -169,7 +199,10 @@ export function VisitaCampoDetailScreen() {
                 />
                 <AppDetailRow
                   label="Etapa fenol."
-                  value={formatNullableString(visita.phenologicalStageId)}
+                  value={getCatalogNameById(
+                    visita.phenologicalStageId,
+                    catalogs.etapasFenologicas
+                  )}
                 />
                 {visita.generalObservation ? (
                   <AppDetailRow
@@ -197,46 +230,51 @@ export function VisitaCampoDetailScreen() {
             </AppCard>
 
             <View style={styles.navGrid}>
-              <NavCard
-                title="Evaluaciones"
-                count={detail.evaluaciones.length}
-                onPress={() =>
-                  router.push({
-                    pathname: "/visitas-campo/[id]/evaluaciones",
-                    params: { id: visita.id }
-                  })
-                }
-              />
-              <NavCard
-                title="Obs. sanitarias"
-                count={detail.observacionesSanitarias.length}
-                onPress={() =>
-                  router.push({
-                    pathname: "/visitas-campo/[id]/observaciones-sanitarias",
-                    params: { id: visita.id }
-                  })
-                }
-              />
-              <NavCard
-                title="Recomendaciones"
-                count={detail.recomendaciones.length}
-                onPress={() =>
-                  router.push({
-                    pathname: "/visitas-campo/[id]/recomendaciones",
-                    params: { id: visita.id }
-                  })
-                }
-              />
-              <NavCard
-                title="Productos rec."
-                count={detail.productosRecomendados.length}
-                onPress={() =>
-                  router.push({
-                    pathname: "/visitas-campo/[id]/productos-recomendados",
-                    params: { id: visita.id }
-                  })
-                }
-              />
+              <View style={styles.navRow}>
+                <NavCard
+                  title="Evaluaciones"
+                  count={detail.evaluaciones.length}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/visitas-campo/[id]/evaluaciones",
+                      params: { id: visita.id }
+                    })
+                  }
+                />
+                <NavCard
+                  title="Obs. sanitarias"
+                  count={detail.observacionesSanitarias.length}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/visitas-campo/[id]/observaciones-sanitarias",
+                      params: { id: visita.id }
+                    })
+                  }
+                />
+              </View>
+
+              <View style={styles.navRow}>
+                <NavCard
+                  title="Recomendaciones"
+                  count={detail.recomendaciones.length}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/visitas-campo/[id]/recomendaciones",
+                      params: { id: visita.id }
+                    })
+                  }
+                />
+                <NavCard
+                  title="Productos rec."
+                  count={detail.productosRecomendados.length}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/visitas-campo/[id]/productos-recomendados",
+                      params: { id: visita.id }
+                    })
+                  }
+                />
+              </View>
             </View>
 
             <SectionCard
@@ -350,6 +388,7 @@ export function VisitaCampoDetailScreen() {
 
     try {
       const nextDetail = await visitasCampoService.getFullDetail(id);
+      await loadVisitReferenceCatalogs(nextDetail.visita.cropId);
       setDetail(nextDetail);
       setSyncSummary(visitasCampoService.getVisitaSyncSummary(id));
     } catch (nextError) {
@@ -370,13 +409,31 @@ export function VisitaCampoDetailScreen() {
       productosRecomendadosService.getApplicationFrequencies()
     ]);
 
-    setCatalogs({
+    setCatalogs((currentCatalogs) => ({
+      ...currentCatalogs,
       pestDiseases: results[0].status === "fulfilled" ? results[0].value : [],
       incidenceLevels: results[1].status === "fulfilled" ? results[1].value : [],
       recommendationTypes: results[2].status === "fulfilled" ? results[2].value : [],
       products: results[3].status === "fulfilled" ? results[3].value : [],
       applicationFrequencies: results[4].status === "fulfilled" ? results[4].value : []
-    });
+    }));
+  }
+
+  async function loadVisitReferenceCatalogs(cultivoId: string) {
+    const results = await Promise.allSettled([
+      visitaCampoCatalogsService.getCultivos(),
+      visitaCampoCatalogsService.getVariedadesByCultivo(cultivoId),
+      visitaCampoCatalogsService.getCampaniasByCultivo(cultivoId),
+      visitaCampoCatalogsService.getEtapasFenologicasByCultivo(cultivoId)
+    ]);
+
+    setCatalogs((currentCatalogs) => ({
+      ...currentCatalogs,
+      cultivos: results[0].status === "fulfilled" ? results[0].value : [],
+      variedades: results[1].status === "fulfilled" ? results[1].value : [],
+      campanias: results[2].status === "fulfilled" ? results[2].value : [],
+      etapasFenologicas: results[3].status === "fulfilled" ? results[3].value : []
+    }));
   }
 
   async function handleRetrySync() {
@@ -541,6 +598,18 @@ function getPestDiseaseLabel(id: string, pestDiseases: PestDiseaseCatalogItem[])
   return pestDiseases.find((pestDisease) => pestDisease.id === id)?.name || `ID ${id}`;
 }
 
+function getCatalogNameById<T extends { id: string; name: string }>(
+  id: string | null,
+  items: T[],
+  emptyLabel = "No registrado"
+) {
+  if (!id) {
+    return emptyLabel;
+  }
+
+  return items.find((item) => item.id === id)?.name || `ID ${id}`;
+}
+
 function getIncidenceLevelLabel(
   id: string | null,
   incidenceLevels: IncidenceLevelCatalogItem[]
@@ -615,11 +684,14 @@ function getApplicationFrequencyLabel(
   );
 }
 
-function buildVisitMapDescription(visita: VisitaCampoFull["visita"]) {
+function buildVisitMapDescription(
+  visita: VisitaCampoFull["visita"],
+  campaignLabel: string
+) {
   return [
     `Fecha ${visita.visitDate}`,
     `Parcela ${visita.parcelaId}`,
-    `Campania ${visita.campaignId}`
+    `Campaña ${campaignLabel}`
   ].join(" | ");
 }
 
@@ -652,13 +724,15 @@ const styles = StyleSheet.create({
     gap: 2
   },
   navGrid: {
+    gap: 10
+  },
+  navRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 10
   },
   navCard: {
     flex: 1,
-    minWidth: "45%",
+    minHeight: 96,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 16,

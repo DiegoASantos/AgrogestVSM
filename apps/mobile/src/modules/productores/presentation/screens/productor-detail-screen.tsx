@@ -64,7 +64,11 @@ export function ProductorDetailScreen() {
             <AppCard>
               <View style={styles.headerRow}>
                 <AppHeader
-                  title={`Productor ${productor.documentNumber}`}
+                  title={
+                    buildFullName(productor.firstName, productor.lastName) ||
+                    `Productor ${productor.documentNumber}`
+                  }
+                  subtitle={`Doc. ${productor.documentNumber}`}
                   style={styles.headerText}
                 />
                 <AppStatusBadge
@@ -79,6 +83,14 @@ export function ProductorDetailScreen() {
                   value={String(productor.documentTypeId)}
                 />
                 <AppDetailRow label="Documento" value={productor.documentNumber} />
+                <AppDetailRow
+                  label="Nombres"
+                  value={productor.firstName || "No registrado"}
+                />
+                <AppDetailRow
+                  label="Apellidos"
+                  value={productor.lastName || "No registrado"}
+                />
                 <AppDetailRow
                   label="Correo"
                   value={productor.email || "No registrado"}
@@ -134,6 +146,10 @@ export function ProductorDetailScreen() {
       setIsLoading(false);
     }
   }
+}
+
+function buildFullName(firstName: string | null, lastName: string | null) {
+  return [firstName, lastName].filter(Boolean).join(" ").trim();
 }
 
 function toSingleParam(value?: string | string[]) {

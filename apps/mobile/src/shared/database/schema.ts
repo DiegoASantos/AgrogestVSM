@@ -64,6 +64,8 @@ export const SQL_SCHEMA = [
     public_id TEXT NOT NULL,
     document_type_id INTEGER NOT NULL,
     document_number TEXT NOT NULL,
+    first_name TEXT,
+    last_name TEXT,
     phone TEXT,
     email TEXT,
     address TEXT,

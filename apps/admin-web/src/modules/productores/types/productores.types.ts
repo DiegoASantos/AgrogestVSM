@@ -3,6 +3,8 @@ export type ProductorListItem = {
   publicId: string;
   documentTypeId: number;
   documentNumber: string;
+  firstName: string | null;
+  lastName: string | null;
   phone: string | null;
   email: string | null;
   address: string | null;
@@ -14,6 +16,8 @@ export type ProductorListItem = {
 export type ProductorPayload = {
   documentTypeId: number;
   documentNumber: string;
+  firstName?: string | null;
+  lastName?: string | null;
   phone?: string | null;
   email?: string | null;
   address?: string | null;

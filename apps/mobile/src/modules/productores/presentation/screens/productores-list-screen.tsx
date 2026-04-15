@@ -122,12 +122,18 @@ export function ProductoresListScreen() {
               ]}
             >
               <View style={styles.itemHeader}>
-                <AppText variant="heading">{item.documentNumber}</AppText>
+                <AppText variant="heading">
+                  {buildProductorFullName(item.firstName, item.lastName) ||
+                    item.documentNumber}
+                </AppText>
                 <AppStatusBadge
                   label={item.isActive ? "Activo" : "Inactivo"}
                   variant={item.isActive ? "success" : "neutral"}
                 />
               </View>
+              <AppText variant="muted">
+                {`Doc. ${item.documentNumber}`}
+              </AppText>
               <AppText variant="muted">
                 {item.email || "Sin correo"}
               </AppText>
@@ -249,6 +255,8 @@ function matchesProductor(productor: Productor, search: string) {
   const source = [
     productor.id,
     productor.documentNumber,
+    productor.firstName ?? "",
+    productor.lastName ?? "",
     productor.email ?? "",
     productor.address ?? ""
   ]
@@ -256,6 +264,13 @@ function matchesProductor(productor: Productor, search: string) {
     .toLowerCase();
 
   return source.includes(query);
+}
+
+function buildProductorFullName(
+  firstName: string | null,
+  lastName: string | null
+) {
+  return [firstName, lastName].filter(Boolean).join(" ").trim();
 }
 
 const styles = StyleSheet.create({

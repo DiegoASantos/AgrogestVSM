@@ -778,6 +778,8 @@ export class VisitasCampoService {
       publicId: productor.publicId,
       documentTypeId: productor.documentTypeId,
       documentNumber: productor.documentNumber,
+      firstName: productor.firstName,
+      lastName: productor.lastName,
       email: productor.email,
       isActive: productor.isActive
     };
