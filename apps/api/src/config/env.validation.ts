@@ -28,7 +28,11 @@ function buildEnvironmentVariables(
   return {
     NODE_ENV: parseNodeEnvironment(source.NODE_ENV),
     APP_HOST: getString(source.APP_HOST, DEFAULT_APP_HOST),
-    APP_PORT: parsePort(source.APP_PORT, "APP_PORT", DEFAULT_APP_PORT),
+    APP_PORT: parsePort(
+      source.APP_PORT ?? source.PORT,
+      source.APP_PORT !== undefined ? "APP_PORT" : "PORT",
+      DEFAULT_APP_PORT
+    ),
     CORS_ALLOWED_ORIGINS: parseAllowedOrigins(source.CORS_ALLOWED_ORIGINS),
     DB_HOST: getString(source.DB_HOST, DEFAULT_DB_HOST),
     DB_PORT: parsePort(source.DB_PORT, "DB_PORT", DEFAULT_DB_PORT),

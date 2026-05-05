@@ -163,6 +163,11 @@ Notas:
 - Swagger se expone solo en desarrollo en `/docs`
 - el seed de auth prepara datos base de acceso para el sistema
 
+### Deploy piloto de API
+
+Para publicar la API en Render contra Supabase usando la configuracion lista del
+repo, sigue [docs/deploy-api-render.md](C:\Users\USUARIO\Documents\TESIS UNP\VSM_VersionLite\Monorepo_VSM\agrogest-vsm\docs\deploy-api-render.md).
+
 ### Admin web
 
 ```bash

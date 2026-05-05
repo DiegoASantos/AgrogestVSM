@@ -4,7 +4,8 @@ import { SQL_SCHEMA } from "./schema";
 
 type Migration = {
   version: number;
-  statements: readonly string[];
+  statements?: readonly string[];
+  run?: (db: SQLiteDatabase) => void;
 };
 
 const MIGRATIONS: Migration[] = [
@@ -63,12 +64,31 @@ const MIGRATIONS: Migration[] = [
   },
   {
     version: 7,
-    statements: [
-      "ALTER TABLE productores ADD COLUMN first_name TEXT",
-      "ALTER TABLE productores ADD COLUMN last_name TEXT"
-    ]
+    run: (db) => {
+      addColumnIfMissing(db, "productores", "first_name", "TEXT");
+      addColumnIfMissing(db, "productores", "last_name", "TEXT");
+    }
   }
 ];
+
+function addColumnIfMissing(
+  db: SQLiteDatabase,
+  tableName: string,
+  columnName: string,
+  columnDefinition: string
+) {
+  const columns = db.getAllSync<{ name: string }>(
+    `PRAGMA table_info(${tableName})`
+  );
+
+  if (columns.some((column) => column.name === columnName)) {
+    return;
+  }
+
+  db.execSync(
+    `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`
+  );
+}
 
 export function runMigrations(db: SQLiteDatabase) {
   const currentVersion =
@@ -81,9 +101,14 @@ export function runMigrations(db: SQLiteDatabase) {
 
   for (const migration of pending) {
     db.withTransactionSync(() => {
-      for (const statement of migration.statements) {
+      if (migration.run) {
+        migration.run(db);
+      }
+
+      for (const statement of migration.statements ?? []) {
         db.execSync(statement);
       }
+
       db.execSync(`PRAGMA user_version = ${migration.version}`);
     });
   }

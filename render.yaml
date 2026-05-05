@@ -1,0 +1,58 @@
+services:
+  - type: web
+    name: agrogest-vsm-api
+    runtime: node
+    region: virginia
+    plan: free
+    healthCheckPath: /health
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @agrogest/api build
+    startCommand: node apps/api/dist/main.js
+    initialDeployHook: node apps/api/dist/scripts/seed-auth.js
+    buildFilter:
+      paths:
+        - apps/api/**
+        - packages/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - tsconfig.base.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: DB_HOST
+        value: aws-1-us-east-1.pooler.supabase.com
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        value: postgres.pdppvazosimktbwiyuus
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SCHEMA
+        value: public
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 1h
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: SEED_ADMIN_FIRST_NAME
+        value: Admin
+      - key: SEED_ADMIN_LAST_NAME
+        value: VSM
+      - key: SEED_ADMIN_EMAIL
+        value: admin@agrogestvsm.local
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
