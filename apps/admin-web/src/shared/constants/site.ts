@@ -18,6 +18,7 @@ export const adminRoutes = {
     campanias: "/mantenimiento/campanias",
     etapasFenologicas: "/mantenimiento/etapas-fenologicas",
     productores: "/mantenimiento/productores",
+    parcelas: "/mantenimiento/parcelas",
     productos: "/mantenimiento/productos",
     ingredientesActivos: "/mantenimiento/ingredientes-activos",
     nivelesIncidencia: "/mantenimiento/niveles-incidencia",

@@ -46,6 +46,11 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     description: "Gestion base de productores"
   },
   {
+    label: "Parcelas",
+    href: adminRoutes.mantenimientoItems.parcelas,
+    description: "Unidades de terreno por sector"
+  },
+  {
     label: "Productos",
     href: adminRoutes.mantenimientoItems.productos,
     description: "Catalogo de productos"

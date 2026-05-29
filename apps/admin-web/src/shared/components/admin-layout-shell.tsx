@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -24,6 +25,7 @@ import {
   KeyRound,
   UserCog,
   ChevronDown,
+  ChevronLeft,
   LogOut,
   Menu,
   X,
@@ -64,6 +66,7 @@ const maintenanceNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.mantenimientoItems.campanias]: CalendarDays,
   [adminRoutes.mantenimientoItems.etapasFenologicas]: Leaf,
   [adminRoutes.mantenimientoItems.productores]: Users,
+  [adminRoutes.mantenimientoItems.parcelas]: MapIcon,
   [adminRoutes.mantenimientoItems.productos]: Package,
   [adminRoutes.mantenimientoItems.ingredientesActivos]: FlaskConical,
   [adminRoutes.mantenimientoItems.nivelesIncidencia]: AlertTriangle,
@@ -90,6 +93,8 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
   const routeMeta = resolveAdminRouteMeta(pathname);
   const { theme, toggleTheme, mounted } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const isAdmin = isAdminSession(session);
   const canAccessCurrentRoute = canAccessAdminPath(pathname, session);
   const maintenanceNavigation = isAdmin ? adminMaintenanceNavigation : [];
@@ -103,6 +108,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
 
   useEffect(() => {
     setSidebarOpen(false);
+    setUserMenuOpen(false);
   }, [pathname]);
 
   if (status === "loading") {
@@ -130,7 +136,11 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
   const userInitials = getInitials(session.user.displayName);
 
   return (
-    <main className="admin-layout">
+    <main
+      className={`admin-layout${
+        sidebarCollapsed ? " admin-layout--sidebar-collapsed" : ""
+      }`}
+    >
       <button
         className="mobile-menu-toggle"
         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -148,15 +158,30 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
       )}
 
       <aside className={`admin-sidebar${sidebarOpen ? " admin-sidebar--open" : ""}`}>
-        <div className="admin-sidebar__brand">
+        <button
+          className="admin-sidebar__brand"
+          onClick={() => setSidebarCollapsed((isCollapsed) => !isCollapsed)}
+          type="button"
+          aria-label={sidebarCollapsed ? "Expandir menu lateral" : "Colapsar menu lateral"}
+          aria-expanded={!sidebarCollapsed}
+          title={sidebarCollapsed ? "Expandir menu" : "Colapsar menu"}
+        >
           <div className="brand-logo">
-            <Sprout size={22} />
+            <Image
+              src="/images/logo_vsm_transparente_4k.webp"
+              alt="Logo AgroGest VSM"
+              width={44}
+              height={44}
+              className="brand-logo__image"
+              priority
+            />
           </div>
           <div className="brand-text">
             <h1 className="brand-text__name">AgroGest VSM</h1>
             <p className="brand-text__role">Panel administrativo</p>
           </div>
-        </div>
+          <ChevronLeft size={16} className="brand-collapse-icon" />
+        </button>
 
         <nav className="admin-sidebar__nav" aria-label="Navegacion administrativa">
           <SidebarGroup
@@ -164,6 +189,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
             pathname={pathname}
             title="Principal"
             defaultOpen
+            isCollapsed={sidebarCollapsed}
           />
           {maintenanceNavigation.length > 0 ? (
             <SidebarGroup
@@ -171,6 +197,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
               pathname={pathname}
               title="Mantenimiento"
               icon={Wrench}
+              isCollapsed={sidebarCollapsed}
             />
           ) : null}
           {securityNavigation.length > 0 ? (
@@ -179,30 +206,10 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
               pathname={pathname}
               title="Seguridad"
               icon={ShieldCheck}
+              isCollapsed={sidebarCollapsed}
             />
           ) : null}
         </nav>
-
-        <div className="admin-sidebar__footer">
-          <div className="sidebar-user">
-            <div className="sidebar-user__avatar">{userInitials}</div>
-            <div className="sidebar-user__info">
-              <strong>{session.user.displayName}</strong>
-              <span>
-                {session.user.roles.map((role) => role.code).join(", ") || "Sin roles"}
-              </span>
-            </div>
-          </div>
-          <button
-            className="sidebar-logout"
-            onClick={handleLogout}
-            type="button"
-            title="Cerrar sesion"
-          >
-            <LogOut size={16} />
-            <span>Salir</span>
-          </button>
-        </div>
       </aside>
 
       <div className="admin-main">
@@ -224,9 +231,43 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
                 {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
               </button>
             )}
-            <div className="topbar-user-pill">
-              <div className="topbar-user-pill__avatar">{userInitials}</div>
-              <span className="topbar-user-pill__name">{session.user.displayName}</span>
+            <div className="topbar-user-menu">
+              <button
+                className="topbar-user-pill"
+                onClick={() => setUserMenuOpen((isOpen) => !isOpen)}
+                type="button"
+                aria-expanded={userMenuOpen}
+                aria-haspopup="menu"
+              >
+                <div className="topbar-user-pill__avatar">{userInitials}</div>
+                <span className="topbar-user-pill__name">{session.user.displayName}</span>
+                <ChevronDown
+                  size={14}
+                  className={`topbar-user-pill__chevron${
+                    userMenuOpen ? " topbar-user-pill__chevron--open" : ""
+                  }`}
+                />
+              </button>
+              {userMenuOpen ? (
+                <div className="topbar-user-dropdown" role="menu">
+                  <div className="topbar-user-dropdown__meta">
+                    <strong>{session.user.displayName}</strong>
+                    <span>
+                      {session.user.roles.map((role) => role.code).join(", ") ||
+                        "Sin roles"}
+                    </span>
+                  </div>
+                  <button
+                    className="topbar-user-dropdown__logout"
+                    onClick={handleLogout}
+                    type="button"
+                    role="menuitem"
+                  >
+                    <LogOut size={16} />
+                    <span>Cerrar sesión</span>
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </header>
@@ -273,16 +314,19 @@ function SidebarGroup({
   items,
   pathname,
   defaultOpen,
-  icon: GroupIcon
+  icon: GroupIcon,
+  isCollapsed
 }: {
   title: string;
   items: AdminNavLink[];
   pathname: string;
   defaultOpen?: boolean;
   icon?: LucideIcon;
+  isCollapsed?: boolean;
 }) {
   const hasActiveChild = items.some((item) => matchesPath(pathname, item.href));
   const [isOpen, setIsOpen] = useState(defaultOpen ?? hasActiveChild);
+  const shouldShowLinks = isCollapsed || isOpen;
 
   useEffect(() => {
     if (hasActiveChild && !isOpen) {
@@ -291,12 +335,17 @@ function SidebarGroup({
   }, [hasActiveChild]);
 
   return (
-    <div className={`sidebar-group${isOpen ? " sidebar-group--open" : ""}`}>
+    <div
+      className={`sidebar-group${isOpen ? " sidebar-group--open" : ""}${
+        hasActiveChild ? " sidebar-group--active" : ""
+      }${GroupIcon ? " sidebar-group--nested" : " sidebar-group--primary"}`}
+    >
       <button
         className="sidebar-group__toggle"
         onClick={() => setIsOpen(!isOpen)}
         type="button"
         aria-expanded={isOpen}
+        title={title}
       >
         <span className="sidebar-group__toggle-left">
           {GroupIcon && <GroupIcon size={14} />}
@@ -308,7 +357,7 @@ function SidebarGroup({
         />
       </button>
 
-      {isOpen && (
+      {shouldShowLinks && (
         <div className="sidebar-group__links">
           {items.map((item) => {
             const isActive = matchesPath(pathname, item.href);
