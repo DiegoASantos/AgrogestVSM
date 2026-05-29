@@ -152,11 +152,11 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
             </strong>
           </div>
           <div className="visit-detail__field">
-            <span>Campania</span>
+            <span>Campaña</span>
             <strong>
               {detail.lookups.campaign
                 ? detail.lookups.campaign.name
-                : `Campania #${detail.visita.campaignId}`}
+                : `Campaña #${detail.visita.campaignId}`}
             </strong>
           </div>
           <div className="visit-detail__field">

@@ -31,9 +31,9 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     description: "Catalogo de cultivos"
   },
   {
-    label: "Campanias",
+    label: "Campañas",
     href: adminRoutes.mantenimientoItems.campanias,
-    description: "Campanias agricolas"
+    description: "Campañas agrícolas"
   },
   {
     label: "Etapas fenologicas",

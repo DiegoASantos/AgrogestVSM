@@ -117,7 +117,7 @@ export function DashboardOverview() {
             <p className="stat-card__value">{summary.activeParcelasCount}</p>
           </article>
           <article className="stat-card">
-            <p className="stat-card__label">Campanias activas</p>
+            <p className="stat-card__label">Campañas activas</p>
             <p className="stat-card__value">{summary.activeCampaniasCount}</p>
           </article>
         </div>

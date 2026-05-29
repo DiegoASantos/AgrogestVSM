@@ -109,7 +109,7 @@ export function ProductorVisitasHistoryScreen({
               </Link>
             </>
           }
-          description="Historial administrativo de visitas del productor con filtros basicos por campania, agronomo y fechas."
+          description="Historial administrativo de visitas del productor con filtros básicos por campaña, agrónomo y fechas."
           eyebrow="Visitas"
           title={
             history
@@ -131,7 +131,7 @@ export function ProductorVisitasHistoryScreen({
           }
         >
           <label className="field-group">
-            <span>Campania</span>
+            <span>Campaña</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({

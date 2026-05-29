@@ -103,7 +103,7 @@ export function CampaniasManagementScreen() {
   const columns: DataTableColumn<CampaniaCatalogItem>[] = [
     {
       key: "name",
-      header: "Campania",
+      header: "Campaña",
       cell: (item) => (
         <div className="table-copy">
           <strong>{item.name}</strong>
@@ -233,10 +233,10 @@ export function CampaniasManagementScreen() {
           formState.id,
           payload
         );
-        setSuccessMessage("Campania actualizada correctamente.");
+        setSuccessMessage("Campaña actualizada correctamente.");
       } else {
         await agriculturalCatalogsService.createCampania(session, payload);
-        setSuccessMessage("Campania creada correctamente.");
+        setSuccessMessage("Campaña creada correctamente.");
       }
 
       await loadData();
@@ -258,7 +258,7 @@ export function CampaniasManagementScreen() {
 
     try {
       await agriculturalCatalogsService.deleteCampania(session, itemToDeactivate.id);
-      setSuccessMessage("Campania desactivada correctamente.");
+      setSuccessMessage("Campaña desactivada correctamente.");
 
       if (formState.id === itemToDeactivate.id) {
         setFormState(emptyForm);
@@ -282,13 +282,13 @@ export function CampaniasManagementScreen() {
               Recargar
             </button>
             <button className="ui-button ui-button--primary" onClick={() => { resetForm(); setModalOpen(true); }} type="button">
-              Nueva campania
+              Nueva campaña
             </button>
           </>
         }
-        description="Gestion administrativa de campanias agricolas."
+        description="Gestión administrativa de campañas agrícolas."
         eyebrow="Mantenimiento"
-        title="Campanias"
+        title="Campañas"
       />
 
       <FilterBar
@@ -365,19 +365,19 @@ export function CampaniasManagementScreen() {
       ) : null}
 
       {!listError && isLoading ? (
-        <LoadingState description="Cargando campanias..." />
+        <LoadingState description="Cargando campañas..." />
       ) : null}
 
       {!listError && !isLoading && filteredItems.length === 0 ? (
         <EmptyState
-          description="No hay campanias registradas o los filtros no devolvieron coincidencias."
-          title="No hay campanias para mostrar"
+          description="No hay campañas registradas o los filtros no devolvieron coincidencias."
+          title="No hay campañas para mostrar"
         />
       ) : null}
 
       {!listError && !isLoading && filteredItems.length > 0 ? (
         <DataTable
-          caption="Catalogo administrativo de campanias."
+          caption="Catálogo administrativo de campañas."
           columns={columns}
           getRowKey={(item) => item.id}
           rows={filteredItems}
@@ -387,8 +387,8 @@ export function CampaniasManagementScreen() {
       <FormModal
         open={modalOpen}
         onClose={() => { resetForm(); setModalOpen(false); }}
-        title={formState.id ? "Editar campania" : "Nueva campania"}
-        description="Alta o edicion simple de campanias con su cultivo y fechas."
+        title={formState.id ? "Editar campaña" : "Nueva campaña"}
+        description="Alta o edición simple de campañas con su cultivo y fechas."
         footer={
           <>
             <button className="ui-button ui-button--ghost" onClick={() => { resetForm(); setModalOpen(false); }} type="button">
@@ -404,7 +404,7 @@ export function CampaniasManagementScreen() {
                 ? "Guardando..."
                 : formState.id
                   ? "Guardar cambios"
-                  : "Crear campania"}
+                  : "Crear campaña"}
             </button>
           </>
         }
@@ -419,7 +419,7 @@ export function CampaniasManagementScreen() {
                   name: event.target.value
                 }))
               }
-              placeholder="Campania 2026"
+              placeholder="Campaña 2026"
               value={formState.name}
             />
           </label>
@@ -483,7 +483,7 @@ export function CampaniasManagementScreen() {
                   description: event.target.value
                 }))
               }
-              placeholder="Descripcion breve de la campania"
+              placeholder="Descripción breve de la campaña"
               value={formState.description}
             />
           </label>
@@ -512,7 +512,7 @@ export function CampaniasManagementScreen() {
         confirmLabel="Desactivar"
         description={
           itemToDeactivate
-            ? `Se desactivara la campania ${itemToDeactivate.name}. Podra reactivarse mas adelante.`
+            ? `Se desactivará la campaña ${itemToDeactivate.name}. Podrá reactivarse más adelante.`
             : ""
         }
         isLoading={isDeleting}
@@ -523,7 +523,7 @@ export function CampaniasManagementScreen() {
         }}
         onConfirm={() => void handleDeactivateConfirm()}
         open={itemToDeactivate !== null}
-        title="Desactivar campania"
+        title="Desactivar campaña"
         variant="warning"
       />
     </article>

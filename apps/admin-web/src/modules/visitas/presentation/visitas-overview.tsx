@@ -171,7 +171,7 @@ export function VisitasOverview() {
           </label>
 
           <label className="field-group">
-            <span>Campania</span>
+            <span>Campaña</span>
             <select
               onChange={(event) =>
                 setDraftFilters((current) => ({
@@ -254,7 +254,7 @@ export function VisitasOverview() {
         ) : null}
 
         {isLoadingCatalogs ? (
-          <LoadingState description="Cargando productores, campanias y parcelas para los filtros." />
+          <LoadingState description="Cargando productores, campañas y parcelas para los filtros." />
         ) : null}
 
         {listError ? (

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "pnpm build && node --watch dist/main.js",
+    "dev": "pnpm build && node scripts/dev-runner.cjs",
     "build": "tsc -p tsconfig.build.json",
     "seed:auth": "pnpm build && node dist/scripts/seed-auth.js",
     "start": "node dist/main.js",

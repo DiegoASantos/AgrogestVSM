@@ -323,7 +323,7 @@ export function MapasOverview() {
             }
           />
           <FieldSelect
-            label="Campania"
+            label="Campaña"
             options={campaignOptions}
             value={draftFilters.campaignId}
             onChange={(value) =>
@@ -634,8 +634,8 @@ function SelectedVisitaPanel({ item }: { item: VisitaMapItem }) {
           <dd>{item.parcelaLabel || `Parcela #${item.parcelaId}`}</dd>
         </div>
         <div>
-          <dt>Campania</dt>
-          <dd>{item.campaignName || `Campania #${item.campaignId}`}</dd>
+          <dt>Campaña</dt>
+          <dd>{item.campaignName || `Campaña #${item.campaignId}`}</dd>
         </div>
         <div>
           <dt>Estado</dt>
@@ -701,7 +701,7 @@ function buildCampaignOptions(items: VisitaMapItem[], filters: AdminMapFilterSta
   return toOptions(
     filterVisitas(items, { ...filters, campaignId: "" }).map((item) => ({
       value: item.campaignId,
-      label: item.campaignName || `Campania #${item.campaignId}`
+      label: item.campaignName || `Campaña #${item.campaignId}`
     }))
   );
 }
@@ -800,7 +800,7 @@ function buildVisitaPopup(item: VisitaMapItem) {
     `Agronomo: ${item.agronomistName || `Usuario #${item.agronomistUserId}`}`,
     item.productorLabel ? `Productor: ${item.productorLabel}` : null,
     `Parcela: ${item.parcelaLabel || `#${item.parcelaId}`}`,
-    `Campania: ${item.campaignName || `#${item.campaignId}`}`,
+    `Campaña: ${item.campaignName || `#${item.campaignId}`}`,
     `Estado: ${item.isActive ? "Activa" : "Inactiva"}`
   ]
     .filter(Boolean)
@@ -819,7 +819,7 @@ function describeVisita(item: VisitaMapItem) {
   return [
     formatVisitDate(item.visitDate),
     item.parcelaLabel || `Parcela #${item.parcelaId}`,
-    item.campaignName || `Campania #${item.campaignId}`
+    item.campaignName || `Campaña #${item.campaignId}`
   ].join(" | ");
 }
 function formatArea(value: string | number | null) {

@@ -1,10 +1,5 @@
-import { DashboardHome } from "../modules/dashboard/presentation/dashboard-home";
-import { PageShell } from "../shared/components/page-shell";
+import { redirect } from "next/navigation";
 
 export default function HomePage() {
-  return (
-    <PageShell>
-      <DashboardHome />
-    </PageShell>
-  );
+  redirect("/login");
 }

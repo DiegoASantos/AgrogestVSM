@@ -45,13 +45,13 @@ export function VisitasTable({
       : []),
     {
       key: "campania",
-      header: "Campania",
+      header: "Campaña",
       cell: (visita) =>
-        campaignLabels?.get(visita.campaignId) ?? `Campania #${visita.campaignId}`
+        campaignLabels?.get(visita.campaignId) ?? `Campaña #${visita.campaignId}`
     },
     {
       key: "agronomo",
-      header: "Agronomo",
+      header: "Agrónomo",
       cell: (visita) =>
         agronomistLabels?.get(visita.agronomistUserId) ?? `Usuario #${visita.agronomistUserId}`
     },
