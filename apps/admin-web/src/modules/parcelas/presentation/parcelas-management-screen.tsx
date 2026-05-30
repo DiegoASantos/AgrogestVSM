@@ -156,6 +156,12 @@ export function ParcelasManagementScreen() {
           </button>
           <Link
             className="ui-button ui-button--secondary ui-button--compact"
+            href={`/mantenimiento/parcelas/${item.id}/geodatos`}
+          >
+            Geodatos
+          </Link>
+          <Link
+            className="ui-button ui-button--ghost ui-button--compact"
             href={`/visitas/parcelas/${item.id}`}
           >
             Historial

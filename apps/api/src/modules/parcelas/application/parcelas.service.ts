@@ -27,6 +27,7 @@ import {
   ParcelaEntity,
   PointGeometry
 } from "../infrastructure/persistence/entities/parcela.entity";
+import { assertParcelaGeodataIsPersistable } from "./parcela-geodata-validation.util";
 
 @Injectable()
 export class ParcelasService {
@@ -45,6 +46,10 @@ export class ParcelasService {
     const referencePoint = validatePointGeometry(createParcelaDto.referencePoint);
     const geometry = validateMultiPolygonGeometry(createParcelaDto.geometry);
     const areaHectares = normalizeAreaHectares(createParcelaDto.areaHectares);
+    await this.assertGeodataRules({
+      sectorId: createParcelaDto.sectorId,
+      geometry
+    });
 
     const parcela = this.parcelasRepository.create({
       sectorId: createParcelaDto.sectorId,
@@ -113,6 +118,10 @@ export class ParcelasService {
     const parcela = await this.findEntityById(id);
     const nextSectorId = updateParcelaDto.sectorId ?? parcela.sectorId;
     const nextCode = updateParcelaDto.code ?? parcela.code;
+    const nextGeometry =
+      updateParcelaDto.geometry !== undefined
+        ? validateMultiPolygonGeometry(updateParcelaDto.geometry)
+        : normalizeGeoJsonMultiPolygon(parcela.geometry);
 
     if (updateParcelaDto.sectorId !== undefined) {
       await this.ensureSectorExists(updateParcelaDto.sectorId);
@@ -140,12 +149,18 @@ export class ParcelasService {
           }
         : {}),
       ...(updateParcelaDto.geometry !== undefined
-        ? { geometry: validateMultiPolygonGeometry(updateParcelaDto.geometry) }
+        ? { geometry: nextGeometry }
         : {}),
       ...(updateParcelaDto.isActive !== undefined
         ? { isActive: updateParcelaDto.isActive }
         : {}),
       updatedAt: new Date()
+    });
+
+    await this.assertGeodataRules({
+      sectorId: updatedParcela.sectorId,
+      geometry: normalizeGeoJsonMultiPolygon(updatedParcela.geometry),
+      excludedId: updatedParcela.id
     });
 
     try {
@@ -329,6 +344,34 @@ export class ParcelasService {
         "A parcela with the same code already exists for this sector."
       );
     }
+  }
+
+  private async assertGeodataRules({
+    sectorId,
+    geometry,
+    excludedId
+  }: {
+    sectorId: string;
+    geometry: MultiPolygonGeometry | null;
+    excludedId?: string;
+  }) {
+    if (!geometry) {
+      return;
+    }
+
+    const neighborParcelas = await this.parcelasRepository.find({
+      where: {
+        sectorId,
+        isActive: true
+      }
+    });
+
+    assertParcelaGeodataIsPersistable({
+      geometry,
+      neighborParcelas: neighborParcelas.filter(
+        (neighborParcela) => neighborParcela.id !== excludedId
+      )
+    });
   }
 
   private handlePersistenceError(error: unknown): never {

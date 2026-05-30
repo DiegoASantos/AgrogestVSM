@@ -30,6 +30,13 @@ export const parcelasService = {
     });
   },
 
+  getValidationContext(session: AuthSessionInput, parcela: ParcelaListItem) {
+    return this.getAll(session, {
+      sectorId: parcela.sectorId,
+      isActive: true
+    }).then((items) => items.filter((item) => item.id !== parcela.id));
+  },
+
   getById(session: AuthSessionInput, id: string) {
     return apiRequest<ParcelaListItem>(`/parcelas/${id}`, {
       headers: createAuthHeaders(session.accessToken, session.tokenType)

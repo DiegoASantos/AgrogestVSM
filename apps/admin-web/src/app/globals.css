@@ -1,4 +1,5 @@
 @import "leaflet/dist/leaflet.css";
+@import "@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css";
 
 /* ============================================================
    AgroGest VSM — Admin Web Design System
@@ -1057,6 +1058,13 @@ canvas {
   color: var(--text);
 }
 
+.ui-button--active,
+.ui-button--active:hover {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
 .ui-button {
   display: inline-flex;
   align-items: center;
@@ -1372,6 +1380,176 @@ canvas {
   color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.55;
+}
+
+/* ============================================================
+   Parcel geodata editor
+   ============================================================ */
+.geo-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.geo-editor-panel,
+.geo-editor-map-panel {
+  min-width: 0;
+}
+
+.geo-editor-panel {
+  align-self: start;
+  display: grid;
+  gap: 16px;
+}
+
+.geo-editor-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.geo-editor-summary div {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+}
+
+.geo-editor-summary span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.geo-editor-summary strong {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.geo-editor-mode {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--primary-bg);
+}
+
+.geo-editor-mode strong {
+  color: var(--primary);
+  font-size: 13px;
+}
+
+.geo-editor-mode p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.geo-editor-mode--dirty {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.geo-editor-mode--dirty strong {
+  color: #92400e;
+}
+
+[data-theme="dark"] .geo-editor-mode--dirty strong {
+  color: #fbbf24;
+}
+
+.geo-editor-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.geo-editor-actions .ui-button,
+.geo-editor-savebar .ui-button {
+  justify-content: center;
+}
+
+.geo-editor-issues {
+  display: grid;
+  gap: 8px;
+}
+
+.geo-editor-issue {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.geo-editor-issue p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.geo-editor-issue--error {
+  border-color: rgba(220, 38, 38, 0.22);
+  background: var(--danger-soft);
+  color: var(--danger-strong);
+}
+
+.geo-editor-issue--warning {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+}
+
+[data-theme="dark"] .geo-editor-issue--warning {
+  color: #fbbf24;
+}
+
+.geo-editor-savebar {
+  display: grid;
+  gap: 8px;
+}
+
+.geo-editor-map {
+  position: relative;
+  min-height: calc(100vh - 154px);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
+}
+
+.geo-editor-map__surface {
+  width: 100%;
+  min-height: calc(100vh - 154px);
+  z-index: 1;
+}
+
+.geo-editor-map--loading {
+  display: grid;
+  place-items: center;
+}
+
+.geo-editor-map__point-icon {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(22, 101, 52, 0.2);
+  border: 1px solid rgba(22, 101, 52, 0.36);
+}
+
+.geo-editor-map__point-icon span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.22);
+}
+
+.geo-editor-map__point-icon--unsaved span {
+  background: #d97706;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25);
 }
 
 /* ============================================================
@@ -2730,6 +2908,19 @@ canvas {
 
   .map-layout {
     grid-template-columns: 1fr;
+  }
+
+  .geo-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .geo-editor-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .geo-editor-map,
+  .geo-editor-map__surface {
+    min-height: 420px;
   }
 
   .map-detail-card {
