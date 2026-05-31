@@ -12,6 +12,7 @@ export type EnvironmentVariables = {
   DB_PASSWORD: string;
   DB_SCHEMA: string;
   DB_SSL: boolean;
+  DB_SSL_REJECT_UNAUTHORIZED: boolean;
   JWT_ACCESS_SECRET: string;
   JWT_ACCESS_EXPIRES_IN: string;
   JWT_REFRESH_SECRET: string;

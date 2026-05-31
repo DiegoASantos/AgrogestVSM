@@ -40,6 +40,10 @@ services:
         value: public
       - key: DB_SSL
         value: "true"
+      # Keep TLS enabled for Supabase pooler connections. For strict certificate
+      # verification, load the Supabase CA certificate and set this to "true".
+      - key: DB_SSL_REJECT_UNAUTHORIZED
+        value: "false"
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_ACCESS_EXPIRES_IN

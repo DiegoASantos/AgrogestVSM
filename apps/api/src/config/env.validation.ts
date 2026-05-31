@@ -25,8 +25,10 @@ export function readEnvironmentVariables(
 function buildEnvironmentVariables(
   source: Record<string, unknown>
 ): EnvironmentVariables {
+  const nodeEnv = parseNodeEnvironment(source.NODE_ENV);
+
   return {
-    NODE_ENV: parseNodeEnvironment(source.NODE_ENV),
+    NODE_ENV: nodeEnv,
     APP_HOST: getString(source.APP_HOST, DEFAULT_APP_HOST),
     APP_PORT: parsePort(
       source.APP_PORT ?? source.PORT,
@@ -40,7 +42,12 @@ function buildEnvironmentVariables(
     DB_USER: getString(source.DB_USER, DEFAULT_DB_USER),
     DB_PASSWORD: getRequiredString(source.DB_PASSWORD, "DB_PASSWORD"),
     DB_SCHEMA: getString(source.DB_SCHEMA, DEFAULT_DB_SCHEMA),
-    DB_SSL: parseBoolean(source.DB_SSL, false),
+    DB_SSL: parseBoolean(source.DB_SSL, "DB_SSL", false),
+    DB_SSL_REJECT_UNAUTHORIZED: parseBoolean(
+      source.DB_SSL_REJECT_UNAUTHORIZED,
+      "DB_SSL_REJECT_UNAUTHORIZED",
+      nodeEnv === "production"
+    ),
     JWT_ACCESS_SECRET: getJwtSecret(source.JWT_ACCESS_SECRET, "JWT_ACCESS_SECRET"),
     JWT_ACCESS_EXPIRES_IN: getString(
       source.JWT_ACCESS_EXPIRES_IN,
@@ -80,7 +87,11 @@ function parsePort(
   return parsedValue;
 }
 
-function parseBoolean(value: unknown, defaultValue: boolean): boolean {
+function parseBoolean(
+  value: unknown,
+  variableName: string,
+  defaultValue: boolean
+): boolean {
   if (value === undefined || value === null || value === "") {
     return defaultValue;
   }
@@ -95,7 +106,7 @@ function parseBoolean(value: unknown, defaultValue: boolean): boolean {
     return false;
   }
 
-  throw new Error("DB_SSL must be either true or false.");
+  throw new Error(`${variableName} must be either true or false.`);
 }
 
 function getRequiredString(value: unknown, variableName: string): string {

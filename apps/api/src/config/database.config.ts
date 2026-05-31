@@ -18,7 +18,7 @@ export const databaseConfig = registerAs(
       password: environment.DB_PASSWORD,
       schema: environment.DB_SCHEMA,
       ssl: environment.DB_SSL
-        ? { rejectUnauthorized: environment.NODE_ENV === "production" }
+        ? { rejectUnauthorized: environment.DB_SSL_REJECT_UNAUTHORIZED }
         : false,
       synchronize: false,
       autoLoadEntities: true,

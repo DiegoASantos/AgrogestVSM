@@ -48,6 +48,7 @@ base PostgreSQL de Supabase que ya configuraste.
 - `DB_USER=postgres.pdppvazosimktbwiyuus`
 - `DB_SCHEMA=public`
 - `DB_SSL=true`
+- `DB_SSL_REJECT_UNAUTHORIZED=false`
 - `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` se generan automaticamente
 
 ## Que pasa en el primer deploy
@@ -110,6 +111,7 @@ DB_USER=postgres.pdppvazosimktbwiyuus
 DB_PASSWORD=tu_password_supabase
 DB_SCHEMA=public
 DB_SSL=true
+DB_SSL_REJECT_UNAUTHORIZED=false
 JWT_ACCESS_SECRET=<secreto_largo>
 JWT_ACCESS_EXPIRES_IN=1h
 JWT_REFRESH_SECRET=<otro_secreto_largo>
