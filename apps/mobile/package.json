@@ -46,6 +46,7 @@
     "react-refresh": "^0.18.0"
   },
   "devDependencies": {
-    "@types/react": "~19.1.10"
+    "@types/react": "~19.1.10",
+    "babel-preset-expo": "~54.0.11"
   }
 }
