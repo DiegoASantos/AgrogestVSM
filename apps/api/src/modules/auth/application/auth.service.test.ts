@@ -52,6 +52,15 @@ function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+function makeRefreshPayload(): RefreshTokenPayload {
+  return {
+    sub: "public-id-1",
+    type: "refresh",
+    sid: "session-id-1",
+    jti: "token-id-1"
+  };
+}
+
 function buildService() {
   const jwt: JwtServiceMock = {
     signAsync: vi
@@ -72,16 +81,22 @@ function buildService() {
 
   const roles = { isReady: vi.fn().mockReturnValue(true) };
   const userRoles = { isReady: vi.fn().mockReturnValue(true) };
+  const refreshSessions = {
+    create: vi.fn(),
+    rotate: vi.fn().mockResolvedValue(true),
+    revoke: vi.fn()
+  };
 
   const service = new AuthService(
     appConfig as never,
     jwt as never,
     users as never,
     roles as never,
-    userRoles as never
+    userRoles as never,
+    refreshSessions as never
   );
 
-  return { service, jwt, users };
+  return { service, jwt, users, refreshSessions };
 }
 
 describe("AuthService", () => {
@@ -91,7 +106,7 @@ describe("AuthService", () => {
 
   describe("login", () => {
     it("returns both access and refresh tokens on valid credentials", async () => {
-      const { service, users, jwt } = buildService();
+      const { service, users, jwt, refreshSessions } = buildService();
       users.findByEmail.mockResolvedValue(makeUser());
       vi.mocked(compare).mockResolvedValue(true as never);
 
@@ -108,6 +123,7 @@ describe("AuthService", () => {
       expect(response.data.refreshExpiresIn).toBe("7d");
       expect(response.data.user.email).toBe("admin@agrogest.pe");
       expect(jwt.signAsync).toHaveBeenCalledTimes(2);
+      expect(refreshSessions.create).toHaveBeenCalledTimes(1);
     });
 
     it("signs the access token with the access secret", async () => {
@@ -172,11 +188,8 @@ describe("AuthService", () => {
 
   describe("refresh", () => {
     it("issues a rotated pair when refresh token is valid", async () => {
-      const { service, users, jwt } = buildService();
-      const payload: RefreshTokenPayload = {
-        sub: "public-id-1",
-        type: "refresh"
-      };
+      const { service, users, jwt, refreshSessions } = buildService();
+      const payload = makeRefreshPayload();
       jwt.verifyAsync.mockResolvedValue(payload);
       users.findByPublicIdWithRoles.mockResolvedValue(makeUser());
 
@@ -189,6 +202,7 @@ describe("AuthService", () => {
         secret: REFRESH_SECRET
       });
       expect(jwt.signAsync).toHaveBeenCalledTimes(2);
+      expect(refreshSessions.rotate).toHaveBeenCalledTimes(1);
     });
 
     it("rejects a token that fails signature verification", async () => {
@@ -226,8 +240,7 @@ describe("AuthService", () => {
     it("rejects if the user no longer exists", async () => {
       const { service, users, jwt } = buildService();
       jwt.verifyAsync.mockResolvedValue({
-        sub: "public-id-1",
-        type: "refresh"
+        ...makeRefreshPayload()
       });
       users.findByPublicIdWithRoles.mockResolvedValue(null);
 
@@ -239,8 +252,7 @@ describe("AuthService", () => {
     it("rejects if the user is no longer active", async () => {
       const { service, users, jwt } = buildService();
       jwt.verifyAsync.mockResolvedValue({
-        sub: "public-id-1",
-        type: "refresh"
+        ...makeRefreshPayload()
       });
       users.findByPublicIdWithRoles.mockResolvedValue(
         makeUser({ isActive: false })
@@ -253,11 +265,37 @@ describe("AuthService", () => {
 
     it("rejects a payload with non-string sub", async () => {
       const { service, jwt } = buildService();
-      jwt.verifyAsync.mockResolvedValue({ sub: 123, type: "refresh" });
+      jwt.verifyAsync.mockResolvedValue({
+        ...makeRefreshPayload(),
+        sub: 123
+      });
 
       await expect(service.refresh("odd")).rejects.toBeInstanceOf(
         UnauthorizedException
       );
+    });
+
+    it("rejects a token that was already rotated", async () => {
+      const { service, users, jwt, refreshSessions } = buildService();
+      jwt.verifyAsync.mockResolvedValue(makeRefreshPayload());
+      users.findByPublicIdWithRoles.mockResolvedValue(makeUser());
+      refreshSessions.rotate.mockResolvedValue(false);
+
+      await expect(service.refresh("stale")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+    });
+  });
+
+  describe("logout", () => {
+    it("revokes the refresh session", async () => {
+      const { service, jwt, refreshSessions } = buildService();
+      jwt.verifyAsync.mockResolvedValue(makeRefreshPayload());
+
+      const response = await service.logout("refresh-token");
+
+      expect(response.data.revoked).toBe(true);
+      expect(refreshSessions.revoke).toHaveBeenCalledWith("session-id-1");
     });
   });
 });

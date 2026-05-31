@@ -148,6 +148,24 @@ export class AuthController {
     return this.authService.refresh(refreshTokenDto.refreshToken);
   }
 
+  @Post("logout")
+  @Public()
+  @ApiOperation({
+    summary: "Revoca la sesion asociada a un refresh token."
+  })
+  @ApiBody({ type: RefreshTokenDto })
+  @ApiOkResponse({
+    description: "Sesion revocada."
+  })
+  @ApiUnauthorizedResponse({
+    description: "Refresh token ausente, invalido o expirado."
+  })
+  @Header("Cache-Control", "no-store")
+  @HttpCode(HttpStatus.OK)
+  logout(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.logout(refreshTokenDto.refreshToken);
+  }
+
   @Get("status")
   @ApiBearerAuth("access-token")
   @Roles("ADMIN")

@@ -32,6 +32,7 @@ export type RefreshResponse = {
   tokenType: "Bearer";
   expiresIn: string;
   refreshExpiresIn: string;
+  user: AuthenticatedUserProfile;
 };
 
 export type AccessTokenPayload = {
@@ -44,6 +45,8 @@ export type AccessTokenPayload = {
 export type RefreshTokenPayload = {
   sub: string;
   type: "refresh";
+  sid: string;
+  jti: string;
 };
 
 export type AuthenticatedRequest = FastifyRequest & {

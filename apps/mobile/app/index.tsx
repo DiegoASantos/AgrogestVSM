@@ -1,5 +1,9 @@
-import { WelcomeScreen } from "../src/modules/home/presentation/screens/welcome-screen";
+import { Redirect } from "expo-router";
+
+import { useAuthSession } from "../src/modules/auth/hooks/use-auth-session";
 
 export default function IndexRoute() {
-  return <WelcomeScreen />;
+  const { isAuthenticated } = useAuthSession();
+
+  return <Redirect href={isAuthenticated ? "/home" : "/login"} />;
 }

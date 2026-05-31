@@ -67,6 +67,7 @@ function AppNavigation() {
         <Stack.Screen
           name="home"
           options={{
+            headerShown: false,
             title: "Inicio"
           }}
         />

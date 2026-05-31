@@ -1,6 +1,8 @@
 import { StatusBar } from "expo-status-bar";
+import { useEffect, useState } from "react";
 import {
   ImageBackground,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -19,7 +21,28 @@ const LOGIN_BACKGROUND = require("../../../../../assets/images/login_fondo.webp"
 
 export function LoginScreen() {
   const { height } = useWindowDimensions();
-  const heroHeight = Math.max(270, Math.min(height * 0.39, 390));
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const heroHeight = isKeyboardVisible
+    ? 12
+    : Math.max(235, Math.min(height * 0.32, 300));
+
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSubscription = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   return (
     <ImageBackground
@@ -36,20 +59,15 @@ export function LoginScreen() {
         >
           <ScrollView
             bounces={false}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              isKeyboardVisible && styles.scrollContentWithKeyboard
+            ]}
             keyboardShouldPersistTaps="handled"
+            scrollEnabled={isKeyboardVisible}
             showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.hero, { height: heroHeight }]}>
-              <View style={styles.brandCopy}>
-                <AppText style={styles.brandTitle} variant="title">
-                  Visitas de Campo
-                </AppText>
-                <AppText style={styles.brandSubtitle} variant="body">
-                  Gestión agrícola en tus manos
-                </AppText>
-              </View>
-            </View>
+            <View style={{ height: heroHeight }} />
 
             <View style={styles.card}>
               <AppText style={styles.title} variant="title">
@@ -83,26 +101,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 22,
-    paddingBottom: 118
+    paddingBottom: 32
   },
-  hero: {
-    justifyContent: "flex-end",
-    alignItems: "center",
-    paddingBottom: 24
-  },
-  brandCopy: {
-    alignItems: "center"
-  },
-  brandTitle: {
-    color: "#0d5836",
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.45
-  },
-  brandSubtitle: {
-    color: "#246b42",
-    fontSize: 15,
-    lineHeight: 21
+  scrollContentWithKeyboard: {
+    paddingBottom: 18
   },
   card: {
     width: "100%",

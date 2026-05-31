@@ -7,7 +7,9 @@ import { AppConfigService } from "../../config/app-config.service";
 import { RolesModule } from "../roles/roles.module";
 import { UsersModule } from "../users/users.module";
 import { AuthService } from "./application/auth.service";
+import { RefreshSessionsService } from "./application/refresh-sessions.service";
 import { UserRolesService } from "./application/user-roles.service";
+import { RefreshSessionEntity } from "./infrastructure/persistence/entities/refresh-session.entity";
 import { UserRoleEntity } from "./infrastructure/persistence/entities/user-role.entity";
 import { AccessTokenGuard } from "./presentation/guards/access-token.guard";
 import { RolesGuard } from "./presentation/guards/roles.guard";
@@ -31,13 +33,14 @@ import { UserRolesController } from "./presentation/user-roles.controller";
         };
       }
     }),
-    TypeOrmModule.forFeature([UserRoleEntity]),
+    TypeOrmModule.forFeature([UserRoleEntity, RefreshSessionEntity]),
     UsersModule,
     RolesModule
   ],
   controllers: [AuthController, UserRolesController],
   providers: [
     AuthService,
+    RefreshSessionsService,
     UserRolesService,
     AccessTokenGuard,
     RolesGuard,

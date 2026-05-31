@@ -57,6 +57,11 @@ vi.mock("../services/api/errors", async () => {
   };
 });
 
+vi.mock("../services", async () => {
+  const errors = await import("../services/api/errors");
+  return errors;
+});
+
 vi.mock("../utils/debug-log", () => ({
   debugLog: vi.fn()
 }));

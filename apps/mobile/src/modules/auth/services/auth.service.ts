@@ -1,19 +1,19 @@
 import { toTitleCase } from "@agrogest/utils";
 
 import type { LoginFormValues } from "../schemas/login-form.schema";
-import type {
-  AuthAccessToken,
-  AuthLoginResult,
-  AuthUser
-} from "../types/auth.types";
-import { ApiError, apiRequest } from "../../../shared/services";
+import type { AuthLoginResult, AuthUser } from "../types/auth.types";
+import { apiRequest } from "../../../shared/services";
 
 type LoginApiResponse = {
   accessToken: string;
+  refreshToken: string;
   tokenType: string;
   expiresIn: string;
+  refreshExpiresIn: string;
   user: AuthUserApiResponse;
 };
+
+type RefreshApiResponse = LoginApiResponse;
 
 type AuthUserApiResponse = {
   publicId: string;
@@ -31,7 +31,7 @@ type AuthUserApiResponse = {
 };
 
 export const authService = {
-  async login(values: LoginFormValues): Promise<AuthAccessToken> {
+  async login(values: LoginFormValues): Promise<AuthLoginResult> {
     const response = await apiRequest<LoginApiResponse>("/auth/login", {
       method: "POST",
       body: values
@@ -39,8 +39,11 @@ export const authService = {
 
     return {
       accessToken: response.accessToken,
+      refreshToken: response.refreshToken,
       tokenType: response.tokenType,
-      expiresIn: response.expiresIn
+      expiresIn: response.expiresIn,
+      refreshExpiresIn: response.refreshExpiresIn,
+      user: mapAuthUser(response.user)
     };
   },
 
@@ -53,26 +56,30 @@ export const authService = {
   },
 
   async authenticate(values: LoginFormValues): Promise<AuthLoginResult> {
-    const token = await this.login(values);
+    return this.login(values);
+  },
 
-    try {
-      const user = await this.getCurrentUser(token.accessToken, token.tokenType);
+  async refresh(refreshToken: string): Promise<AuthLoginResult> {
+    const response = await apiRequest<RefreshApiResponse>("/auth/refresh", {
+      method: "POST",
+      body: { refreshToken }
+    });
 
-      return {
-        ...token,
-        user
-      };
-    } catch (error) {
-      if (error instanceof ApiError && error.statusCode === 401) {
-        throw new ApiError(
-          "No se pudo validar la sesion con el backend.",
-          error.statusCode,
-          error.details
-        );
-      }
+    return {
+      accessToken: response.accessToken,
+      refreshToken: response.refreshToken,
+      tokenType: response.tokenType,
+      expiresIn: response.expiresIn,
+      refreshExpiresIn: response.refreshExpiresIn,
+      user: mapAuthUser(response.user)
+    };
+  },
 
-      throw error;
-    }
+  logout(refreshToken: string) {
+    return apiRequest<{ revoked: boolean }>("/auth/logout", {
+      method: "POST",
+      body: { refreshToken }
+    });
   }
 };
 

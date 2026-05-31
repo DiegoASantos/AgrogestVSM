@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from "./config";
-import { getApiToken } from "./auth-store";
+import { getApiToken, refreshApiToken } from "./auth-store";
 import { ApiError } from "./errors";
 
 type ApiRequestOptions = {
@@ -28,20 +28,15 @@ export async function apiRequest<T>(
   path: string,
   options: ApiRequestOptions = {}
 ) {
-  const apiToken = getApiToken();
-  const response = await fetch(buildApiUrl(path), {
-    method: options.method ?? "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...(apiToken && !options.headers?.Authorization
-        ? { Authorization: `Bearer ${apiToken}` }
-        : {}),
-      ...(options.headers ?? {})
-    },
-    ...(options.body !== undefined
-      ? { body: JSON.stringify(options.body) }
-      : {})
-  });
+  let response = await performRequest(path, options);
+
+  if (
+    response.status === 401 &&
+    !isAuthenticationRequest(path) &&
+    (await refreshApiToken())
+  ) {
+    response = await performRequest(path, options, true);
+  }
 
   const rawPayload = await response.text();
   const payload = parseJson(rawPayload);
@@ -75,6 +70,31 @@ export async function apiRequest<T>(
   return success.data;
 }
 
+function performRequest(
+  path: string,
+  options: ApiRequestOptions,
+  overrideAuthorization = false
+) {
+  const apiToken = getApiToken();
+
+  return fetch(buildApiUrl(path), {
+    method: options.method ?? "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(apiToken && !options.headers?.Authorization
+        ? { Authorization: `Bearer ${apiToken}` }
+        : {}),
+      ...(options.headers ?? {}),
+      ...(apiToken && overrideAuthorization
+        ? { Authorization: `Bearer ${apiToken}` }
+        : {})
+    },
+    ...(options.body !== undefined
+      ? { body: JSON.stringify(options.body) }
+      : {})
+  });
+}
+
 function buildApiUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
@@ -91,4 +111,8 @@ function parseJson(value: string) {
   } catch {
     return null;
   }
+}
+
+function isAuthenticationRequest(path: string) {
+  return path === "/auth/login" || path === "/auth/refresh";
 }

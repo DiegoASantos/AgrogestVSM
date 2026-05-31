@@ -40,7 +40,7 @@ export function LoginForm() {
       try {
         const nextSession = await authService.authenticate(nextValues);
         initDatabase();
-        signIn(nextSession);
+        await signIn(nextSession);
         router.replace("/home");
         void refreshCatalogsAfterLogin();
       } catch (error) {
