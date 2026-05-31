@@ -568,10 +568,6 @@ function toSingleParam(value?: string | string[]) {
   return value ?? null;
 }
 
-function formatNullableString(value: string | null) {
-  return value || "No registrado";
-}
-
 function formatNullableNumber(value: number | null) {
   if (value === null) {
     return "No registrado";

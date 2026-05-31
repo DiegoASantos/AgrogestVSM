@@ -73,6 +73,7 @@ function AppNavigation() {
         <Stack.Screen
           name="login"
           options={{
+            headerShown: false,
             title: "Iniciar sesion"
           }}
         />

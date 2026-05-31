@@ -3,7 +3,7 @@
     "name": "AgroGest VSM",
     "slug": "agrogest-vsm-mobile-pilot",
     "scheme": "agrogest-vsm",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "runtimeVersion": {
@@ -11,6 +11,7 @@
     },
     "android": {
       "package": "com.diegoasantos.agrogestvsm",
+      "versionCode": 2,
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
@@ -28,7 +29,8 @@
         {
           "locationWhenInUsePermission": "Permite usar la ubicacion del dispositivo para registrar la ubicacion de la visita de campo."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "router": {},
