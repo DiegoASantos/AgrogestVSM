@@ -82,7 +82,7 @@ Usa estos valores en Render:
 - Build command:
 
 ```bash
-corepack enable && pnpm install --frozen-lockfile && pnpm --filter @agrogest/api build
+corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @agrogest/api build
 ```
 
 - Start command:

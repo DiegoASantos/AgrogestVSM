@@ -5,7 +5,7 @@ services:
     region: virginia
     plan: free
     healthCheckPath: /health
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @agrogest/api build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @agrogest/api build
     startCommand: node apps/api/dist/main.js
     initialDeployHook: node apps/api/dist/scripts/seed-auth.js
     buildFilter:
