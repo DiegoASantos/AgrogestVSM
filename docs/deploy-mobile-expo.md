@@ -1,0 +1,53 @@
+# Deploy mobile Android con Expo EAS
+
+La app mobile esta vinculada al proyecto Expo:
+
+```text
+@diegosv/agrogest-vsm-mobile-pilot
+```
+
+El perfil `production-apk` genera un APK instalable para el piloto y lo conecta
+al canal OTA `production`.
+
+## Generar el primer APK
+
+Desde `apps/mobile`:
+
+```bash
+npx eas-cli@latest build --platform android --profile production-apk
+```
+
+Al finalizar, Expo entrega un enlace para descargar e instalar el APK en los
+telefonos Android.
+
+## Publicar una actualizacion OTA
+
+Para cambios compatibles de TypeScript, pantallas, estilos o assets:
+
+```bash
+npx eas-cli@latest update --channel production --environment production --message "Describe el cambio"
+```
+
+La actualizacion se descarga al abrir la app y normalmente se aplica en el
+siguiente reinicio.
+
+## Cuando generar otro APK
+
+Genera y distribuye otro APK si cambias:
+
+- Expo SDK
+- dependencias con codigo nativo
+- plugins de Expo
+- permisos Android
+- configuracion nativa
+
+En esos casos incrementa `expo.version` en `apps/mobile/app.json` y vuelve a
+ejecutar el comando de build.
+
+## API de produccion
+
+El entorno EAS `production` contiene:
+
+```env
+EXPO_PUBLIC_API_URL=https://agrogest-vsm-api.onrender.com
+```

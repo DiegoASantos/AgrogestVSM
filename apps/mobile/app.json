@@ -1,11 +1,21 @@
 {
   "expo": {
     "name": "AgroGest VSM",
-    "slug": "agrogest-vsm-mobile",
+    "slug": "agrogest-vsm-mobile-pilot",
     "scheme": "agrogest-vsm",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "android": {
+      "package": "com.diegoasantos.agrogestvsm",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
     "web": {
       "bundler": "metro"
     },
@@ -19,6 +29,17 @@
           "locationWhenInUsePermission": "Permite usar la ubicacion del dispositivo para registrar la ubicacion de la visita de campo."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3451fa28-381f-46bc-8e91-2418748554a1"
+      }
+    },
+    "owner": "diegosv",
+    "updates": {
+      "url": "https://u.expo.dev/3451fa28-381f-46bc-8e91-2418748554a1"
+    },
+    "ios": {}
   }
 }
