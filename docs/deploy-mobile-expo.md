@@ -9,6 +9,9 @@ La app mobile esta vinculada al proyecto Expo:
 El perfil `production-apk` genera un APK instalable para el piloto y lo conecta
 al canal OTA `production`.
 
+La app ejecuta un `postinstall` para compilar los paquetes compartidos
+`@agrogest/utils` y `@agrogest/validation` antes del bundle remoto de EAS.
+
 ## Generar el primer APK
 
 Desde `apps/mobile`:
