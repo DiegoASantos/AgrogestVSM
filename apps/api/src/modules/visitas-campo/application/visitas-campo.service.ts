@@ -22,7 +22,6 @@ import { CampaniaEntity } from "../../campanias/infrastructure/persistence/entit
 import { CultivoEntity } from "../../cultivos/infrastructure/persistence/entities/cultivo.entity";
 import { ParcelaEntity } from "../../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { ProductorEntity } from "../../productores/infrastructure/persistence/entities/productor.entity";
-import { SectorEntity } from "../../sectores/infrastructure/persistence/entities/sector.entity";
 import { UserEntity } from "../../users/infrastructure/persistence/entities/user.entity";
 import { VariedadEntity } from "../../variedades/infrastructure/persistence/entities/variedad.entity";
 import { VisitaEvaluacionEntity } from "../../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
@@ -221,7 +220,7 @@ export class VisitasCampoService {
     validateDateRange(query.fecha_desde, query.fecha_hasta);
 
     const queryBuilder = this.createHistoryQueryBuilder().where(
-      "sector.productor_id = :productorId",
+      "parcela.productor_id = :productorId",
       {
         productorId
       }
@@ -534,12 +533,7 @@ export class VisitasCampoService {
         "parcela",
         "parcela.id = visita.parcela_id"
       );
-      queryBuilder.innerJoin(
-        SectorEntity,
-        "sector",
-        "sector.id = parcela.sector_id"
-      );
-      queryBuilder.andWhere("sector.productor_id = :productorId", {
+      queryBuilder.andWhere("parcela.productor_id = :productorId", {
         productorId: query.productor_id
       });
     }
@@ -590,7 +584,6 @@ export class VisitasCampoService {
     return this.visitasCampoRepository
       .createQueryBuilder("visita")
       .innerJoin(ParcelaEntity, "parcela", "parcela.id = visita.parcela_id")
-      .innerJoin(SectorEntity, "sector", "sector.id = parcela.sector_id")
       .orderBy("visita.fecha_visita", "DESC")
       .addOrderBy("visita.hora_visita_inicio", "DESC")
       .addOrderBy("visita.id", "DESC");
@@ -789,6 +782,7 @@ export class VisitasCampoService {
     return {
       id: parcela.id,
       publicId: parcela.publicId,
+      productorId: parcela.productorId,
       sectorId: parcela.sectorId,
       code: parcela.code,
       name: parcela.name,

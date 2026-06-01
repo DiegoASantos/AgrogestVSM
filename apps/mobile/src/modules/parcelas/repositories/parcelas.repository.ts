@@ -12,6 +12,7 @@ import type { Parcela } from "../types";
 type ParcelaRow = {
   id: string;
   public_id: string;
+  productor_id: string;
   sector_id: string;
   code: string;
   name: string;
@@ -27,6 +28,7 @@ type ParcelaRow = {
 const PARCELA_COLUMNS = `
   id,
   public_id,
+  productor_id,
   sector_id,
   code,
   name,
@@ -82,6 +84,7 @@ function mapParcelaRow(row: ParcelaRow): Parcela {
   return {
     id: row.id,
     publicId: row.public_id,
+    productorId: row.productor_id,
     sectorId: row.sector_id,
     code: row.code,
     name: row.name,

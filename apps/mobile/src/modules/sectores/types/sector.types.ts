@@ -1,6 +1,6 @@
 export type Sector = {
   id: string;
-  productorId: string;
+  distritoId: string;
   name: string;
   description: string | null;
   isActive: boolean;

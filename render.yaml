@@ -6,7 +6,7 @@ services:
     plan: free
     healthCheckPath: /health
     buildCommand: corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter @agrogest/api build
-    startCommand: node apps/api/dist/main.js
+    startCommand: node apps/api/dist/scripts/migrate-database.js && node apps/api/dist/main.js
     initialDeployHook: node apps/api/dist/scripts/seed-auth.js
     buildFilter:
       paths:

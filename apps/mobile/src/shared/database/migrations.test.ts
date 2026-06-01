@@ -89,7 +89,7 @@ describe("runMigrations", () => {
     const db = createFakeDatabase(0);
 
     expect(() => runMigrations(db as never)).not.toThrow();
-    expect(db.currentVersion).toBe(8);
+    expect(db.currentVersion).toBe(9);
     expect(db.executedStatements).not.toContain(
       "ALTER TABLE productores ADD COLUMN first_name TEXT"
     );
@@ -117,7 +117,7 @@ describe("runMigrations", () => {
 
     runMigrations(db as never);
 
-    expect(db.currentVersion).toBe(8);
+    expect(db.currentVersion).toBe(9);
     expect(db.productorColumns.has("first_name")).toBe(true);
     expect(db.productorColumns.has("last_name")).toBe(true);
     expect(db.executedStatements).toContain(

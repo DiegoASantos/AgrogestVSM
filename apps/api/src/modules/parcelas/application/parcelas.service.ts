@@ -16,6 +16,7 @@ import {
   normalizeGeoJsonPoint
 } from "../../../common/utils/geo-json.util";
 import { SectorEntity } from "../../sectores/infrastructure/persistence/entities/sector.entity";
+import { ProductorEntity } from "../../productores/infrastructure/persistence/entities/productor.entity";
 import type { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { VisitasCampoService } from "../../visitas-campo/application/visitas-campo.service";
 import { CreateParcelaDto } from "../presentation/dto/create-parcela.dto";
@@ -36,12 +37,19 @@ export class ParcelasService {
     private readonly parcelasRepository: Repository<ParcelaEntity>,
     @InjectRepository(SectorEntity)
     private readonly sectoresRepository: Repository<SectorEntity>,
+    @InjectRepository(ProductorEntity)
+    private readonly productoresRepository: Repository<ProductorEntity>,
     private readonly visitasCampoService: VisitasCampoService
   ) {}
 
   async create(createParcelaDto: CreateParcelaDto) {
     await this.ensureSectorExists(createParcelaDto.sectorId);
-    await this.ensureUniqueCode(createParcelaDto.sectorId, createParcelaDto.code);
+    await this.ensureProductorExists(createParcelaDto.productorId);
+    await this.ensureUniqueCode(
+      createParcelaDto.productorId,
+      createParcelaDto.sectorId,
+      createParcelaDto.code
+    );
 
     const referencePoint = validatePointGeometry(createParcelaDto.referencePoint);
     const geometry = validateMultiPolygonGeometry(createParcelaDto.geometry);
@@ -53,6 +61,7 @@ export class ParcelasService {
 
     const parcela = this.parcelasRepository.create({
       sectorId: createParcelaDto.sectorId,
+      productorId: createParcelaDto.productorId,
       code: createParcelaDto.code,
       name: createParcelaDto.name ?? null,
       areaHectares,
@@ -117,6 +126,7 @@ export class ParcelasService {
   async update(id: string, updateParcelaDto: UpdateParcelaDto) {
     const parcela = await this.findEntityById(id);
     const nextSectorId = updateParcelaDto.sectorId ?? parcela.sectorId;
+    const nextProductorId = updateParcelaDto.productorId ?? parcela.productorId;
     const nextCode = updateParcelaDto.code ?? parcela.code;
     const nextGeometry =
       updateParcelaDto.geometry !== undefined
@@ -127,11 +137,18 @@ export class ParcelasService {
       await this.ensureSectorExists(updateParcelaDto.sectorId);
     }
 
-    await this.ensureUniqueCode(nextSectorId, nextCode, parcela.id);
+    if (updateParcelaDto.productorId !== undefined) {
+      await this.ensureProductorExists(updateParcelaDto.productorId);
+    }
+
+    await this.ensureUniqueCode(nextProductorId, nextSectorId, nextCode, parcela.id);
 
     const updatedParcela = this.parcelasRepository.merge(parcela, {
       ...(updateParcelaDto.sectorId !== undefined
         ? { sectorId: updateParcelaDto.sectorId }
+        : {}),
+      ...(updateParcelaDto.productorId !== undefined
+        ? { productorId: updateParcelaDto.productorId }
         : {}),
       ...(updateParcelaDto.code !== undefined ? { code: updateParcelaDto.code } : {}),
       ...(updateParcelaDto.name !== undefined ? { name: updateParcelaDto.name } : {}),
@@ -191,12 +208,7 @@ export class ParcelasService {
     const queryBuilder = this.parcelasRepository.createQueryBuilder("parcela");
 
     if (query.productor_id !== undefined) {
-      queryBuilder.innerJoin(
-        SectorEntity,
-        "sector",
-        "sector.id = parcela.sector_id"
-      );
-      queryBuilder.andWhere("sector.productor_id = :productorId", {
+      queryBuilder.andWhere("parcela.productor_id = :productorId", {
         productorId: query.productor_id
       });
     }
@@ -241,8 +253,7 @@ export class ParcelasService {
   async countByProductorId(productorId: string): Promise<number> {
     const result = await this.parcelasRepository
       .createQueryBuilder("parcela")
-      .innerJoin(SectorEntity, "sector", "sector.id = parcela.sector_id")
-      .where("sector.productor_id = :productorId", {
+      .where("parcela.productor_id = :productorId", {
         productorId
       })
       .getCount();
@@ -266,6 +277,13 @@ export class ParcelasService {
     });
   }
 
+  async findEntitiesByProductorId(productorId: string): Promise<ParcelaEntity[]> {
+    return this.parcelasRepository.find({
+      where: { productorId },
+      order: { sectorId: "ASC", code: "ASC" }
+    });
+  }
+
   private createFindEntitiesQueryBuilder(query: {
     sector_id?: string;
     productor_id?: string;
@@ -274,12 +292,7 @@ export class ParcelasService {
     const queryBuilder = this.parcelasRepository.createQueryBuilder("parcela");
 
     if (query.productor_id !== undefined) {
-      queryBuilder.innerJoin(
-        SectorEntity,
-        "sector",
-        "sector.id = parcela.sector_id"
-      );
-      queryBuilder.andWhere("sector.productor_id = :productorId", {
+      queryBuilder.andWhere("parcela.productor_id = :productorId", {
         productorId: query.productor_id
       });
     }
@@ -327,13 +340,25 @@ export class ParcelasService {
     }
   }
 
+  private async ensureProductorExists(productorId: string) {
+    const productor = await this.productoresRepository.findOne({
+      where: { id: productorId }
+    });
+
+    if (!productor) {
+      throw new BadRequestException("Productor not found.");
+    }
+  }
+
   private async ensureUniqueCode(
+    productorId: string,
     sectorId: string,
     code: string,
     excludedId?: string
   ) {
     const existingParcela = await this.parcelasRepository.findOne({
       where: {
+        productorId,
         sectorId,
         code
       }
@@ -385,10 +410,10 @@ export class ParcelasService {
 
       if (
         databaseError?.code === "23505" &&
-        databaseError.constraint === "parcelas_sector_id_codigo_key"
+        databaseError.constraint === "parcelas_productor_id_sector_id_codigo_key"
       ) {
         throw new ConflictException(
-          "A parcela with the same code already exists for this sector."
+          "A parcela with the same code already exists for this productor and sector."
         );
       }
 
@@ -397,6 +422,13 @@ export class ParcelasService {
         databaseError.constraint === "parcelas_sector_id_fkey"
       ) {
         throw new BadRequestException("Sector not found.");
+      }
+
+      if (
+        databaseError?.code === "23503" &&
+        databaseError.constraint === "parcelas_productor_id_fkey"
+      ) {
+        throw new BadRequestException("Productor not found.");
       }
 
       if (
@@ -417,6 +449,7 @@ export class ParcelasService {
     return {
       id: parcela.id,
       publicId: parcela.publicId,
+      productorId: parcela.productorId,
       sectorId: parcela.sectorId,
       code: parcela.code,
       name: parcela.name,
@@ -442,6 +475,7 @@ export class ParcelasService {
       entityType: "parcela",
       entityId: parcela.id,
       publicId: parcela.publicId,
+      productorId: parcela.productorId,
       sectorId: parcela.sectorId,
       code: parcela.code,
       name: parcela.name,

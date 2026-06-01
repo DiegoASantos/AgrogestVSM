@@ -1,4 +1,5 @@
 import { parcelasRemote } from "../../modules/parcelas/services/parcelas.remote";
+import { geografiasRemote } from "../../modules/geografias/services/geografias.remote";
 import { productosRecomendadosRemote } from "../../modules/productos-recomendados/services/productos-recomendados.remote";
 import { productoresRemote } from "../../modules/productores/services/productores.remote";
 import { recomendacionesRemote } from "../../modules/recomendaciones/services/recomendaciones.remote";
@@ -24,7 +25,10 @@ export async function downloadAllCatalogs() {
     recommendationTypes,
     products,
     applicationFrequencies,
-    productores
+    productores,
+    distritos,
+    sectores,
+    parcelas
   ] = await Promise.all([
     Promise.all(
       cultivos.map((cultivo) =>
@@ -46,18 +50,11 @@ export async function downloadAllCatalogs() {
     recomendacionesRemote.getRecommendationTypes(),
     productosRecomendadosRemote.getProducts(),
     productosRecomendadosRemote.getApplicationFrequencies(),
-    productoresRemote.getAll()
+    productoresRemote.getAll(),
+    geografiasRemote.getDistritos(),
+    sectoresRemote.getAll(),
+    parcelasRemote.getAll()
   ]);
-
-  const sectoresByProductor = await Promise.all(
-    productores.map((productor) => sectoresRemote.getByProductorId(productor.id))
-  );
-  const sectores = sectoresByProductor.flat();
-
-  const parcelasBySector = await Promise.all(
-    sectores.map((sector) => parcelasRemote.getBySectorId(sector.id))
-  );
-  const parcelas = parcelasBySector.flat();
 
   const variedades = variedadesByCultivo.flat();
   const campanias = campaniasByCultivo.flat();
@@ -218,11 +215,39 @@ export async function downloadAllCatalogs() {
       );
     }
 
+    for (const distrito of distritos) {
+      const { departamento } = distrito.provincia;
+
+      db.runSync(
+        `INSERT OR REPLACE INTO departamentos (id, code, name)
+         VALUES (?, ?, ?)`,
+        departamento.id,
+        departamento.code,
+        departamento.name
+      );
+      db.runSync(
+        `INSERT OR REPLACE INTO provincias (id, departamento_id, code, name)
+         VALUES (?, ?, ?, ?)`,
+        distrito.provincia.id,
+        distrito.provincia.departamentoId,
+        distrito.provincia.code,
+        distrito.provincia.name
+      );
+      db.runSync(
+        `INSERT OR REPLACE INTO distritos (id, provincia_id, ubigeo, name)
+         VALUES (?, ?, ?, ?)`,
+        distrito.id,
+        distrito.provinciaId,
+        distrito.ubigeo,
+        distrito.name
+      );
+    }
+
     for (const sector of sectores) {
       db.runSync(
         `INSERT OR REPLACE INTO sectores (
           id,
-          productor_id,
+          distrito_id,
           name,
           description,
           is_active,
@@ -230,7 +255,7 @@ export async function downloadAllCatalogs() {
           updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         sector.id,
-        sector.productorId,
+        sector.distritoId,
         sector.name,
         sector.description,
         toSqliteBoolean(sector.isActive),
@@ -244,6 +269,7 @@ export async function downloadAllCatalogs() {
         `INSERT OR REPLACE INTO parcelas (
           id,
           public_id,
+          productor_id,
           sector_id,
           code,
           name,
@@ -254,9 +280,10 @@ export async function downloadAllCatalogs() {
           is_active,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         parcela.id,
         parcela.publicId,
+        parcela.productorId,
         parcela.sectorId,
         parcela.code,
         parcela.name,

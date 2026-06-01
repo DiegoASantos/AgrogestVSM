@@ -6,6 +6,17 @@ import { PaginationQueryDto } from "../../../../common/dto/pagination-query.dto"
 
 export class FindParcelasQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
+    name: "productor_id",
+    example: "1",
+    description: "Filtra parcelas por productor."
+  })
+  @IsOptional()
+  @Matches(/^[1-9]\d*$/, {
+    message: "productor_id must be a positive integer."
+  })
+  productor_id?: string;
+
+  @ApiPropertyOptional({
     name: "sector_id",
     example: "1",
     description: "Filtra parcelas por sector."

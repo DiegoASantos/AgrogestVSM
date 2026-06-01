@@ -8,7 +8,7 @@ import {
 } from "typeorm";
 
 import { ParcelaEntity } from "../../../../parcelas/infrastructure/persistence/entities/parcela.entity";
-import { ProductorEntity } from "../../../../productores/infrastructure/persistence/entities/productor.entity";
+import { DistritoEntity } from "../../../../geografias/infrastructure/persistence/entities/distrito.entity";
 
 @Entity({ name: "sectores" })
 export class SectorEntity {
@@ -19,10 +19,10 @@ export class SectorEntity {
   id!: string;
 
   @Column({
-    name: "productor_id",
+    name: "distrito_id",
     type: "bigint"
   })
-  productorId!: string;
+  distritoId!: string;
 
   @Column({
     name: "nombre",
@@ -59,15 +59,15 @@ export class SectorEntity {
   })
   updatedAt!: Date;
 
-  @ManyToOne(() => ProductorEntity, (productor) => productor.sectors, {
+  @ManyToOne(() => DistritoEntity, (distrito) => distrito.sectores, {
     onDelete: "RESTRICT",
     onUpdate: "NO ACTION"
   })
   @JoinColumn({
-    name: "productor_id",
+    name: "distrito_id",
     referencedColumnName: "id"
   })
-  productor!: ProductorEntity;
+  distrito!: DistritoEntity;
 
   @OneToMany(() => ParcelaEntity, (parcela) => parcela.sector)
   parcelas!: ParcelaEntity[];

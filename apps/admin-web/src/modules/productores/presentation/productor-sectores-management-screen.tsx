@@ -4,6 +4,8 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
+import { geografiasService } from "../../geografias/services/geografias.service";
+import type { DistritoListItem } from "../../geografias/types/geografias.types";
 import {
   matchesStatusFilter,
   normalizeSearch,
@@ -32,6 +34,7 @@ type ProductorSectoresManagementScreenProps = {
 
 type SectorFormState = {
   id: string | null;
+  distritoId: string;
   name: string;
   description: string;
   status: "active" | "inactive";
@@ -39,6 +42,7 @@ type SectorFormState = {
 
 const emptyForm: SectorFormState = {
   id: null,
+  distritoId: "",
   name: "",
   description: "",
   status: "active"
@@ -50,6 +54,7 @@ export function ProductorSectoresManagementScreen({
   const { session, logout } = useAuthSession();
   const [productor, setProductor] = useState<ProductorListItem | null>(null);
   const [items, setItems] = useState<SectorListItem[]>([]);
+  const [distritos, setDistritos] = useState<DistritoListItem[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
@@ -134,13 +139,15 @@ export function ProductorSectoresManagementScreen({
     try {
       setIsLoading(true);
       setListError(null);
-      const [nextProductor, nextSectors] = await Promise.all([
+      const [nextProductor, nextSectors, nextDistritos] = await Promise.all([
         productoresService.getById(session, productorId),
-        sectoresService.getByProductor(session, productorId)
+        sectoresService.getByProductor(session, productorId),
+        geografiasService.getDistritos(session)
       ]);
 
       setProductor(nextProductor);
       setItems(nextSectors);
+      setDistritos(nextDistritos);
     } catch (error) {
       const apiError = toApiError(error);
 
@@ -166,6 +173,7 @@ export function ProductorSectoresManagementScreen({
     setSuccessMessage(null);
     setFormState({
       id: item.id,
+      distritoId: item.distritoId,
       name: item.name,
       description: item.description ?? "",
       status: item.isActive ? "active" : "inactive"
@@ -194,7 +202,7 @@ export function ProductorSectoresManagementScreen({
 
     try {
       const payload = {
-        productorId,
+        distritoId: formState.distritoId,
         name,
         description: description || null,
         isActive: formState.status === "active"
@@ -320,7 +328,7 @@ export function ProductorSectoresManagementScreen({
               </button>
             </>
           }
-          description="Gestion simple de sectores asociados a este productor."
+          description="Consulta los sectores donde este productor tiene parcelas."
           eyebrow="Mantenimiento"
           title={`Sectores de ${productor.documentNumber}`}
         />
@@ -412,7 +420,7 @@ export function ProductorSectoresManagementScreen({
           open={modalOpen}
           onClose={() => { resetForm(); setModalOpen(false); }}
           title={formState.id ? "Editar sector" : "Nuevo sector"}
-          description="Crea o edita sectores sin salir del contexto del productor."
+          description="Crea o edita un sector territorial asociado a un distrito."
           footer={
             <>
               <button
@@ -443,8 +451,23 @@ export function ProductorSectoresManagementScreen({
             onSubmit={handleSubmit}
           >
             <label className="field-group">
-              <span>Productor</span>
-              <input disabled value={productor.documentNumber} />
+              <span>Distrito</span>
+              <select
+                onChange={(event) =>
+                  setFormState((currentState) => ({
+                    ...currentState,
+                    distritoId: event.target.value
+                  }))
+                }
+                value={formState.distritoId}
+              >
+                <option value="">Selecciona un distrito</option>
+                {distritos.map((distrito) => (
+                  <option key={distrito.id} value={distrito.id}>
+                    {distrito.name} - {distrito.provincia.name}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="field-group">

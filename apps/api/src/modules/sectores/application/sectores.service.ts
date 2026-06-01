@@ -9,6 +9,8 @@ import type { FindOptionsWhere } from "typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
 import { createPaginatedMeta, createSuccessResponse } from "../../../common/http/api-response";
+import { DistritoEntity } from "../../geografias/infrastructure/persistence/entities/distrito.entity";
+import { ParcelaEntity } from "../../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { ProductorEntity } from "../../productores/infrastructure/persistence/entities/productor.entity";
 import { CreateSectorDto } from "../presentation/dto/create-sector.dto";
 import { FindSectoresQueryDto } from "../presentation/dto/find-sectores-query.dto";
@@ -20,19 +22,18 @@ export class SectoresService {
   constructor(
     @InjectRepository(SectorEntity)
     private readonly sectoresRepository: Repository<SectorEntity>,
+    @InjectRepository(DistritoEntity)
+    private readonly distritosRepository: Repository<DistritoEntity>,
     @InjectRepository(ProductorEntity)
     private readonly productoresRepository: Repository<ProductorEntity>
   ) {}
 
   async create(createSectorDto: CreateSectorDto) {
-    await this.ensureProductorExists(createSectorDto.productorId);
-    await this.ensureUniqueName(
-      createSectorDto.productorId,
-      createSectorDto.name
-    );
+    await this.ensureDistritoExists(createSectorDto.distritoId);
+    await this.ensureUniqueName(createSectorDto.distritoId, createSectorDto.name);
 
     const sector = this.sectoresRepository.create({
-      productorId: createSectorDto.productorId,
+      distritoId: createSectorDto.distritoId,
       name: createSectorDto.name,
       description: createSectorDto.description ?? null,
       isActive: createSectorDto.isActive ?? true
@@ -50,8 +51,8 @@ export class SectoresService {
   async findAll(query: FindSectoresQueryDto) {
     const where: FindOptionsWhere<SectorEntity> = {};
 
-    if (query.productor_id !== undefined) {
-      where.productorId = query.productor_id;
+    if (query.distrito_id !== undefined) {
+      where.distritoId = query.distrito_id;
     }
 
     if (query.activo !== undefined) {
@@ -61,7 +62,7 @@ export class SectoresService {
     const [sectores, total] = await this.sectoresRepository.findAndCount({
       where,
       order: {
-        productorId: "ASC",
+        distritoId: "ASC",
         name: "ASC"
       },
       skip: query.skip,
@@ -95,18 +96,18 @@ export class SectoresService {
 
   async update(id: string, updateSectorDto: UpdateSectorDto) {
     const sector = await this.findEntityById(id);
-    const nextProductorId = updateSectorDto.productorId ?? sector.productorId;
+    const nextDistritoId = updateSectorDto.distritoId ?? sector.distritoId;
     const nextName = updateSectorDto.name ?? sector.name;
 
-    if (updateSectorDto.productorId !== undefined) {
-      await this.ensureProductorExists(updateSectorDto.productorId);
+    if (updateSectorDto.distritoId !== undefined) {
+      await this.ensureDistritoExists(updateSectorDto.distritoId);
     }
 
-    await this.ensureUniqueName(nextProductorId, nextName, sector.id);
+    await this.ensureUniqueName(nextDistritoId, nextName, sector.id);
 
     const updatedSector = this.sectoresRepository.merge(sector, {
-      ...(updateSectorDto.productorId !== undefined
-        ? { productorId: updateSectorDto.productorId }
+      ...(updateSectorDto.distritoId !== undefined
+        ? { distritoId: updateSectorDto.distritoId }
         : {}),
       ...(updateSectorDto.name !== undefined ? { name: updateSectorDto.name } : {}),
       ...(updateSectorDto.description !== undefined
@@ -143,14 +144,13 @@ export class SectoresService {
   }
 
   findEntitiesByProductorId(productorId: string): Promise<SectorEntity[]> {
-    return this.sectoresRepository.find({
-      where: {
-        productorId
-      },
-      order: {
-        name: "ASC"
-      }
-    });
+    return this.sectoresRepository
+      .createQueryBuilder("sector")
+      .innerJoin(ParcelaEntity, "parcela", "parcela.sector_id = sector.id")
+      .where("parcela.productor_id = :productorId", { productorId })
+      .distinct(true)
+      .orderBy("sector.nombre", "ASC")
+      .getMany();
   }
 
   private async findEntityById(id: string) {
@@ -163,6 +163,16 @@ export class SectoresService {
     }
 
     return sector;
+  }
+
+  private async ensureDistritoExists(distritoId: string) {
+    const distrito = await this.distritosRepository.findOne({
+      where: { id: distritoId }
+    });
+
+    if (!distrito) {
+      throw new BadRequestException("Distrito not found.");
+    }
   }
 
   private async ensureProductorExists(
@@ -183,20 +193,20 @@ export class SectoresService {
   }
 
   private async ensureUniqueName(
-    productorId: string,
+    distritoId: string,
     name: string,
     excludedId?: string
   ) {
     const existingSector = await this.sectoresRepository.findOne({
       where: {
-        productorId,
+        distritoId,
         name
       }
     });
 
     if (existingSector && existingSector.id !== excludedId) {
       throw new ConflictException(
-        "A sector with the same name already exists for this productor."
+        "A sector with the same name already exists for this distrito."
       );
     }
   }
@@ -212,18 +222,18 @@ export class SectoresService {
 
       if (
         databaseError?.code === "23505" &&
-        databaseError.constraint === "sectores_productor_id_nombre_key"
+        databaseError.constraint === "sectores_distrito_id_nombre_key"
       ) {
         throw new ConflictException(
-          "A sector with the same name already exists for this productor."
+          "A sector with the same name already exists for this distrito."
         );
       }
 
       if (
         databaseError?.code === "23503" &&
-        databaseError.constraint === "sectores_productor_id_fkey"
+        databaseError.constraint === "sectores_distrito_id_fkey"
       ) {
-        throw new BadRequestException("Productor not found.");
+        throw new BadRequestException("Distrito not found.");
       }
     }
 
@@ -233,7 +243,7 @@ export class SectoresService {
   private toResponse(sector: SectorEntity) {
     return {
       id: sector.id,
-      productorId: sector.productorId,
+      distritoId: sector.distritoId,
       name: sector.name,
       description: sector.description,
       isActive: sector.isActive,

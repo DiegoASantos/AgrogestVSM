@@ -26,9 +26,29 @@ export interface Productor {
 
 export interface Sector {
   id: EntityId;
-  productorId: EntityId;
+  distritoId: EntityId;
   nombre: string;
   descripcion?: string;
+}
+
+export interface Departamento {
+  id: EntityId;
+  codigo: string;
+  nombre: string;
+}
+
+export interface Provincia {
+  id: EntityId;
+  departamentoId: EntityId;
+  codigo: string;
+  nombre: string;
+}
+
+export interface Distrito {
+  id: EntityId;
+  provinciaId: EntityId;
+  ubigeo: string;
+  nombre: string;
 }
 
 export interface Parcela {

@@ -39,10 +39,10 @@ export class SectoresController {
     description: "Sector creado."
   })
   @ApiBadRequestResponse({
-    description: "Datos invalidos o productor inexistente."
+    description: "Datos invalidos o distrito inexistente."
   })
   @ApiConflictResponse({
-    description: "Ya existe un sector con el mismo nombre para el productor."
+    description: "Ya existe un sector con el mismo nombre para el distrito."
   })
   createSector(@Body() createSectorDto: CreateSectorDto) {
     return this.sectoresService.create(createSectorDto);
@@ -50,10 +50,10 @@ export class SectoresController {
 
   @Get()
   @ApiOperation({
-    summary: "Lista sectores con filtros opcionales por productor y estado."
+    summary: "Lista sectores con filtros opcionales por distrito y estado."
   })
   @ApiQuery({
-    name: "productor_id",
+    name: "distrito_id",
     required: false,
     type: String
   })
@@ -98,10 +98,10 @@ export class SectoresController {
     description: "Sector actualizado."
   })
   @ApiBadRequestResponse({
-    description: "Datos invalidos o productor inexistente."
+    description: "Datos invalidos o distrito inexistente."
   })
   @ApiConflictResponse({
-    description: "Ya existe un sector con el mismo nombre para el productor."
+    description: "Ya existe un sector con el mismo nombre para el distrito."
   })
   @ApiNotFoundResponse({
     description: "El sector no existe."

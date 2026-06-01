@@ -10,8 +10,8 @@ import {
   renderStatusBadge,
   type StatusFilter
 } from "../../mantenimiento/presentation/catalog-screen.helpers";
-import { productoresService } from "../../productores/services/productores.service";
-import type { ProductorListItem } from "../../productores/types/productores.types";
+import { geografiasService } from "../../geografias/services/geografias.service";
+import type { DistritoListItem } from "../../geografias/types/geografias.types";
 import { sectoresService } from "../services/sectores.service";
 import type { SectorListItem } from "../types/sectores.types";
 import { ConfirmDialog } from "../../../shared/components/confirm-dialog";
@@ -28,7 +28,7 @@ import { toApiError } from "../../../shared/services";
 
 type SectorFormState = {
   id: string | null;
-  productorId: string;
+  distritoId: string;
   name: string;
   description: string;
   status: "active" | "inactive";
@@ -36,7 +36,7 @@ type SectorFormState = {
 
 const emptyForm: SectorFormState = {
   id: null,
-  productorId: "",
+  distritoId: "",
   name: "",
   description: "",
   status: "active"
@@ -45,10 +45,10 @@ const emptyForm: SectorFormState = {
 export function SectoresManagementScreen() {
   const { session, logout } = useAuthSession();
   const [items, setItems] = useState<SectorListItem[]>([]);
-  const [productores, setProductores] = useState<ProductorListItem[]>([]);
+  const [distritos, setDistritos] = useState<DistritoListItem[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [productorFilter, setProductorFilter] = useState("");
+  const [distritoFilter, setDistritoFilter] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -69,36 +69,36 @@ export function SectoresManagementScreen() {
     void loadData();
   }, [session]);
 
-  const productoresLookup = useMemo(
+  const distritosLookup = useMemo(
     () =>
-      productores.reduce<Record<string, string>>((accumulator, productor) => {
-        accumulator[productor.id] = buildProductorLabel(productor);
+      distritos.reduce<Record<string, string>>((accumulator, distrito) => {
+        accumulator[distrito.id] = buildDistritoLabel(distrito);
         return accumulator;
       }, {}),
-    [productores]
+    [distritos]
   );
 
   const filteredItems = useMemo(() => {
     const normalizedSearch = normalizeSearch(search);
 
     return items.filter((item) => {
-      const productorLabel = productoresLookup[item.productorId] ?? item.productorId;
+      const distritoLabel = distritosLookup[item.distritoId] ?? item.distritoId;
       const matchesSearch =
         normalizedSearch.length === 0 ||
         item.name.toLowerCase().includes(normalizedSearch) ||
         (item.description ?? "").toLowerCase().includes(normalizedSearch) ||
-        productorLabel.toLowerCase().includes(normalizedSearch);
+        distritoLabel.toLowerCase().includes(normalizedSearch);
 
-      const matchesProductor =
-        productorFilter.length === 0 || item.productorId === productorFilter;
+      const matchesDistrito =
+        distritoFilter.length === 0 || item.distritoId === distritoFilter;
 
       return (
         matchesSearch &&
-        matchesProductor &&
+        matchesDistrito &&
         matchesStatusFilter(item.isActive, statusFilter)
       );
     });
-  }, [items, productoresLookup, productorFilter, search, statusFilter]);
+  }, [distritoFilter, distritosLookup, items, search, statusFilter]);
 
   const columns: DataTableColumn<SectorListItem>[] = [
     {
@@ -112,12 +112,12 @@ export function SectoresManagementScreen() {
       )
     },
     {
-      key: "productor",
-      header: "Productor",
+      key: "distrito",
+      header: "Distrito",
       cell: (item) => (
         <div className="table-copy">
-          <strong>{productoresLookup[item.productorId] ?? `ID ${item.productorId}`}</strong>
-          <span>{item.productorId}</span>
+          <strong>{distritosLookup[item.distritoId] ?? `ID ${item.distritoId}`}</strong>
+          <span>{item.distritoId}</span>
         </div>
       )
     },
@@ -139,12 +139,6 @@ export function SectoresManagementScreen() {
           >
             Editar
           </button>
-          <Link
-            className="ui-button ui-button--secondary ui-button--compact"
-            href={`/mantenimiento/productores/${item.productorId}`}
-          >
-            Productor
-          </Link>
           <button
             className="ui-button ui-button--ghost ui-button--compact"
             onClick={() => setItemToDeactivate(item)}
@@ -165,12 +159,12 @@ export function SectoresManagementScreen() {
     try {
       setIsLoading(true);
       setListError(null);
-      const [nextItems, nextProductores] = await Promise.all([
+      const [nextItems, nextDistritos] = await Promise.all([
         sectoresService.getAll(session),
-        productoresService.getAll(session)
+        geografiasService.getDistritos(session)
       ]);
       setItems(nextItems);
-      setProductores(nextProductores);
+      setDistritos(nextDistritos);
     } catch (error) {
       const apiError = toApiError(error);
 
@@ -196,7 +190,7 @@ export function SectoresManagementScreen() {
     setSuccessMessage(null);
     setFormState({
       id: item.id,
-      productorId: item.productorId,
+      distritoId: item.distritoId,
       name: item.name,
       description: item.description ?? "",
       status: item.isActive ? "active" : "inactive"
@@ -211,12 +205,12 @@ export function SectoresManagementScreen() {
       return;
     }
 
-    const productorId = formState.productorId.trim();
+    const distritoId = formState.distritoId.trim();
     const name = formState.name.trim();
     const description = formState.description.trim();
 
-    if (!productorId || !name) {
-      setFormError("Productor y nombre del sector son obligatorios.");
+    if (!distritoId || !name) {
+      setFormError("Distrito y nombre del sector son obligatorios.");
       return;
     }
 
@@ -226,7 +220,7 @@ export function SectoresManagementScreen() {
 
     try {
       const payload = {
-        productorId,
+        distritoId,
         name,
         description: description || null,
         isActive: formState.status === "active"
@@ -314,7 +308,7 @@ export function SectoresManagementScreen() {
             </button>
           </>
         }
-        description="CRUD administrativo de sectores con acceso directo al productor relacionado."
+        description="CRUD administrativo de sectores territoriales asociados a distritos."
         eyebrow="Mantenimiento"
         title="Sectores"
       />
@@ -326,7 +320,7 @@ export function SectoresManagementScreen() {
             onClick={() => {
               setSearch("");
               setStatusFilter("all");
-              setProductorFilter("");
+              setDistritoFilter("");
             }}
             type="button"
           >
@@ -338,21 +332,21 @@ export function SectoresManagementScreen() {
           <span>Buscar</span>
           <input
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Sector, descripcion o productor"
+            placeholder="Sector, descripcion o distrito"
             value={search}
           />
         </label>
 
         <label className="field-group">
-          <span>Productor</span>
+          <span>Distrito</span>
           <select
-            onChange={(event) => setProductorFilter(event.target.value)}
-            value={productorFilter}
+            onChange={(event) => setDistritoFilter(event.target.value)}
+            value={distritoFilter}
           >
             <option value="">Todos</option>
-            {productores.map((productor) => (
-              <option key={productor.id} value={productor.id}>
-                {buildProductorLabel(productor)}
+            {distritos.map((distrito) => (
+              <option key={distrito.id} value={distrito.id}>
+                {buildDistritoLabel(distrito)}
               </option>
             ))}
           </select>
@@ -396,16 +390,16 @@ export function SectoresManagementScreen() {
         <LoadingState description="Cargando sectores..." />
       ) : null}
 
-      {!listError && !isLoading && productores.length === 0 ? (
+      {!listError && !isLoading && distritos.length === 0 ? (
         <EmptyState
-          description="Primero debes registrar al menos un productor para poder crear sectores."
-          title="Sin productores disponibles"
+          description="No hay distritos disponibles para registrar sectores."
+          title="Sin distritos disponibles"
         />
       ) : null}
 
       {!listError &&
       !isLoading &&
-      productores.length > 0 &&
+      distritos.length > 0 &&
       filteredItems.length === 0 ? (
         <EmptyState
           description="No hay sectores cargados o los filtros no devolvieron coincidencias."
@@ -426,7 +420,7 @@ export function SectoresManagementScreen() {
         open={modalOpen}
         onClose={() => { resetForm(); setModalOpen(false); }}
         title={formState.id ? "Editar sector" : "Nuevo sector"}
-        description="Crea o edita sectores relacionandolos con un productor."
+        description="Crea o edita sectores relacionandolos con un distrito."
         footer={
           <>
             <button
@@ -453,20 +447,20 @@ export function SectoresManagementScreen() {
       >
         <form className="form-layout" id="sectores-form" onSubmit={handleSubmit}>
           <label className="field-group">
-            <span>Productor</span>
+            <span>Distrito</span>
             <select
               onChange={(event) =>
                 setFormState((currentState) => ({
                   ...currentState,
-                  productorId: event.target.value
+                  distritoId: event.target.value
                 }))
               }
-              value={formState.productorId}
+              value={formState.distritoId}
             >
-              <option value="">Selecciona un productor</option>
-              {productores.map((productor) => (
-                <option key={productor.id} value={productor.id}>
-                  {buildProductorLabel(productor)}
+              <option value="">Selecciona un distrito</option>
+              {distritos.map((distrito) => (
+                <option key={distrito.id} value={distrito.id}>
+                  {buildDistritoLabel(distrito)}
                 </option>
               ))}
             </select>
@@ -542,7 +536,6 @@ export function SectoresManagementScreen() {
   );
 }
 
-function buildProductorLabel(productor: ProductorListItem) {
-  const suffix = productor.email ? ` - ${productor.email}` : "";
-  return `${productor.documentNumber}${suffix}`;
+function buildDistritoLabel(distrito: DistritoListItem) {
+  return `${distrito.name} - ${distrito.provincia.name}`;
 }

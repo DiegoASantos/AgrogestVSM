@@ -5,7 +5,6 @@ import { CampaniaEntity } from "../campanias/infrastructure/persistence/entities
 import { CultivoEntity } from "../cultivos/infrastructure/persistence/entities/cultivo.entity";
 import { ParcelaEntity } from "../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { ProductorEntity } from "../productores/infrastructure/persistence/entities/productor.entity";
-import { SectorEntity } from "../sectores/infrastructure/persistence/entities/sector.entity";
 import { UserEntity } from "../users/infrastructure/persistence/entities/user.entity";
 import { VariedadEntity } from "../variedades/infrastructure/persistence/entities/variedad.entity";
 import { VisitaEvaluacionEntity } from "../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
@@ -29,7 +28,6 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
       ParcelaEntity,
       CampaniaEntity,
       UserEntity,
-      SectorEntity,
       ProductorEntity,
       VisitaEvaluacionEntity,
       VisitaObservacionSanitariaEntity,

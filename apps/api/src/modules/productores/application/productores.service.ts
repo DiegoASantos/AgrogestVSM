@@ -93,9 +93,7 @@ export class ProductoresService {
   async getStructure(id: string) {
     const productor = await this.findEntityById(id);
     const sectores = await this.sectoresService.findEntitiesByProductorId(id);
-    const parcelas = await this.parcelasService.findEntitiesBySectorIds(
-      sectores.map((sector) => sector.id)
-    );
+    const parcelas = await this.parcelasService.findEntitiesByProductorId(id);
 
     const parcelasBySectorId = parcelas.reduce<Record<string, ParcelaEntity[]>>(
       (accumulator, parcela) => {
@@ -277,7 +275,7 @@ export class ProductoresService {
   ) {
     return {
       id: sector.id,
-      productorId: sector.productorId,
+      distritoId: sector.distritoId,
       name: sector.name,
       description: sector.description,
       isActive: sector.isActive,
@@ -287,6 +285,7 @@ export class ProductoresService {
       parcelas: parcelas.map((parcela) => ({
         id: parcela.id,
         publicId: parcela.publicId,
+        productorId: parcela.productorId,
         sectorId: parcela.sectorId,
         code: parcela.code,
         name: parcela.name,

@@ -12,6 +12,16 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 export class CreateParcelaDto {
   @ApiProperty({
     example: "1",
+    description: "Id del productor propietario."
+  })
+  @Transform(({ value }) => trimRequiredString(value))
+  @Matches(/^[1-9]\d*$/, {
+    message: "productorId must be a positive integer."
+  })
+  productorId!: string;
+
+  @ApiProperty({
+    example: "1",
     description: "Id del sector asociado."
   })
   @Transform(({ value }) => trimRequiredString(value))

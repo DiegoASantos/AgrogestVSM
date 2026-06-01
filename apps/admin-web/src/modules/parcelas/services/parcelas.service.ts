@@ -11,12 +11,16 @@ type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 export const parcelasService = {
   getAll(
     session: AuthSessionInput,
-    filters?: { sectorId?: string; isActive?: boolean }
+    filters?: { sectorId?: string; productorId?: string; isActive?: boolean }
   ) {
     const searchParams = new URLSearchParams();
 
     if (filters?.sectorId) {
       searchParams.set("sector_id", filters.sectorId);
+    }
+
+    if (filters?.productorId) {
+      searchParams.set("productor_id", filters.productorId);
     }
 
     if (typeof filters?.isActive === "boolean") {

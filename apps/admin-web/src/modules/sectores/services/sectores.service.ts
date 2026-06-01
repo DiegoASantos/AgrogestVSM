@@ -11,12 +11,12 @@ type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 export const sectoresService = {
   getAll(
     session: AuthSessionInput,
-    filters?: { productorId?: string; isActive?: boolean }
+    filters?: { distritoId?: string; isActive?: boolean }
   ) {
     const searchParams = new URLSearchParams();
 
-    if (filters?.productorId) {
-      searchParams.set("productor_id", filters.productorId);
+    if (filters?.distritoId) {
+      searchParams.set("distrito_id", filters.distritoId);
     }
 
     if (typeof filters?.isActive === "boolean") {

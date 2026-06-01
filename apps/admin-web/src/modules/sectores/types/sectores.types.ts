@@ -1,6 +1,6 @@
 export type SectorListItem = {
   id: string;
-  productorId: string;
+  distritoId: string;
   name: string;
   description: string | null;
   isActive: boolean;
@@ -9,7 +9,7 @@ export type SectorListItem = {
 };
 
 export type SectorPayload = {
-  productorId: string;
+  distritoId: string;
   name: string;
   description?: string | null;
   isActive?: boolean;

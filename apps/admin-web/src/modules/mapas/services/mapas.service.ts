@@ -97,7 +97,7 @@ function normalizeParcelaMapItem(
   productoresById: Map<string, ProductorListItem>
 ): ParcelaMapItem {
   const sector = sectoresById.get(parcela.sectorId) ?? null;
-  const productor = sector ? productoresById.get(sector.productorId) ?? null : null;
+  const productor = productoresById.get(parcela.productorId) ?? null;
   const referencePoint = normalizePointGeometry(
     parcela.geo?.point ?? parcela.referencePoint ?? null
   );
@@ -110,7 +110,7 @@ function normalizeParcelaMapItem(
   return {
     id: parcela.id,
     publicId: parcela.publicId,
-    productorId: sector?.productorId ?? null,
+    productorId: parcela.productorId,
     sectorId: parcela.sectorId,
     sectorName: sector?.name ?? null,
     productorLabel: productor ? buildProductorLabel(productor) : null,

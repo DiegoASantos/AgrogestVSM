@@ -12,13 +12,13 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 export class CreateSectorDto {
   @ApiProperty({
     example: "1",
-    description: "Id del productor asociado."
+    description: "Id del distrito donde se encuentra el sector."
   })
   @Transform(({ value }) => trimRequiredString(value))
   @Matches(/^[1-9]\d*$/, {
-    message: "productorId must be a positive integer."
+    message: "distritoId must be a positive integer."
   })
-  productorId!: string;
+  distritoId!: string;
 
   @ApiProperty({
     example: "Sector Norte"
@@ -30,7 +30,7 @@ export class CreateSectorDto {
   name!: string;
 
   @ApiPropertyOptional({
-    example: "Zona principal del productor."
+    example: "Caserio o zona territorial."
   })
   @Transform(({ value }) => trimOptionalString(value))
   @IsOptional()

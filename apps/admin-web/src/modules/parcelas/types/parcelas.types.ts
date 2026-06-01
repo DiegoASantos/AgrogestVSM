@@ -11,6 +11,7 @@ export type GeoJsonMultiPolygon = {
 export type ParcelaListItem = {
   id: string;
   publicId: string;
+  productorId: string;
   sectorId: string;
   code: string;
   name: string | null;
@@ -29,6 +30,7 @@ export type ParcelaListItem = {
 };
 
 export type ParcelaPayload = {
+  productorId: string;
   sectorId: string;
   code: string;
   name?: string | null;

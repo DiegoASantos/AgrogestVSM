@@ -4,7 +4,7 @@ import type { Sector } from "../types";
 
 type SectorRow = {
   id: string;
-  productor_id: string;
+  distrito_id: string;
   name: string;
   description: string | null;
   is_active: number;
@@ -14,7 +14,7 @@ type SectorRow = {
 
 const SECTOR_COLUMNS = `
   id,
-  productor_id,
+  distrito_id,
   name,
   description,
   is_active,
@@ -52,7 +52,11 @@ export const sectoresRepository = {
     const rows = db.getAllSync<SectorRow>(
       `SELECT ${SECTOR_COLUMNS}
        FROM sectores
-       WHERE productor_id = ?
+       WHERE id IN (
+         SELECT DISTINCT sector_id
+         FROM parcelas
+         WHERE productor_id = ?
+       )
        ORDER BY name ASC, id ASC`,
       productorId
     );
@@ -64,7 +68,7 @@ export const sectoresRepository = {
 function mapSectorRow(row: SectorRow): Sector {
   return {
     id: row.id,
-    productorId: row.productor_id,
+    distritoId: row.distrito_id,
     name: row.name,
     description: row.description,
     isActive: fromSqliteBoolean(row.is_active),

@@ -1,0 +1,5 @@
+import { TERRITORIAL_SECTORS_AND_PIURA_GEOGRAPHY_MIGRATION } from "./001-territorial-sectors-and-piura-geography";
+
+export const DATABASE_MIGRATIONS = [
+  TERRITORIAL_SECTORS_AND_PIURA_GEOGRAPHY_MIGRATION
+] as const;

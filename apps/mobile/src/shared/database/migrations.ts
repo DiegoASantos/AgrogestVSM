@@ -74,6 +74,30 @@ const MIGRATIONS: Migration[] = [
     statements: [
       "CREATE INDEX IF NOT EXISTS idx_visitas_campo_agronomist_recent ON visitas_campo(agronomist_user_id, created_at DESC)"
     ]
+  },
+  {
+    version: 9,
+    statements: [
+      "DELETE FROM sync_outbox",
+      "DELETE FROM visita_evaluaciones",
+      "DELETE FROM visita_observaciones_sanitarias",
+      "DELETE FROM visita_recomendaciones",
+      "DELETE FROM visita_productos_recomendados",
+      "DELETE FROM visitas_campo",
+      "DROP TABLE IF EXISTS parcelas",
+      "DROP TABLE IF EXISTS sectores",
+      ...SQL_SCHEMA.filter((statement) =>
+        [
+          "CREATE TABLE IF NOT EXISTS departamentos",
+          "CREATE TABLE IF NOT EXISTS provincias",
+          "CREATE TABLE IF NOT EXISTS distritos",
+          "CREATE TABLE IF NOT EXISTS sectores",
+          "CREATE TABLE IF NOT EXISTS parcelas"
+        ].some((prefix) => statement.startsWith(prefix))
+      ),
+      "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_id ON parcelas(productor_id)",
+      "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_sector ON parcelas(productor_id, sector_id)"
+    ]
   }
 ];
 

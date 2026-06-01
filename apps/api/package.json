@@ -6,6 +6,7 @@
     "dev": "pnpm build && node scripts/dev-runner.cjs",
     "build": "tsc -p tsconfig.build.json",
     "seed:auth": "pnpm build && node dist/scripts/seed-auth.js",
+    "migrate": "pnpm build && node dist/scripts/migrate-database.js",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
     "lint": "eslint src",

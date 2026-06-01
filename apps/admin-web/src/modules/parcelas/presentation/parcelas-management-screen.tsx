@@ -12,6 +12,8 @@ import {
 } from "../../mantenimiento/presentation/catalog-screen.helpers";
 import { sectoresService } from "../../sectores/services/sectores.service";
 import type { SectorListItem } from "../../sectores/types/sectores.types";
+import { productoresService } from "../../productores/services/productores.service";
+import type { ProductorListItem } from "../../productores/types/productores.types";
 import { parcelasService } from "../services/parcelas.service";
 import type { ParcelaListItem } from "../types/parcelas.types";
 import { ConfirmDialog } from "../../../shared/components/confirm-dialog";
@@ -29,6 +31,7 @@ import { toApiError } from "../../../shared/services";
 type ParcelaFormState = {
   id: string | null;
   sectorId: string;
+  productorId: string;
   code: string;
   name: string;
   areaHectares: string;
@@ -39,6 +42,7 @@ type ParcelaFormState = {
 const emptyForm: ParcelaFormState = {
   id: null,
   sectorId: "",
+  productorId: "",
   code: "",
   name: "",
   areaHectares: "",
@@ -50,6 +54,7 @@ export function ParcelasManagementScreen() {
   const { session, logout } = useAuthSession();
   const [items, setItems] = useState<ParcelaListItem[]>([]);
   const [sectores, setSectores] = useState<SectorListItem[]>([]);
+  const [productores, setProductores] = useState<ProductorListItem[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sectorFilter, setSectorFilter] = useState("");
@@ -186,12 +191,14 @@ export function ParcelasManagementScreen() {
     try {
       setIsLoading(true);
       setListError(null);
-      const [nextItems, nextSectores] = await Promise.all([
+      const [nextItems, nextSectores, nextProductores] = await Promise.all([
         parcelasService.getAll(session),
-        sectoresService.getAll(session)
+        sectoresService.getAll(session),
+        productoresService.getAll(session)
       ]);
       setItems(nextItems);
       setSectores(nextSectores);
+      setProductores(nextProductores);
     } catch (error) {
       const apiError = toApiError(error);
 
@@ -218,6 +225,7 @@ export function ParcelasManagementScreen() {
     setFormState({
       id: item.id,
       sectorId: item.sectorId,
+      productorId: item.productorId,
       code: item.code,
       name: item.name ?? "",
       areaHectares: item.areaHectares ?? "",
@@ -235,12 +243,13 @@ export function ParcelasManagementScreen() {
     }
 
     const sectorId = formState.sectorId.trim();
+    const productorId = formState.productorId.trim();
     const code = formState.code.trim();
     const name = formState.name.trim();
     const areaHectares = formState.areaHectares.trim();
     const description = formState.description.trim();
 
-    if (!sectorId || !code) {
+    if (!sectorId || !productorId || !code) {
       setFormError("Sector y código de parcela son obligatorios.");
       return;
     }
@@ -257,6 +266,7 @@ export function ParcelasManagementScreen() {
     try {
       const payload = {
         sectorId,
+        productorId,
         code,
         name: name || null,
         areaHectares: areaHectares || null,
@@ -494,6 +504,26 @@ export function ParcelasManagementScreen() {
       >
         <form className="form-layout" id="parcelas-form" onSubmit={handleSubmit}>
           <label className="field-group">
+            <span>Productor</span>
+            <select
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  productorId: event.target.value
+                }))
+              }
+              value={formState.productorId}
+            >
+              <option value="">Selecciona un productor</option>
+              {productores.map((productor) => (
+                <option key={productor.id} value={productor.id}>
+                  {buildProductorLabel(productor)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field-group">
             <span>Sector</span>
             <select
               onChange={(event) =>
@@ -615,5 +645,9 @@ export function ParcelasManagementScreen() {
 }
 
 function buildSectorLabel(sector: SectorListItem) {
-  return `${sector.name} - Productor ${sector.productorId}`;
+  return sector.name;
+}
+
+function buildProductorLabel(productor: ProductorListItem) {
+  return `${productor.documentNumber} - ${productor.firstName ?? ""} ${productor.lastName ?? ""}`.trim();
 }

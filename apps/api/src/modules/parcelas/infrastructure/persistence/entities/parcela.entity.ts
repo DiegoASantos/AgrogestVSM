@@ -8,6 +8,7 @@ import {
 } from "typeorm";
 
 import { SectorEntity } from "../../../../sectores/infrastructure/persistence/entities/sector.entity";
+import { ProductorEntity } from "../../../../productores/infrastructure/persistence/entities/productor.entity";
 import { VisitaCampoEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 
 export type PointGeometry = {
@@ -40,6 +41,12 @@ export class ParcelaEntity {
     type: "bigint"
   })
   sectorId!: string;
+
+  @Column({
+    name: "productor_id",
+    type: "bigint"
+  })
+  productorId!: string;
 
   @Column({
     name: "codigo",
@@ -120,6 +127,16 @@ export class ParcelaEntity {
     referencedColumnName: "id"
   })
   sector!: SectorEntity;
+
+  @ManyToOne(() => ProductorEntity, (productor) => productor.parcelas, {
+    onDelete: "RESTRICT",
+    onUpdate: "NO ACTION"
+  })
+  @JoinColumn({
+    name: "productor_id",
+    referencedColumnName: "id"
+  })
+  productor!: ProductorEntity;
 
   @OneToMany(() => VisitaCampoEntity, (visitaCampo) => visitaCampo.parcela)
   visitasCampo!: VisitaCampoEntity[];

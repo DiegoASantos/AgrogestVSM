@@ -6,6 +6,7 @@ import type {
 export type ParcelaMapApiItem = {
   id: string;
   publicId: string;
+  productorId: string;
   sectorId: string;
   code: string;
   name: string | null;

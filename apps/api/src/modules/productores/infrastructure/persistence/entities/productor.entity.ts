@@ -1,6 +1,6 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
-import { SectorEntity } from "../../../../sectores/infrastructure/persistence/entities/sector.entity";
+import { ParcelaEntity } from "../../../../parcelas/infrastructure/persistence/entities/parcela.entity";
 
 @Entity({ name: "productores" })
 export class ProductorEntity {
@@ -90,6 +90,6 @@ export class ProductorEntity {
   })
   updatedAt!: Date;
 
-  @OneToMany(() => SectorEntity, (sector) => sector.productor)
-  sectors!: SectorEntity[];
+  @OneToMany(() => ParcelaEntity, (parcela) => parcela.productor)
+  parcelas!: ParcelaEntity[];
 }

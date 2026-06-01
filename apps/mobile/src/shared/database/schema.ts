@@ -73,19 +73,39 @@ export const SQL_SCHEMA = [
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS departamentos (
+    id TEXT PRIMARY KEY NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS provincias (
+    id TEXT PRIMARY KEY NOT NULL,
+    departamento_id TEXT NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    FOREIGN KEY (departamento_id) REFERENCES departamentos(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS distritos (
+    id TEXT PRIMARY KEY NOT NULL,
+    provincia_id TEXT NOT NULL,
+    ubigeo TEXT NOT NULL,
+    name TEXT NOT NULL,
+    FOREIGN KEY (provincia_id) REFERENCES provincias(id)
+  )`,
   `CREATE TABLE IF NOT EXISTS sectores (
     id TEXT PRIMARY KEY NOT NULL,
-    productor_id TEXT NOT NULL,
+    distrito_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (productor_id) REFERENCES productores(id)
+    FOREIGN KEY (distrito_id) REFERENCES distritos(id)
   )`,
   `CREATE TABLE IF NOT EXISTS parcelas (
     id TEXT PRIMARY KEY NOT NULL,
     public_id TEXT NOT NULL,
+    productor_id TEXT NOT NULL,
     sector_id TEXT NOT NULL,
     code TEXT NOT NULL,
     name TEXT NOT NULL,
@@ -96,6 +116,7 @@ export const SQL_SCHEMA = [
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    FOREIGN KEY (productor_id) REFERENCES productores(id),
     FOREIGN KEY (sector_id) REFERENCES sectores(id)
   )`,
   `CREATE TABLE IF NOT EXISTS visitas_campo (
