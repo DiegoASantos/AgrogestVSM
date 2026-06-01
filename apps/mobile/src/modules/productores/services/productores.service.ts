@@ -13,5 +13,9 @@ export const productoresService = {
     }
 
     return productor;
+  },
+
+  async getBySectorId(sectorId: string) {
+    return productoresRepository.getBySectorId(sectorId);
   }
 };

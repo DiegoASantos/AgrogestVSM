@@ -115,6 +115,12 @@ function AppNavigation() {
           }}
         />
         <Stack.Screen
+          name="visitas-campo/nueva"
+          options={{
+            title: "Seleccionar parcela"
+          }}
+        />
+        <Stack.Screen
           name="visitas-campo/[id]"
           options={{
             title: "Detalle de visita"

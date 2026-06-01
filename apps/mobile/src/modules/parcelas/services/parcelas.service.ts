@@ -9,6 +9,10 @@ export const parcelasService = {
     return parcelasRepository.getBySectorId(sectorId);
   },
 
+  async getByProductorAndSector(productorId: string, sectorId: string) {
+    return parcelasRepository.getByProductorAndSector(productorId, sectorId);
+  },
+
   async getById(id: string) {
     const parcela = parcelasRepository.getById(id);
 

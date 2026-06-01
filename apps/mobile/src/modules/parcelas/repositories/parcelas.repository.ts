@@ -77,6 +77,21 @@ export const parcelasRepository = {
     );
 
     return rows.map(mapParcelaRow);
+  },
+
+  getByProductorAndSector(productorId: string, sectorId: string) {
+    const db = getDatabase();
+    const rows = db.getAllSync<ParcelaRow>(
+      `SELECT ${PARCELA_COLUMNS}
+       FROM parcelas
+       WHERE productor_id = ?
+         AND sector_id = ?
+       ORDER BY name ASC, id ASC`,
+      productorId,
+      sectorId
+    );
+
+    return rows.map(mapParcelaRow);
   }
 };
 

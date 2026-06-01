@@ -28,6 +28,7 @@ const VISITS_CARD_BACKGROUND = require("../../../../../assets/images/card_1_home
 const HISTORY_CARD_BACKGROUND = require("../../../../../assets/images/card_2_home.webp");
 
 const PRODUCERS_ROUTE = "/productores";
+const NEW_VISIT_ROUTE = "/visitas-campo/nueva";
 
 export function HomeScreen() {
   const router = useRouter();
@@ -62,6 +63,9 @@ export function HomeScreen() {
   const syncStatus = useMemo(() => getSyncStatus(syncCounts), [syncCounts]);
   const goToProducers = useCallback(() => {
     router.push(PRODUCERS_ROUTE);
+  }, [router]);
+  const goToNewVisit = useCallback(() => {
+    router.push(NEW_VISIT_ROUTE);
   }, [router]);
 
   return (
@@ -163,7 +167,7 @@ export function HomeScreen() {
               description="Registra y gestiona visitas a campo"
               icon="calendar-outline"
               label="Visitas"
-              onPress={goToProducers}
+              onPress={goToNewVisit}
             />
             <ActionCard
               background={HISTORY_CARD_BACKGROUND}

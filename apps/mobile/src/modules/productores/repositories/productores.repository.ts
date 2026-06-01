@@ -55,6 +55,23 @@ export const productoresRepository = {
     );
 
     return row ? mapProductorRow(row) : null;
+  },
+
+  getBySectorId(sectorId: string) {
+    const db = getDatabase();
+    const rows = db.getAllSync<ProductorRow>(
+      `SELECT ${PRODUCTOR_COLUMNS}
+       FROM productores
+       WHERE id IN (
+         SELECT DISTINCT productor_id
+         FROM parcelas
+         WHERE sector_id = ?
+       )
+       ORDER BY document_number ASC, id ASC`,
+      sectorId
+    );
+
+    return rows.map(mapProductorRow);
   }
 };
 
