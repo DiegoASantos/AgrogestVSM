@@ -40,6 +40,14 @@ export const visitasCampoService = {
     return visitasCampoRepository.getByParcelaId(parcelaId);
   },
 
+  getRecentByAccessToken(accessToken: string, limit = 3) {
+    const agronomistUserId = getUserIdFromAccessToken(accessToken);
+    return visitasCampoRepository.getRecentByAgronomistUserId(
+      agronomistUserId,
+      limit
+    );
+  },
+
   async getById(id: string) {
     const visita = visitasCampoRepository.getById(id);
 

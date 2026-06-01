@@ -20,6 +20,7 @@ import type {
   CreateVisitaCampoDraft,
   CultivoCatalogItem,
   EtapaFenologicaCatalogItem,
+  RecentVisitaCampo,
   VariedadCatalogItem,
   VisitaCampo
 } from "../types";
@@ -85,6 +86,16 @@ type EtapaFenologicaRow = {
   name: string;
   description: string | null;
   is_active: number;
+};
+
+type RecentVisitaCampoRow = {
+  local_id: string;
+  parcela_id: string;
+  parcela_name: string | null;
+  visit_date: string;
+  start_visit_time: string;
+  sync_status: SyncStatus;
+  created_at: string;
 };
 
 type CreateLocalVisitaCampoInput = CreateVisitaCampoDraft & {
@@ -166,6 +177,29 @@ export const visitasCampoRepository = {
     );
 
     return rows.map(mapVisitaCampoRow);
+  },
+
+  getRecentByAgronomistUserId(agronomistUserId: string, limit = 3) {
+    const db = getDatabase();
+    const rows = db.getAllSync<RecentVisitaCampoRow>(
+      `SELECT
+         visita.local_id,
+         visita.parcela_id,
+         parcela.name AS parcela_name,
+         visita.visit_date,
+         visita.start_visit_time,
+         visita.sync_status,
+         visita.created_at
+       FROM visitas_campo visita
+       LEFT JOIN parcelas parcela ON parcela.id = visita.parcela_id
+       WHERE visita.agronomist_user_id = ? AND visita.is_active = 1
+       ORDER BY visita.created_at DESC
+       LIMIT ?`,
+      agronomistUserId,
+      Math.max(0, Math.trunc(limit))
+    );
+
+    return rows.map(mapRecentVisitaCampoRow);
   },
 
   getById(localId: string) {
@@ -541,5 +575,17 @@ function mapVisitaCampoRow(row: VisitaCampoRow): VisitaCampo {
     isActive: fromSqliteBoolean(row.is_active),
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  };
+}
+
+function mapRecentVisitaCampoRow(row: RecentVisitaCampoRow): RecentVisitaCampo {
+  return {
+    id: row.local_id,
+    parcelaId: row.parcela_id,
+    parcelaName: row.parcela_name,
+    visitDate: row.visit_date,
+    startVisitTime: row.start_visit_time,
+    syncStatus: row.sync_status,
+    createdAt: row.created_at
   };
 }

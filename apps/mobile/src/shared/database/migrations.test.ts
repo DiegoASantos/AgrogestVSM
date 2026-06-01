@@ -89,12 +89,15 @@ describe("runMigrations", () => {
     const db = createFakeDatabase(0);
 
     expect(() => runMigrations(db as never)).not.toThrow();
-    expect(db.currentVersion).toBe(7);
+    expect(db.currentVersion).toBe(8);
     expect(db.executedStatements).not.toContain(
       "ALTER TABLE productores ADD COLUMN first_name TEXT"
     );
     expect(db.executedStatements).not.toContain(
       "ALTER TABLE productores ADD COLUMN last_name TEXT"
+    );
+    expect(db.executedStatements).toContain(
+      "CREATE INDEX IF NOT EXISTS idx_visitas_campo_agronomist_recent ON visitas_campo(agronomist_user_id, created_at DESC)"
     );
   });
 
@@ -114,7 +117,7 @@ describe("runMigrations", () => {
 
     runMigrations(db as never);
 
-    expect(db.currentVersion).toBe(7);
+    expect(db.currentVersion).toBe(8);
     expect(db.productorColumns.has("first_name")).toBe(true);
     expect(db.productorColumns.has("last_name")).toBe(true);
     expect(db.executedStatements).toContain(
@@ -122,6 +125,9 @@ describe("runMigrations", () => {
     );
     expect(db.executedStatements).toContain(
       "ALTER TABLE productores ADD COLUMN last_name TEXT"
+    );
+    expect(db.executedStatements).toContain(
+      "CREATE INDEX IF NOT EXISTS idx_visitas_campo_agronomist_recent ON visitas_campo(agronomist_user_id, created_at DESC)"
     );
   });
 });

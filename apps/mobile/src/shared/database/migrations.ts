@@ -68,6 +68,12 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, "productores", "first_name", "TEXT");
       addColumnIfMissing(db, "productores", "last_name", "TEXT");
     }
+  },
+  {
+    version: 8,
+    statements: [
+      "CREATE INDEX IF NOT EXISTS idx_visitas_campo_agronomist_recent ON visitas_campo(agronomist_user_id, created_at DESC)"
+    ]
   }
 ];
 

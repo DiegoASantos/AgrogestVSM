@@ -32,6 +32,16 @@ export type VisitaCampo = {
   updatedAt: string;
 };
 
+export type RecentVisitaCampo = {
+  id: string;
+  parcelaId: string;
+  parcelaName: string | null;
+  visitDate: string;
+  startVisitTime: string;
+  syncStatus: VisitaCampo["syncStatus"];
+  createdAt: string;
+};
+
 export type VisitaCampoFull = {
   visita: VisitaCampo;
   evaluaciones: VisitaEvaluacion[];
