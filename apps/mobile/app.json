@@ -10,6 +10,9 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
+    "androidNavigationBar": {
+      "barStyle": "dark-content"
+    },
     "android": {
       "package": "com.diegoasantos.agrogestvsm",
       "versionCode": 4,

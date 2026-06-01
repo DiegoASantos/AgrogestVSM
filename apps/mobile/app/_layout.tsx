@@ -149,6 +149,6 @@ function isProtectedMobilePath(pathname: string | null) {
 const styles = StyleSheet.create({
   app: {
     flex: 1,
-    backgroundColor: "#ffffff"
+    backgroundColor: "#064b31"
   }
 });

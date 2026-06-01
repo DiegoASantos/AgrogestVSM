@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   safeArea: {
     paddingHorizontal: 14,
     paddingTop: 5,
-    backgroundColor: "#ffffff"
+    backgroundColor: "transparent"
   },
   navigation: {
     height: 70,
