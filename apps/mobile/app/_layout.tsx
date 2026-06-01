@@ -1,9 +1,11 @@
 import { useEffect } from "react";
 import { Stack, usePathname, useRouter } from "expo-router";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { useAuthSession } from "../src/modules/auth/hooks/use-auth-session";
 import { AuthSessionProvider } from "../src/modules/auth/state/auth-session-provider";
+import { AppBottomNavigation } from "../src/shared/components";
 import { initDatabase } from "../src/shared/database/connection";
 import { theme } from "../src/shared/constants/theme";
 import { useSync } from "../src/shared/sync";
@@ -29,6 +31,7 @@ function AppNavigation() {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated } = useAuthSession();
+  const showBottomNavigation = isAuthenticated && pathname !== "/login";
 
   useEffect(() => {
     if (!isAuthenticated && isProtectedMobilePath(pathname)) {
@@ -37,7 +40,7 @@ function AppNavigation() {
   }, [isAuthenticated, pathname, router]);
 
   return (
-    <>
+    <View style={styles.app}>
       <SyncRunner />
       <Stack
         initialRouteName="index"
@@ -79,37 +82,7 @@ function AppNavigation() {
           }}
         />
         <Stack.Screen
-          name="productores/index"
-          options={{
-            title: "Productores"
-          }}
-        />
-        <Stack.Screen
-          name="productores/[id]"
-          options={{
-            title: "Detalle del productor"
-          }}
-        />
-        <Stack.Screen
-          name="productores/sectores"
-          options={{
-            title: "Sectores"
-          }}
-        />
-        <Stack.Screen
-          name="sectores/[id]/parcelas"
-          options={{
-            title: "Parcelas"
-          }}
-        />
-        <Stack.Screen
-          name="parcelas/[id]"
-          options={{
-            title: "Detalle de parcela"
-          }}
-        />
-        <Stack.Screen
-          name="parcelas/[id]/nueva-visita"
+          name="visitas-campo/registrar"
           options={{
             title: "Nueva visita"
           }}
@@ -118,6 +91,12 @@ function AppNavigation() {
           name="visitas-campo/nueva"
           options={{
             title: "Seleccionar parcela"
+          }}
+        />
+        <Stack.Screen
+          name="visitas-campo/historial"
+          options={{
+            title: "Historial"
           }}
         />
         <Stack.Screen
@@ -151,7 +130,8 @@ function AppNavigation() {
           }}
         />
       </Stack>
-    </>
+      {showBottomNavigation ? <AppBottomNavigation /> : null}
+    </View>
   );
 }
 
@@ -161,9 +141,14 @@ function isProtectedMobilePath(pathname: string | null) {
   }
 
   return (
-    pathname.startsWith("/productores") ||
-    pathname.startsWith("/sectores") ||
-    pathname.startsWith("/parcelas") ||
+    pathname.startsWith("/home") ||
     pathname.startsWith("/visitas-campo")
   );
 }
+
+const styles = StyleSheet.create({
+  app: {
+    flex: 1,
+    backgroundColor: "#ffffff"
+  }
+});

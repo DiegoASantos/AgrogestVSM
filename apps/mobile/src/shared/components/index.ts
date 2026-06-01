@@ -1,4 +1,5 @@
 export * from "./app-button";
+export * from "./app-bottom-navigation";
 export * from "./app-card";
 export * from "./app-detail-row";
 export * from "./app-divider";

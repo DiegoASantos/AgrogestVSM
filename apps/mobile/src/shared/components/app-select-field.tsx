@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { theme } from "../constants/theme";
@@ -19,6 +20,7 @@ type AppSelectFieldProps = {
   disabled?: boolean;
   error?: string | null;
   emptyMessage?: string;
+  icon?: keyof typeof Ionicons.glyphMap;
   onToggle: () => void;
   onSelect: (value: string) => void;
 };
@@ -33,6 +35,7 @@ export function AppSelectField({
   disabled = false,
   error,
   emptyMessage = "No hay opciones disponibles.",
+  icon,
   onToggle,
   onSelect
 }: AppSelectFieldProps) {
@@ -52,8 +55,16 @@ export function AppSelectField({
           pressed && !disabled && styles.pressedTrigger
         ]}
       >
+        {icon ? (
+          <View style={styles.iconWrap}>
+            <Ionicons color={theme.colors.primary} name={icon} size={22} />
+          </View>
+        ) : null}
         <AppText
-          style={!selectedLabel ? styles.placeholderText : undefined}
+          style={[
+            styles.triggerText,
+            !selectedLabel ? styles.placeholderText : undefined
+          ]}
           variant="body"
         >
           {selectedLabel || placeholder}
@@ -113,6 +124,9 @@ const styles = StyleSheet.create({
   },
   trigger: {
     minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     borderWidth: 1.5,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
@@ -140,6 +154,17 @@ const styles = StyleSheet.create({
     right: 14,
     color: theme.colors.textMuted,
     fontSize: 10
+  },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: theme.colors.primaryMuted
+  },
+  triggerText: {
+    flex: 1
   },
   placeholderText: {
     color: theme.colors.textMuted

@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
 import { theme } from "../constants/theme";
@@ -10,6 +11,7 @@ type AppButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   size?: "default" | "small";
+  icon?: keyof typeof Ionicons.glyphMap;
 };
 
 export function AppButton({
@@ -18,7 +20,8 @@ export function AppButton({
   variant = "primary",
   disabled = false,
   loading = false,
-  size = "default"
+  size = "default",
+  icon
 }: AppButtonProps) {
   const isDisabled = disabled || loading;
 
@@ -41,6 +44,13 @@ export function AppButton({
             color={variant === "primary" || variant === "danger" ? "#ffffff" : theme.colors.primary}
             size="small"
             style={styles.spinner}
+          />
+        ) : null}
+        {!loading && icon ? (
+          <Ionicons
+            color={iconColors[variant]}
+            name={icon}
+            size={size === "small" ? 17 : 20}
           />
         ) : null}
         <AppText
@@ -87,6 +97,13 @@ const labelStyles = StyleSheet.create({
     color: theme.colors.textInverse
   }
 });
+
+const iconColors = {
+  primary: theme.colors.textInverse,
+  secondary: theme.colors.primaryDark,
+  outline: theme.colors.primary,
+  danger: theme.colors.textInverse
+} satisfies Record<NonNullable<AppButtonProps["variant"]>, string>;
 
 const styles = StyleSheet.create({
   base: {

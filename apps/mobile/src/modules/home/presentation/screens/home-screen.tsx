@@ -27,8 +27,8 @@ const VISITS_CARD_BACKGROUND = require("../../../../../assets/images/card_1_home
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const HISTORY_CARD_BACKGROUND = require("../../../../../assets/images/card_2_home.webp");
 
-const PRODUCERS_ROUTE = "/productores";
 const NEW_VISIT_ROUTE = "/visitas-campo/nueva";
+const HISTORY_ROUTE = "/visitas-campo/historial";
 
 export function HomeScreen() {
   const router = useRouter();
@@ -61,8 +61,8 @@ export function HomeScreen() {
   useFocusEffect(loadDashboard);
 
   const syncStatus = useMemo(() => getSyncStatus(syncCounts), [syncCounts]);
-  const goToProducers = useCallback(() => {
-    router.push(PRODUCERS_ROUTE);
+  const goToHistory = useCallback(() => {
+    router.push(HISTORY_ROUTE);
   }, [router]);
   const goToNewVisit = useCallback(() => {
     router.push(NEW_VISIT_ROUTE);
@@ -174,7 +174,7 @@ export function HomeScreen() {
               description="Consulta tus visitas realizadas"
               icon="time-outline"
               label="Historial"
-              onPress={goToProducers}
+              onPress={goToHistory}
             />
           </View>
 
@@ -185,7 +185,7 @@ export function HomeScreen() {
               </AppText>
               <Pressable
                 accessibilityRole="button"
-                onPress={goToProducers}
+                onPress={goToHistory}
                 style={({ pressed }) => pressed && styles.pressed}
               >
                 <AppText style={styles.seeAllText} variant="label">
@@ -210,7 +210,6 @@ export function HomeScreen() {
         </View>
       </ScrollView>
 
-      <HomeNavigation onNavigate={goToProducers} />
     </SafeAreaView>
   );
 }
@@ -359,48 +358,6 @@ function RecentActivityItem({
   );
 }
 
-function HomeNavigation({ onNavigate }: { onNavigate: () => void }) {
-  return (
-    <View style={styles.navigationWrap}>
-      <View style={styles.navigation}>
-        <NavigationItem icon="calendar-outline" label="Visitas" onPress={onNavigate} />
-        <View style={styles.homeNavItem}>
-          <View style={styles.homeNavCircle}>
-            <Ionicons color="#ffffff" name="home" size={26} />
-            <AppText style={styles.homeNavText} variant="caption">
-              Inicio
-            </AppText>
-          </View>
-        </View>
-        <NavigationItem icon="time-outline" label="Historial" onPress={onNavigate} />
-      </View>
-    </View>
-  );
-}
-
-function NavigationItem({
-  icon,
-  label,
-  onPress
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.navigationItem, pressed && styles.navPressed]}
-    >
-      <Ionicons color="#ffffff" name={icon} size={25} />
-      <AppText style={styles.navigationText} variant="caption">
-        {label}
-      </AppText>
-    </Pressable>
-  );
-}
-
 type StatusVariant = "success" | "warning" | "error";
 
 function getSyncStatus(syncCounts: { pendingCount: number; errorCount: number }) {
@@ -525,7 +482,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fbfcf9"
   },
   scrollContent: {
-    paddingBottom: 103
+    paddingBottom: 18
   },
   header: {
     width: "100%",
@@ -813,70 +770,7 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3
   },
-  navigationWrap: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingBottom: 8
-  },
-  navigation: {
-    width: "100%",
-    maxWidth: 760,
-    height: 72,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    borderRadius: 36,
-    backgroundColor: "#064b31",
-    shadowColor: "#213c31",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 8
-  },
-  navigationItem: {
-    minWidth: 92,
-    minHeight: 62,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3
-  },
-  navigationText: {
-    color: "#ffffff",
-    fontSize: 12
-  },
-  homeNavItem: {
-    width: 90,
-    alignItems: "center"
-  },
-  homeNavCircle: {
-    width: 82,
-    height: 82,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 2,
-    marginTop: -17,
-    borderRadius: 42,
-    borderWidth: 5,
-    borderColor: "#ffffff",
-    backgroundColor: "#3e8739",
-    shadowColor: "#183a2b",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.24,
-    shadowRadius: 7,
-    elevation: 7
-  },
-  homeNavText: {
-    color: "#ffffff",
-    fontSize: 12
-  },
   pressed: {
     opacity: 0.8
-  },
-  navPressed: {
-    opacity: 0.72
   }
 });

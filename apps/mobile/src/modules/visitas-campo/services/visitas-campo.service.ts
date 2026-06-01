@@ -48,6 +48,11 @@ export const visitasCampoService = {
     );
   },
 
+  getByAccessToken(accessToken: string) {
+    const agronomistUserId = getUserIdFromAccessToken(accessToken);
+    return visitasCampoRepository.getByAgronomistUserId(agronomistUserId);
+  },
+
   async getById(id: string) {
     const visita = visitasCampoRepository.getById(id);
 

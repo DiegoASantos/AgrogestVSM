@@ -202,6 +202,27 @@ export const visitasCampoRepository = {
     return rows.map(mapRecentVisitaCampoRow);
   },
 
+  getByAgronomistUserId(agronomistUserId: string) {
+    const db = getDatabase();
+    const rows = db.getAllSync<RecentVisitaCampoRow>(
+      `SELECT
+         visita.local_id,
+         visita.parcela_id,
+         parcela.name AS parcela_name,
+         visita.visit_date,
+         visita.start_visit_time,
+         visita.sync_status,
+         visita.created_at
+       FROM visitas_campo visita
+       LEFT JOIN parcelas parcela ON parcela.id = visita.parcela_id
+       WHERE visita.agronomist_user_id = ? AND visita.is_active = 1
+       ORDER BY visita.visit_date DESC, visita.start_visit_time DESC, visita.created_at DESC`,
+      agronomistUserId
+    );
+
+    return rows.map(mapRecentVisitaCampoRow);
+  },
+
   getById(localId: string) {
     const db = getDatabase();
     const row = db.getFirstSync<VisitaCampoRow>(
