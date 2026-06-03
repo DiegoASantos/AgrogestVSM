@@ -8,6 +8,7 @@ import {
 } from "typeorm";
 
 import { CultivoEntity } from "../../../../cultivos/infrastructure/persistence/entities/cultivo.entity";
+import { SubEtapaEntity } from "./sub-etapa.entity";
 import { VisitaCampoEntity } from "./visita-campo.entity";
 
 export type EtapaFenologicaType = "Etapa" | "Labor";
@@ -74,4 +75,7 @@ export class EtapaFenologicaEntity {
 
   @OneToMany(() => VisitaCampoEntity, (visitaCampo) => visitaCampo.etapaFenologica)
   visitasCampo!: VisitaCampoEntity[];
+
+  @OneToMany(() => SubEtapaEntity, (subEtapa) => subEtapa.etapaFenologica)
+  subEtapas!: SubEtapaEntity[];
 }

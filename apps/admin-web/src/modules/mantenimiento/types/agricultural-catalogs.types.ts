@@ -58,6 +58,25 @@ export type EtapaFenologicaCatalogPayload = {
   isActive?: boolean;
 };
 
+export type SubEtapaCatalogItem = {
+  id: string;
+  etapaFenologicaId: string;
+  name: string;
+  sortOrder: number;
+  description: string | null;
+  percentage: number | null;
+  isActive: boolean;
+};
+
+export type SubEtapaCatalogPayload = {
+  etapaFenologicaId: string;
+  name: string;
+  sortOrder: number;
+  description?: string | null;
+  percentage?: number | null;
+  isActive?: boolean;
+};
+
 export type NivelIncidenciaCatalogItem = {
   id: string;
   name: string;

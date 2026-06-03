@@ -41,6 +41,11 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     description: "Etapas por cultivo"
   },
   {
+    label: "Sub etapas",
+    href: adminRoutes.mantenimientoItems.subEtapas,
+    description: "Detalle de etapas fenologicas"
+  },
+  {
     label: "Productores",
     href: adminRoutes.mantenimientoItems.productores,
     description: "Gestion base de productores"

@@ -12,10 +12,13 @@ import { VisitaObservacionSanitariaEntity } from "../visita-observaciones-sanita
 import { VisitaProductoRecomendadoEntity } from "../visita-productos-recomendados/infrastructure/persistence/entities/visita-producto-recomendado.entity";
 import { VisitaRecomendacionEntity } from "../visita-recomendaciones/infrastructure/persistence/entities/visita-recomendacion.entity";
 import { EtapasFenologicasService } from "./application/etapas-fenologicas.service";
+import { SubEtapasService } from "./application/sub-etapas.service";
 import { VisitasCampoService } from "./application/visitas-campo.service";
 import { EtapaFenologicaEntity } from "./infrastructure/persistence/entities/etapa-fenologica.entity";
+import { SubEtapaEntity } from "./infrastructure/persistence/entities/sub-etapa.entity";
 import { VisitaCampoEntity } from "./infrastructure/persistence/entities/visita-campo.entity";
 import { EtapasFenologicasController } from "./presentation/etapas-fenologicas.controller";
+import { SubEtapasController } from "./presentation/sub-etapas.controller";
 import { VisitasCampoController } from "./presentation/visitas-campo.controller";
 
 @Module({
@@ -23,6 +26,7 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
     TypeOrmModule.forFeature([
       VisitaCampoEntity,
       EtapaFenologicaEntity,
+      SubEtapaEntity,
       CultivoEntity,
       VariedadEntity,
       ParcelaEntity,
@@ -35,8 +39,17 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
       VisitaProductoRecomendadoEntity
     ])
   ],
-  controllers: [VisitasCampoController, EtapasFenologicasController],
-  providers: [VisitasCampoService, EtapasFenologicasService],
-  exports: [TypeOrmModule, VisitasCampoService, EtapasFenologicasService]
+  controllers: [
+    VisitasCampoController,
+    EtapasFenologicasController,
+    SubEtapasController
+  ],
+  providers: [VisitasCampoService, EtapasFenologicasService, SubEtapasService],
+  exports: [
+    TypeOrmModule,
+    VisitasCampoService,
+    EtapasFenologicasService,
+    SubEtapasService
+  ]
 })
 export class VisitasCampoModule {}

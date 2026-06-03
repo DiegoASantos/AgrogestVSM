@@ -31,6 +31,7 @@ import {
   X,
   Sun,
   Moon,
+  ListTree,
   type LucideIcon
 } from "lucide-react";
 
@@ -65,6 +66,7 @@ const maintenanceNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.mantenimientoItems.cultivos]: Sprout,
   [adminRoutes.mantenimientoItems.campanias]: CalendarDays,
   [adminRoutes.mantenimientoItems.etapasFenologicas]: Leaf,
+  [adminRoutes.mantenimientoItems.subEtapas]: ListTree,
   [adminRoutes.mantenimientoItems.productores]: Users,
   [adminRoutes.mantenimientoItems.parcelas]: MapIcon,
   [adminRoutes.mantenimientoItems.productos]: Package,

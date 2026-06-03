@@ -17,6 +17,8 @@ import type {
   NivelIncidenciaCatalogPayload,
   PlagaEnfermedadCatalogItem,
   PlagaEnfermedadCatalogPayload,
+  SubEtapaCatalogItem,
+  SubEtapaCatalogPayload,
   TipoDocumentoCatalogItem,
   TipoDocumentoCatalogPayload
 } from "../types/agricultural-catalogs.types";
@@ -49,6 +51,16 @@ type EtapaFenologicaApiItem = {
   description: string | null;
   sortOrder: number | null;
   type: "Etapa" | "Labor";
+  isActive: boolean;
+};
+
+type SubEtapaApiItem = {
+  id: string;
+  etapaFenologicaId: string;
+  name: string;
+  sortOrder: number;
+  description: string | null;
+  percentage: number | null;
   isActive: boolean;
 };
 
@@ -234,6 +246,43 @@ export const agriculturalCatalogsService = {
 
   async deleteEtapaFenologica(session: AuthSessionInput, id: string) {
     return request<EtapaFenologicaApiItem>(session, `/etapas-fenologicas/${id}`, {
+      method: "DELETE"
+    });
+  },
+
+  async getSubEtapas(session: AuthSessionInput): Promise<SubEtapaCatalogItem[]> {
+    const items = await requestAll<SubEtapaApiItem>(session, "/sub-etapas");
+
+    return items.map(mapSubEtapaItem);
+  },
+
+  async createSubEtapa(
+    session: AuthSessionInput,
+    payload: SubEtapaCatalogPayload
+  ): Promise<SubEtapaCatalogItem> {
+    const item = await request<SubEtapaApiItem>(session, "/sub-etapas", {
+      method: "POST",
+      body: payload
+    });
+
+    return mapSubEtapaItem(item);
+  },
+
+  async updateSubEtapa(
+    session: AuthSessionInput,
+    id: string,
+    payload: SubEtapaCatalogPayload
+  ): Promise<SubEtapaCatalogItem> {
+    const item = await request<SubEtapaApiItem>(session, `/sub-etapas/${id}`, {
+      method: "PATCH",
+      body: payload
+    });
+
+    return mapSubEtapaItem(item);
+  },
+
+  async deleteSubEtapa(session: AuthSessionInput, id: string) {
+    return request<SubEtapaApiItem>(session, `/sub-etapas/${id}`, {
       method: "DELETE"
     });
   },
@@ -439,6 +488,22 @@ export const agriculturalCatalogsService = {
       id: cultivo.id,
       label: cultivo.code ? `${cultivo.code} - ${cultivo.name}` : cultivo.name
     }));
+  },
+
+  async getEtapaFenologicaOptions(
+    session: AuthSessionInput
+  ): Promise<CatalogOption[]> {
+    const etapasFenologicas = await this.getEtapasFenologicas(session);
+
+    return etapasFenologicas
+      .filter((etapaFenologica) => etapaFenologica.type === "Etapa")
+      .map((etapaFenologica) => ({
+        id: etapaFenologica.id,
+        label:
+          etapaFenologica.sortOrder === null
+            ? etapaFenologica.name
+            : `${etapaFenologica.sortOrder} - ${etapaFenologica.name}`
+      }));
   }
 };
 
@@ -476,5 +541,17 @@ function mapCampaniaItem(item: CampaniaApiItem): CampaniaCatalogItem {
     isActive: item.isActive,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt
+  };
+}
+
+function mapSubEtapaItem(item: SubEtapaApiItem): SubEtapaCatalogItem {
+  return {
+    id: item.id,
+    etapaFenologicaId: item.etapaFenologicaId,
+    name: item.name,
+    sortOrder: item.sortOrder,
+    description: item.description,
+    percentage: item.percentage,
+    isActive: item.isActive
   };
 }
