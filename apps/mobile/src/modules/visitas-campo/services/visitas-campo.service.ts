@@ -53,6 +53,10 @@ export const visitasCampoService = {
     return visitasCampoRepository.getByAgronomistUserId(agronomistUserId);
   },
 
+  getLastVisitDefaultsByParcelaId(parcelaId: string) {
+    return visitasCampoRepository.getLastVisitDefaultsByParcelaId(parcelaId);
+  },
+
   async getById(id: string) {
     const visita = visitasCampoRepository.getById(id);
 

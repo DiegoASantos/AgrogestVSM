@@ -110,6 +110,29 @@ const MIGRATIONS: Migration[] = [
         "TEXT NOT NULL DEFAULT 'Etapa'"
       );
     }
+  },
+  {
+    version: 11,
+    run: (db) => {
+      db.execSync(
+        `CREATE TABLE IF NOT EXISTS sub_etapas (
+          id TEXT PRIMARY KEY NOT NULL,
+          etapa_fenologica_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          sort_order INTEGER NOT NULL,
+          description TEXT,
+          percentage TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          FOREIGN KEY (etapa_fenologica_id) REFERENCES etapas_fenologicas(id)
+        )`
+      );
+      addColumnIfMissing(db, "visitas_campo", "area_hectares", "TEXT");
+      addColumnIfMissing(db, "visitas_campo", "sub_etapa_id", "TEXT");
+      addColumnIfMissing(db, "visitas_campo", "sub_etapa_percentage", "TEXT");
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_sub_etapas_etapa ON sub_etapas(etapa_fenologica_id)"
+      );
+    }
   }
 ];
 

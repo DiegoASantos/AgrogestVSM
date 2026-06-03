@@ -1,19 +1,31 @@
 import type { PropsWithChildren } from "react";
-import { StyleSheet, Text, type StyleProp, type TextStyle } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  type StyleProp,
+  type TextProps,
+  type TextStyle
+} from "react-native";
 
 import { theme } from "../constants/theme";
 
 type AppTextProps = PropsWithChildren<{
   variant?: "body" | "muted" | "title" | "heading" | "eyebrow" | "label" | "caption";
   style?: StyleProp<TextStyle>;
-}>;
+}> &
+  Omit<TextProps, "style">;
 
 export function AppText({
   children,
   variant = "body",
-  style
+  style,
+  ...textProps
 }: AppTextProps) {
-  return <Text style={[styles.base, styles[variant], style]}>{children}</Text>;
+  return (
+    <Text style={[styles.base, styles[variant], style]} {...textProps}>
+      {children}
+    </Text>
+  );
 }
 
 const styles = StyleSheet.create({

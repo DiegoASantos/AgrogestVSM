@@ -400,11 +400,14 @@ function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft
     campaignId: visita.campaignId,
     visitLocation: visita.visitLocation ?? undefined,
     plantsCount: visita.plantsCount ?? undefined,
+    areaHectares: visita.areaHectares ?? undefined,
     sowingDate: visita.sowingDate ?? undefined,
     visitDate: visita.visitDate,
     startVisitTime: visita.startVisitTime,
     endVisitTime: visita.endVisitTime ?? undefined,
     phenologicalStageId: visita.phenologicalStageId ?? undefined,
+    subEtapaId: visita.subEtapaId ?? undefined,
+    subEtapaPercentage: visita.subEtapaPercentage ?? undefined,
     generalObservation: visita.generalObservation ?? undefined
   };
 }
@@ -419,11 +422,14 @@ function buildVisitaCampoUpdateBody(
     campaignId: visita.campaignId,
     visitLocation: visita.visitLocation ?? undefined,
     plantsCount: visita.plantsCount ?? undefined,
+    areaHectares: visita.areaHectares ?? undefined,
     sowingDate: visita.sowingDate ?? undefined,
     visitDate: visita.visitDate,
     startVisitTime: visita.startVisitTime,
     endVisitTime: visita.endVisitTime ?? undefined,
     phenologicalStageId: visita.phenologicalStageId ?? undefined,
+    subEtapaId: visita.subEtapaId ?? undefined,
+    subEtapaPercentage: visita.subEtapaPercentage ?? undefined,
     generalObservation: visita.generalObservation ?? undefined
   };
 }

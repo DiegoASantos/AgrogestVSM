@@ -1,9 +1,11 @@
 import { TERRITORIAL_SECTORS_AND_PIURA_GEOGRAPHY_MIGRATION } from "./001-territorial-sectors-and-piura-geography";
 import { ETAPAS_FENOLOGICAS_ORDER_AND_TYPE_MIGRATION } from "./002-etapas-fenologicas-order-and-type";
 import { SUB_ETAPAS_MIGRATION } from "./003-sub-etapas";
+import { VISITA_SUB_ETAPA_AND_AREA_MIGRATION } from "./004-visita-sub-etapa-and-area";
 
 export const DATABASE_MIGRATIONS = [
   TERRITORIAL_SECTORS_AND_PIURA_GEOGRAPHY_MIGRATION,
   ETAPAS_FENOLOGICAS_ORDER_AND_TYPE_MIGRATION,
-  SUB_ETAPAS_MIGRATION
+  SUB_ETAPAS_MIGRATION,
+  VISITA_SUB_ETAPA_AND_AREA_MIGRATION
 ] as const;

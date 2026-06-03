@@ -33,6 +33,7 @@ import { FindHistorialVisitasProductorQueryDto } from "../presentation/dto/find-
 import { FindVisitasCampoQueryDto } from "../presentation/dto/find-visitas-campo-query.dto";
 import { UpdateVisitaCampoDto } from "../presentation/dto/update-visita-campo.dto";
 import { EtapaFenologicaEntity } from "../infrastructure/persistence/entities/etapa-fenologica.entity";
+import { SubEtapaEntity } from "../infrastructure/persistence/entities/sub-etapa.entity";
 import {
   PointGeometry,
   VisitaCampoEntity
@@ -57,6 +58,8 @@ export class VisitasCampoService {
     private readonly productoresRepository: Repository<ProductorEntity>,
     @InjectRepository(EtapaFenologicaEntity)
     private readonly etapasFenologicasRepository: Repository<EtapaFenologicaEntity>,
+    @InjectRepository(SubEtapaEntity)
+    private readonly subEtapasRepository: Repository<SubEtapaEntity>,
     @InjectRepository(VisitaEvaluacionEntity)
     private readonly visitaEvaluacionesRepository: Repository<VisitaEvaluacionEntity>,
     @InjectRepository(VisitaObservacionSanitariaEntity)
@@ -96,11 +99,20 @@ export class VisitasCampoService {
       campaniaId: createVisitaCampoDto.campaignId,
       agronomoUsuarioId: createVisitaCampoDto.agronomistUserId,
       nroPlantas: createVisitaCampoDto.plantsCount ?? null,
+      areaHectares: normalizeAreaHectares(
+        createVisitaCampoDto.areaHectares ?? null
+      ),
       fechaSiembra: createVisitaCampoDto.sowingDate ?? null,
       fechaVisita: createVisitaCampoDto.visitDate,
       horaVisitaInicio: createVisitaCampoDto.startVisitTime,
       horaVisitaFin: createVisitaCampoDto.endVisitTime ?? null,
       etapaFenologicaId: createVisitaCampoDto.phenologicalStageId ?? null,
+      subEtapaId: createVisitaCampoDto.subEtapaId ?? null,
+      subEtapaPercentage:
+        createVisitaCampoDto.subEtapaPercentage === undefined ||
+        createVisitaCampoDto.subEtapaPercentage === null
+          ? null
+          : String(createVisitaCampoDto.subEtapaPercentage),
       observacionGeneral: createVisitaCampoDto.generalObservation ?? null,
       firmaAgronomoNombre: createVisitaCampoDto.agronomistSignatureName ?? null,
       firmaProductorNombre: createVisitaCampoDto.producerSignatureName ?? null,
@@ -299,6 +311,16 @@ export class VisitasCampoService {
       updateVisitaCampoDto.phenologicalStageId !== undefined
         ? updateVisitaCampoDto.phenologicalStageId
         : visitaCampo.etapaFenologicaId;
+    const nextSubEtapaId =
+      updateVisitaCampoDto.subEtapaId !== undefined
+        ? updateVisitaCampoDto.subEtapaId
+        : visitaCampo.subEtapaId;
+    const nextSubEtapaPercentage =
+      updateVisitaCampoDto.subEtapaPercentage !== undefined
+        ? updateVisitaCampoDto.subEtapaPercentage
+        : visitaCampo.subEtapaPercentage === null
+          ? null
+          : Number(visitaCampo.subEtapaPercentage);
 
     await this.validateReferences({
       cropId: nextCropId,
@@ -307,7 +329,9 @@ export class VisitasCampoService {
       campaignId: nextCampaignId,
       agronomistUserId:
         updateVisitaCampoDto.agronomistUserId ?? visitaCampo.agronomoUsuarioId,
-      phenologicalStageId: nextPhenologicalStageId ?? undefined
+      phenologicalStageId: nextPhenologicalStageId ?? undefined,
+      subEtapaId: nextSubEtapaId ?? undefined,
+      subEtapaPercentage: nextSubEtapaPercentage
     });
 
     await this.ensureUniqueNroFicha(nextNroFicha ?? null, visitaCampo.id);
@@ -335,6 +359,13 @@ export class VisitasCampoService {
       ...(updateVisitaCampoDto.plantsCount !== undefined
         ? { nroPlantas: updateVisitaCampoDto.plantsCount }
         : {}),
+      ...(updateVisitaCampoDto.areaHectares !== undefined
+        ? {
+            areaHectares: normalizeAreaHectares(
+              updateVisitaCampoDto.areaHectares
+            )
+          }
+        : {}),
       ...(updateVisitaCampoDto.sowingDate !== undefined
         ? { fechaSiembra: updateVisitaCampoDto.sowingDate }
         : {}),
@@ -349,6 +380,17 @@ export class VisitasCampoService {
         : {}),
       ...(updateVisitaCampoDto.phenologicalStageId !== undefined
         ? { etapaFenologicaId: updateVisitaCampoDto.phenologicalStageId }
+        : {}),
+      ...(updateVisitaCampoDto.subEtapaId !== undefined
+        ? { subEtapaId: updateVisitaCampoDto.subEtapaId }
+        : {}),
+      ...(updateVisitaCampoDto.subEtapaPercentage !== undefined
+        ? {
+            subEtapaPercentage:
+              updateVisitaCampoDto.subEtapaPercentage === null
+                ? null
+                : String(updateVisitaCampoDto.subEtapaPercentage)
+          }
         : {}),
       ...(updateVisitaCampoDto.generalObservation !== undefined
         ? { observacionGeneral: updateVisitaCampoDto.generalObservation }
@@ -417,6 +459,8 @@ export class VisitasCampoService {
     campaignId: string;
     agronomistUserId: string;
     phenologicalStageId?: string | null;
+    subEtapaId?: string | null;
+    subEtapaPercentage?: number | null;
   }) {
     await this.findRequiredEntity(
       this.cultivosRepository,
@@ -457,6 +501,16 @@ export class VisitasCampoService {
     }
 
     if (input.phenologicalStageId === undefined || input.phenologicalStageId === null) {
+      if (
+        (input.subEtapaId !== undefined && input.subEtapaId !== null) ||
+        (input.subEtapaPercentage !== undefined &&
+          input.subEtapaPercentage !== null)
+      ) {
+        throw new BadRequestException(
+          "Sub etapa requires a phenological stage."
+        );
+      }
+
       return;
     }
 
@@ -469,6 +523,37 @@ export class VisitasCampoService {
     if (etapaFenologica.cultivoId !== input.cropId) {
       throw new BadRequestException(
         "Etapa fenologica does not belong to the selected cultivo."
+      );
+    }
+
+    if (input.subEtapaId === undefined || input.subEtapaId === null) {
+      if (
+        input.subEtapaPercentage !== undefined &&
+        input.subEtapaPercentage !== null
+      ) {
+        throw new BadRequestException(
+          "subEtapaPercentage requires a sub etapa."
+        );
+      }
+
+      return;
+    }
+
+    if (etapaFenologica.type !== "Etapa") {
+      throw new BadRequestException(
+        "Sub etapa can only be used with a phenological stage of type Etapa."
+      );
+    }
+
+    const subEtapa = await this.findRequiredEntity(
+      this.subEtapasRepository,
+      input.subEtapaId,
+      "Sub etapa not found."
+    );
+
+    if (subEtapa.etapaFenologicaId !== input.phenologicalStageId) {
+      throw new BadRequestException(
+        "Sub etapa does not belong to the selected phenological stage."
       );
     }
   }
@@ -645,6 +730,22 @@ export class VisitasCampoService {
         );
       }
 
+      if (
+        databaseError?.code === "23514" &&
+        databaseError.constraint === "visitas_campo_area_ha_check"
+      ) {
+        throw new BadRequestException("areaHectares must be greater than zero.");
+      }
+
+      if (
+        databaseError?.code === "23514" &&
+        databaseError.constraint === "visitas_campo_sub_etapa_porcentaje_check"
+      ) {
+        throw new BadRequestException(
+          "subEtapaPercentage must be between 0 and 100."
+        );
+      }
+
       if (databaseError?.code === "23503") {
         switch (databaseError.constraint) {
           case "visitas_campo_cultivo_id_fkey":
@@ -659,6 +760,8 @@ export class VisitasCampoService {
             throw new BadRequestException("Agronomo user not found.");
           case "visitas_campo_etapa_fenologica_id_fkey":
             throw new BadRequestException("Etapa fenologica not found.");
+          case "visitas_campo_sub_etapa_id_fkey":
+            throw new BadRequestException("Sub etapa not found.");
         }
       }
     }
@@ -679,11 +782,17 @@ export class VisitasCampoService {
       campaignId: visitaCampo.campaniaId,
       agronomistUserId: visitaCampo.agronomoUsuarioId,
       plantsCount: visitaCampo.nroPlantas,
+      areaHectares: visitaCampo.areaHectares,
       sowingDate: visitaCampo.fechaSiembra,
       visitDate: visitaCampo.fechaVisita,
       startVisitTime: visitaCampo.horaVisitaInicio,
       endVisitTime: visitaCampo.horaVisitaFin,
       phenologicalStageId: visitaCampo.etapaFenologicaId,
+      subEtapaId: visitaCampo.subEtapaId,
+      subEtapaPercentage:
+        visitaCampo.subEtapaPercentage === null
+          ? null
+          : Number(visitaCampo.subEtapaPercentage),
       generalObservation: visitaCampo.observacionGeneral,
       agronomistSignatureName: visitaCampo.firmaAgronomoNombre,
       producerSignatureName: visitaCampo.firmaProductorNombre,
@@ -819,6 +928,21 @@ function validateDateRange(
       "fecha_hasta must be greater than or equal to fecha_desde."
     );
   }
+}
+
+function normalizeAreaHectares(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const normalizedValue = String(value).trim();
+  const parsedValue = Number(normalizedValue);
+
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    throw new BadRequestException("areaHectares must be greater than zero.");
+  }
+
+  return normalizedValue;
 }
 
 function validatePointGeometry(value: unknown): PointGeometry | null {

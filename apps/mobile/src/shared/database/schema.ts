@@ -34,6 +34,16 @@ export const SQL_SCHEMA = [
     CHECK(type IN ('Etapa', 'Labor')),
     FOREIGN KEY (cultivo_id) REFERENCES cultivos(id)
   )`,
+  `CREATE TABLE IF NOT EXISTS sub_etapas (
+    id TEXT PRIMARY KEY NOT NULL,
+    etapa_fenologica_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL,
+    description TEXT,
+    percentage TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (etapa_fenologica_id) REFERENCES etapas_fenologicas(id)
+  )`,
   `CREATE TABLE IF NOT EXISTS pest_diseases (
     id TEXT PRIMARY KEY NOT NULL,
     code TEXT,
@@ -133,11 +143,14 @@ export const SQL_SCHEMA = [
     campaign_id TEXT NOT NULL,
     agronomist_user_id TEXT NOT NULL,
     plants_count INTEGER,
+    area_hectares TEXT,
     sowing_date TEXT,
     visit_date TEXT NOT NULL,
     start_visit_time TEXT NOT NULL,
     end_visit_time TEXT,
     phenological_stage_id TEXT,
+    sub_etapa_id TEXT,
+    sub_etapa_percentage TEXT,
     general_observation TEXT,
     agronomist_signature_name TEXT,
     producer_signature_name TEXT,
@@ -151,7 +164,8 @@ export const SQL_SCHEMA = [
     FOREIGN KEY (variety_id) REFERENCES variedades(id),
     FOREIGN KEY (parcela_id) REFERENCES parcelas(id),
     FOREIGN KEY (campaign_id) REFERENCES campanias(id),
-    FOREIGN KEY (phenological_stage_id) REFERENCES etapas_fenologicas(id)
+    FOREIGN KEY (phenological_stage_id) REFERENCES etapas_fenologicas(id),
+    FOREIGN KEY (sub_etapa_id) REFERENCES sub_etapas(id)
   )`,
   `CREATE TABLE IF NOT EXISTS visita_evaluaciones (
     local_id TEXT PRIMARY KEY NOT NULL,

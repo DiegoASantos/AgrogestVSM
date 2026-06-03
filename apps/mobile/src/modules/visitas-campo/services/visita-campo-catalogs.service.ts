@@ -17,5 +17,11 @@ export const visitaCampoCatalogsService = {
     return Promise.resolve(
       visitasCampoRepository.getEtapasFenologicasByCultivo(cultivoId)
     );
+  },
+
+  getSubEtapasByEtapaFenologica(etapaFenologicaId: string) {
+    return Promise.resolve(
+      visitasCampoRepository.getSubEtapasByEtapaFenologica(etapaFenologicaId)
+    );
   }
 };

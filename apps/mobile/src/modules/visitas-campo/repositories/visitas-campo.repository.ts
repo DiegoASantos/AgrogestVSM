@@ -22,6 +22,7 @@ import type {
   EtapaFenologicaCatalogItem,
   RecentVisitaCampo,
   VariedadCatalogItem,
+  SubEtapaCatalogItem,
   VisitaCampo
 } from "../types";
 
@@ -38,11 +39,14 @@ type VisitaCampoRow = {
   campaign_id: string;
   agronomist_user_id: string;
   plants_count: number | null;
+  area_hectares: string | null;
   sowing_date: string | null;
   visit_date: string;
   start_visit_time: string;
   end_visit_time: string | null;
   phenological_stage_id: string | null;
+  sub_etapa_id: string | null;
+  sub_etapa_percentage: string | null;
   general_observation: string | null;
   agronomist_signature_name: string | null;
   producer_signature_name: string | null;
@@ -90,6 +94,21 @@ type EtapaFenologicaRow = {
   is_active: number;
 };
 
+type SubEtapaRow = {
+  id: string;
+  etapa_fenologica_id: string;
+  name: string;
+  sort_order: number;
+  description: string | null;
+  percentage: string | null;
+  is_active: number;
+};
+
+type VisitDefaultsRow = {
+  sowing_date: string | null;
+  area_hectares: string | null;
+};
+
 type RecentVisitaCampoRow = {
   local_id: string;
   parcela_id: string;
@@ -115,11 +134,14 @@ type UpdateVisitaCampoInput = Partial<{
   campaignId: string;
   agronomistUserId: string;
   plantsCount: number | null;
+  areaHectares: string | null;
   sowingDate: string | null;
   visitDate: string;
   startVisitTime: string;
   endVisitTime: string | null;
   phenologicalStageId: string | null;
+  subEtapaId: string | null;
+  subEtapaPercentage: number | null;
   generalObservation: string | null;
   agronomistSignatureName: string | null;
   producerSignatureName: string | null;
@@ -139,11 +161,14 @@ const VISITA_COLUMNS = `
   campaign_id,
   agronomist_user_id,
   plants_count,
+  area_hectares,
   sowing_date,
   visit_date,
   start_visit_time,
   end_visit_time,
   phenological_stage_id,
+  sub_etapa_id,
+  sub_etapa_percentage,
   general_observation,
   agronomist_signature_name,
   producer_signature_name,
@@ -238,6 +263,27 @@ export const visitasCampoRepository = {
     return row ? mapVisitaCampoRow(row) : null;
   },
 
+  getLastVisitDefaultsByParcelaId(parcelaId: string) {
+    const db = getDatabase();
+    const row = db.getFirstSync<VisitDefaultsRow>(
+      `SELECT sowing_date, area_hectares
+       FROM visitas_campo
+       WHERE parcela_id = ?
+         AND is_active = 1
+         AND (sowing_date IS NOT NULL OR area_hectares IS NOT NULL)
+       ORDER BY visit_date DESC, start_visit_time DESC, created_at DESC
+       LIMIT 1`,
+      parcelaId
+    );
+
+    return row
+      ? {
+          sowingDate: row.sowing_date,
+          areaHectares: row.area_hectares
+        }
+      : null;
+  },
+
   insert(input: CreateLocalVisitaCampoInput) {
     const db = getDatabase();
     const localId = generateLocalId();
@@ -257,11 +303,14 @@ export const visitasCampoRepository = {
           campaign_id,
           agronomist_user_id,
           plants_count,
+          area_hectares,
           sowing_date,
           visit_date,
           start_visit_time,
           end_visit_time,
           phenological_stage_id,
+          sub_etapa_id,
+          sub_etapa_percentage,
           general_observation,
           agronomist_signature_name,
           producer_signature_name,
@@ -271,7 +320,7 @@ export const visitasCampoRepository = {
           sync_status,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         null,
         publicId,
@@ -282,11 +331,16 @@ export const visitasCampoRepository = {
         input.campaignId,
         input.agronomistUserId,
         input.plantsCount ?? null,
+        input.areaHectares ?? null,
         input.sowingDate ?? null,
         input.visitDate,
         input.startVisitTime,
         input.endVisitTime ?? null,
         input.phenologicalStageId ?? null,
+        input.subEtapaId ?? null,
+        input.subEtapaPercentage === undefined || input.subEtapaPercentage === null
+          ? null
+          : String(input.subEtapaPercentage),
         input.generalObservation ?? null,
         null,
         null,
@@ -370,6 +424,11 @@ export const visitasCampoRepository = {
       params.push(data.plantsCount);
     }
 
+    if (data.areaHectares !== undefined) {
+      sets.push("area_hectares = ?");
+      params.push(data.areaHectares);
+    }
+
     if (data.sowingDate !== undefined) {
       sets.push("sowing_date = ?");
       params.push(data.sowingDate);
@@ -393,6 +452,18 @@ export const visitasCampoRepository = {
     if (data.phenologicalStageId !== undefined) {
       sets.push("phenological_stage_id = ?");
       params.push(data.phenologicalStageId);
+    }
+
+    if (data.subEtapaId !== undefined) {
+      sets.push("sub_etapa_id = ?");
+      params.push(data.subEtapaId);
+    }
+
+    if (data.subEtapaPercentage !== undefined) {
+      sets.push("sub_etapa_percentage = ?");
+      params.push(
+        data.subEtapaPercentage === null ? null : String(data.subEtapaPercentage)
+      );
     }
 
     if (data.generalObservation !== undefined) {
@@ -570,6 +641,19 @@ export const visitasCampoRepository = {
       type: row.type,
       isActive: fromSqliteBoolean(row.is_active)
     })) satisfies EtapaFenologicaCatalogItem[];
+  },
+
+  getSubEtapasByEtapaFenologica(etapaFenologicaId: string) {
+    const db = getDatabase();
+    const rows = db.getAllSync<SubEtapaRow>(
+      `SELECT id, etapa_fenologica_id, name, sort_order, description, percentage, is_active
+       FROM sub_etapas
+       WHERE etapa_fenologica_id = ? AND is_active = 1
+       ORDER BY sort_order ASC, name ASC, id ASC`,
+      etapaFenologicaId
+    );
+
+    return rows.map(mapSubEtapaRow) satisfies SubEtapaCatalogItem[];
   }
 };
 
@@ -586,11 +670,15 @@ function mapVisitaCampoRow(row: VisitaCampoRow): VisitaCampo {
     campaignId: row.campaign_id,
     agronomistUserId: row.agronomist_user_id,
     plantsCount: row.plants_count,
+    areaHectares: row.area_hectares,
     sowingDate: row.sowing_date,
     visitDate: row.visit_date,
     startVisitTime: row.start_visit_time,
     endVisitTime: row.end_visit_time,
     phenologicalStageId: row.phenological_stage_id,
+    subEtapaId: row.sub_etapa_id,
+    subEtapaPercentage:
+      row.sub_etapa_percentage === null ? null : Number(row.sub_etapa_percentage),
     generalObservation: row.general_observation,
     agronomistSignatureName: row.agronomist_signature_name,
     producerSignatureName: row.producer_signature_name,
@@ -600,6 +688,18 @@ function mapVisitaCampoRow(row: VisitaCampoRow): VisitaCampo {
     isActive: fromSqliteBoolean(row.is_active),
     createdAt: row.created_at,
     updatedAt: row.updated_at
+  };
+}
+
+function mapSubEtapaRow(row: SubEtapaRow): SubEtapaCatalogItem {
+  return {
+    id: row.id,
+    etapaFenologicaId: row.etapa_fenologica_id,
+    name: row.name,
+    sortOrder: row.sort_order,
+    description: row.description,
+    percentage: row.percentage === null ? null : Number(row.percentage),
+    isActive: fromSqliteBoolean(row.is_active)
   };
 }
 

@@ -3,7 +3,7 @@
     "name": "AgroGest VSM",
     "slug": "agrogest-vsm-mobile-pilot",
     "scheme": "agrogest-vsm",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "icon": "./assets/images/icon_vsm.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -16,7 +16,7 @@
     },
     "android": {
       "package": "com.diegoasantos.agrogestvsm",
-      "versionCode": 5,
+      "versionCode": 6,
       "icon": "./assets/images/icon_vsm.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive_icon_vsm.png",

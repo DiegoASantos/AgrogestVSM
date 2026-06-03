@@ -5,11 +5,14 @@ export type NewVisitaCampoFormValues = {
   parcelaLabel: string;
   campaign: string;
   plantsCount: string;
+  areaHectares: string;
   sowingDate: string;
   visitDate: string;
   startVisitTime: string;
   endVisitTime: string;
   phenologicalStage: string;
+  subEtapaId: string;
+  subEtapaPercentage: string;
   generalObservation: string;
 };
 
@@ -20,10 +23,13 @@ export type NewVisitaCampoFormErrors = Partial<
     | "campaign"
     | "parcelaId"
     | "plantsCount"
+    | "areaHectares"
     | "sowingDate"
     | "visitDate"
     | "startVisitTime"
-    | "endVisitTime",
+    | "endVisitTime"
+    | "phenologicalStage"
+    | "subEtapaPercentage",
     string
   >
 >;

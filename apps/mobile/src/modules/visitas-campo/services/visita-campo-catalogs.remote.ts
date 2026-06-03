@@ -3,6 +3,7 @@ import type {
   CampaniaCatalogItem,
   CultivoCatalogItem,
   EtapaFenologicaCatalogItem,
+  SubEtapaCatalogItem,
   VariedadCatalogItem
 } from "../types";
 
@@ -37,5 +38,29 @@ export const visitaCampoCatalogsRemote = {
 
       throw error;
     }
+  },
+
+  getSubEtapas() {
+    return fetchAllPaginated<SubEtapaCatalogItem>("/sub-etapas?estado=true");
   }
 };
+
+async function fetchAllPaginated<T>(path: string): Promise<T[]> {
+  const collected: T[] = [];
+  const separator = path.includes("?") ? "&" : "?";
+  const pageSize = 200;
+
+  for (let page = 1; page <= 25; page += 1) {
+    const items = await apiRequest<T[]>(
+      `${path}${separator}page=${page}&limit=${pageSize}`
+    );
+
+    collected.push(...items);
+
+    if (items.length < pageSize) {
+      break;
+    }
+  }
+
+  return collected;
+}

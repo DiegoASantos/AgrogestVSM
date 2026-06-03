@@ -1,4 +1,4 @@
-import { Transform } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsBoolean,
   IsDateString,
@@ -6,9 +6,11 @@ import {
   IsNotEmpty,
   IsObject,
   IsOptional,
+  IsNumber,
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
   Min
 } from "class-validator";
@@ -98,6 +100,17 @@ export class CreateVisitaCampoDto {
   plantsCount?: number | null;
 
   @ApiPropertyOptional({
+    example: "12.5000",
+    description: "Area observada en hectareas. Debe ser mayor que cero."
+  })
+  @Transform(({ value }) => normalizeOptionalDecimal(value))
+  @IsOptional()
+  @Matches(/^\d+(\.\d+)?$/, {
+    message: "areaHectares must be a positive decimal number."
+  })
+  areaHectares?: string | null;
+
+  @ApiPropertyOptional({
     example: "2026-03-10"
   })
   @Transform(({ value }) => trimOptionalString(value))
@@ -152,6 +165,26 @@ export class CreateVisitaCampoDto {
     message: "phenologicalStageId must be a positive integer."
   })
   phenologicalStageId?: string | null;
+
+  @ApiPropertyOptional({
+    example: "1"
+  })
+  @Transform(({ value }) => trimOptionalString(value))
+  @IsOptional()
+  @Matches(/^[1-9]\d*$/, {
+    message: "subEtapaId must be a positive integer."
+  })
+  subEtapaId?: string | null;
+
+  @ApiPropertyOptional({
+    example: 50
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  subEtapaPercentage?: number | null;
 
   @ApiPropertyOptional({
     example: "Observacion general de la visita."
@@ -246,4 +279,16 @@ function parseOptionalInteger(value: unknown): number | null | undefined | unkno
   const parsedValue = Number(value);
 
   return Number.isInteger(parsedValue) ? parsedValue : value;
+}
+
+function normalizeOptionalDecimal(value: unknown): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null || value === "") {
+    return null;
+  }
+
+  return String(value).trim();
 }

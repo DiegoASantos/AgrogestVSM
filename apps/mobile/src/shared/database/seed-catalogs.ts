@@ -20,6 +20,7 @@ export async function downloadAllCatalogs() {
     variedadesByCultivo,
     campaniasByCultivo,
     etapasByCultivo,
+    subEtapas,
     pestDiseases,
     incidenceLevels,
     recommendationTypes,
@@ -45,6 +46,7 @@ export async function downloadAllCatalogs() {
         visitaCampoCatalogsRemote.getEtapasFenologicasByCultivo(cultivo.id)
       )
     ),
+    visitaCampoCatalogsRemote.getSubEtapas(),
     observacionesSanitariasRemote.getPestDiseases(),
     observacionesSanitariasRemote.getIncidenceLevels(),
     recomendacionesRemote.getRecommendationTypes(),
@@ -128,6 +130,27 @@ export async function downloadAllCatalogs() {
         etapa.sortOrder,
         etapa.type,
         toSqliteBoolean(etapa.isActive)
+      );
+    }
+
+    for (const subEtapa of subEtapas) {
+      db.runSync(
+        `INSERT OR REPLACE INTO sub_etapas (
+          id,
+          etapa_fenologica_id,
+          name,
+          sort_order,
+          description,
+          percentage,
+          is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        subEtapa.id,
+        subEtapa.etapaFenologicaId,
+        subEtapa.name,
+        subEtapa.sortOrder,
+        subEtapa.description,
+        subEtapa.percentage === null ? null : String(subEtapa.percentage),
+        toSqliteBoolean(subEtapa.isActive)
       );
     }
 

@@ -33,6 +33,16 @@ export type EtapaFenologicaCatalogItem = {
   isActive: boolean;
 };
 
+export type SubEtapaCatalogItem = {
+  id: string;
+  etapaFenologicaId: string;
+  name: string;
+  sortOrder: number;
+  description: string | null;
+  percentage: number | null;
+  isActive: boolean;
+};
+
 export type CatalogSelectOption = {
   value: string;
   label: string;

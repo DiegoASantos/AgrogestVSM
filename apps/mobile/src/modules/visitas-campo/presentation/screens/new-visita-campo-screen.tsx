@@ -3,11 +3,15 @@ import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
+  Image,
   ImageBackground,
+  Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
+  type LayoutChangeEvent,
   useWindowDimensions,
   View
 } from "react-native";
@@ -36,8 +40,10 @@ import type {
   CatalogSelectOption,
   CultivoCatalogItem,
   EtapaFenologicaCatalogItem,
+  SubEtapaCatalogItem,
   VariedadCatalogItem
 } from "../../types";
+import { getSubEtapaImageSource } from "../../utils/sub-etapa-images";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
@@ -102,6 +108,12 @@ export function NewVisitaCampoScreen() {
   const [etapasFenologicasError, setEtapasFenologicasError] = useState<string | null>(
     null
   );
+  const [subEtapas, setSubEtapas] = useState<SubEtapaCatalogItem[]>([]);
+  const [isLoadingSubEtapas, setIsLoadingSubEtapas] = useState(false);
+  const [subEtapasError, setSubEtapasError] = useState<string | null>(null);
+  const [selectedSubEtapaInfo, setSelectedSubEtapaInfo] =
+    useState<SubEtapaCatalogItem | null>(null);
+  const [sliderTrackWidth, setSliderTrackWidth] = useState(0);
 
   const [values, setValues] = useState<NewVisitaCampoFormValues>(() => ({
     crop: "",
@@ -110,11 +122,14 @@ export function NewVisitaCampoScreen() {
     parcelaLabel: parcelaLabel || parcelaId || "",
     campaign: "",
     plantsCount: "",
+    areaHectares: "",
     sowingDate: "",
     visitDate: today,
     startVisitTime: "",
     endVisitTime: "",
     phenologicalStage: "",
+    subEtapaId: "",
+    subEtapaPercentage: "",
     generalObservation: ""
   }));
   const [errors, setErrors] = useState<NewVisitaCampoFormErrors>({});
@@ -126,19 +141,64 @@ export function NewVisitaCampoScreen() {
   }, []);
 
   useEffect(() => {
+    if (!values.parcelaId) {
+      return;
+    }
+
+    const defaults = visitasCampoService.getLastVisitDefaultsByParcelaId(
+      values.parcelaId
+    );
+
+    if (!defaults) {
+      return;
+    }
+
+    setValues((currentValues) => ({
+      ...currentValues,
+      sowingDate: currentValues.sowingDate || defaults.sowingDate || "",
+      areaHectares:
+        currentValues.areaHectares || defaults.areaHectares || ""
+    }));
+  }, [values.parcelaId]);
+
+  useEffect(() => {
     if (!values.crop) {
       setVariedades([]);
       setCampanias([]);
       setEtapasFenologicas([]);
+      setSubEtapas([]);
       setVariedadesError(null);
       setCampaniasError(null);
       setEtapasFenologicasError(null);
+      setSubEtapasError(null);
       updateField("campaign", "");
       return;
     }
 
     void loadDependentCatalogs(values.crop);
   }, [values.crop]);
+
+  const selectedEtapaFenologica = useMemo(
+    () =>
+      etapasFenologicas.find((etapa) => etapa.id === values.phenologicalStage) ??
+      null,
+    [etapasFenologicas, values.phenologicalStage]
+  );
+
+  useEffect(() => {
+    if (!selectedEtapaFenologica || selectedEtapaFenologica.type !== "Etapa") {
+      setSubEtapas([]);
+      setSubEtapasError(null);
+      setValues((currentValues) => ({
+        ...currentValues,
+        subEtapaId: "",
+        subEtapaPercentage: ""
+      }));
+      return;
+    }
+
+    void loadSubEtapas(selectedEtapaFenologica.id);
+  }, [selectedEtapaFenologica?.id, selectedEtapaFenologica?.type]);
 
   const cultivoOptions = useMemo(
     () =>
@@ -173,6 +233,13 @@ export function NewVisitaCampoScreen() {
     () => campanias.find((campania) => campania.id === values.campaign),
     [campanias, values.campaign]
   );
+
+  const subEtapaProgress = values.subEtapaPercentage.trim()
+    ? Number(values.subEtapaPercentage)
+    : 0;
+  const shouldShowSubEtapas =
+    selectedEtapaFenologica?.type === "Etapa" &&
+    (isLoadingSubEtapas || subEtapas.length > 0 || !!subEtapasError);
 
   if (!session.accessToken) {
     return (
@@ -320,6 +387,20 @@ export function NewVisitaCampoScreen() {
               </View>
 
               <View style={styles.fieldColumn}>
+                <IconTextInput
+                  error={errors.areaHectares}
+                  icon="resize-outline"
+                  keyboardType="decimal-pad"
+                  label="Area (ha)"
+                  onChangeText={(value) =>
+                    updateField("areaHectares", formatDecimalInput(value))
+                  }
+                  placeholder="Ingresa el area"
+                  value={values.areaHectares}
+                />
+              </View>
+
+              <View style={styles.fieldColumn}>
                 <DatePickerField
                   allowClear
                   error={errors.sowingDate}
@@ -407,6 +488,22 @@ export function NewVisitaCampoScreen() {
                 values.phenologicalStage
               )}
             />
+
+            {shouldShowSubEtapas ? (
+              <SubEtapasProgressGuide
+                error={subEtapasError}
+                isLoading={isLoadingSubEtapas}
+                onImagePress={(subEtapa) => setSelectedSubEtapaInfo(subEtapa)}
+                onTrackLayout={(event) =>
+                  setSliderTrackWidth(event.nativeEvent.layout.width)
+                }
+                onValueChange={handleSubEtapaProgressChange}
+                progress={Number.isFinite(subEtapaProgress) ? subEtapaProgress : 0}
+                sliderTrackWidth={sliderTrackWidth}
+                subEtapas={subEtapas}
+                valueText={values.subEtapaPercentage}
+              />
+            ) : null}
           </View>
 
           <View style={styles.formCard}>
@@ -482,6 +579,11 @@ export function NewVisitaCampoScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <SubEtapaInfoModal
+        onClose={() => setSelectedSubEtapaInfo(null)}
+        subEtapa={selectedSubEtapaInfo}
+      />
     </ScreenContainer>
   );
 
@@ -520,7 +622,20 @@ export function NewVisitaCampoScreen() {
         crop: value,
         variety: "",
         campaign: "",
-        phenologicalStage: ""
+        phenologicalStage: "",
+        subEtapaId: "",
+        subEtapaPercentage: ""
+      }));
+    } else if (field === "phenologicalStage") {
+      setErrors((currentErrors) => ({
+        ...currentErrors,
+        phenologicalStage: undefined
+      }));
+      setValues((currentValues) => ({
+        ...currentValues,
+        phenologicalStage: value,
+        subEtapaId: "",
+        subEtapaPercentage: ""
       }));
     } else {
       updateField(field, value);
@@ -535,6 +650,27 @@ export function NewVisitaCampoScreen() {
   ) {
     updateField(field, value);
     setActiveCatalog(null);
+  }
+
+  function handleSubEtapaProgressChange(value: number | string) {
+    const parsedPercentage = parsePercentageValue(value);
+
+    if (parsedPercentage === null) {
+      setValues((currentValues) => ({
+        ...currentValues,
+        subEtapaId: "",
+        subEtapaPercentage: ""
+      }));
+      return;
+    }
+
+    const closestSubEtapa = findClosestSubEtapa(subEtapas, parsedPercentage);
+
+    setValues((currentValues) => ({
+      ...currentValues,
+      subEtapaId: closestSubEtapa?.id ?? "",
+      subEtapaPercentage: formatPercentageValue(parsedPercentage)
+    }));
   }
 
   async function handleSubmit() {
@@ -653,6 +789,50 @@ export function NewVisitaCampoScreen() {
     setIsLoadingCampanias(false);
     setIsLoadingEtapasFenologicas(false);
   }
+
+  async function loadSubEtapas(etapaFenologicaId: string) {
+    setIsLoadingSubEtapas(true);
+    setSubEtapasError(null);
+
+    try {
+      const nextSubEtapas =
+        await visitaCampoCatalogsService.getSubEtapasByEtapaFenologica(
+          etapaFenologicaId
+        );
+
+      setSubEtapas(nextSubEtapas);
+
+      if (nextSubEtapas.length > 0) {
+        const initialPercentage =
+          values.subEtapaPercentage.trim().length > 0
+            ? parsePercentageValue(values.subEtapaPercentage) ?? 0
+            : nextSubEtapas[0]?.percentage ?? 0;
+        const initialSubEtapa = findClosestSubEtapa(
+          nextSubEtapas,
+          initialPercentage
+        );
+
+        setValues((currentValues) => ({
+          ...currentValues,
+          subEtapaId: initialSubEtapa?.id ?? "",
+          subEtapaPercentage: formatPercentageValue(initialPercentage)
+        }));
+      } else {
+        setValues((currentValues) => ({
+          ...currentValues,
+          subEtapaId: "",
+          subEtapaPercentage: ""
+        }));
+      }
+    } catch (error) {
+      setSubEtapas([]);
+      setSubEtapasError(
+        toApiError(error).message || "No se pudo cargar sub etapas."
+      );
+    } finally {
+      setIsLoadingSubEtapas(false);
+    }
+  }
 }
 
 type WizardProgressProps = {
@@ -715,6 +895,234 @@ function WizardProgress({ compact, currentStep, steps }: WizardProgressProps) {
   );
 }
 
+type SubEtapasProgressGuideProps = {
+  subEtapas: SubEtapaCatalogItem[];
+  progress: number;
+  valueText: string;
+  sliderTrackWidth: number;
+  isLoading: boolean;
+  error: string | null;
+  onTrackLayout: (event: LayoutChangeEvent) => void;
+  onValueChange: (value: number | string) => void;
+  onImagePress: (subEtapa: SubEtapaCatalogItem) => void;
+};
+
+function SubEtapasProgressGuide({
+  subEtapas,
+  progress,
+  valueText,
+  sliderTrackWidth,
+  isLoading,
+  error,
+  onTrackLayout,
+  onValueChange,
+  onImagePress
+}: SubEtapasProgressGuideProps) {
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (event) => {
+          updateProgressFromTouch(event.nativeEvent.locationX);
+        },
+        onPanResponderMove: (event) => {
+          updateProgressFromTouch(event.nativeEvent.locationX);
+        }
+      }),
+    [onValueChange, sliderTrackWidth]
+  );
+
+  const markerSize = 58;
+  const clampedProgress = clampNumber(progress, 0, 100);
+  const thumbLeft =
+    sliderTrackWidth > 0
+      ? (clampedProgress / 100) * sliderTrackWidth - 13
+      : 0;
+
+  return (
+    <View style={styles.subEtapasPanel}>
+      <View style={styles.subEtapasHeader}>
+        <View>
+          <AppText style={styles.subEtapasTitle} variant="label">
+            Sub etapa
+          </AppText>
+          <AppText style={styles.subEtapasSubtitle} variant="caption">
+            Ajusta el avance observado del cultivo.
+          </AppText>
+        </View>
+        <View style={styles.percentageInputShell}>
+          <TextInput
+            keyboardType="decimal-pad"
+            maxLength={6}
+            onChangeText={onValueChange}
+            placeholder="0"
+            placeholderTextColor={theme.colors.textMuted}
+            style={styles.percentageInput}
+            value={valueText}
+          />
+          <AppText style={styles.percentageSymbol} variant="label">
+            %
+          </AppText>
+        </View>
+      </View>
+
+      {isLoading ? (
+        <AppText style={styles.fieldHint} variant="caption">
+          Cargando sub etapas...
+        </AppText>
+      ) : null}
+
+      {error ? (
+        <AppText style={styles.localErrorText} variant="caption">
+          {error}
+        </AppText>
+      ) : null}
+
+      {!isLoading && !error && subEtapas.length > 0 ? (
+        <View style={styles.sliderArea}>
+          <View
+            onLayout={onTrackLayout}
+            style={styles.sliderTrack}
+            {...panResponder.panHandlers}
+          >
+            <View
+              style={[
+                styles.sliderTrackFill,
+                { width: `${clampedProgress}%` }
+              ]}
+            />
+            <View
+              style={[
+                styles.sliderThumb,
+                {
+                  left: clampNumber(
+                    thumbLeft,
+                    0,
+                    Math.max(0, sliderTrackWidth - 26)
+                  )
+                }
+              ]}
+            />
+            {subEtapas.map((subEtapa) => {
+              const percentage = subEtapa.percentage ?? 0;
+              const markerLeft =
+                sliderTrackWidth > 0
+                  ? (clampNumber(percentage, 0, 100) / 100) * sliderTrackWidth -
+                    markerSize / 2
+                  : 0;
+
+              return (
+                <Pressable
+                  accessibilityLabel={`Ver sub etapa ${subEtapa.name}`}
+                  accessibilityRole="button"
+                  key={subEtapa.id}
+                  onPress={() => onImagePress(subEtapa)}
+                  style={({ pressed }) => [
+                    styles.subEtapaMarker,
+                    {
+                      left: clampNumber(
+                        markerLeft,
+                        0,
+                        Math.max(0, sliderTrackWidth - markerSize)
+                      )
+                    },
+                    pressed && styles.pressed
+                  ]}
+                >
+                  <Image
+                    source={getSubEtapaImageSource()}
+                    style={styles.subEtapaMarkerImage}
+                  />
+                  <AppText
+                    numberOfLines={1}
+                    style={styles.subEtapaMarkerPercent}
+                    variant="caption"
+                  >
+                    {formatPercentageValue(percentage)}%
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.sliderFooter}>
+            <AppText style={styles.sliderBoundText} variant="caption">
+              0%
+            </AppText>
+            <AppText style={styles.sliderBoundText} variant="caption">
+              100%
+            </AppText>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+
+  function updateProgressFromTouch(locationX: number) {
+    if (sliderTrackWidth <= 0) {
+      return;
+    }
+
+    const rawValue = (clampNumber(locationX, 0, sliderTrackWidth) / sliderTrackWidth) * 100;
+    onValueChange(Math.round(rawValue / 5) * 5);
+  }
+}
+
+function SubEtapaInfoModal({
+  subEtapa,
+  onClose
+}: {
+  subEtapa: SubEtapaCatalogItem | null;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      animationType="fade"
+      onRequestClose={onClose}
+      transparent
+      visible={subEtapa !== null}
+    >
+      <View style={styles.modalScrim}>
+        <Pressable style={styles.modalBackdrop} onPress={onClose} />
+        <View style={styles.subEtapaModalCard}>
+          {subEtapa ? (
+            <>
+              <Image
+                resizeMode="contain"
+                source={getSubEtapaImageSource()}
+                style={styles.subEtapaModalImage}
+              />
+              <AppText style={styles.subEtapaModalTitle} variant="heading">
+                {subEtapa.name}
+              </AppText>
+              <AppText style={styles.subEtapaModalPercent} variant="label">
+                {subEtapa.percentage === null
+                  ? "Sin porcentaje"
+                  : `${formatPercentageValue(subEtapa.percentage)}%`}
+              </AppText>
+              <AppText style={styles.subEtapaModalDescription} variant="body">
+                {subEtapa.description || "Sin descripcion registrada."}
+              </AppText>
+              <Pressable
+                accessibilityRole="button"
+                onPress={onClose}
+                style={({ pressed }) => [
+                  styles.modalCloseButton,
+                  pressed && styles.pressed
+                ]}
+              >
+                <AppText style={styles.modalCloseButtonText} variant="label">
+                  Cerrar
+                </AppText>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 type ReadonlyFieldProps = {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -768,7 +1176,7 @@ type IconTextInputProps = {
   label: string;
   value: string;
   placeholder: string;
-  keyboardType?: "default" | "number-pad";
+  keyboardType?: "default" | "number-pad" | "decimal-pad";
   error?: string | null;
   onChangeText: (value: string) => void;
 };
@@ -1074,6 +1482,14 @@ function validateForm(
     }
   }
 
+  if (values.areaHectares.trim().length > 0) {
+    const areaHectares = Number(values.areaHectares);
+
+    if (!Number.isFinite(areaHectares) || areaHectares <= 0) {
+      nextErrors.areaHectares = "Area debe ser un numero mayor que cero.";
+    }
+  }
+
   if (values.sowingDate) {
     if (!DATE_PATTERN.test(values.sowingDate.trim())) {
       nextErrors.sowingDate = "Fecha de siembra debe tener formato AAAA-MM-DD.";
@@ -1107,6 +1523,19 @@ function validateForm(
     }
   }
 
+  if (values.subEtapaPercentage.trim().length > 0) {
+    const subEtapaPercentage = Number(values.subEtapaPercentage);
+
+    if (
+      !Number.isFinite(subEtapaPercentage) ||
+      subEtapaPercentage < 0 ||
+      subEtapaPercentage > 100
+    ) {
+      nextErrors.subEtapaPercentage =
+        "Porcentaje de sub etapa debe estar entre 0 y 100.";
+    }
+  }
+
   return nextErrors;
 }
 
@@ -1123,6 +1552,9 @@ function buildCreateDraft(
     ...(values.plantsCount.trim()
       ? { plantsCount: Number(values.plantsCount.trim()) }
       : {}),
+    ...(values.areaHectares.trim()
+      ? { areaHectares: values.areaHectares.trim() }
+      : {}),
     ...(values.sowingDate.trim() ? { sowingDate: values.sowingDate.trim() } : {}),
     visitDate: values.visitDate.trim(),
     startVisitTime: normalizeTimeForApi(values.startVisitTime),
@@ -1132,10 +1564,65 @@ function buildCreateDraft(
     ...(values.phenologicalStage
       ? { phenologicalStageId: values.phenologicalStage }
       : {}),
+    ...(values.subEtapaId ? { subEtapaId: values.subEtapaId } : {}),
+    ...(values.subEtapaPercentage.trim()
+      ? { subEtapaPercentage: Number(values.subEtapaPercentage.trim()) }
+      : {}),
     ...(values.generalObservation.trim()
       ? { generalObservation: values.generalObservation.trim() }
       : {})
   };
+}
+
+function findClosestSubEtapa(
+  subEtapas: SubEtapaCatalogItem[],
+  percentage: number
+) {
+  return subEtapas.reduce<SubEtapaCatalogItem | null>((closest, subEtapa) => {
+    if (subEtapa.percentage === null) {
+      return closest;
+    }
+
+    if (!closest || closest.percentage === null) {
+      return subEtapa;
+    }
+
+    const currentDistance = Math.abs(subEtapa.percentage - percentage);
+    const closestDistance = Math.abs(closest.percentage - percentage);
+
+    return currentDistance < closestDistance ? subEtapa : closest;
+  }, null);
+}
+
+function parsePercentageValue(value: number | string) {
+  const parsedValue =
+    typeof value === "number" ? value : Number(formatDecimalInput(value, 2));
+
+  if (!Number.isFinite(parsedValue)) {
+    return null;
+  }
+
+  return clampNumber(parsedValue, 0, 100);
+}
+
+function formatPercentageValue(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function formatDecimalInput(value: string, maxDecimals = 4) {
+  const normalizedValue = value.replace(",", ".").replace(/[^\d.]/g, "");
+  const [integerPart = "", ...decimalParts] = normalizedValue.split(".");
+  const decimalPart = decimalParts.join("").slice(0, maxDecimals);
+
+  if (normalizedValue.includes(".")) {
+    return `${integerPart}.${decimalPart}`;
+  }
+
+  return integerPart;
 }
 
 function normalizeTimeForApi(value: string) {
@@ -1738,6 +2225,157 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: 16,
     backgroundColor: "#ffffff"
+  },
+  subEtapasPanel: {
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#e3dfd2",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
+    backgroundColor: "#fbfbf8"
+  },
+  subEtapasHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  subEtapasTitle: {
+    color: "#073b2a",
+    fontSize: 16
+  },
+  subEtapasSubtitle: {
+    color: "#5f6b66"
+  },
+  percentageInputShell: {
+    minWidth: 92,
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.2,
+    borderColor: "#cfd8c2",
+    borderRadius: 12,
+    paddingHorizontal: 9,
+    backgroundColor: "#ffffff"
+  },
+  percentageInput: {
+    minWidth: 44,
+    paddingVertical: 0,
+    textAlign: "right",
+    color: theme.colors.text,
+    fontSize: 17,
+    fontWeight: "700"
+  },
+  percentageSymbol: {
+    color: "#176b2d",
+    fontSize: 16
+  },
+  sliderArea: {
+    minHeight: 122,
+    paddingTop: 72
+  },
+  sliderTrack: {
+    height: 8,
+    justifyContent: "center",
+    borderRadius: 999,
+    backgroundColor: "#d8d3c5"
+  },
+  sliderTrackFill: {
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "#3f8f21"
+  },
+  sliderThumb: {
+    position: "absolute",
+    top: -9,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 3,
+    borderColor: "#ffffff",
+    backgroundColor: "#12622f",
+    shadowColor: "#345245",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4
+  },
+  subEtapaMarker: {
+    position: "absolute",
+    top: -70,
+    width: 58,
+    alignItems: "center",
+    gap: 3
+  },
+  subEtapaMarkerImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#ffffff",
+    backgroundColor: "#f0f3e8"
+  },
+  subEtapaMarkerPercent: {
+    color: "#176b2d",
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  sliderFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 10
+  },
+  sliderBoundText: {
+    color: "#65706b"
+  },
+  modalScrim: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(6, 18, 13, 0.48)"
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject
+  },
+  subEtapaModalCard: {
+    gap: 12,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 26,
+    backgroundColor: "#ffffff"
+  },
+  subEtapaModalImage: {
+    width: "100%",
+    height: 210,
+    borderRadius: 18,
+    backgroundColor: "#f0f3e8"
+  },
+  subEtapaModalTitle: {
+    color: "#073b2a",
+    fontSize: 22
+  },
+  subEtapaModalPercent: {
+    color: "#176b2d"
+  },
+  subEtapaModalDescription: {
+    color: "#3e4a45",
+    fontSize: 15,
+    lineHeight: 23
+  },
+  modalCloseButton: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    backgroundColor: "#08643f"
+  },
+  modalCloseButtonText: {
+    color: "#ffffff",
+    fontSize: 16
   },
   errorBanner: {
     backgroundColor: theme.colors.errorMuted,

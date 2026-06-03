@@ -16,11 +16,14 @@ export type VisitaCampo = {
   campaignId: string;
   agronomistUserId: string;
   plantsCount: number | null;
+  areaHectares: string | null;
   sowingDate: string | null;
   visitDate: string;
   startVisitTime: string;
   endVisitTime: string | null;
   phenologicalStageId: string | null;
+  subEtapaId: string | null;
+  subEtapaPercentage: number | null;
   generalObservation: string | null;
   agronomistSignatureName: string | null;
   producerSignatureName: string | null;
@@ -66,10 +69,13 @@ export type CreateVisitaCampoDraft = {
   campaignId: string;
   visitLocation?: GeoJsonPointGeometry;
   plantsCount?: number;
+  areaHectares?: string;
   sowingDate?: string;
   visitDate: string;
   startVisitTime: string;
   endVisitTime?: string;
   phenologicalStageId?: string;
+  subEtapaId?: string;
+  subEtapaPercentage?: number;
   generalObservation?: string;
 };

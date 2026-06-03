@@ -17,6 +17,7 @@ import { VisitaObservacionSanitariaEntity } from "../../../../visita-observacion
 import { VisitaProductoRecomendadoEntity } from "../../../../visita-productos-recomendados/infrastructure/persistence/entities/visita-producto-recomendado.entity";
 import { VisitaRecomendacionEntity } from "../../../../visita-recomendaciones/infrastructure/persistence/entities/visita-recomendacion.entity";
 import { EtapaFenologicaEntity } from "./etapa-fenologica.entity";
+import { SubEtapaEntity } from "./sub-etapa.entity";
 
 export type PointGeometry = {
   type: "Point";
@@ -84,6 +85,15 @@ export class VisitaCampoEntity {
   nroPlantas!: number | null;
 
   @Column({
+    name: "area_ha",
+    type: "numeric",
+    precision: 12,
+    scale: 4,
+    nullable: true
+  })
+  areaHectares!: string | null;
+
+  @Column({
     name: "fecha_siembra",
     type: "date",
     nullable: true
@@ -115,6 +125,22 @@ export class VisitaCampoEntity {
     nullable: true
   })
   etapaFenologicaId!: string | null;
+
+  @Column({
+    name: "sub_etapa_id",
+    type: "bigint",
+    nullable: true
+  })
+  subEtapaId!: string | null;
+
+  @Column({
+    name: "sub_etapa_porcentaje",
+    type: "numeric",
+    precision: 5,
+    scale: 2,
+    nullable: true
+  })
+  subEtapaPercentage!: string | null;
 
   @Column({
     name: "observacion_general",
@@ -240,6 +266,17 @@ export class VisitaCampoEntity {
     referencedColumnName: "id"
   })
   etapaFenologica!: EtapaFenologicaEntity | null;
+
+  @ManyToOne(() => SubEtapaEntity, {
+    nullable: true,
+    onDelete: "RESTRICT",
+    onUpdate: "NO ACTION"
+  })
+  @JoinColumn({
+    name: "sub_etapa_id",
+    referencedColumnName: "id"
+  })
+  subEtapa!: SubEtapaEntity | null;
 
   @OneToMany(
     () => VisitaEvaluacionEntity,
