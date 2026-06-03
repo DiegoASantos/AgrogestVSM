@@ -35,6 +35,8 @@ export class EtapasFenologicasService {
       cultivoId: createEtapaFenologicaDto.cultivoId,
       name: createEtapaFenologicaDto.name,
       description: createEtapaFenologicaDto.description ?? null,
+      sortOrder: createEtapaFenologicaDto.sortOrder ?? null,
+      type: createEtapaFenologicaDto.type ?? "Etapa",
       isActive: createEtapaFenologicaDto.isActive ?? true
     });
 
@@ -67,6 +69,7 @@ export class EtapasFenologicasService {
         where,
         order: {
           cultivoId: "ASC",
+          sortOrder: "ASC",
           name: "ASC"
         },
         skip: pagination.skip,
@@ -105,6 +108,12 @@ export class EtapasFenologicasService {
           : {}),
         ...(updateEtapaFenologicaDto.description !== undefined
           ? { description: updateEtapaFenologicaDto.description }
+          : {}),
+        ...(updateEtapaFenologicaDto.sortOrder !== undefined
+          ? { sortOrder: updateEtapaFenologicaDto.sortOrder }
+          : {}),
+        ...(updateEtapaFenologicaDto.type !== undefined
+          ? { type: updateEtapaFenologicaDto.type }
           : {}),
         ...(updateEtapaFenologicaDto.isActive !== undefined
           ? { isActive: updateEtapaFenologicaDto.isActive }
@@ -196,6 +205,8 @@ export class EtapasFenologicasService {
       cultivoId: etapaFenologica.cultivoId,
       name: etapaFenologica.name,
       description: etapaFenologica.description,
+      sortOrder: etapaFenologica.sortOrder,
+      type: etapaFenologica.type,
       isActive: etapaFenologica.isActive
     };
   }

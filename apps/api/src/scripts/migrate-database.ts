@@ -72,6 +72,8 @@ async function run() {
     await assertCount(client, "SELECT COUNT(*)::text AS count FROM distritos WHERE ubigeo LIKE '20%'", 65, "Piura distritos");
     await assertColumnExists(client, "sectores", "distrito_id");
     await assertColumnExists(client, "parcelas", "productor_id");
+    await assertColumnExists(client, "etapas_fenologicas", "orden");
+    await assertColumnExists(client, "etapas_fenologicas", "tipo");
     console.log("Database migrations validated successfully.");
   } finally {
     await client.query("SELECT pg_advisory_unlock(842017052026)");

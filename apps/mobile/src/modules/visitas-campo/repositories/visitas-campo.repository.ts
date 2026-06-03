@@ -85,6 +85,8 @@ type EtapaFenologicaRow = {
   cultivo_id: string;
   name: string;
   description: string | null;
+  sort_order: number | null;
+  type: "Etapa" | "Labor";
   is_active: number;
 };
 
@@ -552,10 +554,10 @@ export const visitasCampoRepository = {
   getEtapasFenologicasByCultivo(cultivoId: string) {
     const db = getDatabase();
     const rows = db.getAllSync<EtapaFenologicaRow>(
-      `SELECT id, cultivo_id, name, description, is_active
+      `SELECT id, cultivo_id, name, description, sort_order, type, is_active
        FROM etapas_fenologicas
        WHERE cultivo_id = ?
-       ORDER BY name ASC, id ASC`,
+       ORDER BY sort_order IS NULL ASC, sort_order ASC, name ASC, id ASC`,
       cultivoId
     );
 
@@ -564,6 +566,8 @@ export const visitasCampoRepository = {
       cultivoId: row.cultivo_id,
       name: row.name,
       description: row.description,
+      sortOrder: row.sort_order,
+      type: row.type,
       isActive: fromSqliteBoolean(row.is_active)
     })) satisfies EtapaFenologicaCatalogItem[];
   }

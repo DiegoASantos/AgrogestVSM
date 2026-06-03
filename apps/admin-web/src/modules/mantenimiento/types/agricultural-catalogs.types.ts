@@ -42,13 +42,19 @@ export type EtapaFenologicaCatalogItem = {
   cultivoId: string;
   name: string;
   description: string | null;
+  sortOrder: number | null;
+  type: EtapaFenologicaCatalogType;
   isActive: boolean;
 };
+
+export type EtapaFenologicaCatalogType = "Etapa" | "Labor";
 
 export type EtapaFenologicaCatalogPayload = {
   cultivoId: string;
   name: string;
   description?: string | null;
+  sortOrder?: number | null;
+  type?: EtapaFenologicaCatalogType;
   isActive?: boolean;
 };
 

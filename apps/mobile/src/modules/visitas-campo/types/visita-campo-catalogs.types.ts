@@ -28,6 +28,8 @@ export type EtapaFenologicaCatalogItem = {
   cultivoId: string;
   name: string;
   description: string | null;
+  sortOrder: number | null;
+  type: "Etapa" | "Labor";
   isActive: boolean;
 };
 

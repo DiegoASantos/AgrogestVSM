@@ -10,6 +10,8 @@ import {
 import { CultivoEntity } from "../../../../cultivos/infrastructure/persistence/entities/cultivo.entity";
 import { VisitaCampoEntity } from "./visita-campo.entity";
 
+export type EtapaFenologicaType = "Etapa" | "Labor";
+
 @Entity({ name: "etapas_fenologicas" })
 export class EtapaFenologicaEntity {
   @PrimaryGeneratedColumn({
@@ -37,6 +39,21 @@ export class EtapaFenologicaEntity {
     nullable: true
   })
   description!: string | null;
+
+  @Column({
+    name: "orden",
+    type: "integer",
+    nullable: true
+  })
+  sortOrder!: number | null;
+
+  @Column({
+    name: "tipo",
+    type: "varchar",
+    length: 100,
+    default: () => "'Etapa'"
+  })
+  type!: EtapaFenologicaType;
 
   @Column({
     name: "activo",

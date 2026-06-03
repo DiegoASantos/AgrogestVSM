@@ -47,6 +47,8 @@ type EtapaFenologicaApiItem = {
   cultivoId: string;
   name: string;
   description: string | null;
+  sortOrder: number | null;
+  type: "Etapa" | "Labor";
   isActive: boolean;
 };
 
@@ -175,6 +177,8 @@ export const agriculturalCatalogsService = {
       cultivoId: item.cultivoId,
       name: item.name,
       description: item.description,
+      sortOrder: item.sortOrder,
+      type: item.type,
       isActive: item.isActive
     }));
   },
@@ -197,6 +201,8 @@ export const agriculturalCatalogsService = {
       cultivoId: item.cultivoId,
       name: item.name,
       description: item.description,
+      sortOrder: item.sortOrder,
+      type: item.type,
       isActive: item.isActive
     };
   },
@@ -220,6 +226,8 @@ export const agriculturalCatalogsService = {
       cultivoId: item.cultivoId,
       name: item.name,
       description: item.description,
+      sortOrder: item.sortOrder,
+      type: item.type,
       isActive: item.isActive
     };
   },

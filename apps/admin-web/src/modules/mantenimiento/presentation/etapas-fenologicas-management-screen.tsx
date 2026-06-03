@@ -31,6 +31,8 @@ type EtapaFormState = {
   cultivoId: string;
   name: string;
   description: string;
+  sortOrder: string;
+  type: EtapaFenologicaCatalogItem["type"];
   status: "active" | "inactive";
 };
 
@@ -39,6 +41,8 @@ const emptyForm: EtapaFormState = {
   cultivoId: "",
   name: "",
   description: "",
+  sortOrder: "",
+  type: "Etapa",
   status: "active"
 };
 
@@ -82,6 +86,8 @@ export function EtapasFenologicasManagementScreen() {
         normalizedSearch.length === 0 ||
         item.name.toLowerCase().includes(normalizedSearch) ||
         (item.description ?? "").toLowerCase().includes(normalizedSearch) ||
+        item.type.toLowerCase().includes(normalizedSearch) ||
+        String(item.sortOrder ?? "").includes(normalizedSearch) ||
         cultivoLabel.toLowerCase().includes(normalizedSearch);
 
       const matchesCultivo =
@@ -105,6 +111,16 @@ export function EtapasFenologicasManagementScreen() {
           <span>{cultivoLookup[item.cultivoId] ?? item.cultivoId}</span>
         </div>
       )
+    },
+    {
+      key: "sortOrder",
+      header: "Orden",
+      cell: (item) => item.sortOrder ?? "Sin orden"
+    },
+    {
+      key: "type",
+      header: "Tipo",
+      cell: (item) => item.type
     },
     {
       key: "description",
@@ -172,6 +188,8 @@ export function EtapasFenologicasManagementScreen() {
       cultivoId: item.cultivoId,
       name: item.name,
       description: item.description ?? "",
+      sortOrder: item.sortOrder === null ? "" : String(item.sortOrder),
+      type: item.type,
       status: item.isActive ? "active" : "inactive"
     });
     setModalOpen(true);
@@ -193,9 +211,17 @@ export function EtapasFenologicasManagementScreen() {
     const cultivoId = formState.cultivoId.trim();
     const name = formState.name.trim();
     const description = formState.description.trim();
+    const sortOrder = formState.sortOrder.trim()
+      ? Number(formState.sortOrder)
+      : null;
 
     if (!cultivoId || !name) {
       setFormError("Cultivo y nombre son obligatorios.");
+      return;
+    }
+
+    if (sortOrder !== null && (!Number.isInteger(sortOrder) || sortOrder < 1)) {
+      setFormError("El orden debe ser un entero mayor o igual a 1.");
       return;
     }
 
@@ -208,6 +234,8 @@ export function EtapasFenologicasManagementScreen() {
         cultivoId,
         name,
         description: description || null,
+        sortOrder,
+        type: formState.type,
         isActive: formState.status === "active"
       };
 
@@ -300,7 +328,7 @@ export function EtapasFenologicasManagementScreen() {
           <span>Buscar</span>
           <input
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Nombre o descripcion"
+            placeholder="Nombre, descripcion, orden o tipo"
             value={search}
           />
         </label>
@@ -446,6 +474,38 @@ export function EtapasFenologicasManagementScreen() {
               placeholder="Descripcion breve de la etapa"
               value={formState.description}
             />
+          </label>
+
+          <label className="field-group">
+            <span>Orden</span>
+            <input
+              min={1}
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  sortOrder: event.target.value
+                }))
+              }
+              placeholder="1"
+              type="number"
+              value={formState.sortOrder}
+            />
+          </label>
+
+          <label className="field-group">
+            <span>Tipo</span>
+            <select
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  type: event.target.value as EtapaFormState["type"]
+                }))
+              }
+              value={formState.type}
+            >
+              <option value="Etapa">Etapa</option>
+              <option value="Labor">Labor</option>
+            </select>
           </label>
 
           <label className="field-group">

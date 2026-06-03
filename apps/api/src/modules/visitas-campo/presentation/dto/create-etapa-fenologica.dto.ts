@@ -1,11 +1,14 @@
-import { Transform } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsBoolean,
+  IsIn,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
-  MaxLength
+  MaxLength,
+  Min
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -13,6 +16,7 @@ import {
   trimOptionalString,
   trimRequiredString
 } from "../../../../common/utils/string-normalizers.util";
+import type { EtapaFenologicaType } from "../../infrastructure/persistence/entities/etapa-fenologica.entity";
 
 export class CreateEtapaFenologicaDto {
   @ApiProperty({
@@ -40,6 +44,25 @@ export class CreateEtapaFenologicaDto {
   @IsOptional()
   @IsString()
   description?: string | null;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: "Orden usado para listar etapas y labores."
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  sortOrder?: number | null;
+
+  @ApiPropertyOptional({
+    example: "Etapa",
+    default: "Etapa",
+    enum: ["Etapa", "Labor"]
+  })
+  @IsOptional()
+  @IsIn(["Etapa", "Labor"])
+  type?: EtapaFenologicaType;
 
   @ApiPropertyOptional({
     example: true,

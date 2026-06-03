@@ -98,6 +98,18 @@ const MIGRATIONS: Migration[] = [
       "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_id ON parcelas(productor_id)",
       "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_sector ON parcelas(productor_id, sector_id)"
     ]
+  },
+  {
+    version: 10,
+    run: (db) => {
+      addColumnIfMissing(db, "etapas_fenologicas", "sort_order", "INTEGER");
+      addColumnIfMissing(
+        db,
+        "etapas_fenologicas",
+        "type",
+        "TEXT NOT NULL DEFAULT 'Etapa'"
+      );
+    }
   }
 ];
 

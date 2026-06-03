@@ -28,7 +28,10 @@ export const SQL_SCHEMA = [
     cultivo_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
+    sort_order INTEGER,
+    type TEXT NOT NULL DEFAULT 'Etapa',
     is_active INTEGER NOT NULL DEFAULT 1,
+    CHECK(type IN ('Etapa', 'Labor')),
     FOREIGN KEY (cultivo_id) REFERENCES cultivos(id)
   )`,
   `CREATE TABLE IF NOT EXISTS pest_diseases (

@@ -117,12 +117,16 @@ export async function downloadAllCatalogs() {
           cultivo_id,
           name,
           description,
+          sort_order,
+          type,
           is_active
-        ) VALUES (?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         etapa.id,
         etapa.cultivoId,
         etapa.name,
         etapa.description,
+        etapa.sortOrder,
+        etapa.type,
         toSqliteBoolean(etapa.isActive)
       );
     }
