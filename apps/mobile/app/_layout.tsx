@@ -84,7 +84,8 @@ function AppNavigation() {
         <Stack.Screen
           name="visitas-campo/registrar"
           options={{
-            title: "Nueva visita"
+            headerShown: false,
+            title: "Registro de visita"
           }}
         />
         <Stack.Screen

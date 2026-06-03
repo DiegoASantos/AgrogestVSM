@@ -1,14 +1,21 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  ImageBackground,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  useWindowDimensions,
+  View
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
-  AppMap,
   AppButton,
   AppCard,
-  AppHeader,
-  AppInput,
   AppSelectField,
   AppText,
   ScreenContainer
@@ -32,18 +39,36 @@ import type {
   VariedadCatalogItem
 } from "../../types";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
+
 type ActiveVisitaField =
   | "crop"
   | "variety"
-  | "campaign"
   | "phenologicalStage"
   | "sowingDate"
-  | "visitDate"
   | "startVisitTime"
   | "endVisitTime";
 
+type WizardStep = {
+  index: number;
+  title: string;
+  routeLabel: string;
+};
+
+const WIZARD_STEPS: WizardStep[] = [
+  { index: 1, title: "Datos basicos y etapas fenologicas", routeLabel: "Datos" },
+  { index: 2, title: "Evaluaciones", routeLabel: "Evaluaciones" },
+  { index: 3, title: "Observaciones sanitarias", routeLabel: "Sanidad" },
+  { index: 4, title: "Recomendaciones", routeLabel: "Recom." },
+  { index: 5, title: "Productos recomendados", routeLabel: "Productos" }
+];
+
+const CURRENT_STEP = 1;
+
 export function NewVisitaCampoScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const { session } = useAuthSession();
   const params = useLocalSearchParams<{
     id?: string | string[];
@@ -51,10 +76,12 @@ export function NewVisitaCampoScreen() {
     parcelaName?: string | string[];
   }>();
 
+  const today = useMemo(() => formatDateForApi(new Date()), []);
   const parcelaId = toSingleParam(params.id);
   const parcelaCode = toSingleParam(params.parcelaCode);
   const parcelaName = toSingleParam(params.parcelaName);
   const parcelaLabel = [parcelaCode, parcelaName].filter(Boolean).join(" - ");
+  const isTwoColumnLayout = width >= 620;
   const [activeCatalog, setActiveCatalog] = useState<ActiveVisitaField | null>(null);
 
   const [cultivos, setCultivos] = useState<CultivoCatalogItem[]>([]);
@@ -77,7 +104,7 @@ export function NewVisitaCampoScreen() {
     null
   );
 
-  const [values, setValues] = useState<NewVisitaCampoFormValues>({
+  const [values, setValues] = useState<NewVisitaCampoFormValues>(() => ({
     crop: "",
     variety: "",
     parcelaId: parcelaId ?? "",
@@ -85,19 +112,15 @@ export function NewVisitaCampoScreen() {
     campaign: "",
     plantsCount: "",
     sowingDate: "",
-    visitDate: "",
+    visitDate: today,
     startVisitTime: "",
     endVisitTime: "",
     phenologicalStage: "",
     generalObservation: ""
-  });
+  }));
   const [errors, setErrors] = useState<NewVisitaCampoFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [visitLocation, setVisitLocation] = useState<GeoJsonPointGeometry | null>(null);
-  const [locationMessage, setLocationMessage] = useState<string | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [isCapturingLocation, setIsCapturingLocation] = useState(false);
 
   useEffect(() => {
     void loadCultivos();
@@ -111,6 +134,7 @@ export function NewVisitaCampoScreen() {
       setVariedadesError(null);
       setCampaniasError(null);
       setEtapasFenologicasError(null);
+      updateField("campaign", "");
       return;
     }
 
@@ -137,152 +161,241 @@ export function NewVisitaCampoScreen() {
     [variedades]
   );
 
-  const campaniaOptions = useMemo(
-    () =>
-      campanias.map((campania) => ({
-        value: campania.id,
-        label: campania.name,
-        helper: campania.description || undefined
-      })),
-    [campanias]
-  );
-
   const etapaFenologicaOptions = useMemo(
     () =>
       etapasFenologicas.map((etapa) => ({
         value: etapa.id,
-        label: etapa.name,
-        helper: etapa.description || undefined
+        label: etapa.name
       })),
     [etapasFenologicas]
   );
 
-  const locationPoints = useMemo(() => {
-    if (!visitLocation) {
-      return [];
-    }
-
-    return [
-      {
-        id: "new-visita-location",
-        geometry: visitLocation,
-        title: "Ubicacion de la visita",
-        description: buildLocationPreview(visitLocation, locationMessage),
-        pinColor: "#c77700"
-      }
-    ];
-  }, [locationMessage, visitLocation]);
+  const selectedCampania = useMemo(
+    () => campanias.find((campania) => campania.id === values.campaign),
+    [campanias, values.campaign]
+  );
 
   if (!session.accessToken) {
     return (
-      <ScreenContainer contentStyle={styles.container}>
+      <ScreenContainer contentStyle={styles.authContainer}>
         <StatusBar style="light" />
-        <View style={styles.scrollContent}>
-          <AppHeader
-            eyebrow="Nueva visita"
-            title="Registrar visita"
-            subtitle="Necesitas iniciar sesion para registrar una visita de campo."
-          />
-          <AppCard>
-            <AppText variant="muted">
-              La visita necesita asociarse al usuario autenticado antes de guardarse
-              localmente.
-            </AppText>
-            <View style={styles.actions}>
-              <AppButton
-                label="Iniciar sesion"
-                onPress={() => router.replace("/login")}
-              />
-              <AppButton
-                label="Volver"
-                onPress={() => router.back()}
-                variant="outline"
-              />
-            </View>
-          </AppCard>
-        </View>
+        <AppCard>
+          <AppText variant="heading">Registrar visita</AppText>
+          <AppText variant="muted">
+            Necesitas iniciar sesion para registrar una visita de campo.
+          </AppText>
+          <View style={styles.authActions}>
+            <AppButton label="Iniciar sesion" onPress={() => router.replace("/login")} />
+            <AppButton label="Volver" onPress={() => router.back()} variant="outline" />
+          </View>
+        </AppCard>
       </ScreenContainer>
     );
   }
 
   return (
     <ScreenContainer contentStyle={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar backgroundColor="#064b31" style="light" />
+      <SafeAreaView edges={["top"]} style={styles.safeTop}>
+        <View style={styles.topBar}>
+          <Pressable
+            accessibilityLabel="Volver"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+          >
+            <Ionicons color="#ffffff" name="arrow-back" size={27} />
+          </Pressable>
+          <AppText style={styles.topBarTitle} variant="title">
+            Registro de visita
+          </AppText>
+        </View>
+      </SafeAreaView>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader
-          eyebrow="Nueva visita"
-          title="Registrar visita"
-          subtitle={
-            parcelaLabel
-              ? `Parcela: ${parcelaLabel}`
-              : "Completa los datos de la visita de campo."
-          }
-        />
+        <ImageBackground
+          imageStyle={styles.heroImage}
+          resizeMode="cover"
+          source={VISITA_HERO_IMAGE}
+          style={styles.hero}
+        >
+          <View style={styles.heroScrim}>
+            <AppText style={styles.heroEyebrow} variant="eyebrow">
+              Nueva visita
+            </AppText>
+            <AppText style={styles.heroTitle} variant="title">
+              Datos basicos y etapas fenologicas
+            </AppText>
+            <AppText style={styles.heroSubtitle} variant="body">
+              Completa la informacion inicial de la visita y selecciona la etapa
+              del cultivo.
+            </AppText>
+          </View>
+        </ImageBackground>
 
-        <AppCard>
-          <AppText variant="heading">Cultivo y campania</AppText>
+        <View style={styles.body}>
+          <WizardProgress currentStep={CURRENT_STEP} steps={WIZARD_STEPS} />
 
-          <View style={styles.fields}>
-            <AppSelectField
-              disabled={isLoadingCultivos}
-              emptyMessage="No hay cultivos disponibles."
-              error={getCatalogError(cultivosError, errors.crop)}
-              isLoading={isLoadingCultivos}
-              isOpen={activeCatalog === "crop"}
-              label="Cultivo"
-              onSelect={(value) => handleCatalogSelection("crop", value)}
-              onToggle={() => toggleCatalog("crop")}
-              options={cultivoOptions}
-              placeholder="Selecciona un cultivo"
-              selectedLabel={getSelectedLabel(cultivoOptions, values.crop)}
-            />
-            <AppSelectField
-              disabled={!values.crop}
-              emptyMessage="No hay variedades para el cultivo seleccionado."
-              error={getCatalogError(variedadesError, errors.variety)}
-              isLoading={isLoadingVariedades}
-              isOpen={activeCatalog === "variety"}
-              label="Variedad"
-              onSelect={(value) => handleCatalogSelection("variety", value)}
-              onToggle={() => toggleCatalog("variety")}
-              options={variedadOptions}
-              placeholder={
-                values.crop ? "Selecciona una variedad" : "Selecciona primero un cultivo"
-              }
-              selectedLabel={getSelectedLabel(variedadOptions, values.variety)}
-            />
-            <AppSelectField
-              disabled={!values.crop}
-              emptyMessage="No hay campanias activas para el cultivo seleccionado."
-              error={getCatalogError(campaniasError, errors.campaign)}
-              isLoading={isLoadingCampanias}
-              isOpen={activeCatalog === "campaign"}
-              label="Campania"
-              onSelect={(value) => handleCatalogSelection("campaign", value)}
-              onToggle={() => toggleCatalog("campaign")}
-              options={campaniaOptions}
-              placeholder={
-                values.crop ? "Selecciona una campania" : "Selecciona primero un cultivo"
-              }
-              selectedLabel={getSelectedLabel(campaniaOptions, values.campaign)}
-            />
+          <View style={styles.formCard}>
+            <View style={styles.sectionHeader}>
+              <AppText style={styles.sectionTitle} variant="heading">
+                Datos basicos
+              </AppText>
+              <AppText style={styles.sectionSubtitle} variant="caption">
+                La campania y la fecha de visita se completan automaticamente.
+              </AppText>
+            </View>
+
+            <View style={isTwoColumnLayout ? styles.fieldGrid : styles.fieldStack}>
+              <View style={styles.fieldColumn}>
+                <AppSelectField
+                  disabled={isLoadingCultivos}
+                  emptyMessage="No hay cultivos disponibles."
+                  error={getCatalogError(cultivosError, errors.crop)}
+                  icon="leaf-outline"
+                  isLoading={isLoadingCultivos}
+                  isOpen={activeCatalog === "crop"}
+                  label="Cultivo"
+                  onSelect={(value) => handleCatalogSelection("crop", value)}
+                  onToggle={() => toggleCatalog("crop")}
+                  options={cultivoOptions}
+                  placeholder="Selecciona cultivo"
+                  selectedLabel={getSelectedLabel(cultivoOptions, values.crop)}
+                />
+              </View>
+
+              <View style={styles.fieldColumn}>
+                <AppSelectField
+                  disabled={!values.crop || isLoadingVariedades}
+                  emptyMessage="No hay variedades para el cultivo seleccionado."
+                  error={getCatalogError(variedadesError, errors.variety)}
+                  icon="flower-outline"
+                  isLoading={isLoadingVariedades}
+                  isOpen={activeCatalog === "variety"}
+                  label="Variedad"
+                  onSelect={(value) => handleCatalogSelection("variety", value)}
+                  onToggle={() => toggleCatalog("variety")}
+                  options={variedadOptions}
+                  placeholder={
+                    values.crop ? "Selecciona variedad" : "Selecciona cultivo"
+                  }
+                  selectedLabel={getSelectedLabel(variedadOptions, values.variety)}
+                />
+              </View>
+
+              <View style={styles.fieldColumn}>
+                <ReadonlyField
+                  error={getCatalogError(campaniasError, errors.campaign)}
+                  helper={
+                    isLoadingCampanias
+                      ? "Buscando campania activa..."
+                      : "Se asigna segun el cultivo seleccionado"
+                  }
+                  icon="calendar-outline"
+                  label="Campania"
+                  value={
+                    selectedCampania?.name ||
+                    (values.crop ? "Sin campania activa" : "Selecciona cultivo")
+                  }
+                />
+              </View>
+
+              <View style={styles.fieldColumn}>
+                <IconTextInput
+                  error={errors.plantsCount}
+                  icon="flower-outline"
+                  keyboardType="number-pad"
+                  label="Numero de plantas"
+                  onChangeText={(value) => updateField("plantsCount", value)}
+                  placeholder="Ingresa el numero"
+                  value={values.plantsCount}
+                />
+              </View>
+
+              <View style={styles.fieldColumn}>
+                <DatePickerField
+                  allowClear
+                  error={errors.sowingDate}
+                  isOpen={activeCatalog === "sowingDate"}
+                  label="Fecha de siembra"
+                  maxDate={today}
+                  onClear={() => handleDateSelection("sowingDate", "")}
+                  onSelect={(value) => handleDateSelection("sowingDate", value)}
+                  onToggle={() => toggleCatalog("sowingDate")}
+                  placeholder="Selecciona fecha"
+                  value={values.sowingDate}
+                />
+              </View>
+
+              <View style={styles.fieldColumn}>
+                <ReadonlyField
+                  icon="calendar-outline"
+                  label="Fecha de visita"
+                  value={formatDisplayDate(values.visitDate) || values.visitDate}
+                />
+              </View>
+
+              <View style={styles.fieldColumn}>
+                <TimePickerField
+                  error={errors.startVisitTime}
+                  isOpen={activeCatalog === "startVisitTime"}
+                  label="Hora de inicio"
+                  onSelect={(value) => handleTimeSelection("startVisitTime", value)}
+                  onToggle={() => toggleCatalog("startVisitTime")}
+                  placeholder="HH:MM"
+                  value={values.startVisitTime}
+                />
+                <AppText style={styles.fieldHint} variant="caption">
+                  Ingresa la hora (24 h)
+                </AppText>
+              </View>
+
+              <View style={styles.fieldColumn}>
+                <TimePickerField
+                  allowClear
+                  error={errors.endVisitTime}
+                  isOpen={activeCatalog === "endVisitTime"}
+                  label="Hora de fin"
+                  onClear={() => handleTimeSelection("endVisitTime", "")}
+                  onSelect={(value) => handleTimeSelection("endVisitTime", value)}
+                  onToggle={() => toggleCatalog("endVisitTime")}
+                  placeholder="HH:MM"
+                  value={values.endVisitTime}
+                />
+                <AppText style={styles.fieldHint} variant="caption">
+                  Ingresa la hora (24 h)
+                </AppText>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.formCard}>
+            <View style={styles.sectionHeader}>
+              <AppText style={styles.sectionTitle} variant="heading">
+                Etapa fenologica
+              </AppText>
+              <AppText style={styles.sectionSubtitle} variant="caption">
+                Selecciona la etapa actual del cultivo.
+              </AppText>
+            </View>
+
             <AppSelectField
               disabled={!values.crop}
               emptyMessage="No hay etapas fenologicas disponibles."
               error={etapasFenologicasError}
+              icon="flower"
               isLoading={isLoadingEtapasFenologicas}
               isOpen={activeCatalog === "phenologicalStage"}
-              label="Etapa fenologica"
+              label="Etapa"
               onSelect={(value) => handleCatalogSelection("phenologicalStage", value)}
               onToggle={() => toggleCatalog("phenologicalStage")}
               options={etapaFenologicaOptions}
               placeholder={
-                values.crop
-                  ? "Selecciona una etapa fenologica"
-                  : "Selecciona primero un cultivo"
+                values.crop ? "Selecciona etapa" : "Selecciona primero un cultivo"
               }
               selectedLabel={getSelectedLabel(
                 etapaFenologicaOptions,
@@ -290,160 +403,78 @@ export function NewVisitaCampoScreen() {
               )}
             />
           </View>
-        </AppCard>
 
-        <AppCard>
-          <AppText variant="heading">Datos de la visita</AppText>
-
-          <View style={styles.fields}>
-            <AppInput
-              keyboardType="number-pad"
-              label="Numero de plantas"
-              onChangeText={(value) => updateField("plantsCount", value)}
-              placeholder="Ej. 120"
-              value={values.plantsCount}
-              error={errors.plantsCount}
-            />
-            <DatePickerField
-              allowClear
-              error={errors.sowingDate}
-              isOpen={activeCatalog === "sowingDate"}
-              label="Fecha de siembra"
-              onClear={() => handleDateSelection("sowingDate", "")}
-              onSelect={(value) => handleDateSelection("sowingDate", value)}
-              onToggle={() => toggleCatalog("sowingDate")}
-              placeholder="Selecciona una fecha"
-              value={values.sowingDate}
-            />
-            <DatePickerField
-              error={errors.visitDate}
-              isOpen={activeCatalog === "visitDate"}
-              label="Fecha de visita"
-              onSelect={(value) => handleDateSelection("visitDate", value)}
-              onToggle={() => toggleCatalog("visitDate")}
-              placeholder="Selecciona la fecha de visita"
-              value={values.visitDate}
-            />
-            <View style={styles.timeRow}>
-              <View style={styles.timeField}>
-                <TimePickerField
-                  error={errors.startVisitTime}
-                  isOpen={activeCatalog === "startVisitTime"}
-                  label="Hora inicio"
-                  onSelect={(value) => handleTimeSelection("startVisitTime", value)}
-                  onToggle={() => toggleCatalog("startVisitTime")}
-                  placeholder="Selecciona una hora"
-                  value={values.startVisitTime}
-                />
-              </View>
-              <View style={styles.timeField}>
-                <TimePickerField
-                  allowClear
-                  error={errors.endVisitTime}
-                  isOpen={activeCatalog === "endVisitTime"}
-                  label="Hora fin"
-                  onClear={() => handleTimeSelection("endVisitTime", "")}
-                  onSelect={(value) => handleTimeSelection("endVisitTime", value)}
-                  onToggle={() => toggleCatalog("endVisitTime")}
-                  placeholder="Selecciona una hora"
-                  value={values.endVisitTime}
-                />
-              </View>
+          <View style={styles.formCard}>
+            <View style={styles.sectionHeader}>
+              <AppText style={styles.sectionTitle} variant="heading">
+                Observacion general
+              </AppText>
+              <AppText style={styles.sectionSubtitle} variant="caption">
+                Opcional para esta primera etapa del registro.
+              </AppText>
             </View>
-            <AppInput
-              editable={false}
-              label="Parcela"
-              value={values.parcelaLabel || "Sin parcela seleccionada"}
-              error={errors.parcelaId}
-            />
-            <AppInput
-              label="Observacion general"
+
+            <TextInput
               multiline
               numberOfLines={4}
               onChangeText={(value) => updateField("generalObservation", value)}
               placeholder="Observaciones generales de la visita"
-              style={styles.multilineInput}
+              placeholderTextColor={theme.colors.textMuted}
+              style={styles.observationInput}
               textAlignVertical="top"
               value={values.generalObservation}
             />
           </View>
-        </AppCard>
 
-        <AppCard>
-          <AppText variant="heading">Ubicacion de la visita</AppText>
-          <AppText variant="muted">
-            Opcional. Usa la ubicacion actual del dispositivo para registrar el punto de
-            la visita.
-          </AppText>
+          <ReadonlyField
+            icon="location-outline"
+            label="Parcela"
+            value={values.parcelaLabel || "Sin parcela seleccionada"}
+            error={errors.parcelaId}
+          />
 
-          <View style={styles.locationActions}>
-            <AppButton
+          {submitError ? (
+            <View style={styles.errorBanner}>
+              <AppText style={styles.submitErrorText} variant="label">
+                {submitError}
+              </AppText>
+            </View>
+          ) : null}
+
+          <View style={styles.actions}>
+            <Pressable
+              accessibilityRole="button"
               disabled={isSubmitting}
-              label={
-                isCapturingLocation
-                  ? "Capturando..."
-                  : visitLocation
-                    ? "Actualizar ubicacion"
-                    : "Usar ubicacion actual"
-              }
-              loading={isCapturingLocation}
               onPress={() => {
-                void handleCaptureLocation();
+                void handleSubmit();
               }}
-              size="small"
-              variant="secondary"
-            />
-            {visitLocation ? (
-              <AppButton
-                disabled={isSubmitting || isCapturingLocation}
-                label="Quitar ubicacion"
-                onPress={handleClearLocation}
-                size="small"
-                variant="outline"
-              />
-            ) : null}
+              style={({ pressed }) => [
+                styles.continueButton,
+                pressed && !isSubmitting && styles.pressed,
+                isSubmitting && styles.disabledButton
+              ]}
+            >
+              <Ionicons color="#d8f3dc" name="leaf" size={20} />
+              <AppText style={styles.continueButtonText} variant="label">
+                {isSubmitting ? "Guardando..." : "Continuar"}
+              </AppText>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              disabled={isSubmitting}
+              onPress={() => router.back()}
+              style={({ pressed }) => [
+                styles.backOutlineButton,
+                pressed && !isSubmitting && styles.pressed,
+                isSubmitting && styles.disabledButton
+              ]}
+            >
+              <AppText style={styles.backOutlineButtonText} variant="label">
+                Volver
+              </AppText>
+            </Pressable>
           </View>
-
-          {locationError ? (
-            <AppText style={styles.locationErrorText} variant="caption">
-              {locationError}
-            </AppText>
-          ) : null}
-
-          {locationMessage ? (
-            <AppText variant="caption">{locationMessage}</AppText>
-          ) : null}
-
-          <AppMap
-            emptyMessage="Todavia no registraste la ubicacion de la visita."
-            minHeight={220}
-            points={locationPoints}
-          />
-        </AppCard>
-
-        {submitError ? (
-          <View style={styles.errorBanner}>
-            <AppText style={styles.submitErrorText} variant="label">
-              {submitError}
-            </AppText>
-          </View>
-        ) : null}
-
-        <View style={styles.actions}>
-          <AppButton
-            disabled={isSubmitting}
-            loading={isSubmitting}
-            label={isSubmitting ? "Guardando..." : "Guardar visita"}
-            onPress={() => {
-              void handleSubmit();
-            }}
-          />
-          <AppButton
-            label="Cancelar"
-            onPress={() => router.back()}
-            disabled={isSubmitting}
-            variant="outline"
-          />
         </View>
       </ScrollView>
     </ScreenContainer>
@@ -469,7 +500,7 @@ export function NewVisitaCampoScreen() {
   }
 
   function handleCatalogSelection(
-    field: "crop" | "variety" | "campaign" | "phenologicalStage",
+    field: "crop" | "variety" | "phenologicalStage",
     value: string
   ) {
     if (field === "crop") {
@@ -494,7 +525,7 @@ export function NewVisitaCampoScreen() {
   }
 
   function handleDateSelection(
-    field: "sowingDate" | "visitDate",
+    field: "sowingDate",
     value: string
   ) {
     updateField(field, value);
@@ -510,11 +541,11 @@ export function NewVisitaCampoScreen() {
   }
 
   async function handleSubmit() {
-    const nextErrors = validateForm(values);
+    const nextErrors = validateForm(values, today);
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
-      setSubmitError("Revisa los campos obligatorios antes de guardar.");
+      setSubmitError("Revisa los campos obligatorios antes de continuar.");
       return;
     }
 
@@ -527,31 +558,21 @@ export function NewVisitaCampoScreen() {
     setSubmitError(null);
 
     try {
+      const location = await captureLocationSilently();
       const createdVisita = await visitasCampoService.create(
-        buildCreateDraft(values, visitLocation),
+        buildCreateDraft(values, location),
         {
           accessToken: session.accessToken,
           tokenType: session.tokenType
         }
       );
 
-      Alert.alert(
-        "Visita guardada",
-        `La visita ${createdVisita.publicId} se guardo localmente.`,
-        [
-          {
-            text: "Ver detalle",
-            onPress: () => {
-              router.replace({
-                pathname: "/visitas-campo/[id]",
-                params: {
-                  id: createdVisita.id
-                }
-              });
-            }
-          }
-        ]
-      );
+      router.replace({
+        pathname: "/visitas-campo/[id]/evaluaciones",
+        params: {
+          id: createdVisita.id
+        }
+      });
     } catch (error) {
       const apiError = toApiError(error);
       setSubmitError(apiError.message || "No se pudo guardar la visita de campo.");
@@ -560,29 +581,13 @@ export function NewVisitaCampoScreen() {
     }
   }
 
-  async function handleCaptureLocation() {
-    setIsCapturingLocation(true);
-    setLocationError(null);
-
+  async function captureLocationSilently() {
     try {
       const capturedLocation = await captureCurrentDeviceLocation();
-      setVisitLocation(capturedLocation.point);
-      setLocationMessage(buildLocationMessage(capturedLocation));
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "No se pudo obtener la ubicacion actual.";
-      setLocationError(message);
-    } finally {
-      setIsCapturingLocation(false);
+      return capturedLocation.point;
+    } catch {
+      return null;
     }
-  }
-
-  function handleClearLocation() {
-    setVisitLocation(null);
-    setLocationError(null);
-    setLocationMessage(null);
   }
 
   async function loadCultivos() {
@@ -625,8 +630,14 @@ export function NewVisitaCampoScreen() {
 
     if (campaniasResult.status === "fulfilled") {
       setCampanias(campaniasResult.value);
+      updateField("campaign", campaniasResult.value[0]?.id ?? "");
+
+      if (campaniasResult.value.length === 0) {
+        setCampaniasError("No hay campania activa para el cultivo seleccionado.");
+      }
     } else {
       setCampanias([]);
+      updateField("campaign", "");
       setCampaniasError(
         toApiError(campaniasResult.reason).message || "No se pudo cargar campanias."
       );
@@ -647,6 +658,152 @@ export function NewVisitaCampoScreen() {
   }
 }
 
+type WizardProgressProps = {
+  currentStep: number;
+  steps: WizardStep[];
+};
+
+function WizardProgress({ currentStep, steps }: WizardProgressProps) {
+  const activeStep = steps.find((step) => step.index === currentStep) ?? steps[0];
+
+  return (
+    <View style={styles.progressCard}>
+      <View style={styles.progressCopy}>
+        <AppText style={styles.progressStepText} variant="label">
+          Paso {currentStep} de {steps.length}
+        </AppText>
+        <AppText style={styles.progressTitle} variant="body">
+          {activeStep.title}
+        </AppText>
+      </View>
+
+      <View style={styles.progressTrack}>
+        {steps.map((step, index) => {
+          const isActive = step.index === currentStep;
+          const isComplete = step.index < currentStep;
+
+          return (
+            <View key={step.index} style={styles.progressNodeGroup}>
+              {index > 0 ? <View style={styles.progressLine} /> : null}
+              <View
+                style={[
+                  styles.progressNode,
+                  (isActive || isComplete) && styles.progressNodeActive
+                ]}
+              >
+                <AppText
+                  style={[
+                    styles.progressNodeText,
+                    (isActive || isComplete) && styles.progressNodeTextActive
+                  ]}
+                  variant="label"
+                >
+                  {step.index}
+                </AppText>
+              </View>
+              {isActive ? <View style={styles.progressActiveBar} /> : null}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+type ReadonlyFieldProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+  helper?: string;
+  error?: string | null;
+};
+
+function ReadonlyField({
+  icon,
+  label,
+  value,
+  helper,
+  error
+}: ReadonlyFieldProps) {
+  return (
+    <View style={styles.localFieldWrapper}>
+      <AppText style={styles.localFieldLabel} variant="label">
+        {label}
+      </AppText>
+      <View style={[styles.readonlyTrigger, error && styles.localFieldError]}>
+        <View style={styles.localFieldIcon}>
+          <Ionicons color="#064b31" name={icon} size={22} />
+        </View>
+        <AppText
+          style={[
+            styles.readonlyValue,
+            value.startsWith("Sin") && styles.placeholderValue
+          ]}
+          variant="body"
+        >
+          {value}
+        </AppText>
+      </View>
+      {helper ? (
+        <AppText style={styles.fieldHint} variant="caption">
+          {helper}
+        </AppText>
+      ) : null}
+      {error ? (
+        <AppText style={styles.localErrorText} variant="caption">
+          {error}
+        </AppText>
+      ) : null}
+    </View>
+  );
+}
+
+type IconTextInputProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+  placeholder: string;
+  keyboardType?: "default" | "number-pad";
+  error?: string | null;
+  onChangeText: (value: string) => void;
+};
+
+function IconTextInput({
+  icon,
+  label,
+  value,
+  placeholder,
+  keyboardType = "default",
+  error,
+  onChangeText
+}: IconTextInputProps) {
+  return (
+    <View style={styles.localFieldWrapper}>
+      <AppText style={styles.localFieldLabel} variant="label">
+        {label}
+      </AppText>
+      <View style={[styles.inputFrame, error && styles.localFieldError]}>
+        <View style={styles.localFieldIcon}>
+          <Ionicons color="#064b31" name={icon} size={22} />
+        </View>
+        <TextInput
+          keyboardType={keyboardType}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={theme.colors.textMuted}
+          style={styles.iconInput}
+          value={value}
+        />
+      </View>
+      {error ? (
+        <AppText style={styles.localErrorText} variant="caption">
+          {error}
+        </AppText>
+      ) : null}
+    </View>
+  );
+}
+
 type InlinePickerFieldProps = {
   label: string;
   placeholder: string;
@@ -654,6 +811,7 @@ type InlinePickerFieldProps = {
   isOpen: boolean;
   disabled?: boolean;
   error?: string | null;
+  icon: keyof typeof Ionicons.glyphMap;
   onToggle: () => void;
   children: ReactNode;
 };
@@ -665,6 +823,7 @@ type DatePickerFieldProps = {
   isOpen: boolean;
   error?: string | null;
   allowClear?: boolean;
+  maxDate?: string;
   onToggle: () => void;
   onSelect: (value: string) => void;
   onClear?: () => void;
@@ -689,12 +848,15 @@ function InlinePickerField({
   isOpen,
   disabled = false,
   error,
+  icon,
   onToggle,
   children
 }: InlinePickerFieldProps) {
   return (
-    <View style={styles.pickerFieldWrapper}>
-      <AppText variant="label">{label}</AppText>
+    <View style={styles.localFieldWrapper}>
+      <AppText style={styles.localFieldLabel} variant="label">
+        {label}
+      </AppText>
       <Pressable
         accessibilityRole="button"
         disabled={disabled}
@@ -702,23 +864,29 @@ function InlinePickerField({
         style={({ pressed }) => [
           styles.pickerTrigger,
           isOpen && styles.pickerTriggerOpen,
-          error && styles.pickerTriggerError,
+          error && styles.localFieldError,
           disabled && styles.pickerTriggerDisabled,
-          pressed && !disabled && styles.pickerTriggerPressed
+          pressed && !disabled && styles.pressed
         ]}
       >
+        <View style={styles.localFieldIcon}>
+          <Ionicons color="#064b31" name={icon} size={22} />
+        </View>
         <AppText
-          style={!valueLabel ? styles.pickerPlaceholderText : undefined}
+          style={[styles.pickerValue, !valueLabel && styles.placeholderValue]}
           variant="body"
         >
           {valueLabel || placeholder}
         </AppText>
-        <AppText style={styles.pickerChevron} variant="caption">
-          {isOpen ? "\u25B2" : "\u25BC"}
-        </AppText>
+        <Ionicons
+          color="#064b31"
+          name={isOpen ? "chevron-up" : "chevron-down"}
+          size={21}
+          style={styles.pickerChevron}
+        />
       </Pressable>
       {error ? (
-        <AppText style={styles.pickerErrorText} variant="caption">
+        <AppText style={styles.localErrorText} variant="caption">
           {error}
         </AppText>
       ) : null}
@@ -734,6 +902,7 @@ function DatePickerField({
   isOpen,
   error,
   allowClear = false,
+  maxDate,
   onToggle,
   onSelect,
   onClear
@@ -758,6 +927,7 @@ function DatePickerField({
   return (
     <InlinePickerField
       error={error}
+      icon="calendar-outline"
       isOpen={isOpen}
       label={label}
       onToggle={onToggle}
@@ -773,9 +943,11 @@ function DatePickerField({
             pressed && styles.calendarNavButtonPressed
           ]}
         >
-          <AppText variant="label">{"<"}</AppText>
+          <Ionicons color="#064b31" name="chevron-back" size={20} />
         </Pressable>
-        <AppText variant="label">{formatMonthYear(visibleMonth)}</AppText>
+        <AppText style={styles.calendarMonthText} variant="label">
+          {formatMonthYear(visibleMonth)}
+        </AppText>
         <Pressable
           accessibilityRole="button"
           onPress={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))}
@@ -784,7 +956,7 @@ function DatePickerField({
             pressed && styles.calendarNavButtonPressed
           ]}
         >
-          <AppText variant="label">{">"}</AppText>
+          <Ionicons color="#064b31" name="chevron-forward" size={20} />
         </Pressable>
       </View>
 
@@ -801,37 +973,45 @@ function DatePickerField({
       <View style={styles.calendarGrid}>
         {calendarWeeks.map((week, weekIndex) => (
           <View key={`${visibleMonth.toISOString()}-${weekIndex}`} style={styles.calendarWeekRow}>
-            {week.map((day, dayIndex) => (
-              <Pressable
-                accessibilityRole="button"
-                disabled={!day.isCurrentMonth}
-                key={`${weekIndex}-${dayIndex}-${day.value || "empty"}`}
-                onPress={() => {
-                  if (day.value) {
-                    onSelect(day.value);
-                  }
-                }}
-                style={({ pressed }) => [
-                  styles.calendarDayCell,
-                  !day.isCurrentMonth && styles.calendarDayCellOutsideMonth,
-                  day.value === value && styles.calendarDayCellSelected,
-                  pressed &&
-                    day.isCurrentMonth &&
-                    day.value !== value &&
-                    styles.calendarDayCellPressed
-                ]}
-              >
-                <AppText
-                  style={[
-                    !day.isCurrentMonth && styles.calendarDayTextOutsideMonth,
-                    day.value === value && styles.calendarDayTextSelected
+            {week.map((day, dayIndex) => {
+              const isFutureDay =
+                !!day.value && !!maxDate && compareDateValues(day.value, maxDate) > 0;
+              const isDisabled = !day.isCurrentMonth || isFutureDay;
+
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isDisabled}
+                  key={`${weekIndex}-${dayIndex}-${day.value || "empty"}`}
+                  onPress={() => {
+                    if (day.value) {
+                      onSelect(day.value);
+                    }
+                  }}
+                  style={({ pressed }) => [
+                    styles.calendarDayCell,
+                    !day.isCurrentMonth && styles.calendarDayCellOutsideMonth,
+                    isFutureDay && styles.calendarDayCellDisabled,
+                    day.value === value && styles.calendarDayCellSelected,
+                    pressed &&
+                      !isDisabled &&
+                      day.value !== value &&
+                      styles.calendarDayCellPressed
                   ]}
-                  variant="body"
                 >
-                  {day.dayNumber > 0 ? String(day.dayNumber) : ""}
-                </AppText>
-              </Pressable>
-            ))}
+                  <AppText
+                    style={[
+                      (!day.isCurrentMonth || isFutureDay) &&
+                        styles.calendarDayTextDisabled,
+                      day.value === value && styles.calendarDayTextSelected
+                    ]}
+                    variant="body"
+                  >
+                    {day.dayNumber > 0 ? String(day.dayNumber) : ""}
+                  </AppText>
+                </Pressable>
+              );
+            })}
           </View>
         ))}
       </View>
@@ -878,6 +1058,7 @@ function TimePickerField({
   return (
     <InlinePickerField
       error={error}
+      icon="time-outline"
       isOpen={isOpen}
       label={label}
       onToggle={onToggle}
@@ -999,7 +1180,10 @@ function getCatalogError(loadError: string | null, validationError?: string) {
   return validationError || loadError;
 }
 
-function validateForm(values: NewVisitaCampoFormValues): NewVisitaCampoFormErrors {
+function validateForm(
+  values: NewVisitaCampoFormValues,
+  today: string
+): NewVisitaCampoFormErrors {
   const nextErrors: NewVisitaCampoFormErrors = {};
 
   if (!values.crop) {
@@ -1011,7 +1195,7 @@ function validateForm(values: NewVisitaCampoFormValues): NewVisitaCampoFormError
   }
 
   if (!values.campaign) {
-    nextErrors.campaign = "Selecciona una campania.";
+    nextErrors.campaign = "No se encontro una campania activa para el cultivo.";
   }
 
   if (!values.parcelaId) {
@@ -1027,8 +1211,12 @@ function validateForm(values: NewVisitaCampoFormValues): NewVisitaCampoFormError
     }
   }
 
-  if (values.sowingDate && !DATE_PATTERN.test(values.sowingDate.trim())) {
-    nextErrors.sowingDate = "Fecha de siembra debe tener formato AAAA-MM-DD.";
+  if (values.sowingDate) {
+    if (!DATE_PATTERN.test(values.sowingDate.trim())) {
+      nextErrors.sowingDate = "Fecha de siembra debe tener formato AAAA-MM-DD.";
+    } else if (compareDateValues(values.sowingDate, today) > 0) {
+      nextErrors.sowingDate = "Fecha de siembra no puede ser mayor a la fecha actual.";
+    }
   }
 
   if (!values.visitDate.trim()) {
@@ -1040,17 +1228,19 @@ function validateForm(values: NewVisitaCampoFormValues): NewVisitaCampoFormError
   if (!values.startVisitTime.trim()) {
     nextErrors.startVisitTime = "La hora de inicio es obligatoria.";
   } else if (!TIME_PATTERN.test(values.startVisitTime.trim())) {
-    nextErrors.startVisitTime = "Hora de inicio debe tener formato HH:mm o HH:mm:ss.";
+    nextErrors.startVisitTime = "Hora de inicio debe tener formato HH:mm.";
   }
 
   if (values.endVisitTime.trim()) {
     if (!TIME_PATTERN.test(values.endVisitTime.trim())) {
-      nextErrors.endVisitTime = "Hora de fin debe tener formato HH:mm o HH:mm:ss.";
+      nextErrors.endVisitTime = "Hora de fin debe tener formato HH:mm.";
     } else if (
-      normalizeTimeForApi(values.endVisitTime) <
-      normalizeTimeForApi(values.startVisitTime)
+      values.startVisitTime.trim() &&
+      normalizeTimeForApi(values.endVisitTime) >
+        normalizeTimeForApi(values.startVisitTime)
     ) {
-      nextErrors.endVisitTime = "Hora de fin debe ser mayor o igual a la hora de inicio.";
+      nextErrors.endVisitTime =
+        "Hora de fin no puede ser mayor a la hora de inicio.";
     }
   }
 
@@ -1095,28 +1285,6 @@ function normalizeTimeForApi(value: string) {
   return trimmedValue.length === 5 ? `${trimmedValue}:00` : trimmedValue;
 }
 
-function buildLocationMessage(location: {
-  accuracyMeters: number | null;
-  point: GeoJsonPointGeometry;
-}) {
-  const coordinates = formatCoordinates(location.point);
-
-  if (location.accuracyMeters === null) {
-    return `Ubicacion capturada: ${coordinates}.`;
-  }
-
-  return `Ubicacion capturada: ${coordinates}. Precision aprox. ${location.accuracyMeters} m.`;
-}
-
-function buildLocationPreview(point: GeoJsonPointGeometry, message: string | null) {
-  return message ?? `Coordenadas ${formatCoordinates(point)}.`;
-}
-
-function formatCoordinates(point: GeoJsonPointGeometry) {
-  const [longitude, latitude] = point.coordinates;
-  return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-}
-
 function parseDateValue(value: string) {
   const trimmedValue = value.trim();
 
@@ -1147,6 +1315,17 @@ function parseDateValue(value: string) {
   }
 
   return parsedDate;
+}
+
+function compareDateValues(left: string, right: string) {
+  const leftDate = parseDateValue(left);
+  const rightDate = parseDateValue(right);
+
+  if (!leftDate || !rightDate) {
+    return 0;
+  }
+
+  return leftDate.getTime() - rightDate.getTime();
 }
 
 function formatDisplayDate(value: string) {
@@ -1319,65 +1498,312 @@ const HOUR_OPTIONS = Array.from({ length: 24 }, (_, index) => index);
 const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, index) => index * 5);
 
 const styles = StyleSheet.create({
+  authContainer: {
+    justifyContent: "center"
+  },
+  authActions: {
+    gap: 10
+  },
   container: {
     paddingHorizontal: 0,
     paddingVertical: 0
   },
-  scrollContent: {
-    gap: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 16
+  safeTop: {
+    backgroundColor: "#064b31"
   },
-  fields: {
+  topBar: {
+    minHeight: 86,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    backgroundColor: "#064b31"
+  },
+  backButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24
+  },
+  topBarTitle: {
+    flex: 1,
+    color: "#ffffff",
+    fontSize: 30,
+    lineHeight: 36,
+    letterSpacing: 0
+  },
+  scrollContent: {
+    paddingBottom: 18,
+    backgroundColor: "#fbfcf9"
+  },
+  hero: {
+    minHeight: 284,
+    width: "100%",
+    backgroundColor: "#f7f5ed"
+  },
+  heroImage: {
+    opacity: 0.86
+  },
+  heroScrim: {
+    minHeight: 284,
+    justifyContent: "center",
+    paddingHorizontal: 22,
+    paddingVertical: 26,
+    backgroundColor: "rgba(255, 252, 244, 0.58)"
+  },
+  heroEyebrow: {
+    color: "#064b31",
+    letterSpacing: 2
+  },
+  heroTitle: {
+    maxWidth: 530,
+    marginTop: 14,
+    color: "#073b2a",
+    fontSize: 37,
+    lineHeight: 43,
+    letterSpacing: 0
+  },
+  heroSubtitle: {
+    maxWidth: 560,
+    marginTop: 13,
+    color: "#4e5b56",
+    fontSize: 16,
+    lineHeight: 25
+  },
+  body: {
+    width: "100%",
+    maxWidth: 900,
+    alignSelf: "center",
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingTop: 15,
+    paddingBottom: 16
+  },
+  progressCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 18,
+    minHeight: 112,
+    paddingHorizontal: 18,
+    paddingVertical: 17,
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    shadowColor: "#345245",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 5
+  },
+  progressCopy: {
+    width: 210,
+    maxWidth: "42%",
+    gap: 5
+  },
+  progressStepText: {
+    color: "#176b2d",
+    fontSize: 17
+  },
+  progressTitle: {
+    color: "#102e23",
+    fontSize: 15,
+    lineHeight: 21
+  },
+  progressTrack: {
+    minWidth: 0,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  progressNodeGroup: {
+    flex: 1,
+    minHeight: 66,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  progressLine: {
+    position: "absolute",
+    left: "-50%",
+    right: "50%",
+    top: 28,
+    height: 1.5,
+    backgroundColor: "#d8d3c5"
+  },
+  progressNode: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: "#d8d3c5",
+    backgroundColor: "#ffffff"
+  },
+  progressNodeActive: {
+    borderColor: "#12622f",
+    backgroundColor: "#12622f"
+  },
+  progressNodeText: {
+    color: "#17231d"
+  },
+  progressNodeTextActive: {
+    color: "#ffffff"
+  },
+  progressActiveBar: {
+    width: 72,
+    height: 7,
+    marginTop: 14,
+    borderRadius: 4,
+    backgroundColor: "#3f8f21"
+  },
+  formCard: {
+    gap: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 19,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#ece8dd",
+    backgroundColor: "#ffffff",
+    shadowColor: "#345245",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.09,
+    shadowRadius: 9,
+    elevation: 4
+  },
+  sectionHeader: {
+    gap: 4
+  },
+  sectionTitle: {
+    color: "#073b2a",
+    fontSize: 22,
+    lineHeight: 27
+  },
+  sectionSubtitle: {
+    color: "#5f6b66",
+    fontSize: 14,
+    lineHeight: 19
+  },
+  fieldGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16
+  },
+  fieldStack: {
     gap: 14
   },
-  pickerFieldWrapper: {
+  fieldColumn: {
+    minWidth: 250,
+    flex: 1
+  },
+  localFieldWrapper: {
     gap: 6
   },
-  pickerTrigger: {
-    minHeight: 48,
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    paddingHorizontal: 14,
-    paddingRight: 40,
+  localFieldLabel: {
+    color: "#0f1c18",
+    fontSize: 15
+  },
+  readonlyTrigger: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1.3,
+    borderColor: "#d8d3c5",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: "#fbfbf8"
+  },
+  inputFrame: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1.3,
+    borderColor: "#d8d3c5",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: "#ffffff"
+  },
+  localFieldIcon: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.colors.surfaceElevated
+    borderRadius: 12,
+    backgroundColor: "#f0f3e8"
   },
-  pickerTriggerOpen: {
-    borderColor: theme.colors.primary,
-    borderWidth: 2
+  readonlyValue: {
+    minWidth: 0,
+    flex: 1,
+    color: "#1f2b26",
+    fontSize: 16
   },
-  pickerTriggerError: {
+  iconInput: {
+    minWidth: 0,
+    flex: 1,
+    paddingVertical: 0,
+    color: theme.colors.text,
+    fontSize: 16
+  },
+  placeholderValue: {
+    color: theme.colors.textMuted
+  },
+  localFieldError: {
     borderColor: theme.colors.error,
     backgroundColor: theme.colors.errorMuted
   },
-  pickerTriggerDisabled: {
-    opacity: 0.5
+  localErrorText: {
+    color: theme.colors.error
   },
-  pickerTriggerPressed: {
-    opacity: 0.85
+  fieldHint: {
+    color: "#6b716f",
+    fontSize: 13,
+    lineHeight: 17
+  },
+  pickerTrigger: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1.3,
+    borderColor: "#d8d3c5",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    backgroundColor: "#ffffff"
+  },
+  pickerTriggerOpen: {
+    borderColor: "#12622f",
+    borderWidth: 1.8
+  },
+  pickerTriggerDisabled: {
+    opacity: 0.55
+  },
+  pickerValue: {
+    minWidth: 0,
+    flex: 1,
+    color: "#1f2b26",
+    fontSize: 16
   },
   pickerChevron: {
-    position: "absolute",
-    right: 14,
-    color: theme.colors.textMuted,
-    fontSize: 10
-  },
-  pickerPlaceholderText: {
-    color: theme.colors.textMuted
-  },
-  pickerErrorText: {
-    color: theme.colors.error
+    marginRight: 5
   },
   pickerPanel: {
     gap: 12,
-    borderWidth: 1.5,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
+    borderWidth: 1.2,
+    borderColor: "#e3dfd2",
+    borderRadius: 14,
     padding: 12,
-    backgroundColor: theme.colors.surface,
-    ...theme.shadow.md
+    backgroundColor: "#ffffff",
+    shadowColor: "#345245",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4
   },
   calendarHeader: {
     flexDirection: "row",
@@ -1385,17 +1811,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   calendarNavButton: {
-    minWidth: 40,
-    minHeight: 36,
+    minWidth: 42,
+    minHeight: 38,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: 10,
+    backgroundColor: "#f0f3e8",
     borderWidth: 1,
-    borderColor: theme.colors.borderLight
+    borderColor: "#e3dfd2"
   },
   calendarNavButtonPressed: {
-    backgroundColor: theme.colors.primaryMuted
+    backgroundColor: "#d8f3dc"
+  },
+  calendarMonthText: {
+    color: "#102e23"
   },
   calendarWeekHeader: {
     flexDirection: "row"
@@ -1407,7 +1836,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4
   },
   calendarDayLabelText: {
-    fontWeight: "600"
+    color: "#65706b",
+    fontWeight: "700"
   },
   calendarGrid: {
     gap: 6
@@ -1421,32 +1851,27 @@ const styles = StyleSheet.create({
     minHeight: 42,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: theme.radius.sm,
-    backgroundColor: theme.colors.surfaceElevated
+    borderRadius: 10,
+    backgroundColor: "#f8faf5"
   },
   calendarDayCellOutsideMonth: {
     backgroundColor: "transparent"
   },
+  calendarDayCellDisabled: {
+    opacity: 0.32
+  },
   calendarDayCellSelected: {
-    backgroundColor: theme.colors.primary
+    backgroundColor: "#12622f"
   },
   calendarDayCellPressed: {
-    backgroundColor: theme.colors.primaryMuted
+    backgroundColor: "#d8f3dc"
   },
-  calendarDayTextOutsideMonth: {
-    color: theme.colors.textMuted,
-    opacity: 0.35
+  calendarDayTextDisabled: {
+    color: theme.colors.textMuted
   },
   calendarDayTextSelected: {
-    color: theme.colors.textInverse,
+    color: "#ffffff",
     fontWeight: "700"
-  },
-  timeRow: {
-    flexDirection: "row",
-    gap: 12
-  },
-  timeField: {
-    flex: 1
   },
   timePickerSection: {
     gap: 8
@@ -1461,72 +1886,109 @@ const styles = StyleSheet.create({
     minHeight: 38,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: theme.radius.sm,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: theme.colors.borderLight,
-    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: "#e3dfd2",
+    backgroundColor: "#f8faf5",
     paddingHorizontal: 10
   },
   timeChipSelected: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primary
+    borderColor: "#12622f",
+    backgroundColor: "#12622f"
   },
   timeChipPressed: {
-    backgroundColor: theme.colors.primaryMuted
+    backgroundColor: "#d8f3dc"
   },
   timeChipTextSelected: {
-    color: theme.colors.textInverse
+    color: "#ffffff"
   },
-  multilineInput: {
-    minHeight: 100,
-    paddingTop: 12
+  pickerActionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: 10
+  },
+  pickerActionButton: {
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#d8d3c5",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 13
+  },
+  pickerActionButtonPrimary: {
+    borderColor: "#12622f",
+    backgroundColor: "#12622f"
+  },
+  pickerActionButtonPressed: {
+    opacity: 0.85
+  },
+  pickerActionButtonPrimaryText: {
+    color: "#ffffff"
+  },
+  observationInput: {
+    minHeight: 110,
+    borderWidth: 1.3,
+    borderColor: "#d8d3c5",
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingTop: 12,
+    color: theme.colors.text,
+    fontSize: 16,
+    backgroundColor: "#ffffff"
   },
   errorBanner: {
     backgroundColor: theme.colors.errorMuted,
-    borderRadius: theme.radius.sm,
+    borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderWidth: 1,
     borderColor: theme.colors.error
   },
   submitErrorText: {
     color: theme.colors.error
   },
-  locationActions: {
+  actions: {
+    gap: 12,
+    paddingBottom: 8
+  },
+  continueButton: {
+    minHeight: 62,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10
-  },
-  locationErrorText: {
-    color: theme.colors.error
-  },
-  pickerActionRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10
-  },
-  pickerActionButton: {
-    minHeight: 38,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: theme.radius.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceElevated,
-    paddingHorizontal: 12
-  },
-  pickerActionButtonPrimary: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primary
-  },
-  pickerActionButtonPressed: {
-    opacity: 0.85
-  },
-  pickerActionButtonPrimaryText: {
-    color: theme.colors.textInverse
-  },
-  actions: {
     gap: 10,
-    paddingBottom: 12
+    borderRadius: 18,
+    backgroundColor: "#08643f",
+    shadowColor: "#345245",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 5
+  },
+  continueButtonText: {
+    color: "#ffffff",
+    fontSize: 18
+  },
+  backOutlineButton: {
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#08643f",
+    backgroundColor: "#ffffff"
+  },
+  backOutlineButtonText: {
+    color: "#08643f",
+    fontSize: 17
+  },
+  disabledButton: {
+    opacity: 0.55
+  },
+  pressed: {
+    opacity: 0.82
   }
 });
