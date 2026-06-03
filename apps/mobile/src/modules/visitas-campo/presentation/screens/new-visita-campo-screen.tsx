@@ -46,9 +46,7 @@ type ActiveVisitaField =
   | "crop"
   | "variety"
   | "phenologicalStage"
-  | "sowingDate"
-  | "startVisitTime"
-  | "endVisitTime";
+  | "sowingDate";
 
 type WizardStep = {
   index: number;
@@ -82,6 +80,7 @@ export function NewVisitaCampoScreen() {
   const parcelaName = toSingleParam(params.parcelaName);
   const parcelaLabel = [parcelaCode, parcelaName].filter(Boolean).join(" - ");
   const isTwoColumnLayout = width >= 620;
+  const isCompactProgress = width < 540;
   const [activeCatalog, setActiveCatalog] = useState<ActiveVisitaField | null>(null);
 
   const [cultivos, setCultivos] = useState<CultivoCatalogItem[]>([]);
@@ -238,7 +237,11 @@ export function NewVisitaCampoScreen() {
         </ImageBackground>
 
         <View style={styles.body}>
-          <WizardProgress currentStep={CURRENT_STEP} steps={WIZARD_STEPS} />
+          <WizardProgress
+            compact={isCompactProgress}
+            currentStep={CURRENT_STEP}
+            steps={WIZARD_STEPS}
+          />
 
           <View style={styles.formCard}>
             <View style={styles.sectionHeader}>
@@ -340,12 +343,14 @@ export function NewVisitaCampoScreen() {
               </View>
 
               <View style={styles.fieldColumn}>
-                <TimePickerField
+                <IconTextInput
                   error={errors.startVisitTime}
-                  isOpen={activeCatalog === "startVisitTime"}
+                  icon="time-outline"
+                  keyboardType="number-pad"
                   label="Hora de inicio"
-                  onSelect={(value) => handleTimeSelection("startVisitTime", value)}
-                  onToggle={() => toggleCatalog("startVisitTime")}
+                  onChangeText={(value) =>
+                    updateField("startVisitTime", formatTypedTimeInput(value))
+                  }
                   placeholder="HH:MM"
                   value={values.startVisitTime}
                 />
@@ -355,14 +360,14 @@ export function NewVisitaCampoScreen() {
               </View>
 
               <View style={styles.fieldColumn}>
-                <TimePickerField
-                  allowClear
+                <IconTextInput
                   error={errors.endVisitTime}
-                  isOpen={activeCatalog === "endVisitTime"}
+                  icon="time-outline"
+                  keyboardType="number-pad"
                   label="Hora de fin"
-                  onClear={() => handleTimeSelection("endVisitTime", "")}
-                  onSelect={(value) => handleTimeSelection("endVisitTime", value)}
-                  onToggle={() => toggleCatalog("endVisitTime")}
+                  onChangeText={(value) =>
+                    updateField("endVisitTime", formatTypedTimeInput(value))
+                  }
                   placeholder="HH:MM"
                   value={values.endVisitTime}
                 />
@@ -532,14 +537,6 @@ export function NewVisitaCampoScreen() {
     setActiveCatalog(null);
   }
 
-  function handleTimeSelection(
-    field: "startVisitTime" | "endVisitTime",
-    value: string
-  ) {
-    updateField(field, value);
-    setActiveCatalog(null);
-  }
-
   async function handleSubmit() {
     const nextErrors = validateForm(values, today);
 
@@ -659,16 +656,17 @@ export function NewVisitaCampoScreen() {
 }
 
 type WizardProgressProps = {
+  compact: boolean;
   currentStep: number;
   steps: WizardStep[];
 };
 
-function WizardProgress({ currentStep, steps }: WizardProgressProps) {
+function WizardProgress({ compact, currentStep, steps }: WizardProgressProps) {
   const activeStep = steps.find((step) => step.index === currentStep) ?? steps[0];
 
   return (
-    <View style={styles.progressCard}>
-      <View style={styles.progressCopy}>
+    <View style={[styles.progressCard, compact && styles.progressCardCompact]}>
+      <View style={[styles.progressCopy, compact && styles.progressCopyCompact]}>
         <AppText style={styles.progressStepText} variant="label">
           Paso {currentStep} de {steps.length}
         </AppText>
@@ -683,8 +681,15 @@ function WizardProgress({ currentStep, steps }: WizardProgressProps) {
           const isComplete = step.index < currentStep;
 
           return (
-            <View key={step.index} style={styles.progressNodeGroup}>
-              {index > 0 ? <View style={styles.progressLine} /> : null}
+            <View key={step.index} style={styles.progressStepItem}>
+              {index > 0 ? (
+                <View
+                  style={[
+                    styles.progressConnector,
+                    isComplete && styles.progressConnectorActive
+                  ]}
+                />
+              ) : null}
               <View
                 style={[
                   styles.progressNode,
@@ -701,7 +706,7 @@ function WizardProgress({ currentStep, steps }: WizardProgressProps) {
                   {step.index}
                 </AppText>
               </View>
-              {isActive ? <View style={styles.progressActiveBar} /> : null}
+              {isActive ? <View style={styles.progressActiveDot} /> : null}
             </View>
           );
         })}
@@ -824,18 +829,6 @@ type DatePickerFieldProps = {
   error?: string | null;
   allowClear?: boolean;
   maxDate?: string;
-  onToggle: () => void;
-  onSelect: (value: string) => void;
-  onClear?: () => void;
-};
-
-type TimePickerFieldProps = {
-  label: string;
-  placeholder: string;
-  value: string;
-  isOpen: boolean;
-  error?: string | null;
-  allowClear?: boolean;
   onToggle: () => void;
   onSelect: (value: string) => void;
   onClear?: () => void;
@@ -1034,136 +1027,6 @@ function DatePickerField({
   );
 }
 
-function TimePickerField({
-  label,
-  placeholder,
-  value,
-  isOpen,
-  error,
-  allowClear = false,
-  onToggle,
-  onSelect,
-  onClear
-}: TimePickerFieldProps) {
-  const [draftTime, setDraftTime] = useState(() => parseTimeValue(value));
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    setDraftTime(parseTimeValue(value));
-  }, [isOpen, value]);
-
-  return (
-    <InlinePickerField
-      error={error}
-      icon="time-outline"
-      isOpen={isOpen}
-      label={label}
-      onToggle={onToggle}
-      placeholder={placeholder}
-      valueLabel={formatDisplayTime(value)}
-    >
-      <View style={styles.timePickerSection}>
-        <AppText variant="label">Hora</AppText>
-        <View style={styles.timeChipGrid}>
-          {HOUR_OPTIONS.map((hour) => {
-            const isSelected = draftTime.hour === hour;
-
-            return (
-              <Pressable
-                accessibilityRole="button"
-                key={`hour-${hour}`}
-                onPress={() =>
-                  setDraftTime((currentTime) => ({
-                    ...currentTime,
-                    hour
-                  }))
-                }
-                style={({ pressed }) => [
-                  styles.timeChip,
-                  isSelected && styles.timeChipSelected,
-                  pressed && !isSelected && styles.timeChipPressed
-                ]}
-              >
-                <AppText
-                  style={isSelected ? styles.timeChipTextSelected : undefined}
-                  variant="label"
-                >
-                  {padTimeValue(hour)}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={styles.timePickerSection}>
-        <AppText variant="label">Minutos</AppText>
-        <View style={styles.timeChipGrid}>
-          {MINUTE_OPTIONS.map((minute) => {
-            const isSelected = draftTime.minute === minute;
-
-            return (
-              <Pressable
-                accessibilityRole="button"
-                key={`minute-${minute}`}
-                onPress={() =>
-                  setDraftTime((currentTime) => ({
-                    ...currentTime,
-                    minute
-                  }))
-                }
-                style={({ pressed }) => [
-                  styles.timeChip,
-                  isSelected && styles.timeChipSelected,
-                  pressed && !isSelected && styles.timeChipPressed
-                ]}
-              >
-                <AppText
-                  style={isSelected ? styles.timeChipTextSelected : undefined}
-                  variant="label"
-                >
-                  {padTimeValue(minute)}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={styles.pickerActionRow}>
-        {allowClear && value && onClear ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={onClear}
-            style={({ pressed }) => [
-              styles.pickerActionButton,
-              pressed && styles.pickerActionButtonPressed
-            ]}
-          >
-            <AppText variant="label">Limpiar</AppText>
-          </Pressable>
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => onSelect(formatTimeFromParts(draftTime.hour, draftTime.minute))}
-          style={({ pressed }) => [
-            styles.pickerActionButton,
-            styles.pickerActionButtonPrimary,
-            pressed && styles.pickerActionButtonPressed
-          ]}
-        >
-          <AppText style={styles.pickerActionButtonPrimaryText} variant="label">
-            Aplicar
-          </AppText>
-        </Pressable>
-      </View>
-    </InlinePickerField>
-  );
-}
-
 function toSingleParam(value?: string | string[]) {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -1285,6 +1148,16 @@ function normalizeTimeForApi(value: string) {
   return trimmedValue.length === 5 ? `${trimmedValue}:00` : trimmedValue;
 }
 
+function formatTypedTimeInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 4);
+
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
 function parseDateValue(value: string) {
   const trimmedValue = value.trim();
 
@@ -1395,84 +1268,6 @@ function formatDateForApi(date: Date) {
   return `${date.getFullYear()}-${padTimeValue(date.getMonth() + 1)}-${padTimeValue(date.getDate())}`;
 }
 
-function parseTimeValue(value: string) {
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) {
-    return getDefaultTimeParts();
-  }
-
-  const segments = trimmedValue.split(":");
-  const [hourValue, minuteValue] = segments.map((item) => Number(item));
-
-  if (
-    !Number.isInteger(hourValue) ||
-    !Number.isInteger(minuteValue) ||
-    hourValue < 0 ||
-    hourValue > 23 ||
-    minuteValue < 0 ||
-    minuteValue > 59
-  ) {
-    return getDefaultTimeParts();
-  }
-
-  return {
-    hour: hourValue,
-    minute: getClosestMinuteOption(minuteValue)
-  };
-}
-
-function getDefaultTimeParts() {
-  const now = new Date();
-
-  return {
-    hour: now.getHours(),
-    minute: getClosestMinuteOption(now.getMinutes())
-  };
-}
-
-function getClosestMinuteOption(minute: number) {
-  return MINUTE_OPTIONS.reduce((closestMinute, currentMinute) =>
-    Math.abs(currentMinute - minute) < Math.abs(closestMinute - minute)
-      ? currentMinute
-      : closestMinute
-  );
-}
-
-function formatTimeFromParts(hour: number, minute: number) {
-  return `${padTimeValue(hour)}:${padTimeValue(minute)}`;
-}
-
-function formatDisplayTime(value: string) {
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) {
-    return undefined;
-  }
-
-  const segments = trimmedValue.split(":");
-
-  if (segments.length < 2) {
-    return undefined;
-  }
-
-  const hourValue = Number(segments[0]);
-  const minuteValue = Number(segments[1]);
-
-  if (
-    !Number.isInteger(hourValue) ||
-    !Number.isInteger(minuteValue) ||
-    hourValue < 0 ||
-    hourValue > 23 ||
-    minuteValue < 0 ||
-    minuteValue > 59
-  ) {
-    return undefined;
-  }
-
-  return `${padTimeValue(hourValue)}:${padTimeValue(minuteValue)}`;
-}
-
 function padTimeValue(value: number) {
   return String(value).padStart(2, "0");
 }
@@ -1494,9 +1289,6 @@ const MONTH_LABELS = [
   "Noviembre",
   "Diciembre"
 ] as const;
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, index) => index);
-const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, index) => index * 5);
-
 const styles = StyleSheet.create({
   authContainer: {
     justifyContent: "center"
@@ -1585,7 +1377,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 18,
-    minHeight: 112,
+    minHeight: 104,
     paddingHorizontal: 18,
     paddingVertical: 17,
     borderRadius: 20,
@@ -1596,10 +1388,19 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5
   },
+  progressCardCompact: {
+    alignItems: "stretch",
+    flexDirection: "column",
+    gap: 14
+  },
   progressCopy: {
     width: 210,
     maxWidth: "42%",
     gap: 5
+  },
+  progressCopyCompact: {
+    width: "100%",
+    maxWidth: "100%"
   },
   progressStepText: {
     color: "#176b2d",
@@ -1614,29 +1415,28 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flex: 1,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
+    alignItems: "center"
   },
-  progressNodeGroup: {
-    flex: 1,
-    minHeight: 66,
+  progressStepItem: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center"
+    flexShrink: 1
   },
-  progressLine: {
-    position: "absolute",
-    left: "-50%",
-    right: "50%",
-    top: 28,
+  progressConnector: {
+    width: 22,
     height: 1.5,
-    backgroundColor: "#d8d3c5"
+    backgroundColor: "#d8d3c5",
+    flexShrink: 1
+  },
+  progressConnectorActive: {
+    backgroundColor: "#3f8f21"
   },
   progressNode: {
-    width: 42,
-    height: 42,
+    width: 34,
+    height: 34,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 21,
+    borderRadius: 17,
     borderWidth: 1.5,
     borderColor: "#d8d3c5",
     backgroundColor: "#ffffff"
@@ -1651,10 +1451,10 @@ const styles = StyleSheet.create({
   progressNodeTextActive: {
     color: "#ffffff"
   },
-  progressActiveBar: {
-    width: 72,
-    height: 7,
-    marginTop: 14,
+  progressActiveDot: {
+    width: 8,
+    height: 8,
+    marginLeft: 5,
     borderRadius: 4,
     backgroundColor: "#3f8f21"
   },
