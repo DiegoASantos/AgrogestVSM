@@ -1,6 +1,5 @@
 import type { PropsWithChildren } from "react";
 import { StyleSheet, View, type ViewStyle } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useIsOnline } from "../connectivity/use-is-online";
 import { theme } from "../constants/theme";
@@ -14,7 +13,7 @@ export function ScreenContainer({ children, contentStyle }: ScreenContainerProps
   const { isOnline } = useIsOnline();
 
   return (
-    <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={[styles.content, contentStyle]}>
         {!isOnline ? (
           <View style={styles.offlineBanner}>
@@ -26,7 +25,7 @@ export function ScreenContainer({ children, contentStyle }: ScreenContainerProps
         ) : null}
         {children}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

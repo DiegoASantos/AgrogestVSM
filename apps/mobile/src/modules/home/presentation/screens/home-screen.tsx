@@ -69,7 +69,7 @@ export function HomeScreen() {
   }, [router]);
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
+    <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <StatusBar backgroundColor="#fbfcf9" style="dark" />
 
       <ScrollView

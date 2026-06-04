@@ -316,7 +316,7 @@ export function NewVisitaCampoScreen() {
                 Datos basicos
               </AppText>
               <AppText style={styles.sectionSubtitle} variant="caption">
-                La campania y la fecha de visita se completan automaticamente.
+                Las campañas y la fecha de visita se completan automaticamente.
               </AppText>
             </View>
 
@@ -362,14 +362,14 @@ export function NewVisitaCampoScreen() {
                   error={getCatalogError(campaniasError, errors.campaign)}
                   helper={
                     isLoadingCampanias
-                      ? "Buscando campania activa..."
+                      ? "Buscando campaña activa..."
                       : "Se asigna segun el cultivo seleccionado"
                   }
                   icon="calendar-outline"
-                  label="Campania"
+                  label="Campañas"
                   value={
                     selectedCampania?.name ||
-                    (values.crop ? "Sin campania activa" : "Selecciona cultivo")
+                    (values.crop ? "Sin campaña activa" : "Selecciona cultivo")
                   }
                 />
               </View>
@@ -766,13 +766,13 @@ export function NewVisitaCampoScreen() {
       updateField("campaign", campaniasResult.value[0]?.id ?? "");
 
       if (campaniasResult.value.length === 0) {
-        setCampaniasError("No hay campania activa para el cultivo seleccionado.");
+        setCampaniasError("No hay campaña activa para el cultivo seleccionado.");
       }
     } else {
       setCampanias([]);
       updateField("campaign", "");
       setCampaniasError(
-        toApiError(campaniasResult.reason).message || "No se pudo cargar campanias."
+        toApiError(campaniasResult.reason).message || "No se pudo cargar campañas."
       );
     }
 
@@ -1474,7 +1474,7 @@ function validateForm(
   }
 
   if (!values.campaign) {
-    nextErrors.campaign = "No se encontro una campania activa para el cultivo.";
+    nextErrors.campaign = "No se encontro una campaña activa para el cultivo.";
   }
 
   if (!values.parcelaId) {
