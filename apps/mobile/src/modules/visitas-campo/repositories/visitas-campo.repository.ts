@@ -653,7 +653,17 @@ export const visitasCampoRepository = {
       etapaFenologicaId
     );
 
-    return rows.map(mapSubEtapaRow) satisfies SubEtapaCatalogItem[];
+    return rows
+      .map(mapSubEtapaRow)
+      .filter((subEtapa) => normalizeCatalogName(subEtapa.name) !== "caida de petalos")
+      .map(applySubEtapaLocalOverrides)
+      .sort((leftSubEtapa, rightSubEtapa) => {
+        if (leftSubEtapa.sortOrder !== rightSubEtapa.sortOrder) {
+          return leftSubEtapa.sortOrder - rightSubEtapa.sortOrder;
+        }
+
+        return leftSubEtapa.name.localeCompare(rightSubEtapa.name);
+      }) satisfies SubEtapaCatalogItem[];
   }
 };
 
@@ -701,6 +711,42 @@ function mapSubEtapaRow(row: SubEtapaRow): SubEtapaCatalogItem {
     percentage: row.percentage === null ? null : Number(row.percentage),
     isActive: fromSqliteBoolean(row.is_active)
   };
+}
+
+function applySubEtapaLocalOverrides(
+  subEtapa: SubEtapaCatalogItem
+): SubEtapaCatalogItem {
+  switch (normalizeCatalogName(subEtapa.name)) {
+    case "cuajado inicial":
+      return {
+        ...subEtapa,
+        sortOrder: 1,
+        percentage: 0
+      };
+    case "definicion amarre de frutos":
+      return {
+        ...subEtapa,
+        sortOrder: 2,
+        percentage: 50
+      };
+    case "consolidacion amarre total":
+      return {
+        ...subEtapa,
+        sortOrder: 3,
+        percentage: 100
+      };
+    default:
+      return subEtapa;
+  }
+}
+
+function normalizeCatalogName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function mapRecentVisitaCampoRow(row: RecentVisitaCampoRow): RecentVisitaCampo {

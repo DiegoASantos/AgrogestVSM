@@ -933,7 +933,8 @@ function SubEtapasProgressGuide({
     [onValueChange, sliderTrackWidth]
   );
 
-  const markerSize = 58;
+  const markerSize = sliderTrackWidth < 320 ? 48 : 58;
+  const markerImageSize = markerSize - 8;
   const clampedProgress = clampNumber(progress, 0, 100);
   const thumbLeft =
     sliderTrackWidth > 0
@@ -943,7 +944,7 @@ function SubEtapasProgressGuide({
   return (
     <View style={styles.subEtapasPanel}>
       <View style={styles.subEtapasHeader}>
-        <View>
+        <View style={styles.subEtapasHeaderCopy}>
           <AppText style={styles.subEtapasTitle} variant="label">
             Sub etapa
           </AppText>
@@ -1021,6 +1022,7 @@ function SubEtapasProgressGuide({
                   style={({ pressed }) => [
                     styles.subEtapaMarker,
                     {
+                      width: markerSize,
                       left: clampNumber(
                         markerLeft,
                         0,
@@ -1031,8 +1033,14 @@ function SubEtapasProgressGuide({
                   ]}
                 >
                   <Image
-                    source={getSubEtapaImageSource()}
-                    style={styles.subEtapaMarkerImage}
+                    source={getSubEtapaImageSource(subEtapa.name)}
+                    style={[
+                      styles.subEtapaMarkerImage,
+                      {
+                        width: markerImageSize,
+                        height: markerImageSize
+                      }
+                    ]}
                   />
                   <AppText
                     numberOfLines={1}
@@ -1089,7 +1097,7 @@ function SubEtapaInfoModal({
             <>
               <Image
                 resizeMode="contain"
-                source={getSubEtapaImageSource()}
+                source={getSubEtapaImageSource(subEtapa.name)}
                 style={styles.subEtapaModalImage}
               />
               <AppText style={styles.subEtapaModalTitle} variant="heading">
@@ -2240,7 +2248,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
     gap: 12
+  },
+  subEtapasHeaderCopy: {
+    minWidth: 180,
+    flex: 1,
+    flexShrink: 1
   },
   subEtapasTitle: {
     color: "#073b2a",
@@ -2250,7 +2264,8 @@ const styles = StyleSheet.create({
     color: "#5f6b66"
   },
   percentageInputShell: {
-    minWidth: 92,
+    width: 92,
+    maxWidth: "100%",
     minHeight: 46,
     flexDirection: "row",
     alignItems: "center",
@@ -2259,7 +2274,8 @@ const styles = StyleSheet.create({
     borderColor: "#cfd8c2",
     borderRadius: 12,
     paddingHorizontal: 9,
-    backgroundColor: "#ffffff"
+    backgroundColor: "#ffffff",
+    flexShrink: 0
   },
   percentageInput: {
     minWidth: 44,
@@ -2306,7 +2322,6 @@ const styles = StyleSheet.create({
   subEtapaMarker: {
     position: "absolute",
     top: -70,
-    width: 58,
     alignItems: "center",
     gap: 3
   },
