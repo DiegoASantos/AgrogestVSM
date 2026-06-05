@@ -3,6 +3,7 @@ import type {
   GeoJsonPoint,
   ParcelaListItem
 } from "../types/parcelas.types";
+import { Geodesic } from "geographiclib-geodesic";
 
 export type GeoEditorIssue = {
   code:
@@ -23,6 +24,7 @@ export type GeoEditorValidationResult = {
 type Coordinate = [number, number];
 
 const EPSILON = 1e-10;
+const SQUARE_METERS_PER_HECTARE = 10000;
 
 export function validateParcelaGeodata({
   referencePoint,
@@ -104,7 +106,29 @@ export function calculatePolygonAreaHectares(geometry: GeoJsonMultiPolygon | nul
     return polygonSum + Math.max(outerArea - holesArea, 0);
   }, 0);
 
-  return squareMeters / 10000;
+  return squareMeters / SQUARE_METERS_PER_HECTARE;
+}
+
+export function calculateRingAreaHectares(ringInput: number[][]) {
+  const ring = ringInput.map(toCoordinate);
+
+  if (ring.length < 3) {
+    return null;
+  }
+
+  return Math.abs(calculateRingAreaSquareMeters(ring)) / SQUARE_METERS_PER_HECTARE;
+}
+
+export function formatAreaHectares(value: number | null) {
+  if (value === null || !Number.isFinite(value)) {
+    return "Sin poligono";
+  }
+
+  if (value < 0.0001) {
+    return "< 0.0001 ha";
+  }
+
+  return `${value.toFixed(4)} ha`;
 }
 
 export function cloneGeodata<T extends GeoJsonPoint | GeoJsonMultiPolygon | null>(
@@ -349,24 +373,18 @@ function pointOnSegment(point: Coordinate, segmentStart: Coordinate, segmentEnd:
 
 function calculateRingAreaSquareMeters(ringInput: number[][]) {
   const ring = closeRing(ringInput.map(toCoordinate));
-  const earthRadius = 6378137;
 
   if (ring.length < 4) {
     return 0;
   }
 
-  let area = 0;
+  const polygonArea = Geodesic.WGS84.Polygon(false);
 
-  for (let index = 0; index < ring.length - 1; index++) {
-    const [longitudeA, latitudeA] = ring[index];
-    const [longitudeB, latitudeB] = ring[index + 1];
-
-    area +=
-      toRadians(longitudeB - longitudeA) *
-      (2 + Math.sin(toRadians(latitudeA)) + Math.sin(toRadians(latitudeB)));
+  for (const [longitude, latitude] of ring.slice(0, -1)) {
+    polygonArea.AddPoint(latitude, longitude);
   }
 
-  return (area * earthRadius * earthRadius) / 2;
+  return polygonArea.Compute(false, true).area ?? 0;
 }
 
 function closeRing(ring: Coordinate[]) {
@@ -398,10 +416,6 @@ function sameCoordinate(left: Coordinate, right: Coordinate) {
 
 function toCoordinate(coordinate: number[]): Coordinate {
   return [Number(coordinate[0]), Number(coordinate[1])];
-}
-
-function toRadians(value: number) {
-  return (value * Math.PI) / 180;
 }
 
 function buildParcelaLabel(parcela: ParcelaListItem) {

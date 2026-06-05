@@ -12,11 +12,13 @@ import type {
   ParcelaListItem
 } from "../types/parcelas.types";
 import type {
+  DrawingAreaPreview,
   GeoEditorAction,
   GeoEditorMode,
   ParcelaGeodatosMapProps
 } from "./parcela-geodatos-map";
 import {
+  calculateRingAreaHectares,
   getGeometryBounds,
   polygonFromRing
 } from "../utils/geo-editor";
@@ -56,6 +58,7 @@ function GeoEditorController({
   resetKey,
   hasUnsavedChanges,
   onChange,
+  onDrawingAreaChange,
   onModeChange
 }: ParcelaGeodatosMapProps) {
   const map = useMap();
@@ -66,6 +69,7 @@ function GeoEditorController({
   });
   const lastSyncedSignatureRef = useRef("");
   const lastActionNonceRef = useRef<number | null>(null);
+  const drawingAreaCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     layersRef.current.neighbors.addTo(map);
@@ -84,10 +88,11 @@ function GeoEditorController({
       map.pm.disableDraw();
       map.pm.disableGlobalEditMode();
       map.pm.disableGlobalDragMode();
+      resetDrawingAreaTracking(drawingAreaCleanupRef, onDrawingAreaChange);
       clearEditableLayers(map, layersRef.current);
       layersRef.current.neighbors.removeFrom(map);
     };
-  }, [map]);
+  }, [map, onDrawingAreaChange]);
 
   useEffect(() => {
     syncLayersFromState({
@@ -132,6 +137,7 @@ function GeoEditorController({
         replacePolygonLayer(map, layersRef.current, event.layer, onChange, true);
       }
 
+      resetDrawingAreaTracking(drawingAreaCleanupRef, onDrawingAreaChange);
       syncAndNotify(layersRef.current, onChange, lastSyncedSignatureRef);
       onModeChange("idle");
     };
@@ -141,7 +147,30 @@ function GeoEditorController({
     return () => {
       map.off("pm:create", handleCreate);
     };
-  }, [map, onChange, onModeChange]);
+  }, [map, onChange, onDrawingAreaChange, onModeChange]);
+
+  useEffect(() => {
+    const handleDrawStart = (event: { shape?: string; workingLayer?: L.Layer }) => {
+      if (event.shape !== "Polygon" || !(event.workingLayer instanceof L.Polygon)) {
+        return;
+      }
+
+      trackDrawingArea(event.workingLayer, drawingAreaCleanupRef, onDrawingAreaChange);
+    };
+
+    const handleDrawEnd = () => {
+      resetDrawingAreaTracking(drawingAreaCleanupRef, onDrawingAreaChange);
+    };
+
+    map.on("pm:drawstart", handleDrawStart);
+    map.on("pm:drawend", handleDrawEnd);
+
+    return () => {
+      map.off("pm:drawstart", handleDrawStart);
+      map.off("pm:drawend", handleDrawEnd);
+      resetDrawingAreaTracking(drawingAreaCleanupRef, onDrawingAreaChange);
+    };
+  }, [map, onDrawingAreaChange]);
 
   useEffect(() => {
     if (!action || action.nonce === lastActionNonceRef.current) {
@@ -149,6 +178,11 @@ function GeoEditorController({
     }
 
     lastActionNonceRef.current = action.nonce;
+
+    if (action.kind !== "draw-polygon") {
+      resetDrawingAreaTracking(drawingAreaCleanupRef, onDrawingAreaChange);
+    }
+
     executeAction(
       action,
       map,
@@ -157,9 +191,59 @@ function GeoEditorController({
       onModeChange,
       lastSyncedSignatureRef
     );
-  }, [action, map, onChange, onModeChange]);
+  }, [action, map, onChange, onDrawingAreaChange, onModeChange]);
 
   return null;
+}
+
+function trackDrawingArea(
+  layer: L.Polygon,
+  cleanupRef: React.MutableRefObject<(() => void) | null>,
+  onDrawingAreaChange?: ParcelaGeodatosMapProps["onDrawingAreaChange"]
+) {
+  resetDrawingAreaTracking(cleanupRef, onDrawingAreaChange, false);
+
+  const updatePreview = () => {
+    onDrawingAreaChange?.(readDrawingAreaPreview(layer));
+  };
+
+  const events = [
+    "pm:vertexadded",
+    "pm:vertexremoved",
+    "pm:markerdrag",
+    "pm:change",
+    "pm:edit",
+    "pm:update"
+  ];
+
+  events.forEach((eventName) => layer.on(eventName, updatePreview));
+  cleanupRef.current = () => {
+    events.forEach((eventName) => layer.off(eventName, updatePreview));
+  };
+
+  updatePreview();
+}
+
+function resetDrawingAreaTracking(
+  cleanupRef: React.MutableRefObject<(() => void) | null>,
+  onDrawingAreaChange?: ParcelaGeodatosMapProps["onDrawingAreaChange"],
+  clearPreview = true
+) {
+  cleanupRef.current?.();
+  cleanupRef.current = null;
+
+  if (clearPreview) {
+    onDrawingAreaChange?.(null);
+  }
+}
+
+function readDrawingAreaPreview(layer: L.Polygon): DrawingAreaPreview {
+  const ring = readOuterRing(layer);
+
+  return {
+    vertexCount: ring.length,
+    areaHectares: calculateRingAreaHectares(ring)
+  };
 }
 
 function syncLayersFromState({
@@ -451,15 +535,20 @@ function pointFromMarker(marker: L.Marker): GeoJsonPoint {
 }
 
 function geometryFromPolygon(polygon: L.Polygon): GeoJsonMultiPolygon | null {
+  return polygonFromRing(readOuterRing(polygon));
+}
+
+function readOuterRing(polygon: L.Polygon): Coordinate[] {
   const latLngs = polygon.getLatLngs();
   const firstPolygon = Array.isArray(latLngs[0]) ? latLngs[0] : latLngs;
-  const outerRing = (Array.isArray(firstPolygon[0]) ? firstPolygon[0] : firstPolygon) as L.LatLng[];
-  const ring = outerRing.map((latLng) => [
+  const outerRing = (Array.isArray(firstPolygon[0])
+    ? firstPolygon[0]
+    : firstPolygon) as L.LatLng[];
+
+  return outerRing.map((latLng) => [
     roundCoordinate(latLng.lng),
     roundCoordinate(latLng.lat)
   ] as Coordinate);
-
-  return polygonFromRing(ring);
 }
 
 function fitMapToVisibleGeodata(

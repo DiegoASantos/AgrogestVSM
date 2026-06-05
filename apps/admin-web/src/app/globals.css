@@ -1459,6 +1459,16 @@ canvas {
   background: var(--surface-strong);
 }
 
+.geo-editor-summary .geo-editor-summary__highlight {
+  border-color: rgba(21, 128, 61, 0.36);
+  background: rgba(220, 252, 231, 0.74);
+}
+
+[data-theme="dark"] .geo-editor-summary .geo-editor-summary__highlight {
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(22, 101, 52, 0.26);
+}
+
 .geo-editor-summary span {
   color: var(--text-secondary);
   font-size: 12px;

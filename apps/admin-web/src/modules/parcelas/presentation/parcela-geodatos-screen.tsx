@@ -21,6 +21,7 @@ import type {
 } from "../types/parcelas.types";
 import {
   ParcelaGeodatosMap,
+  type DrawingAreaPreview,
   type GeoEditorActionKind,
   type GeoEditorMode
 } from "./parcela-geodatos-map";
@@ -28,6 +29,7 @@ import {
   areGeodataEqual,
   calculatePolygonAreaHectares,
   cloneGeodata,
+  formatAreaHectares,
   validateParcelaGeodata
 } from "../utils/geo-editor";
 
@@ -77,6 +79,8 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [drawingAreaPreview, setDrawingAreaPreview] =
+    useState<DrawingAreaPreview | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -182,6 +186,12 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
             <span>Parcelas vecinas</span>
             <strong>{neighbors.filter((item) => item.geometry).length}</strong>
           </div>
+          {editorMode === "drawing-polygon" ? (
+            <div className="geo-editor-summary__highlight">
+              <span>Area en dibujo</span>
+              <strong>{buildDrawingAreaPreviewText(drawingAreaPreview)}</strong>
+            </div>
+          ) : null}
         </div>
 
         <section
@@ -330,6 +340,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
           hasUnsavedChanges={hasChanges}
           neighbors={neighbors}
           onChange={updateEditorState}
+          onDrawingAreaChange={setDrawingAreaPreview}
           onModeChange={setEditorMode}
           referencePoint={editorState.referencePoint}
           resetKey={resetKey}
@@ -376,6 +387,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
       setEditorState(cloneEditorState(nextState));
       setHistory({ past: [], future: [] });
       setEditorMode("idle");
+      setDrawingAreaPreview(null);
       setResetKey((currentKey) => currentKey + 1);
     } catch (error) {
       const apiError = toApiError(error);
@@ -399,6 +411,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
 
     if (kind === "stop") {
       setEditorMode("idle");
+      setDrawingAreaPreview(null);
     }
 
     setEditorAction({
@@ -451,6 +464,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
         return cloneEditorState(previousState);
       });
       setEditorMode("idle");
+      setDrawingAreaPreview(null);
 
       return {
         past: currentHistory.past.slice(0, -1),
@@ -478,6 +492,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
         return cloneEditorState(nextState);
       });
       setEditorMode("idle");
+      setDrawingAreaPreview(null);
 
       return {
         past: [...currentHistory.past, cloneEditorState(editorStateRef.current)].slice(
@@ -493,6 +508,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
     setEditorState(cloneEditorState(originalState));
     setHistory({ past: [], future: [] });
     setEditorMode("idle");
+    setDrawingAreaPreview(null);
     setResetKey((currentKey) => currentKey + 1);
   }
 
@@ -520,6 +536,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
       setEditorState(cloneEditorState(nextState));
       setHistory({ past: [], future: [] });
       setEditorMode("idle");
+      setDrawingAreaPreview(null);
       setResetKey((currentKey) => currentKey + 1);
       setSuccessMessage("Geodatos guardados correctamente.");
     } catch (error) {
@@ -581,6 +598,14 @@ function buildModeLabel(mode: GeoEditorMode) {
   };
 
   return labels[mode];
+}
+
+function buildDrawingAreaPreviewText(preview: DrawingAreaPreview | null) {
+  if (!preview || preview.vertexCount < 3 || preview.areaHectares === null) {
+    return "Agrega al menos 3 puntos";
+  }
+
+  return formatAreaHectares(preview.areaHectares);
 }
 
 function buildModeHelp(mode: GeoEditorMode, hasChanges: boolean) {

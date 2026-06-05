@@ -30,6 +30,11 @@ export type GeoEditorAction = {
   nonce: number;
 };
 
+export type DrawingAreaPreview = {
+  vertexCount: number;
+  areaHectares: number | null;
+};
+
 export type ParcelaGeodatosMapProps = {
   referencePoint: GeoJsonPoint | null;
   geometry: GeoJsonMultiPolygon | null;
@@ -41,6 +46,7 @@ export type ParcelaGeodatosMapProps = {
     referencePoint: GeoJsonPoint | null;
     geometry: GeoJsonMultiPolygon | null;
   }) => void;
+  onDrawingAreaChange?: (preview: DrawingAreaPreview | null) => void;
   onModeChange: (mode: GeoEditorMode) => void;
 };
 
