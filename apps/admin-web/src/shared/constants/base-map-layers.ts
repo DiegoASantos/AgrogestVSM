@@ -10,7 +10,7 @@ export type BaseMapLayerConfig = {
 export const BASE_MAP_LAYERS: BaseMapLayerConfig[] = [
   {
     id: "street",
-    label: "Mapa",
+    label: "Estandar",
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
