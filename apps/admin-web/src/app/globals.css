@@ -1279,6 +1279,48 @@ canvas {
   color: #d1d5db;
 }
 
+.admin-map .leaflet-control-layers,
+.geo-editor-map .leaflet-control-layers {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-map .leaflet-control-layers-expanded,
+.geo-editor-map .leaflet-control-layers-expanded {
+  padding: 8px 10px;
+}
+
+.admin-map .leaflet-control-layers label,
+.geo-editor-map .leaflet-control-layers label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.admin-map .leaflet-control-layers label + label,
+.geo-editor-map .leaflet-control-layers label + label {
+  margin-top: 6px;
+}
+
+.admin-map .leaflet-control-layers input,
+.geo-editor-map .leaflet-control-layers input {
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+[data-theme="dark"] .admin-map .leaflet-control-layers,
+[data-theme="dark"] .geo-editor-map .leaflet-control-layers {
+  background: rgba(26, 29, 39, 0.94);
+}
+
 .map-layout {
   display: grid;
   gap: 20px;

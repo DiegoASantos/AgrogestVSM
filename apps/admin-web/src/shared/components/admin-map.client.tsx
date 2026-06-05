@@ -6,10 +6,10 @@ import {
   MapContainer,
   Polygon,
   Popup,
-  TileLayer,
   useMap
 } from "react-leaflet";
 
+import { BaseMapLayersControl } from "./base-map-layers-control";
 import type {
   AdminMapPoint,
   AdminMapPolygon,
@@ -21,9 +21,6 @@ const DEFAULT_ZOOM = 6;
 const DEFAULT_POINT_COLOR = "#166534";
 const DEFAULT_POLYGON_COLOR = "#15803d";
 const DEFAULT_POLYGON_FILL = "#bbf7d0";
-const TILE_LAYER_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const TILE_LAYER_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 export function AdminMapClient({
   points = [],
@@ -48,7 +45,7 @@ export function AdminMapClient({
         scrollWheelZoom
         zoom={viewport?.zoom ?? DEFAULT_ZOOM}
       >
-        <TileLayer attribution={TILE_LAYER_ATTRIBUTION} url={TILE_LAYER_URL} />
+        <BaseMapLayersControl />
         {!viewport && fitBounds.length > 0 ? <FitMapBounds bounds={fitBounds} /> : null}
 
         {polygons.flatMap((polygon) => renderPolygonFeature(polygon))}

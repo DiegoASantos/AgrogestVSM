@@ -2,9 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import L from "leaflet";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, useMap } from "react-leaflet";
 import "@geoman-io/leaflet-geoman-free";
 
+import { BaseMapLayersControl } from "../../../shared/components/base-map-layers-control";
 import type {
   GeoJsonMultiPolygon,
   GeoJsonPoint,
@@ -22,9 +23,6 @@ import {
 
 const DEFAULT_CENTER: [number, number] = [-9.189967, -75.015152];
 const DEFAULT_ZOOM = 6;
-const TILE_LAYER_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-const TILE_LAYER_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 type Coordinate = [number, number];
 
@@ -43,7 +41,7 @@ export function ParcelaGeodatosMapClient(props: ParcelaGeodatosMapProps) {
         scrollWheelZoom
         zoom={DEFAULT_ZOOM}
       >
-        <TileLayer attribution={TILE_LAYER_ATTRIBUTION} url={TILE_LAYER_URL} />
+        <BaseMapLayersControl />
         <GeoEditorController {...props} />
       </MapContainer>
     </div>
