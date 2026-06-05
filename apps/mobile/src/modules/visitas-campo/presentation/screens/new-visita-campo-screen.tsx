@@ -155,6 +155,11 @@ export function NewVisitaCampoScreen() {
 
     setValues((currentValues) => ({
       ...currentValues,
+      plantsCount:
+        currentValues.plantsCount ||
+        (defaults.plantsCount === null || defaults.plantsCount === undefined
+          ? ""
+          : String(defaults.plantsCount)),
       sowingDate: currentValues.sowingDate || defaults.sowingDate || "",
       areaHectares:
         currentValues.areaHectares || defaults.areaHectares || ""
@@ -186,7 +191,7 @@ export function NewVisitaCampoScreen() {
   );
 
   useEffect(() => {
-    if (!selectedEtapaFenologica || selectedEtapaFenologica.type !== "Etapa") {
+    if (!selectedEtapaFenologica) {
       setSubEtapas([]);
       setSubEtapasError(null);
       setValues((currentValues) => ({
@@ -197,7 +202,20 @@ export function NewVisitaCampoScreen() {
       return;
     }
 
-    void loadSubEtapas(selectedEtapaFenologica.id);
+    if (selectedEtapaFenologica.type === "Etapa") {
+      void loadSubEtapas(selectedEtapaFenologica.id);
+      return;
+    }
+
+    setSubEtapas([]);
+    setSubEtapasError(null);
+    setValues((currentValues) => ({
+      ...currentValues,
+      subEtapaId: "",
+      subEtapaPercentage: isPendingLabor(selectedEtapaFenologica)
+        ? ""
+        : currentValues.subEtapaPercentage || "0"
+    }));
   }, [selectedEtapaFenologica?.id, selectedEtapaFenologica?.type]);
 
   const cultivoOptions = useMemo(
@@ -240,6 +258,9 @@ export function NewVisitaCampoScreen() {
   const shouldShowSubEtapas =
     selectedEtapaFenologica?.type === "Etapa" &&
     (isLoadingSubEtapas || subEtapas.length > 0 || !!subEtapasError);
+  const shouldShowLaborProgress =
+    selectedEtapaFenologica?.type === "Labor" &&
+    !isPendingLabor(selectedEtapaFenologica);
 
   if (!session.accessToken) {
     return (
@@ -432,6 +453,9 @@ export function NewVisitaCampoScreen() {
                   onChangeText={(value) =>
                     updateField("startVisitTime", formatTypedTimeInput(value))
                   }
+                  onEndEditing={() =>
+                    updateField("startVisitTime", normalizeTypedTimeInput(values.startVisitTime))
+                  }
                   placeholder="HH:MM"
                   value={values.startVisitTime}
                 />
@@ -448,6 +472,9 @@ export function NewVisitaCampoScreen() {
                   label="Hora de fin"
                   onChangeText={(value) =>
                     updateField("endVisitTime", formatTypedTimeInput(value))
+                  }
+                  onEndEditing={() =>
+                    updateField("endVisitTime", normalizeTypedTimeInput(values.endVisitTime))
                   }
                   placeholder="HH:MM"
                   value={values.endVisitTime}
@@ -490,17 +517,41 @@ export function NewVisitaCampoScreen() {
             />
 
             {shouldShowSubEtapas ? (
-              <SubEtapasProgressGuide
-                error={subEtapasError}
+              <ProgressGuide
+                error={getCatalogError(subEtapasError, errors.subEtapaPercentage)}
                 isLoading={isLoadingSubEtapas}
                 onImagePress={(subEtapa) => setSelectedSubEtapaInfo(subEtapa)}
                 onTrackLayout={(event) =>
                   setSliderTrackWidth(event.nativeEvent.layout.width)
                 }
                 onValueChange={handleSubEtapaProgressChange}
+                onValueCommit={commitSubEtapaProgress}
                 progress={Number.isFinite(subEtapaProgress) ? subEtapaProgress : 0}
+                showMarkers
                 sliderTrackWidth={sliderTrackWidth}
                 subEtapas={subEtapas}
+                subtitle="Ajusta el avance observado del cultivo."
+                title="Sub etapa"
+                valueText={values.subEtapaPercentage}
+              />
+            ) : null}
+
+            {shouldShowLaborProgress ? (
+              <ProgressGuide
+                error={errors.subEtapaPercentage ?? null}
+                isLoading={false}
+                onImagePress={(subEtapa) => setSelectedSubEtapaInfo(subEtapa)}
+                onTrackLayout={(event) =>
+                  setSliderTrackWidth(event.nativeEvent.layout.width)
+                }
+                onValueChange={handleSubEtapaProgressChange}
+                onValueCommit={commitSubEtapaProgress}
+                progress={Number.isFinite(subEtapaProgress) ? subEtapaProgress : 0}
+                showMarkers={false}
+                sliderTrackWidth={sliderTrackWidth}
+                subEtapas={[]}
+                subtitle="Ajusta el porcentaje de avance de la labor."
+                title="Avance de labor"
                 valueText={values.subEtapaPercentage}
               />
             ) : null}
@@ -653,7 +704,16 @@ export function NewVisitaCampoScreen() {
   }
 
   function handleSubEtapaProgressChange(value: number | string) {
-    const parsedPercentage = parsePercentageValue(value);
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      subEtapaPercentage: undefined
+    }));
+    setSubmitError(null);
+
+    const parsedPercentage =
+      typeof value === "number"
+        ? roundPercentageToStep(value)
+        : parsePercentageValue(value);
 
     if (parsedPercentage === null) {
       setValues((currentValues) => ({
@@ -673,8 +733,37 @@ export function NewVisitaCampoScreen() {
     }));
   }
 
+  function commitSubEtapaProgress(value: number | string) {
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      subEtapaPercentage: undefined
+    }));
+    setSubmitError(null);
+
+    const parsedPercentage = parsePercentageValue(value);
+
+    if (parsedPercentage === null) {
+      setValues((currentValues) => ({
+        ...currentValues,
+        subEtapaId: "",
+        subEtapaPercentage: ""
+      }));
+      return;
+    }
+
+    const roundedPercentage = roundPercentageToStep(parsedPercentage);
+    const closestSubEtapa = findClosestSubEtapa(subEtapas, roundedPercentage);
+
+    setValues((currentValues) => ({
+      ...currentValues,
+      subEtapaId: closestSubEtapa?.id ?? "",
+      subEtapaPercentage: formatPercentageValue(roundedPercentage)
+    }));
+  }
+
   async function handleSubmit() {
-    const nextErrors = validateForm(values, today);
+    const normalizedValues = normalizeFormValuesForSubmit(values, subEtapas);
+    const nextErrors = validateForm(normalizedValues, today);
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
@@ -689,11 +778,12 @@ export function NewVisitaCampoScreen() {
 
     setIsSubmitting(true);
     setSubmitError(null);
+    setValues(normalizedValues);
 
     try {
       const location = await captureLocationSilently();
       const createdVisita = await visitasCampoService.create(
-        buildCreateDraft(values, location),
+        buildCreateDraft(normalizedValues, location),
         {
           accessToken: session.accessToken,
           tokenType: session.tokenType
@@ -895,29 +985,37 @@ function WizardProgress({ compact, currentStep, steps }: WizardProgressProps) {
   );
 }
 
-type SubEtapasProgressGuideProps = {
+type ProgressGuideProps = {
   subEtapas: SubEtapaCatalogItem[];
   progress: number;
   valueText: string;
   sliderTrackWidth: number;
   isLoading: boolean;
   error: string | null;
+  title: string;
+  subtitle: string;
+  showMarkers: boolean;
   onTrackLayout: (event: LayoutChangeEvent) => void;
   onValueChange: (value: number | string) => void;
+  onValueCommit: (value: number | string) => void;
   onImagePress: (subEtapa: SubEtapaCatalogItem) => void;
 };
 
-function SubEtapasProgressGuide({
+function ProgressGuide({
   subEtapas,
   progress,
   valueText,
   sliderTrackWidth,
   isLoading,
   error,
+  title,
+  subtitle,
+  showMarkers,
   onTrackLayout,
   onValueChange,
+  onValueCommit,
   onImagePress
-}: SubEtapasProgressGuideProps) {
+}: ProgressGuideProps) {
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -946,17 +1044,18 @@ function SubEtapasProgressGuide({
       <View style={styles.subEtapasHeader}>
         <View style={styles.subEtapasHeaderCopy}>
           <AppText style={styles.subEtapasTitle} variant="label">
-            Sub etapa
+            {title}
           </AppText>
           <AppText style={styles.subEtapasSubtitle} variant="caption">
-            Ajusta el avance observado del cultivo.
+            {subtitle}
           </AppText>
         </View>
         <View style={styles.percentageInputShell}>
           <TextInput
-            keyboardType="decimal-pad"
-            maxLength={6}
+            keyboardType="number-pad"
+            maxLength={3}
             onChangeText={onValueChange}
+            onEndEditing={() => onValueCommit(valueText)}
             placeholder="0"
             placeholderTextColor={theme.colors.textMuted}
             style={styles.percentageInput}
@@ -980,7 +1079,7 @@ function SubEtapasProgressGuide({
         </AppText>
       ) : null}
 
-      {!isLoading && !error && subEtapas.length > 0 ? (
+      {!isLoading && !error && (subEtapas.length > 0 || !showMarkers) ? (
         <View style={styles.sliderArea}>
           <View
             onLayout={onTrackLayout}
@@ -1005,7 +1104,7 @@ function SubEtapasProgressGuide({
                 }
               ]}
             />
-            {subEtapas.map((subEtapa) => {
+            {showMarkers ? subEtapas.map((subEtapa) => {
               const percentage = subEtapa.percentage ?? 0;
               const markerLeft =
                 sliderTrackWidth > 0
@@ -1051,7 +1150,7 @@ function SubEtapasProgressGuide({
                   </AppText>
                 </Pressable>
               );
-            })}
+            }) : null}
           </View>
           <View style={styles.sliderFooter}>
             <AppText style={styles.sliderBoundText} variant="caption">
@@ -1187,6 +1286,7 @@ type IconTextInputProps = {
   keyboardType?: "default" | "number-pad" | "decimal-pad";
   error?: string | null;
   onChangeText: (value: string) => void;
+  onEndEditing?: () => void;
 };
 
 function IconTextInput({
@@ -1196,7 +1296,8 @@ function IconTextInput({
   placeholder,
   keyboardType = "default",
   error,
-  onChangeText
+  onChangeText,
+  onEndEditing
 }: IconTextInputProps) {
   return (
     <View style={styles.localFieldWrapper}>
@@ -1210,6 +1311,7 @@ function IconTextInput({
         <TextInput
           keyboardType={keyboardType}
           onChangeText={onChangeText}
+          onEndEditing={onEndEditing}
           placeholder={placeholder}
           placeholderTextColor={theme.colors.textMuted}
           style={styles.iconInput}
@@ -1459,6 +1561,19 @@ function getCatalogError(loadError: string | null, validationError?: string) {
   return validationError || loadError;
 }
 
+function isPendingLabor(etapa: EtapaFenologicaCatalogItem) {
+  return etapa.type === "Labor" && normalizeCatalogName(etapa.name).includes("induccion flor");
+}
+
+function normalizeCatalogName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 function validateForm(
   values: NewVisitaCampoFormValues,
   today: string
@@ -1523,11 +1638,11 @@ function validateForm(
       nextErrors.endVisitTime = "Hora de fin debe tener formato HH:mm.";
     } else if (
       values.startVisitTime.trim() &&
-      normalizeTimeForApi(values.endVisitTime) >
-        normalizeTimeForApi(values.startVisitTime)
+      normalizeTimeForApi(values.startVisitTime) >
+        normalizeTimeForApi(values.endVisitTime)
     ) {
-      nextErrors.endVisitTime =
-        "Hora de fin no puede ser mayor a la hora de inicio.";
+      nextErrors.startVisitTime =
+        "Hora de inicio no puede ser mayor a la hora de fin.";
     }
   }
 
@@ -1541,10 +1656,33 @@ function validateForm(
     ) {
       nextErrors.subEtapaPercentage =
         "Porcentaje de sub etapa debe estar entre 0 y 100.";
+    } else if (!isPercentageStep(subEtapaPercentage)) {
+      nextErrors.subEtapaPercentage =
+        "Porcentaje debe avanzar de 5 en 5.";
     }
   }
 
   return nextErrors;
+}
+
+function normalizeFormValuesForSubmit(
+  values: NewVisitaCampoFormValues,
+  subEtapas: SubEtapaCatalogItem[]
+): NewVisitaCampoFormValues {
+  const parsedPercentage = parsePercentageValue(values.subEtapaPercentage);
+
+  if (parsedPercentage === null) {
+    return values;
+  }
+
+  const roundedPercentage = roundPercentageToStep(parsedPercentage);
+  const closestSubEtapa = findClosestSubEtapa(subEtapas, roundedPercentage);
+
+  return {
+    ...values,
+    subEtapaId: closestSubEtapa?.id ?? "",
+    subEtapaPercentage: formatPercentageValue(roundedPercentage)
+  };
 }
 
 function buildCreateDraft(
@@ -1603,18 +1741,39 @@ function findClosestSubEtapa(
 }
 
 function parsePercentageValue(value: number | string) {
-  const parsedValue =
-    typeof value === "number" ? value : Number(formatDecimalInput(value, 2));
+  if (typeof value === "string") {
+    const normalizedValue = formatIntegerInput(value);
 
-  if (!Number.isFinite(parsedValue)) {
+    if (!normalizedValue) {
+      return null;
+    }
+
+    const parsedValue = Number(normalizedValue);
+
+    if (!Number.isFinite(parsedValue)) {
+      return null;
+    }
+
+    return clampNumber(parsedValue, 0, 100);
+  }
+
+  if (!Number.isFinite(value)) {
     return null;
   }
 
-  return clampNumber(parsedValue, 0, 100);
+  return clampNumber(value, 0, 100);
 }
 
 function formatPercentageValue(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function roundPercentageToStep(value: number) {
+  return clampNumber(Math.round(value / 5) * 5, 0, 100);
+}
+
+function isPercentageStep(value: number) {
+  return Number.isInteger(value) && value % 5 === 0;
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -1633,6 +1792,10 @@ function formatDecimalInput(value: string, maxDecimals = 4) {
   return integerPart;
 }
 
+function formatIntegerInput(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 function normalizeTimeForApi(value: string) {
   const trimmedValue = value.trim();
 
@@ -1647,10 +1810,50 @@ function formatTypedTimeInput(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 4);
 
   if (digits.length <= 2) {
-    return digits;
+    if (digits.length < 2) {
+      return digits;
+    }
+
+    return formatBoundedTimePart(digits, 23);
   }
 
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+  const hour = formatBoundedTimePart(digits.slice(0, 2), 23);
+  const minute =
+    digits.length === 3
+      ? digits.slice(2)
+      : formatBoundedTimePart(digits.slice(2), 59);
+
+  return `${hour}:${minute}`;
+}
+
+function normalizeTypedTimeInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 4);
+
+  if (!digits) {
+    return "";
+  }
+
+  if (digits.length <= 2) {
+    return `${formatBoundedTimePart(digits, 23)}:00`;
+  }
+
+  const hourDigits = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
+  const minuteDigits = digits.length === 3 ? digits.slice(1) : digits.slice(2);
+
+  return `${formatBoundedTimePart(hourDigits, 23)}:${formatBoundedTimePart(
+    minuteDigits,
+    59
+  )}`;
+}
+
+function formatBoundedTimePart(value: string, max: number) {
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    return "00";
+  }
+
+  return padTimeValue(clampNumber(parsedValue, 0, max));
 }
 
 function parseDateValue(value: string) {

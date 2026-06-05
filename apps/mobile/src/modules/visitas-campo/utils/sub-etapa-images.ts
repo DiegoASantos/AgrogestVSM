@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import type { ImageSourcePropType } from "react-native";
 
 const FALLBACK_SUB_ETAPA_IMAGE = require("../../../../assets/images/icon_vsm.png");

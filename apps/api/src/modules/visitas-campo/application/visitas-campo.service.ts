@@ -102,8 +102,8 @@ export class VisitasCampoService {
       areaHectares: normalizeAreaHectares(
         createVisitaCampoDto.areaHectares ?? null
       ),
-      fechaSiembra: createVisitaCampoDto.sowingDate ?? null,
-      fechaVisita: createVisitaCampoDto.visitDate,
+      fechaSiembra: normalizeDateOnly(createVisitaCampoDto.sowingDate ?? null),
+      fechaVisita: normalizeRequiredDateOnly(createVisitaCampoDto.visitDate),
       horaVisitaInicio: createVisitaCampoDto.startVisitTime,
       horaVisitaFin: createVisitaCampoDto.endVisitTime ?? null,
       etapaFenologicaId: createVisitaCampoDto.phenologicalStageId ?? null,
@@ -367,10 +367,10 @@ export class VisitasCampoService {
           }
         : {}),
       ...(updateVisitaCampoDto.sowingDate !== undefined
-        ? { fechaSiembra: updateVisitaCampoDto.sowingDate }
+        ? { fechaSiembra: normalizeDateOnly(updateVisitaCampoDto.sowingDate) }
         : {}),
       ...(updateVisitaCampoDto.visitDate !== undefined
-        ? { fechaVisita: updateVisitaCampoDto.visitDate }
+        ? { fechaVisita: normalizeRequiredDateOnly(updateVisitaCampoDto.visitDate) }
         : {}),
       ...(updateVisitaCampoDto.startVisitTime !== undefined
         ? { horaVisitaInicio: updateVisitaCampoDto.startVisitTime }
@@ -783,8 +783,8 @@ export class VisitasCampoService {
       agronomistUserId: visitaCampo.agronomoUsuarioId,
       plantsCount: visitaCampo.nroPlantas,
       areaHectares: visitaCampo.areaHectares,
-      sowingDate: visitaCampo.fechaSiembra,
-      visitDate: visitaCampo.fechaVisita,
+      sowingDate: normalizeDateOnly(visitaCampo.fechaSiembra),
+      visitDate: normalizeRequiredDateOnly(visitaCampo.fechaVisita),
       startVisitTime: visitaCampo.horaVisitaInicio,
       endVisitTime: visitaCampo.horaVisitaFin,
       phenologicalStageId: visitaCampo.etapaFenologicaId,
@@ -821,7 +821,7 @@ export class VisitasCampoService {
         parcelaId: visitaCampo.parcelaId,
         campaignId: visitaCampo.campaniaId,
         agronomistUserId: visitaCampo.agronomoUsuarioId,
-        visitDate: visitaCampo.fechaVisita,
+        visitDate: normalizeRequiredDateOnly(visitaCampo.fechaVisita),
         isActive: visitaCampo.isActive,
         geometryRole: "visit_location"
       },
@@ -910,7 +910,7 @@ function validateVisitTimes(
 
   if (endVisitTime < startVisitTime) {
     throw new BadRequestException(
-      "endVisitTime must be greater than or equal to startVisitTime."
+      "startVisitTime must be less than or equal to endVisitTime."
     );
   }
 }
@@ -928,6 +928,35 @@ function validateDateRange(
       "fecha_hasta must be greater than or equal to fecha_desde."
     );
   }
+}
+
+function normalizeRequiredDateOnly(value: unknown): string {
+  const normalizedValue = normalizeDateOnly(value);
+
+  if (!normalizedValue) {
+    throw new BadRequestException("Date value is required.");
+  }
+
+  return normalizedValue;
+}
+
+function normalizeDateOnly(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return `${value.getUTCFullYear()}-${padDatePart(value.getUTCMonth() + 1)}-${padDatePart(value.getUTCDate())}`;
+  }
+
+  const normalizedValue = String(value).trim();
+  const dateOnlyMatch = normalizedValue.match(/^(\d{4}-\d{2}-\d{2})/);
+
+  return dateOnlyMatch?.[1] ?? normalizedValue;
+}
+
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
 }
 
 function normalizeAreaHectares(value: unknown): string | null {

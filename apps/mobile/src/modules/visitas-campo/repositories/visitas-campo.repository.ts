@@ -107,6 +107,7 @@ type SubEtapaRow = {
 type VisitDefaultsRow = {
   sowing_date: string | null;
   area_hectares: string | null;
+  plants_count: number | null;
 };
 
 type RecentVisitaCampoRow = {
@@ -266,11 +267,15 @@ export const visitasCampoRepository = {
   getLastVisitDefaultsByParcelaId(parcelaId: string) {
     const db = getDatabase();
     const row = db.getFirstSync<VisitDefaultsRow>(
-      `SELECT sowing_date, area_hectares
+      `SELECT sowing_date, area_hectares, plants_count
        FROM visitas_campo
        WHERE parcela_id = ?
          AND is_active = 1
-         AND (sowing_date IS NOT NULL OR area_hectares IS NOT NULL)
+         AND (
+           sowing_date IS NOT NULL
+           OR area_hectares IS NOT NULL
+           OR plants_count IS NOT NULL
+         )
        ORDER BY visit_date DESC, start_visit_time DESC, created_at DESC
        LIMIT 1`,
       parcelaId
@@ -279,7 +284,8 @@ export const visitasCampoRepository = {
     return row
       ? {
           sowingDate: row.sowing_date,
-          areaHectares: row.area_hectares
+          areaHectares: row.area_hectares,
+          plantsCount: row.plants_count
         }
       : null;
   },

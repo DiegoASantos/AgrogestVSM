@@ -113,7 +113,7 @@ export class CreateVisitaCampoDto {
   @ApiPropertyOptional({
     example: "2026-03-10"
   })
-  @Transform(({ value }) => trimOptionalString(value))
+  @Transform(({ value }) => normalizeOptionalDateOnly(value))
   @IsOptional()
   @IsDateString(
     {},
@@ -126,7 +126,7 @@ export class CreateVisitaCampoDto {
   @ApiProperty({
     example: "2026-04-04"
   })
-  @Transform(({ value }) => trimRequiredString(value))
+  @Transform(({ value }) => normalizeRequiredDateOnly(value))
   @IsDateString(
     {},
     {
@@ -291,4 +291,40 @@ function normalizeOptionalDecimal(value: unknown): string | null | undefined {
   }
 
   return String(value).trim();
+}
+
+function normalizeRequiredDateOnly(value: unknown): string {
+  return normalizeDateOnly(value) ?? "";
+}
+
+function normalizeOptionalDateOnly(value: unknown): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null || value === "") {
+    return null;
+  }
+
+  return normalizeDateOnly(value);
+}
+
+function normalizeDateOnly(value: unknown): string | null {
+  if (value instanceof Date) {
+    return `${value.getUTCFullYear()}-${padDatePart(value.getUTCMonth() + 1)}-${padDatePart(value.getUTCDate())}`;
+  }
+
+  const normalizedValue = String(value ?? "").trim();
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const dateOnlyMatch = normalizedValue.match(/^(\d{4}-\d{2}-\d{2})/);
+
+  return dateOnlyMatch?.[1] ?? normalizedValue;
+}
+
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
 }
