@@ -34,6 +34,8 @@ type EditorLayerRefs = {
   neighbors: L.LayerGroup;
 };
 
+type DrawingLayer = L.Polygon | L.Polyline;
+
 export function ParcelaGeodatosMapClient(props: ParcelaGeodatosMapProps) {
   return (
     <div className="geo-editor-map">
@@ -151,11 +153,23 @@ function GeoEditorController({
 
   useEffect(() => {
     const handleDrawStart = (event: { shape?: string; workingLayer?: L.Layer }) => {
-      if (event.shape !== "Polygon" || !(event.workingLayer instanceof L.Polygon)) {
+      const workingLayer = getDrawingLayer(event.workingLayer);
+
+      if (event.shape !== "Polygon" || !workingLayer) {
         return;
       }
 
-      trackDrawingArea(event.workingLayer, drawingAreaCleanupRef, onDrawingAreaChange);
+      trackDrawingArea(workingLayer, drawingAreaCleanupRef, onDrawingAreaChange);
+    };
+
+    const handleVertexAdded = (event: { shape?: string; workingLayer?: L.Layer }) => {
+      const workingLayer = getDrawingLayer(event.workingLayer);
+
+      if (event.shape !== "Polygon" || !workingLayer) {
+        return;
+      }
+
+      trackDrawingArea(workingLayer, drawingAreaCleanupRef, onDrawingAreaChange);
     };
 
     const handleDrawEnd = () => {
@@ -163,10 +177,12 @@ function GeoEditorController({
     };
 
     map.on("pm:drawstart", handleDrawStart);
+    map.on("pm:vertexadded", handleVertexAdded);
     map.on("pm:drawend", handleDrawEnd);
 
     return () => {
       map.off("pm:drawstart", handleDrawStart);
+      map.off("pm:vertexadded", handleVertexAdded);
       map.off("pm:drawend", handleDrawEnd);
       resetDrawingAreaTracking(drawingAreaCleanupRef, onDrawingAreaChange);
     };
@@ -197,7 +213,7 @@ function GeoEditorController({
 }
 
 function trackDrawingArea(
-  layer: L.Polygon,
+  layer: DrawingLayer,
   cleanupRef: React.MutableRefObject<(() => void) | null>,
   onDrawingAreaChange?: ParcelaGeodatosMapProps["onDrawingAreaChange"]
 ) {
@@ -222,6 +238,7 @@ function trackDrawingArea(
   };
 
   updatePreview();
+  window.requestAnimationFrame(updatePreview);
 }
 
 function resetDrawingAreaTracking(
@@ -237,13 +254,21 @@ function resetDrawingAreaTracking(
   }
 }
 
-function readDrawingAreaPreview(layer: L.Polygon): DrawingAreaPreview {
-  const ring = readOuterRing(layer);
+function readDrawingAreaPreview(layer: DrawingLayer): DrawingAreaPreview {
+  const ring = readLayerRing(layer);
 
   return {
     vertexCount: ring.length,
     areaHectares: calculateRingAreaHectares(ring)
   };
+}
+
+function getDrawingLayer(layer?: L.Layer): DrawingLayer | null {
+  if (layer instanceof L.Polygon || layer instanceof L.Polyline) {
+    return layer;
+  }
+
+  return null;
 }
 
 function syncLayersFromState({
@@ -535,11 +560,11 @@ function pointFromMarker(marker: L.Marker): GeoJsonPoint {
 }
 
 function geometryFromPolygon(polygon: L.Polygon): GeoJsonMultiPolygon | null {
-  return polygonFromRing(readOuterRing(polygon));
+  return polygonFromRing(readLayerRing(polygon));
 }
 
-function readOuterRing(polygon: L.Polygon): Coordinate[] {
-  const latLngs = polygon.getLatLngs();
+function readLayerRing(layer: DrawingLayer): Coordinate[] {
+  const latLngs = layer.getLatLngs();
   const firstPolygon = Array.isArray(latLngs[0]) ? latLngs[0] : latLngs;
   const outerRing = (Array.isArray(firstPolygon[0])
     ? firstPolygon[0]
