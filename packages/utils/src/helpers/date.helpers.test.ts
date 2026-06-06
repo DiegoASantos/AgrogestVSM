@@ -16,6 +16,14 @@ describe("formatShortDate", () => {
     expect(formatShortDate("not-a-date")).toBe("");
   });
 
+  it("formats date-only strings without UTC timezone drift", () => {
+    const result = formatShortDate("2026-06-01");
+
+    expect(result).toMatch(/01/);
+    expect(result).toMatch(/06/);
+    expect(result).toMatch(/2026/);
+  });
+
   it("accepts a Date instance", () => {
     const result = formatShortDate(new Date("2025-01-01T12:00:00Z"));
     expect(result).toMatch(/2025/);

@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { DataTable, type DataTableColumn } from "../../../shared/components/data-table";
+import { formatDateOnly } from "../../../shared/utils/date-only";
 import type { VisitaCampo } from "../types/visitas.types";
 
 type VisitasTableProps = {
@@ -100,9 +101,7 @@ export function VisitasTable({
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "medium"
-  }).format(new Date(value));
+  return formatDateOnly(value);
 }
 
 function formatTime(value: string | null) {

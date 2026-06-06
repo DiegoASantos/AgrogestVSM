@@ -115,6 +115,9 @@ export class CreateVisitaCampoDto {
   })
   @Transform(({ value }) => normalizeOptionalDateOnly(value))
   @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "sowingDate must use YYYY-MM-DD format."
+  })
   @IsDateString(
     {},
     {
@@ -127,6 +130,9 @@ export class CreateVisitaCampoDto {
     example: "2026-04-04"
   })
   @Transform(({ value }) => normalizeRequiredDateOnly(value))
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "visitDate must use YYYY-MM-DD format."
+  })
   @IsDateString(
     {},
     {
@@ -320,9 +326,7 @@ function normalizeDateOnly(value: unknown): string | null {
     return null;
   }
 
-  const dateOnlyMatch = normalizedValue.match(/^(\d{4}-\d{2}-\d{2})/);
-
-  return dateOnlyMatch?.[1] ?? normalizedValue;
+  return normalizedValue;
 }
 
 function padDatePart(value: number): string {

@@ -8,6 +8,7 @@ import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
+import { formatDateOnly } from "../../../shared/utils/date-only";
 import { buildAdminMapHref } from "../../mapas/utils/map-query";
 import { visitasService } from "../services/visitas.service";
 import type {
@@ -352,9 +353,7 @@ function createLookupMap(
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "medium"
-  }).format(new Date(value));
+  return formatDateOnly(value);
 }
 
 function formatDateTime(value: string) {
