@@ -2,6 +2,7 @@ import { type SQLiteDatabase } from "expo-sqlite";
 
 import { getDatabase } from "./connection";
 import type { SyncEntityType } from "../sync/sync-entities";
+import { requestSync } from "../sync/sync-requests";
 
 export type SyncOutboxOperation = "create" | "update" | "delete";
 
@@ -82,6 +83,8 @@ export function insertSyncOutboxEntry(
     entry.payload ?? null,
     entry.createdAt
   );
+
+  requestSync();
 }
 
 export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
