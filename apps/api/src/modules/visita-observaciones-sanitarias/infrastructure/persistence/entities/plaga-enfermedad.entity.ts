@@ -1,5 +1,13 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn
+} from "typeorm";
 
+import { EtapaFenologicaEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/etapa-fenologica.entity";
 import { VisitaObservacionSanitariaEntity } from "./visita-observacion-sanitaria.entity";
 
 @Entity({ name: "plagas_enfermedades" })
@@ -33,11 +41,32 @@ export class PlagaEnfermedadEntity {
   type!: string;
 
   @Column({
+    name: "etapa_fenologica_id",
+    type: "bigint",
+    nullable: true
+  })
+  etapaFenologicaId!: string | null;
+
+  @Column({
     name: "activo",
     type: "boolean",
     default: () => "true"
   })
   isActive!: boolean;
+
+  @ManyToOne(
+    () => EtapaFenologicaEntity,
+    {
+      nullable: true,
+      onDelete: "SET NULL",
+      onUpdate: "NO ACTION"
+    }
+  )
+  @JoinColumn({
+    name: "etapa_fenologica_id",
+    referencedColumnName: "id"
+  })
+  etapaFenologica!: EtapaFenologicaEntity | null;
 
   @OneToMany(
     () => VisitaObservacionSanitariaEntity,

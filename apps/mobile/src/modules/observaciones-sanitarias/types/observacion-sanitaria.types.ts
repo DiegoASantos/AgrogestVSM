@@ -3,6 +3,7 @@ export type PestDiseaseCatalogItem = {
   scientificName: string | null;
   name: string;
   type: string;
+  etapaFenologicaId: string | null;
   isActive: boolean;
 };
 

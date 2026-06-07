@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException
@@ -11,6 +12,7 @@ import {
   createSuccessResponse
 } from "../../../common/http/api-response";
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
+import { EtapaFenologicaEntity } from "../../visitas-campo/infrastructure/persistence/entities/etapa-fenologica.entity";
 import { NivelIncidenciaEntity } from "../infrastructure/persistence/entities/nivel-incidencia.entity";
 import { PlagaEnfermedadEntity } from "../infrastructure/persistence/entities/plaga-enfermedad.entity";
 import { CreateNivelIncidenciaDto } from "../presentation/dto/create-nivel-incidencia.dto";
@@ -24,7 +26,9 @@ export class SanitaryCatalogsService {
     @InjectRepository(PlagaEnfermedadEntity)
     private readonly plagasEnfermedadesRepository: Repository<PlagaEnfermedadEntity>,
     @InjectRepository(NivelIncidenciaEntity)
-    private readonly nivelesIncidenciaRepository: Repository<NivelIncidenciaEntity>
+    private readonly nivelesIncidenciaRepository: Repository<NivelIncidenciaEntity>,
+    @InjectRepository(EtapaFenologicaEntity)
+    private readonly etapasFenologicasRepository: Repository<EtapaFenologicaEntity>
   ) {}
 
   async findAllPestDiseases(pagination: PaginationQueryDto) {
@@ -51,10 +55,17 @@ export class SanitaryCatalogsService {
   }
 
   async createPestDisease(createPlagaEnfermedadDto: CreatePlagaEnfermedadDto) {
+    if (createPlagaEnfermedadDto.etapaFenologicaId) {
+      await this.ensureEtapaFenologicaIsStage(
+        createPlagaEnfermedadDto.etapaFenologicaId
+      );
+    }
+
     const pestDisease = this.plagasEnfermedadesRepository.create({
       scientificName: createPlagaEnfermedadDto.scientificName ?? null,
       name: createPlagaEnfermedadDto.name,
       type: createPlagaEnfermedadDto.type,
+      etapaFenologicaId: createPlagaEnfermedadDto.etapaFenologicaId ?? null,
       isActive: createPlagaEnfermedadDto.isActive ?? true
     });
 
@@ -73,6 +84,13 @@ export class SanitaryCatalogsService {
     updatePlagaEnfermedadDto: UpdatePlagaEnfermedadDto
   ) {
     const pestDisease = await this.findPestDiseaseEntityById(id);
+
+    if (updatePlagaEnfermedadDto.etapaFenologicaId) {
+      await this.ensureEtapaFenologicaIsStage(
+        updatePlagaEnfermedadDto.etapaFenologicaId
+      );
+    }
+
     const updatedPestDisease = this.plagasEnfermedadesRepository.merge(
       pestDisease,
       {
@@ -84,6 +102,9 @@ export class SanitaryCatalogsService {
           : {}),
         ...(updatePlagaEnfermedadDto.type !== undefined
           ? { type: updatePlagaEnfermedadDto.type }
+          : {}),
+        ...(updatePlagaEnfermedadDto.etapaFenologicaId !== undefined
+          ? { etapaFenologicaId: updatePlagaEnfermedadDto.etapaFenologicaId }
           : {}),
         ...(updatePlagaEnfermedadDto.isActive !== undefined
           ? { isActive: updatePlagaEnfermedadDto.isActive }
@@ -233,6 +254,22 @@ export class SanitaryCatalogsService {
     return incidenceLevel;
   }
 
+  private async ensureEtapaFenologicaIsStage(etapaFenologicaId: string) {
+    const etapaFenologica = await this.etapasFenologicasRepository.findOne({
+      where: { id: etapaFenologicaId }
+    });
+
+    if (!etapaFenologica) {
+      throw new BadRequestException("Phenological stage not found.");
+    }
+
+    if (etapaFenologica.type !== "Etapa") {
+      throw new BadRequestException(
+        "Pest or disease must reference a phenological stage, not a labor."
+      );
+    }
+  }
+
   private handlePestDiseasePersistenceError(
     error: unknown,
     operation: "save"
@@ -253,6 +290,15 @@ export class SanitaryCatalogsService {
         throw new ConflictException(
           "A pest or disease with the same name already exists."
         );
+      }
+
+      if (
+        operation === "save" &&
+        databaseError?.code === "23503" &&
+        databaseError.constraint ===
+          "plagas_enfermedades_etapa_fenologica_id_fkey"
+      ) {
+        throw new BadRequestException("Phenological stage not found.");
       }
     }
 
@@ -309,6 +355,7 @@ export class SanitaryCatalogsService {
       scientificName: pestDisease.scientificName,
       name: pestDisease.name,
       type: pestDisease.type,
+      etapaFenologicaId: pestDisease.etapaFenologicaId,
       isActive: pestDisease.isActive
     };
   }

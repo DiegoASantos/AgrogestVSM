@@ -49,6 +49,7 @@ export const SQL_SCHEMA = [
     scientific_name TEXT,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
+    phenological_stage_id TEXT,
     is_active INTEGER NOT NULL DEFAULT 1
   )`,
   `CREATE TABLE IF NOT EXISTS incidence_levels (

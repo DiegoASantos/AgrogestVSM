@@ -99,6 +99,7 @@ export type PlagaEnfermedadCatalogItem = {
   scientificName: string | null;
   name: string;
   type: PlagaEnfermedadCatalogType;
+  etapaFenologicaId: string | null;
   isActive: boolean;
 };
 
@@ -106,6 +107,7 @@ export type PlagaEnfermedadCatalogPayload = {
   scientificName?: string | null;
   name: string;
   type: PlagaEnfermedadCatalogType;
+  etapaFenologicaId?: string | null;
   isActive?: boolean;
 };
 

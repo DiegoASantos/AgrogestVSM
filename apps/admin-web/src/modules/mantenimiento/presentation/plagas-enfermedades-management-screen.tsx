@@ -15,6 +15,7 @@ import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
 import { agriculturalCatalogsService } from "../services/agricultural-catalogs.service";
 import type {
+  CatalogOption,
   PlagaEnfermedadCatalogItem,
   PlagaEnfermedadCatalogType
 } from "../types/agricultural-catalogs.types";
@@ -30,6 +31,7 @@ type PlagaFormState = {
   scientificName: string;
   name: string;
   type: PlagaEnfermedadCatalogType;
+  etapaFenologicaId: string;
   status: "active" | "inactive";
 };
 
@@ -38,12 +40,14 @@ const emptyForm: PlagaFormState = {
   scientificName: "",
   name: "",
   type: "plaga",
+  etapaFenologicaId: "",
   status: "active"
 };
 
 export function PlagasEnfermedadesManagementScreen() {
   const { session } = useAuthSession();
   const [items, setItems] = useState<PlagaEnfermedadCatalogItem[]>([]);
+  const [etapaOptions, setEtapaOptions] = useState<CatalogOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -76,7 +80,10 @@ export function PlagasEnfermedadesManagementScreen() {
         normalizedSearch.length === 0 ||
         item.name.toLowerCase().includes(normalizedSearch) ||
         (item.scientificName ?? "").toLowerCase().includes(normalizedSearch) ||
-        item.type.toLowerCase().includes(normalizedSearch);
+        item.type.toLowerCase().includes(normalizedSearch) ||
+        getEtapaLabel(item.etapaFenologicaId, etapaOptions)
+          .toLowerCase()
+          .includes(normalizedSearch);
 
       const matchesType = typeFilter === "all" || item.type === typeFilter;
 
@@ -86,7 +93,7 @@ export function PlagasEnfermedadesManagementScreen() {
         matchesStatusFilter(item.isActive, statusFilter)
       );
     });
-  }, [items, search, typeFilter, statusFilter]);
+  }, [items, search, typeFilter, statusFilter, etapaOptions]);
 
   const columns: DataTableColumn<PlagaEnfermedadCatalogItem>[] = [
     {
@@ -107,6 +114,11 @@ export function PlagasEnfermedadesManagementScreen() {
       key: "type",
       header: "Tipo",
       cell: (item) => item.type
+    },
+    {
+      key: "etapaFenologica",
+      header: "Etapa fenologica",
+      cell: (item) => getEtapaLabel(item.etapaFenologicaId, etapaOptions)
     },
     {
       key: "status",
@@ -147,10 +159,12 @@ export function PlagasEnfermedadesManagementScreen() {
     setListError(null);
 
     try {
-      const nextItems = await agriculturalCatalogsService.getPlagasEnfermedades(
-        session
-      );
+      const [nextItems, nextEtapaOptions] = await Promise.all([
+        agriculturalCatalogsService.getPlagasEnfermedades(session),
+        agriculturalCatalogsService.getEtapaFenologicaOptions(session)
+      ]);
       setItems(nextItems);
+      setEtapaOptions(nextEtapaOptions);
     } catch (error) {
       setListError(toApiError(error).message);
     } finally {
@@ -166,6 +180,7 @@ export function PlagasEnfermedadesManagementScreen() {
       scientificName: item.scientificName ?? "",
       name: item.name,
       type: item.type,
+      etapaFenologicaId: item.etapaFenologicaId ?? "",
       status: item.isActive ? "active" : "inactive"
     });
     setModalOpen(true);
@@ -201,6 +216,7 @@ export function PlagasEnfermedadesManagementScreen() {
         scientificName: scientificName || null,
         name,
         type: formState.type,
+        etapaFenologicaId: formState.etapaFenologicaId || null,
         isActive: formState.status === "active"
       };
 
@@ -290,7 +306,7 @@ export function PlagasEnfermedadesManagementScreen() {
           <span>Buscar</span>
           <input
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Nombre, cientifico o tipo"
+            placeholder="Nombre, cientifico, tipo o etapa"
             value={search}
           />
         </label>
@@ -436,6 +452,26 @@ export function PlagasEnfermedadesManagementScreen() {
           </label>
 
           <label className="field-group">
+            <span>Etapa fenologica</span>
+            <select
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  etapaFenologicaId: event.target.value
+                }))
+              }
+              value={formState.etapaFenologicaId}
+            >
+              <option value="">Sin etapa asociada</option>
+              {etapaOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field-group">
             <span>Estado</span>
             <select
               onChange={(event) =>
@@ -474,5 +510,16 @@ export function PlagasEnfermedadesManagementScreen() {
         variant="warning"
       />
     </article>
+  );
+}
+
+function getEtapaLabel(etapaFenologicaId: string | null, options: CatalogOption[]) {
+  if (!etapaFenologicaId) {
+    return "Sin etapa asociada";
+  }
+
+  return (
+    options.find((option) => option.id === etapaFenologicaId)?.label ??
+    `ID ${etapaFenologicaId}`
   );
 }

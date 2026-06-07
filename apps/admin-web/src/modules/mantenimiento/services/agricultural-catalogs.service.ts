@@ -76,6 +76,7 @@ type PlagaEnfermedadApiItem = {
   scientificName: string | null;
   name: string;
   type: "plaga" | "enfermedad";
+  etapaFenologicaId: string | null;
   isActive: boolean;
 };
 
@@ -370,6 +371,7 @@ export const agriculturalCatalogsService = {
       scientificName: item.scientificName,
       name: item.name,
       type: item.type,
+      etapaFenologicaId: item.etapaFenologicaId,
       isActive: item.isActive
     }));
   },
@@ -392,6 +394,7 @@ export const agriculturalCatalogsService = {
       scientificName: item.scientificName,
       name: item.name,
       type: item.type,
+      etapaFenologicaId: item.etapaFenologicaId,
       isActive: item.isActive
     };
   },
@@ -415,6 +418,7 @@ export const agriculturalCatalogsService = {
       scientificName: item.scientificName,
       name: item.name,
       type: item.type,
+      etapaFenologicaId: item.etapaFenologicaId,
       isActive: item.isActive
     };
   },

@@ -156,12 +156,19 @@ export async function downloadAllCatalogs() {
 
     for (const pestDisease of pestDiseases) {
       db.runSync(
-        `INSERT OR REPLACE INTO pest_diseases (id, scientific_name, name, type, is_active)
-         VALUES (?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO pest_diseases (
+          id,
+          scientific_name,
+          name,
+          type,
+          phenological_stage_id,
+          is_active
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
         pestDisease.id,
         pestDisease.scientificName,
         pestDisease.name,
         pestDisease.type,
+        pestDisease.etapaFenologicaId,
         toSqliteBoolean(pestDisease.isActive)
       );
     }

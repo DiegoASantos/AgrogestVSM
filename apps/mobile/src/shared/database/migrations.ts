@@ -151,6 +151,12 @@ const MIGRATIONS: Migration[] = [
         "TEXT NOT NULL DEFAULT 'incidencia'"
       );
     }
+  },
+  {
+    version: 14,
+    run: (db) => {
+      addColumnIfMissing(db, "pest_diseases", "phenological_stage_id", "TEXT");
+    }
   }
 ];
 

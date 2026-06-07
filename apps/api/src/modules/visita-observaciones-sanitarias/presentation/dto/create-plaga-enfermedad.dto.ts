@@ -5,6 +5,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MaxLength
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
@@ -42,6 +43,16 @@ export class CreatePlagaEnfermedadDto {
   @IsString()
   @IsIn(["plaga", "enfermedad"])
   type!: string;
+
+  @ApiPropertyOptional({
+    example: "1"
+  })
+  @Transform(({ value }) => trimOptionalString(value))
+  @IsOptional()
+  @Matches(/^[1-9]\d*$/, {
+    message: "etapaFenologicaId must be a positive integer."
+  })
+  etapaFenologicaId?: string | null;
 
   @ApiPropertyOptional({
     example: true,

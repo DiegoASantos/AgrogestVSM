@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { SanitaryCatalogsService } from "./application/sanitary-catalogs.service";
+import { EtapaFenologicaEntity } from "../visitas-campo/infrastructure/persistence/entities/etapa-fenologica.entity";
 import { VisitaCampoEntity } from "../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 import { VisitaObservacionesSanitariasService } from "./application/visita-observaciones-sanitarias.service";
 import { NivelIncidenciaEntity } from "./infrastructure/persistence/entities/nivel-incidencia.entity";
@@ -18,7 +19,8 @@ import { VisitaObservacionesSanitariasController } from "./presentation/visita-o
       VisitaCampoEntity,
       VisitaObservacionSanitariaEntity,
       PlagaEnfermedadEntity,
-      NivelIncidenciaEntity
+      NivelIncidenciaEntity,
+      EtapaFenologicaEntity
     ])
   ],
   controllers: [

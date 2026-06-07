@@ -30,6 +30,7 @@ type PestDiseaseRow = {
   scientific_name: string | null;
   name: string;
   type: string;
+  phenological_stage_id: string | null;
   is_active: number;
 };
 
@@ -253,7 +254,7 @@ export const observacionesSanitariasRepository = {
   getPestDiseases() {
     const db = getDatabase();
     const rows = db.getAllSync<PestDiseaseRow>(
-      `SELECT id, scientific_name, name, type, is_active
+      `SELECT id, scientific_name, name, type, phenological_stage_id, is_active
        FROM pest_diseases
        ORDER BY name ASC, id ASC`
     );
@@ -263,6 +264,7 @@ export const observacionesSanitariasRepository = {
       scientificName: row.scientific_name,
       name: row.name,
       type: row.type,
+      etapaFenologicaId: row.phenological_stage_id,
       isActive: fromSqliteBoolean(row.is_active)
     })) satisfies PestDiseaseCatalogItem[];
   },

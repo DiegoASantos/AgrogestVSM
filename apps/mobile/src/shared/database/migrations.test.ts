@@ -61,6 +61,7 @@ function createFakeDatabase(
           "scientific_name",
           "name",
           "type",
+          "phenological_stage_id",
           "is_active"
         ]);
         return;
@@ -158,7 +159,7 @@ describe("runMigrations", () => {
     const db = createFakeDatabase(0);
 
     expect(() => runMigrations(db as never)).not.toThrow();
-    expect(db.currentVersion).toBe(13);
+    expect(db.currentVersion).toBe(14);
     expect(db.executedStatements).not.toContain(
       "ALTER TABLE productores ADD COLUMN first_name TEXT"
     );
@@ -197,7 +198,7 @@ describe("runMigrations", () => {
 
     runMigrations(db as never);
 
-    expect(db.currentVersion).toBe(13);
+    expect(db.currentVersion).toBe(14);
     expect(db.productorColumns.has("first_name")).toBe(true);
     expect(db.productorColumns.has("last_name")).toBe(true);
     expect(db.executedStatements).toContain(
@@ -219,6 +220,10 @@ describe("runMigrations", () => {
     );
     expect(db.executedStatements).toContain(
       "ALTER TABLE pest_diseases DROP COLUMN code"
+    );
+    expect(db.pestDiseaseColumns.has("phenological_stage_id")).toBe(true);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE pest_diseases ADD COLUMN phenological_stage_id TEXT"
     );
     expect(db.incidenceLevelColumns.has("type")).toBe(true);
     expect(db.executedStatements).toContain(
