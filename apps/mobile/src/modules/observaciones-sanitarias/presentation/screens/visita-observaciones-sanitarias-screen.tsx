@@ -587,7 +587,7 @@ function SanitaryCard({
         <View style={[styles.cardHeader, isCompactLayout && styles.cardHeaderCompact]}>
           <View style={styles.cardTitleColumn}>
             <AppText style={styles.pestName} variant="label">
-              {formatPestName(item)}
+              {item.name}
             </AppText>
           </View>
 
@@ -605,26 +605,33 @@ function SanitaryCard({
           </Pressable>
         </View>
 
-        <LevelSelectorRow
-          label="Incidencia"
-          levels={incidenceOptions}
-          isCompactLayout={isCompactLayout}
-          onSelect={(levelId) => onSelectLevel(item.id, "incidencia", levelId)}
-          selectedLevelId={selection?.incidenceLevelId ?? null}
-        />
-        <LevelSelectorRow
-          label="Severidad"
-          levels={severityOptions}
-          isCompactLayout={isCompactLayout}
-          onSelect={(levelId) => onSelectLevel(item.id, "severidad", levelId)}
-          selectedLevelId={selection?.severityLevelId ?? null}
-        />
+        {incidenceOptions.length > 0 ? (
+          <LevelSelectorRow
+            accentColor="#12622f"
+            label="Incidencia"
+            levels={incidenceOptions}
+            isCompactLayout={isCompactLayout}
+            onSelect={(levelId) => onSelectLevel(item.id, "incidencia", levelId)}
+            selectedLevelId={selection?.incidenceLevelId ?? null}
+          />
+        ) : null}
+        {severityOptions.length > 0 ? (
+          <LevelSelectorRow
+            accentColor="#7b4b00"
+            label="Severidad"
+            levels={severityOptions}
+            isCompactLayout={isCompactLayout}
+            onSelect={(levelId) => onSelectLevel(item.id, "severidad", levelId)}
+            selectedLevelId={selection?.severityLevelId ?? null}
+          />
+        ) : null}
       </View>
     </View>
   );
 }
 
 type LevelSelectorRowProps = {
+  accentColor: string;
   label: string;
   isCompactLayout: boolean;
   levels: IncidenceLevelCatalogItem[];
@@ -633,6 +640,7 @@ type LevelSelectorRowProps = {
 };
 
 function LevelSelectorRow({
+  accentColor,
   label,
   isCompactLayout,
   levels,
@@ -641,49 +649,45 @@ function LevelSelectorRow({
 }: LevelSelectorRowProps) {
   return (
     <View style={[styles.levelRow, isCompactLayout && styles.levelRowCompact]}>
-      <AppText style={styles.levelLabel} variant="caption">
-        {label}
-      </AppText>
+      <View style={[styles.levelPill, { backgroundColor: accentColor }]}>
+        <AppText style={styles.levelPillText} variant="caption">
+          {label}
+        </AppText>
+      </View>
       <View style={[styles.levelButtons, isCompactLayout && styles.levelButtonsCompact]}>
-        {levels.length > 0 ? (
-          levels.map((level) => {
-            const selected = level.id === selectedLevelId;
-            return (
-              <Pressable
-                accessibilityLabel={`${label} grado ${level.sortOrder}`}
-                accessibilityRole="button"
-                key={level.id}
+        {levels.map((level) => {
+          const selected = level.id === selectedLevelId;
+          return (
+            <Pressable
+              accessibilityLabel={`${label} grado ${level.sortOrder}`}
+              accessibilityRole="button"
+              key={level.id}
               onPress={() => onSelect(level.id)}
               style={[
-                  styles.levelButton,
-                  isCompactLayout && styles.levelButtonCompact,
+                styles.levelButton,
+                isCompactLayout && styles.levelButtonCompact,
+                selected
+                  ? {
+                      backgroundColor: getLevelColor(level.sortOrder),
+                      borderColor: getLevelColor(level.sortOrder)
+                    }
+                  : styles.levelButtonInactive
+              ]}
+            >
+              <AppText
+                style={[
+                  styles.levelButtonText,
                   selected
-                    ? {
-                        backgroundColor: getLevelColor(level.sortOrder),
-                        borderColor: getLevelColor(level.sortOrder)
-                      }
-                    : styles.levelButtonInactive
+                    ? styles.levelButtonTextSelected
+                    : styles.levelButtonTextInactive
                 ]}
+                variant="label"
               >
-                <AppText
-                  style={[
-                    styles.levelButtonText,
-                    selected
-                      ? styles.levelButtonTextSelected
-                      : styles.levelButtonTextInactive
-                  ]}
-                  variant="label"
-                >
-                  {level.sortOrder}
-                </AppText>
-              </Pressable>
-            );
-          })
-        ) : (
-          <AppText style={styles.noLevelsText} variant="caption">
-            Sin niveles
-          </AppText>
-        )}
+                {level.sortOrder}
+              </AppText>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -752,7 +756,7 @@ function HelpModal({
         <View style={styles.helpModalContent}>
           <View style={styles.modalHeader}>
             <AppText style={styles.modalTitle} variant="heading">
-              {formatPestName(item)}
+              Guía de niveles
             </AppText>
             <Pressable
               accessibilityLabel="Cerrar"
@@ -812,9 +816,6 @@ function ImagePreviewModal({
             <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
           </Pressable>
           <Image resizeMode="contain" source={TEMP_PEST_IMAGE} style={styles.previewImage} />
-          <AppText style={styles.previewTitle} variant="heading">
-            {formatPestName(item)}
-          </AppText>
         </View>
       </View>
     </Modal>
@@ -880,12 +881,6 @@ function buildSelectionMap(observaciones: VisitaObservacionSanitaria[]) {
       }
     ])
   );
-}
-
-function formatPestName(item: PestDiseaseByStageItem) {
-  return item.scientificName
-    ? `${item.name} (${item.scientificName})`
-    : item.name;
 }
 
 function formatLevelType(type: IncidenceLevelCatalogItem["type"]) {
@@ -1104,11 +1099,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 34,
     justifyContent: "center",
-    minWidth: 46
+    minWidth: 0
   },
   levelButtonCompact: {
-    flexBasis: 44,
-    flexGrow: 1,
+    flexBasis: "22%",
+    flexGrow: 0,
+    flexShrink: 1,
+    maxWidth: "22%",
     minWidth: 0
   },
   levelButtonInactive: {
@@ -1130,12 +1127,24 @@ const styles = StyleSheet.create({
     gap: 7
   },
   levelButtonsCompact: {
-    flexWrap: "wrap"
+    flexWrap: "wrap",
+    width: "100%"
   },
   levelLabel: {
     color: theme.colors.text,
     fontSize: 14,
     width: 78
+  },
+  levelPill: {
+    alignItems: "center",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4
+  },
+  levelPillText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700"
   },
   levelRow: {
     alignItems: "center",
@@ -1191,9 +1200,6 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     flexDirection: "column"
   },
-  noLevelsText: {
-    color: theme.colors.textMuted
-  },
   noteCard: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.borderLight,
@@ -1223,11 +1229,6 @@ const styles = StyleSheet.create({
   previewImage: {
     height: 260,
     width: "100%"
-  },
-  previewTitle: {
-    color: theme.colors.primaryDark,
-    marginTop: 12,
-    textAlign: "center"
   },
   progressActiveBar: {
     backgroundColor: theme.colors.primary,
