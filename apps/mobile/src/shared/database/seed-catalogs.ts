@@ -168,7 +168,7 @@ export async function downloadAllCatalogs() {
         pestDisease.scientificName,
         pestDisease.name,
         pestDisease.type,
-        pestDisease.etapaFenologicaId,
+        pestDisease.etapaFenologicaId ?? null,
         toSqliteBoolean(pestDisease.isActive)
       );
     }

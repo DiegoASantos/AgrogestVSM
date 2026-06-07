@@ -1,5 +1,6 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
+import { PlagaEnfermedadEtapaNivelEntity } from "./plaga-enfermedad-etapa-nivel.entity";
 import { VisitaObservacionSanitariaEntity } from "./visita-observacion-sanitaria.entity";
 
 @Entity({ name: "niveles_incidencia_severidad" })
@@ -35,4 +36,10 @@ export class NivelIncidenciaEntity {
     (visitaObservacionSanitaria) => visitaObservacionSanitaria.nivelIncidencia
   )
   visitaObservacionesSanitarias!: VisitaObservacionSanitariaEntity[];
+
+  @OneToMany(
+    () => PlagaEnfermedadEtapaNivelEntity,
+    (etapaNivel) => etapaNivel.nivelIncidenciaSeveridad
+  )
+  plagasEnfermedadesEtapas!: PlagaEnfermedadEtapaNivelEntity[];
 }

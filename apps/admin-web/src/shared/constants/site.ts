@@ -24,6 +24,8 @@ export const adminRoutes = {
     ingredientesActivos: "/mantenimiento/ingredientes-activos",
     nivelesIncidencia: "/mantenimiento/niveles-incidencia-severidad",
     plagasEnfermedades: "/mantenimiento/plagas-enfermedades",
+    plagasEnfermedadesEtapasNiveles:
+      "/mantenimiento/plagas-enfermedades-etapas-niveles",
     productoIngredientes: "/mantenimiento/producto-ingredientes",
     sectores: "/mantenimiento/sectores",
     tiposDocumento: "/mantenimiento/tipos-documento"

@@ -15,6 +15,8 @@ import type {
   EtapaFenologicaCatalogPayload,
   NivelIncidenciaCatalogItem,
   NivelIncidenciaCatalogPayload,
+  PlagaEnfermedadEtapaNivelCatalogItem,
+  PlagaEnfermedadEtapaNivelCatalogPayload,
   PlagaEnfermedadCatalogItem,
   PlagaEnfermedadCatalogPayload,
   SubEtapaCatalogItem,
@@ -76,7 +78,15 @@ type PlagaEnfermedadApiItem = {
   scientificName: string | null;
   name: string;
   type: "plaga" | "enfermedad";
-  etapaFenologicaId: string | null;
+  isActive: boolean;
+};
+
+type PlagaEnfermedadEtapaNivelApiItem = {
+  id: string;
+  plagaEnfermedadId: string;
+  etapaFenologicaId: string;
+  nivelIncidenciaSeveridadId: number;
+  description: string | null;
   isActive: boolean;
 };
 
@@ -371,7 +381,6 @@ export const agriculturalCatalogsService = {
       scientificName: item.scientificName,
       name: item.name,
       type: item.type,
-      etapaFenologicaId: item.etapaFenologicaId,
       isActive: item.isActive
     }));
   },
@@ -394,7 +403,6 @@ export const agriculturalCatalogsService = {
       scientificName: item.scientificName,
       name: item.name,
       type: item.type,
-      etapaFenologicaId: item.etapaFenologicaId,
       isActive: item.isActive
     };
   },
@@ -418,7 +426,6 @@ export const agriculturalCatalogsService = {
       scientificName: item.scientificName,
       name: item.name,
       type: item.type,
-      etapaFenologicaId: item.etapaFenologicaId,
       isActive: item.isActive
     };
   },
@@ -427,6 +434,66 @@ export const agriculturalCatalogsService = {
     return request<PlagaEnfermedadApiItem>(session, `/plagas-enfermedades/${id}`, {
       method: "DELETE"
     });
+  },
+
+  async getPlagasEnfermedadesEtapasNiveles(
+    session: AuthSessionInput
+  ): Promise<PlagaEnfermedadEtapaNivelCatalogItem[]> {
+    const items = await requestAll<PlagaEnfermedadEtapaNivelApiItem>(
+      session,
+      "/plagas-enfermedades-etapas-niveles"
+    );
+
+    return items.map(mapPlagaEnfermedadEtapaNivelItem);
+  },
+
+  async createPlagaEnfermedadEtapaNivel(
+    session: AuthSessionInput,
+    payload: PlagaEnfermedadEtapaNivelCatalogPayload
+  ): Promise<PlagaEnfermedadEtapaNivelCatalogItem> {
+    const item = await request<PlagaEnfermedadEtapaNivelApiItem>(
+      session,
+      "/plagas-enfermedades-etapas-niveles",
+      {
+        method: "POST",
+        body: {
+          ...payload,
+          nivelIncidenciaSeveridadId: Number(payload.nivelIncidenciaSeveridadId)
+        }
+      }
+    );
+
+    return mapPlagaEnfermedadEtapaNivelItem(item);
+  },
+
+  async updatePlagaEnfermedadEtapaNivel(
+    session: AuthSessionInput,
+    id: string,
+    payload: PlagaEnfermedadEtapaNivelCatalogPayload
+  ): Promise<PlagaEnfermedadEtapaNivelCatalogItem> {
+    const item = await request<PlagaEnfermedadEtapaNivelApiItem>(
+      session,
+      `/plagas-enfermedades-etapas-niveles/${id}`,
+      {
+        method: "PATCH",
+        body: {
+          ...payload,
+          nivelIncidenciaSeveridadId: Number(payload.nivelIncidenciaSeveridadId)
+        }
+      }
+    );
+
+    return mapPlagaEnfermedadEtapaNivelItem(item);
+  },
+
+  async deletePlagaEnfermedadEtapaNivel(session: AuthSessionInput, id: string) {
+    return request<PlagaEnfermedadEtapaNivelApiItem>(
+      session,
+      `/plagas-enfermedades-etapas-niveles/${id}`,
+      {
+        method: "DELETE"
+      }
+    );
   },
 
   async getTiposDocumento(
@@ -562,6 +629,19 @@ function mapSubEtapaItem(item: SubEtapaApiItem): SubEtapaCatalogItem {
     sortOrder: item.sortOrder,
     description: item.description,
     percentage: item.percentage,
+    isActive: item.isActive
+  };
+}
+
+function mapPlagaEnfermedadEtapaNivelItem(
+  item: PlagaEnfermedadEtapaNivelApiItem
+): PlagaEnfermedadEtapaNivelCatalogItem {
+  return {
+    id: item.id,
+    plagaEnfermedadId: item.plagaEnfermedadId,
+    etapaFenologicaId: item.etapaFenologicaId,
+    nivelIncidenciaSeveridadId: String(item.nivelIncidenciaSeveridadId),
+    description: item.description,
     isActive: item.isActive
   };
 }

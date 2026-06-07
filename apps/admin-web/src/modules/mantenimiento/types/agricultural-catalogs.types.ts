@@ -99,7 +99,6 @@ export type PlagaEnfermedadCatalogItem = {
   scientificName: string | null;
   name: string;
   type: PlagaEnfermedadCatalogType;
-  etapaFenologicaId: string | null;
   isActive: boolean;
 };
 
@@ -107,7 +106,23 @@ export type PlagaEnfermedadCatalogPayload = {
   scientificName?: string | null;
   name: string;
   type: PlagaEnfermedadCatalogType;
-  etapaFenologicaId?: string | null;
+  isActive?: boolean;
+};
+
+export type PlagaEnfermedadEtapaNivelCatalogItem = {
+  id: string;
+  plagaEnfermedadId: string;
+  etapaFenologicaId: string;
+  nivelIncidenciaSeveridadId: string;
+  description: string | null;
+  isActive: boolean;
+};
+
+export type PlagaEnfermedadEtapaNivelCatalogPayload = {
+  plagaEnfermedadId: string;
+  etapaFenologicaId: string;
+  nivelIncidenciaSeveridadId: string;
+  description?: string | null;
   isActive?: boolean;
 };
 

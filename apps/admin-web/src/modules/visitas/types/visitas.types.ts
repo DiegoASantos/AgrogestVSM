@@ -177,7 +177,6 @@ export type PhenologicalStageLookupItem = LookupItem & {
 export type PestDiseaseLookupItem = LookupItem & {
   scientificName: string | null;
   type: string;
-  etapaFenologicaId: string | null;
 };
 
 export type IncidenceLevelLookupItem = LookupItem & {

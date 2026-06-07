@@ -8,6 +8,7 @@ import {
 } from "typeorm";
 
 import { CultivoEntity } from "../../../../cultivos/infrastructure/persistence/entities/cultivo.entity";
+import { PlagaEnfermedadEtapaNivelEntity } from "../../../../visita-observaciones-sanitarias/infrastructure/persistence/entities/plaga-enfermedad-etapa-nivel.entity";
 import { SubEtapaEntity } from "./sub-etapa.entity";
 import { VisitaCampoEntity } from "./visita-campo.entity";
 
@@ -78,4 +79,10 @@ export class EtapaFenologicaEntity {
 
   @OneToMany(() => SubEtapaEntity, (subEtapa) => subEtapa.etapaFenologica)
   subEtapas!: SubEtapaEntity[];
+
+  @OneToMany(
+    () => PlagaEnfermedadEtapaNivelEntity,
+    (etapaNivel) => etapaNivel.etapaFenologica
+  )
+  plagasEnfermedadesNiveles!: PlagaEnfermedadEtapaNivelEntity[];
 }

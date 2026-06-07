@@ -76,6 +76,11 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     description: "Catalogo sanitario"
   },
   {
+    label: "Plagas, etapas y niveles",
+    href: adminRoutes.mantenimientoItems.plagasEnfermedadesEtapasNiveles,
+    description: "Relaciones sanitarias por etapa"
+  },
+  {
     label: "Formulaciones",
     href: adminRoutes.mantenimientoItems.productoIngredientes,
     description: "Relacion entre productos e ingredientes"

@@ -15,8 +15,10 @@ import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
 import { agriculturalCatalogsService } from "../services/agricultural-catalogs.service";
 import type {
+  EtapaFenologicaCatalogItem,
+  NivelIncidenciaCatalogItem,
   PlagaEnfermedadCatalogItem,
-  PlagaEnfermedadCatalogType
+  PlagaEnfermedadEtapaNivelCatalogItem
 } from "../types/agricultural-catalogs.types";
 import {
   matchesStatusFilter,
@@ -25,37 +27,39 @@ import {
   type StatusFilter
 } from "./catalog-screen.helpers";
 
-type PlagaFormState = {
+type RelationFormState = {
   id: string | null;
-  scientificName: string;
-  name: string;
-  type: PlagaEnfermedadCatalogType;
+  plagaEnfermedadId: string;
+  etapaFenologicaId: string;
+  nivelIncidenciaSeveridadId: string;
+  description: string;
   status: "active" | "inactive";
 };
 
-const emptyForm: PlagaFormState = {
+const emptyForm: RelationFormState = {
   id: null,
-  scientificName: "",
-  name: "",
-  type: "plaga",
+  plagaEnfermedadId: "",
+  etapaFenologicaId: "",
+  nivelIncidenciaSeveridadId: "",
+  description: "",
   status: "active"
 };
 
-export function PlagasEnfermedadesManagementScreen() {
+export function PlagasEnfermedadesEtapasNivelesManagementScreen() {
   const { session } = useAuthSession();
-  const [items, setItems] = useState<PlagaEnfermedadCatalogItem[]>([]);
+  const [items, setItems] = useState<PlagaEnfermedadEtapaNivelCatalogItem[]>([]);
+  const [plagas, setPlagas] = useState<PlagaEnfermedadCatalogItem[]>([]);
+  const [etapas, setEtapas] = useState<EtapaFenologicaCatalogItem[]>([]);
+  const [niveles, setNiveles] = useState<NivelIncidenciaCatalogItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [typeFilter, setTypeFilter] = useState<"all" | PlagaEnfermedadCatalogType>(
-    "all"
-  );
-  const [formState, setFormState] = useState<PlagaFormState>(emptyForm);
+  const [formState, setFormState] = useState<RelationFormState>(emptyForm);
   const [itemToDeactivate, setItemToDeactivate] =
-    useState<PlagaEnfermedadCatalogItem | null>(null);
+    useState<PlagaEnfermedadEtapaNivelCatalogItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -68,45 +72,80 @@ export function PlagasEnfermedadesManagementScreen() {
     void loadItems();
   }, [session]);
 
+  const plagaLookup = useMemo(
+    () => Object.fromEntries(plagas.map((plaga) => [plaga.id, plaga.name])),
+    [plagas]
+  );
+
+  const etapaLookup = useMemo(
+    () =>
+      Object.fromEntries(
+        etapas.map((etapa) => [
+          etapa.id,
+          etapa.sortOrder === null
+            ? etapa.name
+            : `${etapa.sortOrder} - ${etapa.name}`
+        ])
+      ),
+    [etapas]
+  );
+
+  const nivelLookup = useMemo(
+    () =>
+      Object.fromEntries(
+        niveles.map((nivel) => [
+          nivel.id,
+          `${formatNivelType(nivel.type)} - ${nivel.name}`
+        ])
+      ),
+    [niveles]
+  );
+
   const filteredItems = useMemo(() => {
     const normalizedSearch = normalizeSearch(search);
 
     return items.filter((item) => {
+      const plagaLabel = getLookupLabel(plagaLookup, item.plagaEnfermedadId);
+      const etapaLabel = getLookupLabel(etapaLookup, item.etapaFenologicaId);
+      const nivelLabel = getLookupLabel(
+        nivelLookup,
+        item.nivelIncidenciaSeveridadId
+      );
+
       const matchesSearch =
         normalizedSearch.length === 0 ||
-        item.name.toLowerCase().includes(normalizedSearch) ||
-        (item.scientificName ?? "").toLowerCase().includes(normalizedSearch) ||
-        item.type.toLowerCase().includes(normalizedSearch);
-
-      const matchesType = typeFilter === "all" || item.type === typeFilter;
+        plagaLabel.toLowerCase().includes(normalizedSearch) ||
+        etapaLabel.toLowerCase().includes(normalizedSearch) ||
+        nivelLabel.toLowerCase().includes(normalizedSearch) ||
+        (item.description ?? "").toLowerCase().includes(normalizedSearch);
 
       return (
-        matchesSearch &&
-        matchesType &&
-        matchesStatusFilter(item.isActive, statusFilter)
+        matchesSearch && matchesStatusFilter(item.isActive, statusFilter)
       );
     });
-  }, [items, search, typeFilter, statusFilter]);
+  }, [items, search, statusFilter, plagaLookup, etapaLookup, nivelLookup]);
 
-  const columns: DataTableColumn<PlagaEnfermedadCatalogItem>[] = [
+  const columns: DataTableColumn<PlagaEnfermedadEtapaNivelCatalogItem>[] = [
     {
-      key: "name",
-      header: "Nombre",
-      cell: (item) => (
-        <div className="table-copy">
-          <strong>{item.name}</strong>
-        </div>
-      )
+      key: "plagaEnfermedad",
+      header: "Plaga o enfermedad",
+      cell: (item) => getLookupLabel(plagaLookup, item.plagaEnfermedadId)
     },
     {
-      key: "scientificName",
-      header: "Nombre cientifico",
-      cell: (item) => item.scientificName ?? "Sin nombre cientifico"
+      key: "etapaFenologica",
+      header: "Etapa fenologica",
+      cell: (item) => getLookupLabel(etapaLookup, item.etapaFenologicaId)
     },
     {
-      key: "type",
-      header: "Tipo",
-      cell: (item) => item.type
+      key: "nivel",
+      header: "Nivel",
+      cell: (item) =>
+        getLookupLabel(nivelLookup, item.nivelIncidenciaSeveridadId)
+    },
+    {
+      key: "description",
+      header: "Descripcion",
+      cell: (item) => item.description ?? "Sin descripcion"
     },
     {
       key: "status",
@@ -147,9 +186,20 @@ export function PlagasEnfermedadesManagementScreen() {
     setListError(null);
 
     try {
-      const nextItems =
-        await agriculturalCatalogsService.getPlagasEnfermedades(session);
+      const [nextItems, nextPlagas, nextEtapas, nextNiveles] =
+        await Promise.all([
+          agriculturalCatalogsService.getPlagasEnfermedadesEtapasNiveles(
+            session
+          ),
+          agriculturalCatalogsService.getPlagasEnfermedades(session),
+          agriculturalCatalogsService.getEtapasFenologicas(session),
+          agriculturalCatalogsService.getNivelesIncidencia(session)
+        ]);
+
       setItems(nextItems);
+      setPlagas(nextPlagas);
+      setEtapas(nextEtapas);
+      setNiveles(nextNiveles);
     } catch (error) {
       setListError(toApiError(error).message);
     } finally {
@@ -157,14 +207,15 @@ export function PlagasEnfermedadesManagementScreen() {
     }
   }
 
-  function handleEdit(item: PlagaEnfermedadCatalogItem) {
+  function handleEdit(item: PlagaEnfermedadEtapaNivelCatalogItem) {
     setFormError(null);
     setSuccessMessage(null);
     setFormState({
       id: item.id,
-      scientificName: item.scientificName ?? "",
-      name: item.name,
-      type: item.type,
+      plagaEnfermedadId: item.plagaEnfermedadId,
+      etapaFenologicaId: item.etapaFenologicaId,
+      nivelIncidenciaSeveridadId: item.nivelIncidenciaSeveridadId,
+      description: item.description ?? "",
       status: item.isActive ? "active" : "inactive"
     });
     setModalOpen(true);
@@ -183,11 +234,12 @@ export function PlagasEnfermedadesManagementScreen() {
       return;
     }
 
-    const name = formState.name.trim();
-    const scientificName = formState.scientificName.trim();
-
-    if (!name) {
-      setFormError("El nombre es obligatorio.");
+    if (
+      !formState.plagaEnfermedadId ||
+      !formState.etapaFenologicaId ||
+      !formState.nivelIncidenciaSeveridadId
+    ) {
+      setFormError("Plaga/enfermedad, etapa y nivel son obligatorios.");
       return;
     }
 
@@ -197,22 +249,26 @@ export function PlagasEnfermedadesManagementScreen() {
 
     try {
       const payload = {
-        scientificName: scientificName || null,
-        name,
-        type: formState.type,
+        plagaEnfermedadId: formState.plagaEnfermedadId,
+        etapaFenologicaId: formState.etapaFenologicaId,
+        nivelIncidenciaSeveridadId: formState.nivelIncidenciaSeveridadId,
+        description: formState.description.trim() || null,
         isActive: formState.status === "active"
       };
 
       if (formState.id) {
-        await agriculturalCatalogsService.updatePlagaEnfermedad(
+        await agriculturalCatalogsService.updatePlagaEnfermedadEtapaNivel(
           session,
           formState.id,
           payload
         );
-        setSuccessMessage("Registro actualizado correctamente.");
+        setSuccessMessage("Relacion actualizada correctamente.");
       } else {
-        await agriculturalCatalogsService.createPlagaEnfermedad(session, payload);
-        setSuccessMessage("Registro creado correctamente.");
+        await agriculturalCatalogsService.createPlagaEnfermedadEtapaNivel(
+          session,
+          payload
+        );
+        setSuccessMessage("Relacion creada correctamente.");
       }
 
       await loadItems();
@@ -233,11 +289,11 @@ export function PlagasEnfermedadesManagementScreen() {
     setIsDeleting(true);
 
     try {
-      await agriculturalCatalogsService.deletePlagaEnfermedad(
+      await agriculturalCatalogsService.deletePlagaEnfermedadEtapaNivel(
         session,
         itemToDeactivate.id
       );
-      setSuccessMessage("Registro desactivado correctamente.");
+      setSuccessMessage("Relacion desactivada correctamente.");
 
       if (formState.id === itemToDeactivate.id) {
         setFormState(emptyForm);
@@ -257,17 +313,28 @@ export function PlagasEnfermedadesManagementScreen() {
       <ToolbarActions
         actions={
           <>
-            <button className="ui-button ui-button--ghost" onClick={() => void loadItems()} type="button">
+            <button
+              className="ui-button ui-button--ghost"
+              onClick={() => void loadItems()}
+              type="button"
+            >
               Recargar
             </button>
-            <button className="ui-button ui-button--primary" onClick={() => { resetForm(); setModalOpen(true); }} type="button">
-              Nuevo registro
+            <button
+              className="ui-button ui-button--primary"
+              onClick={() => {
+                resetForm();
+                setModalOpen(true);
+              }}
+              type="button"
+            >
+              Nueva relacion
             </button>
           </>
         }
-        description="Gestion administrativa del catalogo de plagas y enfermedades."
+        description="Relaciona plagas y enfermedades con etapas fenologicas y niveles de incidencia o severidad."
         eyebrow="Mantenimiento"
-        title="Plagas y enfermedades"
+        title="Plagas, etapas y niveles"
       />
 
       <FilterBar
@@ -277,7 +344,6 @@ export function PlagasEnfermedadesManagementScreen() {
             onClick={() => {
               setSearch("");
               setStatusFilter("all");
-              setTypeFilter("all");
             }}
             type="button"
           >
@@ -289,25 +355,9 @@ export function PlagasEnfermedadesManagementScreen() {
           <span>Buscar</span>
           <input
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Nombre, cientifico o tipo"
+            placeholder="Plaga, etapa, nivel o descripcion"
             value={search}
           />
-        </label>
-
-        <label className="field-group">
-          <span>Tipo</span>
-          <select
-            onChange={(event) =>
-              setTypeFilter(
-                event.target.value as "all" | PlagaEnfermedadCatalogType
-              )
-            }
-            value={typeFilter}
-          >
-            <option value="all">Todos</option>
-            <option value="plaga">Plaga</option>
-            <option value="enfermedad">Enfermedad</option>
-          </select>
         </label>
 
         <label className="field-group">
@@ -345,19 +395,19 @@ export function PlagasEnfermedadesManagementScreen() {
       ) : null}
 
       {!listError && isLoading ? (
-        <LoadingState description="Cargando catalogo..." />
+        <LoadingState description="Cargando relaciones..." />
       ) : null}
 
       {!listError && !isLoading && filteredItems.length === 0 ? (
         <EmptyState
-          description="No hay registros cargados o los filtros no devolvieron coincidencias."
-          title="No hay registros para mostrar"
+          description="No hay relaciones cargadas o los filtros no devolvieron coincidencias."
+          title="No hay relaciones para mostrar"
         />
       ) : null}
 
       {!listError && !isLoading && filteredItems.length > 0 ? (
         <DataTable
-          caption="Catalogo administrativo de plagas y enfermedades."
+          caption="Relaciones administrativas de plagas, etapas y niveles."
           columns={columns}
           getRowKey={(item) => item.id}
           rows={filteredItems}
@@ -366,72 +416,118 @@ export function PlagasEnfermedadesManagementScreen() {
 
       <FormModal
         open={modalOpen}
-        onClose={() => { resetForm(); setModalOpen(false); }}
-        title={formState.id ? "Editar registro" : "Nuevo registro"}
-        description="Alta o edicion simple de plagas y enfermedades."
+        onClose={() => {
+          resetForm();
+          setModalOpen(false);
+        }}
+        title={formState.id ? "Editar relacion" : "Nueva relacion"}
+        description="Alta o edicion de una relacion sanitaria por etapa y nivel."
         footer={
           <>
-            <button className="ui-button ui-button--ghost" onClick={() => { resetForm(); setModalOpen(false); }} type="button">
+            <button
+              className="ui-button ui-button--ghost"
+              onClick={() => {
+                resetForm();
+                setModalOpen(false);
+              }}
+              type="button"
+            >
               Cancelar
             </button>
             <button
               className="ui-button ui-button--primary"
               disabled={isSaving}
-              form="plagas-form"
+              form="plagas-etapas-niveles-form"
               type="submit"
             >
               {isSaving
                 ? "Guardando..."
                 : formState.id
                   ? "Guardar cambios"
-                  : "Crear registro"}
+                  : "Crear relacion"}
             </button>
           </>
         }
       >
-        <form className="form-layout" id="plagas-form" onSubmit={handleSubmit}>
+        <form
+          className="form-layout"
+          id="plagas-etapas-niveles-form"
+          onSubmit={handleSubmit}
+        >
           <label className="field-group">
-            <span>Nombre cientifico</span>
-            <input
-              onChange={(event) =>
-                setFormState((currentState) => ({
-                  ...currentState,
-                  scientificName: event.target.value
-                }))
-              }
-              placeholder="Pyricularia oryzae"
-              value={formState.scientificName}
-            />
-          </label>
-
-          <label className="field-group">
-            <span>Nombre</span>
-            <input
-              onChange={(event) =>
-                setFormState((currentState) => ({
-                  ...currentState,
-                  name: event.target.value
-                }))
-              }
-              placeholder="Nombre visible"
-              value={formState.name}
-            />
-          </label>
-
-          <label className="field-group">
-            <span>Tipo</span>
+            <span>Plaga o enfermedad</span>
             <select
               onChange={(event) =>
                 setFormState((currentState) => ({
                   ...currentState,
-                  type: event.target.value as PlagaEnfermedadCatalogType
+                  plagaEnfermedadId: event.target.value
                 }))
               }
-              value={formState.type}
+              value={formState.plagaEnfermedadId}
             >
-              <option value="plaga">Plaga</option>
-              <option value="enfermedad">Enfermedad</option>
+              <option value="">Seleccionar</option>
+              {plagas.map((plaga) => (
+                <option key={plaga.id} value={plaga.id}>
+                  {plaga.name}
+                </option>
+              ))}
             </select>
+          </label>
+
+          <label className="field-group">
+            <span>Etapa fenologica</span>
+            <select
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  etapaFenologicaId: event.target.value
+                }))
+              }
+              value={formState.etapaFenologicaId}
+            >
+              <option value="">Seleccionar</option>
+              {etapas.map((etapa) => (
+                <option key={etapa.id} value={etapa.id}>
+                  {etapa.sortOrder === null
+                    ? etapa.name
+                    : `${etapa.sortOrder} - ${etapa.name}`}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field-group">
+            <span>Nivel incidencia/severidad</span>
+            <select
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  nivelIncidenciaSeveridadId: event.target.value
+                }))
+              }
+              value={formState.nivelIncidenciaSeveridadId}
+            >
+              <option value="">Seleccionar</option>
+              {niveles.map((nivel) => (
+                <option key={nivel.id} value={nivel.id}>
+                  {formatNivelType(nivel.type)} - {nivel.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field-group">
+            <span>Descripcion</span>
+            <textarea
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  description: event.target.value
+                }))
+              }
+              placeholder="Detalle de la relacion"
+              value={formState.description}
+            />
           </label>
 
           <label className="field-group">
@@ -440,7 +536,7 @@ export function PlagasEnfermedadesManagementScreen() {
               onChange={(event) =>
                 setFormState((currentState) => ({
                   ...currentState,
-                  status: event.target.value as PlagaFormState["status"]
+                  status: event.target.value as RelationFormState["status"]
                 }))
               }
               value={formState.status}
@@ -458,7 +554,10 @@ export function PlagasEnfermedadesManagementScreen() {
         confirmLabel="Desactivar"
         description={
           itemToDeactivate
-            ? `Se desactivara el registro ${itemToDeactivate.name}. Podra reactivarse mas adelante.`
+            ? `Se desactivara la relacion de ${getLookupLabel(
+                plagaLookup,
+                itemToDeactivate.plagaEnfermedadId
+              )}. Podra reactivarse mas adelante.`
             : ""
         }
         isLoading={isDeleting}
@@ -469,9 +568,17 @@ export function PlagasEnfermedadesManagementScreen() {
         }}
         onConfirm={() => void handleDeactivateConfirm()}
         open={itemToDeactivate !== null}
-        title="Desactivar registro"
+        title="Desactivar relacion"
         variant="warning"
       />
     </article>
   );
+}
+
+function getLookupLabel(lookup: Record<string, string>, id: string) {
+  return lookup[id] ?? `ID ${id}`;
+}
+
+function formatNivelType(type: NivelIncidenciaCatalogItem["type"]) {
+  return type === "incidencia" ? "Incidencia" : "Severidad";
 }

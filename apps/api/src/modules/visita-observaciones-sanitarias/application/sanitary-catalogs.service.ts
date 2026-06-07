@@ -14,10 +14,13 @@ import {
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { EtapaFenologicaEntity } from "../../visitas-campo/infrastructure/persistence/entities/etapa-fenologica.entity";
 import { NivelIncidenciaEntity } from "../infrastructure/persistence/entities/nivel-incidencia.entity";
+import { PlagaEnfermedadEtapaNivelEntity } from "../infrastructure/persistence/entities/plaga-enfermedad-etapa-nivel.entity";
 import { PlagaEnfermedadEntity } from "../infrastructure/persistence/entities/plaga-enfermedad.entity";
+import { CreatePlagaEnfermedadEtapaNivelDto } from "../presentation/dto/create-plaga-enfermedad-etapa-nivel.dto";
 import { CreateNivelIncidenciaDto } from "../presentation/dto/create-nivel-incidencia.dto";
 import { CreatePlagaEnfermedadDto } from "../presentation/dto/create-plaga-enfermedad.dto";
 import { UpdateNivelIncidenciaDto } from "../presentation/dto/update-nivel-incidencia.dto";
+import { UpdatePlagaEnfermedadEtapaNivelDto } from "../presentation/dto/update-plaga-enfermedad-etapa-nivel.dto";
 import { UpdatePlagaEnfermedadDto } from "../presentation/dto/update-plaga-enfermedad.dto";
 
 @Injectable()
@@ -27,6 +30,8 @@ export class SanitaryCatalogsService {
     private readonly plagasEnfermedadesRepository: Repository<PlagaEnfermedadEntity>,
     @InjectRepository(NivelIncidenciaEntity)
     private readonly nivelesIncidenciaRepository: Repository<NivelIncidenciaEntity>,
+    @InjectRepository(PlagaEnfermedadEtapaNivelEntity)
+    private readonly plagasEnfermedadesEtapasNivelesRepository: Repository<PlagaEnfermedadEtapaNivelEntity>,
     @InjectRepository(EtapaFenologicaEntity)
     private readonly etapasFenologicasRepository: Repository<EtapaFenologicaEntity>
   ) {}
@@ -55,17 +60,10 @@ export class SanitaryCatalogsService {
   }
 
   async createPestDisease(createPlagaEnfermedadDto: CreatePlagaEnfermedadDto) {
-    if (createPlagaEnfermedadDto.etapaFenologicaId) {
-      await this.ensureEtapaFenologicaExists(
-        createPlagaEnfermedadDto.etapaFenologicaId
-      );
-    }
-
     const pestDisease = this.plagasEnfermedadesRepository.create({
       scientificName: createPlagaEnfermedadDto.scientificName ?? null,
       name: createPlagaEnfermedadDto.name,
       type: createPlagaEnfermedadDto.type,
-      etapaFenologicaId: createPlagaEnfermedadDto.etapaFenologicaId ?? null,
       isActive: createPlagaEnfermedadDto.isActive ?? true
     });
 
@@ -85,12 +83,6 @@ export class SanitaryCatalogsService {
   ) {
     const pestDisease = await this.findPestDiseaseEntityById(id);
 
-    if (updatePlagaEnfermedadDto.etapaFenologicaId) {
-      await this.ensureEtapaFenologicaExists(
-        updatePlagaEnfermedadDto.etapaFenologicaId
-      );
-    }
-
     const updatedPestDisease = this.plagasEnfermedadesRepository.merge(
       pestDisease,
       {
@@ -102,9 +94,6 @@ export class SanitaryCatalogsService {
           : {}),
         ...(updatePlagaEnfermedadDto.type !== undefined
           ? { type: updatePlagaEnfermedadDto.type }
-          : {}),
-        ...(updatePlagaEnfermedadDto.etapaFenologicaId !== undefined
-          ? { etapaFenologicaId: updatePlagaEnfermedadDto.etapaFenologicaId }
           : {}),
         ...(updatePlagaEnfermedadDto.isActive !== undefined
           ? { isActive: updatePlagaEnfermedadDto.isActive }
@@ -136,6 +125,138 @@ export class SanitaryCatalogsService {
       await this.plagasEnfermedadesRepository.save(pestDisease);
 
     return createSuccessResponse(this.toPestDiseaseResponse(savedPestDisease));
+  }
+
+  async findAllPestDiseaseStageLevels(pagination: PaginationQueryDto) {
+    const [items, total] =
+      await this.plagasEnfermedadesEtapasNivelesRepository.findAndCount({
+        relations: {
+          plagaEnfermedad: true,
+          etapaFenologica: true,
+          nivelIncidenciaSeveridad: true
+        },
+        order: {
+          plagaEnfermedadId: "ASC",
+          etapaFenologicaId: "ASC",
+          nivelIncidenciaSeveridadId: "ASC"
+        },
+        skip: pagination.skip,
+        take: pagination.take
+      });
+
+    return createSuccessResponse(
+      items.map((item) => this.toPestDiseaseStageLevelResponse(item)),
+      createPaginatedMeta(total, pagination.page, pagination.limit)
+    );
+  }
+
+  async findPestDiseaseStageLevelById(id: string) {
+    const item = await this.findPestDiseaseStageLevelEntityById(id);
+
+    return createSuccessResponse(this.toPestDiseaseStageLevelResponse(item));
+  }
+
+  async createPestDiseaseStageLevel(
+    createDto: CreatePlagaEnfermedadEtapaNivelDto
+  ) {
+    await this.ensurePestDiseaseExists(createDto.plagaEnfermedadId);
+    await this.ensureEtapaFenologicaExists(createDto.etapaFenologicaId);
+    await this.ensureIncidenceLevelExists(
+      createDto.nivelIncidenciaSeveridadId
+    );
+
+    const item = this.plagasEnfermedadesEtapasNivelesRepository.create({
+      plagaEnfermedadId: createDto.plagaEnfermedadId,
+      etapaFenologicaId: createDto.etapaFenologicaId,
+      nivelIncidenciaSeveridadId: createDto.nivelIncidenciaSeveridadId,
+      description: createDto.description ?? null,
+      isActive: createDto.isActive ?? true
+    });
+
+    try {
+      const savedItem =
+        await this.plagasEnfermedadesEtapasNivelesRepository.save(item);
+
+      return createSuccessResponse(
+        this.toPestDiseaseStageLevelResponse(
+          await this.findPestDiseaseStageLevelEntityById(savedItem.id)
+        )
+      );
+    } catch (error) {
+      this.handlePestDiseaseStageLevelPersistenceError(error, "save");
+    }
+  }
+
+  async updatePestDiseaseStageLevel(
+    id: string,
+    updateDto: UpdatePlagaEnfermedadEtapaNivelDto
+  ) {
+    const item = await this.findPestDiseaseStageLevelEntityById(id);
+
+    if (updateDto.plagaEnfermedadId !== undefined) {
+      await this.ensurePestDiseaseExists(updateDto.plagaEnfermedadId);
+    }
+
+    if (updateDto.etapaFenologicaId !== undefined) {
+      await this.ensureEtapaFenologicaExists(updateDto.etapaFenologicaId);
+    }
+
+    if (updateDto.nivelIncidenciaSeveridadId !== undefined) {
+      await this.ensureIncidenceLevelExists(updateDto.nivelIncidenciaSeveridadId);
+    }
+
+    const updatedItem = this.plagasEnfermedadesEtapasNivelesRepository.merge(
+      item,
+      {
+        ...(updateDto.plagaEnfermedadId !== undefined
+          ? { plagaEnfermedadId: updateDto.plagaEnfermedadId }
+          : {}),
+        ...(updateDto.etapaFenologicaId !== undefined
+          ? { etapaFenologicaId: updateDto.etapaFenologicaId }
+          : {}),
+        ...(updateDto.nivelIncidenciaSeveridadId !== undefined
+          ? { nivelIncidenciaSeveridadId: updateDto.nivelIncidenciaSeveridadId }
+          : {}),
+        ...(updateDto.description !== undefined
+          ? { description: updateDto.description }
+          : {}),
+        ...(updateDto.isActive !== undefined
+          ? { isActive: updateDto.isActive }
+          : {})
+      }
+    );
+
+    try {
+      const savedItem =
+        await this.plagasEnfermedadesEtapasNivelesRepository.save(updatedItem);
+
+      return createSuccessResponse(
+        this.toPestDiseaseStageLevelResponse(
+          await this.findPestDiseaseStageLevelEntityById(savedItem.id)
+        )
+      );
+    } catch (error) {
+      this.handlePestDiseaseStageLevelPersistenceError(error, "save");
+    }
+  }
+
+  async removePestDiseaseStageLevel(id: string) {
+    const item = await this.findPestDiseaseStageLevelEntityById(id);
+
+    if (!item.isActive) {
+      return createSuccessResponse(this.toPestDiseaseStageLevelResponse(item));
+    }
+
+    item.isActive = false;
+
+    const savedItem =
+      await this.plagasEnfermedadesEtapasNivelesRepository.save(item);
+
+    return createSuccessResponse(
+      this.toPestDiseaseStageLevelResponse(
+        await this.findPestDiseaseStageLevelEntityById(savedItem.id)
+      )
+    );
   }
 
   async findAllIncidenceLevels(pagination: PaginationQueryDto) {
@@ -254,6 +375,34 @@ export class SanitaryCatalogsService {
     return incidenceLevel;
   }
 
+  private async findPestDiseaseStageLevelEntityById(id: string) {
+    const item =
+      await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
+        where: { id },
+        relations: {
+          plagaEnfermedad: true,
+          etapaFenologica: true,
+          nivelIncidenciaSeveridad: true
+        }
+      });
+
+    if (!item) {
+      throw new NotFoundException("Pest disease stage level not found.");
+    }
+
+    return item;
+  }
+
+  private async ensurePestDiseaseExists(plagaEnfermedadId: string) {
+    const pestDisease = await this.plagasEnfermedadesRepository.findOne({
+      where: { id: plagaEnfermedadId }
+    });
+
+    if (!pestDisease) {
+      throw new BadRequestException("Pest disease not found.");
+    }
+  }
+
   private async ensureEtapaFenologicaExists(etapaFenologicaId: string) {
     const etapaFenologica = await this.etapasFenologicasRepository.findOne({
       where: { id: etapaFenologicaId }
@@ -261,6 +410,18 @@ export class SanitaryCatalogsService {
 
     if (!etapaFenologica) {
       throw new BadRequestException("Phenological stage not found.");
+    }
+  }
+
+  private async ensureIncidenceLevelExists(
+    nivelIncidenciaSeveridadId: number
+  ) {
+    const incidenceLevel = await this.nivelesIncidenciaRepository.findOne({
+      where: { id: nivelIncidenciaSeveridadId }
+    });
+
+    if (!incidenceLevel) {
+      throw new BadRequestException("Incidence or severity level not found.");
     }
   }
 
@@ -286,13 +447,55 @@ export class SanitaryCatalogsService {
         );
       }
 
+    }
+
+    throw error;
+  }
+
+  private handlePestDiseaseStageLevelPersistenceError(
+    error: unknown,
+    operation: "save"
+  ): never {
+    if (error instanceof QueryFailedError) {
+      const databaseError = error.driverError as
+        | {
+            code?: string;
+            constraint?: string;
+          }
+        | undefined;
+
+      if (
+        operation === "save" &&
+        databaseError?.code === "23505" &&
+        databaseError.constraint === "plagas_enfermedades_etapas_niveles_unique"
+      ) {
+        throw new ConflictException(
+          "The pest/disease, phenological stage and incidence/severity level relation already exists."
+        );
+      }
+
       if (
         operation === "save" &&
         databaseError?.code === "23503" &&
-        databaseError.constraint ===
-          "plagas_enfermedades_etapa_fenologica_id_fkey"
+        databaseError.constraint === "plagas_enfermedades_etapas_niveles_plaga_fkey"
+      ) {
+        throw new BadRequestException("Pest disease not found.");
+      }
+
+      if (
+        operation === "save" &&
+        databaseError?.code === "23503" &&
+        databaseError.constraint === "plagas_enfermedades_etapas_niveles_etapa_fkey"
       ) {
         throw new BadRequestException("Phenological stage not found.");
+      }
+
+      if (
+        operation === "save" &&
+        databaseError?.code === "23503" &&
+        databaseError.constraint === "plagas_enfermedades_etapas_niveles_nivel_fkey"
+      ) {
+        throw new BadRequestException("Incidence or severity level not found.");
       }
     }
 
@@ -349,7 +552,6 @@ export class SanitaryCatalogsService {
       scientificName: pestDisease.scientificName,
       name: pestDisease.name,
       type: pestDisease.type,
-      etapaFenologicaId: pestDisease.etapaFenologicaId,
       isActive: pestDisease.isActive
     };
   }
@@ -360,6 +562,33 @@ export class SanitaryCatalogsService {
       name: incidenceLevel.name,
       sortOrder: incidenceLevel.sortOrder,
       type: incidenceLevel.type
+    };
+  }
+
+  private toPestDiseaseStageLevelResponse(
+    item: PlagaEnfermedadEtapaNivelEntity
+  ) {
+    return {
+      id: item.id,
+      plagaEnfermedadId: item.plagaEnfermedadId,
+      etapaFenologicaId: item.etapaFenologicaId,
+      nivelIncidenciaSeveridadId: item.nivelIncidenciaSeveridadId,
+      description: item.description,
+      isActive: item.isActive,
+      plagaEnfermedad: item.plagaEnfermedad
+        ? this.toPestDiseaseResponse(item.plagaEnfermedad)
+        : null,
+      etapaFenologica: item.etapaFenologica
+        ? {
+            id: item.etapaFenologica.id,
+            name: item.etapaFenologica.name,
+            type: item.etapaFenologica.type,
+            sortOrder: item.etapaFenologica.sortOrder
+          }
+        : null,
+      nivelIncidenciaSeveridad: item.nivelIncidenciaSeveridad
+        ? this.toIncidenceLevelResponse(item.nivelIncidenciaSeveridad)
+        : null
     };
   }
 }
