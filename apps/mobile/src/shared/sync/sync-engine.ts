@@ -1,5 +1,6 @@
 import { evaluacionesRepository } from "../../modules/evaluaciones/repositories/evaluaciones.repository";
 import { observacionesSanitariasRepository } from "../../modules/observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
+import { visitaStepNotesRepository } from "../../modules/observaciones-sanitarias/repositories/visita-step-notes.repository";
 import { productosRecomendadosRepository } from "../../modules/productos-recomendados/repositories/productos-recomendados.repository";
 import { recomendacionesRepository } from "../../modules/recomendaciones/repositories/recomendaciones.repository";
 import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
@@ -167,6 +168,11 @@ function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {
         serverId: data.id,
         syncStatus: "synced"
       });
+    } else if (entry.entityType === "visita_paso_observaciones") {
+      visitaStepNotesRepository.update(entry.entityLocalId, {
+        serverId: data.id,
+        syncStatus: "synced"
+      });
     } else if (entry.entityType === "visita_recomendaciones") {
       recomendacionesRepository.update(entry.entityLocalId, {
         serverId: data.id,
@@ -192,6 +198,8 @@ function getChildVisitaLocalId(entry: SyncOutboxItem): string | null {
         observacionesSanitariasRepository.getById(entry.entityLocalId)?.visitaId ??
         null
       );
+    case "visita_paso_observaciones":
+      return visitaStepNotesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
     case "visita_recomendaciones":
       return recomendacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
     case "visita_productos_recomendados":
@@ -225,6 +233,11 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
         break;
       case "visita_observaciones_sanitarias":
         observacionesSanitariasRepository.update(entry.entityLocalId, {
+          syncStatus: "error"
+        });
+        break;
+      case "visita_paso_observaciones":
+        visitaStepNotesRepository.update(entry.entityLocalId, {
           syncStatus: "error"
         });
         break;

@@ -33,6 +33,18 @@ export class CreateVisitaObservacionSanitariaDto {
   incidenceLevelId?: number | null;
 
   @ApiPropertyOptional({
+    example: 4,
+    description: "Id del nivel de severidad."
+  })
+  @Transform(({ value }) => parseOptionalInteger(value))
+  @IsOptional()
+  @IsInt({
+    message: "severityLevelId must be an integer."
+  })
+  @Min(1)
+  severityLevelId?: number | null;
+
+  @ApiPropertyOptional({
     example: "Se observaron manchas foliares leves."
   })
   @Transform(({ value }) => trimOptionalString(value))

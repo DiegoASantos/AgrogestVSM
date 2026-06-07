@@ -23,6 +23,7 @@ export async function downloadAllCatalogs() {
     subEtapas,
     pestDiseases,
     incidenceLevels,
+    pestDiseaseStageLevels,
     recommendationTypes,
     products,
     applicationFrequencies,
@@ -49,6 +50,7 @@ export async function downloadAllCatalogs() {
     visitaCampoCatalogsRemote.getSubEtapas(),
     observacionesSanitariasRemote.getPestDiseases(),
     observacionesSanitariasRemote.getIncidenceLevels(),
+    observacionesSanitariasRemote.getPestDiseaseStageLevels(),
     recomendacionesRemote.getRecommendationTypes(),
     productosRecomendadosRemote.getProducts(),
     productosRecomendadosRemote.getApplicationFrequencies(),
@@ -161,14 +163,12 @@ export async function downloadAllCatalogs() {
           scientific_name,
           name,
           type,
-          phenological_stage_id,
           is_active
-        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?)`,
         pestDisease.id,
         pestDisease.scientificName,
         pestDisease.name,
         pestDisease.type,
-        pestDisease.etapaFenologicaId ?? null,
         toSqliteBoolean(pestDisease.isActive)
       );
     }
@@ -181,6 +181,25 @@ export async function downloadAllCatalogs() {
         incidenceLevel.name,
         incidenceLevel.sortOrder,
         incidenceLevel.type
+      );
+    }
+
+    for (const relation of pestDiseaseStageLevels) {
+      db.runSync(
+        `INSERT OR REPLACE INTO pest_disease_stage_levels (
+          id,
+          pest_disease_id,
+          phenological_stage_id,
+          incidence_severity_level_id,
+          description,
+          is_active
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        relation.id,
+        relation.plagaEnfermedadId,
+        relation.etapaFenologicaId,
+        relation.nivelIncidenciaSeveridadId,
+        relation.description,
+        toSqliteBoolean(relation.isActive)
       );
     }
 

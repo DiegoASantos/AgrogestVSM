@@ -1,20 +1,29 @@
 import { apiRequest } from "../../../shared/services";
 import type {
   IncidenceLevelCatalogItem,
+  PestDiseaseStageLevelCatalogItem,
   PestDiseaseCatalogItem,
-  VisitaObservacionSanitaria
+  VisitaObservacionSanitaria,
+  VisitaStepNote
 } from "../types";
 
 type CreateObservacionSanitariaInput = {
   pestDiseaseId: string;
   incidenceLevelId?: number | null;
+  severityLevelId?: number | null;
   observation?: string;
 };
 
 type UpdateObservacionSanitariaInput = {
   pestDiseaseId?: string;
   incidenceLevelId?: number | null;
+  severityLevelId?: number | null;
   observation?: string | null;
+};
+
+type UpsertStepNoteInput = {
+  observation?: string | null;
+  recommendation?: string | null;
 };
 
 export const observacionesSanitariasRemote = {
@@ -25,6 +34,12 @@ export const observacionesSanitariasRemote = {
   getIncidenceLevels() {
     return apiRequest<IncidenceLevelCatalogItem[]>(
       "/niveles-incidencia-severidad"
+    );
+  },
+
+  getPestDiseaseStageLevels() {
+    return apiRequest<PestDiseaseStageLevelCatalogItem[]>(
+      "/plagas-enfermedades-etapas-niveles"
     );
   },
 
@@ -59,6 +74,20 @@ export const observacionesSanitariasRemote = {
       `/observaciones-sanitarias/${id}`,
       {
         method: "DELETE"
+      }
+    );
+  },
+
+  upsertStepNote(
+    visitaId: string,
+    stepNumber: number,
+    input: UpsertStepNoteInput
+  ) {
+    return apiRequest<VisitaStepNote>(
+      `/visitas-campo/${visitaId}/paso-observaciones/${stepNumber}`,
+      {
+        method: "PATCH",
+        body: input
       }
     );
   }

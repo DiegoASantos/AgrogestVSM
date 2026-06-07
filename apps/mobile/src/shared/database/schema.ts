@@ -49,8 +49,18 @@ export const SQL_SCHEMA = [
     scientific_name TEXT,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
-    phenological_stage_id TEXT,
     is_active INTEGER NOT NULL DEFAULT 1
+  )`,
+  `CREATE TABLE IF NOT EXISTS pest_disease_stage_levels (
+    id TEXT PRIMARY KEY NOT NULL,
+    pest_disease_id TEXT NOT NULL,
+    phenological_stage_id TEXT NOT NULL,
+    incidence_severity_level_id TEXT NOT NULL,
+    description TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (pest_disease_id) REFERENCES pest_diseases(id),
+    FOREIGN KEY (phenological_stage_id) REFERENCES etapas_fenologicas(id),
+    FOREIGN KEY (incidence_severity_level_id) REFERENCES incidence_levels(id)
   )`,
   `CREATE TABLE IF NOT EXISTS incidence_levels (
     id TEXT PRIMARY KEY NOT NULL,
@@ -187,13 +197,29 @@ export const SQL_SCHEMA = [
     visita_local_id TEXT NOT NULL,
     pest_disease_id TEXT NOT NULL,
     incidence_level_id TEXT,
+    severity_level_id TEXT,
     observation TEXT,
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
     FOREIGN KEY (pest_disease_id) REFERENCES pest_diseases(id),
-    FOREIGN KEY (incidence_level_id) REFERENCES incidence_levels(id)
+    FOREIGN KEY (incidence_level_id) REFERENCES incidence_levels(id),
+    FOREIGN KEY (severity_level_id) REFERENCES incidence_levels(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS visita_paso_observaciones (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    server_id TEXT,
+    visita_local_id TEXT NOT NULL,
+    step_number INTEGER NOT NULL,
+    observation TEXT,
+    recommendation TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    sync_error_message TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+    UNIQUE (visita_local_id, step_number)
   )`,
   `CREATE TABLE IF NOT EXISTS visita_recomendaciones (
     local_id TEXT PRIMARY KEY NOT NULL,

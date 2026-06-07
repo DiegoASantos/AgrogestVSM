@@ -3,8 +3,20 @@ export type PestDiseaseCatalogItem = {
   scientificName: string | null;
   name: string;
   type: string;
-  etapaFenologicaId: string | null;
   isActive: boolean;
+};
+
+export type PestDiseaseStageLevelCatalogItem = {
+  id: string;
+  plagaEnfermedadId: string;
+  etapaFenologicaId: string;
+  nivelIncidenciaSeveridadId: string;
+  description: string | null;
+  isActive: boolean;
+};
+
+export type PestDiseaseByStageItem = PestDiseaseCatalogItem & {
+  stageLevels: PestDiseaseStageLevelCatalogItem[];
 };
 
 export type IncidenceLevelCatalogItem = {
@@ -21,7 +33,20 @@ export type VisitaObservacionSanitaria = {
   visitaId: string;
   pestDiseaseId: string;
   incidenceLevelId: string | null;
+  severityLevelId: string | null;
   observation: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VisitaStepNote = {
+  id: string;
+  serverId: string | null;
+  syncStatus: "pending" | "synced" | "error";
+  visitaId: string;
+  stepNumber: number;
+  observation: string | null;
+  recommendation: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -29,9 +54,13 @@ export type VisitaObservacionSanitaria = {
 export type ObservacionSanitariaFormValues = {
   pestDiseaseId: string;
   incidenceLevelId: string;
+  severityLevelId: string;
   observation: string;
 };
 
 export type ObservacionSanitariaFormErrors = Partial<
-  Record<"pestDiseaseId" | "incidenceLevelId" | "observation", string>
+  Record<
+    "pestDiseaseId" | "incidenceLevelId" | "severityLevelId" | "observation",
+    string
+  >
 >;

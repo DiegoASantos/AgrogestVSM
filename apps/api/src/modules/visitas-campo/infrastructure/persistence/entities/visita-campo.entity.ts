@@ -18,6 +18,7 @@ import { VisitaProductoRecomendadoEntity } from "../../../../visita-productos-re
 import { VisitaRecomendacionEntity } from "../../../../visita-recomendaciones/infrastructure/persistence/entities/visita-recomendacion.entity";
 import { EtapaFenologicaEntity } from "./etapa-fenologica.entity";
 import { SubEtapaEntity } from "./sub-etapa.entity";
+import { VisitaPasoObservacionEntity } from "./visita-paso-observacion.entity";
 
 export type PointGeometry = {
   type: "Point";
@@ -301,4 +302,10 @@ export class VisitaCampoEntity {
     (visitaProductoRecomendado) => visitaProductoRecomendado.visita
   )
   productosRecomendados!: VisitaProductoRecomendadoEntity[];
+
+  @OneToMany(
+    () => VisitaPasoObservacionEntity,
+    (stepNote) => stepNote.visita
+  )
+  stepNotes!: VisitaPasoObservacionEntity[];
 }

@@ -38,6 +38,13 @@ export class VisitaObservacionSanitariaEntity {
   nivelIncidenciaId!: number | null;
 
   @Column({
+    name: "nivel_severidad_id",
+    type: "smallint",
+    nullable: true
+  })
+  nivelSeveridadId!: number | null;
+
+  @Column({
     name: "observacion",
     type: "text",
     nullable: true
@@ -86,4 +93,19 @@ export class VisitaObservacionSanitariaEntity {
     referencedColumnName: "id"
   })
   nivelIncidencia!: NivelIncidenciaEntity | null;
+
+  @ManyToOne(
+    () => NivelIncidenciaEntity,
+    (nivelIncidencia) => nivelIncidencia.visitaObservacionesSeveridad,
+    {
+      nullable: true,
+      onDelete: "RESTRICT",
+      onUpdate: "NO ACTION"
+    }
+  )
+  @JoinColumn({
+    name: "nivel_severidad_id",
+    referencedColumnName: "id"
+  })
+  nivelSeveridad!: NivelIncidenciaEntity | null;
 }

@@ -62,8 +62,8 @@ type WizardStep = {
 
 const WIZARD_STEPS: WizardStep[] = [
   { index: 1, title: "Datos basicos y etapas fenologicas", routeLabel: "Datos" },
-  { index: 2, title: "Evaluaciones", routeLabel: "Evaluaciones" },
-  { index: 3, title: "Observaciones sanitarias", routeLabel: "Sanidad" },
+  { index: 2, title: "Plagas y enfermedades", routeLabel: "Sanidad" },
+  { index: 3, title: "Evaluaciones", routeLabel: "Evaluaciones" },
   { index: 4, title: "Recomendaciones", routeLabel: "Recom." },
   { index: 5, title: "Productos recomendados", routeLabel: "Productos" }
 ];
@@ -791,7 +791,7 @@ export function NewVisitaCampoScreen() {
       );
 
       router.replace({
-        pathname: "/visitas-campo/[id]/evaluaciones",
+        pathname: "/visitas-campo/[id]/observaciones-sanitarias",
         params: {
           id: createdVisita.id
         }

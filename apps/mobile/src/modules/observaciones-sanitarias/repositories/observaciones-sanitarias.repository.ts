@@ -7,7 +7,9 @@ import {
 import { generateLocalId } from "../../../shared/utils/local-id";
 import type {
   IncidenceLevelCatalogItem,
+  PestDiseaseByStageItem,
   PestDiseaseCatalogItem,
+  PestDiseaseStageLevelCatalogItem,
   VisitaObservacionSanitaria
 } from "../types";
 
@@ -19,6 +21,7 @@ type ObservacionRow = {
   visita_local_id: string;
   pest_disease_id: string;
   incidence_level_id: string | null;
+  severity_level_id: string | null;
   observation: string | null;
   sync_status: SyncStatus;
   created_at: string;
@@ -30,7 +33,15 @@ type PestDiseaseRow = {
   scientific_name: string | null;
   name: string;
   type: string;
-  phenological_stage_id: string | null;
+  is_active: number;
+};
+
+type PestDiseaseStageLevelRow = {
+  id: string;
+  pest_disease_id: string;
+  phenological_stage_id: string;
+  incidence_severity_level_id: string;
+  description: string | null;
   is_active: number;
 };
 
@@ -44,12 +55,14 @@ type IncidenceLevelRow = {
 type CreateObservacionInput = {
   pestDiseaseId: string;
   incidenceLevelId?: string | null;
+  severityLevelId?: string | null;
   observation?: string;
 };
 
 type UpdateObservacionInput = {
   pestDiseaseId?: string;
   incidenceLevelId?: string | null;
+  severityLevelId?: string | null;
   observation?: string | null;
   serverId?: string | null;
   syncStatus?: SyncStatus;
@@ -61,6 +74,7 @@ const OBSERVACION_COLUMNS = `
   visita_local_id,
   pest_disease_id,
   incidence_level_id,
+  severity_level_id,
   observation,
   sync_status,
   created_at,
@@ -118,16 +132,18 @@ export const observacionesSanitariasRepository = {
           visita_local_id,
           pest_disease_id,
           incidence_level_id,
+          severity_level_id,
           observation,
           sync_status,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         null,
         visitaLocalId,
         input.pestDiseaseId,
         input.incidenceLevelId ?? null,
+        input.severityLevelId ?? null,
         input.observation ?? null,
         "pending",
         timestamp,
@@ -164,6 +180,11 @@ export const observacionesSanitariasRepository = {
     if (data.incidenceLevelId !== undefined) {
       sets.push("incidence_level_id = ?");
       params.push(data.incidenceLevelId);
+    }
+
+    if (data.severityLevelId !== undefined) {
+      sets.push("severity_level_id = ?");
+      params.push(data.severityLevelId);
     }
 
     if (data.observation !== undefined) {
@@ -254,7 +275,7 @@ export const observacionesSanitariasRepository = {
   getPestDiseases() {
     const db = getDatabase();
     const rows = db.getAllSync<PestDiseaseRow>(
-      `SELECT id, scientific_name, name, type, phenological_stage_id, is_active
+      `SELECT id, scientific_name, name, type, is_active
        FROM pest_diseases
        ORDER BY name ASC, id ASC`
     );
@@ -264,9 +285,68 @@ export const observacionesSanitariasRepository = {
       scientificName: row.scientific_name,
       name: row.name,
       type: row.type,
-      etapaFenologicaId: row.phenological_stage_id,
       isActive: fromSqliteBoolean(row.is_active)
     })) satisfies PestDiseaseCatalogItem[];
+  },
+
+  getPestDiseasesByPhenologicalStage(
+    phenologicalStageId: string
+  ): PestDiseaseByStageItem[] {
+    const db = getDatabase();
+    const rows = db.getAllSync<PestDiseaseRow>(
+      `SELECT DISTINCT pest.id, pest.scientific_name, pest.name, pest.type, pest.is_active
+       FROM pest_diseases pest
+       INNER JOIN pest_disease_stage_levels relation
+         ON relation.pest_disease_id = pest.id
+       WHERE relation.phenological_stage_id = ?
+         AND relation.is_active = 1
+         AND pest.is_active = 1
+       ORDER BY pest.type ASC, pest.name ASC, pest.id ASC`,
+      phenologicalStageId
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      scientificName: row.scientific_name,
+      name: row.name,
+      type: row.type,
+      isActive: fromSqliteBoolean(row.is_active),
+      stageLevels: this.getStageLevelsByPestDiseaseAndStage(
+        row.id,
+        phenologicalStageId
+      )
+    }));
+  },
+
+  getStageLevelsByPestDiseaseAndStage(
+    pestDiseaseId: string,
+    phenologicalStageId: string
+  ): PestDiseaseStageLevelCatalogItem[] {
+    const db = getDatabase();
+    const rows = db.getAllSync<PestDiseaseStageLevelRow>(
+      `SELECT id,
+              pest_disease_id,
+              phenological_stage_id,
+              incidence_severity_level_id,
+              description,
+              is_active
+       FROM pest_disease_stage_levels
+       WHERE pest_disease_id = ?
+         AND phenological_stage_id = ?
+         AND is_active = 1
+       ORDER BY incidence_severity_level_id ASC`,
+      pestDiseaseId,
+      phenologicalStageId
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      plagaEnfermedadId: row.pest_disease_id,
+      etapaFenologicaId: row.phenological_stage_id,
+      nivelIncidenciaSeveridadId: row.incidence_severity_level_id,
+      description: row.description,
+      isActive: fromSqliteBoolean(row.is_active)
+    }));
   },
 
   getIncidenceLevels() {
@@ -294,6 +374,7 @@ function mapObservacionRow(row: ObservacionRow): VisitaObservacionSanitaria {
     visitaId: row.visita_local_id,
     pestDiseaseId: row.pest_disease_id,
     incidenceLevelId: row.incidence_level_id,
+    severityLevelId: row.severity_level_id,
     observation: row.observation,
     createdAt: row.created_at,
     updatedAt: row.updated_at

@@ -157,6 +157,61 @@ const MIGRATIONS: Migration[] = [
     run: (db) => {
       addColumnIfMissing(db, "pest_diseases", "phenological_stage_id", "TEXT");
     }
+  },
+  {
+    version: 15,
+    run: (db) => {
+      addColumnIfMissing(
+        db,
+        "visita_observaciones_sanitarias",
+        "severity_level_id",
+        "TEXT"
+      );
+      db.execSync(
+        `CREATE TABLE IF NOT EXISTS pest_disease_stage_levels (
+          id TEXT PRIMARY KEY NOT NULL,
+          pest_disease_id TEXT NOT NULL,
+          phenological_stage_id TEXT NOT NULL,
+          incidence_severity_level_id TEXT NOT NULL,
+          description TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          FOREIGN KEY (pest_disease_id) REFERENCES pest_diseases(id),
+          FOREIGN KEY (phenological_stage_id) REFERENCES etapas_fenologicas(id),
+          FOREIGN KEY (incidence_severity_level_id) REFERENCES incidence_levels(id)
+        )`
+      );
+      db.execSync(
+        `CREATE TABLE IF NOT EXISTS visita_paso_observaciones (
+          local_id TEXT PRIMARY KEY NOT NULL,
+          server_id TEXT,
+          visita_local_id TEXT NOT NULL,
+          step_number INTEGER NOT NULL,
+          observation TEXT,
+          recommendation TEXT,
+          sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+          sync_error_message TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+          UNIQUE (visita_local_id, step_number)
+        )`
+      );
+      addColumnIfMissing(
+        db,
+        "visita_paso_observaciones",
+        "sync_error_message",
+        "TEXT"
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_pest_disease_stage_levels_stage ON pest_disease_stage_levels(phenological_stage_id)"
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_pest_disease_stage_levels_pest ON pest_disease_stage_levels(pest_disease_id)"
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_visita_paso_observaciones_visita ON visita_paso_observaciones(visita_local_id)"
+      );
+    }
   }
 ];
 

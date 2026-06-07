@@ -2,8 +2,12 @@ import { evaluacionesRepository } from "../../modules/evaluaciones/repositories/
 import { evaluacionesRemote } from "../../modules/evaluaciones/services/evaluaciones.remote";
 import type { VisitaEvaluacion } from "../../modules/evaluaciones/types";
 import { observacionesSanitariasRepository } from "../../modules/observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
+import { visitaStepNotesRepository } from "../../modules/observaciones-sanitarias/repositories/visita-step-notes.repository";
 import { observacionesSanitariasRemote } from "../../modules/observaciones-sanitarias/services/observaciones-sanitarias.remote";
-import type { VisitaObservacionSanitaria } from "../../modules/observaciones-sanitarias/types";
+import type {
+  VisitaObservacionSanitaria,
+  VisitaStepNote
+} from "../../modules/observaciones-sanitarias/types";
 import { productosRecomendadosRepository } from "../../modules/productos-recomendados/repositories/productos-recomendados.repository";
 import { productosRecomendadosRemote } from "../../modules/productos-recomendados/services/productos-recomendados.remote";
 import type { VisitaProductoRecomendado } from "../../modules/productos-recomendados/types";
@@ -239,6 +243,43 @@ export async function handleObservacion(
   return { status: "synced", serverId: observacion.serverId };
 }
 
+export async function handleStepNote(
+  entry: SyncOutboxItem
+): Promise<SyncHandlerResult> {
+  const stepNote = visitaStepNotesRepository.getById(entry.entityLocalId);
+
+  if (!stepNote) {
+    return { status: "deleted_local" };
+  }
+
+  const visitaPadre = visitasCampoRepository.getById(stepNote.visitaId);
+
+  if (!visitaPadre) {
+    return { status: "deleted_local" };
+  }
+
+  if (visitaPadre.syncStatus === "error") {
+    throw new Error("La visita padre no pudo sincronizarse.");
+  }
+
+  if (!visitaPadre.serverId) {
+    return { status: "skipped" };
+  }
+
+  const response = await observacionesSanitariasRemote.upsertStepNote(
+    visitaPadre.serverId,
+    stepNote.stepNumber,
+    buildStepNoteBody(stepNote)
+  );
+
+  visitaStepNotesRepository.update(stepNote.id, {
+    serverId: response.id,
+    syncStatus: "synced"
+  });
+
+  return { status: "synced", serverId: response.id };
+}
+
 export async function handleRecomendacion(
   entry: SyncOutboxItem
 ): Promise<SyncHandlerResult> {
@@ -387,6 +428,7 @@ export const entityHandlerMap: Record<
   visitas_campo: handleVisitaCampo,
   visita_evaluaciones: handleEvaluacion,
   visita_observaciones_sanitarias: handleObservacion,
+  visita_paso_observaciones: handleStepNote,
   visita_recomendaciones: handleRecomendacion,
   visita_productos_recomendados: handleProducto
 };
@@ -486,6 +528,9 @@ function buildObservacionCreateBody(
     incidenceLevelId: observacion.incidenceLevelId
       ? Number(observacion.incidenceLevelId)
       : null,
+    severityLevelId: observacion.severityLevelId
+      ? Number(observacion.severityLevelId)
+      : null,
     observation: observacion.observation ?? undefined
   };
 }
@@ -498,7 +543,17 @@ function buildObservacionUpdateBody(
     incidenceLevelId: observacion.incidenceLevelId
       ? Number(observacion.incidenceLevelId)
       : null,
+    severityLevelId: observacion.severityLevelId
+      ? Number(observacion.severityLevelId)
+      : null,
     observation: observacion.observation ?? null
+  };
+}
+
+function buildStepNoteBody(stepNote: VisitaStepNote) {
+  return {
+    observation: stepNote.observation ?? null,
+    recommendation: stepNote.recommendation ?? null
   };
 }
 

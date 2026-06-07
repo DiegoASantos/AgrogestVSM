@@ -38,6 +38,12 @@ export class NivelIncidenciaEntity {
   visitaObservacionesSanitarias!: VisitaObservacionSanitariaEntity[];
 
   @OneToMany(
+    () => VisitaObservacionSanitariaEntity,
+    (visitaObservacionSanitaria) => visitaObservacionSanitaria.nivelSeveridad
+  )
+  visitaObservacionesSeveridad!: VisitaObservacionSanitariaEntity[];
+
+  @OneToMany(
     () => PlagaEnfermedadEtapaNivelEntity,
     (etapaNivel) => etapaNivel.nivelIncidenciaSeveridad
   )

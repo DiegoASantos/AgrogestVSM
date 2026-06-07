@@ -1,4 +1,5 @@
 import { observacionesSanitariasRepository } from "../repositories/observaciones-sanitarias.repository";
+import { visitaStepNotesRepository } from "../repositories/visita-step-notes.repository";
 
 type CreateObservacionSanitariaInput = {
   pestDiseaseId: string;
@@ -17,6 +18,14 @@ export const observacionesSanitariasService = {
     return Promise.resolve(observacionesSanitariasRepository.getPestDiseases());
   },
 
+  getPestDiseasesByPhenologicalStage(phenologicalStageId: string) {
+    return Promise.resolve(
+      observacionesSanitariasRepository.getPestDiseasesByPhenologicalStage(
+        phenologicalStageId
+      )
+    );
+  },
+
   getIncidenceLevels() {
     return Promise.resolve(observacionesSanitariasRepository.getIncidenceLevels());
   },
@@ -24,6 +33,22 @@ export const observacionesSanitariasService = {
   getByVisitaId(visitaId: string) {
     return Promise.resolve(
       observacionesSanitariasRepository.getByVisitaLocalId(visitaId)
+    );
+  },
+
+  getStepNote(visitaId: string, stepNumber: number) {
+    return Promise.resolve(
+      visitaStepNotesRepository.getByVisitaAndStep(visitaId, stepNumber)
+    );
+  },
+
+  upsertStepNote(
+    visitaId: string,
+    stepNumber: number,
+    input: { observation?: string | null; recommendation?: string | null }
+  ) {
+    return Promise.resolve(
+      visitaStepNotesRepository.upsert(visitaId, stepNumber, input)
     );
   },
 

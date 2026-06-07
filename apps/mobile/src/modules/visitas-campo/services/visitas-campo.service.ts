@@ -12,6 +12,7 @@ import { debugLog } from "../../../shared/utils/debug-log";
 import { getUserIdFromAccessToken } from "../../../shared/utils/auth-token";
 import { evaluacionesRepository } from "../../evaluaciones/repositories/evaluaciones.repository";
 import { observacionesSanitariasRepository } from "../../observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
+import { visitaStepNotesRepository } from "../../observaciones-sanitarias/repositories/visita-step-notes.repository";
 import { productosRecomendadosRepository } from "../../productos-recomendados/repositories/productos-recomendados.repository";
 import { recomendacionesRepository } from "../../recomendaciones/repositories/recomendaciones.repository";
 import { visitasCampoRepository } from "../repositories/visitas-campo.repository";
@@ -79,6 +80,11 @@ export const visitasCampoService = {
       evaluaciones: evaluacionesRepository.getByVisitaLocalId(localId),
       observacionesSanitarias:
         observacionesSanitariasRepository.getByVisitaLocalId(localId),
+      stepNotes: [1, 2, 3, 4, 5]
+        .map((stepNumber) =>
+          visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
+        )
+        .filter((stepNote) => stepNote !== null),
       recomendaciones: recomendacionesRepository.getByVisitaLocalId(localId),
       productosRecomendados:
         productosRecomendadosRepository.getByVisitaLocalId(localId)
@@ -105,6 +111,11 @@ export const visitasCampoService = {
     const evaluaciones = evaluacionesRepository.getByVisitaLocalId(localId);
     const observaciones =
       observacionesSanitariasRepository.getByVisitaLocalId(localId);
+    const stepNotes = [1, 2, 3, 4, 5]
+      .map((stepNumber) =>
+        visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
+      )
+      .filter((stepNote) => stepNote !== null);
     const recomendaciones = recomendacionesRepository.getByVisitaLocalId(localId);
     const productos = productosRecomendadosRepository.getByVisitaLocalId(localId);
 
@@ -112,6 +123,7 @@ export const visitasCampoService = {
       visita.syncStatus,
       ...evaluaciones.map((evaluacion) => evaluacion.syncStatus),
       ...observaciones.map((observacion) => observacion.syncStatus),
+      ...stepNotes.map((stepNote) => stepNote.syncStatus),
       ...recomendaciones.map((recomendacion) => recomendacion.syncStatus),
       ...productos.map((producto) => producto.syncStatus)
     ];
@@ -152,6 +164,11 @@ export const visitasCampoService = {
     const evaluaciones = evaluacionesRepository.getByVisitaLocalId(localId);
     const observaciones =
       observacionesSanitariasRepository.getByVisitaLocalId(localId);
+    const stepNotes = [1, 2, 3, 4, 5]
+      .map((stepNumber) =>
+        visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
+      )
+      .filter((stepNote) => stepNote !== null);
     const recomendaciones = recomendacionesRepository.getByVisitaLocalId(localId);
     const productos = productosRecomendadosRepository.getByVisitaLocalId(localId);
 
@@ -187,6 +204,16 @@ export const visitasCampoService = {
           entityType: "visita_observaciones_sanitarias",
           localId: observacion.id,
           syncStatus: observacion.syncStatus
+        });
+      }
+    }
+
+    for (const stepNote of stepNotes) {
+      if (stepNote.syncStatus === "error") {
+        entitiesToRetry.push({
+          entityType: "visita_paso_observaciones",
+          localId: stepNote.id,
+          syncStatus: stepNote.syncStatus
         });
       }
     }
@@ -242,6 +269,11 @@ export const visitasCampoService = {
               syncStatus: "pending"
             });
             break;
+          case "visita_paso_observaciones":
+            visitaStepNotesRepository.update(entity.localId, {
+              syncStatus: "pending"
+            });
+            break;
           case "visita_recomendaciones":
             recomendacionesRepository.update(entity.localId, { syncStatus: "pending" });
             break;
@@ -288,6 +320,8 @@ function entityHasServerId(entityType: SyncEntityType, localId: string): boolean
       return !!evaluacionesRepository.getById(localId)?.serverId;
     case "visita_observaciones_sanitarias":
       return !!observacionesSanitariasRepository.getById(localId)?.serverId;
+    case "visita_paso_observaciones":
+      return !!visitaStepNotesRepository.getById(localId)?.serverId;
     case "visita_recomendaciones":
       return !!recomendacionesRepository.getById(localId)?.serverId;
     case "visita_productos_recomendados":

@@ -12,6 +12,7 @@ import { VisitaCampoEntity } from "../../visitas-campo/infrastructure/persistenc
 import { CreateVisitaObservacionSanitariaDto } from "../presentation/dto/create-visita-observacion-sanitaria.dto";
 import { UpdateVisitaObservacionSanitariaDto } from "../presentation/dto/update-visita-observacion-sanitaria.dto";
 import { NivelIncidenciaEntity } from "../infrastructure/persistence/entities/nivel-incidencia.entity";
+import { PlagaEnfermedadEtapaNivelEntity } from "../infrastructure/persistence/entities/plaga-enfermedad-etapa-nivel.entity";
 import { PlagaEnfermedadEntity } from "../infrastructure/persistence/entities/plaga-enfermedad.entity";
 import { VisitaObservacionSanitariaEntity } from "../infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
 
@@ -25,22 +26,30 @@ export class VisitaObservacionesSanitariasService {
     @InjectRepository(PlagaEnfermedadEntity)
     private readonly plagasEnfermedadesRepository: Repository<PlagaEnfermedadEntity>,
     @InjectRepository(NivelIncidenciaEntity)
-    private readonly nivelesIncidenciaRepository: Repository<NivelIncidenciaEntity>
+    private readonly nivelesIncidenciaRepository: Repository<NivelIncidenciaEntity>,
+    @InjectRepository(PlagaEnfermedadEtapaNivelEntity)
+    private readonly plagasEnfermedadesEtapasNivelesRepository: Repository<PlagaEnfermedadEtapaNivelEntity>
   ) {}
 
   async create(
     visitaId: string,
     createDto: CreateVisitaObservacionSanitariaDto
   ) {
-    await this.ensureVisitaExists(visitaId);
+    const visita = await this.ensureVisitaExists(visitaId);
     await this.ensurePlagaEnfermedadExists(createDto.pestDiseaseId);
-    await this.ensureNivelIncidenciaExists(createDto.incidenceLevelId);
+    await this.ensureNivelIncidenciaExists(createDto.incidenceLevelId, "incidencia");
+    await this.ensureNivelIncidenciaExists(createDto.severityLevelId, "severidad");
+    await this.ensurePestDiseaseMatchesVisitStage(visita, createDto.pestDiseaseId, [
+      createDto.incidenceLevelId,
+      createDto.severityLevelId
+    ]);
     await this.ensureUniquePestDisease(visitaId, createDto.pestDiseaseId);
 
     const observacion = this.observacionesRepository.create({
       visitaId,
       plagaEnfermedadId: createDto.pestDiseaseId,
       nivelIncidenciaId: createDto.incidenceLevelId ?? null,
+      nivelSeveridadId: createDto.severityLevelId ?? null,
       observation: createDto.observation ?? null
     });
 
@@ -90,14 +99,28 @@ export class VisitaObservacionesSanitariasService {
       updateDto.incidenceLevelId !== undefined
         ? updateDto.incidenceLevelId
         : observacion.nivelIncidenciaId;
+    const nextSeverityLevelId =
+      updateDto.severityLevelId !== undefined
+        ? updateDto.severityLevelId
+        : observacion.nivelSeveridadId;
 
     if (updateDto.pestDiseaseId !== undefined) {
       await this.ensurePlagaEnfermedadExists(updateDto.pestDiseaseId);
     }
 
     if (updateDto.incidenceLevelId !== undefined) {
-      await this.ensureNivelIncidenciaExists(updateDto.incidenceLevelId);
+      await this.ensureNivelIncidenciaExists(updateDto.incidenceLevelId, "incidencia");
     }
+
+    if (updateDto.severityLevelId !== undefined) {
+      await this.ensureNivelIncidenciaExists(updateDto.severityLevelId, "severidad");
+    }
+
+    const visita = await this.ensureVisitaExists(observacion.visitaId);
+    await this.ensurePestDiseaseMatchesVisitStage(visita, nextPestDiseaseId, [
+      nextIncidenceLevelId,
+      nextSeverityLevelId
+    ]);
 
     await this.ensureUniquePestDisease(
       observacion.visitaId,
@@ -111,6 +134,9 @@ export class VisitaObservacionesSanitariasService {
         : {}),
       ...(updateDto.incidenceLevelId !== undefined
         ? { nivelIncidenciaId: nextIncidenceLevelId ?? null }
+        : {}),
+      ...(updateDto.severityLevelId !== undefined
+        ? { nivelSeveridadId: nextSeverityLevelId ?? null }
         : {}),
       ...(updateDto.observation !== undefined
         ? { observation: updateDto.observation }
@@ -163,6 +189,8 @@ export class VisitaObservacionesSanitariasService {
 
       throw new BadRequestException("Visita de campo not found.");
     }
+
+    return visita;
   }
 
   private async ensurePlagaEnfermedadExists(plagaEnfermedadId: string) {
@@ -176,7 +204,8 @@ export class VisitaObservacionesSanitariasService {
   }
 
   private async ensureNivelIncidenciaExists(
-    nivelIncidenciaId: number | null | undefined
+    nivelIncidenciaId: number | null | undefined,
+    expectedType: "incidencia" | "severidad"
   ) {
     if (nivelIncidenciaId === undefined || nivelIncidenciaId === null) {
       return;
@@ -188,6 +217,63 @@ export class VisitaObservacionesSanitariasService {
 
     if (!nivelIncidencia) {
       throw new BadRequestException("Nivel incidencia not found.");
+    }
+
+    if (nivelIncidencia.type !== expectedType) {
+      throw new BadRequestException(
+        `Nivel must be classified as ${expectedType}.`
+      );
+    }
+  }
+
+  private async ensurePestDiseaseMatchesVisitStage(
+    visita: VisitaCampoEntity,
+    plagaEnfermedadId: string,
+    levelIds: Array<number | null | undefined>
+  ) {
+    if (!visita.etapaFenologicaId) {
+      throw new BadRequestException("Visita has no phenological stage.");
+    }
+
+    const selectedLevelIds = levelIds.filter(
+      (levelId): levelId is number => levelId !== null && levelId !== undefined
+    );
+
+    if (selectedLevelIds.length === 0) {
+      const relation =
+        await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
+          where: {
+            plagaEnfermedadId,
+            etapaFenologicaId: visita.etapaFenologicaId,
+            isActive: true
+          }
+        });
+
+      if (!relation) {
+        throw new BadRequestException(
+          "Pest disease is not available for the visit phenological stage."
+        );
+      }
+
+      return;
+    }
+
+    for (const levelId of selectedLevelIds) {
+      const relation =
+        await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
+          where: {
+            plagaEnfermedadId,
+            etapaFenologicaId: visita.etapaFenologicaId,
+            nivelIncidenciaSeveridadId: levelId,
+            isActive: true
+          }
+        });
+
+      if (!relation) {
+        throw new BadRequestException(
+          "Selected level is not available for the pest disease and visit phenological stage."
+        );
+      }
     }
   }
 
@@ -237,6 +323,8 @@ export class VisitaObservacionesSanitariasService {
             throw new BadRequestException("Plaga enfermedad not found.");
           case "visita_observaciones_sanitarias_nivel_incidencia_id_fkey":
             throw new BadRequestException("Nivel incidencia not found.");
+          case "visita_observaciones_sanitarias_nivel_severidad_id_fkey":
+            throw new BadRequestException("Nivel severidad not found.");
         }
       }
     }
@@ -252,6 +340,7 @@ export class VisitaObservacionesSanitariasService {
       visitaId: observacion.visitaId,
       pestDiseaseId: observacion.plagaEnfermedadId,
       incidenceLevelId: observacion.nivelIncidenciaId,
+      severityLevelId: observacion.nivelSeveridadId,
       observation: observacion.observation
     };
   }
