@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -60,8 +61,10 @@ const WIZARD_STEPS = [
 
 export function VisitaObservacionesSanitariasScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
+  const isCompactLayout = width < 460;
 
   const [pestDiseases, setPestDiseases] = useState<PestDiseaseByStageItem[]>([]);
   const [incidenceLevels, setIncidenceLevels] = useState<
@@ -180,6 +183,7 @@ export function VisitaObservacionesSanitariasScreen() {
             <SanitarySection
               icon="bug-outline"
               incidenceLevels={incidenceLevels}
+              isCompactLayout={isCompactLayout}
               items={plagas}
               onHelpPress={setHelpItem}
               onImagePress={setImagePreview}
@@ -193,6 +197,7 @@ export function VisitaObservacionesSanitariasScreen() {
             <SanitarySection
               icon="leaf-outline"
               incidenceLevels={incidenceLevels}
+              isCompactLayout={isCompactLayout}
               items={enfermedades}
               onHelpPress={setHelpItem}
               onImagePress={setImagePreview}
@@ -349,7 +354,7 @@ export function VisitaObservacionesSanitariasScreen() {
       }
 
       setPestDiseases(resolvedPestDiseases);
-      setIncidenceLevels(nextIncidenceLevels);
+      setIncidenceLevels(nextIncidenceLevels.map(normalizeIncidenceLevel));
       setObservaciones(nextObservaciones);
       setSelections(buildSelectionMap(nextObservaciones));
       setStepNote({
@@ -479,6 +484,7 @@ export function VisitaObservacionesSanitariasScreen() {
 type SanitarySectionProps = {
   icon: keyof typeof Ionicons.glyphMap;
   incidenceLevels: IncidenceLevelCatalogItem[];
+  isCompactLayout: boolean;
   items: PestDiseaseByStageItem[];
   onHelpPress: (item: PestDiseaseByStageItem) => void;
   onImagePress: (item: PestDiseaseByStageItem) => void;
@@ -494,6 +500,7 @@ type SanitarySectionProps = {
 function SanitarySection({
   icon,
   incidenceLevels,
+  isCompactLayout,
   items,
   onHelpPress,
   onImagePress,
@@ -515,6 +522,7 @@ function SanitarySection({
       {items.map((item) => (
         <SanitaryCard
           incidenceLevels={incidenceLevels}
+          isCompactLayout={isCompactLayout}
           item={item}
           key={item.id}
           onHelpPress={onHelpPress}
@@ -529,6 +537,7 @@ function SanitarySection({
 
 type SanitaryCardProps = {
   incidenceLevels: IncidenceLevelCatalogItem[];
+  isCompactLayout: boolean;
   item: PestDiseaseByStageItem;
   onHelpPress: (item: PestDiseaseByStageItem) => void;
   onImagePress: (item: PestDiseaseByStageItem) => void;
@@ -542,6 +551,7 @@ type SanitaryCardProps = {
 
 function SanitaryCard({
   incidenceLevels,
+  isCompactLayout,
   item,
   onHelpPress,
   onImagePress,
@@ -560,17 +570,21 @@ function SanitaryCard({
   );
 
   return (
-    <View style={styles.sanitaryCard}>
+    <View style={[styles.sanitaryCard, isCompactLayout && styles.sanitaryCardCompact]}>
       <Pressable
         accessibilityLabel={`Ver imagen de ${item.name}`}
         accessibilityRole="imagebutton"
         onPress={() => onImagePress(item)}
       >
-        <Image resizeMode="cover" source={TEMP_PEST_IMAGE} style={styles.pestImage} />
+        <Image
+          resizeMode="cover"
+          source={TEMP_PEST_IMAGE}
+          style={[styles.pestImage, isCompactLayout && styles.pestImageCompact]}
+        />
       </Pressable>
 
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
+      <View style={[styles.cardContent, isCompactLayout && styles.cardContentCompact]}>
+        <View style={[styles.cardHeader, isCompactLayout && styles.cardHeaderCompact]}>
           <View style={styles.cardTitleColumn}>
             <AppText style={styles.pestName} variant="label">
               {formatPestName(item)}
@@ -581,7 +595,7 @@ function SanitaryCard({
             accessibilityLabel={`Ver guia de ${item.name}`}
             accessibilityRole="button"
             onPress={() => onHelpPress(item)}
-            style={styles.helpButton}
+            style={[styles.helpButton, isCompactLayout && styles.helpButtonCompact]}
           >
             <Ionicons
               color={theme.colors.primaryDark}
@@ -594,12 +608,14 @@ function SanitaryCard({
         <LevelSelectorRow
           label="Incidencia"
           levels={incidenceOptions}
+          isCompactLayout={isCompactLayout}
           onSelect={(levelId) => onSelectLevel(item.id, "incidencia", levelId)}
           selectedLevelId={selection?.incidenceLevelId ?? null}
         />
         <LevelSelectorRow
           label="Severidad"
           levels={severityOptions}
+          isCompactLayout={isCompactLayout}
           onSelect={(levelId) => onSelectLevel(item.id, "severidad", levelId)}
           selectedLevelId={selection?.severityLevelId ?? null}
         />
@@ -610,6 +626,7 @@ function SanitaryCard({
 
 type LevelSelectorRowProps = {
   label: string;
+  isCompactLayout: boolean;
   levels: IncidenceLevelCatalogItem[];
   onSelect: (levelId: string) => void;
   selectedLevelId: string | null;
@@ -617,16 +634,17 @@ type LevelSelectorRowProps = {
 
 function LevelSelectorRow({
   label,
+  isCompactLayout,
   levels,
   onSelect,
   selectedLevelId
 }: LevelSelectorRowProps) {
   return (
-    <View style={styles.levelRow}>
+    <View style={[styles.levelRow, isCompactLayout && styles.levelRowCompact]}>
       <AppText style={styles.levelLabel} variant="caption">
         {label}
       </AppText>
-      <View style={styles.levelButtons}>
+      <View style={[styles.levelButtons, isCompactLayout && styles.levelButtonsCompact]}>
         {levels.length > 0 ? (
           levels.map((level) => {
             const selected = level.id === selectedLevelId;
@@ -635,9 +653,10 @@ function LevelSelectorRow({
                 accessibilityLabel={`${label} grado ${level.sortOrder}`}
                 accessibilityRole="button"
                 key={level.id}
-                onPress={() => onSelect(level.id)}
-                style={[
+              onPress={() => onSelect(level.id)}
+              style={[
                   styles.levelButton,
+                  isCompactLayout && styles.levelButtonCompact,
                   selected
                     ? {
                         backgroundColor: getLevelColor(level.sortOrder),
@@ -873,6 +892,29 @@ function formatLevelType(type: IncidenceLevelCatalogItem["type"]) {
   return type === "incidencia" ? "Incidencia" : "Severidad";
 }
 
+function normalizeIncidenceLevel(
+  level: IncidenceLevelCatalogItem
+): IncidenceLevelCatalogItem {
+  return {
+    ...level,
+    type: normalizeIncidenceLevelType(level.type)
+  };
+}
+
+function normalizeIncidenceLevelType(value: string): IncidenceLevelCatalogItem["type"] {
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+  if (normalized.startsWith("sever")) {
+    return "severidad";
+  }
+
+  return "incidencia";
+}
+
 function getLevelColor(sortOrder: number) {
   if (sortOrder <= 0) {
     return "#007f4f";
@@ -928,11 +970,18 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 8
   },
+  cardContentCompact: {
+    width: "100%"
+  },
   cardHeader: {
     alignItems: "flex-start",
     flexDirection: "row",
     gap: 8,
     justifyContent: "space-between"
+  },
+  cardHeaderCompact: {
+    flexDirection: "column",
+    gap: 8
   },
   cardTitleColumn: {
     flex: 1
@@ -992,6 +1041,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 28
   },
+  helpButtonCompact: {
+    alignSelf: "flex-end"
+  },
   helpItem: {
     borderBottomColor: theme.colors.borderLight,
     borderBottomWidth: 1,
@@ -1040,6 +1092,11 @@ const styles = StyleSheet.create({
     padding: 18,
     width: "86%"
   },
+  pestImageCompact: {
+    alignSelf: "center",
+    height: 68,
+    width: 68
+  },
   levelButton: {
     alignItems: "center",
     borderRadius: 9,
@@ -1048,6 +1105,11 @@ const styles = StyleSheet.create({
     minHeight: 34,
     justifyContent: "center",
     minWidth: 46
+  },
+  levelButtonCompact: {
+    flexBasis: 44,
+    flexGrow: 1,
+    minWidth: 0
   },
   levelButtonInactive: {
     backgroundColor: "#eef1ef",
@@ -1067,6 +1129,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 7
   },
+  levelButtonsCompact: {
+    flexWrap: "wrap"
+  },
   levelLabel: {
     color: theme.colors.text,
     fontSize: 14,
@@ -1076,6 +1141,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 8
+  },
+  levelRowCompact: {
+    alignItems: "flex-start",
+    flexDirection: "column",
+    gap: 6
   },
   modalBackdrop: {
     alignItems: "center",
@@ -1101,6 +1171,26 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20
   },
+  pestImage: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderRadius: theme.radius.full,
+    height: 82,
+    width: 82
+  },
+  sanitaryCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 12,
+    ...theme.shadow.sm
+  },
+  sanitaryCardCompact: {
+    alignItems: "stretch",
+    flexDirection: "column"
+  },
   noLevelsText: {
     color: theme.colors.textMuted
   },
@@ -1121,12 +1211,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     minHeight: 92,
     padding: 12
-  },
-  pestImage: {
-    backgroundColor: theme.colors.primaryMuted,
-    borderRadius: theme.radius.full,
-    height: 82,
-    width: 82
   },
   pestName: {
     color: theme.colors.text,
@@ -1199,16 +1283,6 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     flexDirection: "row",
     gap: 8
-  },
-  sanitaryCard: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.borderLight,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    padding: 12,
-    ...theme.shadow.sm
   },
   scrollContent: {
     paddingBottom: 24
