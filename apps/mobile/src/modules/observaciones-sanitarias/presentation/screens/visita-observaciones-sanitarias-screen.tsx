@@ -96,7 +96,7 @@ export function VisitaObservacionesSanitariasScreen() {
       incidenceLevels.map((incidenceLevel) => ({
         value: incidenceLevel.id,
         label: incidenceLevel.name,
-        helper: `Orden ${incidenceLevel.sortOrder}`
+        helper: `${formatIncidenceLevelType(incidenceLevel.type)} | Orden ${incidenceLevel.sortOrder}`
       })),
     [incidenceLevels]
   );
@@ -449,6 +449,10 @@ function getIncidenceLevelLabel(
     incidenceLevels.find((incidenceLevel) => incidenceLevel.id === id)?.name ||
     `ID ${id}`
   );
+}
+
+function formatIncidenceLevelType(type: IncidenceLevelCatalogItem["type"]) {
+  return type === "incidencia" ? "Incidencia" : "Severidad";
 }
 
 const styles = StyleSheet.create({

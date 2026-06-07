@@ -37,6 +37,7 @@ type IncidenceLevelRow = {
   id: string;
   name: string;
   sort_order: number;
+  type: "incidencia" | "severidad";
 };
 
 type CreateObservacionInput = {
@@ -269,15 +270,16 @@ export const observacionesSanitariasRepository = {
   getIncidenceLevels() {
     const db = getDatabase();
     const rows = db.getAllSync<IncidenceLevelRow>(
-      `SELECT id, name, sort_order
+      `SELECT id, name, sort_order, type
        FROM incidence_levels
-       ORDER BY sort_order ASC, name ASC`
+       ORDER BY type ASC, sort_order ASC, name ASC`
     );
 
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
-      sortOrder: row.sort_order
+      sortOrder: row.sort_order,
+      type: row.type
     })) satisfies IncidenceLevelCatalogItem[];
   }
 };

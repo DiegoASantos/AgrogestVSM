@@ -181,6 +181,7 @@ export type PestDiseaseLookupItem = LookupItem & {
 
 export type IncidenceLevelLookupItem = LookupItem & {
   sortOrder: number | null;
+  type?: "incidencia" | "severidad";
 };
 
 export type RecommendationTypeLookupItem = LookupItem & {

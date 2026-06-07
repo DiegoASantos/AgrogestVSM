@@ -54,7 +54,8 @@ export const SQL_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS incidence_levels (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
-    sort_order INTEGER NOT NULL
+    sort_order INTEGER NOT NULL,
+    type TEXT NOT NULL DEFAULT 'incidencia'
   )`,
   `CREATE TABLE IF NOT EXISTS recommendation_types (
     id TEXT PRIMARY KEY NOT NULL,

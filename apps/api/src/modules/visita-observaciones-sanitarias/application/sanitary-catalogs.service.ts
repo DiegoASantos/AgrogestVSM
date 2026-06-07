@@ -121,6 +121,7 @@ export class SanitaryCatalogsService {
     const [incidenceLevels, total] =
       await this.nivelesIncidenciaRepository.findAndCount({
         order: {
+          type: "ASC",
           sortOrder: "ASC",
           id: "ASC"
         },
@@ -147,7 +148,8 @@ export class SanitaryCatalogsService {
   ) {
     const incidenceLevel = this.nivelesIncidenciaRepository.create({
       name: createNivelIncidenciaDto.name,
-      sortOrder: createNivelIncidenciaDto.sortOrder
+      sortOrder: createNivelIncidenciaDto.sortOrder,
+      type: createNivelIncidenciaDto.type
     });
 
     try {
@@ -175,6 +177,9 @@ export class SanitaryCatalogsService {
           : {}),
         ...(updateNivelIncidenciaDto.sortOrder !== undefined
           ? { sortOrder: updateNivelIncidenciaDto.sortOrder }
+          : {}),
+        ...(updateNivelIncidenciaDto.type !== undefined
+          ? { type: updateNivelIncidenciaDto.type }
           : {})
       }
     );
@@ -269,20 +274,22 @@ export class SanitaryCatalogsService {
       if (
         operation === "save" &&
         databaseError?.code === "23505" &&
-        databaseError.constraint === "niveles_incidencia_nombre_key"
+        databaseError.constraint ===
+          "niveles_incidencia_severidad_tipo_nombre_key"
       ) {
         throw new ConflictException(
-          "An incidence level with the same name already exists."
+          "An incidence or severity level with the same type and name already exists."
         );
       }
 
       if (
         operation === "save" &&
         databaseError?.code === "23505" &&
-        databaseError.constraint === "niveles_incidencia_valor_orden_key"
+        databaseError.constraint ===
+          "niveles_incidencia_severidad_tipo_valor_orden_key"
       ) {
         throw new ConflictException(
-          "An incidence level with the same sort order already exists."
+          "An incidence or severity level with the same type and sort order already exists."
         );
       }
 
@@ -310,7 +317,8 @@ export class SanitaryCatalogsService {
     return {
       id: incidenceLevel.id,
       name: incidenceLevel.name,
-      sortOrder: incidenceLevel.sortOrder
+      sortOrder: incidenceLevel.sortOrder,
+      type: incidenceLevel.type
     };
   }
 }

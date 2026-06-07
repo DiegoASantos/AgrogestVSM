@@ -10,6 +10,7 @@ export type IncidenceLevelCatalogItem = {
   id: string;
   name: string;
   sortOrder: number;
+  type: "incidencia" | "severidad";
 };
 
 export type VisitaObservacionSanitaria = {

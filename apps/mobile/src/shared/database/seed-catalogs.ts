@@ -168,11 +168,12 @@ export async function downloadAllCatalogs() {
 
     for (const incidenceLevel of incidenceLevels) {
       db.runSync(
-        `INSERT OR REPLACE INTO incidence_levels (id, name, sort_order)
-         VALUES (?, ?, ?)`,
+        `INSERT OR REPLACE INTO incidence_levels (id, name, sort_order, type)
+         VALUES (?, ?, ?, ?)`,
         incidenceLevel.id,
         incidenceLevel.name,
-        incidenceLevel.sortOrder
+        incidenceLevel.sortOrder,
+        incidenceLevel.type
       );
     }
 

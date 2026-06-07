@@ -23,7 +23,9 @@ export const observacionesSanitariasRemote = {
   },
 
   getIncidenceLevels() {
-    return apiRequest<IncidenceLevelCatalogItem[]>("/niveles-incidencia");
+    return apiRequest<IncidenceLevelCatalogItem[]>(
+      "/niveles-incidencia-severidad"
+    );
   },
 
   getByVisitaId(visitaId: string) {

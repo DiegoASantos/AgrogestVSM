@@ -140,6 +140,17 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, "pest_diseases", "scientific_name", "TEXT");
       dropColumnIfExists(db, "pest_diseases", "code");
     }
+  },
+  {
+    version: 13,
+    run: (db) => {
+      addColumnIfMissing(
+        db,
+        "incidence_levels",
+        "type",
+        "TEXT NOT NULL DEFAULT 'incidencia'"
+      );
+    }
   }
 ];
 

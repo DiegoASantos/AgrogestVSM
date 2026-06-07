@@ -68,6 +68,7 @@ type NivelIncidenciaApiItem = {
   id: number;
   name: string;
   sortOrder: number;
+  type: "incidencia" | "severidad";
 };
 
 type PlagaEnfermedadApiItem = {
@@ -292,13 +293,14 @@ export const agriculturalCatalogsService = {
   ): Promise<NivelIncidenciaCatalogItem[]> {
     const items = await requestAll<NivelIncidenciaApiItem>(
       session,
-      "/niveles-incidencia"
+      "/niveles-incidencia-severidad"
     );
 
     return items.map((item) => ({
       id: String(item.id),
       name: item.name,
-      sortOrder: item.sortOrder
+      sortOrder: item.sortOrder,
+      type: item.type
     }));
   },
 
@@ -308,7 +310,7 @@ export const agriculturalCatalogsService = {
   ): Promise<NivelIncidenciaCatalogItem> {
     const item = await request<NivelIncidenciaApiItem>(
       session,
-      "/niveles-incidencia",
+      "/niveles-incidencia-severidad",
       {
         method: "POST",
         body: payload
@@ -318,7 +320,8 @@ export const agriculturalCatalogsService = {
     return {
       id: String(item.id),
       name: item.name,
-      sortOrder: item.sortOrder
+      sortOrder: item.sortOrder,
+      type: item.type
     };
   },
 
@@ -329,7 +332,7 @@ export const agriculturalCatalogsService = {
   ): Promise<NivelIncidenciaCatalogItem> {
     const item = await request<NivelIncidenciaApiItem>(
       session,
-      `/niveles-incidencia/${id}`,
+      `/niveles-incidencia-severidad/${id}`,
       {
         method: "PATCH",
         body: payload
@@ -339,14 +342,19 @@ export const agriculturalCatalogsService = {
     return {
       id: String(item.id),
       name: item.name,
-      sortOrder: item.sortOrder
+      sortOrder: item.sortOrder,
+      type: item.type
     };
   },
 
   async deleteNivelIncidencia(session: AuthSessionInput, id: string) {
-    return request<NivelIncidenciaApiItem>(session, `/niveles-incidencia/${id}`, {
-      method: "DELETE"
-    });
+    return request<NivelIncidenciaApiItem>(
+      session,
+      `/niveles-incidencia-severidad/${id}`,
+      {
+        method: "DELETE"
+      }
+    );
   },
 
   async getPlagasEnfermedades(

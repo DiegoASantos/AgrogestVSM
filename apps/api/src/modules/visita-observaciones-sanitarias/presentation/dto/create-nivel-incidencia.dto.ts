@@ -1,8 +1,18 @@
 import { Transform, Type } from "class-transformer";
-import { IsInt, IsNotEmpty, IsString, MaxLength, Min } from "class-validator";
+import {
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+  Min
+} from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
-import { trimRequiredString } from "../../../../common/utils/string-normalizers.util";
+import {
+  trimOptionalLowercaseString,
+  trimRequiredString
+} from "../../../../common/utils/string-normalizers.util";
 
 export class CreateNivelIncidenciaDto {
   @ApiProperty({
@@ -21,4 +31,13 @@ export class CreateNivelIncidenciaDto {
   @IsInt()
   @Min(1)
   sortOrder!: number;
+
+  @ApiProperty({
+    example: "incidencia",
+    enum: ["incidencia", "severidad"]
+  })
+  @Transform(({ value }) => trimOptionalLowercaseString(value))
+  @IsString()
+  @IsIn(["incidencia", "severidad"])
+  type!: string;
 }

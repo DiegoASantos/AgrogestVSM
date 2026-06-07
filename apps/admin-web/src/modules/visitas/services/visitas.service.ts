@@ -156,7 +156,10 @@ export const visitasService = {
       applicationFrequencies
     ] = await Promise.all([
       safeRequestAll<PestDiseaseLookupItem>(session, "/plagas-enfermedades"),
-      safeRequestAll<IncidenceLevelLookupItem>(session, "/niveles-incidencia"),
+      safeRequestAll<IncidenceLevelLookupItem>(
+        session,
+        "/niveles-incidencia-severidad"
+      ),
       safeRequestAll<RecommendationTypeLookupItem>(
         session,
         "/tipos-recomendacion"

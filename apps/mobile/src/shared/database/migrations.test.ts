@@ -7,6 +7,7 @@ type FakeDatabase = {
   executedStatements: string[];
   productorColumns: Set<string>;
   pestDiseaseColumns: Set<string>;
+  incidenceLevelColumns: Set<string>;
   execSync: (statement: string) => void;
   getAllSync: <T>(statement: string) => T[];
   getFirstSync: <T>(statement: string) => T | null;
@@ -16,13 +17,15 @@ type FakeDatabase = {
 function createFakeDatabase(
   currentVersion: number,
   productorColumns: Iterable<string> = [],
-  pestDiseaseColumns: Iterable<string> = []
+  pestDiseaseColumns: Iterable<string> = [],
+  incidenceLevelColumns: Iterable<string> = []
 ): FakeDatabase {
   return {
     currentVersion,
     executedStatements: [],
     productorColumns: new Set(productorColumns),
     pestDiseaseColumns: new Set(pestDiseaseColumns),
+    incidenceLevelColumns: new Set(incidenceLevelColumns),
     execSync(statement) {
       this.executedStatements.push(statement);
 
@@ -63,6 +66,16 @@ function createFakeDatabase(
         return;
       }
 
+      if (statement.startsWith("CREATE TABLE IF NOT EXISTS incidence_levels")) {
+        this.incidenceLevelColumns = new Set([
+          "id",
+          "name",
+          "sort_order",
+          "type"
+        ]);
+        return;
+      }
+
       if (statement.startsWith("ALTER TABLE productores ADD COLUMN ")) {
         const parts = statement.split(/\s+/u);
         const columnName = parts[5];
@@ -93,6 +106,21 @@ function createFakeDatabase(
         this.pestDiseaseColumns.add(columnName);
       }
 
+      if (statement.startsWith("ALTER TABLE incidence_levels ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.incidenceLevelColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.incidenceLevelColumns.add(columnName);
+      }
+
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
         this.pestDiseaseColumns.delete("code");
       }
@@ -104,6 +132,10 @@ function createFakeDatabase(
 
       if (statement === "PRAGMA table_info(pest_diseases)") {
         return Array.from(this.pestDiseaseColumns, (name) => ({ name })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(incidence_levels)") {
+        return Array.from(this.incidenceLevelColumns, (name) => ({ name })) as T[];
       }
 
       return [];
@@ -126,7 +158,7 @@ describe("runMigrations", () => {
     const db = createFakeDatabase(0);
 
     expect(() => runMigrations(db as never)).not.toThrow();
-    expect(db.currentVersion).toBe(12);
+    expect(db.currentVersion).toBe(13);
     expect(db.executedStatements).not.toContain(
       "ALTER TABLE productores ADD COLUMN first_name TEXT"
     );
@@ -159,12 +191,13 @@ describe("runMigrations", () => {
         "created_at",
         "updated_at"
       ],
-      ["id", "code", "name", "type", "is_active"]
+      ["id", "code", "name", "type", "is_active"],
+      ["id", "name", "sort_order"]
     );
 
     runMigrations(db as never);
 
-    expect(db.currentVersion).toBe(12);
+    expect(db.currentVersion).toBe(13);
     expect(db.productorColumns.has("first_name")).toBe(true);
     expect(db.productorColumns.has("last_name")).toBe(true);
     expect(db.executedStatements).toContain(
@@ -186,6 +219,10 @@ describe("runMigrations", () => {
     );
     expect(db.executedStatements).toContain(
       "ALTER TABLE pest_diseases DROP COLUMN code"
+    );
+    expect(db.incidenceLevelColumns.has("type")).toBe(true);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE incidence_levels ADD COLUMN type TEXT NOT NULL DEFAULT 'incidencia'"
     );
   });
 });

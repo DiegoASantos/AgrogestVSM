@@ -22,7 +22,7 @@ export const adminRoutes = {
     parcelas: "/mantenimiento/parcelas",
     productos: "/mantenimiento/productos",
     ingredientesActivos: "/mantenimiento/ingredientes-activos",
-    nivelesIncidencia: "/mantenimiento/niveles-incidencia",
+    nivelesIncidencia: "/mantenimiento/niveles-incidencia-severidad",
     plagasEnfermedades: "/mantenimiento/plagas-enfermedades",
     productoIngredientes: "/mantenimiento/producto-ingredientes",
     sectores: "/mantenimiento/sectores",

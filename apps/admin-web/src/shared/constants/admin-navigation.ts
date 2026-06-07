@@ -66,9 +66,9 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     description: "Base de ingredientes activos"
   },
   {
-    label: "Niveles de incidencia",
+    label: "Niveles de incidencia y severidad",
     href: adminRoutes.mantenimientoItems.nivelesIncidencia,
-    description: "Catalogo sanitario"
+    description: "Catalogo sanitario de incidencia y severidad"
   },
   {
     label: "Plagas y enfermedades",

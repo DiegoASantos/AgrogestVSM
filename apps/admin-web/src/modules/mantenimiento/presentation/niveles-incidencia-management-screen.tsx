@@ -14,19 +14,24 @@ import { LoadingState } from "../../../shared/components/loading-state";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
 import { agriculturalCatalogsService } from "../services/agricultural-catalogs.service";
-import type { NivelIncidenciaCatalogItem } from "../types/agricultural-catalogs.types";
+import type {
+  NivelIncidenciaCatalogItem,
+  NivelIncidenciaCatalogType
+} from "../types/agricultural-catalogs.types";
 import { normalizeSearch } from "./catalog-screen.helpers";
 
 type NivelFormState = {
   id: string | null;
   name: string;
   sortOrder: string;
+  type: NivelIncidenciaCatalogType;
 };
 
 const emptyForm: NivelFormState = {
   id: null,
   name: "",
-  sortOrder: ""
+  sortOrder: "",
+  type: "incidencia"
 };
 
 export function NivelesIncidenciaManagementScreen() {
@@ -37,6 +42,9 @@ export function NivelesIncidenciaManagementScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | NivelIncidenciaCatalogType>(
+    "all"
+  );
   const [formState, setFormState] = useState<NivelFormState>(emptyForm);
   const [itemToDelete, setItemToDelete] =
     useState<NivelIncidenciaCatalogItem | null>(null);
@@ -62,10 +70,11 @@ export function NivelesIncidenciaManagementScreen() {
 
       return (
         item.name.toLowerCase().includes(normalizedSearch) ||
-        String(item.sortOrder).includes(normalizedSearch)
+        String(item.sortOrder).includes(normalizedSearch) ||
+        item.type.toLowerCase().includes(normalizedSearch)
       );
-    });
-  }, [items, search]);
+    }).filter((item) => typeFilter === "all" || item.type === typeFilter);
+  }, [items, search, typeFilter]);
 
   const columns: DataTableColumn<NivelIncidenciaCatalogItem>[] = [
     {
@@ -77,6 +86,11 @@ export function NivelesIncidenciaManagementScreen() {
       key: "sortOrder",
       header: "Orden",
       cell: (item) => item.sortOrder
+    },
+    {
+      key: "type",
+      header: "Tipo",
+      cell: (item) => formatType(item.type)
     },
     {
       key: "actions",
@@ -129,7 +143,8 @@ export function NivelesIncidenciaManagementScreen() {
     setFormState({
       id: item.id,
       name: item.name,
-      sortOrder: String(item.sortOrder)
+      sortOrder: String(item.sortOrder),
+      type: item.type
     });
     setModalOpen(true);
   }
@@ -162,7 +177,8 @@ export function NivelesIncidenciaManagementScreen() {
     try {
       const payload = {
         name,
-        sortOrder
+        sortOrder,
+        type: formState.type
       };
 
       if (formState.id) {
@@ -171,10 +187,14 @@ export function NivelesIncidenciaManagementScreen() {
           formState.id,
           payload
         );
-        setSuccessMessage("Nivel de incidencia actualizado correctamente.");
+        setSuccessMessage(
+          "Nivel de incidencia y severidad actualizado correctamente."
+        );
       } else {
         await agriculturalCatalogsService.createNivelIncidencia(session, payload);
-        setSuccessMessage("Nivel de incidencia creado correctamente.");
+        setSuccessMessage(
+          "Nivel de incidencia y severidad creado correctamente."
+        );
       }
 
       await loadLevels();
@@ -199,7 +219,7 @@ export function NivelesIncidenciaManagementScreen() {
         session,
         itemToDelete.id
       );
-      setSuccessMessage("Nivel de incidencia eliminado correctamente.");
+      setSuccessMessage("Nivel de incidencia y severidad eliminado correctamente.");
 
       if (formState.id === itemToDelete.id) {
         setFormState(emptyForm);
@@ -227,9 +247,9 @@ export function NivelesIncidenciaManagementScreen() {
             </button>
           </>
         }
-        description="Gestion administrativa de niveles de incidencia."
+        description="Gestion administrativa de niveles de incidencia y severidad."
         eyebrow="Mantenimiento"
-        title="Niveles de incidencia"
+        title="Niveles de incidencia y severidad"
       />
 
       <FilterBar>
@@ -237,9 +257,25 @@ export function NivelesIncidenciaManagementScreen() {
           <span>Buscar</span>
           <input
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Nombre o orden"
+            placeholder="Nombre, orden o tipo"
             value={search}
           />
+        </label>
+
+        <label className="field-group">
+          <span>Tipo</span>
+          <select
+            onChange={(event) =>
+              setTypeFilter(
+                event.target.value as "all" | NivelIncidenciaCatalogType
+              )
+            }
+            value={typeFilter}
+          >
+            <option value="all">Todos</option>
+            <option value="incidencia">Incidencia</option>
+            <option value="severidad">Severidad</option>
+          </select>
         </label>
       </FilterBar>
 
@@ -263,7 +299,7 @@ export function NivelesIncidenciaManagementScreen() {
       ) : null}
 
       {!listError && isLoading ? (
-        <LoadingState description="Cargando niveles de incidencia..." />
+        <LoadingState description="Cargando niveles de incidencia y severidad..." />
       ) : null}
 
       {!listError && !isLoading && filteredItems.length === 0 ? (
@@ -275,7 +311,7 @@ export function NivelesIncidenciaManagementScreen() {
 
       {!listError && !isLoading && filteredItems.length > 0 ? (
         <DataTable
-          caption="Catalogo administrativo de niveles de incidencia."
+          caption="Catalogo administrativo de niveles de incidencia y severidad."
           columns={columns}
           getRowKey={(item) => item.id}
           rows={filteredItems}
@@ -285,7 +321,11 @@ export function NivelesIncidenciaManagementScreen() {
       <FormModal
         open={modalOpen}
         onClose={() => { resetForm(); setModalOpen(false); }}
-        title={formState.id ? "Editar nivel de incidencia" : "Nuevo nivel de incidencia"}
+        title={
+          formState.id
+            ? "Editar nivel de incidencia y severidad"
+            : "Nuevo nivel de incidencia y severidad"
+        }
         description="Alta o edicion simple de niveles con su valor de orden."
         footer={
           <>
@@ -338,6 +378,22 @@ export function NivelesIncidenciaManagementScreen() {
             />
           </label>
 
+          <label className="field-group">
+            <span>Tipo</span>
+            <select
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  type: event.target.value as NivelIncidenciaCatalogType
+                }))
+              }
+              value={formState.type}
+            >
+              <option value="incidencia">Incidencia</option>
+              <option value="severidad">Severidad</option>
+            </select>
+          </label>
+
           {formError ? <p className="form-error">{formError}</p> : null}
         </form>
       </FormModal>
@@ -358,8 +414,12 @@ export function NivelesIncidenciaManagementScreen() {
         }}
         onConfirm={() => void handleDeleteConfirm()}
         open={itemToDelete !== null}
-        title="Eliminar nivel de incidencia"
+        title="Eliminar nivel de incidencia y severidad"
       />
     </article>
   );
+}
+
+function formatType(type: NivelIncidenciaCatalogType) {
+  return type === "incidencia" ? "Incidencia" : "Severidad";
 }

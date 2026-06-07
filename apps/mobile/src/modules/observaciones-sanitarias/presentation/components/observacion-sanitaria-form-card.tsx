@@ -79,11 +79,11 @@ export function ObservacionSanitariaFormCard({
         />
 
         <AppSelectField
-          emptyMessage="No hay niveles de incidencia disponibles."
+          emptyMessage="No hay niveles de incidencia o severidad disponibles."
           error={errors.incidenceLevelId || incidenceLevelsError}
           isLoading={isLoadingIncidenceLevels}
           isOpen={activeSelect === "incidenceLevel"}
-          label="Nivel de incidencia"
+          label="Nivel de incidencia/severidad"
           onSelect={(value) => onChange("incidenceLevelId", value)}
           onToggle={() => onToggleSelect("incidenceLevel")}
           options={incidenceLevelOptions}
