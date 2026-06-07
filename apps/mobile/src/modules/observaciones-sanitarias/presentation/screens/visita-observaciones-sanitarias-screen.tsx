@@ -22,6 +22,7 @@ import {
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
+import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import { observacionesSanitariasService } from "../../services";
@@ -123,7 +124,7 @@ export function VisitaObservacionesSanitariasScreen() {
               <Pressable
                 accessibilityLabel="Volver"
                 accessibilityRole="button"
-                onPress={() => router.back()}
+                onPress={() => goBackToStep1()}
                 style={styles.backIconButton}
               >
                 <Ionicons color="#ffffff" name="arrow-back" size={24} />
@@ -277,7 +278,7 @@ export function VisitaObservacionesSanitariasScreen() {
               <Pressable
                 accessibilityRole="button"
                 disabled={isSaving}
-                onPress={() => router.back()}
+                onPress={() => goBackToStep1()}
                 style={({ pressed }) => [
                   styles.backOutlineButton,
                   pressed && !isSaving && styles.pressed,
@@ -333,7 +334,21 @@ export function VisitaObservacionesSanitariasScreen() {
         observacionesSanitariasService.getStepNote(id, STEP_NUMBER)
       ]);
 
-      setPestDiseases(nextPestDiseases);
+      let resolvedPestDiseases = nextPestDiseases;
+
+      if (resolvedPestDiseases.length === 0) {
+        try {
+          await downloadAllCatalogs();
+          resolvedPestDiseases =
+            await observacionesSanitariasService.getPestDiseasesByPhenologicalStage(
+              visita.phenologicalStageId
+            );
+        } catch {
+          // Conservamos el resultado local si la recarga falla.
+        }
+      }
+
+      setPestDiseases(resolvedPestDiseases);
       setIncidenceLevels(nextIncidenceLevels);
       setObservaciones(nextObservaciones);
       setSelections(buildSelectionMap(nextObservaciones));
@@ -347,6 +362,18 @@ export function VisitaObservacionesSanitariasScreen() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function goBackToStep1() {
+    if (!visitaId) {
+      router.back();
+      return;
+    }
+
+    router.replace({
+      pathname: "/visitas-campo/registrar",
+      params: { visitaId }
+    });
   }
 
   function handleSelectLevel(

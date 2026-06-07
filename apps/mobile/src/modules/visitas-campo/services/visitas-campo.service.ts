@@ -37,6 +37,10 @@ export const visitasCampoService = {
     });
   },
 
+  async update(id: string, draft: Omit<CreateVisitaCampoDraft, "publicId">) {
+    return visitasCampoRepository.update(id, draft);
+  },
+
   async getByParcelaId(parcelaId: string) {
     return visitasCampoRepository.getByParcelaId(parcelaId);
   },

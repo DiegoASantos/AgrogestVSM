@@ -33,7 +33,8 @@ import { visitaCampoCatalogsService, visitasCampoService } from "../../services"
 import type {
   CreateVisitaCampoDraft,
   NewVisitaCampoFormErrors,
-  NewVisitaCampoFormValues
+  NewVisitaCampoFormValues,
+  VisitaCampo
 } from "../../types";
 import type {
   CampaniaCatalogItem,
@@ -78,10 +79,13 @@ export function NewVisitaCampoScreen() {
     id?: string | string[];
     parcelaCode?: string | string[];
     parcelaName?: string | string[];
+    visitaId?: string | string[];
   }>();
 
   const today = useMemo(() => formatDateForApi(new Date()), []);
   const parcelaId = toSingleParam(params.id);
+  const existingVisitaId = toSingleParam(params.visitaId);
+  const isEditingVisita = !!existingVisitaId;
   const parcelaCode = toSingleParam(params.parcelaCode);
   const parcelaName = toSingleParam(params.parcelaName);
   const parcelaLabel = [parcelaCode, parcelaName].filter(Boolean).join(" - ");
@@ -114,6 +118,7 @@ export function NewVisitaCampoScreen() {
   const [selectedSubEtapaInfo, setSelectedSubEtapaInfo] =
     useState<SubEtapaCatalogItem | null>(null);
   const [sliderTrackWidth, setSliderTrackWidth] = useState(0);
+  const [editingVisita, setEditingVisita] = useState<VisitaCampo | null>(null);
 
   const [values, setValues] = useState<NewVisitaCampoFormValues>(() => ({
     crop: "",
@@ -141,6 +146,10 @@ export function NewVisitaCampoScreen() {
   }, []);
 
   useEffect(() => {
+    if (isEditingVisita) {
+      return;
+    }
+
     if (!values.parcelaId) {
       return;
     }
@@ -164,7 +173,66 @@ export function NewVisitaCampoScreen() {
       areaHectares:
         currentValues.areaHectares || defaults.areaHectares || ""
     }));
-  }, [values.parcelaId]);
+  }, [isEditingVisita, values.parcelaId]);
+
+  useEffect(() => {
+    if (!existingVisitaId) {
+      setEditingVisita(null);
+      return;
+    }
+
+    let isActive = true;
+
+    setSubmitError(null);
+
+    void (async () => {
+      try {
+        const visita = await visitasCampoService.getById(existingVisitaId);
+
+        if (!isActive) {
+          return;
+        }
+
+        setEditingVisita(visita);
+        setValues((currentValues) => ({
+          ...currentValues,
+          crop: visita.cropId,
+          variety: visita.varietyId,
+          parcelaId: visita.parcelaId,
+          parcelaLabel: visita.parcelaId,
+          campaign: visita.campaignId,
+          plantsCount:
+            visita.plantsCount === null || visita.plantsCount === undefined
+              ? ""
+              : String(visita.plantsCount),
+          areaHectares: visita.areaHectares ?? "",
+          sowingDate: visita.sowingDate ?? "",
+          visitDate: visita.visitDate,
+          startVisitTime: visita.startVisitTime,
+          endVisitTime: visita.endVisitTime ?? "",
+          phenologicalStage: visita.phenologicalStageId ?? "",
+          subEtapaId: visita.subEtapaId ?? "",
+          subEtapaPercentage:
+            visita.subEtapaPercentage === null ||
+            visita.subEtapaPercentage === undefined
+              ? ""
+              : String(visita.subEtapaPercentage),
+          generalObservation: visita.generalObservation ?? ""
+        }));
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        const apiError = toApiError(error);
+        setSubmitError(apiError.message || "No se pudo cargar la visita a editar.");
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, [existingVisitaId]);
 
   useEffect(() => {
     if (!values.crop) {
@@ -312,7 +380,7 @@ export function NewVisitaCampoScreen() {
         >
           <View style={styles.heroScrim}>
             <AppText style={styles.heroEyebrow} variant="eyebrow">
-              Nueva visita
+              {isEditingVisita ? "Editar visita" : "Nueva visita"}
             </AppText>
             <AppText style={styles.heroTitle} variant="title">
               Datos basicos y etapas fenologicas
@@ -606,12 +674,16 @@ export function NewVisitaCampoScreen() {
                 pressed && !isSubmitting && styles.pressed,
                 isSubmitting && styles.disabledButton
               ]}
-            >
-              <Ionicons color="#d8f3dc" name="leaf" size={20} />
-              <AppText style={styles.continueButtonText} variant="label">
-                {isSubmitting ? "Guardando..." : "Continuar"}
-              </AppText>
-            </Pressable>
+              >
+                <Ionicons color="#d8f3dc" name="leaf" size={20} />
+                <AppText style={styles.continueButtonText} variant="label">
+                {isSubmitting
+                  ? "Guardando..."
+                  : isEditingVisita
+                    ? "Actualizar"
+                    : "Continuar"}
+                </AppText>
+              </Pressable>
 
             <Pressable
               accessibilityRole="button"
@@ -782,18 +854,19 @@ export function NewVisitaCampoScreen() {
 
     try {
       const location = await captureLocationSilently();
-      const createdVisita = await visitasCampoService.create(
-        buildCreateDraft(normalizedValues, location),
-        {
-          accessToken: session.accessToken,
-          tokenType: session.tokenType
-        }
-      );
+      const draft = buildCreateDraft(normalizedValues, location);
+      const targetVisitaId = existingVisitaId ?? null;
+      const savedVisita = targetVisitaId
+        ? await visitasCampoService.update(targetVisitaId, draft)
+        : await visitasCampoService.create(draft, {
+            accessToken: session.accessToken,
+            tokenType: session.tokenType
+          });
 
       router.replace({
         pathname: "/visitas-campo/[id]/observaciones-sanitarias",
         params: {
-          id: createdVisita.id
+          id: savedVisita.id
         }
       });
     } catch (error) {
@@ -853,7 +926,13 @@ export function NewVisitaCampoScreen() {
 
     if (campaniasResult.status === "fulfilled") {
       setCampanias(campaniasResult.value);
-      updateField("campaign", campaniasResult.value[0]?.id ?? "");
+      const selectedCampaign = campaniasResult.value.find(
+        (campania) => campania.id === values.campaign
+      );
+      updateField(
+        "campaign",
+        selectedCampaign?.id ?? campaniasResult.value[0]?.id ?? ""
+      );
 
       if (campaniasResult.value.length === 0) {
         setCampaniasError("No hay campaña activa para el cultivo seleccionado.");
