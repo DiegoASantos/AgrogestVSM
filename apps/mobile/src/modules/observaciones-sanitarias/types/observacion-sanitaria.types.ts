@@ -1,6 +1,6 @@
 export type PestDiseaseCatalogItem = {
   id: string;
-  code: string | null;
+  scientificName: string | null;
   name: string;
   type: string;
   isActive: boolean;

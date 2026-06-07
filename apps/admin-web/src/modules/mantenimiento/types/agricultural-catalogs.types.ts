@@ -92,14 +92,14 @@ export type PlagaEnfermedadCatalogType = "plaga" | "enfermedad";
 
 export type PlagaEnfermedadCatalogItem = {
   id: string;
-  code: string | null;
+  scientificName: string | null;
   name: string;
   type: PlagaEnfermedadCatalogType;
   isActive: boolean;
 };
 
 export type PlagaEnfermedadCatalogPayload = {
-  code?: string | null;
+  scientificName?: string | null;
   name: string;
   type: PlagaEnfermedadCatalogType;
   isActive?: boolean;

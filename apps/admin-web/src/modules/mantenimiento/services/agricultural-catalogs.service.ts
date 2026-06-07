@@ -72,7 +72,7 @@ type NivelIncidenciaApiItem = {
 
 type PlagaEnfermedadApiItem = {
   id: string;
-  code: string | null;
+  scientificName: string | null;
   name: string;
   type: "plaga" | "enfermedad";
   isActive: boolean;
@@ -359,7 +359,7 @@ export const agriculturalCatalogsService = {
 
     return items.map((item) => ({
       id: item.id,
-      code: item.code,
+      scientificName: item.scientificName,
       name: item.name,
       type: item.type,
       isActive: item.isActive
@@ -381,7 +381,7 @@ export const agriculturalCatalogsService = {
 
     return {
       id: item.id,
-      code: item.code,
+      scientificName: item.scientificName,
       name: item.name,
       type: item.type,
       isActive: item.isActive
@@ -404,7 +404,7 @@ export const agriculturalCatalogsService = {
 
     return {
       id: item.id,
-      code: item.code,
+      scientificName: item.scientificName,
       name: item.name,
       type: item.type,
       isActive: item.isActive

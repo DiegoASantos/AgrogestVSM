@@ -27,7 +27,7 @@ import {
 
 type PlagaFormState = {
   id: string | null;
-  code: string;
+  scientificName: string;
   name: string;
   type: PlagaEnfermedadCatalogType;
   status: "active" | "inactive";
@@ -35,7 +35,7 @@ type PlagaFormState = {
 
 const emptyForm: PlagaFormState = {
   id: null,
-  code: "",
+  scientificName: "",
   name: "",
   type: "plaga",
   status: "active"
@@ -75,7 +75,7 @@ export function PlagasEnfermedadesManagementScreen() {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         item.name.toLowerCase().includes(normalizedSearch) ||
-        (item.code ?? "").toLowerCase().includes(normalizedSearch) ||
+        (item.scientificName ?? "").toLowerCase().includes(normalizedSearch) ||
         item.type.toLowerCase().includes(normalizedSearch);
 
       const matchesType = typeFilter === "all" || item.type === typeFilter;
@@ -95,9 +95,13 @@ export function PlagasEnfermedadesManagementScreen() {
       cell: (item) => (
         <div className="table-copy">
           <strong>{item.name}</strong>
-          <span>{item.code ?? "Sin codigo"}</span>
         </div>
       )
+    },
+    {
+      key: "scientificName",
+      header: "Nombre cientifico",
+      cell: (item) => item.scientificName ?? "Sin nombre cientifico"
     },
     {
       key: "type",
@@ -159,7 +163,7 @@ export function PlagasEnfermedadesManagementScreen() {
     setSuccessMessage(null);
     setFormState({
       id: item.id,
-      code: item.code ?? "",
+      scientificName: item.scientificName ?? "",
       name: item.name,
       type: item.type,
       status: item.isActive ? "active" : "inactive"
@@ -181,7 +185,7 @@ export function PlagasEnfermedadesManagementScreen() {
     }
 
     const name = formState.name.trim();
-    const code = formState.code.trim().toUpperCase();
+    const scientificName = formState.scientificName.trim();
 
     if (!name) {
       setFormError("El nombre es obligatorio.");
@@ -194,7 +198,7 @@ export function PlagasEnfermedadesManagementScreen() {
 
     try {
       const payload = {
-        code: code || null,
+        scientificName: scientificName || null,
         name,
         type: formState.type,
         isActive: formState.status === "active"
@@ -286,7 +290,7 @@ export function PlagasEnfermedadesManagementScreen() {
           <span>Buscar</span>
           <input
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Nombre, codigo o tipo"
+            placeholder="Nombre, cientifico o tipo"
             value={search}
           />
         </label>
@@ -388,16 +392,16 @@ export function PlagasEnfermedadesManagementScreen() {
       >
         <form className="form-layout" id="plagas-form" onSubmit={handleSubmit}>
           <label className="field-group">
-            <span>Codigo</span>
+            <span>Nombre cientifico</span>
             <input
               onChange={(event) =>
                 setFormState((currentState) => ({
                   ...currentState,
-                  code: event.target.value
+                  scientificName: event.target.value
                 }))
               }
-              placeholder="PLA-001"
-              value={formState.code}
+              placeholder="Pyricularia oryzae"
+              value={formState.scientificName}
             />
           </label>
 

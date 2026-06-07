@@ -52,7 +52,7 @@ export class SanitaryCatalogsService {
 
   async createPestDisease(createPlagaEnfermedadDto: CreatePlagaEnfermedadDto) {
     const pestDisease = this.plagasEnfermedadesRepository.create({
-      code: createPlagaEnfermedadDto.code ?? null,
+      scientificName: createPlagaEnfermedadDto.scientificName ?? null,
       name: createPlagaEnfermedadDto.name,
       type: createPlagaEnfermedadDto.type,
       isActive: createPlagaEnfermedadDto.isActive ?? true
@@ -76,8 +76,8 @@ export class SanitaryCatalogsService {
     const updatedPestDisease = this.plagasEnfermedadesRepository.merge(
       pestDisease,
       {
-        ...(updatePlagaEnfermedadDto.code !== undefined
-          ? { code: updatePlagaEnfermedadDto.code }
+        ...(updatePlagaEnfermedadDto.scientificName !== undefined
+          ? { scientificName: updatePlagaEnfermedadDto.scientificName }
           : {}),
         ...(updatePlagaEnfermedadDto.name !== undefined
           ? { name: updatePlagaEnfermedadDto.name }
@@ -299,7 +299,7 @@ export class SanitaryCatalogsService {
   private toPestDiseaseResponse(pestDisease: PlagaEnfermedadEntity) {
     return {
       id: pestDisease.id,
-      code: pestDisease.code,
+      scientificName: pestDisease.scientificName,
       name: pestDisease.name,
       type: pestDisease.type,
       isActive: pestDisease.isActive

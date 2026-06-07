@@ -11,19 +11,19 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 import {
   trimOptionalLowercaseString,
-  trimOptionalUppercaseString,
+  trimOptionalString,
   trimRequiredString
 } from "../../../../common/utils/string-normalizers.util";
 
 export class CreatePlagaEnfermedadDto {
   @ApiPropertyOptional({
-    example: "PYR-001"
+    example: "Pyricularia oryzae"
   })
-  @Transform(({ value }) => trimOptionalUppercaseString(value))
+  @Transform(({ value }) => trimOptionalString(value))
   @IsOptional()
   @IsString()
-  @MaxLength(30)
-  code?: string | null;
+  @MaxLength(160)
+  scientificName?: string | null;
 
   @ApiProperty({
     example: "Pyricularia"

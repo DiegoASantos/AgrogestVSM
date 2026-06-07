@@ -6,6 +6,7 @@ type FakeDatabase = {
   currentVersion: number;
   executedStatements: string[];
   productorColumns: Set<string>;
+  pestDiseaseColumns: Set<string>;
   execSync: (statement: string) => void;
   getAllSync: <T>(statement: string) => T[];
   getFirstSync: <T>(statement: string) => T | null;
@@ -14,12 +15,14 @@ type FakeDatabase = {
 
 function createFakeDatabase(
   currentVersion: number,
-  productorColumns: Iterable<string> = []
+  productorColumns: Iterable<string> = [],
+  pestDiseaseColumns: Iterable<string> = []
 ): FakeDatabase {
   return {
     currentVersion,
     executedStatements: [],
     productorColumns: new Set(productorColumns),
+    pestDiseaseColumns: new Set(pestDiseaseColumns),
     execSync(statement) {
       this.executedStatements.push(statement);
 
@@ -49,6 +52,17 @@ function createFakeDatabase(
         return;
       }
 
+      if (statement.startsWith("CREATE TABLE IF NOT EXISTS pest_diseases")) {
+        this.pestDiseaseColumns = new Set([
+          "id",
+          "scientific_name",
+          "name",
+          "type",
+          "is_active"
+        ]);
+        return;
+      }
+
       if (statement.startsWith("ALTER TABLE productores ADD COLUMN ")) {
         const parts = statement.split(/\s+/u);
         const columnName = parts[5];
@@ -63,10 +77,33 @@ function createFakeDatabase(
 
         this.productorColumns.add(columnName);
       }
+
+      if (statement.startsWith("ALTER TABLE pest_diseases ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.pestDiseaseColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.pestDiseaseColumns.add(columnName);
+      }
+
+      if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
+        this.pestDiseaseColumns.delete("code");
+      }
     },
     getAllSync<T>(statement: string) {
       if (statement === "PRAGMA table_info(productores)") {
         return Array.from(this.productorColumns, (name) => ({ name })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(pest_diseases)") {
+        return Array.from(this.pestDiseaseColumns, (name) => ({ name })) as T[];
       }
 
       return [];
@@ -89,7 +126,7 @@ describe("runMigrations", () => {
     const db = createFakeDatabase(0);
 
     expect(() => runMigrations(db as never)).not.toThrow();
-    expect(db.currentVersion).toBe(11);
+    expect(db.currentVersion).toBe(12);
     expect(db.executedStatements).not.toContain(
       "ALTER TABLE productores ADD COLUMN first_name TEXT"
     );
@@ -102,25 +139,32 @@ describe("runMigrations", () => {
     expect(db.executedStatements).toContain(
       "CREATE INDEX IF NOT EXISTS idx_sub_etapas_etapa ON sub_etapas(etapa_fenologica_id)"
     );
+    expect(db.executedStatements).not.toContain(
+      "ALTER TABLE pest_diseases DROP COLUMN code"
+    );
   });
 
   it("adds missing productor name columns when upgrading an older database", () => {
-    const db = createFakeDatabase(6, [
-      "id",
-      "public_id",
-      "document_type_id",
-      "document_number",
-      "phone",
-      "email",
-      "address",
-      "is_active",
-      "created_at",
-      "updated_at"
-    ]);
+    const db = createFakeDatabase(
+      6,
+      [
+        "id",
+        "public_id",
+        "document_type_id",
+        "document_number",
+        "phone",
+        "email",
+        "address",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ],
+      ["id", "code", "name", "type", "is_active"]
+    );
 
     runMigrations(db as never);
 
-    expect(db.currentVersion).toBe(11);
+    expect(db.currentVersion).toBe(12);
     expect(db.productorColumns.has("first_name")).toBe(true);
     expect(db.productorColumns.has("last_name")).toBe(true);
     expect(db.executedStatements).toContain(
@@ -134,6 +178,14 @@ describe("runMigrations", () => {
     );
     expect(db.executedStatements).toContain(
       "CREATE INDEX IF NOT EXISTS idx_sub_etapas_etapa ON sub_etapas(etapa_fenologica_id)"
+    );
+    expect(db.pestDiseaseColumns.has("scientific_name")).toBe(true);
+    expect(db.pestDiseaseColumns.has("code")).toBe(false);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE pest_diseases ADD COLUMN scientific_name TEXT"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE pest_diseases DROP COLUMN code"
     );
   });
 });

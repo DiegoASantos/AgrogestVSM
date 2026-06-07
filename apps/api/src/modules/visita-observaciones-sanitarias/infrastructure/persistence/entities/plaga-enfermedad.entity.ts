@@ -11,12 +11,12 @@ export class PlagaEnfermedadEntity {
   id!: string;
 
   @Column({
-    name: "codigo",
+    name: "nombre_cientifico",
     type: "varchar",
-    length: 30,
+    length: 160,
     nullable: true
   })
-  code!: string | null;
+  scientificName!: string | null;
 
   @Column({
     name: "nombre",

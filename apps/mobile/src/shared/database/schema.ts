@@ -46,7 +46,7 @@ export const SQL_SCHEMA = [
   )`,
   `CREATE TABLE IF NOT EXISTS pest_diseases (
     id TEXT PRIMARY KEY NOT NULL,
-    code TEXT,
+    scientific_name TEXT,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 1

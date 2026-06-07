@@ -27,7 +27,7 @@ type ObservacionRow = {
 
 type PestDiseaseRow = {
   id: string;
-  code: string | null;
+  scientific_name: string | null;
   name: string;
   type: string;
   is_active: number;
@@ -252,14 +252,14 @@ export const observacionesSanitariasRepository = {
   getPestDiseases() {
     const db = getDatabase();
     const rows = db.getAllSync<PestDiseaseRow>(
-      `SELECT id, code, name, type, is_active
+      `SELECT id, scientific_name, name, type, is_active
        FROM pest_diseases
        ORDER BY name ASC, id ASC`
     );
 
     return rows.map((row) => ({
       id: row.id,
-      code: row.code,
+      scientificName: row.scientific_name,
       name: row.name,
       type: row.type,
       isActive: fromSqliteBoolean(row.is_active)

@@ -156,10 +156,10 @@ export async function downloadAllCatalogs() {
 
     for (const pestDisease of pestDiseases) {
       db.runSync(
-        `INSERT OR REPLACE INTO pest_diseases (id, code, name, type, is_active)
+        `INSERT OR REPLACE INTO pest_diseases (id, scientific_name, name, type, is_active)
          VALUES (?, ?, ?, ?, ?)`,
         pestDisease.id,
-        pestDisease.code,
+        pestDisease.scientificName,
         pestDisease.name,
         pestDisease.type,
         toSqliteBoolean(pestDisease.isActive)

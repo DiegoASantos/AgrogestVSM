@@ -133,6 +133,13 @@ const MIGRATIONS: Migration[] = [
         "CREATE INDEX IF NOT EXISTS idx_sub_etapas_etapa ON sub_etapas(etapa_fenologica_id)"
       );
     }
+  },
+  {
+    version: 12,
+    run: (db) => {
+      addColumnIfMissing(db, "pest_diseases", "scientific_name", "TEXT");
+      dropColumnIfExists(db, "pest_diseases", "code");
+    }
   }
 ];
 
@@ -153,6 +160,22 @@ function addColumnIfMissing(
   db.execSync(
     `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`
   );
+}
+
+function dropColumnIfExists(
+  db: SQLiteDatabase,
+  tableName: string,
+  columnName: string
+) {
+  const columns = db.getAllSync<{ name: string }>(
+    `PRAGMA table_info(${tableName})`
+  );
+
+  if (!columns.some((column) => column.name === columnName)) {
+    return;
+  }
+
+  db.execSync(`ALTER TABLE ${tableName} DROP COLUMN ${columnName}`);
 }
 
 export function runMigrations(db: SQLiteDatabase) {

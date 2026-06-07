@@ -84,7 +84,9 @@ export function VisitaObservacionesSanitariasScreen() {
         .map((pestDisease) => ({
           value: pestDisease.id,
           label: pestDisease.name,
-          helper: [pestDisease.type, pestDisease.code].filter(Boolean).join(" | ")
+          helper: [pestDisease.type, pestDisease.scientificName]
+            .filter(Boolean)
+            .join(" | ")
         })),
     [pestDiseases]
   );
