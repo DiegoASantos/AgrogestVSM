@@ -507,15 +507,13 @@ export const agriculturalCatalogsService = {
   ): Promise<CatalogOption[]> {
     const etapasFenologicas = await this.getEtapasFenologicas(session);
 
-    return etapasFenologicas
-      .filter((etapaFenologica) => etapaFenologica.type === "Etapa")
-      .map((etapaFenologica) => ({
-        id: etapaFenologica.id,
-        label:
-          etapaFenologica.sortOrder === null
-            ? etapaFenologica.name
-            : `${etapaFenologica.sortOrder} - ${etapaFenologica.name}`
-      }));
+    return etapasFenologicas.map((etapaFenologica) => ({
+      id: etapaFenologica.id,
+      label:
+        etapaFenologica.sortOrder === null
+          ? etapaFenologica.name
+          : `${etapaFenologica.sortOrder} - ${etapaFenologica.name}`
+    }));
   }
 };
 

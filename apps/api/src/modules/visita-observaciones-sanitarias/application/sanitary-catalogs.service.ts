@@ -56,7 +56,7 @@ export class SanitaryCatalogsService {
 
   async createPestDisease(createPlagaEnfermedadDto: CreatePlagaEnfermedadDto) {
     if (createPlagaEnfermedadDto.etapaFenologicaId) {
-      await this.ensureEtapaFenologicaIsStage(
+      await this.ensureEtapaFenologicaExists(
         createPlagaEnfermedadDto.etapaFenologicaId
       );
     }
@@ -86,7 +86,7 @@ export class SanitaryCatalogsService {
     const pestDisease = await this.findPestDiseaseEntityById(id);
 
     if (updatePlagaEnfermedadDto.etapaFenologicaId) {
-      await this.ensureEtapaFenologicaIsStage(
+      await this.ensureEtapaFenologicaExists(
         updatePlagaEnfermedadDto.etapaFenologicaId
       );
     }
@@ -254,19 +254,13 @@ export class SanitaryCatalogsService {
     return incidenceLevel;
   }
 
-  private async ensureEtapaFenologicaIsStage(etapaFenologicaId: string) {
+  private async ensureEtapaFenologicaExists(etapaFenologicaId: string) {
     const etapaFenologica = await this.etapasFenologicasRepository.findOne({
       where: { id: etapaFenologicaId }
     });
 
     if (!etapaFenologica) {
       throw new BadRequestException("Phenological stage not found.");
-    }
-
-    if (etapaFenologica.type !== "Etapa") {
-      throw new BadRequestException(
-        "Pest or disease must reference a phenological stage, not a labor."
-      );
     }
   }
 
