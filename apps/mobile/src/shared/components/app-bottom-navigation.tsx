@@ -77,11 +77,19 @@ function getActiveTab(pathname: string): NavigationTab {
     return "inicio";
   }
 
-  if (pathname === "/visitas-campo/nueva" || pathname === "/visitas-campo/registrar") {
+  if (pathname === "/visitas-campo/historial" || pathname.startsWith("/visitas-campo/historial/")) {
+    return "historial";
+  }
+
+  if (
+    pathname === "/visitas-campo/nueva" ||
+    pathname === "/visitas-campo/registrar" ||
+    pathname.startsWith("/visitas-campo/")
+  ) {
     return "visitas";
   }
 
-  return "historial";
+  return "inicio";
 }
 
 const styles = StyleSheet.create({

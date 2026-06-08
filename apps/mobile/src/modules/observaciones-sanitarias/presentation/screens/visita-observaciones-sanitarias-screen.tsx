@@ -510,12 +510,17 @@ function SanitarySection({
 }: SanitarySectionProps) {
   return (
     <View style={styles.sectionGroup}>
-      <View style={styles.groupTitleRow}>
-        <View style={styles.groupIcon}>
-          <Ionicons color={theme.colors.primaryDark} name={icon} size={19} />
+      <View style={styles.groupHeader}>
+        <View style={styles.groupTitleRow}>
+          <View style={styles.groupIcon}>
+            <Ionicons color={theme.colors.primaryDark} name={icon} size={19} />
+          </View>
+          <AppText style={styles.groupTitle} variant="heading">
+            {title}
+          </AppText>
         </View>
-        <AppText style={styles.groupTitle} variant="heading">
-          {title}
+        <AppText style={styles.groupSubtitle} variant="caption">
+          Selecciona la incidencia y severidad para cada registro.
         </AppText>
       </View>
 
@@ -979,7 +984,8 @@ const styles = StyleSheet.create({
     gap: 8
   },
   cardTitleColumn: {
-    flex: 1
+    flex: 1,
+    alignItems: "center"
   },
   container: {
     paddingHorizontal: 0,
@@ -1020,12 +1026,26 @@ const styles = StyleSheet.create({
   },
   groupTitle: {
     color: theme.colors.primaryDark,
-    fontSize: 18
+    fontSize: 18,
+    textAlign: "center"
+  },
+  groupSubtitle: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    lineHeight: 17
+  },
+  groupHeader: {
+    gap: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
+    borderBottomWidth: 2,
+    borderBottomColor: "#d2ead8"
   },
   groupTitleRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 10
+    gap: 10,
+    justifyContent: "center"
   },
   helpButton: {
     alignItems: "center",
@@ -1221,7 +1241,8 @@ const styles = StyleSheet.create({
   pestName: {
     color: theme.colors.text,
     fontSize: 17,
-    lineHeight: 22
+    lineHeight: 22,
+    textAlign: "center"
   },
   pressed: {
     opacity: 0.72
