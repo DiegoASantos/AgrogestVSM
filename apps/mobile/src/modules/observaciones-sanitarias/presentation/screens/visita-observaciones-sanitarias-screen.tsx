@@ -14,6 +14,12 @@ import {
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming
+} from "react-native-reanimated";
 
 import {
   AppButton,
@@ -804,6 +810,51 @@ function ImagePreviewModal({
   item: PestDiseaseByStageItem | null;
   onClose: () => void;
 }) {
+  const scale = useSharedValue(1);
+  const scaleBase = useSharedValue(1);
+  useEffect(() => {
+    scale.value = 1;
+    scaleBase.value = 1;
+  }, [item, scale, scaleBase]);
+
+  const imageAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
+  const pinchGesture = useMemo(
+    () =>
+      Gesture.Pinch()
+        .onBegin(() => {
+          scaleBase.value = scale.value;
+        })
+        .onUpdate((event) => {
+          const nextScale = clampNumber(scaleBase.value * event.scale, 1, 3);
+          scale.value = nextScale;
+        })
+        .onEnd(() => {
+          if (scale.value < 1.01) {
+            scale.value = withTiming(1, { duration: 140 });
+          }
+        }),
+    [scale, scaleBase]
+  );
+
+  const resetGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        .numberOfTaps(2)
+        .onEnd(() => {
+          scale.value = withTiming(1, { duration: 160 });
+          scaleBase.value = 1;
+        }),
+    [scale, scaleBase]
+  );
+
+  const composedGesture = useMemo(
+    () => Gesture.Simultaneous(pinchGesture, resetGesture),
+    [pinchGesture, resetGesture]
+  );
+
   if (!item) {
     return null;
   }
@@ -820,7 +871,15 @@ function ImagePreviewModal({
           >
             <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
           </Pressable>
-          <Image resizeMode="contain" source={TEMP_PEST_IMAGE} style={styles.previewImage} />
+          <GestureDetector gesture={composedGesture}>
+            <View style={styles.previewImageFrame}>
+              <Animated.Image
+                resizeMode="contain"
+                source={TEMP_PEST_IMAGE}
+                style={[styles.previewImage, imageAnimatedStyle]}
+              />
+            </View>
+          </GestureDetector>
         </View>
       </View>
     </Modal>
@@ -890,6 +949,10 @@ function buildSelectionMap(observaciones: VisitaObservacionSanitaria[]) {
 
 function formatLevelType(type: IncidenceLevelCatalogItem["type"]) {
   return type === "incidencia" ? "Incidencia" : "Severidad";
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function normalizeIncidenceLevel(
@@ -1106,6 +1169,13 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     padding: 18,
     width: "86%"
+  },
+  previewImageFrame: {
+    alignItems: "center",
+    height: 260,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: "100%"
   },
   pestImageCompact: {
     alignSelf: "center",
