@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { Stack, usePathname, useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { useAuthSession } from "../src/modules/auth/hooks/use-auth-session";
 import { AuthSessionProvider } from "../src/modules/auth/state/auth-session-provider";
@@ -20,13 +19,11 @@ export default function RootLayout() {
   useEffect(() => { initDatabase(); }, []);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
-        <AuthSessionProvider>
-          <AppNavigation />
-        </AuthSessionProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <AuthSessionProvider>
+        <AppNavigation />
+      </AuthSessionProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -151,9 +148,6 @@ function isProtectedMobilePath(pathname: string | null) {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1
-  },
   app: {
     flex: 1,
     backgroundColor: "#064b31"
