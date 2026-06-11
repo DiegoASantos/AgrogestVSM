@@ -47,6 +47,10 @@ Genera y distribuye otro APK si cambias:
 En esos casos incrementa `expo.version` en `apps/mobile/app.json` y vuelve a
 ejecutar el comando de build.
 
+No publiques esos cambios por OTA sobre un APK anterior con el mismo
+`runtimeVersion`, porque el JavaScript puede intentar cargar modulos nativos que
+ese binario no contiene y la app puede cerrarse al iniciar.
+
 ## API de produccion
 
 El entorno EAS `production` contiene:
