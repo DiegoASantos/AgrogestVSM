@@ -212,6 +212,12 @@ const MIGRATIONS: Migration[] = [
         "CREATE INDEX IF NOT EXISTS idx_visita_paso_observaciones_visita ON visita_paso_observaciones(visita_local_id)"
       );
     }
+  },
+  {
+    version: 16,
+    statements: [
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    ]
   }
 ];
 

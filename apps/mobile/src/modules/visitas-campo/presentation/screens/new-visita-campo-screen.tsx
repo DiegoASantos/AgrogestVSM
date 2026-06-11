@@ -33,8 +33,7 @@ import { visitaCampoCatalogsService, visitasCampoService } from "../../services"
 import type {
   CreateVisitaCampoDraft,
   NewVisitaCampoFormErrors,
-  NewVisitaCampoFormValues,
-  VisitaCampo
+  NewVisitaCampoFormValues
 } from "../../types";
 import type {
   CampaniaCatalogItem,
@@ -118,7 +117,6 @@ export function NewVisitaCampoScreen() {
   const [selectedSubEtapaInfo, setSelectedSubEtapaInfo] =
     useState<SubEtapaCatalogItem | null>(null);
   const [sliderTrackWidth, setSliderTrackWidth] = useState(0);
-  const [editingVisita, setEditingVisita] = useState<VisitaCampo | null>(null);
 
   const [values, setValues] = useState<NewVisitaCampoFormValues>(() => ({
     crop: "",
@@ -177,7 +175,6 @@ export function NewVisitaCampoScreen() {
 
   useEffect(() => {
     if (!existingVisitaId) {
-      setEditingVisita(null);
       return;
     }
 
@@ -193,7 +190,6 @@ export function NewVisitaCampoScreen() {
           return;
         }
 
-        setEditingVisita(visita);
         setValues((currentValues) => ({
           ...currentValues,
           crop: visita.cropId,

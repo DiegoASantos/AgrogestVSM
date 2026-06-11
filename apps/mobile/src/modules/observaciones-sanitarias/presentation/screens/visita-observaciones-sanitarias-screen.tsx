@@ -15,7 +15,11 @@ import {
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView
+} from "react-native-gesture-handler";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -899,27 +903,29 @@ function ImagePreviewModal({
 
   return (
     <Modal animationType="fade" onRequestClose={onClose} transparent visible>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.imageModalContent}>
-          <Pressable
-            accessibilityLabel="Cerrar imagen"
-            accessibilityRole="button"
-            onPress={onClose}
-            style={styles.modalCloseButton}
-          >
-            <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
-          </Pressable>
-          <GestureDetector gesture={composedGesture}>
-            <View style={styles.previewImageFrame}>
-              <Animated.Image
-                resizeMode="contain"
-                source={imageSource}
-                style={[styles.previewImage, imageAnimatedStyle]}
-              />
-            </View>
-          </GestureDetector>
+      <GestureHandlerRootView style={styles.modalRoot}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.imageModalContent}>
+            <Pressable
+              accessibilityLabel="Cerrar imagen"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
+            </Pressable>
+            <GestureDetector gesture={composedGesture}>
+              <View style={styles.previewImageFrame}>
+                <Animated.Image
+                  resizeMode="contain"
+                  source={imageSource}
+                  style={[styles.previewImage, imageAnimatedStyle]}
+                />
+              </View>
+            </GestureDetector>
+          </View>
         </View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -1327,6 +1333,9 @@ const styles = StyleSheet.create({
     color: theme.colors.primaryDark,
     flex: 1,
     fontSize: 20
+  },
+  modalRoot: {
+    flex: 1
   },
   pestImage: {
     backgroundColor: theme.colors.primaryMuted,

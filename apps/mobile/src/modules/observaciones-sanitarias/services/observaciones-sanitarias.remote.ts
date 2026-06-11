@@ -28,17 +28,17 @@ type UpsertStepNoteInput = {
 
 export const observacionesSanitariasRemote = {
   getPestDiseases() {
-    return apiRequest<PestDiseaseCatalogItem[]>("/plagas-enfermedades");
+    return fetchAllPaginated<PestDiseaseCatalogItem>("/plagas-enfermedades");
   },
 
   getIncidenceLevels() {
-    return apiRequest<IncidenceLevelCatalogItem[]>(
+    return fetchAllPaginated<IncidenceLevelCatalogItem>(
       "/niveles-incidencia-severidad"
     );
   },
 
   getPestDiseaseStageLevels() {
-    return apiRequest<PestDiseaseStageLevelCatalogItem[]>(
+    return fetchAllPaginated<PestDiseaseStageLevelCatalogItem>(
       "/plagas-enfermedades-etapas-niveles"
     );
   },
@@ -92,3 +92,23 @@ export const observacionesSanitariasRemote = {
     );
   }
 };
+
+async function fetchAllPaginated<T>(path: string): Promise<T[]> {
+  const collected: T[] = [];
+  const separator = path.includes("?") ? "&" : "?";
+  const pageSize = 200;
+
+  for (let page = 1; page <= 25; page += 1) {
+    const items = await apiRequest<T[]>(
+      `${path}${separator}page=${page}&limit=${pageSize}`
+    );
+
+    collected.push(...items);
+
+    if (items.length < pageSize) {
+      break;
+    }
+  }
+
+  return collected;
+}
