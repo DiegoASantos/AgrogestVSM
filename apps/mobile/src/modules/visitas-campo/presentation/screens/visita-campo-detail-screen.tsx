@@ -242,7 +242,7 @@ export function VisitaCampoDetailScreen() {
                   }
                 />
                 <NavCard
-                  title="Obs. sanitarias"
+                  title="Plagas y enfermedades"
                   count={detail.observacionesSanitarias.length}
                   onPress={() =>
                     router.push({
@@ -296,7 +296,7 @@ export function VisitaCampoDetailScreen() {
             </SectionCard>
 
             <SectionCard
-              title="Observaciones sanitarias"
+              title="Plagas y enfermedades"
               subtitle={`${detail.observacionesSanitarias.length} registradas`}
             >
               {detail.observacionesSanitarias.length === 0 ? (

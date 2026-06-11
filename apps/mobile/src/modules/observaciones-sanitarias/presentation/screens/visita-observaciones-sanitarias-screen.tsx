@@ -10,6 +10,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  type ImageSourcePropType,
   useWindowDimensions,
   View
 } from "react-native";
@@ -41,9 +42,44 @@ import type {
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
-// TODO: Reemplazar esta imagen temporal por fotografias reales de cada plaga y enfermedad cuando el catalogo las defina.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const TEMP_PEST_IMAGE = require("../../../../../assets/images/adaptive_icon_vsm.png");
+const DEFAULT_PEST_DISEASE_IMAGE = require("../../../../../assets/images/adaptive_icon_vsm.png");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const CHINCHE_IMAGE = require("../../../../../assets/images/chinches.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const COCHINILLA_IMAGE = require("../../../../../assets/images/Cochinillas.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ACAROS_IMAGE = require("../../../../../assets/images/Acaros.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const MOSCA_FRUTA_IMAGE = require("../../../../../assets/images/mosca_fruta.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const QUERESAS_IMAGE = require("../../../../../assets/images/Queresas.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const TRIPS_IMAGE = require("../../../../../assets/images/trips.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ALTERNARIA_IMAGE = require("../../../../../assets/images/alternaria.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ANTRACNOSIS_IMAGE = require("../../../../../assets/images/Antracnosis.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const MUERTE_REGRESIVA_IMAGE = require("../../../../../assets/images/muerte_regresiva.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const OIDIUM_IMAGE = require("../../../../../assets/images/Oidiun.webp");
+
+const PEST_DISEASE_IMAGES: Array<{
+  patterns: string[];
+  source: ImageSourcePropType;
+}> = [
+  { patterns: ["chinche", "chinches"], source: CHINCHE_IMAGE },
+  { patterns: ["cochinilla", "cochinillas"], source: COCHINILLA_IMAGE },
+  { patterns: ["acaro", "acaros"], source: ACAROS_IMAGE },
+  { patterns: ["mosca de la fruta", "mosca fruta"], source: MOSCA_FRUTA_IMAGE },
+  { patterns: ["queresa", "queresas"], source: QUERESAS_IMAGE },
+  { patterns: ["trips"], source: TRIPS_IMAGE },
+  { patterns: ["alternaria"], source: ALTERNARIA_IMAGE },
+  { patterns: ["antracnosis"], source: ANTRACNOSIS_IMAGE },
+  { patterns: ["muerte regresiva"], source: MUERTE_REGRESIVA_IMAGE },
+  { patterns: ["oidium", "oidio", "oidiun"], source: OIDIUM_IMAGE }
+];
 
 type SanitarySelection = {
   incidenceLevelId: string | null;
@@ -579,6 +615,7 @@ function SanitaryCard({
     incidenceLevels,
     "severidad"
   );
+  const imageSource = getPestDiseaseImageSource(item);
 
   return (
     <View style={[styles.sanitaryCard, isCompactLayout && styles.sanitaryCardCompact]}>
@@ -589,7 +626,7 @@ function SanitaryCard({
       >
         <Image
           resizeMode="cover"
-          source={TEMP_PEST_IMAGE}
+          source={imageSource}
           style={[styles.pestImage, isCompactLayout && styles.pestImageCompact]}
         />
       </Pressable>
@@ -854,6 +891,7 @@ function ImagePreviewModal({
     () => Gesture.Simultaneous(pinchGesture, resetGesture),
     [pinchGesture, resetGesture]
   );
+  const imageSource = item ? getPestDiseaseImageSource(item) : DEFAULT_PEST_DISEASE_IMAGE;
 
   if (!item) {
     return null;
@@ -875,7 +913,7 @@ function ImagePreviewModal({
             <View style={styles.previewImageFrame}>
               <Animated.Image
                 resizeMode="contain"
-                source={TEMP_PEST_IMAGE}
+                source={imageSource}
                 style={[styles.previewImage, imageAnimatedStyle]}
               />
             </View>
@@ -951,6 +989,17 @@ function formatLevelType(type: IncidenceLevelCatalogItem["type"]) {
   return type === "incidencia" ? "Incidencia" : "Severidad";
 }
 
+function getPestDiseaseImageSource(
+  item: PestDiseaseByStageItem
+): ImageSourcePropType {
+  const normalizedName = normalizeCatalogName(item.name);
+  const imageConfig = PEST_DISEASE_IMAGES.find(({ patterns }) =>
+    patterns.some((pattern) => normalizedName.includes(pattern))
+  );
+
+  return imageConfig?.source ?? DEFAULT_PEST_DISEASE_IMAGE;
+}
+
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -976,6 +1025,15 @@ function normalizeIncidenceLevelType(value: string): IncidenceLevelCatalogItem["
   }
 
   return "incidencia";
+}
+
+function normalizeCatalogName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function getLevelColor(sortOrder: number) {
