@@ -28,7 +28,7 @@ telefonos Android.
 Para cambios compatibles de TypeScript, pantallas, estilos o assets:
 
 ```bash
-npx eas-cli@latest update --channel production --environment production --message "Describe el cambio"
+npx eas-cli@latest update --platform android --channel production --environment production --message "Describe el cambio"
 ```
 
 La actualizacion se descarga al abrir la app y normalmente se aplica en el
