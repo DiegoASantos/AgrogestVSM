@@ -851,15 +851,39 @@ function ImagePreviewModal({
   item: PestDiseaseByStageItem | null;
   onClose: () => void;
 }) {
+  const { width } = useWindowDimensions();
+  const frameWidth = Math.max(240, width * 0.86 - 36);
+  const frameHeight = 260;
   const scale = useSharedValue(1);
   const scaleBase = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const translateStartX = useSharedValue(0);
+  const translateStartY = useSharedValue(0);
+
   useEffect(() => {
     scale.value = 1;
     scaleBase.value = 1;
-  }, [item, scale, scaleBase]);
+    translateX.value = 0;
+    translateY.value = 0;
+    translateStartX.value = 0;
+    translateStartY.value = 0;
+  }, [
+    item,
+    scale,
+    scaleBase,
+    translateX,
+    translateY,
+    translateStartX,
+    translateStartY
+  ]);
 
   const imageAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }]
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value }
+    ]
   }));
 
   const pinchGesture = useMemo(
@@ -869,15 +893,66 @@ function ImagePreviewModal({
           scaleBase.value = scale.value;
         })
         .onUpdate((event) => {
-          const nextScale = clampNumber(scaleBase.value * event.scale, 1, 3);
-          scale.value = nextScale;
+          const nextScale = scaleBase.value * event.scale;
+          scale.value = Math.min(3, Math.max(1, nextScale));
+          const maxTranslateX = ((scale.value - 1) * frameWidth) / 2;
+          const maxTranslateY = ((scale.value - 1) * frameHeight) / 2;
+          translateX.value = Math.min(
+            maxTranslateX,
+            Math.max(-maxTranslateX, translateX.value)
+          );
+          translateY.value = Math.min(
+            maxTranslateY,
+            Math.max(-maxTranslateY, translateY.value)
+          );
         })
         .onEnd(() => {
           if (scale.value < 1.01) {
             scale.value = withTiming(1, { duration: 140 });
+            translateX.value = withTiming(0, { duration: 140 });
+            translateY.value = withTiming(0, { duration: 140 });
           }
         }),
-    [scale, scaleBase]
+    [frameHeight, frameWidth, scale, scaleBase, translateX, translateY]
+  );
+
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .onBegin(() => {
+          translateStartX.value = translateX.value;
+          translateStartY.value = translateY.value;
+        })
+        .onUpdate((event) => {
+          if (scale.value <= 1) {
+            translateX.value = 0;
+            translateY.value = 0;
+            return;
+          }
+
+          const maxTranslateX = ((scale.value - 1) * frameWidth) / 2;
+          const maxTranslateY = ((scale.value - 1) * frameHeight) / 2;
+          const nextTranslateX = translateStartX.value + event.translationX;
+          const nextTranslateY = translateStartY.value + event.translationY;
+
+          translateX.value = Math.min(
+            maxTranslateX,
+            Math.max(-maxTranslateX, nextTranslateX)
+          );
+          translateY.value = Math.min(
+            maxTranslateY,
+            Math.max(-maxTranslateY, nextTranslateY)
+          );
+        }),
+    [
+      frameHeight,
+      frameWidth,
+      scale,
+      translateStartX,
+      translateStartY,
+      translateX,
+      translateY
+    ]
   );
 
   const resetGesture = useMemo(
@@ -887,13 +962,17 @@ function ImagePreviewModal({
         .onEnd(() => {
           scale.value = withTiming(1, { duration: 160 });
           scaleBase.value = 1;
+          translateX.value = withTiming(0, { duration: 160 });
+          translateY.value = withTiming(0, { duration: 160 });
+          translateStartX.value = 0;
+          translateStartY.value = 0;
         }),
-    [scale, scaleBase]
+    [scale, scaleBase, translateStartX, translateStartY, translateX, translateY]
   );
 
   const composedGesture = useMemo(
-    () => Gesture.Simultaneous(pinchGesture, resetGesture),
-    [pinchGesture, resetGesture]
+    () => Gesture.Simultaneous(pinchGesture, panGesture, resetGesture),
+    [panGesture, pinchGesture, resetGesture]
   );
   const imageSource = item ? getPestDiseaseImageSource(item) : DEFAULT_PEST_DISEASE_IMAGE;
 
@@ -1004,10 +1083,6 @@ function getPestDiseaseImageSource(
   );
 
   return imageConfig?.source ?? DEFAULT_PEST_DISEASE_IMAGE;
-}
-
-function clampNumber(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }
 
 function normalizeIncidenceLevel(
