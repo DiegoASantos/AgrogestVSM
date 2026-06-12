@@ -32,6 +32,8 @@ import {
   Sun,
   Moon,
   ListTree,
+  Droplets,
+  Workflow,
   type LucideIcon
 } from "lucide-react";
 
@@ -73,6 +75,8 @@ const maintenanceNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.mantenimientoItems.ingredientesActivos]: FlaskConical,
   [adminRoutes.mantenimientoItems.nivelesIncidencia]: AlertTriangle,
   [adminRoutes.mantenimientoItems.plagasEnfermedades]: Bug,
+  [adminRoutes.mantenimientoItems.plagasEnfermedadesEtapasNiveles]: Workflow,
+  [adminRoutes.mantenimientoItems.nutrientes]: Droplets,
   [adminRoutes.mantenimientoItems.productoIngredientes]: Puzzle,
   [adminRoutes.mantenimientoItems.sectores]: MapPin,
   [adminRoutes.mantenimientoItems.tiposDocumento]: FileText
