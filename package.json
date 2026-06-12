@@ -19,6 +19,12 @@
     "test:watch": "vitest",
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
+  "pnpm": {
+    "overrides": {
+      "react": "18.2.0",
+      "react-dom": "18.2.0"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "@types/node": "^22.10.2",
