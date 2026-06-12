@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: siteConfig.description
 };
 
+export const dynamic = "force-dynamic";
+
 type RootLayoutProps = {
   children: ReactNode;
 };
