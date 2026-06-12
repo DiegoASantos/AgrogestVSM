@@ -2,6 +2,7 @@ import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 import { CampaniaEntity } from "../../../../campanias/infrastructure/persistence/entities/campania.entity";
 import { VariedadEntity } from "../../../../variedades/infrastructure/persistence/entities/variedad.entity";
+import { NutrienteEntity } from "../../../../nutricion/infrastructure/persistence/entities/nutriente.entity";
 import { EtapaFenologicaEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/etapa-fenologica.entity";
 import { VisitaCampoEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 
@@ -41,12 +42,12 @@ export class CultivoEntity {
   @OneToMany(() => CampaniaEntity, (campania) => campania.cultivo)
   campaigns!: CampaniaEntity[];
 
-  @OneToMany(
-    () => EtapaFenologicaEntity,
-    (etapaFenologica) => etapaFenologica.cultivo
-  )
+  @OneToMany(() => EtapaFenologicaEntity, (etapaFenologica) => etapaFenologica.cultivo)
   etapasFenologicas!: EtapaFenologicaEntity[];
 
   @OneToMany(() => VisitaCampoEntity, (visitaCampo) => visitaCampo.cultivo)
   visitasCampo!: VisitaCampoEntity[];
+
+  @OneToMany(() => NutrienteEntity, (nutriente) => nutriente.cultivo)
+  nutrients!: NutrienteEntity[];
 }

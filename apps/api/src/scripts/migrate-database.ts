@@ -47,10 +47,10 @@ async function run() {
       await client.query("BEGIN");
 
       try {
-        const result = await client.query(
+        const result = (await client.query(
           "SELECT id FROM schema_migrations WHERE id = $1",
           [migration.id]
-        ) as { rows?: unknown[] };
+        )) as { rows?: unknown[] };
 
         if ((result.rows?.length ?? 0) === 0) {
           console.log(`Applying database migration: ${migration.id}`);
@@ -68,8 +68,18 @@ async function run() {
       }
     }
 
-    await assertCount(client, "SELECT COUNT(*)::text AS count FROM provincias WHERE codigo LIKE '20%'", 8, "Piura provincias");
-    await assertCount(client, "SELECT COUNT(*)::text AS count FROM distritos WHERE ubigeo LIKE '20%'", 65, "Piura distritos");
+    await assertCount(
+      client,
+      "SELECT COUNT(*)::text AS count FROM provincias WHERE codigo LIKE '20%'",
+      8,
+      "Piura provincias"
+    );
+    await assertCount(
+      client,
+      "SELECT COUNT(*)::text AS count FROM distritos WHERE ubigeo LIKE '20%'",
+      65,
+      "Piura distritos"
+    );
     await assertColumnExists(client, "sectores", "distrito_id");
     await assertColumnExists(client, "parcelas", "productor_id");
     await assertColumnExists(client, "etapas_fenologicas", "orden");
@@ -84,6 +94,12 @@ async function run() {
     await assertColumnExists(client, "visitas_campo", "sub_etapa_id");
     await assertColumnExists(client, "visitas_campo", "sub_etapa_porcentaje");
     await assertColumnExists(client, "visitas_campo", "area_ha");
+    await assertColumnExists(client, "nutrientes", "cultivo_id");
+    await assertColumnExists(client, "nutrientes", "nombre");
+    await assertColumnExists(client, "nutrientes", "descripcion");
+    await assertColumnExists(client, "detalle_nutrientes", "nutriente_id");
+    await assertColumnExists(client, "detalle_nutrientes", "nombre");
+    await assertColumnExists(client, "detalle_nutrientes", "descripcion");
     console.log("Database migrations validated successfully.");
   } finally {
     await client.query("SELECT pg_advisory_unlock(842017052026)");
@@ -97,7 +113,7 @@ async function assertCount(
   expected: number,
   label: string
 ) {
-  const result = await client.query(sql) as CountResult;
+  const result = (await client.query(sql)) as CountResult;
   const actual = Number(result.rows?.[0]?.count ?? -1);
 
   if (actual !== expected) {
@@ -110,14 +126,14 @@ async function assertColumnExists(
   tableName: string,
   columnName: string
 ) {
-  const result = await client.query(
+  const result = (await client.query(
     `SELECT COUNT(*)::text AS count
      FROM information_schema.columns
      WHERE table_schema = current_schema()
        AND table_name = $1
        AND column_name = $2`,
     [tableName, columnName]
-  ) as CountResult;
+  )) as CountResult;
 
   if (Number(result.rows?.[0]?.count ?? 0) !== 1) {
     throw new Error(`Expected column ${tableName}.${columnName} to exist.`);

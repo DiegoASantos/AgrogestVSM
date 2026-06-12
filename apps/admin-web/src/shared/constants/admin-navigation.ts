@@ -81,6 +81,11 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     description: "Relaciones sanitarias por etapa"
   },
   {
+    label: "Nutrientes",
+    href: adminRoutes.mantenimientoItems.nutrientes,
+    description: "Catalogo nutricional por cultivo"
+  },
+  {
     label: "Formulaciones",
     href: adminRoutes.mantenimientoItems.productoIngredientes,
     description: "Relacion entre productos e ingredientes"

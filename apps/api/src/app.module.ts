@@ -7,6 +7,7 @@ import { CampaniasModule } from "./modules/campanias/campanias.module";
 import { CultivosModule } from "./modules/cultivos/cultivos.module";
 import { HealthModule } from "./modules/health/health.module";
 import { GeografiasModule } from "./modules/geografias/geografias.module";
+import { NutricionModule } from "./modules/nutricion/nutricion.module";
 import { ParcelasModule } from "./modules/parcelas/parcelas.module";
 import { ProductoresModule } from "./modules/productores/productores.module";
 import { RolesModule } from "./modules/roles/roles.module";
@@ -37,6 +38,7 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     SectoresModule,
     ParcelasModule,
     VisitasCampoModule,
+    NutricionModule,
     VisitaEvaluacionesModule,
     VisitaObservacionesSanitariasModule,
     VisitaRecomendacionesModule,

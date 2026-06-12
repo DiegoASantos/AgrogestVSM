@@ -126,6 +126,37 @@ export type PlagaEnfermedadEtapaNivelCatalogPayload = {
   isActive?: boolean;
 };
 
+export type NutrientCatalogItem = {
+  id: string;
+  cultivoId: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  details: NutrientDetailCatalogItem[];
+};
+
+export type NutrientCatalogPayload = {
+  cultivoId: string;
+  name: string;
+  description?: string | null;
+  isActive?: boolean;
+};
+
+export type NutrientDetailCatalogItem = {
+  id: string;
+  nutrientId: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+};
+
+export type NutrientDetailCatalogPayload = {
+  nutrientId: string;
+  name: string;
+  description?: string | null;
+  isActive?: boolean;
+};
+
 export type TipoDocumentoCatalogItem = {
   id: string;
   code: string;

@@ -15,6 +15,10 @@ import type {
   EtapaFenologicaCatalogPayload,
   NivelIncidenciaCatalogItem,
   NivelIncidenciaCatalogPayload,
+  NutrientCatalogItem,
+  NutrientCatalogPayload,
+  NutrientDetailCatalogItem,
+  NutrientDetailCatalogPayload,
   PlagaEnfermedadEtapaNivelCatalogItem,
   PlagaEnfermedadEtapaNivelCatalogPayload,
   PlagaEnfermedadCatalogItem,
@@ -90,6 +94,23 @@ type PlagaEnfermedadEtapaNivelApiItem = {
   isActive: boolean;
 };
 
+type NutrientApiItem = {
+  id: string;
+  cultivoId: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  details?: NutrientDetailApiItem[];
+};
+
+type NutrientDetailApiItem = {
+  id: string;
+  nutrientId: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+};
+
 type TipoDocumentoApiItem = {
   id: number;
   code: string;
@@ -149,9 +170,7 @@ export const agriculturalCatalogsService = {
     });
   },
 
-  async getCampanias(
-    session: AuthSessionInput
-  ): Promise<CampaniaCatalogItem[]> {
+  async getCampanias(session: AuthSessionInput): Promise<CampaniaCatalogItem[]> {
     const items = await requestAll<CampaniaApiItem>(session, "/campanias");
 
     return items.map(mapCampaniaItem);
@@ -211,14 +230,10 @@ export const agriculturalCatalogsService = {
     session: AuthSessionInput,
     payload: EtapaFenologicaCatalogPayload
   ): Promise<EtapaFenologicaCatalogItem> {
-    const item = await request<EtapaFenologicaApiItem>(
-      session,
-      "/etapas-fenologicas",
-      {
-        method: "POST",
-        body: payload
-      }
-    );
+    const item = await request<EtapaFenologicaApiItem>(session, "/etapas-fenologicas", {
+      method: "POST",
+      body: payload
+    });
 
     return {
       id: item.id,
@@ -389,14 +404,10 @@ export const agriculturalCatalogsService = {
     session: AuthSessionInput,
     payload: PlagaEnfermedadCatalogPayload
   ): Promise<PlagaEnfermedadCatalogItem> {
-    const item = await request<PlagaEnfermedadApiItem>(
-      session,
-      "/plagas-enfermedades",
-      {
-        method: "POST",
-        body: payload
-      }
-    );
+    const item = await request<PlagaEnfermedadApiItem>(session, "/plagas-enfermedades", {
+      method: "POST",
+      body: payload
+    });
 
     return {
       id: item.id,
@@ -496,13 +507,90 @@ export const agriculturalCatalogsService = {
     );
   },
 
+  async getNutrients(session: AuthSessionInput): Promise<NutrientCatalogItem[]> {
+    const items = await requestAll<NutrientApiItem>(session, "/nutrientes");
+
+    return items.map(mapNutrientItem);
+  },
+
+  async createNutrient(
+    session: AuthSessionInput,
+    payload: NutrientCatalogPayload
+  ): Promise<NutrientCatalogItem> {
+    const item = await request<NutrientApiItem>(session, "/nutrientes", {
+      method: "POST",
+      body: payload
+    });
+
+    return mapNutrientItem(item);
+  },
+
+  async updateNutrient(
+    session: AuthSessionInput,
+    id: string,
+    payload: NutrientCatalogPayload
+  ): Promise<NutrientCatalogItem> {
+    const item = await request<NutrientApiItem>(session, `/nutrientes/${id}`, {
+      method: "PATCH",
+      body: payload
+    });
+
+    return mapNutrientItem(item);
+  },
+
+  async deleteNutrient(session: AuthSessionInput, id: string) {
+    return request<NutrientApiItem>(session, `/nutrientes/${id}`, {
+      method: "DELETE"
+    });
+  },
+
+  async getNutrientDetails(
+    session: AuthSessionInput
+  ): Promise<NutrientDetailCatalogItem[]> {
+    const items = await requestAll<NutrientDetailApiItem>(session, "/detalle-nutrientes");
+
+    return items.map(mapNutrientDetailItem);
+  },
+
+  async createNutrientDetail(
+    session: AuthSessionInput,
+    payload: NutrientDetailCatalogPayload
+  ): Promise<NutrientDetailCatalogItem> {
+    const item = await request<NutrientDetailApiItem>(session, "/detalle-nutrientes", {
+      method: "POST",
+      body: payload
+    });
+
+    return mapNutrientDetailItem(item);
+  },
+
+  async updateNutrientDetail(
+    session: AuthSessionInput,
+    id: string,
+    payload: NutrientDetailCatalogPayload
+  ): Promise<NutrientDetailCatalogItem> {
+    const item = await request<NutrientDetailApiItem>(
+      session,
+      `/detalle-nutrientes/${id}`,
+      {
+        method: "PATCH",
+        body: payload
+      }
+    );
+
+    return mapNutrientDetailItem(item);
+  },
+
+  async deleteNutrientDetail(session: AuthSessionInput, id: string) {
+    return request<NutrientDetailApiItem>(session, `/detalle-nutrientes/${id}`, {
+      method: "DELETE"
+    });
+  },
+
   async getTiposDocumento(
     session: AuthSessionInput
   ): Promise<TipoDocumentoCatalogItem[]> {
-    const items = await requestAll<TipoDocumentoApiItem>(
-      session,
-      "/tipos-documento"
-    );
+    const items = await requestAll<TipoDocumentoApiItem>(session, "/tipos-documento");
 
     return items.map((item) => ({
       id: String(item.id),
@@ -515,14 +603,10 @@ export const agriculturalCatalogsService = {
     session: AuthSessionInput,
     payload: TipoDocumentoCatalogPayload
   ): Promise<TipoDocumentoCatalogItem> {
-    const item = await request<TipoDocumentoApiItem>(
-      session,
-      "/tipos-documento",
-      {
-        method: "POST",
-        body: payload
-      }
-    );
+    const item = await request<TipoDocumentoApiItem>(session, "/tipos-documento", {
+      method: "POST",
+      body: payload
+    });
 
     return {
       id: String(item.id),
@@ -536,14 +620,10 @@ export const agriculturalCatalogsService = {
     id: string,
     payload: TipoDocumentoCatalogPayload
   ): Promise<TipoDocumentoCatalogItem> {
-    const item = await request<TipoDocumentoApiItem>(
-      session,
-      `/tipos-documento/${id}`,
-      {
-        method: "PATCH",
-        body: payload
-      }
-    );
+    const item = await request<TipoDocumentoApiItem>(session, `/tipos-documento/${id}`, {
+      method: "PATCH",
+      body: payload
+    });
 
     return {
       id: String(item.id),
@@ -558,9 +638,7 @@ export const agriculturalCatalogsService = {
     });
   },
 
-  async getCultivoOptions(
-    session: AuthSessionInput
-  ): Promise<CatalogOption[]> {
+  async getCultivoOptions(session: AuthSessionInput): Promise<CatalogOption[]> {
     const cultivos = await this.getCultivos(session);
 
     return cultivos.map((cultivo) => ({
@@ -569,9 +647,7 @@ export const agriculturalCatalogsService = {
     }));
   },
 
-  async getEtapaFenologicaOptions(
-    session: AuthSessionInput
-  ): Promise<CatalogOption[]> {
+  async getEtapaFenologicaOptions(session: AuthSessionInput): Promise<CatalogOption[]> {
     const etapasFenologicas = await this.getEtapasFenologicas(session);
 
     return etapasFenologicas.map((etapaFenologica) => ({
@@ -598,10 +674,7 @@ async function request<T>(
   });
 }
 
-async function requestAll<T>(
-  session: AuthSessionInput,
-  path: string
-): Promise<T[]> {
+async function requestAll<T>(session: AuthSessionInput, path: string): Promise<T[]> {
   return fetchAllPaginated<T>(path, {
     headers: createAuthHeaders(session.accessToken, session.tokenType)
   });
@@ -641,6 +714,27 @@ function mapPlagaEnfermedadEtapaNivelItem(
     plagaEnfermedadId: item.plagaEnfermedadId,
     etapaFenologicaId: item.etapaFenologicaId,
     nivelIncidenciaSeveridadId: String(item.nivelIncidenciaSeveridadId),
+    description: item.description,
+    isActive: item.isActive
+  };
+}
+
+function mapNutrientItem(item: NutrientApiItem): NutrientCatalogItem {
+  return {
+    id: item.id,
+    cultivoId: item.cultivoId,
+    name: item.name,
+    description: item.description,
+    isActive: item.isActive,
+    details: item.details?.map(mapNutrientDetailItem) ?? []
+  };
+}
+
+function mapNutrientDetailItem(item: NutrientDetailApiItem): NutrientDetailCatalogItem {
+  return {
+    id: item.id,
+    nutrientId: item.nutrientId,
+    name: item.name,
     description: item.description,
     isActive: item.isActive
   };
