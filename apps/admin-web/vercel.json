@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next",
+  "installCommand": "cd ../.. && pnpm --filter @agrogest/admin-web install --frozen-lockfile",
+  "framework": "nextjs"
+}
