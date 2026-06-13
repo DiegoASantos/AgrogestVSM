@@ -515,7 +515,7 @@ export function VisitaObservacionesSanitariasScreen() {
       }
 
       router.replace({
-        pathname: "/visitas-campo/[id]/evaluaciones",
+        pathname: "/visitas-campo/[id]/nutricion",
         params: { id: visitaId }
       });
     } catch (nextError) {

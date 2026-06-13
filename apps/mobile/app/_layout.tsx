@@ -107,9 +107,15 @@ function AppNavigation() {
           }}
         />
         <Stack.Screen
-          name="visitas-campo/[id]/evaluaciones"
+          name="visitas-campo/[id]/nutricion"
           options={{
             title: "Nutricion"
+          }}
+        />
+        <Stack.Screen
+          name="visitas-campo/[id]/evaluaciones"
+          options={{
+            headerShown: false
           }}
         />
         <Stack.Screen

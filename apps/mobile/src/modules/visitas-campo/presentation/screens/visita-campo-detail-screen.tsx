@@ -232,11 +232,11 @@ export function VisitaCampoDetailScreen() {
             <View style={styles.navGrid}>
               <View style={styles.navRow}>
                 <NavCard
-                  title="Evaluaciones"
+                  title="Nutricion"
                   count={detail.evaluaciones.length}
                   onPress={() =>
                     router.push({
-                      pathname: "/visitas-campo/[id]/evaluaciones",
+                      pathname: "/visitas-campo/[id]/nutricion",
                       params: { id: visita.id }
                     })
                   }
@@ -278,11 +278,11 @@ export function VisitaCampoDetailScreen() {
             </View>
 
             <SectionCard
-              title="Evaluaciones"
+              title="Nutricion"
               subtitle={`${detail.evaluaciones.length} registradas`}
             >
               {detail.evaluaciones.length === 0 ? (
-                <AppText variant="muted">No hay evaluaciones registradas.</AppText>
+                <AppText variant="muted">No hay nutricion registrada.</AppText>
               ) : (
                 detail.evaluaciones.map((evaluacion) => (
                   <DetailItemCard

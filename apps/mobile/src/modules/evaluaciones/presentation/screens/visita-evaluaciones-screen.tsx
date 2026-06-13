@@ -92,7 +92,7 @@ const NUTRIENT_IMAGES: Array<{
   { patterns: ["zinc"], source: ZINC_IMAGE }
 ];
 
-export function VisitaEvaluacionesScreen() {
+export function VisitaNutricionScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
