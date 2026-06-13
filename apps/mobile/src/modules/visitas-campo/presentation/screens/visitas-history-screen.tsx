@@ -2,7 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppButton,
@@ -16,8 +16,10 @@ import {
 import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
-import { visitasCampoService } from "../../services";
+import { visitaPdfReportService, visitasCampoService } from "../../services";
 import type { RecentVisitaCampo, VisitaCampo } from "../../types";
+
+type PdfAction = "preview" | "share";
 
 export function VisitasHistoryScreen() {
   const router = useRouter();
@@ -25,6 +27,10 @@ export function VisitasHistoryScreen() {
   const [visitas, setVisitas] = useState<RecentVisitaCampo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activePdfAction, setActivePdfAction] = useState<{
+    visitaId: string;
+    action: PdfAction;
+  } | null>(null);
 
   const loadVisitas = useCallback(() => {
     setIsLoading(true);
@@ -94,6 +100,13 @@ export function VisitasHistoryScreen() {
                     params: { id: visita.id }
                   })
                 }
+                onPreviewPdf={() => {
+                  void handlePdfAction(visita.id, "preview");
+                }}
+                onSharePdf={() => {
+                  void handlePdfAction(visita.id, "share");
+                }}
+                pdfAction={activePdfAction?.visitaId === visita.id ? activePdfAction.action : null}
                 visita={visita}
               />
             ))
@@ -101,22 +114,51 @@ export function VisitasHistoryScreen() {
       </ScrollView>
     </ScreenContainer>
   );
+  async function handlePdfAction(visitaId: string, action: PdfAction) {
+    if (activePdfAction) {
+      return;
+    }
+
+    setActivePdfAction({ visitaId, action });
+
+    try {
+      if (action === "preview") {
+        await visitaPdfReportService.preview(visitaId);
+      } else {
+        await visitaPdfReportService.share(visitaId);
+      }
+    } catch (nextError) {
+      const apiError = toApiError(nextError);
+      Alert.alert(
+        "No se pudo generar el PDF",
+        apiError.message || "Intenta nuevamente."
+      );
+    } finally {
+      setActivePdfAction(null);
+    }
+  }
 }
 
 function HistoryItem({
   onPress,
+  onPreviewPdf,
+  onSharePdf,
+  pdfAction,
   visita
 }: {
   onPress: () => void;
+  onPreviewPdf: () => void;
+  onSharePdf: () => void;
+  pdfAction: PdfAction | null;
   visita: RecentVisitaCampo;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => pressed && styles.pressed}
-    >
-      <AppCard style={styles.visitCard}>
+    <AppCard style={styles.visitCard}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [styles.visitPressable, pressed && styles.pressed]}
+      >
         <View style={styles.visitRow}>
           <View style={styles.iconWrap}>
             <Ionicons color="#08643f" name="clipboard-outline" size={23} />
@@ -135,8 +177,31 @@ function HistoryItem({
           />
           <Ionicons color="#064b31" name="chevron-forward" size={21} />
         </View>
-      </AppCard>
-    </Pressable>
+      </Pressable>
+
+      <View style={styles.pdfActions}>
+        <View style={styles.pdfActionButton}>
+          <AppButton
+            icon="document-text-outline"
+            label="Ver PDF"
+            loading={pdfAction === "preview"}
+            onPress={onPreviewPdf}
+            size="small"
+            variant="outline"
+          />
+        </View>
+        <View style={styles.pdfActionButton}>
+          <AppButton
+            icon="share-social-outline"
+            label="Compartir"
+            loading={pdfAction === "share"}
+            onPress={onSharePdf}
+            size="small"
+            variant="secondary"
+          />
+        </View>
+      </View>
+    </AppCard>
   );
 }
 
@@ -197,6 +262,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 13
   },
+  visitPressable: {
+    borderRadius: theme.radius.md
+  },
   visitRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -216,6 +284,14 @@ const styles = StyleSheet.create({
   },
   visitDate: {
     marginTop: 2
+  },
+  pdfActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12
+  },
+  pdfActionButton: {
+    flex: 1
   },
   pressed: {
     opacity: 0.8
