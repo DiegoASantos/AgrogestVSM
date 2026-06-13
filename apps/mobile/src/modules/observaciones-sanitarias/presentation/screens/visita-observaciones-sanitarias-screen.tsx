@@ -101,8 +101,8 @@ const WIZARD_STEPS = [
   { index: 1, title: "Datos" },
   { index: 2, title: "Sanidad" },
   { index: 3, title: "Nutricion" },
-  { index: 4, title: "Recom." },
-  { index: 5, title: "Productos" }
+  { index: 4, title: "Riego" },
+  { index: 5, title: "Labores" }
 ] as const;
 
 export function VisitaObservacionesSanitariasScreen() {

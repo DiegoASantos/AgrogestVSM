@@ -68,22 +68,6 @@ export const SQL_SCHEMA = [
     sort_order INTEGER NOT NULL,
     type TEXT NOT NULL DEFAULT 'incidencia'
   )`,
-  `CREATE TABLE IF NOT EXISTS recommendation_types (
-    id TEXT PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    is_active INTEGER NOT NULL DEFAULT 1
-  )`,
-  `CREATE TABLE IF NOT EXISTS products (
-    id TEXT PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    is_active INTEGER NOT NULL DEFAULT 1
-  )`,
-  `CREATE TABLE IF NOT EXISTS application_frequencies (
-    id TEXT PRIMARY KEY NOT NULL,
-    name TEXT NOT NULL,
-    interval_days INTEGER,
-    is_active INTEGER NOT NULL DEFAULT 1
-  )`,
   `CREATE TABLE IF NOT EXISTS productores (
     id TEXT PRIMARY KEY NOT NULL,
     public_id TEXT NOT NULL,
@@ -220,34 +204,6 @@ export const SQL_SCHEMA = [
     updated_at TEXT NOT NULL,
     FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
     UNIQUE (visita_local_id, step_number)
-  )`,
-  `CREATE TABLE IF NOT EXISTS visita_recomendaciones (
-    local_id TEXT PRIMARY KEY NOT NULL,
-    server_id TEXT,
-    visita_local_id TEXT NOT NULL,
-    recommendation_type_id TEXT NOT NULL,
-    applies INTEGER NOT NULL DEFAULT 0,
-    detail TEXT,
-    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
-    FOREIGN KEY (recommendation_type_id) REFERENCES recommendation_types(id)
-  )`,
-  `CREATE TABLE IF NOT EXISTS visita_productos_recomendados (
-    local_id TEXT PRIMARY KEY NOT NULL,
-    server_id TEXT,
-    visita_local_id TEXT NOT NULL,
-    product_id TEXT NOT NULL,
-    dose TEXT NOT NULL,
-    application_frequency_id TEXT,
-    instructions TEXT,
-    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id),
-    FOREIGN KEY (application_frequency_id) REFERENCES application_frequencies(id)
   )`,
   `CREATE TABLE IF NOT EXISTS app_meta (
     key TEXT PRIMARY KEY NOT NULL,

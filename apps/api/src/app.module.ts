@@ -8,6 +8,7 @@ import { CultivosModule } from "./modules/cultivos/cultivos.module";
 import { HealthModule } from "./modules/health/health.module";
 import { GeografiasModule } from "./modules/geografias/geografias.module";
 import { NutricionModule } from "./modules/nutricion/nutricion.module";
+import { OperacionesCampoModule } from "./modules/operaciones-campo/operaciones-campo.module";
 import { ParcelasModule } from "./modules/parcelas/parcelas.module";
 import { ProductoresModule } from "./modules/productores/productores.module";
 import { RolesModule } from "./modules/roles/roles.module";
@@ -17,8 +18,6 @@ import { UsersModule } from "./modules/users/users.module";
 import { VariedadesModule } from "./modules/variedades/variedades.module";
 import { VisitaEvaluacionesModule } from "./modules/visita-evaluaciones/visita-evaluaciones.module";
 import { VisitaObservacionesSanitariasModule } from "./modules/visita-observaciones-sanitarias/visita-observaciones-sanitarias.module";
-import { VisitaProductosRecomendadosModule } from "./modules/visita-productos-recomendados/visita-productos-recomendados.module";
-import { VisitaRecomendacionesModule } from "./modules/visita-recomendaciones/visita-recomendaciones.module";
 import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module";
 
 @Module({
@@ -39,10 +38,9 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     ParcelasModule,
     VisitasCampoModule,
     NutricionModule,
+    OperacionesCampoModule,
     VisitaEvaluacionesModule,
-    VisitaObservacionesSanitariasModule,
-    VisitaRecomendacionesModule,
-    VisitaProductosRecomendadosModule
+    VisitaObservacionesSanitariasModule
   ]
 })
 export class AppModule {}

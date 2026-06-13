@@ -19,6 +19,8 @@ import type {
   NutrientCatalogPayload,
   NutrientDetailCatalogItem,
   NutrientDetailCatalogPayload,
+  OperationalCatalogItem,
+  OperationalCatalogPayload,
   PlagaEnfermedadEtapaNivelCatalogItem,
   PlagaEnfermedadEtapaNivelCatalogPayload,
   PlagaEnfermedadCatalogItem,
@@ -115,6 +117,15 @@ type TipoDocumentoApiItem = {
   id: number;
   code: string;
   name: string;
+};
+
+type OperationalCatalogApiItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export const agriculturalCatalogsService = {
@@ -638,6 +649,101 @@ export const agriculturalCatalogsService = {
     });
   },
 
+  async getTiposRiego(session: AuthSessionInput): Promise<OperationalCatalogItem[]> {
+    const items = await requestAll<OperationalCatalogApiItem>(session, "/tipos-riego");
+
+    return items.map(mapOperationalCatalogItem);
+  },
+
+  async createTipoRiego(
+    session: AuthSessionInput,
+    payload: OperationalCatalogPayload
+  ): Promise<OperationalCatalogItem> {
+    const item = await request<OperationalCatalogApiItem>(session, "/tipos-riego", {
+      method: "POST",
+      body: payload
+    });
+
+    return mapOperationalCatalogItem(item);
+  },
+
+  async updateTipoRiego(
+    session: AuthSessionInput,
+    id: string,
+    payload: OperationalCatalogPayload
+  ): Promise<OperationalCatalogItem> {
+    const item = await request<OperationalCatalogApiItem>(
+      session,
+      `/tipos-riego/${id}`,
+      {
+        method: "PATCH",
+        body: payload
+      }
+    );
+
+    return mapOperationalCatalogItem(item);
+  },
+
+  async deleteTipoRiego(session: AuthSessionInput, id: string) {
+    return request<OperationalCatalogApiItem>(session, `/tipos-riego/${id}`, {
+      method: "DELETE"
+    });
+  },
+
+  async getLaboresCulturales(
+    session: AuthSessionInput
+  ): Promise<OperationalCatalogItem[]> {
+    const items = await requestAll<OperationalCatalogApiItem>(
+      session,
+      "/labores-culturales"
+    );
+
+    return items.map(mapOperationalCatalogItem);
+  },
+
+  async createLaborCultural(
+    session: AuthSessionInput,
+    payload: OperationalCatalogPayload
+  ): Promise<OperationalCatalogItem> {
+    const item = await request<OperationalCatalogApiItem>(
+      session,
+      "/labores-culturales",
+      {
+        method: "POST",
+        body: payload
+      }
+    );
+
+    return mapOperationalCatalogItem(item);
+  },
+
+  async updateLaborCultural(
+    session: AuthSessionInput,
+    id: string,
+    payload: OperationalCatalogPayload
+  ): Promise<OperationalCatalogItem> {
+    const item = await request<OperationalCatalogApiItem>(
+      session,
+      `/labores-culturales/${id}`,
+      {
+        method: "PATCH",
+        body: payload
+      }
+    );
+
+    return mapOperationalCatalogItem(item);
+  },
+
+  async deleteLaborCultural(session: AuthSessionInput, id: string) {
+    return request<OperationalCatalogApiItem>(
+      session,
+      `/labores-culturales/${id}`,
+      {
+        method: "DELETE"
+      }
+    );
+  },
+
   async getCultivoOptions(session: AuthSessionInput): Promise<CatalogOption[]> {
     const cultivos = await this.getCultivos(session);
 
@@ -687,6 +793,19 @@ function mapCampaniaItem(item: CampaniaApiItem): CampaniaCatalogItem {
     cultivoId: item.cultivoId,
     startDate: item.startDate,
     endDate: item.endDate,
+    description: item.description,
+    isActive: item.isActive,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt
+  };
+}
+
+function mapOperationalCatalogItem(
+  item: OperationalCatalogApiItem
+): OperationalCatalogItem {
+  return {
+    id: item.id,
+    name: item.name,
     description: item.description,
     isActive: item.isActive,
     createdAt: item.createdAt,

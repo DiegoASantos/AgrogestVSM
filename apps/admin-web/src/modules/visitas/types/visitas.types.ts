@@ -45,23 +45,6 @@ export type VisitaObservacionSanitaria = {
   observation: string;
 };
 
-export type VisitaRecomendacion = {
-  id: string;
-  visitaId: string;
-  recommendationTypeId: string;
-  applies: boolean;
-  detail: string | null;
-};
-
-export type VisitaProductoRecomendado = {
-  id: string;
-  visitaId: string;
-  productId: string;
-  dose: string;
-  applicationFrequencyId: string | null;
-  instructions: string | null;
-};
-
 export type ProductorFilterOption = {
   id: string;
   label: string;
@@ -184,25 +167,10 @@ export type IncidenceLevelLookupItem = LookupItem & {
   type?: "incidencia" | "severidad";
 };
 
-export type RecommendationTypeLookupItem = LookupItem & {
-  isActive: boolean;
-};
-
-export type ProductLookupItem = LookupItem & {
-  isActive: boolean;
-};
-
-export type ApplicationFrequencyLookupItem = LookupItem & {
-  intervalDays: number | null;
-  isActive: boolean;
-};
-
 export type VisitaDetailData = {
   visita: VisitaCampo;
   evaluaciones: VisitaEvaluacion[];
   observacionesSanitarias: VisitaObservacionSanitaria[];
-  recomendaciones: VisitaRecomendacion[];
-  productosRecomendados: VisitaProductoRecomendado[];
   lookups: {
     agronomist: LookupItem | null;
     crop: CropLookupItem | null;
@@ -212,8 +180,5 @@ export type VisitaDetailData = {
     phenologicalStage: PhenologicalStageLookupItem | null;
     pestDiseases: PestDiseaseLookupItem[];
     incidenceLevels: IncidenceLevelLookupItem[];
-    recommendationTypes: RecommendationTypeLookupItem[];
-    products: ProductLookupItem[];
-    applicationFrequencies: ApplicationFrequencyLookupItem[];
   };
 };

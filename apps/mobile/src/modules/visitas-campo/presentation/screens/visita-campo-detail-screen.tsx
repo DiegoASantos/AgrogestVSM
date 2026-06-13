@@ -26,13 +26,6 @@ import type {
   IncidenceLevelCatalogItem,
   PestDiseaseCatalogItem
 } from "../../../observaciones-sanitarias/types";
-import { productosRecomendadosService } from "../../../productos-recomendados/services";
-import type {
-  ApplicationFrequencyCatalogItem,
-  ProductCatalogItem
-} from "../../../productos-recomendados/types";
-import { recomendacionesService } from "../../../recomendaciones/services";
-import type { RecommendationTypeCatalogItem } from "../../../recomendaciones/types";
 import { visitaCampoCatalogsService, visitasCampoService } from "../../services";
 import type {
   CampaniaCatalogItem,
@@ -50,9 +43,6 @@ type DetailCatalogs = {
   etapasFenologicas: EtapaFenologicaCatalogItem[];
   pestDiseases: PestDiseaseCatalogItem[];
   incidenceLevels: IncidenceLevelCatalogItem[];
-  recommendationTypes: RecommendationTypeCatalogItem[];
-  products: ProductCatalogItem[];
-  applicationFrequencies: ApplicationFrequencyCatalogItem[];
 };
 
 const EMPTY_CATALOGS: DetailCatalogs = {
@@ -61,10 +51,7 @@ const EMPTY_CATALOGS: DetailCatalogs = {
   campanias: [],
   etapasFenologicas: [],
   pestDiseases: [],
-  incidenceLevels: [],
-  recommendationTypes: [],
-  products: [],
-  applicationFrequencies: []
+  incidenceLevels: []
 };
 
 export function VisitaCampoDetailScreen() {
@@ -254,25 +241,11 @@ export function VisitaCampoDetailScreen() {
               </View>
 
               <View style={styles.navRow}>
+                <NavCard title="Riego" count={0} onPress={() => undefined} />
                 <NavCard
-                  title="Recomendaciones"
-                  count={detail.recomendaciones.length}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/visitas-campo/[id]/recomendaciones",
-                      params: { id: visita.id }
-                    })
-                  }
-                />
-                <NavCard
-                  title="Productos rec."
-                  count={detail.productosRecomendados.length}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/visitas-campo/[id]/productos-recomendados",
-                      params: { id: visita.id }
-                    })
-                  }
+                  title="Labores culturales"
+                  count={0}
+                  onPress={() => undefined}
                 />
               </View>
             </View>
@@ -321,53 +294,6 @@ export function VisitaCampoDetailScreen() {
               )}
             </SectionCard>
 
-            <SectionCard
-              title="Recomendaciones"
-              subtitle={`${detail.recomendaciones.length} registradas`}
-            >
-              {detail.recomendaciones.length === 0 ? (
-                <AppText variant="muted">No hay recomendaciones registradas.</AppText>
-              ) : (
-                detail.recomendaciones.map((recomendacion) => (
-                  <DetailItemCard
-                    key={recomendacion.id}
-                    eyebrow={getRecommendationTypeLabel(
-                      recomendacion.recommendationTypeId,
-                      catalogs.recommendationTypes
-                    )}
-                    subtitle={recomendacion.applies ? "Aplica" : "No aplica"}
-                    title={recomendacion.detail || "Sin detalle registrado"}
-                  />
-                ))
-              )}
-            </SectionCard>
-
-            <SectionCard
-              title="Productos recomendados"
-              subtitle={`${detail.productosRecomendados.length} registrados`}
-            >
-              {detail.productosRecomendados.length === 0 ? (
-                <AppText variant="muted">
-                  No hay productos recomendados registrados.
-                </AppText>
-              ) : (
-                detail.productosRecomendados.map((productoRecomendado) => (
-                  <DetailItemCard
-                    key={productoRecomendado.id}
-                    eyebrow={getProductLabel(
-                      productoRecomendado.productId,
-                      catalogs.products
-                    )}
-                    subtitle={getApplicationFrequencyLabel(
-                      productoRecomendado.applicationFrequencyId,
-                      catalogs.applicationFrequencies
-                    )}
-                    title={productoRecomendado.dose}
-                  />
-                ))
-              )}
-            </SectionCard>
-
             <View style={styles.bottomActions}>
               <AppButton label="Volver" onPress={() => router.back()} variant="outline" />
               <AppButton
@@ -403,19 +329,13 @@ export function VisitaCampoDetailScreen() {
   async function loadCatalogs() {
     const results = await Promise.allSettled([
       observacionesSanitariasService.getPestDiseases(),
-      observacionesSanitariasService.getIncidenceLevels(),
-      recomendacionesService.getRecommendationTypes(),
-      productosRecomendadosService.getProducts(),
-      productosRecomendadosService.getApplicationFrequencies()
+      observacionesSanitariasService.getIncidenceLevels()
     ]);
 
     setCatalogs((currentCatalogs) => ({
       ...currentCatalogs,
       pestDiseases: results[0].status === "fulfilled" ? results[0].value : [],
-      incidenceLevels: results[1].status === "fulfilled" ? results[1].value : [],
-      recommendationTypes: results[2].status === "fulfilled" ? results[2].value : [],
-      products: results[3].status === "fulfilled" ? results[3].value : [],
-      applicationFrequencies: results[4].status === "fulfilled" ? results[4].value : []
+      incidenceLevels: results[1].status === "fulfilled" ? results[1].value : []
     }));
   }
 
@@ -649,34 +569,6 @@ function shouldShowRetry(summary: VisitaSyncSummary | null) {
   return (
     summary.overallStatus === "error" ||
     (summary.overallStatus === "partial" && summary.errorCount > 0)
-  );
-}
-
-function getRecommendationTypeLabel(
-  id: string,
-  recommendationTypes: RecommendationTypeCatalogItem[]
-) {
-  return (
-    recommendationTypes.find((recommendationType) => recommendationType.id === id)
-      ?.name || `ID ${id}`
-  );
-}
-
-function getProductLabel(id: string, products: ProductCatalogItem[]) {
-  return products.find((product) => product.id === id)?.name || `ID ${id}`;
-}
-
-function getApplicationFrequencyLabel(
-  id: string | null,
-  applicationFrequencies: ApplicationFrequencyCatalogItem[]
-) {
-  if (!id) {
-    return "Sin frecuencia";
-  }
-
-  return (
-    applicationFrequencies.find((applicationFrequency) => applicationFrequency.id === id)
-      ?.name || `ID ${id}`
   );
 }
 

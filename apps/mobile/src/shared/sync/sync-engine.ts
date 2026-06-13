@@ -1,8 +1,6 @@
 import { evaluacionesRepository } from "../../modules/evaluaciones/repositories/evaluaciones.repository";
 import { observacionesSanitariasRepository } from "../../modules/observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
 import { visitaStepNotesRepository } from "../../modules/observaciones-sanitarias/repositories/visita-step-notes.repository";
-import { productosRecomendadosRepository } from "../../modules/productos-recomendados/repositories/productos-recomendados.repository";
-import { recomendacionesRepository } from "../../modules/recomendaciones/repositories/recomendaciones.repository";
 import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
 import {
   deleteOutboxEntry,
@@ -173,16 +171,6 @@ function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {
         serverId: data.id,
         syncStatus: "synced"
       });
-    } else if (entry.entityType === "visita_recomendaciones") {
-      recomendacionesRepository.update(entry.entityLocalId, {
-        serverId: data.id,
-        syncStatus: "synced"
-      });
-    } else if (entry.entityType === "visita_productos_recomendados") {
-      productosRecomendadosRepository.update(entry.entityLocalId, {
-        serverId: data.id,
-        syncStatus: "synced"
-      });
     }
   } catch {
     // Entity may not exist (was deleted locally)
@@ -200,13 +188,6 @@ function getChildVisitaLocalId(entry: SyncOutboxItem): string | null {
       );
     case "visita_paso_observaciones":
       return visitaStepNotesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
-    case "visita_recomendaciones":
-      return recomendacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
-    case "visita_productos_recomendados":
-      return (
-        productosRecomendadosRepository.getById(entry.entityLocalId)?.visitaId ??
-        null
-      );
     default:
       return null;
   }
@@ -238,16 +219,6 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
         break;
       case "visita_paso_observaciones":
         visitaStepNotesRepository.update(entry.entityLocalId, {
-          syncStatus: "error"
-        });
-        break;
-      case "visita_recomendaciones":
-        recomendacionesRepository.update(entry.entityLocalId, {
-          syncStatus: "error"
-        });
-        break;
-      case "visita_productos_recomendados":
-        productosRecomendadosRepository.update(entry.entityLocalId, {
           syncStatus: "error"
         });
         break;

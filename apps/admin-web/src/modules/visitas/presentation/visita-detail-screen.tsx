@@ -12,11 +12,8 @@ import { formatDateOnly } from "../../../shared/utils/date-only";
 import { buildAdminMapHref } from "../../mapas/utils/map-query";
 import { visitasService } from "../services/visitas.service";
 import type {
-  ApplicationFrequencyLookupItem,
   IncidenceLevelLookupItem,
   PestDiseaseLookupItem,
-  ProductLookupItem,
-  RecommendationTypeLookupItem,
   VisitaDetailData
 } from "../types/visitas.types";
 
@@ -45,18 +42,6 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
   const incidenceLevelMap = useMemo(
     () => createLookupMap(detail?.lookups.incidenceLevels ?? []),
     [detail?.lookups.incidenceLevels]
-  );
-  const recommendationTypeMap = useMemo(
-    () => createLookupMap(detail?.lookups.recommendationTypes ?? []),
-    [detail?.lookups.recommendationTypes]
-  );
-  const productMap = useMemo(
-    () => createLookupMap(detail?.lookups.products ?? []),
-    [detail?.lookups.products]
-  );
-  const applicationFrequencyMap = useMemo(
-    () => createLookupMap(detail?.lookups.applicationFrequencies ?? []),
-    [detail?.lookups.applicationFrequencies]
   );
 
   if (isLoading) {
@@ -259,59 +244,6 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
             </ul>
           )}
         </article>
-
-        <article className="panel">
-          <p className="eyebrow">Recomendaciones</p>
-          <h2 className="title title--section">
-            {detail.recomendaciones.length} registro
-            {detail.recomendaciones.length === 1 ? "" : "s"}
-          </h2>
-          {detail.recomendaciones.length === 0 ? (
-            <p className="body-copy">La visita no tiene recomendaciones registradas.</p>
-          ) : (
-            <ul className="feature-list">
-              {detail.recomendaciones.map((recomendacion) => (
-                <li className="feature-item" key={recomendacion.id}>
-                  <strong>
-                    {recommendationTypeMap.get(recomendacion.recommendationTypeId) ??
-                      `Tipo #${recomendacion.recommendationTypeId}`}
-                  </strong>
-                  <span>{recomendacion.detail || "Sin detalle."}</span>
-                  <span>{recomendacion.applies ? "Aplica" : "No aplica"}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </article>
-
-        <article className="panel">
-          <p className="eyebrow">Productos recomendados</p>
-          <h2 className="title title--section">
-            {detail.productosRecomendados.length} registro
-            {detail.productosRecomendados.length === 1 ? "" : "s"}
-          </h2>
-          {detail.productosRecomendados.length === 0 ? (
-            <p className="body-copy">La visita no tiene productos recomendados.</p>
-          ) : (
-            <ul className="feature-list">
-              {detail.productosRecomendados.map((producto) => (
-                <li className="feature-item" key={producto.id}>
-                  <strong>
-                    {productMap.get(producto.productId) ?? `Producto #${producto.productId}`}
-                  </strong>
-                  <span>Dosis: {producto.dose}</span>
-                  <span>
-                    {producto.applicationFrequencyId
-                      ? applicationFrequencyMap.get(producto.applicationFrequencyId) ??
-                        `Frecuencia #${producto.applicationFrequencyId}`
-                      : "Sin frecuencia"}
-                  </span>
-                  <span>{producto.instructions || "Sin instrucciones."}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </article>
       </div>
     </section>
   );
@@ -342,12 +274,7 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
 }
 
 function createLookupMap(
-  items:
-    | PestDiseaseLookupItem[]
-    | IncidenceLevelLookupItem[]
-    | RecommendationTypeLookupItem[]
-    | ProductLookupItem[]
-    | ApplicationFrequencyLookupItem[]
+  items: PestDiseaseLookupItem[] | IncidenceLevelLookupItem[]
 ) {
   return new Map(items.map((item) => [item.id, item.name]));
 }

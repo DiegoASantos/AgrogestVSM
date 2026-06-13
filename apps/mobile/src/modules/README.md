@@ -12,4 +12,4 @@ Patron sugerido para esta etapa:
 
 Para el flujo de visitas, la idea es mantener:
 - `visitas-campo` como feature principal de la visita
-- `evaluaciones`, `observaciones-sanitarias`, `recomendaciones` y `productos-recomendados` como features hijas del flujo
+- `evaluaciones` y `observaciones-sanitarias` como features hijas del flujo

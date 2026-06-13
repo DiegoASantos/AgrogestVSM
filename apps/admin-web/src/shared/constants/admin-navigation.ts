@@ -56,16 +56,6 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     description: "Unidades de terreno por sector"
   },
   {
-    label: "Productos",
-    href: adminRoutes.mantenimientoItems.productos,
-    description: "Catalogo de productos"
-  },
-  {
-    label: "Ingredientes activos",
-    href: adminRoutes.mantenimientoItems.ingredientesActivos,
-    description: "Base de ingredientes activos"
-  },
-  {
     label: "Niveles de incidencia y severidad",
     href: adminRoutes.mantenimientoItems.nivelesIncidencia,
     description: "Catalogo sanitario de incidencia y severidad"
@@ -86,9 +76,14 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     description: "Catalogo nutricional por cultivo"
   },
   {
-    label: "Formulaciones",
-    href: adminRoutes.mantenimientoItems.productoIngredientes,
-    description: "Relacion entre productos e ingredientes"
+    label: "Tipos de riego",
+    href: adminRoutes.mantenimientoItems.tiposRiego,
+    description: "Catalogo operativo de riego"
+  },
+  {
+    label: "Labores culturales",
+    href: adminRoutes.mantenimientoItems.laboresCulturales,
+    description: "Catalogo operativo de labores"
   },
   {
     label: "Sectores",

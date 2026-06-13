@@ -26,8 +26,6 @@ import { UserEntity } from "../../users/infrastructure/persistence/entities/user
 import { VariedadEntity } from "../../variedades/infrastructure/persistence/entities/variedad.entity";
 import { VisitaEvaluacionEntity } from "../../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
 import { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
-import { VisitaProductoRecomendadoEntity } from "../../visita-productos-recomendados/infrastructure/persistence/entities/visita-producto-recomendado.entity";
-import { VisitaRecomendacionEntity } from "../../visita-recomendaciones/infrastructure/persistence/entities/visita-recomendacion.entity";
 import { CreateVisitaCampoDto } from "../presentation/dto/create-visita-campo.dto";
 import { FindHistorialVisitasProductorQueryDto } from "../presentation/dto/find-historial-visitas-productor-query.dto";
 import { FindVisitasCampoQueryDto } from "../presentation/dto/find-visitas-campo-query.dto";
@@ -63,11 +61,7 @@ export class VisitasCampoService {
     @InjectRepository(VisitaEvaluacionEntity)
     private readonly visitaEvaluacionesRepository: Repository<VisitaEvaluacionEntity>,
     @InjectRepository(VisitaObservacionSanitariaEntity)
-    private readonly observacionesSanitariasRepository: Repository<VisitaObservacionSanitariaEntity>,
-    @InjectRepository(VisitaRecomendacionEntity)
-    private readonly visitaRecomendacionesRepository: Repository<VisitaRecomendacionEntity>,
-    @InjectRepository(VisitaProductoRecomendadoEntity)
-    private readonly visitaProductosRecomendadosRepository: Repository<VisitaProductoRecomendadoEntity>
+    private readonly observacionesSanitariasRepository: Repository<VisitaObservacionSanitariaEntity>
   ) {}
 
   async create(createVisitaCampoDto: CreateVisitaCampoDto) {
@@ -169,8 +163,7 @@ export class VisitasCampoService {
 
   async getFullDetail(id: string) {
     const visitaCampo = await this.findEntityById(id);
-    const [evaluaciones, observacionesSanitarias, recomendaciones, productosRecomendados] =
-      await Promise.all([
+    const [evaluaciones, observacionesSanitarias] = await Promise.all([
         this.visitaEvaluacionesRepository.find({
           where: {
             visitaId: id
@@ -187,22 +180,6 @@ export class VisitasCampoService {
           order: {
             id: "ASC"
           }
-        }),
-        this.visitaRecomendacionesRepository.find({
-          where: {
-            visitaId: id
-          },
-          order: {
-            id: "ASC"
-          }
-        }),
-        this.visitaProductosRecomendadosRepository.find({
-          where: {
-            visitaId: id
-          },
-          order: {
-            id: "ASC"
-          }
         })
       ]);
 
@@ -213,12 +190,6 @@ export class VisitasCampoService {
       ),
       observacionesSanitarias: observacionesSanitarias.map((observacion) =>
         this.toObservacionSanitariaResponse(observacion)
-      ),
-      recomendaciones: recomendaciones.map((recomendacion) =>
-        this.toRecomendacionResponse(recomendacion)
-      ),
-      productosRecomendados: productosRecomendados.map((producto) =>
-        this.toProductoRecomendadoResponse(producto)
       )
     });
   }
@@ -848,29 +819,6 @@ export class VisitasCampoService {
       pestDiseaseId: observacion.plagaEnfermedadId,
       incidenceLevelId: observacion.nivelIncidenciaId,
       observation: observacion.observation
-    };
-  }
-
-  private toRecomendacionResponse(recomendacion: VisitaRecomendacionEntity) {
-    return {
-      id: recomendacion.id,
-      visitaId: recomendacion.visitaId,
-      recommendationTypeId: recomendacion.tipoRecomendacionId,
-      applies: recomendacion.applies,
-      detail: recomendacion.detail
-    };
-  }
-
-  private toProductoRecomendadoResponse(
-    productoRecomendado: VisitaProductoRecomendadoEntity
-  ) {
-    return {
-      id: productoRecomendado.id,
-      visitaId: productoRecomendado.visitaId,
-      productId: productoRecomendado.productoId,
-      dose: productoRecomendado.dose,
-      applicationFrequencyId: productoRecomendado.frecuenciaAplicacionId,
-      instructions: productoRecomendado.instructions
     };
   }
 

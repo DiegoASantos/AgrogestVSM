@@ -167,7 +167,7 @@ export class VisitasCampoController {
   })
   @ApiOkResponse({
     description:
-      "Cabecera de la visita con evaluaciones, observaciones, recomendaciones y productos recomendados."
+      "Cabecera de la visita con evaluaciones y observaciones sanitarias."
   })
   @ApiNotFoundResponse({
     description: "La visita de campo no existe."

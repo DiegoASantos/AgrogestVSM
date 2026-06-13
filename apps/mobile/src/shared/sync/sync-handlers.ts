@@ -8,12 +8,6 @@ import type {
   VisitaObservacionSanitaria,
   VisitaStepNote
 } from "../../modules/observaciones-sanitarias/types";
-import { productosRecomendadosRepository } from "../../modules/productos-recomendados/repositories/productos-recomendados.repository";
-import { productosRecomendadosRemote } from "../../modules/productos-recomendados/services/productos-recomendados.remote";
-import type { VisitaProductoRecomendado } from "../../modules/productos-recomendados/types";
-import { recomendacionesRepository } from "../../modules/recomendaciones/repositories/recomendaciones.repository";
-import { recomendacionesRemote } from "../../modules/recomendaciones/services/recomendaciones.remote";
-import type { VisitaRecomendacion } from "../../modules/recomendaciones/types";
 import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
 import { visitasCampoRemote } from "../../modules/visitas-campo/services/visitas-campo.remote";
 import type {
@@ -280,147 +274,6 @@ export async function handleStepNote(
   return { status: "synced", serverId: response.id };
 }
 
-export async function handleRecomendacion(
-  entry: SyncOutboxItem
-): Promise<SyncHandlerResult> {
-  if (entry.operation === "delete") {
-    const serverId = getDeleteServerId(entry);
-
-    if (!serverId) {
-      return { status: "deleted_local" };
-    }
-
-    await recomendacionesRemote.remove(serverId);
-    return { status: "synced", serverId };
-  }
-
-  const recomendacion = recomendacionesRepository.getById(entry.entityLocalId);
-
-  if (!recomendacion) {
-    return { status: "deleted_local" };
-  }
-
-  if (entry.operation === "create") {
-    const visitaPadre = visitasCampoRepository.getById(recomendacion.visitaId);
-
-    if (!visitaPadre) {
-      return { status: "deleted_local" };
-    }
-
-    if (visitaPadre.syncStatus === "error") {
-      throw new Error("La visita padre no pudo sincronizarse.");
-    }
-
-    if (!visitaPadre.serverId) {
-      return { status: "skipped" };
-    }
-
-    const response = await recomendacionesRemote.create(visitaPadre.serverId, {
-      ...buildRecomendacionCreateBody(recomendacion)
-    });
-
-    recomendacionesRepository.update(recomendacion.id, {
-      serverId: response.id,
-      syncStatus: "synced"
-    });
-
-    return { status: "synced", serverId: response.id };
-  }
-
-  const visitaPadreForUpdate = visitasCampoRepository.getById(
-    recomendacion.visitaId
-  );
-
-  if (visitaPadreForUpdate?.syncStatus === "error") {
-    throw new Error("La visita padre no pudo sincronizarse.");
-  }
-
-  if (!recomendacion.serverId) {
-    return { status: "skipped" };
-  }
-
-  await recomendacionesRemote.update(recomendacion.serverId, {
-    ...buildRecomendacionUpdateBody(recomendacion)
-  });
-
-  recomendacionesRepository.update(recomendacion.id, {
-    syncStatus: "synced"
-  });
-
-  return { status: "synced", serverId: recomendacion.serverId };
-}
-
-export async function handleProducto(
-  entry: SyncOutboxItem
-): Promise<SyncHandlerResult> {
-  if (entry.operation === "delete") {
-    const serverId = getDeleteServerId(entry);
-
-    if (!serverId) {
-      return { status: "deleted_local" };
-    }
-
-    await productosRecomendadosRemote.remove(serverId);
-    return { status: "synced", serverId };
-  }
-
-  const producto = productosRecomendadosRepository.getById(entry.entityLocalId);
-
-  if (!producto) {
-    return { status: "deleted_local" };
-  }
-
-  if (entry.operation === "create") {
-    const visitaPadre = visitasCampoRepository.getById(producto.visitaId);
-
-    if (!visitaPadre) {
-      return { status: "deleted_local" };
-    }
-
-    if (visitaPadre.syncStatus === "error") {
-      throw new Error("La visita padre no pudo sincronizarse.");
-    }
-
-    if (!visitaPadre.serverId) {
-      return { status: "skipped" };
-    }
-
-    const response = await productosRecomendadosRemote.create(
-      visitaPadre.serverId,
-      {
-        ...buildProductoCreateBody(producto)
-      }
-    );
-
-    productosRecomendadosRepository.update(producto.id, {
-      serverId: response.id,
-      syncStatus: "synced"
-    });
-
-    return { status: "synced", serverId: response.id };
-  }
-
-  const visitaPadreForUpdate = visitasCampoRepository.getById(producto.visitaId);
-
-  if (visitaPadreForUpdate?.syncStatus === "error") {
-    throw new Error("La visita padre no pudo sincronizarse.");
-  }
-
-  if (!producto.serverId) {
-    return { status: "skipped" };
-  }
-
-  await productosRecomendadosRemote.update(producto.serverId, {
-    ...buildProductoUpdateBody(producto)
-  });
-
-  productosRecomendadosRepository.update(producto.id, {
-    syncStatus: "synced"
-  });
-
-  return { status: "synced", serverId: producto.serverId };
-}
-
 export const entityHandlerMap: Record<
   SyncEntityType,
   (entry: SyncOutboxItem) => Promise<SyncHandlerResult>
@@ -428,9 +281,7 @@ export const entityHandlerMap: Record<
   visitas_campo: handleVisitaCampo,
   visita_evaluaciones: handleEvaluacion,
   visita_observaciones_sanitarias: handleObservacion,
-  visita_paso_observaciones: handleStepNote,
-  visita_recomendaciones: handleRecomendacion,
-  visita_productos_recomendados: handleProducto
+  visita_paso_observaciones: handleStepNote
 };
 
 function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft {
@@ -554,47 +405,5 @@ function buildStepNoteBody(stepNote: VisitaStepNote) {
   return {
     observation: stepNote.observation ?? null,
     recommendation: stepNote.recommendation ?? null
-  };
-}
-
-function buildRecomendacionCreateBody(
-  recomendacion: VisitaRecomendacion
-) {
-  return {
-    recommendationTypeId: recomendacion.recommendationTypeId,
-    applies: recomendacion.applies,
-    detail: recomendacion.detail ?? undefined
-  };
-}
-
-function buildRecomendacionUpdateBody(
-  recomendacion: VisitaRecomendacion
-) {
-  return {
-    recommendationTypeId: recomendacion.recommendationTypeId,
-    applies: recomendacion.applies,
-    detail: recomendacion.detail ?? null
-  };
-}
-
-function buildProductoCreateBody(
-  producto: VisitaProductoRecomendado
-) {
-  return {
-    productId: producto.productId,
-    dose: producto.dose,
-    applicationFrequencyId: producto.applicationFrequencyId ?? undefined,
-    instructions: producto.instructions ?? undefined
-  };
-}
-
-function buildProductoUpdateBody(
-  producto: VisitaProductoRecomendado
-) {
-  return {
-    productId: producto.productId,
-    dose: producto.dose,
-    applicationFrequencyId: producto.applicationFrequencyId ?? null,
-    instructions: producto.instructions ?? null
   };
 }

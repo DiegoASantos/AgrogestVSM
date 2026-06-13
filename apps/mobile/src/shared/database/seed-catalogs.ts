@@ -1,8 +1,6 @@
 import { parcelasRemote } from "../../modules/parcelas/services/parcelas.remote";
 import { geografiasRemote } from "../../modules/geografias/services/geografias.remote";
-import { productosRecomendadosRemote } from "../../modules/productos-recomendados/services/productos-recomendados.remote";
 import { productoresRemote } from "../../modules/productores/services/productores.remote";
-import { recomendacionesRemote } from "../../modules/recomendaciones/services/recomendaciones.remote";
 import { sectoresRemote } from "../../modules/sectores/services/sectores.remote";
 import { observacionesSanitariasRemote } from "../../modules/observaciones-sanitarias/services/observaciones-sanitarias.remote";
 import { visitaCampoCatalogsRemote } from "../../modules/visitas-campo/services/visita-campo-catalogs.remote";
@@ -24,9 +22,6 @@ export async function downloadAllCatalogs() {
     pestDiseases,
     incidenceLevels,
     pestDiseaseStageLevels,
-    recommendationTypes,
-    products,
-    applicationFrequencies,
     productores,
     distritos,
     sectores,
@@ -51,9 +46,6 @@ export async function downloadAllCatalogs() {
     observacionesSanitariasRemote.getPestDiseases(),
     observacionesSanitariasRemote.getIncidenceLevels(),
     observacionesSanitariasRemote.getPestDiseaseStageLevels(),
-    recomendacionesRemote.getRecommendationTypes(),
-    productosRecomendadosRemote.getProducts(),
-    productosRecomendadosRemote.getApplicationFrequencies(),
     productoresRemote.getAll(),
     geografiasRemote.getDistritos(),
     sectoresRemote.getAll(),
@@ -200,41 +192,6 @@ export async function downloadAllCatalogs() {
         relation.nivelIncidenciaSeveridadId,
         relation.description,
         toSqliteBoolean(relation.isActive)
-      );
-    }
-
-    for (const recommendationType of recommendationTypes) {
-      db.runSync(
-        `INSERT OR REPLACE INTO recommendation_types (id, name, is_active)
-         VALUES (?, ?, ?)`,
-        recommendationType.id,
-        recommendationType.name,
-        toSqliteBoolean(recommendationType.isActive)
-      );
-    }
-
-    for (const product of products) {
-      db.runSync(
-        `INSERT OR REPLACE INTO products (id, name, is_active)
-         VALUES (?, ?, ?)`,
-        product.id,
-        product.name,
-        toSqliteBoolean(product.isActive)
-      );
-    }
-
-    for (const applicationFrequency of applicationFrequencies) {
-      db.runSync(
-        `INSERT OR REPLACE INTO application_frequencies (
-          id,
-          name,
-          interval_days,
-          is_active
-        ) VALUES (?, ?, ?, ?)`,
-        applicationFrequency.id,
-        applicationFrequency.name,
-        applicationFrequency.intervalDays,
-        toSqliteBoolean(applicationFrequency.isActive)
       );
     }
 

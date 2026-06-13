@@ -13,8 +13,6 @@ import { getUserIdFromAccessToken } from "../../../shared/utils/auth-token";
 import { evaluacionesRepository } from "../../evaluaciones/repositories/evaluaciones.repository";
 import { observacionesSanitariasRepository } from "../../observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
 import { visitaStepNotesRepository } from "../../observaciones-sanitarias/repositories/visita-step-notes.repository";
-import { productosRecomendadosRepository } from "../../productos-recomendados/repositories/productos-recomendados.repository";
-import { recomendacionesRepository } from "../../recomendaciones/repositories/recomendaciones.repository";
 import { visitasCampoRepository } from "../repositories/visitas-campo.repository";
 import type {
   CreateVisitaCampoDraft,
@@ -88,10 +86,7 @@ export const visitasCampoService = {
         .map((stepNumber) =>
           visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
         )
-        .filter((stepNote) => stepNote !== null),
-      recomendaciones: recomendacionesRepository.getByVisitaLocalId(localId),
-      productosRecomendados:
-        productosRecomendadosRepository.getByVisitaLocalId(localId)
+        .filter((stepNote) => stepNote !== null)
     };
   },
 
@@ -120,16 +115,12 @@ export const visitasCampoService = {
         visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
       )
       .filter((stepNote) => stepNote !== null);
-    const recomendaciones = recomendacionesRepository.getByVisitaLocalId(localId);
-    const productos = productosRecomendadosRepository.getByVisitaLocalId(localId);
 
     const allStatuses = [
       visita.syncStatus,
       ...evaluaciones.map((evaluacion) => evaluacion.syncStatus),
       ...observaciones.map((observacion) => observacion.syncStatus),
-      ...stepNotes.map((stepNote) => stepNote.syncStatus),
-      ...recomendaciones.map((recomendacion) => recomendacion.syncStatus),
-      ...productos.map((producto) => producto.syncStatus)
+      ...stepNotes.map((stepNote) => stepNote.syncStatus)
     ];
 
     const totalEntities = allStatuses.length;
@@ -173,8 +164,6 @@ export const visitasCampoService = {
         visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
       )
       .filter((stepNote) => stepNote !== null);
-    const recomendaciones = recomendacionesRepository.getByVisitaLocalId(localId);
-    const productos = productosRecomendadosRepository.getByVisitaLocalId(localId);
 
     type EntityToRetry = {
       entityType: SyncEntityType;
@@ -222,26 +211,6 @@ export const visitasCampoService = {
       }
     }
 
-    for (const recomendacion of recomendaciones) {
-      if (recomendacion.syncStatus === "error") {
-        entitiesToRetry.push({
-          entityType: "visita_recomendaciones",
-          localId: recomendacion.id,
-          syncStatus: recomendacion.syncStatus
-        });
-      }
-    }
-
-    for (const producto of productos) {
-      if (producto.syncStatus === "error") {
-        entitiesToRetry.push({
-          entityType: "visita_productos_recomendados",
-          localId: producto.id,
-          syncStatus: producto.syncStatus
-        });
-      }
-    }
-
     if (entitiesToRetry.length === 0) {
       return;
     }
@@ -275,14 +244,6 @@ export const visitasCampoService = {
             break;
           case "visita_paso_observaciones":
             visitaStepNotesRepository.update(entity.localId, {
-              syncStatus: "pending"
-            });
-            break;
-          case "visita_recomendaciones":
-            recomendacionesRepository.update(entity.localId, { syncStatus: "pending" });
-            break;
-          case "visita_productos_recomendados":
-            productosRecomendadosRepository.update(entity.localId, {
               syncStatus: "pending"
             });
             break;
@@ -326,10 +287,6 @@ function entityHasServerId(entityType: SyncEntityType, localId: string): boolean
       return !!observacionesSanitariasRepository.getById(localId)?.serverId;
     case "visita_paso_observaciones":
       return !!visitaStepNotesRepository.getById(localId)?.serverId;
-    case "visita_recomendaciones":
-      return !!recomendacionesRepository.getById(localId)?.serverId;
-    case "visita_productos_recomendados":
-      return !!productosRecomendadosRepository.getById(localId)?.serverId;
     default:
       return false;
   }

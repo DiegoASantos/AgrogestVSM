@@ -118,18 +118,6 @@ function AppNavigation() {
             title: "Plagas y enfermedades"
           }}
         />
-        <Stack.Screen
-          name="visitas-campo/[id]/recomendaciones"
-          options={{
-            title: "Recomendaciones"
-          }}
-        />
-        <Stack.Screen
-          name="visitas-campo/[id]/productos-recomendados"
-          options={{
-            title: "Productos recomendados"
-          }}
-        />
       </Stack>
       {showBottomNavigation ? <AppBottomNavigation /> : null}
     </View>

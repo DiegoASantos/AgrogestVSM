@@ -19,17 +19,11 @@ const MIGRATIONS: Migration[] = [
       "ALTER TABLE visitas_campo ADD COLUMN sync_error_message TEXT",
       "ALTER TABLE visita_evaluaciones ADD COLUMN sync_error_message TEXT",
       "ALTER TABLE visita_observaciones_sanitarias ADD COLUMN sync_error_message TEXT",
-      "ALTER TABLE visita_recomendaciones ADD COLUMN sync_error_message TEXT",
-      "ALTER TABLE visita_productos_recomendados ADD COLUMN sync_error_message TEXT",
       "CREATE INDEX idx_visitas_campo_sync ON visitas_campo(sync_status)",
       "CREATE INDEX idx_evaluaciones_sync ON visita_evaluaciones(sync_status)",
       "CREATE INDEX idx_obs_sanitarias_sync ON visita_observaciones_sanitarias(sync_status)",
-      "CREATE INDEX idx_recomendaciones_sync ON visita_recomendaciones(sync_status)",
-      "CREATE INDEX idx_prod_recomendados_sync ON visita_productos_recomendados(sync_status)",
       "CREATE INDEX idx_evaluaciones_visita ON visita_evaluaciones(visita_local_id)",
-      "CREATE INDEX idx_obs_sanitarias_visita ON visita_observaciones_sanitarias(visita_local_id)",
-      "CREATE INDEX idx_recomendaciones_visita ON visita_recomendaciones(visita_local_id)",
-      "CREATE INDEX idx_prod_recomendados_visita ON visita_productos_recomendados(visita_local_id)"
+      "CREATE INDEX idx_obs_sanitarias_visita ON visita_observaciones_sanitarias(visita_local_id)"
     ]
   },
   {
@@ -81,8 +75,6 @@ const MIGRATIONS: Migration[] = [
       "DELETE FROM sync_outbox",
       "DELETE FROM visita_evaluaciones",
       "DELETE FROM visita_observaciones_sanitarias",
-      "DELETE FROM visita_recomendaciones",
-      "DELETE FROM visita_productos_recomendados",
       "DELETE FROM visitas_campo",
       "DROP TABLE IF EXISTS parcelas",
       "DROP TABLE IF EXISTS sectores",
@@ -217,6 +209,17 @@ const MIGRATIONS: Migration[] = [
     version: 16,
     statements: [
       "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    ]
+  },
+  {
+    version: 17,
+    statements: [
+      "DELETE FROM sync_outbox WHERE entity_type IN ('visita_recomendaciones', 'visita_productos_recomendados')",
+      "DROP TABLE IF EXISTS visita_productos_recomendados",
+      "DROP TABLE IF EXISTS visita_recomendaciones",
+      "DROP TABLE IF EXISTS application_frequencies",
+      "DROP TABLE IF EXISTS products",
+      "DROP TABLE IF EXISTS recommendation_types"
     ]
   }
 ];

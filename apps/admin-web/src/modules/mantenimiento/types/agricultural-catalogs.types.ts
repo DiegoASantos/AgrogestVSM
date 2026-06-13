@@ -167,3 +167,18 @@ export type TipoDocumentoCatalogPayload = {
   code: string;
   name: string;
 };
+
+export type OperationalCatalogItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OperationalCatalogPayload = {
+  name: string;
+  description?: string | null;
+  isActive?: boolean;
+};

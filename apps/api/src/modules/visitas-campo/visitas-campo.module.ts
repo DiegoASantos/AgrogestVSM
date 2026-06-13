@@ -9,8 +9,6 @@ import { UserEntity } from "../users/infrastructure/persistence/entities/user.en
 import { VariedadEntity } from "../variedades/infrastructure/persistence/entities/variedad.entity";
 import { VisitaEvaluacionEntity } from "../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
 import { VisitaObservacionSanitariaEntity } from "../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
-import { VisitaProductoRecomendadoEntity } from "../visita-productos-recomendados/infrastructure/persistence/entities/visita-producto-recomendado.entity";
-import { VisitaRecomendacionEntity } from "../visita-recomendaciones/infrastructure/persistence/entities/visita-recomendacion.entity";
 import { EtapasFenologicasService } from "./application/etapas-fenologicas.service";
 import { SubEtapasService } from "./application/sub-etapas.service";
 import { VisitaPasoObservacionesService } from "./application/visita-paso-observaciones.service";
@@ -38,8 +36,6 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
       ProductorEntity,
       VisitaEvaluacionEntity,
       VisitaObservacionSanitariaEntity,
-      VisitaRecomendacionEntity,
-      VisitaProductoRecomendadoEntity,
       VisitaPasoObservacionEntity
     ])
   ],

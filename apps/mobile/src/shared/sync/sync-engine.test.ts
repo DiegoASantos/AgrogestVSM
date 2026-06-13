@@ -98,27 +98,6 @@ vi.mock(
   })
 );
 
-const recomendacionesUpdate = vi.fn();
-const recomendacionesGetById = vi.fn();
-vi.mock("../../modules/recomendaciones/repositories/recomendaciones.repository", () => ({
-  recomendacionesRepository: {
-    update: recomendacionesUpdate,
-    getById: recomendacionesGetById
-  }
-}));
-
-const productosUpdate = vi.fn();
-const productosGetById = vi.fn();
-vi.mock(
-  "../../modules/productos-recomendados/repositories/productos-recomendados.repository",
-  () => ({
-    productosRecomendadosRepository: {
-      update: productosUpdate,
-      getById: productosGetById
-    }
-  })
-);
-
 const handlerVisita = vi.fn();
 const handlerEvaluacion = vi.fn();
 vi.mock("./sync-handlers", () => ({

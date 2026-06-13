@@ -8,7 +8,6 @@ import {
 } from "../../../shared/services";
 import type {
   AgronomistFilterOption,
-  ApplicationFrequencyLookupItem,
   CampaignLookupItem,
   CropLookupItem,
   IncidenceLevelLookupItem,
@@ -18,9 +17,7 @@ import type {
   ParcelaVisitasHistory,
   PestDiseaseLookupItem,
   PhenologicalStageLookupItem,
-  ProductLookupItem,
   ProductorVisitasHistory,
-  RecommendationTypeLookupItem,
   VarietyLookupItem,
   VisitaCampo,
   VisitaDetailData,
@@ -28,9 +25,7 @@ import type {
   VisitaFilterCatalogs,
   VisitaListFilters,
   VisitaListResponse,
-  VisitaObservacionSanitaria,
-  VisitaProductoRecomendado,
-  VisitaRecomendacion
+  VisitaObservacionSanitaria
 } from "../types/visitas.types";
 
 type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
@@ -73,8 +68,6 @@ type FullDetailApiResponse = {
   visita: VisitaCampo;
   evaluaciones: VisitaEvaluacion[];
   observacionesSanitarias: VisitaObservacionSanitaria[];
-  recomendaciones: VisitaRecomendacion[];
-  productosRecomendados: VisitaProductoRecomendado[];
 };
 
 export const visitasService = {
@@ -148,26 +141,11 @@ export const visitasService = {
           : Promise.resolve(null)
       ]);
 
-    const [
-      pestDiseases,
-      incidenceLevels,
-      recommendationTypes,
-      products,
-      applicationFrequencies
-    ] = await Promise.all([
+    const [pestDiseases, incidenceLevels] = await Promise.all([
       safeRequestAll<PestDiseaseLookupItem>(session, "/plagas-enfermedades"),
       safeRequestAll<IncidenceLevelLookupItem>(
         session,
         "/niveles-incidencia-severidad"
-      ),
-      safeRequestAll<RecommendationTypeLookupItem>(
-        session,
-        "/tipos-recomendacion"
-      ),
-      safeRequestAll<ProductLookupItem>(session, "/productos"),
-      safeRequestAll<ApplicationFrequencyLookupItem>(
-        session,
-        "/frecuencias-aplicacion"
       )
     ]);
 
@@ -181,10 +159,7 @@ export const visitasService = {
         campaign,
         phenologicalStage,
         pestDiseases,
-        incidenceLevels,
-        recommendationTypes,
-        products,
-        applicationFrequencies
+        incidenceLevels
       }
     };
   },

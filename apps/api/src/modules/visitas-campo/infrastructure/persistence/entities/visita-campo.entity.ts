@@ -14,8 +14,6 @@ import { UserEntity } from "../../../../users/infrastructure/persistence/entitie
 import { VariedadEntity } from "../../../../variedades/infrastructure/persistence/entities/variedad.entity";
 import { VisitaEvaluacionEntity } from "../../../../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
 import { VisitaObservacionSanitariaEntity } from "../../../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
-import { VisitaProductoRecomendadoEntity } from "../../../../visita-productos-recomendados/infrastructure/persistence/entities/visita-producto-recomendado.entity";
-import { VisitaRecomendacionEntity } from "../../../../visita-recomendaciones/infrastructure/persistence/entities/visita-recomendacion.entity";
 import { EtapaFenologicaEntity } from "./etapa-fenologica.entity";
 import { SubEtapaEntity } from "./sub-etapa.entity";
 import { VisitaPasoObservacionEntity } from "./visita-paso-observacion.entity";
@@ -290,18 +288,6 @@ export class VisitaCampoEntity {
     (visitaObservacionSanitaria) => visitaObservacionSanitaria.visita
   )
   observacionesSanitarias!: VisitaObservacionSanitariaEntity[];
-
-  @OneToMany(
-    () => VisitaRecomendacionEntity,
-    (visitaRecomendacion) => visitaRecomendacion.visita
-  )
-  recomendaciones!: VisitaRecomendacionEntity[];
-
-  @OneToMany(
-    () => VisitaProductoRecomendadoEntity,
-    (visitaProductoRecomendado) => visitaProductoRecomendado.visita
-  )
-  productosRecomendados!: VisitaProductoRecomendadoEntity[];
 
   @OneToMany(
     () => VisitaPasoObservacionEntity,
