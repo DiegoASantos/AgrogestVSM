@@ -1,47 +1,117 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { Alert, ScrollView, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Image,
+  ImageBackground,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  type ImageSourcePropType,
+  useWindowDimensions,
+  View
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView
+} from "react-native-gesture-handler";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming
+} from "react-native-reanimated";
 
 import {
   AppButton,
   AppCard,
   AppEmptyState,
-  AppHeader,
   AppText,
   ScreenContainer
 } from "../../../../shared/components";
+import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
-import { EvaluacionFormCard } from "../components/evaluacion-form-card";
-import { evaluacionesService } from "../../services";
+import { nutricionRemote } from "../../../nutricion/services";
 import type {
-  EvaluacionFormErrors,
-  EvaluacionFormValues,
-  VisitaEvaluacion
-} from "../../types";
+  NutrientCatalogItem,
+  NutrientDetailCatalogItem
+} from "../../../nutricion/types";
+import { visitasCampoService } from "../../../visitas-campo/services";
+import { evaluacionesService } from "../../services";
+import type { VisitaEvaluacion } from "../../types";
 
-const INITIAL_FORM_VALUES: EvaluacionFormValues = {
-  order: "",
-  percentage: "",
-  description: ""
-};
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const DEFAULT_NUTRIENT_IMAGE = require("../../../../../assets/images/adaptive_icon_vsm.png");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const BORO_IMAGE = require("../../../../../assets/images/boro.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const HIERRO_IMAGE = require("../../../../../assets/images/hierro.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const MAGNESIO_IMAGE = require("../../../../../assets/images/magnesio.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const NITROGENO_IMAGE = require("../../../../../assets/images/nitrogeno.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const POTASIO_IMAGE = require("../../../../../assets/images/potasio.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ZINC_IMAGE = require("../../../../../assets/images/zinc.webp");
+
+const STEP_NUMBER = 3;
+const NUTRITION_ORDER_OFFSET = 3000;
+const NUTRITION_DESCRIPTION_PREFIX = "Nutricion -";
+const NUTRIENT_DISPLAY_ORDER = [
+  "nitrogeno",
+  "magnesio",
+  "potasio",
+  "hierro",
+  "zinc",
+  "boro"
+];
+
+const WIZARD_STEPS = [
+  { index: 1, title: "Datos" },
+  { index: 2, title: "Sanidad" },
+  { index: 3, title: "Nutricion" },
+  { index: 4, title: "Recom." },
+  { index: 5, title: "Productos" }
+] as const;
+
+const NUTRIENT_IMAGES: Array<{
+  patterns: string[];
+  source: ImageSourcePropType;
+}> = [
+  { patterns: ["boro"], source: BORO_IMAGE },
+  { patterns: ["hierro"], source: HIERRO_IMAGE },
+  { patterns: ["magnesio"], source: MAGNESIO_IMAGE },
+  { patterns: ["nitrogeno"], source: NITROGENO_IMAGE },
+  { patterns: ["potasio"], source: POTASIO_IMAGE },
+  { patterns: ["zinc"], source: ZINC_IMAGE }
+];
 
 export function VisitaEvaluacionesScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
+  const isCompactLayout = width < 460;
 
+  const [nutrients, setNutrients] = useState<NutrientCatalogItem[]>([]);
   const [evaluaciones, setEvaluaciones] = useState<VisitaEvaluacion[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [formValues, setFormValues] =
-    useState<EvaluacionFormValues>(INITIAL_FORM_VALUES);
-  const [formErrors, setFormErrors] = useState<EvaluacionFormErrors>({});
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [editingEvaluacionId, setEditingEvaluacionId] = useState<string | null>(
+  const [selections, setSelections] = useState<Record<string, string | null>>({});
+  const [helpNutrient, setHelpNutrient] = useState<NutrientCatalogItem | null>(
     null
   );
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imagePreview, setImagePreview] = useState<NutrientCatalogItem | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visitaId) {
@@ -50,7 +120,7 @@ export function VisitaEvaluacionesScreen() {
       return;
     }
 
-    void loadEvaluaciones(visitaId);
+    void loadStep(visitaId);
   }, [visitaId]);
 
   return (
@@ -60,215 +130,840 @@ export function VisitaEvaluacionesScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <EvaluacionFormCard
-          errors={formErrors}
-          isEditing={editingEvaluacionId !== null}
-          isSubmitting={isSubmitting}
-          onCancelEdit={resetForm}
-          onChange={handleFormChange}
-          onSubmit={() => {
-            void handleSubmit();
-          }}
-          submitError={submitError}
-          values={formValues}
-        />
+        <ImageBackground
+          imageStyle={styles.heroImage}
+          resizeMode="cover"
+          source={VISITA_HERO_IMAGE}
+          style={styles.hero}
+        >
+          <SafeAreaView edges={["top"]}>
+            <View style={styles.topBar}>
+              <Pressable
+                accessibilityLabel="Volver"
+                accessibilityRole="button"
+                onPress={() => goBackToStep2()}
+                style={styles.backIconButton}
+              >
+                <Ionicons color="#ffffff" name="arrow-back" size={24} />
+              </Pressable>
+              <AppText style={styles.topBarTitle} variant="heading">
+                Registro de visita
+              </AppText>
+            </View>
+          </SafeAreaView>
 
-        {isLoading ? (
-          <AppCard>
-            <AppText variant="muted">Cargando evaluaciones...</AppText>
-          </AppCard>
-        ) : null}
+          <View style={styles.heroContent}>
+            <AppText style={styles.heroTitle} variant="title">
+              Nutricion
+            </AppText>
+            <AppText style={styles.heroSubtitle} variant="body">
+              Evalua el grado observado en cada nutriente de la parcela.
+            </AppText>
+          </View>
+        </ImageBackground>
 
-        {!isLoading && error ? (
-          <AppCard>
-            <AppHeader title="Error al cargar" subtitle={error} />
-            <AppButton
-              label="Reintentar"
-              onPress={() => {
-                if (visitaId) {
-                  void loadEvaluaciones(visitaId);
-                }
-              }}
+        <View style={styles.body}>
+          <WizardProgress />
+
+          {isLoading ? (
+            <AppCard>
+              <AppText variant="muted">Cargando nutrientes...</AppText>
+            </AppCard>
+          ) : null}
+
+          {!isLoading && error ? (
+            <AppCard>
+              <AppText variant="heading">No se pudo cargar el paso 3</AppText>
+              <AppText variant="muted">{error}</AppText>
+              <AppButton
+                label="Reintentar"
+                onPress={() => {
+                  if (visitaId) {
+                    void loadStep(visitaId);
+                  }
+                }}
+              />
+            </AppCard>
+          ) : null}
+
+          {!isLoading && !error && nutrients.length === 0 ? (
+            <AppEmptyState
+              title="Sin nutrientes"
+              message="No hay nutrientes activos para el cultivo de esta visita."
             />
-          </AppCard>
-        ) : null}
+          ) : null}
 
-        {!isLoading && !error && evaluaciones.length === 0 ? (
-          <AppEmptyState
-            title="Sin evaluaciones"
-            message="Agrega la primera evaluacion usando el formulario de arriba."
-          />
-        ) : null}
+          {!isLoading && !error && nutrients.length > 0 ? (
+            <NutrientSection
+              isCompactLayout={isCompactLayout}
+              nutrients={nutrients}
+              onHelpPress={setHelpNutrient}
+              onImagePress={setImagePreview}
+              onSelectDetail={handleSelectDetail}
+              selections={selections}
+            />
+          ) : null}
 
-        {!isLoading && !error && evaluaciones.length > 0
-          ? evaluaciones.map((evaluacion) => (
-              <AppCard key={evaluacion.id} variant="outlined">
-                <View style={styles.itemHeader}>
-                  <View style={styles.itemInfo}>
-                    <AppText variant="eyebrow">
-                      Orden {evaluacion.order}
-                    </AppText>
-                    <AppText variant="label">{evaluacion.description}</AppText>
-                    <AppText variant="caption">
-                      {formatPercentage(evaluacion.percentage)}
-                    </AppText>
-                  </View>
-                </View>
+          {submitError ? (
+            <View style={styles.errorBanner}>
+              <AppText style={styles.submitErrorText} variant="label">
+                {submitError}
+              </AppText>
+            </View>
+          ) : null}
 
-                <View style={styles.itemActions}>
-                  <AppButton
-                    label="Editar"
-                    onPress={() => startEdit(evaluacion)}
-                    variant="secondary"
-                    size="small"
-                  />
-                  <AppButton
-                    label="Eliminar"
-                    onPress={() => {
-                      confirmDelete(evaluacion);
-                    }}
-                    variant="outline"
-                    size="small"
-                  />
-                </View>
-              </AppCard>
-            ))
-          : null}
+          {!isLoading && !error ? (
+            <View style={styles.actions}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSaving}
+                onPress={() => {
+                  void handleContinue();
+                }}
+                style={({ pressed }) => [
+                  styles.continueButton,
+                  pressed && !isSaving && styles.pressed,
+                  isSaving && styles.disabledButton
+                ]}
+              >
+                <Ionicons color="#d8f3dc" name="leaf" size={20} />
+                <AppText style={styles.continueButtonText} variant="label">
+                  {isSaving ? "Guardando..." : "Continuar"}
+                </AppText>
+              </Pressable>
 
-        <AppButton
-          label="Volver a visita"
-          onPress={() => router.back()}
-          variant="outline"
-        />
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSaving}
+                onPress={() => goBackToStep2()}
+                style={({ pressed }) => [
+                  styles.backOutlineButton,
+                  pressed && !isSaving && styles.pressed,
+                  isSaving && styles.disabledButton
+                ]}
+              >
+                <AppText style={styles.backOutlineButtonText} variant="label">
+                  Volver
+                </AppText>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
       </ScrollView>
+
+      <NutrientHelpModal
+        nutrient={helpNutrient}
+        onClose={() => setHelpNutrient(null)}
+      />
+      <NutrientImageModal
+        nutrient={imagePreview}
+        onClose={() => setImagePreview(null)}
+      />
     </ScreenContainer>
   );
 
-  function handleFormChange<K extends keyof EvaluacionFormValues>(
-    field: K,
-    value: EvaluacionFormValues[K]
-  ) {
-    setFormValues((currentValues) => ({
-      ...currentValues,
-      [field]: value
-    }));
-    setFormErrors((currentErrors) => ({
-      ...currentErrors,
-      [field]: undefined
-    }));
-    setSubmitError(null);
-  }
-
-  function startEdit(evaluacion: VisitaEvaluacion) {
-    setEditingEvaluacionId(evaluacion.id);
-    setSubmitError(null);
-    setFormErrors({});
-    setFormValues({
-      order: String(evaluacion.order),
-      percentage: evaluacion.percentage ?? "",
-      description: evaluacion.description
-    });
-  }
-
-  function resetForm() {
-    setEditingEvaluacionId(null);
-    setFormValues(INITIAL_FORM_VALUES);
-    setFormErrors({});
-    setSubmitError(null);
-  }
-
-  async function handleSubmit() {
-    if (!visitaId) {
-      setSubmitError("No se encontro una visita valida.");
-      return;
-    }
-
-    const nextErrors = validateForm(formValues);
-
-    if (Object.keys(nextErrors).length > 0) {
-      setFormErrors(nextErrors);
-      setSubmitError("Revisa los datos antes de guardar.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    try {
-      if (editingEvaluacionId) {
-        await evaluacionesService.update(
-          editingEvaluacionId,
-          buildUpdatePayload(formValues)
-        );
-        Alert.alert("Evaluacion actualizada", "Los cambios se guardaron.");
-      } else {
-        await evaluacionesService.create(visitaId, buildCreatePayload(formValues));
-        Alert.alert("Evaluacion creada", "La evaluacion se registro correctamente.");
-      }
-
-      resetForm();
-      await loadEvaluaciones(visitaId);
-    } catch (nextError) {
-      const apiError = toApiError(nextError);
-      setSubmitError(apiError.message || "No se pudo guardar la evaluacion.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  function confirmDelete(evaluacion: VisitaEvaluacion) {
-    Alert.alert(
-      "Eliminar evaluacion",
-      `Se eliminara la evaluacion de orden ${evaluacion.order}.`,
-      [
-        {
-          text: "Cancelar",
-          style: "cancel"
-        },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: () => {
-            void handleDelete(evaluacion.id);
-          }
-        }
-      ]
-    );
-  }
-
-  async function handleDelete(id: string) {
-    if (!visitaId) {
-      setSubmitError("No se encontro una visita valida.");
-      return;
-    }
-
-    try {
-      await evaluacionesService.remove(id);
-      if (editingEvaluacionId === id) {
-        resetForm();
-      }
-      await loadEvaluaciones(visitaId);
-      Alert.alert("Evaluacion eliminada", "La evaluacion fue eliminada.");
-    } catch (nextError) {
-      const apiError = toApiError(nextError);
-      setSubmitError(apiError.message || "No se pudo eliminar la evaluacion.");
-    }
-  }
-
-  async function loadEvaluaciones(id: string) {
+  async function loadStep(id: string) {
     setIsLoading(true);
     setError(null);
+    setSubmitError(null);
 
     try {
-      const nextEvaluaciones = await evaluacionesService.getByVisitaId(id);
+      const visita = await visitasCampoService.getById(id);
+      const [nextNutrients, nextEvaluaciones] = await Promise.all([
+        nutricionRemote.getNutrientsByCrop(visita.cropId),
+        evaluacionesService.getByVisitaId(id)
+      ]);
+      const sortedNutrients = sortNutrients(nextNutrients).map((nutrient) => ({
+        ...nutrient,
+        details: sortDetails(nutrient.details)
+      }));
+
+      setNutrients(sortedNutrients);
       setEvaluaciones(nextEvaluaciones);
+      setSelections(buildSelectionMap(nextEvaluaciones, sortedNutrients));
     } catch (nextError) {
       const apiError = toApiError(nextError);
-      setError(apiError.message || "No se pudo obtener la lista.");
+      setError(apiError.message || "No se pudo cargar nutricion.");
     } finally {
       setIsLoading(false);
     }
   }
+
+  function goBackToStep2() {
+    if (!visitaId) {
+      router.back();
+      return;
+    }
+
+    router.replace({
+      pathname: "/visitas-campo/[id]/observaciones-sanitarias",
+      params: { id: visitaId }
+    });
+  }
+
+  function handleSelectDetail(nutrientId: string, detailId: string) {
+    setSubmitError(null);
+    setSelections((currentSelections) => ({
+      ...currentSelections,
+      [nutrientId]:
+        currentSelections[nutrientId] === detailId ? null : detailId
+    }));
+  }
+
+  async function handleContinue() {
+    if (!visitaId) {
+      setSubmitError("No se encontro una visita valida.");
+      return;
+    }
+
+    const selectedCount = Object.values(selections).filter(Boolean).length;
+
+    if (nutrients.length > 0 && selectedCount === 0) {
+      setSubmitError("Selecciona al menos un grado nutricional.");
+      return;
+    }
+
+    setIsSaving(true);
+    setSubmitError(null);
+
+    try {
+      for (const nutrient of nutrients) {
+        const order = getNutrientEvaluationOrder(nutrient);
+        const existingEvaluation = evaluaciones.find(
+          (evaluacion) => evaluacion.order === order
+        );
+        const selectedDetail = nutrient.details.find(
+          (detail) => detail.id === selections[nutrient.id]
+        );
+
+        if (!selectedDetail) {
+          if (existingEvaluation) {
+            await evaluacionesService.remove(existingEvaluation.id);
+          }
+          continue;
+        }
+
+        const payload = {
+          order,
+          percentage: getDetailNumericValue(selectedDetail, nutrient.details),
+          description: buildEvaluationDescription(nutrient, selectedDetail)
+        };
+
+        if (existingEvaluation) {
+          await evaluacionesService.update(existingEvaluation.id, payload);
+        } else {
+          await evaluacionesService.create(visitaId, payload);
+        }
+      }
+
+      router.replace({
+        pathname: "/visitas-campo/[id]/recomendaciones",
+        params: { id: visitaId }
+      });
+    } catch (nextError) {
+      const apiError = toApiError(nextError);
+      setSubmitError(apiError.message || "No se pudo guardar el paso 3.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+}
+
+type NutrientSectionProps = {
+  isCompactLayout: boolean;
+  nutrients: NutrientCatalogItem[];
+  onHelpPress: (nutrient: NutrientCatalogItem) => void;
+  onImagePress: (nutrient: NutrientCatalogItem) => void;
+  onSelectDetail: (nutrientId: string, detailId: string) => void;
+  selections: Record<string, string | null>;
+};
+
+function NutrientSection({
+  isCompactLayout,
+  nutrients,
+  onHelpPress,
+  onImagePress,
+  onSelectDetail,
+  selections
+}: NutrientSectionProps) {
+  return (
+    <View style={styles.sectionGroup}>
+      <View style={styles.groupHeader}>
+        <View style={styles.groupTitleRow}>
+          <View style={styles.groupIcon}>
+            <Ionicons
+              color={theme.colors.primaryDark}
+              name="nutrition-outline"
+              size={19}
+            />
+          </View>
+          <AppText style={styles.groupTitle} variant="heading">
+            NUTRIENTES
+          </AppText>
+        </View>
+        <AppText style={styles.groupSubtitle} variant="caption">
+          Presiona la imagen para ver su descripcion y el signo de ayuda para
+          revisar los grados.
+        </AppText>
+      </View>
+
+      {nutrients.map((nutrient) => (
+        <NutrientCard
+          isCompactLayout={isCompactLayout}
+          key={nutrient.id}
+          nutrient={nutrient}
+          onHelpPress={onHelpPress}
+          onImagePress={onImagePress}
+          onSelectDetail={onSelectDetail}
+          selectedDetailId={selections[nutrient.id] ?? null}
+        />
+      ))}
+    </View>
+  );
+}
+
+type NutrientCardProps = {
+  isCompactLayout: boolean;
+  nutrient: NutrientCatalogItem;
+  onHelpPress: (nutrient: NutrientCatalogItem) => void;
+  onImagePress: (nutrient: NutrientCatalogItem) => void;
+  onSelectDetail: (nutrientId: string, detailId: string) => void;
+  selectedDetailId: string | null;
+};
+
+function NutrientCard({
+  isCompactLayout,
+  nutrient,
+  onHelpPress,
+  onImagePress,
+  onSelectDetail,
+  selectedDetailId
+}: NutrientCardProps) {
+  const imageSource = getNutrientImageSource(nutrient);
+
+  return (
+    <View style={[styles.nutrientCard, isCompactLayout && styles.nutrientCardCompact]}>
+      <Pressable
+        accessibilityLabel={`Ver imagen de ${nutrient.name}`}
+        accessibilityRole="imagebutton"
+        onPress={() => onImagePress(nutrient)}
+      >
+        <Image
+          resizeMode="cover"
+          source={imageSource}
+          style={[styles.nutrientImage, isCompactLayout && styles.nutrientImageCompact]}
+        />
+      </Pressable>
+
+      <View style={[styles.cardContent, isCompactLayout && styles.cardContentCompact]}>
+        <View style={[styles.cardHeader, isCompactLayout && styles.cardHeaderCompact]}>
+          <View style={styles.cardTitleColumn}>
+            <AppText style={styles.nutrientName} variant="label">
+              {nutrient.name}
+            </AppText>
+            <AppText style={styles.levelLabel} variant="caption">
+              Severidad
+            </AppText>
+          </View>
+
+          <Pressable
+            accessibilityLabel={`Ver guia de ${nutrient.name}`}
+            accessibilityRole="button"
+            onPress={() => onHelpPress(nutrient)}
+            style={[styles.helpButton, isCompactLayout && styles.helpButtonCompact]}
+          >
+            <Ionicons color={theme.colors.primaryDark} name="help" size={16} />
+          </Pressable>
+        </View>
+
+        {nutrient.details.length > 0 ? (
+          <View style={styles.detailButtons}>
+            {nutrient.details.map((detail, index) => {
+              const selected = detail.id === selectedDetailId;
+
+              return (
+                <Pressable
+                  accessibilityLabel={`${nutrient.name} ${detail.name}`}
+                  accessibilityRole="button"
+                  key={detail.id}
+                  onPress={() => onSelectDetail(nutrient.id, detail.id)}
+                  style={[
+                    styles.detailButton,
+                    isCompactLayout && styles.detailButtonCompact,
+                    selected
+                      ? {
+                          backgroundColor: getDetailColor(index + 1),
+                          borderColor: getDetailColor(index + 1)
+                        }
+                      : styles.detailButtonInactive
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.detailButtonText,
+                      selected
+                        ? styles.detailButtonTextSelected
+                        : styles.detailButtonTextInactive
+                    ]}
+                    variant="label"
+                  >
+                    {getDetailButtonLabel(detail, index)}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <AppText variant="muted">Sin grados registrados.</AppText>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function WizardProgress() {
+  return (
+    <View style={styles.progressCard}>
+      <AppText style={styles.progressLabel} variant="label">
+        Paso {STEP_NUMBER} de {WIZARD_STEPS.length}
+      </AppText>
+      <View style={styles.progressSteps}>
+        {WIZARD_STEPS.map((step) => {
+          const isActive = step.index === STEP_NUMBER;
+          const isComplete = step.index < STEP_NUMBER;
+
+          return (
+            <View key={step.index} style={styles.progressStepItem}>
+              <View
+                style={[
+                  styles.progressCircle,
+                  isActive && styles.progressCircleActive,
+                  isComplete && styles.progressCircleComplete
+                ]}
+              >
+                {isComplete ? (
+                  <Ionicons color="#ffffff" name="checkmark" size={15} />
+                ) : (
+                  <AppText
+                    style={[
+                      styles.progressCircleText,
+                      isActive && styles.progressCircleTextActive
+                    ]}
+                    variant="caption"
+                  >
+                    {step.index}
+                  </AppText>
+                )}
+              </View>
+              {isActive ? <View style={styles.progressActiveBar} /> : null}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function NutrientHelpModal({
+  nutrient,
+  onClose
+}: {
+  nutrient: NutrientCatalogItem | null;
+  onClose: () => void;
+}) {
+  if (!nutrient) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.helpModalContent}>
+          <View style={styles.modalHeader}>
+            <AppText style={styles.modalTitle} variant="heading">
+              Guia de grados
+            </AppText>
+            <Pressable
+              accessibilityLabel="Cerrar"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
+            </Pressable>
+          </View>
+
+          <AppText style={styles.modalSubtitle} variant="label">
+            {nutrient.name}
+          </AppText>
+
+          <ScrollView style={styles.helpList}>
+            {nutrient.details.length > 0 ? (
+              nutrient.details.map((detail) => (
+                <View key={detail.id} style={styles.helpItem}>
+                  <AppText style={styles.helpItemTitle} variant="label">
+                    {detail.name}
+                  </AppText>
+                  <AppText variant="muted">
+                    {detail.description || "Sin descripcion registrada."}
+                  </AppText>
+                </View>
+              ))
+            ) : (
+              <AppText variant="muted">
+                No hay grados registrados para este nutriente.
+              </AppText>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function NutrientImageModal({
+  nutrient,
+  onClose
+}: {
+  nutrient: NutrientCatalogItem | null;
+  onClose: () => void;
+}) {
+  const { width } = useWindowDimensions();
+  const frameWidth = Math.max(240, width * 0.86 - 36);
+  const frameHeight = 260;
+  const scale = useSharedValue(1);
+  const scaleBase = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const translateStartX = useSharedValue(0);
+  const translateStartY = useSharedValue(0);
+
+  useEffect(() => {
+    scale.value = 1;
+    scaleBase.value = 1;
+    translateX.value = 0;
+    translateY.value = 0;
+    translateStartX.value = 0;
+    translateStartY.value = 0;
+  }, [
+    nutrient,
+    scale,
+    scaleBase,
+    translateX,
+    translateY,
+    translateStartX,
+    translateStartY
+  ]);
+
+  const imageAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value }
+    ]
+  }));
+
+  const pinchGesture = useMemo(
+    () =>
+      Gesture.Pinch()
+        .onBegin(() => {
+          scaleBase.value = scale.value;
+        })
+        .onUpdate((event) => {
+          const nextScale = scaleBase.value * event.scale;
+          scale.value = Math.min(3, Math.max(1, nextScale));
+          const maxTranslateX = ((scale.value - 1) * frameWidth) / 2;
+          const maxTranslateY = ((scale.value - 1) * frameHeight) / 2;
+          translateX.value = Math.min(
+            maxTranslateX,
+            Math.max(-maxTranslateX, translateX.value)
+          );
+          translateY.value = Math.min(
+            maxTranslateY,
+            Math.max(-maxTranslateY, translateY.value)
+          );
+        })
+        .onEnd(() => {
+          if (scale.value < 1.01) {
+            scale.value = withTiming(1, { duration: 140 });
+            translateX.value = withTiming(0, { duration: 140 });
+            translateY.value = withTiming(0, { duration: 140 });
+          }
+        }),
+    [frameHeight, frameWidth, scale, scaleBase, translateX, translateY]
+  );
+
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .onBegin(() => {
+          translateStartX.value = translateX.value;
+          translateStartY.value = translateY.value;
+        })
+        .onUpdate((event) => {
+          if (scale.value <= 1) {
+            translateX.value = 0;
+            translateY.value = 0;
+            return;
+          }
+
+          const maxTranslateX = ((scale.value - 1) * frameWidth) / 2;
+          const maxTranslateY = ((scale.value - 1) * frameHeight) / 2;
+          const nextTranslateX = translateStartX.value + event.translationX;
+          const nextTranslateY = translateStartY.value + event.translationY;
+
+          translateX.value = Math.min(
+            maxTranslateX,
+            Math.max(-maxTranslateX, nextTranslateX)
+          );
+          translateY.value = Math.min(
+            maxTranslateY,
+            Math.max(-maxTranslateY, nextTranslateY)
+          );
+        }),
+    [
+      frameHeight,
+      frameWidth,
+      scale,
+      translateStartX,
+      translateStartY,
+      translateX,
+      translateY
+    ]
+  );
+
+  const resetGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        .numberOfTaps(2)
+        .onEnd(() => {
+          scale.value = withTiming(1, { duration: 160 });
+          scaleBase.value = 1;
+          translateX.value = withTiming(0, { duration: 160 });
+          translateY.value = withTiming(0, { duration: 160 });
+          translateStartX.value = 0;
+          translateStartY.value = 0;
+        }),
+    [scale, scaleBase, translateStartX, translateStartY, translateX, translateY]
+  );
+
+  const composedGesture = useMemo(
+    () => Gesture.Simultaneous(pinchGesture, panGesture, resetGesture),
+    [panGesture, pinchGesture, resetGesture]
+  );
+  const imageSource = nutrient
+    ? getNutrientImageSource(nutrient)
+    : DEFAULT_NUTRIENT_IMAGE;
+
+  if (!nutrient) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
+      <GestureHandlerRootView style={styles.modalRoot}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.imageModalContent}>
+            <Pressable
+              accessibilityLabel="Cerrar imagen"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
+            </Pressable>
+            <GestureDetector gesture={composedGesture}>
+              <View style={styles.previewImageFrame}>
+                <Animated.Image
+                  resizeMode="contain"
+                  source={imageSource}
+                  style={[styles.previewImage, imageAnimatedStyle]}
+                />
+              </View>
+            </GestureDetector>
+            <View style={styles.imageDescription}>
+              <AppText style={styles.modalTitle} variant="heading">
+                {nutrient.name}
+              </AppText>
+              <AppText variant="muted">
+                {nutrient.description || "Sin descripcion registrada."}
+              </AppText>
+            </View>
+          </View>
+        </View>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
+
+function sortNutrients(nutrients: NutrientCatalogItem[]) {
+  return [...nutrients].sort((left, right) => {
+    const leftOrder = getNutrientDisplayIndex(left);
+    const rightOrder = getNutrientDisplayIndex(right);
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function sortDetails(details: NutrientDetailCatalogItem[]) {
+  return [...details].sort((left, right) => {
+    const leftOrder = getDetailSortValue(left.name);
+    const rightOrder = getDetailSortValue(right.name);
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    return left.name.localeCompare(right.name);
+  });
+}
+
+function buildSelectionMap(
+  evaluaciones: VisitaEvaluacion[],
+  nutrients: NutrientCatalogItem[]
+) {
+  const selectionEntries = nutrients.map((nutrient) => {
+    const evaluation = evaluaciones.find(
+      (item) => item.order === getNutrientEvaluationOrder(nutrient)
+    );
+
+    if (!evaluation) {
+      return [nutrient.id, null] as const;
+    }
+
+    return [
+      nutrient.id,
+      findSelectedDetailId(nutrient, evaluation) ?? null
+    ] as const;
+  });
+
+  return Object.fromEntries(selectionEntries);
+}
+
+function findSelectedDetailId(
+  nutrient: NutrientCatalogItem,
+  evaluation: VisitaEvaluacion
+) {
+  const expectedPrefix = `${NUTRITION_DESCRIPTION_PREFIX} ${nutrient.name}: `;
+
+  if (evaluation.description.startsWith(expectedPrefix)) {
+    const detailName = evaluation.description.slice(expectedPrefix.length);
+    const selectedByName = nutrient.details.find(
+      (detail) => normalizeCatalogName(detail.name) === normalizeCatalogName(detailName)
+    );
+
+    if (selectedByName) {
+      return selectedByName.id;
+    }
+  }
+
+  if (evaluation.percentage) {
+    const numericValue = Number(evaluation.percentage);
+    const selectedByNumber = nutrient.details.find(
+      (detail) => getDetailNumericValue(detail, nutrient.details) === numericValue
+    );
+
+    return selectedByNumber?.id ?? null;
+  }
+
+  return null;
+}
+
+function buildEvaluationDescription(
+  nutrient: NutrientCatalogItem,
+  detail: NutrientDetailCatalogItem
+) {
+  const description = `${NUTRITION_DESCRIPTION_PREFIX} ${nutrient.name}: ${detail.name}`;
+
+  return description.length <= 190 ? description : description.slice(0, 190);
+}
+
+function getNutrientEvaluationOrder(nutrient: NutrientCatalogItem) {
+  const displayIndex = getNutrientDisplayIndex(nutrient);
+
+  if (displayIndex < NUTRIENT_DISPLAY_ORDER.length) {
+    return NUTRITION_ORDER_OFFSET + displayIndex + 1;
+  }
+
+  return NUTRITION_ORDER_OFFSET + 100 + (hashString(nutrient.id) % 800);
+}
+
+function getNutrientDisplayIndex(nutrient: NutrientCatalogItem) {
+  const normalizedName = normalizeCatalogName(nutrient.name);
+  const configuredIndex = NUTRIENT_DISPLAY_ORDER.findIndex((name) =>
+    normalizedName.includes(name)
+  );
+
+  return configuredIndex >= 0
+    ? configuredIndex
+    : NUTRIENT_DISPLAY_ORDER.length + 1;
+}
+
+function getDetailButtonLabel(detail: NutrientDetailCatalogItem, index: number) {
+  const match = detail.name.match(/\d+/);
+
+  return match?.[0] ?? String(index + 1);
+}
+
+function getDetailNumericValue(
+  detail: NutrientDetailCatalogItem,
+  details: NutrientDetailCatalogItem[]
+) {
+  const parsedValue = Number(getDetailButtonLabel(detail, details.indexOf(detail)));
+
+  return Number.isFinite(parsedValue) ? parsedValue : details.indexOf(detail) + 1;
+}
+
+function getDetailSortValue(value: string) {
+  const match = value.match(/\d+/);
+
+  return match ? Number(match[0]) : Number.MAX_SAFE_INTEGER;
+}
+
+function getDetailColor(sortOrder: number) {
+  if (sortOrder <= 1) {
+    return "#7fbf20";
+  }
+
+  if (sortOrder === 2) {
+    return "#ffad0a";
+  }
+
+  return "#ef3b2d";
+}
+
+function getNutrientImageSource(
+  nutrient: NutrientCatalogItem
+): ImageSourcePropType {
+  const normalizedName = normalizeCatalogName(nutrient.name);
+  const imageConfig = NUTRIENT_IMAGES.find(({ patterns }) =>
+    patterns.some((pattern) => normalizedName.includes(pattern))
+  );
+
+  return imageConfig?.source ?? DEFAULT_NUTRIENT_IMAGE;
+}
+
+function normalizeCatalogName(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function hashString(value: string) {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash;
 }
 
 function toSingleParam(value?: string | string[]) {
@@ -279,85 +974,363 @@ function toSingleParam(value?: string | string[]) {
   return value ?? null;
 }
 
-function validateForm(values: EvaluacionFormValues): EvaluacionFormErrors {
-  const nextErrors: EvaluacionFormErrors = {};
-
-  if (!values.order.trim()) {
-    nextErrors.order = "El orden es obligatorio.";
-  } else {
-    const parsedOrder = Number(values.order.trim());
-
-    if (!Number.isInteger(parsedOrder) || parsedOrder < 1) {
-      nextErrors.order = "El orden debe ser un entero mayor o igual a 1.";
-    }
-  }
-
-  if (values.percentage.trim()) {
-    const parsedPercentage = Number(values.percentage.trim());
-
-    if (!Number.isFinite(parsedPercentage)) {
-      nextErrors.percentage = "El porcentaje debe ser numerico.";
-    } else if (parsedPercentage < 0 || parsedPercentage > 100) {
-      nextErrors.percentage = "El porcentaje debe estar entre 0 y 100.";
-    }
-  }
-
-  if (!values.description.trim()) {
-    nextErrors.description = "La descripcion es obligatoria.";
-  }
-
-  return nextErrors;
-}
-
-function buildCreatePayload(values: EvaluacionFormValues) {
-  return {
-    order: Number(values.order.trim()),
-    ...(values.percentage.trim()
-      ? { percentage: Number(values.percentage.trim()) }
-      : {}),
-    description: values.description.trim()
-  };
-}
-
-function buildUpdatePayload(values: EvaluacionFormValues) {
-  return {
-    order: Number(values.order.trim()),
-    percentage: values.percentage.trim()
-      ? Number(values.percentage.trim())
-      : null,
-    description: values.description.trim()
-  };
-}
-
-function formatPercentage(value: string | null) {
-  if (!value) {
-    return "Sin porcentaje";
-  }
-
-  return `${value}%`;
-}
-
 const styles = StyleSheet.create({
+  actions: {
+    gap: 10
+  },
+  backIconButton: {
+    alignItems: "center",
+    height: 40,
+    justifyContent: "center",
+    width: 40
+  },
+  backOutlineButton: {
+    alignItems: "center",
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 50
+  },
+  backOutlineButtonText: {
+    color: theme.colors.primaryDark,
+    fontSize: 17
+  },
+  body: {
+    gap: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16
+  },
+  cardContent: {
+    flex: 1,
+    gap: 10
+  },
+  cardContentCompact: {
+    width: "100%"
+  },
+  cardHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between"
+  },
+  cardHeaderCompact: {
+    flexDirection: "row"
+  },
+  cardTitleColumn: {
+    flex: 1,
+    gap: 4
+  },
   container: {
     paddingHorizontal: 0,
     paddingVertical: 0
   },
-  scrollContent: {
-    gap: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 16
+  continueButton: {
+    alignItems: "center",
+    backgroundColor: theme.colors.primaryDark,
+    borderRadius: theme.radius.md,
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center",
+    minHeight: 54
   },
-  itemHeader: {
+  continueButtonText: {
+    color: theme.colors.textInverse,
+    fontSize: 18
+  },
+  detailButton: {
+    alignItems: "center",
+    borderRadius: 9,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: "center",
+    minHeight: 36,
+    minWidth: 42
+  },
+  detailButtonCompact: {
+    flexBasis: "22%",
+    flexGrow: 0,
+    flexShrink: 1,
+    maxWidth: "22%"
+  },
+  detailButtonInactive: {
+    backgroundColor: "#eef1ef",
+    borderColor: theme.colors.border
+  },
+  detailButtonText: {
+    fontSize: 16
+  },
+  detailButtonTextInactive: {
+    color: theme.colors.textMuted
+  },
+  detailButtonTextSelected: {
+    color: theme.colors.textInverse
+  },
+  detailButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  disabledButton: {
+    opacity: 0.55
+  },
+  errorBanner: {
+    backgroundColor: theme.colors.errorMuted,
+    borderColor: theme.colors.error,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    padding: 12
+  },
+  groupHeader: {
+    borderBottomColor: "#d2ead8",
+    borderBottomWidth: 2,
+    gap: 8,
+    paddingHorizontal: 2,
+    paddingVertical: 4
+  },
+  groupIcon: {
+    alignItems: "center",
+    backgroundColor: "#f3faf5",
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: "center",
+    width: 34
+  },
+  groupSubtitle: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    lineHeight: 17
+  },
+  groupTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 18,
+    textAlign: "center"
+  },
+  groupTitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "center"
+  },
+  helpButton: {
+    alignItems: "center",
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    height: 28,
+    justifyContent: "center",
+    width: 28
+  },
+  helpButtonCompact: {
+    alignSelf: "flex-start"
+  },
+  helpItem: {
+    borderBottomColor: theme.colors.borderLight,
+    borderBottomWidth: 1,
+    gap: 5,
+    paddingVertical: 12
+  },
+  helpItemTitle: {
+    color: theme.colors.primaryDark
+  },
+  helpList: {
+    maxHeight: 420
+  },
+  helpModalContent: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    maxHeight: "82%",
+    padding: 18,
+    width: "90%"
+  },
+  hero: {
+    minHeight: 300
+  },
+  heroContent: {
+    gap: 10,
+    paddingBottom: 34,
+    paddingHorizontal: 24,
+    paddingTop: 40
+  },
+  heroImage: {
+    opacity: 0.82
+  },
+  heroSubtitle: {
+    color: "#173f2d",
+    maxWidth: 310
+  },
+  heroTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 38,
+    lineHeight: 44,
+    maxWidth: 300
+  },
+  imageDescription: {
+    alignSelf: "stretch",
+    gap: 6,
+    paddingTop: 12
+  },
+  imageModalContent: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    padding: 18,
+    width: "86%"
+  },
+  levelLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 13
+  },
+  modalBackdrop: {
+    alignItems: "center",
+    backgroundColor: "rgba(8, 31, 20, 0.56)",
+    flex: 1,
+    justifyContent: "center",
+    padding: 18
+  },
+  modalCloseButton: {
+    alignItems: "center",
+    alignSelf: "flex-end",
+    height: 34,
+    justifyContent: "center",
+    width: 34
+  },
+  modalHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  modalRoot: {
+    flex: 1
+  },
+  modalSubtitle: {
+    color: theme.colors.text,
+    marginTop: 4
+  },
+  modalTitle: {
+    color: theme.colors.primaryDark,
+    flex: 1,
+    fontSize: 20
+  },
+  nutrientCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: 12,
+    ...theme.shadow.sm
+  },
+  nutrientCardCompact: {
+    alignItems: "stretch",
+    flexDirection: "column"
+  },
+  nutrientImage: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderRadius: theme.radius.full,
+    height: 82,
+    width: 82
+  },
+  nutrientImageCompact: {
+    alignSelf: "center",
+    height: 78,
+    width: 78
+  },
+  nutrientName: {
+    color: theme.colors.text,
+    fontSize: 17,
+    lineHeight: 22
+  },
+  pressed: {
+    opacity: 0.72
+  },
+  previewImage: {
+    height: 260,
+    width: "100%"
+  },
+  previewImageFrame: {
+    alignItems: "center",
+    height: 260,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: "100%"
+  },
+  progressActiveBar: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.full,
+    height: 5,
+    marginTop: 8,
+    width: 48
+  },
+  progressCard: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start"
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    ...theme.shadow.md
   },
-  itemInfo: {
-    flex: 1,
-    gap: 4
+  progressCircle: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: "center",
+    width: 34
   },
-  itemActions: {
+  progressCircleActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
+  },
+  progressCircleComplete: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primaryLight
+  },
+  progressCircleText: {
+    color: theme.colors.textMuted,
+    fontSize: 15
+  },
+  progressCircleTextActive: {
+    color: theme.colors.textInverse
+  },
+  progressLabel: {
+    color: theme.colors.primaryDark,
+    fontSize: 17
+  },
+  progressStepItem: {
+    alignItems: "center",
+    minWidth: 38
+  },
+  progressSteps: {
+    alignItems: "flex-start",
     flexDirection: "row",
+    gap: 8
+  },
+  scrollContent: {
+    paddingBottom: 24
+  },
+  sectionGroup: {
     gap: 10
+  },
+  submitErrorText: {
+    color: theme.colors.error
+  },
+  topBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 12
+  },
+  topBarTitle: {
+    color: theme.colors.textInverse,
+    fontSize: 22
   }
 });

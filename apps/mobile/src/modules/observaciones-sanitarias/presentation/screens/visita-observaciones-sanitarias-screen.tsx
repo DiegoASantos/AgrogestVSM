@@ -100,7 +100,7 @@ const STEP_NUMBER = 2;
 const WIZARD_STEPS = [
   { index: 1, title: "Datos" },
   { index: 2, title: "Sanidad" },
-  { index: 3, title: "Evaluaciones" },
+  { index: 3, title: "Nutricion" },
   { index: 4, title: "Recom." },
   { index: 5, title: "Productos" }
 ] as const;
