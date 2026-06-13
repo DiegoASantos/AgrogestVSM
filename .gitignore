@@ -1,6 +1,7 @@
 node_modules
 dist
 .expo
+.expo-test-export
 .expo-shared
 .next
 .pnpm-store
