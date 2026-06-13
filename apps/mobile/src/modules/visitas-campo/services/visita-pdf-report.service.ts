@@ -1,8 +1,3 @@
-import { Asset } from "expo-asset";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
-
 import { laboresCulturalesVisitaRepository } from "../../labores-culturales-visita/repositories/labores-culturales-visita.repository";
 import { observacionesSanitariasRepository } from "../../observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
 import { parcelasRepository } from "../../parcelas/repositories/parcelas.repository";
@@ -15,13 +10,16 @@ const REPORT_ICON = require("../../../../assets/images/adaptive_icon_vsm.png");
 
 export const visitaPdfReportService = {
   async preview(visitaId: string) {
+    const { Print } = await loadPdfNativeModules();
     const html = await buildVisitReportHtml(visitaId);
+
     await Print.printAsync({
       html
     });
   },
 
   async share(visitaId: string) {
+    const { Print, Sharing } = await loadPdfNativeModules();
     const isSharingAvailable = await Sharing.isAvailableAsync();
 
     if (!isSharingAvailable) {
@@ -40,6 +38,21 @@ export const visitaPdfReportService = {
     });
   }
 };
+
+async function loadPdfNativeModules() {
+  try {
+    const [Print, Sharing] = await Promise.all([
+      import("expo-print"),
+      import("expo-sharing")
+    ]);
+
+    return { Print, Sharing };
+  } catch {
+    throw new Error(
+      "La version instalada de la app aun no incluye el modulo nativo para PDF. Actualiza la app desde una nueva compilacion para usar esta funcion."
+    );
+  }
+}
 
 async function buildVisitReportHtml(visitaId: string) {
   const detail = await visitasCampoService.getFullDetail(visitaId);
@@ -278,6 +291,10 @@ async function buildVisitReportHtml(visitaId: string) {
 
 async function getReportIconUri() {
   try {
+    const [{ Asset }, FileSystem] = await Promise.all([
+      import("expo-asset"),
+      import("expo-file-system/legacy")
+    ]);
     const asset = Asset.fromModule(REPORT_ICON);
     await asset.downloadAsync();
     const assetUri = asset.localUri ?? asset.uri ?? null;
