@@ -11,8 +11,10 @@ import {
 import { debugLog } from "../../../shared/utils/debug-log";
 import { getUserIdFromAccessToken } from "../../../shared/utils/auth-token";
 import { evaluacionesRepository } from "../../evaluaciones/repositories/evaluaciones.repository";
+import { laboresCulturalesVisitaRepository } from "../../labores-culturales-visita/repositories/labores-culturales-visita.repository";
 import { observacionesSanitariasRepository } from "../../observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
 import { visitaStepNotesRepository } from "../../observaciones-sanitarias/repositories/visita-step-notes.repository";
+import { riegosRepository } from "../../riegos/repositories/riegos.repository";
 import { visitasCampoRepository } from "../repositories/visitas-campo.repository";
 import type {
   CreateVisitaCampoDraft,
@@ -82,6 +84,9 @@ export const visitasCampoService = {
       evaluaciones: evaluacionesRepository.getByVisitaLocalId(localId),
       observacionesSanitarias:
         observacionesSanitariasRepository.getByVisitaLocalId(localId),
+      riego: riegosRepository.getByVisitaLocalId(localId),
+      laboresCulturales:
+        laboresCulturalesVisitaRepository.getByVisitaLocalId(localId),
       stepNotes: [1, 2, 3, 4, 5]
         .map((stepNumber) =>
           visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
@@ -115,12 +120,17 @@ export const visitasCampoService = {
         visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
       )
       .filter((stepNote) => stepNote !== null);
+    const riego = riegosRepository.getByVisitaLocalId(localId);
+    const labores =
+      laboresCulturalesVisitaRepository.getByVisitaLocalId(localId);
 
     const allStatuses = [
       visita.syncStatus,
       ...evaluaciones.map((evaluacion) => evaluacion.syncStatus),
       ...observaciones.map((observacion) => observacion.syncStatus),
-      ...stepNotes.map((stepNote) => stepNote.syncStatus)
+      ...stepNotes.map((stepNote) => stepNote.syncStatus),
+      ...(riego ? [riego.syncStatus] : []),
+      ...labores.map((labor) => labor.syncStatus)
     ];
 
     const totalEntities = allStatuses.length;
@@ -164,6 +174,9 @@ export const visitasCampoService = {
         visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
       )
       .filter((stepNote) => stepNote !== null);
+    const riego = riegosRepository.getByVisitaLocalId(localId);
+    const labores =
+      laboresCulturalesVisitaRepository.getByVisitaLocalId(localId);
 
     type EntityToRetry = {
       entityType: SyncEntityType;
@@ -211,6 +224,24 @@ export const visitasCampoService = {
       }
     }
 
+    if (riego?.syncStatus === "error") {
+      entitiesToRetry.push({
+        entityType: "visita_riegos",
+        localId: riego.id,
+        syncStatus: riego.syncStatus
+      });
+    }
+
+    for (const labor of labores) {
+      if (labor.syncStatus === "error") {
+        entitiesToRetry.push({
+          entityType: "visita_labores_culturales",
+          localId: labor.id,
+          syncStatus: labor.syncStatus
+        });
+      }
+    }
+
     if (entitiesToRetry.length === 0) {
       return;
     }
@@ -244,6 +275,14 @@ export const visitasCampoService = {
             break;
           case "visita_paso_observaciones":
             visitaStepNotesRepository.update(entity.localId, {
+              syncStatus: "pending"
+            });
+            break;
+          case "visita_riegos":
+            riegosRepository.update(entity.localId, { syncStatus: "pending" });
+            break;
+          case "visita_labores_culturales":
+            laboresCulturalesVisitaRepository.update(entity.localId, {
               syncStatus: "pending"
             });
             break;
@@ -287,6 +326,10 @@ function entityHasServerId(entityType: SyncEntityType, localId: string): boolean
       return !!observacionesSanitariasRepository.getById(localId)?.serverId;
     case "visita_paso_observaciones":
       return !!visitaStepNotesRepository.getById(localId)?.serverId;
+    case "visita_riegos":
+      return !!riegosRepository.getById(localId)?.serverId;
+    case "visita_labores_culturales":
+      return !!laboresCulturalesVisitaRepository.getById(localId)?.serverId;
     default:
       return false;
   }

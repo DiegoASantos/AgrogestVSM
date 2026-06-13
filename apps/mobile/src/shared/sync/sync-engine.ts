@@ -1,6 +1,8 @@
 import { evaluacionesRepository } from "../../modules/evaluaciones/repositories/evaluaciones.repository";
+import { laboresCulturalesVisitaRepository } from "../../modules/labores-culturales-visita/repositories/labores-culturales-visita.repository";
 import { observacionesSanitariasRepository } from "../../modules/observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
 import { visitaStepNotesRepository } from "../../modules/observaciones-sanitarias/repositories/visita-step-notes.repository";
+import { riegosRepository } from "../../modules/riegos/repositories/riegos.repository";
 import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
 import {
   deleteOutboxEntry,
@@ -171,6 +173,16 @@ function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {
         serverId: data.id,
         syncStatus: "synced"
       });
+    } else if (entry.entityType === "visita_riegos") {
+      riegosRepository.update(entry.entityLocalId, {
+        serverId: data.id,
+        syncStatus: "synced"
+      });
+    } else if (entry.entityType === "visita_labores_culturales") {
+      laboresCulturalesVisitaRepository.update(entry.entityLocalId, {
+        serverId: data.id,
+        syncStatus: "synced"
+      });
     }
   } catch {
     // Entity may not exist (was deleted locally)
@@ -188,6 +200,13 @@ function getChildVisitaLocalId(entry: SyncOutboxItem): string | null {
       );
     case "visita_paso_observaciones":
       return visitaStepNotesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+    case "visita_riegos":
+      return riegosRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+    case "visita_labores_culturales":
+      return (
+        laboresCulturalesVisitaRepository.getById(entry.entityLocalId)?.visitaId ??
+        null
+      );
     default:
       return null;
   }
@@ -219,6 +238,16 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
         break;
       case "visita_paso_observaciones":
         visitaStepNotesRepository.update(entry.entityLocalId, {
+          syncStatus: "error"
+        });
+        break;
+      case "visita_riegos":
+        riegosRepository.update(entry.entityLocalId, {
+          syncStatus: "error"
+        });
+        break;
+      case "visita_labores_culturales":
+        laboresCulturalesVisitaRepository.update(entry.entityLocalId, {
           syncStatus: "error"
         });
         break;

@@ -1,6 +1,9 @@
 import { evaluacionesRepository } from "../../modules/evaluaciones/repositories/evaluaciones.repository";
 import { evaluacionesRemote } from "../../modules/evaluaciones/services/evaluaciones.remote";
 import type { VisitaEvaluacion } from "../../modules/evaluaciones/types";
+import { laboresCulturalesVisitaRepository } from "../../modules/labores-culturales-visita/repositories/labores-culturales-visita.repository";
+import { laboresCulturalesVisitaRemote } from "../../modules/labores-culturales-visita/services/labores-culturales-visita.remote";
+import type { VisitaLaborCultural } from "../../modules/labores-culturales-visita/types";
 import { observacionesSanitariasRepository } from "../../modules/observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
 import { visitaStepNotesRepository } from "../../modules/observaciones-sanitarias/repositories/visita-step-notes.repository";
 import { observacionesSanitariasRemote } from "../../modules/observaciones-sanitarias/services/observaciones-sanitarias.remote";
@@ -8,6 +11,9 @@ import type {
   VisitaObservacionSanitaria,
   VisitaStepNote
 } from "../../modules/observaciones-sanitarias/types";
+import { riegosRepository } from "../../modules/riegos/repositories/riegos.repository";
+import { riegosRemote } from "../../modules/riegos/services/riegos.remote";
+import type { VisitaRiego } from "../../modules/riegos/types";
 import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
 import { visitasCampoRemote } from "../../modules/visitas-campo/services/visitas-campo.remote";
 import type {
@@ -274,6 +280,123 @@ export async function handleStepNote(
   return { status: "synced", serverId: response.id };
 }
 
+export async function handleRiego(
+  entry: SyncOutboxItem
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    const serverId = getDeleteServerId(entry);
+
+    if (!serverId) {
+      return { status: "deleted_local" };
+    }
+
+    await riegosRemote.remove(serverId);
+    return { status: "synced", serverId };
+  }
+
+  const riego = riegosRepository.getById(entry.entityLocalId);
+
+  if (!riego) {
+    return { status: "deleted_local" };
+  }
+
+  if (entry.operation === "create") {
+    const visitaPadre = visitasCampoRepository.getById(riego.visitaId);
+
+    if (!visitaPadre) {
+      return { status: "deleted_local" };
+    }
+
+    if (visitaPadre.syncStatus === "error") {
+      throw new Error("La visita padre no pudo sincronizarse.");
+    }
+
+    if (!visitaPadre.serverId) {
+      return { status: "skipped" };
+    }
+
+    const response = await riegosRemote.create(visitaPadre.serverId, {
+      ...buildRiegoBody(riego)
+    });
+
+    riegosRepository.update(riego.id, {
+      serverId: response.id,
+      syncStatus: "synced"
+    });
+
+    return { status: "synced", serverId: response.id };
+  }
+
+  const visitaPadreForUpdate = visitasCampoRepository.getById(riego.visitaId);
+
+  if (visitaPadreForUpdate?.syncStatus === "error") {
+    throw new Error("La visita padre no pudo sincronizarse.");
+  }
+
+  if (!riego.serverId) {
+    return { status: "skipped" };
+  }
+
+  await riegosRemote.update(riego.serverId, {
+    ...buildRiegoBody(riego)
+  });
+
+  riegosRepository.update(riego.id, {
+    syncStatus: "synced"
+  });
+
+  return { status: "synced", serverId: riego.serverId };
+}
+
+export async function handleLaborCultural(
+  entry: SyncOutboxItem
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    const serverId = getDeleteServerId(entry);
+
+    if (!serverId) {
+      return { status: "deleted_local" };
+    }
+
+    await laboresCulturalesVisitaRemote.remove(serverId);
+    return { status: "synced", serverId };
+  }
+
+  const labor = laboresCulturalesVisitaRepository.getById(entry.entityLocalId);
+
+  if (!labor) {
+    return { status: "deleted_local" };
+  }
+
+  const visitaPadre = visitasCampoRepository.getById(labor.visitaId);
+
+  if (!visitaPadre) {
+    return { status: "deleted_local" };
+  }
+
+  if (visitaPadre.syncStatus === "error") {
+    throw new Error("La visita padre no pudo sincronizarse.");
+  }
+
+  if (!visitaPadre.serverId) {
+    return { status: "skipped" };
+  }
+
+  const response = await laboresCulturalesVisitaRemote.create(
+    visitaPadre.serverId,
+    {
+      ...buildLaborCulturalBody(labor)
+    }
+  );
+
+  laboresCulturalesVisitaRepository.update(labor.id, {
+    serverId: response.id,
+    syncStatus: "synced"
+  });
+
+  return { status: "synced", serverId: response.id };
+}
+
 export const entityHandlerMap: Record<
   SyncEntityType,
   (entry: SyncOutboxItem) => Promise<SyncHandlerResult>
@@ -281,7 +404,9 @@ export const entityHandlerMap: Record<
   visitas_campo: handleVisitaCampo,
   visita_evaluaciones: handleEvaluacion,
   visita_observaciones_sanitarias: handleObservacion,
-  visita_paso_observaciones: handleStepNote
+  visita_paso_observaciones: handleStepNote,
+  visita_riegos: handleRiego,
+  visita_labores_culturales: handleLaborCultural
 };
 
 function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft {
@@ -405,5 +530,17 @@ function buildStepNoteBody(stepNote: VisitaStepNote) {
   return {
     observation: stepNote.observation ?? null,
     recommendation: stepNote.recommendation ?? null
+  };
+}
+
+function buildRiegoBody(riego: VisitaRiego) {
+  return {
+    tipoRiegoId: Number(riego.tipoRiegoId)
+  };
+}
+
+function buildLaborCulturalBody(labor: VisitaLaborCultural) {
+  return {
+    laborCulturalId: Number(labor.laborCulturalId)
   };
 }

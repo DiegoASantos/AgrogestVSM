@@ -221,6 +221,52 @@ const MIGRATIONS: Migration[] = [
       "DROP TABLE IF EXISTS products",
       "DROP TABLE IF EXISTS recommendation_types"
     ]
+  },
+  {
+    version: 18,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS tipos_riego (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1
+      )`,
+      `CREATE TABLE IF NOT EXISTS labores_culturales (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1
+      )`,
+      `CREATE TABLE IF NOT EXISTS visita_riegos (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        server_id TEXT,
+        visita_local_id TEXT NOT NULL,
+        tipo_riego_id TEXT NOT NULL,
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+        sync_error_message TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+        FOREIGN KEY (tipo_riego_id) REFERENCES tipos_riego(id),
+        UNIQUE (visita_local_id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS visita_labores_culturales (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        server_id TEXT,
+        visita_local_id TEXT NOT NULL,
+        labor_cultural_id TEXT NOT NULL,
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+        sync_error_message TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+        FOREIGN KEY (labor_cultural_id) REFERENCES labores_culturales(id),
+        UNIQUE (visita_local_id, labor_cultural_id)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_visita_riegos_visita ON visita_riegos(visita_local_id)",
+      "CREATE INDEX IF NOT EXISTS idx_visita_labores_culturales_visita ON visita_labores_culturales(visita_local_id)",
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    ]
   }
 ];
 

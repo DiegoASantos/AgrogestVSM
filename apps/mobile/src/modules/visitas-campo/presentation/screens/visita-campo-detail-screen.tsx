@@ -241,11 +241,25 @@ export function VisitaCampoDetailScreen() {
               </View>
 
               <View style={styles.navRow}>
-                <NavCard title="Riego" count={0} onPress={() => undefined} />
+                <NavCard
+                  title="Riego"
+                  count={detail.riego ? 1 : 0}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/visitas-campo/[id]/riego",
+                      params: { id: visita.id }
+                    })
+                  }
+                />
                 <NavCard
                   title="Labores culturales"
-                  count={0}
-                  onPress={() => undefined}
+                  count={detail.laboresCulturales.length}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/visitas-campo/[id]/labores-culturales",
+                      params: { id: visita.id }
+                    })
+                  }
                 />
               </View>
             </View>

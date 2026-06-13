@@ -8,7 +8,9 @@ import { ProductorEntity } from "../productores/infrastructure/persistence/entit
 import { UserEntity } from "../users/infrastructure/persistence/entities/user.entity";
 import { VariedadEntity } from "../variedades/infrastructure/persistence/entities/variedad.entity";
 import { VisitaEvaluacionEntity } from "../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
+import { VisitaLaborCulturalEntity } from "../visita-labores-culturales/infrastructure/persistence/entities/visita-labor-cultural.entity";
 import { VisitaObservacionSanitariaEntity } from "../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
+import { VisitaRiegoEntity } from "../visita-riegos/infrastructure/persistence/entities/visita-riego.entity";
 import { EtapasFenologicasService } from "./application/etapas-fenologicas.service";
 import { SubEtapasService } from "./application/sub-etapas.service";
 import { VisitaPasoObservacionesService } from "./application/visita-paso-observaciones.service";
@@ -36,6 +38,8 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
       ProductorEntity,
       VisitaEvaluacionEntity,
       VisitaObservacionSanitariaEntity,
+      VisitaRiegoEntity,
+      VisitaLaborCulturalEntity,
       VisitaPasoObservacionEntity
     ])
   ],

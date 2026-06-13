@@ -17,7 +17,9 @@ import { TiposDocumentoModule } from "./modules/tipos-documento/tipos-documento.
 import { UsersModule } from "./modules/users/users.module";
 import { VariedadesModule } from "./modules/variedades/variedades.module";
 import { VisitaEvaluacionesModule } from "./modules/visita-evaluaciones/visita-evaluaciones.module";
+import { VisitaLaboresCulturalesModule } from "./modules/visita-labores-culturales/visita-labores-culturales.module";
 import { VisitaObservacionesSanitariasModule } from "./modules/visita-observaciones-sanitarias/visita-observaciones-sanitarias.module";
+import { VisitaRiegosModule } from "./modules/visita-riegos/visita-riegos.module";
 import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module";
 
 @Module({
@@ -40,7 +42,9 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     NutricionModule,
     OperacionesCampoModule,
     VisitaEvaluacionesModule,
-    VisitaObservacionesSanitariasModule
+    VisitaObservacionesSanitariasModule,
+    VisitaRiegosModule,
+    VisitaLaboresCulturalesModule
   ]
 })
 export class AppModule {}

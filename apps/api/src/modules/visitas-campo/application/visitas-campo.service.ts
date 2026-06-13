@@ -25,7 +25,9 @@ import { ProductorEntity } from "../../productores/infrastructure/persistence/en
 import { UserEntity } from "../../users/infrastructure/persistence/entities/user.entity";
 import { VariedadEntity } from "../../variedades/infrastructure/persistence/entities/variedad.entity";
 import { VisitaEvaluacionEntity } from "../../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
+import { VisitaLaborCulturalEntity } from "../../visita-labores-culturales/infrastructure/persistence/entities/visita-labor-cultural.entity";
 import { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
+import { VisitaRiegoEntity } from "../../visita-riegos/infrastructure/persistence/entities/visita-riego.entity";
 import { CreateVisitaCampoDto } from "../presentation/dto/create-visita-campo.dto";
 import { FindHistorialVisitasProductorQueryDto } from "../presentation/dto/find-historial-visitas-productor-query.dto";
 import { FindVisitasCampoQueryDto } from "../presentation/dto/find-visitas-campo-query.dto";
@@ -61,7 +63,11 @@ export class VisitasCampoService {
     @InjectRepository(VisitaEvaluacionEntity)
     private readonly visitaEvaluacionesRepository: Repository<VisitaEvaluacionEntity>,
     @InjectRepository(VisitaObservacionSanitariaEntity)
-    private readonly observacionesSanitariasRepository: Repository<VisitaObservacionSanitariaEntity>
+    private readonly observacionesSanitariasRepository: Repository<VisitaObservacionSanitariaEntity>,
+    @InjectRepository(VisitaRiegoEntity)
+    private readonly visitaRiegosRepository: Repository<VisitaRiegoEntity>,
+    @InjectRepository(VisitaLaborCulturalEntity)
+    private readonly visitaLaboresRepository: Repository<VisitaLaborCulturalEntity>
   ) {}
 
   async create(createVisitaCampoDto: CreateVisitaCampoDto) {
@@ -163,7 +169,8 @@ export class VisitasCampoService {
 
   async getFullDetail(id: string) {
     const visitaCampo = await this.findEntityById(id);
-    const [evaluaciones, observacionesSanitarias] = await Promise.all([
+    const [evaluaciones, observacionesSanitarias, riego, laboresCulturales] =
+      await Promise.all([
         this.visitaEvaluacionesRepository.find({
           where: {
             visitaId: id
@@ -180,6 +187,19 @@ export class VisitasCampoService {
           order: {
             id: "ASC"
           }
+        }),
+        this.visitaRiegosRepository.findOne({
+          where: {
+            visitaId: id
+          }
+        }),
+        this.visitaLaboresRepository.find({
+          where: {
+            visitaId: id
+          },
+          order: {
+            id: "ASC"
+          }
         })
       ]);
 
@@ -190,6 +210,10 @@ export class VisitasCampoService {
       ),
       observacionesSanitarias: observacionesSanitarias.map((observacion) =>
         this.toObservacionSanitariaResponse(observacion)
+      ),
+      riego: riego ? this.toRiegoResponse(riego) : null,
+      laboresCulturales: laboresCulturales.map((labor) =>
+        this.toLaborCulturalResponse(labor)
       )
     });
   }
@@ -819,6 +843,22 @@ export class VisitasCampoService {
       pestDiseaseId: observacion.plagaEnfermedadId,
       incidenceLevelId: observacion.nivelIncidenciaId,
       observation: observacion.observation
+    };
+  }
+
+  private toRiegoResponse(riego: VisitaRiegoEntity) {
+    return {
+      id: riego.id,
+      visitaId: riego.visitaId,
+      tipoRiegoId: riego.tipoRiegoId
+    };
+  }
+
+  private toLaborCulturalResponse(labor: VisitaLaborCulturalEntity) {
+    return {
+      id: labor.id,
+      visitaId: labor.visitaId,
+      laborCulturalId: labor.laborCulturalId
     };
   }
 

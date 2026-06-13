@@ -13,7 +13,9 @@ import { ParcelaEntity } from "../../../../parcelas/infrastructure/persistence/e
 import { UserEntity } from "../../../../users/infrastructure/persistence/entities/user.entity";
 import { VariedadEntity } from "../../../../variedades/infrastructure/persistence/entities/variedad.entity";
 import { VisitaEvaluacionEntity } from "../../../../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
+import { VisitaLaborCulturalEntity } from "../../../../visita-labores-culturales/infrastructure/persistence/entities/visita-labor-cultural.entity";
 import { VisitaObservacionSanitariaEntity } from "../../../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
+import { VisitaRiegoEntity } from "../../../../visita-riegos/infrastructure/persistence/entities/visita-riego.entity";
 import { EtapaFenologicaEntity } from "./etapa-fenologica.entity";
 import { SubEtapaEntity } from "./sub-etapa.entity";
 import { VisitaPasoObservacionEntity } from "./visita-paso-observacion.entity";
@@ -294,4 +296,10 @@ export class VisitaCampoEntity {
     (stepNote) => stepNote.visita
   )
   stepNotes!: VisitaPasoObservacionEntity[];
+
+  @OneToMany(() => VisitaRiegoEntity, (riego) => riego.visita)
+  riego!: VisitaRiegoEntity[];
+
+  @OneToMany(() => VisitaLaborCulturalEntity, (labor) => labor.visita)
+  labores!: VisitaLaborCulturalEntity[];
 }

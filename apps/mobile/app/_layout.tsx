@@ -113,6 +113,18 @@ function AppNavigation() {
           }}
         />
         <Stack.Screen
+          name="visitas-campo/[id]/riego"
+          options={{
+            title: "Riego"
+          }}
+        />
+        <Stack.Screen
+          name="visitas-campo/[id]/labores-culturales"
+          options={{
+            title: "Labores culturales"
+          }}
+        />
+        <Stack.Screen
           name="visitas-campo/[id]/observaciones-sanitarias"
           options={{
             title: "Plagas y enfermedades"

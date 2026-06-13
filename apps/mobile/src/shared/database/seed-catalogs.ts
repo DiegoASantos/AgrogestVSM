@@ -1,6 +1,8 @@
 import { parcelasRemote } from "../../modules/parcelas/services/parcelas.remote";
 import { geografiasRemote } from "../../modules/geografias/services/geografias.remote";
 import { productoresRemote } from "../../modules/productores/services/productores.remote";
+import { laboresCulturalesVisitaRemote } from "../../modules/labores-culturales-visita/services/labores-culturales-visita.remote";
+import { riegosRemote } from "../../modules/riegos/services/riegos.remote";
 import { sectoresRemote } from "../../modules/sectores/services/sectores.remote";
 import { observacionesSanitariasRemote } from "../../modules/observaciones-sanitarias/services/observaciones-sanitarias.remote";
 import { visitaCampoCatalogsRemote } from "../../modules/visitas-campo/services/visita-campo-catalogs.remote";
@@ -22,6 +24,8 @@ export async function downloadAllCatalogs() {
     pestDiseases,
     incidenceLevels,
     pestDiseaseStageLevels,
+    tiposRiego,
+    laboresCulturales,
     productores,
     distritos,
     sectores,
@@ -46,6 +50,8 @@ export async function downloadAllCatalogs() {
     observacionesSanitariasRemote.getPestDiseases(),
     observacionesSanitariasRemote.getIncidenceLevels(),
     observacionesSanitariasRemote.getPestDiseaseStageLevels(),
+    riegosRemote.getTiposRiego(),
+    laboresCulturalesVisitaRemote.getLaboresCulturales(),
     productoresRemote.getAll(),
     geografiasRemote.getDistritos(),
     sectoresRemote.getAll(),
@@ -192,6 +198,32 @@ export async function downloadAllCatalogs() {
         relation.nivelIncidenciaSeveridadId,
         relation.description,
         toSqliteBoolean(relation.isActive)
+      );
+    }
+
+    for (const tipoRiego of tiposRiego) {
+      db.runSync(
+        `INSERT OR REPLACE INTO tipos_riego (id, name, description, is_active)
+         VALUES (?, ?, ?, ?)`,
+        tipoRiego.id,
+        tipoRiego.name,
+        tipoRiego.description,
+        toSqliteBoolean(tipoRiego.isActive)
+      );
+    }
+
+    for (const laborCultural of laboresCulturales) {
+      db.runSync(
+        `INSERT OR REPLACE INTO labores_culturales (
+          id,
+          name,
+          description,
+          is_active
+        ) VALUES (?, ?, ?, ?)`,
+        laborCultural.id,
+        laborCultural.name,
+        laborCultural.description,
+        toSqliteBoolean(laborCultural.isActive)
       );
     }
 

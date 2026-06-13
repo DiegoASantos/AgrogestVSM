@@ -1,8 +1,10 @@
 import type { VisitaEvaluacion } from "../../evaluaciones/types";
+import type { VisitaLaborCultural } from "../../labores-culturales-visita/types";
 import type {
   VisitaObservacionSanitaria,
   VisitaStepNote
 } from "../../observaciones-sanitarias/types";
+import type { VisitaRiego } from "../../riegos/types";
 import type { GeoJsonPointGeometry } from "../../../shared/maps/geo";
 
 export type VisitaCampo = {
@@ -50,6 +52,8 @@ export type VisitaCampoFull = {
   visita: VisitaCampo;
   evaluaciones: VisitaEvaluacion[];
   observacionesSanitarias: VisitaObservacionSanitaria[];
+  riego: VisitaRiego | null;
+  laboresCulturales: VisitaLaborCultural[];
   stepNotes: VisitaStepNote[];
 };
 

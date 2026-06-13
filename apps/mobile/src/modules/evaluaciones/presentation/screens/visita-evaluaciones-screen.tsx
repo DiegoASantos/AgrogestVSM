@@ -357,7 +357,7 @@ export function VisitaNutricionScreen() {
       }
 
       router.replace({
-        pathname: "/visitas-campo/[id]",
+        pathname: "/visitas-campo/[id]/riego",
         params: { id: visitaId }
       });
     } catch (nextError) {
