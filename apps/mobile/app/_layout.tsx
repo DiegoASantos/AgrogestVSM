@@ -113,12 +113,6 @@ function AppNavigation() {
           }}
         />
         <Stack.Screen
-          name="visitas-campo/[id]/evaluaciones"
-          options={{
-            headerShown: false
-          }}
-        />
-        <Stack.Screen
           name="visitas-campo/[id]/observaciones-sanitarias"
           options={{
             title: "Plagas y enfermedades"
