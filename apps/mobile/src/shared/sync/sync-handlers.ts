@@ -368,6 +368,18 @@ export async function handleLaborCultural(
     return { status: "deleted_local" };
   }
 
+  if (entry.operation === "update") {
+    if (!labor.serverId) {
+      return { status: "skipped" };
+    }
+
+    laboresCulturalesVisitaRepository.update(labor.id, {
+      syncStatus: "synced"
+    });
+
+    return { status: "synced", serverId: labor.serverId };
+  }
+
   const visitaPadre = visitasCampoRepository.getById(labor.visitaId);
 
   if (!visitaPadre) {
