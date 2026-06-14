@@ -21,6 +21,7 @@ type NutrientDetailRow = {
 export const nutricionRepository = {
   getNutrients(): NutrientCatalogItem[] {
     const db = getDatabase();
+    ensureNutritionTables(db);
     const rows = db.getAllSync<NutrientRow>(
       `SELECT id, cultivo_id, name, description, is_active
        FROM nutrientes
@@ -40,6 +41,7 @@ export const nutricionRepository = {
 
   getNutrientsByCrop(cropId: string): NutrientCatalogItem[] {
     const db = getDatabase();
+    ensureNutritionTables(db);
     const rows = db.getAllSync<NutrientRow>(
       `SELECT id, cultivo_id, name, description, is_active
        FROM nutrientes
@@ -60,6 +62,7 @@ export const nutricionRepository = {
 
   getDetailsByNutrientId(nutrientId: string): NutrientDetailCatalogItem[] {
     const db = getDatabase();
+    ensureNutritionTables(db);
     const rows = db.getAllSync<NutrientDetailRow>(
       `SELECT id, nutriente_id, name, description, is_active
        FROM detalle_nutrientes
@@ -79,6 +82,7 @@ export const nutricionRepository = {
 
   insertNutrients(nutrients: NutrientCatalogItem[]) {
     const db = getDatabase();
+    ensureNutritionTables(db);
     db.withTransactionSync(() => {
       for (const nutrient of nutrients) {
         db.runSync(
@@ -106,3 +110,32 @@ export const nutricionRepository = {
     });
   }
 };
+
+function ensureNutritionTables(db: ReturnType<typeof getDatabase>) {
+  db.execSync(
+    `CREATE TABLE IF NOT EXISTS nutrientes (
+      id TEXT PRIMARY KEY NOT NULL,
+      cultivo_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (cultivo_id) REFERENCES cultivos(id)
+    )`
+  );
+  db.execSync(
+    `CREATE TABLE IF NOT EXISTS detalle_nutrientes (
+      id TEXT PRIMARY KEY NOT NULL,
+      nutriente_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (nutriente_id) REFERENCES nutrientes(id)
+    )`
+  );
+  db.execSync(
+    "CREATE INDEX IF NOT EXISTS idx_nutrientes_cultivo ON nutrientes(cultivo_id)"
+  );
+  db.execSync(
+    "CREATE INDEX IF NOT EXISTS idx_detalle_nutrientes_nutriente ON detalle_nutrientes(nutriente_id)"
+  );
+}

@@ -281,6 +281,30 @@ const MIGRATIONS: Migration[] = [
       )`,
       "CREATE INDEX IF NOT EXISTS idx_visita_obs_sanitaria_organos_observacion ON visita_observacion_sanitaria_organos(visita_observacion_sanitaria_local_id)"
     ]
+  },
+  {
+    version: 20,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS nutrientes (
+        id TEXT PRIMARY KEY NOT NULL,
+        cultivo_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY (cultivo_id) REFERENCES cultivos(id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS detalle_nutrientes (
+        id TEXT PRIMARY KEY NOT NULL,
+        nutriente_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY (nutriente_id) REFERENCES nutrientes(id)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_nutrientes_cultivo ON nutrientes(cultivo_id)",
+      "CREATE INDEX IF NOT EXISTS idx_detalle_nutrientes_nutriente ON detalle_nutrientes(nutriente_id)",
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    ]
   }
 ];
 
