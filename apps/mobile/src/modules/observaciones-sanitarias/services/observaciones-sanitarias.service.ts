@@ -1,16 +1,19 @@
 import { observacionesSanitariasRepository } from "../repositories/observaciones-sanitarias.repository";
 import { visitaStepNotesRepository } from "../repositories/visita-step-notes.repository";
+import type { OrganoAfectado } from "../types";
 
 type CreateObservacionSanitariaInput = {
   pestDiseaseId: string;
   incidenceLevelId?: string | null;
   observation?: string;
+  organosAfectados: OrganoAfectado[];
 };
 
 type UpdateObservacionSanitariaInput = {
   pestDiseaseId?: string;
   incidenceLevelId?: string | null;
   observation?: string | null;
+  organosAfectados?: OrganoAfectado[];
 };
 
 export const observacionesSanitariasService = {

@@ -40,6 +40,7 @@ import { visitasCampoService } from "../../../visitas-campo/services";
 import { observacionesSanitariasService } from "../../services";
 import type {
   IncidenceLevelCatalogItem,
+  OrganoAfectado,
   PestDiseaseByStageItem,
   VisitaObservacionSanitaria
 } from "../../types";
@@ -88,6 +89,7 @@ const PEST_DISEASE_IMAGES: Array<{
 type SanitarySelection = {
   incidenceLevelId: string | null;
   severityLevelId: string | null;
+  organosAfectados: OrganoAfectado[];
 };
 
 type StepNoteState = {
@@ -104,6 +106,17 @@ const WIZARD_STEPS = [
   { index: 4, title: "Riego" },
   { index: 5, title: "Labores" }
 ] as const;
+
+const ORGANO_OPTIONS: Array<{
+  value: OrganoAfectado;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}> = [
+  { value: "hoja", label: "Hoja", icon: "leaf-outline" },
+  { value: "tallo", label: "Tallo", icon: "git-branch-outline" },
+  { value: "flores", label: "Flores", icon: "flower-outline" },
+  { value: "fruto", label: "Fruto", icon: "nutrition-outline" }
+];
 
 export function VisitaObservacionesSanitariasScreen() {
   const router = useRouter();
@@ -234,6 +247,7 @@ export function VisitaObservacionesSanitariasScreen() {
               onHelpPress={setHelpItem}
               onImagePress={setImagePreview}
               onSelectLevel={handleSelectLevel}
+              onToggleOrgano={handleToggleOrgano}
               selections={selections}
               title="PLAGAS"
             />
@@ -248,6 +262,7 @@ export function VisitaObservacionesSanitariasScreen() {
               onHelpPress={setHelpItem}
               onImagePress={setImagePreview}
               onSelectLevel={handleSelectLevel}
+              onToggleOrgano={handleToggleOrgano}
               selections={selections}
               title="ENFERMEDADES"
             />
@@ -436,7 +451,8 @@ export function VisitaObservacionesSanitariasScreen() {
     setSelections((currentSelections) => {
       const currentSelection = currentSelections[pestDiseaseId] ?? {
         incidenceLevelId: null,
-        severityLevelId: null
+        severityLevelId: null,
+        organosAfectados: []
       };
       const nextSelection =
         type === "incidencia"
@@ -454,6 +470,32 @@ export function VisitaObservacionesSanitariasScreen() {
       return {
         ...currentSelections,
         [pestDiseaseId]: nextSelection
+      };
+    });
+  }
+
+  function handleToggleOrgano(pestDiseaseId: string, organo: OrganoAfectado) {
+    setSubmitError(null);
+    setSelections((currentSelections) => {
+      const currentSelection = currentSelections[pestDiseaseId] ?? {
+        incidenceLevelId: null,
+        severityLevelId: null,
+        organosAfectados: []
+      };
+      const selectedOrganos = new Set(currentSelection.organosAfectados);
+
+      if (selectedOrganos.has(organo)) {
+        selectedOrganos.delete(organo);
+      } else {
+        selectedOrganos.add(organo);
+      }
+
+      return {
+        ...currentSelections,
+        [pestDiseaseId]: {
+          ...currentSelection,
+          organosAfectados: Array.from(selectedOrganos)
+        }
       };
     });
   }
@@ -480,7 +522,11 @@ export function VisitaObservacionesSanitariasScreen() {
 
     try {
       const selectedEntries = Object.entries(selections).filter(([, selection]) =>
-        Boolean(selection.incidenceLevelId || selection.severityLevelId)
+        Boolean(
+          selection.incidenceLevelId ||
+            selection.severityLevelId ||
+            selection.organosAfectados.length > 0
+        )
       );
 
       for (const [pestDiseaseId, selection] of selectedEntries) {
@@ -490,7 +536,8 @@ export function VisitaObservacionesSanitariasScreen() {
         const payload = {
           pestDiseaseId,
           incidenceLevelId: selection.incidenceLevelId,
-          severityLevelId: selection.severityLevelId
+          severityLevelId: selection.severityLevelId,
+          organosAfectados: selection.organosAfectados
         };
 
         if (existingObservacion) {
@@ -539,6 +586,7 @@ type SanitarySectionProps = {
     type: IncidenceLevelCatalogItem["type"],
     levelId: string
   ) => void;
+  onToggleOrgano: (pestDiseaseId: string, organo: OrganoAfectado) => void;
   selections: Record<string, SanitarySelection>;
   title: string;
 };
@@ -551,6 +599,7 @@ function SanitarySection({
   onHelpPress,
   onImagePress,
   onSelectLevel,
+  onToggleOrgano,
   selections,
   title
 }: SanitarySectionProps) {
@@ -566,7 +615,7 @@ function SanitarySection({
           </AppText>
         </View>
         <AppText style={styles.groupSubtitle} variant="caption">
-          Selecciona la incidencia y severidad para cada registro.
+          Selecciona incidencia, severidad y organos afectados.
         </AppText>
       </View>
 
@@ -579,6 +628,7 @@ function SanitarySection({
           onHelpPress={onHelpPress}
           onImagePress={onImagePress}
           onSelectLevel={onSelectLevel}
+          onToggleOrgano={onToggleOrgano}
           selection={selections[item.id]}
         />
       ))}
@@ -597,6 +647,7 @@ type SanitaryCardProps = {
     type: IncidenceLevelCatalogItem["type"],
     levelId: string
   ) => void;
+  onToggleOrgano: (pestDiseaseId: string, organo: OrganoAfectado) => void;
   selection?: SanitarySelection;
 };
 
@@ -607,6 +658,7 @@ function SanitaryCard({
   onHelpPress,
   onImagePress,
   onSelectLevel,
+  onToggleOrgano,
   selection
 }: SanitaryCardProps) {
   const incidenceOptions = getLevelOptionsForItem(
@@ -677,6 +729,62 @@ function SanitaryCard({
             selectedLevelId={selection?.severityLevelId ?? null}
           />
         ) : null}
+
+        <OrganoSelector
+          onToggle={(organo) => onToggleOrgano(item.id, organo)}
+          selectedOrganos={selection?.organosAfectados ?? []}
+        />
+      </View>
+    </View>
+  );
+}
+
+function OrganoSelector({
+  onToggle,
+  selectedOrganos
+}: {
+  onToggle: (organo: OrganoAfectado) => void;
+  selectedOrganos: OrganoAfectado[];
+}) {
+  return (
+    <View style={styles.organosBlock}>
+      <AppText style={styles.organosLabel} variant="caption">
+        Organos afectados
+      </AppText>
+      <View style={styles.organosGrid}>
+        {ORGANO_OPTIONS.map((option) => {
+          const selected = selectedOrganos.includes(option.value);
+
+          return (
+            <Pressable
+              accessibilityLabel={`Organo afectado ${option.label}`}
+              accessibilityRole="button"
+              key={option.value}
+              onPress={() => onToggle(option.value)}
+              style={[
+                styles.organoChip,
+                selected ? styles.organoChipSelected : styles.organoChipInactive
+              ]}
+            >
+              <Ionicons
+                color={selected ? theme.colors.textInverse : theme.colors.primaryDark}
+                name={option.icon}
+                size={16}
+              />
+              <AppText
+                style={[
+                  styles.organoChipText,
+                  selected
+                    ? styles.organoChipTextSelected
+                    : styles.organoChipTextInactive
+                ]}
+                variant="caption"
+              >
+                {option.label}
+              </AppText>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -1031,7 +1139,11 @@ function validateSelections(
   for (const pestDisease of pestDiseases) {
     const selection = selections[pestDisease.id];
 
-    if (!selection?.incidenceLevelId && !selection?.severityLevelId) {
+    if (
+      !selection?.incidenceLevelId &&
+      !selection?.severityLevelId &&
+      !selection?.organosAfectados.length
+    ) {
       continue;
     }
 
@@ -1053,6 +1165,10 @@ function validateSelections(
     if (severityOptions.length > 0 && !selection.severityLevelId) {
       return `Selecciona severidad para ${pestDisease.name}.`;
     }
+
+    if (selection.organosAfectados.length === 0) {
+      return `Selecciona al menos un organo afectado para ${pestDisease.name}.`;
+    }
   }
 
   return null;
@@ -1062,10 +1178,11 @@ function buildSelectionMap(observaciones: VisitaObservacionSanitaria[]) {
   return Object.fromEntries(
     observaciones.map((observacion) => [
       observacion.pestDiseaseId,
-      {
-        incidenceLevelId: observacion.incidenceLevelId,
-        severityLevelId: observacion.severityLevelId
-      }
+       {
+         incidenceLevelId: observacion.incidenceLevelId,
+         severityLevelId: observacion.severityLevelId,
+         organosAfectados: observacion.organosAfectados
+       }
     ])
   );
 }
@@ -1449,6 +1566,47 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     minHeight: 92,
     padding: 12
+  },
+  organosBlock: {
+    gap: 7,
+    paddingTop: 2
+  },
+  organosGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7
+  },
+  organosLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 12
+  },
+  organoChip: {
+    alignItems: "center",
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    minHeight: 34,
+    paddingHorizontal: 10,
+    paddingVertical: 7
+  },
+  organoChipInactive: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border
+  },
+  organoChipSelected: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary
+  },
+  organoChipText: {
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  organoChipTextInactive: {
+    color: theme.colors.primaryDark
+  },
+  organoChipTextSelected: {
+    color: theme.colors.textInverse
   },
   pestName: {
     color: theme.colors.text,

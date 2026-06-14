@@ -267,6 +267,20 @@ const MIGRATIONS: Migration[] = [
       "CREATE INDEX IF NOT EXISTS idx_visita_labores_culturales_visita ON visita_labores_culturales(visita_local_id)",
       "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
     ]
+  },
+  {
+    version: 19,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS visita_observacion_sanitaria_organos (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        visita_observacion_sanitaria_local_id TEXT NOT NULL,
+        organo TEXT NOT NULL CHECK(organo IN ('hoja', 'tallo', 'flores', 'fruto')),
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (visita_observacion_sanitaria_local_id) REFERENCES visita_observaciones_sanitarias(local_id) ON DELETE CASCADE,
+        UNIQUE (visita_observacion_sanitaria_local_id, organo)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_visita_obs_sanitaria_organos_observacion ON visita_observacion_sanitaria_organos(visita_observacion_sanitaria_local_id)"
+    ]
   }
 ];
 

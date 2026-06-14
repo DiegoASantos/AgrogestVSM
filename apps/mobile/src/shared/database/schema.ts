@@ -203,6 +203,14 @@ export const SQL_SCHEMA = [
     FOREIGN KEY (incidence_level_id) REFERENCES incidence_levels(id),
     FOREIGN KEY (severity_level_id) REFERENCES incidence_levels(id)
   )`,
+  `CREATE TABLE IF NOT EXISTS visita_observacion_sanitaria_organos (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    visita_observacion_sanitaria_local_id TEXT NOT NULL,
+    organo TEXT NOT NULL CHECK(organo IN ('hoja', 'tallo', 'flores', 'fruto')),
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (visita_observacion_sanitaria_local_id) REFERENCES visita_observaciones_sanitarias(local_id) ON DELETE CASCADE,
+    UNIQUE (visita_observacion_sanitaria_local_id, organo)
+  )`,
   `CREATE TABLE IF NOT EXISTS visita_paso_observaciones (
     local_id TEXT PRIMARY KEY NOT NULL,
     server_id TEXT,

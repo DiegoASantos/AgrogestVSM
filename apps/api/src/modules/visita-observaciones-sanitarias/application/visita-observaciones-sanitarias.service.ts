@@ -15,6 +15,8 @@ import { NivelIncidenciaEntity } from "../infrastructure/persistence/entities/ni
 import { PlagaEnfermedadEtapaNivelEntity } from "../infrastructure/persistence/entities/plaga-enfermedad-etapa-nivel.entity";
 import { PlagaEnfermedadEntity } from "../infrastructure/persistence/entities/plaga-enfermedad.entity";
 import { VisitaObservacionSanitariaEntity } from "../infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
+import { VisitaObservacionSanitariaOrganoEntity } from "../infrastructure/persistence/entities/visita-observacion-sanitaria-organo.entity";
+import type { OrganoAfectado } from "../domain/organo-afectado";
 
 @Injectable()
 export class VisitaObservacionesSanitariasService {
@@ -28,7 +30,9 @@ export class VisitaObservacionesSanitariasService {
     @InjectRepository(NivelIncidenciaEntity)
     private readonly nivelesIncidenciaRepository: Repository<NivelIncidenciaEntity>,
     @InjectRepository(PlagaEnfermedadEtapaNivelEntity)
-    private readonly plagasEnfermedadesEtapasNivelesRepository: Repository<PlagaEnfermedadEtapaNivelEntity>
+    private readonly plagasEnfermedadesEtapasNivelesRepository: Repository<PlagaEnfermedadEtapaNivelEntity>,
+    @InjectRepository(VisitaObservacionSanitariaOrganoEntity)
+    private readonly observacionOrganosRepository: Repository<VisitaObservacionSanitariaOrganoEntity>
   ) {}
 
   async create(
@@ -55,8 +59,13 @@ export class VisitaObservacionesSanitariasService {
 
     try {
       const savedObservacion = await this.observacionesRepository.save(observacion);
+      await this.replaceOrganosAfectados(
+        savedObservacion.id,
+        createDto.organosAfectados
+      );
+      const savedWithOrganos = await this.findEntityById(savedObservacion.id);
 
-      return createSuccessResponse(this.toResponse(savedObservacion));
+      return createSuccessResponse(this.toResponse(savedWithOrganos));
     } catch (error) {
       this.handlePersistenceError(error);
     }
@@ -68,6 +77,9 @@ export class VisitaObservacionesSanitariasService {
     const observaciones = await this.observacionesRepository.find({
       where: {
         visitaId
+      },
+      relations: {
+        organosAfectados: true
       },
       order: {
         id: "ASC"
@@ -147,7 +159,16 @@ export class VisitaObservacionesSanitariasService {
       const savedObservacion =
         await this.observacionesRepository.save(updatedObservacion);
 
-      return createSuccessResponse(this.toResponse(savedObservacion));
+      if (updateDto.organosAfectados !== undefined) {
+        await this.replaceOrganosAfectados(
+          savedObservacion.id,
+          updateDto.organosAfectados
+        );
+      }
+
+      const savedWithOrganos = await this.findEntityById(savedObservacion.id);
+
+      return createSuccessResponse(this.toResponse(savedWithOrganos));
     } catch (error) {
       this.handlePersistenceError(error);
     }
@@ -164,7 +185,10 @@ export class VisitaObservacionesSanitariasService {
 
   private async findEntityById(id: string) {
     const observacion = await this.observacionesRepository.findOne({
-      where: { id }
+      where: { id },
+      relations: {
+        organosAfectados: true
+      }
     });
 
     if (!observacion) {
@@ -296,6 +320,30 @@ export class VisitaObservacionesSanitariasService {
     }
   }
 
+  private async replaceOrganosAfectados(
+    observacionId: string,
+    organosAfectados: string[]
+  ) {
+    const uniqueOrganos = [...new Set(organosAfectados)] as OrganoAfectado[];
+
+    await this.observacionOrganosRepository.delete({
+      visitaObservacionSanitariaId: observacionId
+    });
+
+    if (uniqueOrganos.length === 0) {
+      return;
+    }
+
+    await this.observacionOrganosRepository.save(
+      uniqueOrganos.map((organo) =>
+        this.observacionOrganosRepository.create({
+          visitaObservacionSanitariaId: observacionId,
+          organo
+        })
+      )
+    );
+  }
+
   private handlePersistenceError(error: unknown): never {
     if (error instanceof QueryFailedError) {
       const databaseError = error.driverError as
@@ -341,7 +389,10 @@ export class VisitaObservacionesSanitariasService {
       pestDiseaseId: observacion.plagaEnfermedadId,
       incidenceLevelId: observacion.nivelIncidenciaId,
       severityLevelId: observacion.nivelSeveridadId,
-      observation: observacion.observation
+      observation: observacion.observation,
+      organosAfectados: (observacion.organosAfectados ?? [])
+        .map((organo) => organo.organo)
+        .sort()
     };
   }
 }

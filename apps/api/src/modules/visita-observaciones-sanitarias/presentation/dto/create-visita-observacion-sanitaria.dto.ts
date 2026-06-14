@@ -1,6 +1,10 @@
 import { Transform } from "class-transformer";
 import {
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsInt,
+  IsIn,
   IsOptional,
   IsString,
   Matches,
@@ -8,6 +12,7 @@ import {
   Min
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ORGANOS_AFECTADOS } from "../../domain/organo-afectado";
 
 export class CreateVisitaObservacionSanitariaDto {
   @ApiProperty({
@@ -52,6 +57,19 @@ export class CreateVisitaObservacionSanitariaDto {
   @IsString()
   @MaxLength(5000)
   observation?: string | null;
+
+  @ApiProperty({
+    example: ["hoja", "fruto"],
+    description: "Organos de la planta afectados por la plaga o enfermedad.",
+    enum: ORGANOS_AFECTADOS,
+    isArray: true
+  })
+  @Transform(({ value }) => normalizeOrganosAfectados(value))
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayUnique()
+  @IsIn(ORGANOS_AFECTADOS, { each: true })
+  organosAfectados!: string[];
 }
 
 function trimRequiredString(value: unknown): string {
@@ -84,4 +102,12 @@ function parseOptionalInteger(value: unknown): number | null | undefined | unkno
   const parsedValue = Number(value);
 
   return Number.isInteger(parsedValue) ? parsedValue : value;
+}
+
+function normalizeOrganosAfectados(value: unknown): unknown {
+  if (!Array.isArray(value)) {
+    return value;
+  }
+
+  return value.map((item) => String(item ?? "").trim().toLowerCase());
 }

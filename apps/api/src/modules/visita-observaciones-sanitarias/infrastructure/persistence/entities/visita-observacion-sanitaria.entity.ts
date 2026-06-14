@@ -3,12 +3,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn
 } from "typeorm";
 
 import { VisitaCampoEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 import { NivelIncidenciaEntity } from "./nivel-incidencia.entity";
 import { PlagaEnfermedadEntity } from "./plaga-enfermedad.entity";
+import { VisitaObservacionSanitariaOrganoEntity } from "./visita-observacion-sanitaria-organo.entity";
 
 @Entity({ name: "visita_observaciones_sanitarias" })
 export class VisitaObservacionSanitariaEntity {
@@ -108,4 +110,13 @@ export class VisitaObservacionSanitariaEntity {
     referencedColumnName: "id"
   })
   nivelSeveridad!: NivelIncidenciaEntity | null;
+
+  @OneToMany(
+    () => VisitaObservacionSanitariaOrganoEntity,
+    (organo) => organo.observacionSanitaria,
+    {
+      cascade: true
+    }
+  )
+  organosAfectados!: VisitaObservacionSanitariaOrganoEntity[];
 }

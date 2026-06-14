@@ -184,6 +184,9 @@ export class VisitasCampoService {
           where: {
             visitaId: id
           },
+          relations: {
+            organosAfectados: true
+          },
           order: {
             id: "ASC"
           }
@@ -842,7 +845,11 @@ export class VisitasCampoService {
       visitaId: observacion.visitaId,
       pestDiseaseId: observacion.plagaEnfermedadId,
       incidenceLevelId: observacion.nivelIncidenciaId,
-      observation: observacion.observation
+      severityLevelId: observacion.nivelSeveridadId,
+      observation: observacion.observation,
+      organosAfectados: (observacion.organosAfectados ?? [])
+        .map((organo) => organo.organo)
+        .sort()
     };
   }
 

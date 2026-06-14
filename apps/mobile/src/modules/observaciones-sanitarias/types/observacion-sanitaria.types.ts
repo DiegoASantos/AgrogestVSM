@@ -1,3 +1,7 @@
+export const ORGANOS_AFECTADOS = ["hoja", "tallo", "flores", "fruto"] as const;
+
+export type OrganoAfectado = (typeof ORGANOS_AFECTADOS)[number];
+
 export type PestDiseaseCatalogItem = {
   id: string;
   scientificName: string | null;
@@ -35,6 +39,7 @@ export type VisitaObservacionSanitaria = {
   incidenceLevelId: string | null;
   severityLevelId: string | null;
   observation: string | null;
+  organosAfectados: OrganoAfectado[];
   createdAt: string;
   updatedAt: string;
 };

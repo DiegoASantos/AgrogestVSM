@@ -1,6 +1,7 @@
 import { apiRequest } from "../../../shared/services";
 import type {
   IncidenceLevelCatalogItem,
+  OrganoAfectado,
   PestDiseaseStageLevelCatalogItem,
   PestDiseaseCatalogItem,
   VisitaObservacionSanitaria,
@@ -12,6 +13,7 @@ type CreateObservacionSanitariaInput = {
   incidenceLevelId?: number | null;
   severityLevelId?: number | null;
   observation?: string;
+  organosAfectados: OrganoAfectado[];
 };
 
 type UpdateObservacionSanitariaInput = {
@@ -19,6 +21,7 @@ type UpdateObservacionSanitariaInput = {
   incidenceLevelId?: number | null;
   severityLevelId?: number | null;
   observation?: string | null;
+  organosAfectados?: OrganoAfectado[];
 };
 
 type UpsertStepNoteInput = {

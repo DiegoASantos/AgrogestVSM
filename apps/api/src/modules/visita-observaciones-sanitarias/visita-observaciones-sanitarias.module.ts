@@ -9,6 +9,7 @@ import { NivelIncidenciaEntity } from "./infrastructure/persistence/entities/niv
 import { PlagaEnfermedadEtapaNivelEntity } from "./infrastructure/persistence/entities/plaga-enfermedad-etapa-nivel.entity";
 import { PlagaEnfermedadEntity } from "./infrastructure/persistence/entities/plaga-enfermedad.entity";
 import { VisitaObservacionSanitariaEntity } from "./infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
+import { VisitaObservacionSanitariaOrganoEntity } from "./infrastructure/persistence/entities/visita-observacion-sanitaria-organo.entity";
 import { NivelesIncidenciaController } from "./presentation/niveles-incidencia.controller";
 import { PlagasEnfermedadesEtapasNivelesController } from "./presentation/plagas-enfermedades-etapas-niveles.controller";
 import { PlagasEnfermedadesController } from "./presentation/plagas-enfermedades.controller";
@@ -20,6 +21,7 @@ import { VisitaObservacionesSanitariasController } from "./presentation/visita-o
     TypeOrmModule.forFeature([
       VisitaCampoEntity,
       VisitaObservacionSanitariaEntity,
+      VisitaObservacionSanitariaOrganoEntity,
       PlagaEnfermedadEntity,
       PlagaEnfermedadEtapaNivelEntity,
       NivelIncidenciaEntity,

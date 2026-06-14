@@ -340,6 +340,7 @@ function renderSanitaryObservations(
     incidenceLevelId: string | null;
     severityLevelId: string | null;
     observation: string | null;
+    organosAfectados: string[];
   }>,
   pestDiseases: Array<{ id: string; name: string; type: string }>,
   incidenceLevels: Array<{ id: string; name: string }>
@@ -361,7 +362,16 @@ function renderSanitaryObservations(
       return `<li>
         <span class="item-title">${escapeHtml(pestDisease?.name ?? observation.pestDiseaseId)}</span>
         <span class="muted">${escapeHtml(
-          [pestDisease?.type, incidence ? `Incidencia: ${incidence}` : null, severity ? `Severidad: ${severity}` : null]
+          [
+            pestDisease?.type,
+            incidence ? `Incidencia: ${incidence}` : null,
+            severity ? `Severidad: ${severity}` : null,
+            observation.organosAfectados.length > 0
+              ? `Organos: ${observation.organosAfectados
+                  .map(formatOrganoLabel)
+                  .join(", ")}`
+              : "Organos: No registrados"
+          ]
             .filter(Boolean)
             .join(" | ") || "Sin nivel registrado"
         )}</span>
@@ -459,6 +469,21 @@ function formatTimeRange(start: string | null, end: string | null) {
   }
 
   return `${start} - ${end}`;
+}
+
+function formatOrganoLabel(value: string) {
+  switch (value) {
+    case "hoja":
+      return "Hoja";
+    case "tallo":
+      return "Tallo";
+    case "flores":
+      return "Flores";
+    case "fruto":
+      return "Fruto";
+    default:
+      return value;
+  }
 }
 
 function escapeHtml(value: string) {

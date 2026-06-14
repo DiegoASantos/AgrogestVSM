@@ -519,7 +519,8 @@ function buildObservacionCreateBody(
     severityLevelId: observacion.severityLevelId
       ? Number(observacion.severityLevelId)
       : null,
-    observation: observacion.observation ?? undefined
+    observation: observacion.observation ?? undefined,
+    organosAfectados: observacion.organosAfectados
   };
 }
 
@@ -534,7 +535,8 @@ function buildObservacionUpdateBody(
     severityLevelId: observacion.severityLevelId
       ? Number(observacion.severityLevelId)
       : null,
-    observation: observacion.observation ?? null
+    observation: observacion.observation ?? null,
+    organosAfectados: observacion.organosAfectados
   };
 }
 

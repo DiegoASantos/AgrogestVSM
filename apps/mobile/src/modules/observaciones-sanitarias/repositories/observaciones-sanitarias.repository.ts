@@ -10,6 +10,7 @@ import type {
   PestDiseaseByStageItem,
   PestDiseaseCatalogItem,
   PestDiseaseStageLevelCatalogItem,
+  OrganoAfectado,
   VisitaObservacionSanitaria
 } from "../types";
 
@@ -26,6 +27,13 @@ type ObservacionRow = {
   sync_status: SyncStatus;
   created_at: string;
   updated_at: string;
+};
+
+type ObservacionOrganoRow = {
+  local_id: string;
+  visita_observacion_sanitaria_local_id: string;
+  organo: OrganoAfectado;
+  created_at: string;
 };
 
 type PestDiseaseRow = {
@@ -57,6 +65,7 @@ type CreateObservacionInput = {
   incidenceLevelId?: string | null;
   severityLevelId?: string | null;
   observation?: string;
+  organosAfectados: OrganoAfectado[];
 };
 
 type UpdateObservacionInput = {
@@ -64,6 +73,7 @@ type UpdateObservacionInput = {
   incidenceLevelId?: string | null;
   severityLevelId?: string | null;
   observation?: string | null;
+  organosAfectados?: OrganoAfectado[];
   serverId?: string | null;
   syncStatus?: SyncStatus;
 };
@@ -90,7 +100,7 @@ export const observacionesSanitariasRepository = {
        ORDER BY created_at DESC`
     );
 
-    return rows.map(mapObservacionRow);
+    return rows.map((row) => mapObservacionRow(row, getOrganosByObservacionId(row.local_id)));
   },
 
   getById(localId: string) {
@@ -103,7 +113,7 @@ export const observacionesSanitariasRepository = {
       localId
     );
 
-    return row ? mapObservacionRow(row) : null;
+    return row ? mapObservacionRow(row, getOrganosByObservacionId(row.local_id)) : null;
   },
 
   getByVisitaLocalId(visitaLocalId: string) {
@@ -116,7 +126,7 @@ export const observacionesSanitariasRepository = {
       visitaLocalId
     );
 
-    return rows.map(mapObservacionRow);
+    return rows.map((row) => mapObservacionRow(row, getOrganosByObservacionId(row.local_id)));
   },
 
   insert(input: CreateObservacionInput, visitaLocalId: string) {
@@ -155,6 +165,7 @@ export const observacionesSanitariasRepository = {
         operation: "create",
         createdAt: timestamp
       });
+      replaceOrganosByObservacionId(db, localId, input.organosAfectados, timestamp);
     });
 
     const observacion = this.getById(localId);
@@ -221,6 +232,15 @@ export const observacionesSanitariasRepository = {
       const isSyncUpdate =
         data.syncStatus !== undefined || data.serverId !== undefined;
 
+      if (data.organosAfectados !== undefined) {
+        replaceOrganosByObservacionId(
+          db,
+          localId,
+          data.organosAfectados,
+          timestamp
+        );
+      }
+
       if (!isSyncUpdate) {
         db.runSync(
           `UPDATE visita_observaciones_sanitarias SET sync_status = 'pending' WHERE local_id = ?`,
@@ -259,6 +279,12 @@ export const observacionesSanitariasRepository = {
         payload,
         createdAt: getNowIsoString()
       });
+
+      db.runSync(
+        `DELETE FROM visita_observacion_sanitaria_organos
+         WHERE visita_observacion_sanitaria_local_id = ?`,
+        localId
+      );
 
       const result = db.runSync(
         `DELETE FROM visita_observaciones_sanitarias
@@ -366,7 +392,54 @@ export const observacionesSanitariasRepository = {
   }
 };
 
-function mapObservacionRow(row: ObservacionRow): VisitaObservacionSanitaria {
+function getOrganosByObservacionId(localId: string) {
+  const db = getDatabase();
+  const rows = db.getAllSync<ObservacionOrganoRow>(
+    `SELECT local_id,
+            visita_observacion_sanitaria_local_id,
+            organo,
+            created_at
+     FROM visita_observacion_sanitaria_organos
+     WHERE visita_observacion_sanitaria_local_id = ?
+     ORDER BY created_at ASC, organo ASC`,
+    localId
+  );
+
+  return rows.map((row) => row.organo);
+}
+
+function replaceOrganosByObservacionId(
+  db: ReturnType<typeof getDatabase>,
+  observacionLocalId: string,
+  organosAfectados: OrganoAfectado[],
+  timestamp: string
+) {
+  db.runSync(
+    `DELETE FROM visita_observacion_sanitaria_organos
+     WHERE visita_observacion_sanitaria_local_id = ?`,
+    observacionLocalId
+  );
+
+  for (const organo of [...new Set(organosAfectados)]) {
+    db.runSync(
+      `INSERT INTO visita_observacion_sanitaria_organos (
+        local_id,
+        visita_observacion_sanitaria_local_id,
+        organo,
+        created_at
+      ) VALUES (?, ?, ?, ?)`,
+      generateLocalId(),
+      observacionLocalId,
+      organo,
+      timestamp
+    );
+  }
+}
+
+function mapObservacionRow(
+  row: ObservacionRow,
+  organosAfectados: OrganoAfectado[]
+): VisitaObservacionSanitaria {
   return {
     id: row.local_id,
     serverId: row.server_id,
@@ -376,6 +449,7 @@ function mapObservacionRow(row: ObservacionRow): VisitaObservacionSanitaria {
     incidenceLevelId: row.incidence_level_id,
     severityLevelId: row.severity_level_id,
     observation: row.observation,
+    organosAfectados,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

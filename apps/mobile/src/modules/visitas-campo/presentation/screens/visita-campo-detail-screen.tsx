@@ -298,8 +298,8 @@ export function VisitaCampoDetailScreen() {
                       observacion.pestDiseaseId,
                       catalogs.pestDiseases
                     )}
-                    subtitle={getIncidenceLevelLabel(
-                      observacion.incidenceLevelId,
+                    subtitle={formatSanitaryObservationSubtitle(
+                      observacion,
                       catalogs.incidenceLevels
                     )}
                     title={observacion.observation || "Sin observacion detallada"}
@@ -551,6 +551,46 @@ function getIncidenceLevelLabel(
   return (
     incidenceLevels.find((incidenceLevel) => incidenceLevel.id === id)?.name || `ID ${id}`
   );
+}
+
+function formatSanitaryObservationSubtitle(
+  observacion: VisitaCampoFull["observacionesSanitarias"][number],
+  incidenceLevels: IncidenceLevelCatalogItem[]
+) {
+  const levels = [
+    `Incidencia: ${getIncidenceLevelLabel(
+      observacion.incidenceLevelId,
+      incidenceLevels
+    )}`,
+    observacion.severityLevelId
+      ? `Severidad: ${getIncidenceLevelLabel(
+          observacion.severityLevelId,
+          incidenceLevels
+        )}`
+      : null,
+    observacion.organosAfectados.length > 0
+      ? `Organos: ${observacion.organosAfectados
+          .map(formatOrganoLabel)
+          .join(", ")}`
+      : "Organos: No registrados"
+  ];
+
+  return levels.filter(Boolean).join(" | ");
+}
+
+function formatOrganoLabel(value: string) {
+  switch (value) {
+    case "hoja":
+      return "Hoja";
+    case "tallo":
+      return "Tallo";
+    case "flores":
+      return "Flores";
+    case "fruto":
+      return "Fruto";
+    default:
+      return value;
+  }
 }
 
 function formatSyncSummary(summary: VisitaSyncSummary) {
