@@ -4,6 +4,8 @@ import { productoresRemote } from "../../modules/productores/services/productore
 import { laboresCulturalesVisitaRemote } from "../../modules/labores-culturales-visita/services/labores-culturales-visita.remote";
 import { riegosRemote } from "../../modules/riegos/services/riegos.remote";
 import { sectoresRemote } from "../../modules/sectores/services/sectores.remote";
+import { nutricionRemote } from "../../modules/nutricion/services/nutricion.remote";
+import { nutricionRepository } from "../../modules/nutricion/repositories";
 import { observacionesSanitariasRemote } from "../../modules/observaciones-sanitarias/services/observaciones-sanitarias.remote";
 import { visitaCampoCatalogsRemote } from "../../modules/visitas-campo/services/visita-campo-catalogs.remote";
 import { getCatalogsDownloadedAt } from "./catalog-status";
@@ -24,6 +26,7 @@ export async function downloadAllCatalogs() {
     pestDiseases,
     incidenceLevels,
     pestDiseaseStageLevels,
+    nutrientsByCrop,
     tiposRiego,
     laboresCulturales,
     productores,
@@ -50,6 +53,11 @@ export async function downloadAllCatalogs() {
     observacionesSanitariasRemote.getPestDiseases(),
     observacionesSanitariasRemote.getIncidenceLevels(),
     observacionesSanitariasRemote.getPestDiseaseStageLevels(),
+    Promise.all(
+      cultivos.map((cultivo) =>
+        nutricionRemote.getNutrientsByCrop(cultivo.id)
+      )
+    ),
     riegosRemote.getTiposRiego(),
     laboresCulturalesVisitaRemote.getLaboresCulturales(),
     productoresRemote.getAll(),
@@ -200,6 +208,9 @@ export async function downloadAllCatalogs() {
         toSqliteBoolean(relation.isActive)
       );
     }
+
+    const nutrients = nutrientsByCrop.flat();
+    nutricionRepository.insertNutrients(nutrients);
 
     for (const tipoRiego of tiposRiego) {
       db.runSync(

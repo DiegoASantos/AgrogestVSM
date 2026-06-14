@@ -68,6 +68,22 @@ export const SQL_SCHEMA = [
     sort_order INTEGER NOT NULL,
     type TEXT NOT NULL DEFAULT 'incidencia'
   )`,
+  `CREATE TABLE IF NOT EXISTS nutrientes (
+    id TEXT PRIMARY KEY NOT NULL,
+    cultivo_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (cultivo_id) REFERENCES cultivos(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS detalle_nutrientes (
+    id TEXT PRIMARY KEY NOT NULL,
+    nutriente_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (nutriente_id) REFERENCES nutrientes(id)
+  )`,
   `CREATE TABLE IF NOT EXISTS tipos_riego (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,

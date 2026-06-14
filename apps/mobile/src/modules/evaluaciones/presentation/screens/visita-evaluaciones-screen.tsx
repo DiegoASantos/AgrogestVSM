@@ -34,7 +34,7 @@ import {
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
-import { nutricionRemote } from "../../../nutricion/services";
+import { nutricionService } from "../../../nutricion/services";
 import type {
   NutrientCatalogItem,
   NutrientDetailCatalogItem
@@ -102,9 +102,6 @@ export function VisitaNutricionScreen() {
   const [nutrients, setNutrients] = useState<NutrientCatalogItem[]>([]);
   const [evaluaciones, setEvaluaciones] = useState<VisitaEvaluacion[]>([]);
   const [selections, setSelections] = useState<Record<string, string | null>>({});
-  const [helpNutrient, setHelpNutrient] = useState<NutrientCatalogItem | null>(
-    null
-  );
   const [imagePreview, setImagePreview] = useState<NutrientCatalogItem | null>(
     null
   );
@@ -197,7 +194,6 @@ export function VisitaNutricionScreen() {
             <NutrientSection
               isCompactLayout={isCompactLayout}
               nutrients={nutrients}
-              onHelpPress={setHelpNutrient}
               onImagePress={setImagePreview}
               onSelectDetail={handleSelectDetail}
               selections={selections}
@@ -251,10 +247,6 @@ export function VisitaNutricionScreen() {
         </View>
       </ScrollView>
 
-      <NutrientHelpModal
-        nutrient={helpNutrient}
-        onClose={() => setHelpNutrient(null)}
-      />
       <NutrientImageModal
         nutrient={imagePreview}
         onClose={() => setImagePreview(null)}
@@ -269,10 +261,8 @@ export function VisitaNutricionScreen() {
 
     try {
       const visita = await visitasCampoService.getById(id);
-      const [nextNutrients, nextEvaluaciones] = await Promise.all([
-        nutricionRemote.getNutrientsByCrop(visita.cropId),
-        evaluacionesService.getByVisitaId(id)
-      ]);
+      const nextNutrients = nutricionService.getNutrientsByCrop(visita.cropId);
+      const nextEvaluaciones = await evaluacionesService.getByVisitaId(id);
       const sortedNutrients = sortNutrients(nextNutrients).map((nutrient) => ({
         ...nutrient,
         details: sortDetails(nutrient.details)
@@ -345,7 +335,7 @@ export function VisitaNutricionScreen() {
 
         const payload = {
           order,
-          percentage: getDetailNumericValue(selectedDetail, nutrient.details),
+          percentage: getDetailNumericValue(selectedDetail),
           description: buildEvaluationDescription(nutrient, selectedDetail)
         };
 
@@ -372,7 +362,6 @@ export function VisitaNutricionScreen() {
 type NutrientSectionProps = {
   isCompactLayout: boolean;
   nutrients: NutrientCatalogItem[];
-  onHelpPress: (nutrient: NutrientCatalogItem) => void;
   onImagePress: (nutrient: NutrientCatalogItem) => void;
   onSelectDetail: (nutrientId: string, detailId: string) => void;
   selections: Record<string, string | null>;
@@ -381,7 +370,6 @@ type NutrientSectionProps = {
 function NutrientSection({
   isCompactLayout,
   nutrients,
-  onHelpPress,
   onImagePress,
   onSelectDetail,
   selections
@@ -402,8 +390,7 @@ function NutrientSection({
           </AppText>
         </View>
         <AppText style={styles.groupSubtitle} variant="caption">
-          Presiona la imagen para ver su descripcion y el signo de ayuda para
-          revisar los grados.
+          Selecciona el grado observado en cada nutriente.
         </AppText>
       </View>
 
@@ -412,7 +399,6 @@ function NutrientSection({
           isCompactLayout={isCompactLayout}
           key={nutrient.id}
           nutrient={nutrient}
-          onHelpPress={onHelpPress}
           onImagePress={onImagePress}
           onSelectDetail={onSelectDetail}
           selectedDetailId={selections[nutrient.id] ?? null}
@@ -425,7 +411,6 @@ function NutrientSection({
 type NutrientCardProps = {
   isCompactLayout: boolean;
   nutrient: NutrientCatalogItem;
-  onHelpPress: (nutrient: NutrientCatalogItem) => void;
   onImagePress: (nutrient: NutrientCatalogItem) => void;
   onSelectDetail: (nutrientId: string, detailId: string) => void;
   selectedDetailId: string | null;
@@ -434,12 +419,19 @@ type NutrientCardProps = {
 function NutrientCard({
   isCompactLayout,
   nutrient,
-  onHelpPress,
   onImagePress,
   onSelectDetail,
   selectedDetailId
 }: NutrientCardProps) {
+  const [expanded, setExpanded] = useState(false);
   const imageSource = getNutrientImageSource(nutrient);
+  const selectedDetail = nutrient.details.find(
+    (d) => d.id === selectedDetailId
+  );
+  const description = selectedDetail?.description ?? null;
+  const hasDescription =
+    typeof description === "string" && description.trim().length > 0;
+  const isLongDescription = hasDescription && description.length > 50;
 
   return (
     <View style={[styles.nutrientCard, isCompactLayout && styles.nutrientCardCompact]}>
@@ -461,58 +453,91 @@ function NutrientCard({
             <AppText style={styles.nutrientName} variant="label">
               {nutrient.name}
             </AppText>
-            <AppText style={styles.levelLabel} variant="caption">
-              Severidad
-            </AppText>
           </View>
-
-          <Pressable
-            accessibilityLabel={`Ver guia de ${nutrient.name}`}
-            accessibilityRole="button"
-            onPress={() => onHelpPress(nutrient)}
-            style={[styles.helpButton, isCompactLayout && styles.helpButtonCompact]}
-          >
-            <Ionicons color={theme.colors.primaryDark} name="help" size={16} />
-          </Pressable>
         </View>
 
         {nutrient.details.length > 0 ? (
-          <View style={styles.detailButtons}>
-            {nutrient.details.map((detail, index) => {
-              const selected = detail.id === selectedDetailId;
+          <>
+            <View style={[styles.detailButtons, isCompactLayout && styles.detailButtonsCompact]}>
+              {nutrient.details.map((detail, index) => {
+                const selected = detail.id === selectedDetailId;
 
-              return (
-                <Pressable
-                  accessibilityLabel={`${nutrient.name} ${detail.name}`}
-                  accessibilityRole="button"
-                  key={detail.id}
-                  onPress={() => onSelectDetail(nutrient.id, detail.id)}
-                  style={[
-                    styles.detailButton,
-                    isCompactLayout && styles.detailButtonCompact,
-                    selected
-                      ? {
-                          backgroundColor: getDetailColor(index + 1),
-                          borderColor: getDetailColor(index + 1)
-                        }
-                      : styles.detailButtonInactive
-                  ]}
-                >
-                  <AppText
+                return (
+                  <Pressable
+                    accessibilityLabel={`${nutrient.name} ${detail.name}`}
+                    accessibilityRole="button"
+                    key={detail.id}
+                    onPress={() => {
+                      onSelectDetail(nutrient.id, detail.id);
+                      setExpanded(false);
+                    }}
                     style={[
-                      styles.detailButtonText,
+                      styles.detailButton,
+                      isCompactLayout && styles.detailButtonCompact,
                       selected
-                        ? styles.detailButtonTextSelected
-                        : styles.detailButtonTextInactive
+                        ? {
+                            backgroundColor: getDetailColor(index + 1),
+                            borderColor: getDetailColor(index + 1)
+                          }
+                        : styles.detailButtonInactive
                     ]}
-                    variant="label"
                   >
-                    {getDetailButtonLabel(detail, index)}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
+                    <AppText
+                      numberOfLines={1}
+                      style={[
+                        styles.detailButtonText,
+                        selected
+                          ? styles.detailButtonTextSelected
+                          : styles.detailButtonTextInactive
+                      ]}
+                      variant="label"
+                    >
+                      {detail.name}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {selectedDetail && hasDescription ? (
+              <Pressable
+                accessibilityLabel={`Ver descripcion de ${selectedDetail.name}`}
+                accessibilityRole="button"
+                onPress={() => setExpanded(!expanded)}
+                style={styles.detailDescriptionBlock}
+              >
+                <AppText
+                  style={[
+                    styles.detailDescriptionText,
+                    !expanded &&
+                      isLongDescription &&
+                      styles.detailDescriptionTextCollapsed
+                  ]}
+                  numberOfLines={
+                    expanded ? undefined : isLongDescription ? 2 : undefined
+                  }
+                  variant="caption"
+                >
+                  {description}
+                </AppText>
+                {isLongDescription ? (
+                  <View style={styles.detailDescriptionToggle}>
+                    <AppText
+                      style={styles.detailDescriptionToggleText}
+                      variant="caption"
+                    >
+                      {expanded ? "Mostrar menos" : "Mostrar mas"}
+                    </AppText>
+                    <Ionicons
+                      color={theme.colors.primary}
+                      name={expanded ? "chevron-up" : "chevron-down"}
+                      size={14}
+                    />
+                  </View>
+                ) : null}
+              </Pressable>
+            ) : null}
+          </>
         ) : (
           <AppText variant="muted">Sin grados registrados.</AppText>
         )}
@@ -561,63 +586,6 @@ function WizardProgress() {
         })}
       </View>
     </View>
-  );
-}
-
-function NutrientHelpModal({
-  nutrient,
-  onClose
-}: {
-  nutrient: NutrientCatalogItem | null;
-  onClose: () => void;
-}) {
-  if (!nutrient) {
-    return null;
-  }
-
-  return (
-    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.helpModalContent}>
-          <View style={styles.modalHeader}>
-            <AppText style={styles.modalTitle} variant="heading">
-              Guia de grados
-            </AppText>
-            <Pressable
-              accessibilityLabel="Cerrar"
-              accessibilityRole="button"
-              onPress={onClose}
-              style={styles.modalCloseButton}
-            >
-              <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
-            </Pressable>
-          </View>
-
-          <AppText style={styles.modalSubtitle} variant="label">
-            {nutrient.name}
-          </AppText>
-
-          <ScrollView style={styles.helpList}>
-            {nutrient.details.length > 0 ? (
-              nutrient.details.map((detail) => (
-                <View key={detail.id} style={styles.helpItem}>
-                  <AppText style={styles.helpItemTitle} variant="label">
-                    {detail.name}
-                  </AppText>
-                  <AppText variant="muted">
-                    {detail.description || "Sin descripcion registrada."}
-                  </AppText>
-                </View>
-              ))
-            ) : (
-              <AppText variant="muted">
-                No hay grados registrados para este nutriente.
-              </AppText>
-            )}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -864,7 +832,7 @@ function findSelectedDetailId(
   if (evaluation.percentage) {
     const numericValue = Number(evaluation.percentage);
     const selectedByNumber = nutrient.details.find(
-      (detail) => getDetailNumericValue(detail, nutrient.details) === numericValue
+      (detail) => getDetailNumericValue(detail) === numericValue
     );
 
     return selectedByNumber?.id ?? null;
@@ -903,19 +871,11 @@ function getNutrientDisplayIndex(nutrient: NutrientCatalogItem) {
     : NUTRIENT_DISPLAY_ORDER.length + 1;
 }
 
-function getDetailButtonLabel(detail: NutrientDetailCatalogItem, index: number) {
+function getDetailNumericValue(detail: NutrientDetailCatalogItem) {
   const match = detail.name.match(/\d+/);
+  const parsedValue = match ? Number(match[0]) : NaN;
 
-  return match?.[0] ?? String(index + 1);
-}
-
-function getDetailNumericValue(
-  detail: NutrientDetailCatalogItem,
-  details: NutrientDetailCatalogItem[]
-) {
-  const parsedValue = Number(getDetailButtonLabel(detail, details.indexOf(detail)));
-
-  return Number.isFinite(parsedValue) ? parsedValue : details.indexOf(detail) + 1;
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
 }
 
 function getDetailSortValue(value: string) {
@@ -1067,9 +1027,40 @@ const styles = StyleSheet.create({
     color: theme.colors.textInverse
   },
   detailButtons: {
+    flex: 1,
     flexDirection: "row",
+    gap: 7
+  },
+  detailButtonsCompact: {
     flexWrap: "wrap",
-    gap: 8
+    width: "100%"
+  },
+  detailDescriptionBlock: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: 8,
+    marginTop: 8,
+    padding: 8,
+    width: "100%"
+  },
+  detailDescriptionText: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16
+  },
+  detailDescriptionTextCollapsed: {
+    maxHeight: 32
+  },
+  detailDescriptionToggle: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
+    justifyContent: "flex-end",
+    marginTop: 4
+  },
+  detailDescriptionToggleText: {
+    color: theme.colors.primary,
+    fontSize: 10,
+    fontWeight: "600"
   },
   disabledButton: {
     opacity: 0.55
@@ -1114,37 +1105,6 @@ const styles = StyleSheet.create({
     gap: 10,
     justifyContent: "center"
   },
-  helpButton: {
-    alignItems: "center",
-    borderColor: theme.colors.primary,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    height: 28,
-    justifyContent: "center",
-    width: 28
-  },
-  helpButtonCompact: {
-    alignSelf: "flex-start"
-  },
-  helpItem: {
-    borderBottomColor: theme.colors.borderLight,
-    borderBottomWidth: 1,
-    gap: 5,
-    paddingVertical: 12
-  },
-  helpItemTitle: {
-    color: theme.colors.primaryDark
-  },
-  helpList: {
-    maxHeight: 420
-  },
-  helpModalContent: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    maxHeight: "82%",
-    padding: 18,
-    width: "90%"
-  },
   hero: {
     minHeight: 300
   },
@@ -1179,10 +1139,6 @@ const styles = StyleSheet.create({
     padding: 18,
     width: "86%"
   },
-  levelLabel: {
-    color: theme.colors.textMuted,
-    fontSize: 13
-  },
   modalBackdrop: {
     alignItems: "center",
     backgroundColor: "rgba(8, 31, 20, 0.56)",
@@ -1204,10 +1160,6 @@ const styles = StyleSheet.create({
   },
   modalRoot: {
     flex: 1
-  },
-  modalSubtitle: {
-    color: theme.colors.text,
-    marginTop: 4
   },
   modalTitle: {
     color: theme.colors.primaryDark,

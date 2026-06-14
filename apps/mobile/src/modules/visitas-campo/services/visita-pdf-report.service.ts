@@ -63,12 +63,13 @@ async function buildVisitReportHtml(visitaId: string) {
 
   const cultivos = visitasCampoRepository.getCultivos();
   const variedades = visitasCampoRepository.getVariedadesByCultivo(visita.cropId);
-  const campanias = visitasCampoRepository.getCampaniasByCultivo(visita.cropId);
   const etapas = visitasCampoRepository.getEtapasFenologicasByCultivo(visita.cropId);
   const subEtapas = visita.phenologicalStageId
     ? visitasCampoRepository.getSubEtapasByEtapaFenologica(visita.phenologicalStageId)
     : [];
-  const pestDiseases = observacionesSanitariasRepository.getPestDiseases();
+  const pestDiseases = observacionesSanitariasRepository.getPestDiseasesByPhenologicalStage(
+    visita.phenologicalStageId ?? ""
+  );
   const incidenceLevels = observacionesSanitariasRepository.getIncidenceLevels();
   const tiposRiego = riegosRepository.getTiposRiego();
   const labores = laboresCulturalesVisitaRepository.getLaboresCulturales();
@@ -79,6 +80,13 @@ async function buildVisitReportHtml(visitaId: string) {
   const producerName = formatPersonName(productor?.firstName, productor?.lastName);
   const producerFirstName = getFirstName(productor?.firstName, productor?.lastName);
   const documentTitle = `Visita ${producerFirstName} ${formatDate(visita.visitDate)}`;
+  const levelDescriptions: Record<string, string | null> = {};
+  for (const pest of pestDiseases) {
+    for (const rel of pest.stageLevels) {
+      levelDescriptions[rel.nivelIncidenciaSeveridadId] = rel.description;
+    }
+  }
+
   const riego = detail.riego
     ? findById(tiposRiego, detail.riego.tipoRiegoId)?.name ?? `ID ${detail.riego.tipoRiegoId}`
     : "No registrado";
@@ -222,16 +230,12 @@ async function buildVisitReportHtml(visitaId: string) {
       "Paso 1 - Datos generales",
       renderFields([
         ["Agricultor", producerName],
-        ["Documento", productor?.documentNumber ?? null],
-        ["Telefono", productor?.phone ?? null],
         ["Parcela", parcela?.name ?? visita.parcelaId],
-        ["Codigo parcela", parcela?.code ?? null],
         ["Area parcela", parcela?.areaHectares ? `${parcela.areaHectares} ha` : null],
         ["Fecha visita", formatDate(visita.visitDate)],
         ["Horario", formatTimeRange(visita.startVisitTime, visita.endVisitTime)],
         ["Cultivo", findById(cultivos, visita.cropId)?.name ?? visita.cropId],
         ["Variedad", findById(variedades, visita.varietyId)?.name ?? visita.varietyId],
-        ["Campania", findById(campanias, visita.campaignId)?.name ?? visita.campaignId],
         ["Fecha siembra", formatDate(visita.sowingDate)],
         ["Plantas", visita.plantsCount === null ? null : String(visita.plantsCount)],
         ["Area visita", visita.areaHectares ? `${visita.areaHectares} ha` : null],
@@ -258,7 +262,7 @@ async function buildVisitReportHtml(visitaId: string) {
 
     ${renderSection(
       "Paso 2 - Plagas y enfermedades",
-      renderSanitaryObservations(detail.observacionesSanitarias, pestDiseases, incidenceLevels) +
+      renderSanitaryObservations(detail.observacionesSanitarias, pestDiseases, incidenceLevels, levelDescriptions) +
         renderStepObservation(stepNotes.get(2)?.observation)
     )}
 
@@ -343,7 +347,8 @@ function renderSanitaryObservations(
     organosAfectados: string[];
   }>,
   pestDiseases: Array<{ id: string; name: string; type: string }>,
-  incidenceLevels: Array<{ id: string; name: string }>
+  incidenceLevels: Array<{ id: string; name: string }>,
+  levelDescriptions: Record<string, string | null>
 ) {
   if (observations.length === 0) {
     return `<div class="empty">No hay plagas o enfermedades registradas.</div>`;
@@ -358,14 +363,31 @@ function renderSanitaryObservations(
       const severity = observation.severityLevelId
         ? findById(incidenceLevels, observation.severityLevelId)?.name
         : null;
+      const incidenceDesc = observation.incidenceLevelId
+        ? levelDescriptions[observation.incidenceLevelId] ?? null
+        : null;
+      const severityDesc = observation.severityLevelId
+        ? levelDescriptions[observation.severityLevelId] ?? null
+        : null;
+
+      const descParts: string[] = [];
+      if (incidence && incidenceDesc) {
+        descParts.push(`Incidencia ${incidence}: ${incidenceDesc}`);
+      } else if (incidence) {
+        descParts.push(`Incidencia: ${incidence}`);
+      }
+      if (severity && severityDesc) {
+        descParts.push(`Severidad ${severity}: ${severityDesc}`);
+      } else if (severity) {
+        descParts.push(`Severidad: ${severity}`);
+      }
 
       return `<li>
         <span class="item-title">${escapeHtml(pestDisease?.name ?? observation.pestDiseaseId)}</span>
         <span class="muted">${escapeHtml(
           [
             pestDisease?.type,
-            incidence ? `Incidencia: ${incidence}` : null,
-            severity ? `Severidad: ${severity}` : null,
+            ...descParts,
             observation.organosAfectados.length > 0
               ? `Organos: ${observation.organosAfectados
                   .map(formatOrganoLabel)
@@ -391,9 +413,8 @@ function renderNutrition(
   return `<ul class="list">${evaluations
     .map(
       (evaluation) => `<li>
-        <span class="item-title">Orden ${escapeHtml(String(evaluation.order))}</span>
+        <span class="item-title">${escapeHtml(evaluation.description)}</span>
         <span class="muted">${escapeHtml(evaluation.percentage ? `${evaluation.percentage}%` : "Sin porcentaje")}</span>
-        <div>${escapeHtml(evaluation.description)}</div>
       </li>`
     )
     .join("")}</ul>`;
