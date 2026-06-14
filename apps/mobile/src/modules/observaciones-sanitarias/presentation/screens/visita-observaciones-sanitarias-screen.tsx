@@ -748,9 +748,11 @@ function OrganoSelector({
 }) {
   return (
     <View style={styles.organosBlock}>
-      <AppText style={styles.organosLabel} variant="caption">
-        Organos afectados
-      </AppText>
+      <View style={[styles.levelPill, { backgroundColor: "#1a5276" }]}>
+        <AppText style={styles.levelPillText} variant="caption">
+          Organos afectados
+        </AppText>
+      </View>
       <View style={styles.organosGrid}>
         {ORGANO_OPTIONS.map((option) => {
           const selected = selectedOrganos.includes(option.value);
@@ -1575,10 +1577,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 7
-  },
-  organosLabel: {
-    color: theme.colors.textMuted,
-    fontSize: 12
   },
   organoChip: {
     alignItems: "center",
