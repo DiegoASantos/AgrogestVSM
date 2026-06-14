@@ -139,7 +139,6 @@ export function VisitaObservacionesSanitariasScreen() {
     observation: "",
     recommendation: ""
   });
-  const [helpItem, setHelpItem] = useState<PestDiseaseByStageItem | null>(null);
   const [imagePreview, setImagePreview] = useState<PestDiseaseByStageItem | null>(
     null
   );
@@ -244,7 +243,6 @@ export function VisitaObservacionesSanitariasScreen() {
               incidenceLevels={incidenceLevels}
               isCompactLayout={isCompactLayout}
               items={plagas}
-              onHelpPress={setHelpItem}
               onImagePress={setImagePreview}
               onSelectLevel={handleSelectLevel}
               onToggleOrgano={handleToggleOrgano}
@@ -259,7 +257,6 @@ export function VisitaObservacionesSanitariasScreen() {
               incidenceLevels={incidenceLevels}
               isCompactLayout={isCompactLayout}
               items={enfermedades}
-              onHelpPress={setHelpItem}
               onImagePress={setImagePreview}
               onSelectLevel={handleSelectLevel}
               onToggleOrgano={handleToggleOrgano}
@@ -360,11 +357,6 @@ export function VisitaObservacionesSanitariasScreen() {
         </View>
       </ScrollView>
 
-      <HelpModal
-        incidenceLevels={incidenceLevels}
-        item={helpItem}
-        onClose={() => setHelpItem(null)}
-      />
       <ImagePreviewModal
         item={imagePreview}
         onClose={() => setImagePreview(null)}
@@ -579,7 +571,6 @@ type SanitarySectionProps = {
   incidenceLevels: IncidenceLevelCatalogItem[];
   isCompactLayout: boolean;
   items: PestDiseaseByStageItem[];
-  onHelpPress: (item: PestDiseaseByStageItem) => void;
   onImagePress: (item: PestDiseaseByStageItem) => void;
   onSelectLevel: (
     pestDiseaseId: string,
@@ -596,7 +587,6 @@ function SanitarySection({
   incidenceLevels,
   isCompactLayout,
   items,
-  onHelpPress,
   onImagePress,
   onSelectLevel,
   onToggleOrgano,
@@ -625,7 +615,6 @@ function SanitarySection({
           isCompactLayout={isCompactLayout}
           item={item}
           key={item.id}
-          onHelpPress={onHelpPress}
           onImagePress={onImagePress}
           onSelectLevel={onSelectLevel}
           onToggleOrgano={onToggleOrgano}
@@ -640,7 +629,6 @@ type SanitaryCardProps = {
   incidenceLevels: IncidenceLevelCatalogItem[];
   isCompactLayout: boolean;
   item: PestDiseaseByStageItem;
-  onHelpPress: (item: PestDiseaseByStageItem) => void;
   onImagePress: (item: PestDiseaseByStageItem) => void;
   onSelectLevel: (
     pestDiseaseId: string,
@@ -655,7 +643,6 @@ function SanitaryCard({
   incidenceLevels,
   isCompactLayout,
   item,
-  onHelpPress,
   onImagePress,
   onSelectLevel,
   onToggleOrgano,
@@ -706,19 +693,6 @@ function SanitaryCard({
               {item.name}
             </AppText>
           </View>
-
-          <Pressable
-            accessibilityLabel={`Ver guia de ${item.name}`}
-            accessibilityRole="button"
-            onPress={() => onHelpPress(item)}
-            style={[styles.helpButton, isCompactLayout && styles.helpButtonCompact]}
-          >
-            <Ionicons
-              color={theme.colors.primaryDark}
-              name="help"
-              size={16}
-            />
-          </Pressable>
         </View>
 
         {incidenceOptions.length > 0 ? (
@@ -878,17 +852,18 @@ function LevelSelectorRow({
                     : styles.levelButtonInactive
                 ]}
               >
-                <AppText
-                  style={[
-                    styles.levelButtonText,
-                    selected
-                      ? styles.levelButtonTextSelected
-                      : styles.levelButtonTextInactive
-                  ]}
-                  variant="label"
-                >
-                  {level.sortOrder}
-                </AppText>
+              <AppText
+                numberOfLines={1}
+                style={[
+                  styles.levelButtonText,
+                  selected
+                    ? styles.levelButtonTextSelected
+                    : styles.levelButtonTextInactive
+                ]}
+                variant="label"
+              >
+                {level.name}
+              </AppText>
               </Pressable>
             );
           })}
@@ -902,22 +877,6 @@ function LevelSelectorRow({
           onPress={() => setExpanded(!expanded)}
           style={styles.levelDescriptionBlock}
         >
-          <View style={styles.levelDescriptionHeader}>
-            <AppText
-              style={[styles.levelDescriptionName, { color: accentColor }]}
-              numberOfLines={expanded ? undefined : 1}
-              variant="caption"
-            >
-              {selectedLevel.name}
-            </AppText>
-            {isLongDescription ? (
-              <Ionicons
-                color={accentColor}
-                name={expanded ? "chevron-up" : "chevron-down"}
-                size={14}
-              />
-            ) : null}
-          </View>
           <AppText
             style={[
               styles.levelDescriptionText,
@@ -928,6 +887,18 @@ function LevelSelectorRow({
           >
             {description}
           </AppText>
+          {isLongDescription ? (
+            <View style={styles.levelDescriptionToggle}>
+              <AppText style={styles.levelDescriptionToggleText} variant="caption">
+                {expanded ? "Mostrar menos" : "Mostrar mas"}
+              </AppText>
+              <Ionicons
+                color={accentColor}
+                name={expanded ? "chevron-up" : "chevron-down"}
+                size={14}
+              />
+            </View>
+          ) : null}
         </Pressable>
       ) : null}
     </View>
@@ -970,66 +941,6 @@ function WizardProgress() {
         })}
       </View>
     </View>
-  );
-}
-
-function HelpModal({
-  incidenceLevels,
-  item,
-  onClose
-}: {
-  incidenceLevels: IncidenceLevelCatalogItem[];
-  item: PestDiseaseByStageItem | null;
-  onClose: () => void;
-}) {
-  const levelLookup = useMemo(
-    () => Object.fromEntries(incidenceLevels.map((level) => [level.id, level])),
-    [incidenceLevels]
-  );
-
-  if (!item) {
-    return null;
-  }
-
-  return (
-    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.helpModalContent}>
-          <View style={styles.modalHeader}>
-            <AppText style={styles.modalTitle} variant="heading">
-              Guía de niveles
-            </AppText>
-            <Pressable
-              accessibilityLabel="Cerrar"
-              accessibilityRole="button"
-              onPress={onClose}
-              style={styles.modalCloseButton}
-            >
-              <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
-            </Pressable>
-          </View>
-
-          <ScrollView style={styles.helpList}>
-            {item.stageLevels.map((relation) => {
-              const level = levelLookup[relation.nivelIncidenciaSeveridadId];
-
-              return (
-                <View key={relation.id} style={styles.helpItem}>
-                  <AppText style={styles.helpItemTitle} variant="label">
-                    {level
-                      ? `${formatLevelType(level.type)} ${level.sortOrder} - ${level.name}`
-                      : `Nivel ${relation.nivelIncidenciaSeveridadId}`}
-                  </AppText>
-                  <AppText variant="muted">
-                    {relation.description || "Sin descripcion registrada."}
-                  </AppText>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -1268,10 +1179,6 @@ function buildSelectionMap(observaciones: VisitaObservacionSanitaria[]) {
   );
 }
 
-function formatLevelType(type: IncidenceLevelCatalogItem["type"]) {
-  return type === "incidencia" ? "Incidencia" : "Severidad";
-}
-
 function getPestDiseaseImageSource(
   item: PestDiseaseByStageItem
 ): ImageSourcePropType {
@@ -1447,37 +1354,6 @@ const styles = StyleSheet.create({
     gap: 10,
     justifyContent: "center"
   },
-  helpButton: {
-    alignItems: "center",
-    borderColor: theme.colors.primary,
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    height: 28,
-    justifyContent: "center",
-    width: 28
-  },
-  helpButtonCompact: {
-    alignSelf: "flex-end"
-  },
-  helpItem: {
-    borderBottomColor: theme.colors.borderLight,
-    borderBottomWidth: 1,
-    gap: 5,
-    paddingVertical: 12
-  },
-  helpItemTitle: {
-    color: theme.colors.primaryDark
-  },
-  helpList: {
-    maxHeight: 420
-  },
-  helpModalContent: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    maxHeight: "82%",
-    padding: 18,
-    width: "90%"
-  },
   hero: {
     minHeight: 300
   },
@@ -1526,7 +1402,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 34,
     justifyContent: "center",
-    minWidth: 0
+    minWidth: 0,
+    paddingHorizontal: 4
   },
   levelButtonCompact: {
     flexBasis: "22%",
@@ -1540,7 +1417,8 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border
   },
   levelButtonText: {
-    fontSize: 16
+    fontSize: 13,
+    fontWeight: "600"
   },
   levelButtonTextInactive: {
     color: theme.colors.textMuted
@@ -1595,24 +1473,25 @@ const styles = StyleSheet.create({
     padding: 8,
     width: "100%"
   },
-  levelDescriptionHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 4
-  },
-  levelDescriptionName: {
-    flexShrink: 1,
-    fontSize: 12,
-    fontWeight: "700"
-  },
   levelDescriptionText: {
     color: theme.colors.textMuted,
     fontSize: 11,
-    lineHeight: 16,
-    marginTop: 3
+    lineHeight: 16
   },
   levelDescriptionTextCollapsed: {
     maxHeight: 32
+  },
+  levelDescriptionToggle: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
+    justifyContent: "flex-end",
+    marginTop: 4
+  },
+  levelDescriptionToggleText: {
+    color: theme.colors.primary,
+    fontSize: 10,
+    fontWeight: "600"
   },
   modalBackdrop: {
     alignItems: "center",
