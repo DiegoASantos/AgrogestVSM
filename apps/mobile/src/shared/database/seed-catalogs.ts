@@ -387,3 +387,7 @@ export async function refreshCatalogsIfStale(): Promise<boolean> {
   await downloadAllCatalogs();
   return true;
 }
+
+export async function forceRefreshAllCatalogs(): Promise<void> {
+  await downloadAllCatalogs();
+}

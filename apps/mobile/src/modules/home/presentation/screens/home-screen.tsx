@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppText } from "../../../../shared/components";
 import { useIsOnline } from "../../../../shared/connectivity/use-is-online";
 import { useCatalogDownloadStatus } from "../../../../shared/database/catalog-download-state";
+import { forceRefreshAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { getLastSyncTime, getSyncCounts, requestSync } from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { visitasCampoService } from "../../../visitas-campo/services";
@@ -40,6 +41,7 @@ export function HomeScreen() {
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [isRefreshingCatalogs, setIsRefreshingCatalogs] = useState(false);
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
   const catalogStatus = useCatalogDownloadStatus();
   const heroHeight = Math.min(Math.max(width * 0.58, 218), 330);
@@ -83,6 +85,21 @@ export function HomeScreen() {
       setIsManualSyncing(false);
     }
   }, [isManualSyncing, isOnline, loadDashboard]);
+
+  const handleRefreshCatalogs = useCallback(async () => {
+    if (!isOnline || isRefreshingCatalogs || catalogStatus.isDownloading) {
+      return;
+    }
+
+    setIsRefreshingCatalogs(true);
+
+    try {
+      await forceRefreshAllCatalogs();
+      loadDashboard();
+    } finally {
+      setIsRefreshingCatalogs(false);
+    }
+  }, [isOnline, isRefreshingCatalogs, catalogStatus.isDownloading, loadDashboard]);
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -221,6 +238,35 @@ export function HomeScreen() {
                 </AppText>
               </Pressable>
             ) : null}
+            <Pressable
+              accessibilityLabel="Refrescar catalogos de referencia"
+              accessibilityRole="button"
+              disabled={!isOnline || isRefreshingCatalogs || catalogStatus.isDownloading}
+              onPress={() => {
+                void handleRefreshCatalogs();
+              }}
+              style={({ pressed }) => [
+                styles.refreshCatalogsButton,
+                pressed && styles.pressed,
+                (!isOnline || isRefreshingCatalogs || catalogStatus.isDownloading) &&
+                  styles.manualSyncButtonDisabled
+              ]}
+            >
+              <Ionicons
+                color="#08643f"
+                name={
+                  isRefreshingCatalogs || catalogStatus.isDownloading
+                    ? "sync"
+                    : "cloud-download-outline"
+                }
+                size={20}
+              />
+              <AppText style={styles.refreshCatalogsButtonText} variant="label">
+                {isRefreshingCatalogs || catalogStatus.isDownloading
+                  ? "Descargando catalogos..."
+                  : "Refrescar catalogos"}
+              </AppText>
+            </Pressable>
           </View>
 
           <View style={styles.actionGrid}>
@@ -706,6 +752,22 @@ const styles = StyleSheet.create({
   },
   manualSyncButtonText: {
     color: "#ffffff",
+    fontSize: 15
+  },
+  refreshCatalogsButton: {
+    minHeight: 47,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+    marginTop: 10,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#08643f",
+    backgroundColor: "#ffffff"
+  },
+  refreshCatalogsButtonText: {
+    color: "#08643f",
     fontSize: 15
   },
   syncMetric: {
