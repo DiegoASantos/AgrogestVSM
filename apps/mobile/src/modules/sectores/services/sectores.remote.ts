@@ -1,9 +1,9 @@
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, apiRequestAllPages } from "../../../shared/services";
 import type { Sector } from "../types";
 
 export const sectoresRemote = {
   getAll() {
-    return apiRequest<Sector[]>("/sectores?limit=200");
+    return apiRequestAllPages<Sector>("/sectores");
   },
 
   getByProductorId(productorId: string) {

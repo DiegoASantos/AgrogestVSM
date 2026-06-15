@@ -70,6 +70,26 @@ export async function apiRequest<T>(
   return success.data;
 }
 
+export async function apiRequestAllPages<T>(path: string): Promise<T[]> {
+  const collected: T[] = [];
+  const separator = path.includes("?") ? "&" : "?";
+  const pageSize = 200;
+
+  for (let page = 1; page <= 100; page += 1) {
+    const items = await apiRequest<T[]>(
+      `${path}${separator}page=${page}&limit=${pageSize}`
+    );
+
+    collected.push(...items);
+
+    if (items.length < pageSize) {
+      break;
+    }
+  }
+
+  return collected;
+}
+
 function performRequest(
   path: string,
   options: ApiRequestOptions,

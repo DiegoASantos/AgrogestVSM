@@ -11,6 +11,7 @@ import {
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
+import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
 import { parcelasService } from "../../../parcelas/services";
 import type { Parcela } from "../../../parcelas/types";
@@ -185,7 +186,14 @@ export function NewVisitaSelectorScreen() {
     setError(null);
 
     try {
-      setSectores(await sectoresService.getAll());
+      let nextSectores = await sectoresService.getAll();
+
+      if (nextSectores.length === 0) {
+        await downloadAllCatalogs();
+        nextSectores = await sectoresService.getAll();
+      }
+
+      setSectores(nextSectores);
     } catch (nextError) {
       setError(toApiError(nextError).message || "No se pudieron cargar los sectores.");
     } finally {

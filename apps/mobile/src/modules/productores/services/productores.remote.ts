@@ -1,9 +1,9 @@
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, apiRequestAllPages } from "../../../shared/services";
 import type { Productor } from "../types";
 
 export const productoresRemote = {
   getAll() {
-    return apiRequest<Productor[]>("/productores");
+    return apiRequestAllPages<Productor>("/productores");
   },
 
   getById(id: string) {

@@ -1,9 +1,9 @@
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, apiRequestAllPages } from "../../../shared/services";
 import type { Parcela } from "../types";
 
 export const parcelasRemote = {
   getAll() {
-    return apiRequest<Parcela[]>("/parcelas?limit=200");
+    return apiRequestAllPages<Parcela>("/parcelas");
   },
 
   getBySectorId(sectorId: string) {

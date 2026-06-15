@@ -1,4 +1,4 @@
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, apiRequestAllPages } from "../../../shared/services";
 import type {
   IncidenceLevelCatalogItem,
   OrganoAfectado,
@@ -31,17 +31,17 @@ type UpsertStepNoteInput = {
 
 export const observacionesSanitariasRemote = {
   getPestDiseases() {
-    return fetchAllPaginated<PestDiseaseCatalogItem>("/plagas-enfermedades");
+    return apiRequestAllPages<PestDiseaseCatalogItem>("/plagas-enfermedades");
   },
 
   getIncidenceLevels() {
-    return fetchAllPaginated<IncidenceLevelCatalogItem>(
+    return apiRequestAllPages<IncidenceLevelCatalogItem>(
       "/niveles-incidencia-severidad"
     );
   },
 
   getPestDiseaseStageLevels() {
-    return fetchAllPaginated<PestDiseaseStageLevelCatalogItem>(
+    return apiRequestAllPages<PestDiseaseStageLevelCatalogItem>(
       "/plagas-enfermedades-etapas-niveles"
     );
   },
@@ -95,23 +95,3 @@ export const observacionesSanitariasRemote = {
     );
   }
 };
-
-async function fetchAllPaginated<T>(path: string): Promise<T[]> {
-  const collected: T[] = [];
-  const separator = path.includes("?") ? "&" : "?";
-  const pageSize = 200;
-
-  for (let page = 1; page <= 25; page += 1) {
-    const items = await apiRequest<T[]>(
-      `${path}${separator}page=${page}&limit=${pageSize}`
-    );
-
-    collected.push(...items);
-
-    if (items.length < pageSize) {
-      break;
-    }
-  }
-
-  return collected;
-}
