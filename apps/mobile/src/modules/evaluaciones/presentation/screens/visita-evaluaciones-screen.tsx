@@ -33,6 +33,7 @@ import {
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
+import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
 import { nutricionService } from "../../../nutricion/services";
 import type {
@@ -261,7 +262,17 @@ export function VisitaNutricionScreen() {
 
     try {
       const visita = await visitasCampoService.getById(id);
-      const nextNutrients = nutricionService.getNutrientsByCrop(visita.cropId);
+      let nextNutrients = nutricionService.getNutrientsByCrop(visita.cropId);
+
+      if (nextNutrients.length === 0) {
+        try {
+          await downloadAllCatalogs();
+          nextNutrients = nutricionService.getNutrientsByCrop(visita.cropId);
+        } catch {
+          // Conservamos el resultado local si no hay conexion para recargar.
+        }
+      }
+
       const nextEvaluaciones = await evaluacionesService.getByVisitaId(id);
       const sortedNutrients = sortNutrients(nextNutrients).map((nutrient) => ({
         ...nutrient,

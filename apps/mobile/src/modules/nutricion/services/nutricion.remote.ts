@@ -2,17 +2,22 @@ import { apiRequest } from "../../../shared/services";
 import type { NutrientCatalogItem } from "../types";
 
 export const nutricionRemote = {
-  async getNutrientsByCrop(cropId: string) {
+  async getNutrients() {
     const nutrients = await fetchAllPaginated<NutrientCatalogItem>("/nutrientes");
 
     return nutrients
-      .filter(
-        (nutrient) => nutrient.isActive && nutrient.cultivoId === cropId
-      )
+      .filter((nutrient) => nutrient.isActive)
       .map((nutrient) => ({
         ...nutrient,
         details: nutrient.details.filter((detail) => detail.isActive)
       }));
+  },
+
+  async getNutrientsByCrop(cropId: string) {
+    const nutrients = await this.getNutrients();
+
+    return nutrients
+      .filter((nutrient) => nutrient.cultivoId === cropId);
   }
 };
 

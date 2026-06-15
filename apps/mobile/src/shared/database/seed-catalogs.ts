@@ -26,7 +26,7 @@ export async function downloadAllCatalogs() {
     pestDiseases,
     incidenceLevels,
     pestDiseaseStageLevels,
-    nutrientsByCrop,
+    nutrients,
     tiposRiego,
     laboresCulturales,
     productores,
@@ -53,11 +53,7 @@ export async function downloadAllCatalogs() {
     observacionesSanitariasRemote.getPestDiseases(),
     observacionesSanitariasRemote.getIncidenceLevels(),
     observacionesSanitariasRemote.getPestDiseaseStageLevels(),
-    Promise.all(
-      cultivos.map((cultivo) =>
-        nutricionRemote.getNutrientsByCrop(cultivo.id)
-      )
-    ),
+    nutricionRemote.getNutrients(),
     riegosRemote.getTiposRiego(),
     laboresCulturalesVisitaRemote.getLaboresCulturales(),
     productoresRemote.getAll(),
@@ -209,7 +205,6 @@ export async function downloadAllCatalogs() {
       );
     }
 
-    const nutrients = nutrientsByCrop.flat();
     nutricionRepository.insertNutrients(nutrients);
 
     for (const tipoRiego of tiposRiego) {
