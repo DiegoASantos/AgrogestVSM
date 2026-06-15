@@ -712,10 +712,10 @@ function OrganoSelector({
       <View
         style={[
           styles.levelPill,
-          { backgroundColor: disabled ? theme.colors.textMuted : "#1a5276" }
+          { alignItems: "flex-start" }
         ]}
       >
-        <AppText style={styles.levelPillText} variant="caption">
+        <AppText style={[styles.levelPillText, { color: "#000000", textDecorationLine: "underline", fontStyle: "italic" }]} variant="caption">
           Organos afectados
         </AppText>
       </View>
@@ -794,8 +794,8 @@ function LevelSelectorRow({
   return (
     <View style={[styles.levelRow, isCompactLayout && styles.levelRowCompact]}>
       <View style={[styles.levelRowTop, isCompactLayout && styles.levelRowTopCompact]}>
-        <View style={[styles.levelPill, { backgroundColor: accentColor }]}>
-          <AppText style={styles.levelPillText} variant="caption">
+        <View style={[styles.levelPill]}>
+          <AppText style={[styles.levelPillText, { color: "#000000", textDecorationLine: "underline", fontStyle: "italic" }]} variant="caption">
             {label}
           </AppText>
         </View>
