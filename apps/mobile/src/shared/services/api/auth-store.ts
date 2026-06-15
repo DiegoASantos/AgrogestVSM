@@ -13,9 +13,7 @@ export function getApiToken() {
   return apiToken;
 }
 
-export function setTokenRefreshHandler(
-  handler: (() => Promise<string | null>) | null
-) {
+export function setTokenRefreshHandler(handler: (() => Promise<string | null>) | null) {
   tokenRefreshHandler = handler;
 }
 

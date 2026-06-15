@@ -35,9 +35,7 @@ export const observacionesSanitariasRemote = {
   },
 
   getIncidenceLevels() {
-    return apiRequestAllPages<IncidenceLevelCatalogItem>(
-      "/niveles-incidencia-severidad"
-    );
+    return apiRequestAllPages<IncidenceLevelCatalogItem>("/niveles-incidencia-severidad");
   },
 
   getPestDiseaseStageLevels() {
@@ -63,29 +61,19 @@ export const observacionesSanitariasRemote = {
   },
 
   update(id: string, input: UpdateObservacionSanitariaInput) {
-    return apiRequest<VisitaObservacionSanitaria>(
-      `/observaciones-sanitarias/${id}`,
-      {
-        method: "PATCH",
-        body: input
-      }
-    );
+    return apiRequest<VisitaObservacionSanitaria>(`/observaciones-sanitarias/${id}`, {
+      method: "PATCH",
+      body: input
+    });
   },
 
   remove(id: string) {
-    return apiRequest<VisitaObservacionSanitaria>(
-      `/observaciones-sanitarias/${id}`,
-      {
-        method: "DELETE"
-      }
-    );
+    return apiRequest<VisitaObservacionSanitaria>(`/observaciones-sanitarias/${id}`, {
+      method: "DELETE"
+    });
   },
 
-  upsertStepNote(
-    visitaId: string,
-    stepNumber: number,
-    input: UpsertStepNoteInput
-  ) {
+  upsertStepNote(visitaId: string, stepNumber: number, input: UpsertStepNoteInput) {
     return apiRequest<VisitaStepNote>(
       `/visitas-campo/${visitaId}/paso-observaciones/${stepNumber}`,
       {

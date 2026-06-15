@@ -167,8 +167,7 @@ export const riegosRepository = {
         throw new Error("No se encontro el riego local para actualizar.");
       }
 
-      const isSyncUpdate =
-        data.syncStatus !== undefined || data.serverId !== undefined;
+      const isSyncUpdate = data.syncStatus !== undefined || data.serverId !== undefined;
 
       if (!isSyncUpdate) {
         db.runSync(

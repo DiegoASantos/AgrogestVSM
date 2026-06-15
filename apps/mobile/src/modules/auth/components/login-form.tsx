@@ -25,9 +25,7 @@ export function LoginForm() {
   const router = useRouter();
   const { signIn } = useAuthSession();
   const { values, errors, updateField, submit } = useLoginForm();
-  const [loginPhase, setLoginPhase] = useState<"idle" | "authenticating">(
-    "idle"
-  );
+  const [loginPhase, setLoginPhase] = useState<"idle" | "authenticating">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const isSubmitting = loginPhase !== "idle";
@@ -148,13 +146,7 @@ type LoginFieldProps = TextInputProps & {
   trailingAction?: React.ReactNode;
 };
 
-function LoginField({
-  error,
-  icon,
-  style,
-  trailingAction,
-  ...props
-}: LoginFieldProps) {
+function LoginField({ error, icon, style, trailingAction, ...props }: LoginFieldProps) {
   return (
     <View style={styles.fieldWrapper}>
       <View style={[styles.field, error && styles.fieldError]}>

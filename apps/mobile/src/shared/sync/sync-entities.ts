@@ -9,6 +9,4 @@ export const SYNC_ENTITY_TABLES = {
 
 export type SyncEntityType = keyof typeof SYNC_ENTITY_TABLES;
 
-export const SYNC_ENTITY_TYPES = Object.keys(
-  SYNC_ENTITY_TABLES
-) as SyncEntityType[];
+export const SYNC_ENTITY_TYPES = Object.keys(SYNC_ENTITY_TABLES) as SyncEntityType[];

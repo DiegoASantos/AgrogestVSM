@@ -1,9 +1,6 @@
 import { useState } from "react";
 
-import {
-  loginFormSchema,
-  type LoginFormValues
-} from "../schemas/login-form.schema";
+import { loginFormSchema, type LoginFormValues } from "../schemas/login-form.schema";
 import type { LoginFormErrors } from "../types/auth.types";
 
 const INITIAL_VALUES: LoginFormValues = {

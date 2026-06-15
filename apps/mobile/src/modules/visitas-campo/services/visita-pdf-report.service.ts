@@ -67,9 +67,10 @@ async function buildVisitReportHtml(visitaId: string) {
   const subEtapas = visita.phenologicalStageId
     ? visitasCampoRepository.getSubEtapasByEtapaFenologica(visita.phenologicalStageId)
     : [];
-  const pestDiseases = observacionesSanitariasRepository.getPestDiseasesByPhenologicalStage(
-    visita.phenologicalStageId ?? ""
-  );
+  const pestDiseases =
+    observacionesSanitariasRepository.getPestDiseasesByPhenologicalStage(
+      visita.phenologicalStageId ?? ""
+    );
   const incidenceLevels = observacionesSanitariasRepository.getIncidenceLevels();
   const tiposRiego = riegosRepository.getTiposRiego();
   const labores = laboresCulturalesVisitaRepository.getLaboresCulturales();
@@ -88,7 +89,8 @@ async function buildVisitReportHtml(visitaId: string) {
   }
 
   const riego = detail.riego
-    ? findById(tiposRiego, detail.riego.tipoRiegoId)?.name ?? `ID ${detail.riego.tipoRiegoId}`
+    ? (findById(tiposRiego, detail.riego.tipoRiegoId)?.name ??
+      `ID ${detail.riego.tipoRiegoId}`)
     : "No registrado";
 
   return `<!doctype html>
@@ -242,13 +244,14 @@ async function buildVisitReportHtml(visitaId: string) {
         [
           "Etapa fenologica",
           visita.phenologicalStageId
-            ? findById(etapas, visita.phenologicalStageId)?.name ?? visita.phenologicalStageId
+            ? (findById(etapas, visita.phenologicalStageId)?.name ??
+              visita.phenologicalStageId)
             : null
         ],
         [
           "Sub etapa",
           visita.subEtapaId
-            ? findById(subEtapas, visita.subEtapaId)?.name ?? visita.subEtapaId
+            ? (findById(subEtapas, visita.subEtapaId)?.name ?? visita.subEtapaId)
             : null
         ],
         [
@@ -262,8 +265,12 @@ async function buildVisitReportHtml(visitaId: string) {
 
     ${renderSection(
       "Paso 2 - Plagas y enfermedades",
-      renderSanitaryObservations(detail.observacionesSanitarias, pestDiseases, incidenceLevels, levelDescriptions) +
-        renderStepObservation(stepNotes.get(2)?.observation)
+      renderSanitaryObservations(
+        detail.observacionesSanitarias,
+        pestDiseases,
+        incidenceLevels,
+        levelDescriptions
+      ) + renderStepObservation(stepNotes.get(2)?.observation)
     )}
 
     ${renderSection(
@@ -321,8 +328,12 @@ function renderSection(title: string, content: string) {
   return `<section class="section"><h2>${escapeHtml(title)}</h2>${content}</section>`;
 }
 
-function renderFields(fields: Array<[string, string | number | null | undefined, boolean?]>) {
-  const visibleFields = fields.filter(([, value]) => value !== null && value !== undefined && value !== "");
+function renderFields(
+  fields: Array<[string, string | number | null | undefined, boolean?]>
+) {
+  const visibleFields = fields.filter(
+    ([, value]) => value !== null && value !== undefined && value !== ""
+  );
 
   if (visibleFields.length === 0) {
     return `<div class="empty">No hay informacion registrada.</div>`;
@@ -364,10 +375,10 @@ function renderSanitaryObservations(
         ? findById(incidenceLevels, observation.severityLevelId)?.name
         : null;
       const incidenceDesc = observation.incidenceLevelId
-        ? levelDescriptions[observation.incidenceLevelId] ?? null
+        ? (levelDescriptions[observation.incidenceLevelId] ?? null)
         : null;
       const severityDesc = observation.severityLevelId
-        ? levelDescriptions[observation.severityLevelId] ?? null
+        ? (levelDescriptions[observation.severityLevelId] ?? null)
         : null;
 
       const descParts: string[] = [];

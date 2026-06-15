@@ -103,9 +103,7 @@ export function VisitaNutricionScreen() {
   const [nutrients, setNutrients] = useState<NutrientCatalogItem[]>([]);
   const [evaluaciones, setEvaluaciones] = useState<VisitaEvaluacion[]>([]);
   const [selections, setSelections] = useState<Record<string, string | null>>({});
-  const [imagePreview, setImagePreview] = useState<NutrientCatalogItem | null>(
-    null
-  );
+  const [imagePreview, setImagePreview] = useState<NutrientCatalogItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -248,10 +246,7 @@ export function VisitaNutricionScreen() {
         </View>
       </ScrollView>
 
-      <NutrientImageModal
-        nutrient={imagePreview}
-        onClose={() => setImagePreview(null)}
-      />
+      <NutrientImageModal nutrient={imagePreview} onClose={() => setImagePreview(null)} />
     </ScreenContainer>
   );
 
@@ -306,8 +301,7 @@ export function VisitaNutricionScreen() {
     setSubmitError(null);
     setSelections((currentSelections) => ({
       ...currentSelections,
-      [nutrientId]:
-        currentSelections[nutrientId] === detailId ? null : detailId
+      [nutrientId]: currentSelections[nutrientId] === detailId ? null : detailId
     }));
   }
 
@@ -436,12 +430,9 @@ function NutrientCard({
 }: NutrientCardProps) {
   const [expanded, setExpanded] = useState(false);
   const imageSource = getNutrientImageSource(nutrient);
-  const selectedDetail = nutrient.details.find(
-    (d) => d.id === selectedDetailId
-  );
+  const selectedDetail = nutrient.details.find((d) => d.id === selectedDetailId);
   const description = selectedDetail?.description ?? null;
-  const hasDescription =
-    typeof description === "string" && description.trim().length > 0;
+  const hasDescription = typeof description === "string" && description.trim().length > 0;
   const isLongDescription = hasDescription && description.length > 50;
 
   return (
@@ -469,7 +460,12 @@ function NutrientCard({
 
         {nutrient.details.length > 0 ? (
           <>
-            <View style={[styles.detailButtons, isCompactLayout && styles.detailButtonsCompact]}>
+            <View
+              style={[
+                styles.detailButtons,
+                isCompactLayout && styles.detailButtonsCompact
+              ]}
+            >
               {nutrient.details.map((detail, index) => {
                 const selected = detail.id === selectedDetailId;
 
@@ -524,19 +520,14 @@ function NutrientCard({
                       isLongDescription &&
                       styles.detailDescriptionTextCollapsed
                   ]}
-                  numberOfLines={
-                    expanded ? undefined : isLongDescription ? 2 : undefined
-                  }
+                  numberOfLines={expanded ? undefined : isLongDescription ? 2 : undefined}
                   variant="caption"
                 >
                   {description}
                 </AppText>
                 {isLongDescription ? (
                   <View style={styles.detailDescriptionToggle}>
-                    <AppText
-                      style={styles.detailDescriptionToggleText}
-                      variant="caption"
-                    >
+                    <AppText style={styles.detailDescriptionToggleText} variant="caption">
                       {expanded ? "Mostrar menos" : "Mostrar mas"}
                     </AppText>
                     <Ionicons
@@ -814,10 +805,7 @@ function buildSelectionMap(
       return [nutrient.id, null] as const;
     }
 
-    return [
-      nutrient.id,
-      findSelectedDetailId(nutrient, evaluation) ?? null
-    ] as const;
+    return [nutrient.id, findSelectedDetailId(nutrient, evaluation) ?? null] as const;
   });
 
   return Object.fromEntries(selectionEntries);
@@ -877,9 +865,7 @@ function getNutrientDisplayIndex(nutrient: NutrientCatalogItem) {
     normalizedName.includes(name)
   );
 
-  return configuredIndex >= 0
-    ? configuredIndex
-    : NUTRIENT_DISPLAY_ORDER.length + 1;
+  return configuredIndex >= 0 ? configuredIndex : NUTRIENT_DISPLAY_ORDER.length + 1;
 }
 
 function getDetailNumericValue(detail: NutrientDetailCatalogItem) {
@@ -907,9 +893,7 @@ function getDetailColor(sortOrder: number) {
   return "#ef3b2d";
 }
 
-function getNutrientImageSource(
-  nutrient: NutrientCatalogItem
-): ImageSourcePropType {
+function getNutrientImageSource(nutrient: NutrientCatalogItem): ImageSourcePropType {
   const normalizedName = normalizeCatalogName(nutrient.name);
   const imageConfig = NUTRIENT_IMAGES.find(({ patterns }) =>
     patterns.some((pattern) => normalizedName.includes(pattern))

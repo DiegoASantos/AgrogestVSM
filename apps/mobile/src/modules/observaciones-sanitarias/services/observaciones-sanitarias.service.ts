@@ -50,15 +50,11 @@ export const observacionesSanitariasService = {
     stepNumber: number,
     input: { observation?: string | null; recommendation?: string | null }
   ) {
-    return Promise.resolve(
-      visitaStepNotesRepository.upsert(visitaId, stepNumber, input)
-    );
+    return Promise.resolve(visitaStepNotesRepository.upsert(visitaId, stepNumber, input));
   },
 
   create(visitaId: string, input: CreateObservacionSanitariaInput) {
-    return Promise.resolve(
-      observacionesSanitariasRepository.insert(input, visitaId)
-    );
+    return Promise.resolve(observacionesSanitariasRepository.insert(input, visitaId));
   },
 
   update(id: string, input: UpdateObservacionSanitariaInput) {

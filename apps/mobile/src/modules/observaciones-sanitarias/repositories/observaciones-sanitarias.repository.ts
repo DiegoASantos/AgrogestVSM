@@ -100,7 +100,9 @@ export const observacionesSanitariasRepository = {
        ORDER BY created_at DESC`
     );
 
-    return rows.map((row) => mapObservacionRow(row, getOrganosByObservacionId(row.local_id)));
+    return rows.map((row) =>
+      mapObservacionRow(row, getOrganosByObservacionId(row.local_id))
+    );
   },
 
   getById(localId: string) {
@@ -126,7 +128,9 @@ export const observacionesSanitariasRepository = {
       visitaLocalId
     );
 
-    return rows.map((row) => mapObservacionRow(row, getOrganosByObservacionId(row.local_id)));
+    return rows.map((row) =>
+      mapObservacionRow(row, getOrganosByObservacionId(row.local_id))
+    );
   },
 
   insert(input: CreateObservacionInput, visitaLocalId: string) {
@@ -229,16 +233,10 @@ export const observacionesSanitariasRepository = {
         throw new Error("No se encontro la observacion local para actualizar.");
       }
 
-      const isSyncUpdate =
-        data.syncStatus !== undefined || data.serverId !== undefined;
+      const isSyncUpdate = data.syncStatus !== undefined || data.serverId !== undefined;
 
       if (data.organosAfectados !== undefined) {
-        replaceOrganosByObservacionId(
-          db,
-          localId,
-          data.organosAfectados,
-          timestamp
-        );
+        replaceOrganosByObservacionId(db, localId, data.organosAfectados, timestamp);
       }
 
       if (!isSyncUpdate) {
@@ -337,10 +335,7 @@ export const observacionesSanitariasRepository = {
       name: row.name,
       type: row.type,
       isActive: fromSqliteBoolean(row.is_active),
-      stageLevels: this.getStageLevelsByPestDiseaseAndStage(
-        row.id,
-        phenologicalStageId
-      )
+      stageLevels: this.getStageLevelsByPestDiseaseAndStage(row.id, phenologicalStageId)
     }));
   },
 

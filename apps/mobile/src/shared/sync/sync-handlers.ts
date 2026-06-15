@@ -25,10 +25,7 @@ import { ApiError } from "../services/api/errors";
 import { getApiToken } from "../services/api/auth-store";
 import type { SyncOutboxItem } from "../database/sync-outbox";
 import type { SyncEntityType } from "./sync-entities";
-import {
-  generatePublicId,
-  isUuid
-} from "../utils/local-id";
+import { generatePublicId, isUuid } from "../utils/local-id";
 
 export type SyncHandlerResult =
   | { status: "synced"; serverId: string }
@@ -86,10 +83,7 @@ export async function handleVisitaCampo(
       return { status: "skipped" };
     }
 
-    await visitasCampoRemote.update(
-      visita.serverId,
-      buildVisitaCampoUpdateBody(visita)
-    );
+    await visitasCampoRemote.update(visita.serverId, buildVisitaCampoUpdateBody(visita));
 
     visitasCampoRepository.update(visita.id, {
       syncStatus: "synced",
@@ -184,9 +178,7 @@ export async function handleObservacion(
     return { status: "synced", serverId };
   }
 
-  const observacion = observacionesSanitariasRepository.getById(
-    entry.entityLocalId
-  );
+  const observacion = observacionesSanitariasRepository.getById(entry.entityLocalId);
 
   if (!observacion) {
     return { status: "deleted_local" };
@@ -207,12 +199,9 @@ export async function handleObservacion(
       return { status: "skipped" };
     }
 
-    const response = await observacionesSanitariasRemote.create(
-      visitaPadre.serverId,
-      {
-        ...buildObservacionCreateBody(observacion)
-      }
-    );
+    const response = await observacionesSanitariasRemote.create(visitaPadre.serverId, {
+      ...buildObservacionCreateBody(observacion)
+    });
 
     observacionesSanitariasRepository.update(observacion.id, {
       serverId: response.id,
@@ -243,9 +232,7 @@ export async function handleObservacion(
   return { status: "synced", serverId: observacion.serverId };
 }
 
-export async function handleStepNote(
-  entry: SyncOutboxItem
-): Promise<SyncHandlerResult> {
+export async function handleStepNote(entry: SyncOutboxItem): Promise<SyncHandlerResult> {
   const stepNote = visitaStepNotesRepository.getById(entry.entityLocalId);
 
   if (!stepNote) {
@@ -280,9 +267,7 @@ export async function handleStepNote(
   return { status: "synced", serverId: response.id };
 }
 
-export async function handleRiego(
-  entry: SyncOutboxItem
-): Promise<SyncHandlerResult> {
+export async function handleRiego(entry: SyncOutboxItem): Promise<SyncHandlerResult> {
   if (entry.operation === "delete") {
     const serverId = getDeleteServerId(entry);
 
@@ -394,12 +379,9 @@ export async function handleLaborCultural(
     return { status: "skipped" };
   }
 
-  const response = await laboresCulturalesVisitaRemote.create(
-    visitaPadre.serverId,
-    {
-      ...buildLaborCulturalBody(labor)
-    }
-  );
+  const response = await laboresCulturalesVisitaRemote.create(visitaPadre.serverId, {
+    ...buildLaborCulturalBody(labor)
+  });
 
   laboresCulturalesVisitaRepository.update(labor.id, {
     serverId: response.id,
@@ -508,9 +490,7 @@ function buildEvaluacionUpdateBody(evaluacion: VisitaEvaluacion) {
   };
 }
 
-function buildObservacionCreateBody(
-  observacion: VisitaObservacionSanitaria
-) {
+function buildObservacionCreateBody(observacion: VisitaObservacionSanitaria) {
   return {
     pestDiseaseId: observacion.pestDiseaseId,
     incidenceLevelId: observacion.incidenceLevelId
@@ -524,9 +504,7 @@ function buildObservacionCreateBody(
   };
 }
 
-function buildObservacionUpdateBody(
-  observacion: VisitaObservacionSanitaria
-) {
+function buildObservacionUpdateBody(observacion: VisitaObservacionSanitaria) {
   return {
     pestDiseaseId: observacion.pestDiseaseId,
     incidenceLevelId: observacion.incidenceLevelId

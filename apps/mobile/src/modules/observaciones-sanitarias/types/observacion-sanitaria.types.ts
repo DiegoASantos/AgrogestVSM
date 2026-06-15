@@ -64,8 +64,5 @@ export type ObservacionSanitariaFormValues = {
 };
 
 export type ObservacionSanitariaFormErrors = Partial<
-  Record<
-    "pestDiseaseId" | "incidenceLevelId" | "severityLevelId" | "observation",
-    string
-  >
+  Record<"pestDiseaseId" | "incidenceLevelId" | "severityLevelId" | "observation", string>
 >;

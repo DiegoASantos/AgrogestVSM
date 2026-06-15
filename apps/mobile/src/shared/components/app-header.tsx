@@ -9,12 +9,7 @@ type AppHeaderProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function AppHeader({
-  eyebrow,
-  title,
-  subtitle,
-  style
-}: AppHeaderProps) {
+export function AppHeader({ eyebrow, title, subtitle, style }: AppHeaderProps) {
   return (
     <View style={[styles.container, style]}>
       {eyebrow ? <AppText variant="eyebrow">{eyebrow}</AppText> : null}

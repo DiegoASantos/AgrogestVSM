@@ -42,9 +42,7 @@ export function VisitaRiegoScreen() {
   const isCompactLayout = width < 460;
 
   const [tiposRiego, setTiposRiego] = useState<TipoRiegoCatalogItem[]>([]);
-  const [selectedTipoRiegoId, setSelectedTipoRiegoId] = useState<string | null>(
-    null
-  );
+  const [selectedTipoRiegoId, setSelectedTipoRiegoId] = useState<string | null>(null);
   const [helpItem, setHelpItem] = useState<TipoRiegoCatalogItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);

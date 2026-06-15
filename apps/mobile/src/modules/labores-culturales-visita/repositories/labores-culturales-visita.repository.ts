@@ -5,10 +5,7 @@ import {
   getNowIsoString
 } from "../../../shared/database/sqlite-utils";
 import { generateLocalId } from "../../../shared/utils/local-id";
-import type {
-  LaborCulturalCatalogItem,
-  VisitaLaborCultural
-} from "../types";
+import type { LaborCulturalCatalogItem, VisitaLaborCultural } from "../types";
 
 type SyncStatus = "pending" | "synced" | "error";
 

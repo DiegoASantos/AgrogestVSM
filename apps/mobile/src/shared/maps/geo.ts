@@ -123,10 +123,7 @@ function collectCoordinates(
 }
 
 function isPolygonCoordinates(value: unknown): value is number[][][] {
-  return (
-    Array.isArray(value) &&
-    value.every((ring) => isLinearRing(ring))
-  );
+  return Array.isArray(value) && value.every((ring) => isLinearRing(ring));
 }
 
 function isPosition(value: unknown): value is [number, number] {
@@ -154,18 +151,19 @@ function isLinearRing(value: unknown): value is [number, number][] {
     return false;
   }
 
-  return (
-    firstPosition[0] === lastPosition[0] &&
-    firstPosition[1] === lastPosition[1]
-  );
+  return firstPosition[0] === lastPosition[0] && firstPosition[1] === lastPosition[1];
 }
 
 function isLongitude(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= -180 && value <= 180;
+  return (
+    typeof value === "number" && Number.isFinite(value) && value >= -180 && value <= 180
+  );
 }
 
 function isLatitude(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= -90 && value <= 90;
+  return (
+    typeof value === "number" && Number.isFinite(value) && value >= -90 && value <= 90
+  );
 }
 
 function toMapCoordinateFromArray(position: number[]) {

@@ -126,22 +126,14 @@ export function VisitaObservacionesSanitariasScreen() {
   const isCompactLayout = width < 460;
 
   const [pestDiseases, setPestDiseases] = useState<PestDiseaseByStageItem[]>([]);
-  const [incidenceLevels, setIncidenceLevels] = useState<
-    IncidenceLevelCatalogItem[]
-  >([]);
-  const [observaciones, setObservaciones] = useState<
-    VisitaObservacionSanitaria[]
-  >([]);
-  const [selections, setSelections] = useState<Record<string, SanitarySelection>>(
-    {}
-  );
+  const [incidenceLevels, setIncidenceLevels] = useState<IncidenceLevelCatalogItem[]>([]);
+  const [observaciones, setObservaciones] = useState<VisitaObservacionSanitaria[]>([]);
+  const [selections, setSelections] = useState<Record<string, SanitarySelection>>({});
   const [stepNote, setStepNote] = useState<StepNoteState>({
     observation: "",
     recommendation: ""
   });
-  const [imagePreview, setImagePreview] = useState<PestDiseaseByStageItem | null>(
-    null
-  );
+  const [imagePreview, setImagePreview] = useState<PestDiseaseByStageItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -357,10 +349,7 @@ export function VisitaObservacionesSanitariasScreen() {
         </View>
       </ScrollView>
 
-      <ImagePreviewModal
-        item={imagePreview}
-        onClose={() => setImagePreview(null)}
-      />
+      <ImagePreviewModal item={imagePreview} onClose={() => setImagePreview(null)} />
     </ScreenContainer>
   );
 
@@ -378,19 +367,15 @@ export function VisitaObservacionesSanitariasScreen() {
         return;
       }
 
-      const [
-        nextPestDiseases,
-        nextIncidenceLevels,
-        nextObservaciones,
-        nextStepNote
-      ] = await Promise.all([
-        observacionesSanitariasService.getPestDiseasesByPhenologicalStage(
-          visita.phenologicalStageId
-        ),
-        observacionesSanitariasService.getIncidenceLevels(),
-        observacionesSanitariasService.getByVisitaId(id),
-        observacionesSanitariasService.getStepNote(id, STEP_NUMBER)
-      ]);
+      const [nextPestDiseases, nextIncidenceLevels, nextObservaciones, nextStepNote] =
+        await Promise.all([
+          observacionesSanitariasService.getPestDiseasesByPhenologicalStage(
+            visita.phenologicalStageId
+          ),
+          observacionesSanitariasService.getIncidenceLevels(),
+          observacionesSanitariasService.getByVisitaId(id),
+          observacionesSanitariasService.getStepNote(id, STEP_NUMBER)
+        ]);
 
       let resolvedPestDiseases = nextPestDiseases;
 
@@ -516,8 +501,8 @@ export function VisitaObservacionesSanitariasScreen() {
       const selectedEntries = Object.entries(selections).filter(([, selection]) =>
         Boolean(
           selection.incidenceLevelId ||
-            selection.severityLevelId ||
-            selection.organosAfectados.length > 0
+          selection.severityLevelId ||
+          selection.organosAfectados.length > 0
         )
       );
 
@@ -533,24 +518,17 @@ export function VisitaObservacionesSanitariasScreen() {
         };
 
         if (existingObservacion) {
-          await observacionesSanitariasService.update(
-            existingObservacion.id,
-            payload
-          );
+          await observacionesSanitariasService.update(existingObservacion.id, payload);
         } else {
           await observacionesSanitariasService.create(visitaId, payload);
         }
       }
 
       if (stepNote.observation.trim() || stepNote.recommendation.trim()) {
-        await observacionesSanitariasService.upsertStepNote(
-          visitaId,
-          STEP_NUMBER,
-          {
-            observation: stepNote.observation.trim() || null,
-            recommendation: stepNote.recommendation.trim() || null
-          }
-        );
+        await observacionesSanitariasService.upsertStepNote(visitaId, STEP_NUMBER, {
+          observation: stepNote.observation.trim() || null,
+          recommendation: stepNote.recommendation.trim() || null
+        });
       }
 
       router.replace({
@@ -648,16 +626,8 @@ function SanitaryCard({
   onToggleOrgano,
   selection
 }: SanitaryCardProps) {
-  const incidenceOptions = getLevelOptionsForItem(
-    item,
-    incidenceLevels,
-    "incidencia"
-  );
-  const severityOptions = getLevelOptionsForItem(
-    item,
-    incidenceLevels,
-    "severidad"
-  );
+  const incidenceOptions = getLevelOptionsForItem(item, incidenceLevels, "incidencia");
+  const severityOptions = getLevelOptionsForItem(item, incidenceLevels, "severidad");
   const imageSource = getPestDiseaseImageSource(item);
 
   const levelDescriptions = useMemo(() => {
@@ -829,7 +799,9 @@ function LevelSelectorRow({
             {label}
           </AppText>
         </View>
-        <View style={[styles.levelButtons, isCompactLayout && styles.levelButtonsCompact]}>
+        <View
+          style={[styles.levelButtons, isCompactLayout && styles.levelButtonsCompact]}
+        >
           {levels.map((level) => {
             const selected = level.id === selectedLevelId;
             return (
@@ -852,18 +824,18 @@ function LevelSelectorRow({
                     : styles.levelButtonInactive
                 ]}
               >
-              <AppText
-                numberOfLines={1}
-                style={[
-                  styles.levelButtonText,
-                  selected
-                    ? styles.levelButtonTextSelected
-                    : styles.levelButtonTextInactive
-                ]}
-                variant="label"
-              >
-                {level.name}
-              </AppText>
+                <AppText
+                  numberOfLines={1}
+                  style={[
+                    styles.levelButtonText,
+                    selected
+                      ? styles.levelButtonTextSelected
+                      : styles.levelButtonTextInactive
+                  ]}
+                  variant="label"
+                >
+                  {level.name}
+                </AppText>
               </Pressable>
             );
           })}
@@ -968,15 +940,7 @@ function ImagePreviewModal({
     translateY.value = 0;
     translateStartX.value = 0;
     translateStartY.value = 0;
-  }, [
-    item,
-    scale,
-    scaleBase,
-    translateX,
-    translateY,
-    translateStartX,
-    translateStartY
-  ]);
+  }, [item, scale, scaleBase, translateX, translateY, translateStartX, translateStartY]);
 
   const imageAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -1170,18 +1134,16 @@ function buildSelectionMap(observaciones: VisitaObservacionSanitaria[]) {
   return Object.fromEntries(
     observaciones.map((observacion) => [
       observacion.pestDiseaseId,
-       {
-         incidenceLevelId: observacion.incidenceLevelId,
-         severityLevelId: observacion.severityLevelId,
-         organosAfectados: observacion.organosAfectados
-       }
+      {
+        incidenceLevelId: observacion.incidenceLevelId,
+        severityLevelId: observacion.severityLevelId,
+        organosAfectados: observacion.organosAfectados
+      }
     ])
   );
 }
 
-function getPestDiseaseImageSource(
-  item: PestDiseaseByStageItem
-): ImageSourcePropType {
+function getPestDiseaseImageSource(item: PestDiseaseByStageItem): ImageSourcePropType {
   const normalizedName = normalizeCatalogName(item.name);
   const imageConfig = PEST_DISEASE_IMAGES.find(({ patterns }) =>
     patterns.some((pattern) => normalizedName.includes(pattern))

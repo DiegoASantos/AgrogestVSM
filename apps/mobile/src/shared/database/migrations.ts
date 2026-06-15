@@ -40,9 +40,7 @@ const MIGRATIONS: Migration[] = [
   },
   {
     version: 4,
-    statements: [
-      "ALTER TABLE sync_outbox ADD COLUMN payload TEXT"
-    ]
+    statements: ["ALTER TABLE sync_outbox ADD COLUMN payload TEXT"]
   },
   {
     version: 5,
@@ -188,12 +186,7 @@ const MIGRATIONS: Migration[] = [
           UNIQUE (visita_local_id, step_number)
         )`
       );
-      addColumnIfMissing(
-        db,
-        "visita_paso_observaciones",
-        "sync_error_message",
-        "TEXT"
-      );
+      addColumnIfMissing(db, "visita_paso_observaciones", "sync_error_message", "TEXT");
       db.execSync(
         "CREATE INDEX IF NOT EXISTS idx_pest_disease_stage_levels_stage ON pest_disease_stage_levels(phenological_stage_id)"
       );
@@ -207,9 +200,7 @@ const MIGRATIONS: Migration[] = [
   },
   {
     version: 16,
-    statements: [
-      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
-    ]
+    statements: ["DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"]
   },
   {
     version: 17,
@@ -314,27 +305,17 @@ function addColumnIfMissing(
   columnName: string,
   columnDefinition: string
 ) {
-  const columns = db.getAllSync<{ name: string }>(
-    `PRAGMA table_info(${tableName})`
-  );
+  const columns = db.getAllSync<{ name: string }>(`PRAGMA table_info(${tableName})`);
 
   if (columns.some((column) => column.name === columnName)) {
     return;
   }
 
-  db.execSync(
-    `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`
-  );
+  db.execSync(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
 }
 
-function dropColumnIfExists(
-  db: SQLiteDatabase,
-  tableName: string,
-  columnName: string
-) {
-  const columns = db.getAllSync<{ name: string }>(
-    `PRAGMA table_info(${tableName})`
-  );
+function dropColumnIfExists(db: SQLiteDatabase, tableName: string, columnName: string) {
+  const columns = db.getAllSync<{ name: string }>(`PRAGMA table_info(${tableName})`);
 
   if (!columns.some((column) => column.name === columnName)) {
     return;
@@ -345,12 +326,11 @@ function dropColumnIfExists(
 
 export function runMigrations(db: SQLiteDatabase) {
   const currentVersion =
-    db.getFirstSync<{ user_version: number }>("PRAGMA user_version")
-      ?.user_version ?? 0;
+    db.getFirstSync<{ user_version: number }>("PRAGMA user_version")?.user_version ?? 0;
 
-  const pending = MIGRATIONS
-    .filter((m) => m.version > currentVersion)
-    .sort((a, b) => a.version - b.version);
+  const pending = MIGRATIONS.filter((m) => m.version > currentVersion).sort(
+    (a, b) => a.version - b.version
+  );
 
   for (const migration of pending) {
     db.withTransactionSync(() => {

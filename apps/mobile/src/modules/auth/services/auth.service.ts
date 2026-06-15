@@ -91,20 +91,12 @@ function mapAuthUser(response: AuthUserApiResponse): AuthUser {
     lastName: response.lastName,
     phone: response.phone,
     isActive: response.isActive,
-    displayName: buildDisplayName(
-      response.firstName,
-      response.lastName,
-      response.email
-    ),
+    displayName: buildDisplayName(response.firstName, response.lastName, response.email),
     roles: response.roles.map((role) => role.code)
   };
 }
 
-function buildDisplayName(
-  firstName: string,
-  lastName: string,
-  email: string
-) {
+function buildDisplayName(firstName: string, lastName: string, email: string) {
   const fullName = `${firstName} ${lastName}`.trim();
 
   if (fullName) {

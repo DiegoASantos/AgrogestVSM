@@ -1,8 +1,5 @@
 import { apiRequest } from "../../../shared/services";
-import type {
-  LaborCulturalCatalogItem,
-  VisitaLaborCultural
-} from "../types";
+import type { LaborCulturalCatalogItem, VisitaLaborCultural } from "../types";
 
 type CreateLaborCulturalInput = {
   laborCulturalId: number;

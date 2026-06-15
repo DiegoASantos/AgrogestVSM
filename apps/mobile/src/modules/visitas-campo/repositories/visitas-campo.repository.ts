@@ -11,10 +11,7 @@ import {
   normalizeGeoJsonPoint,
   type GeoJsonPointGeometry
 } from "../../../shared/maps/geo";
-import {
-  generateLocalId,
-  generatePublicId
-} from "../../../shared/utils/local-id";
+import { generateLocalId, generatePublicId } from "../../../shared/utils/local-id";
 import type {
   CampaniaCatalogItem,
   CreateVisitaCampoDraft,
@@ -518,8 +515,7 @@ export const visitasCampoRepository = {
         throw new Error("No se encontro la visita local para actualizar.");
       }
 
-      const isSyncUpdate =
-        data.syncStatus !== undefined || data.serverId !== undefined;
+      const isSyncUpdate = data.syncStatus !== undefined || data.serverId !== undefined;
 
       if (!isSyncUpdate) {
         db.runSync(
@@ -719,9 +715,7 @@ function mapSubEtapaRow(row: SubEtapaRow): SubEtapaCatalogItem {
   };
 }
 
-function applySubEtapaLocalOverrides(
-  subEtapa: SubEtapaCatalogItem
-): SubEtapaCatalogItem {
+function applySubEtapaLocalOverrides(subEtapa: SubEtapaCatalogItem): SubEtapaCatalogItem {
   switch (normalizeCatalogName(subEtapa.name)) {
     case "cuajado inicial":
       return {

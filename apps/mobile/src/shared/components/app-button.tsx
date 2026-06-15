@@ -41,7 +41,11 @@ export function AppButton({
       <View style={styles.content}>
         {loading ? (
           <ActivityIndicator
-            color={variant === "primary" || variant === "danger" ? "#ffffff" : theme.colors.primary}
+            color={
+              variant === "primary" || variant === "danger"
+                ? "#ffffff"
+                : theme.colors.primary
+            }
             size="small"
             style={styles.spinner}
           />

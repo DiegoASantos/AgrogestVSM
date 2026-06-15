@@ -68,12 +68,7 @@ function createFakeDatabase(
       }
 
       if (statement.startsWith("CREATE TABLE IF NOT EXISTS incidence_levels")) {
-        this.incidenceLevelColumns = new Set([
-          "id",
-          "name",
-          "sort_order",
-          "type"
-        ]);
+        this.incidenceLevelColumns = new Set(["id", "name", "sort_order", "type"]);
         return;
       }
 
@@ -218,9 +213,7 @@ describe("runMigrations", () => {
     expect(db.executedStatements).toContain(
       "ALTER TABLE pest_diseases ADD COLUMN scientific_name TEXT"
     );
-    expect(db.executedStatements).toContain(
-      "ALTER TABLE pest_diseases DROP COLUMN code"
-    );
+    expect(db.executedStatements).toContain("ALTER TABLE pest_diseases DROP COLUMN code");
     expect(db.pestDiseaseColumns.has("phenological_stage_id")).toBe(true);
     expect(db.executedStatements).toContain(
       "ALTER TABLE pest_diseases ADD COLUMN phenological_stage_id TEXT"

@@ -40,7 +40,9 @@ export function getSubEtapaImageSource(
     return FALLBACK_SUB_ETAPA_IMAGE;
   }
 
-  return SUB_ETAPA_IMAGES[normalizeSubEtapaName(subEtapaName)] ?? FALLBACK_SUB_ETAPA_IMAGE;
+  return (
+    SUB_ETAPA_IMAGES[normalizeSubEtapaName(subEtapaName)] ?? FALLBACK_SUB_ETAPA_IMAGE
+  );
 }
 
 function normalizeSubEtapaName(value: string) {

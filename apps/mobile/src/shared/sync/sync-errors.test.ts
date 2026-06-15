@@ -48,14 +48,11 @@ describe("classifyError", () => {
     expect(result.statusCode).toBe(status);
   });
 
-  it.each([400, 404, 422])(
-    "classifies status %s as permanent",
-    (status) => {
-      const result = classifyError(new ApiError("bad", status));
-      expect(result.kind).toBe("permanent");
-      expect(result.statusCode).toBe(status);
-    }
-  );
+  it.each([400, 404, 422])("classifies status %s as permanent", (status) => {
+    const result = classifyError(new ApiError("bad", status));
+    expect(result.kind).toBe("permanent");
+    expect(result.statusCode).toBe(status);
+  });
 
   it("preserves the original ApiError message", () => {
     const result = classifyError(new ApiError("validation failed", 422));

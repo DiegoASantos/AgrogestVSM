@@ -1,12 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppMap,
@@ -569,9 +564,7 @@ function formatSanitaryObservationSubtitle(
         )}`
       : null,
     observacion.organosAfectados.length > 0
-      ? `Organos: ${observacion.organosAfectados
-          .map(formatOrganoLabel)
-          .join(", ")}`
+      ? `Organos: ${observacion.organosAfectados.map(formatOrganoLabel).join(", ")}`
       : "Organos: No registrados"
   ];
 

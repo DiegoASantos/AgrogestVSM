@@ -21,10 +21,7 @@ export function AppDetailRow({
       <AppText variant="caption" style={styles.label}>
         {label}
       </AppText>
-      <AppText
-        variant="body"
-        style={[styles.value, valueStyle]}
-      >
+      <AppText variant="body" style={[styles.value, valueStyle]}>
         {value}
       </AppText>
     </View>

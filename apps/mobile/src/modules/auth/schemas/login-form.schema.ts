@@ -1,7 +1,4 @@
-import {
-  loginSchema as sharedLoginSchema,
-  type LoginInput
-} from "@agrogest/validation";
+import { loginSchema as sharedLoginSchema, type LoginInput } from "@agrogest/validation";
 
 export const loginFormSchema = sharedLoginSchema;
 

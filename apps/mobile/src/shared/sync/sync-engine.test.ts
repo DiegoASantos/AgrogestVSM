@@ -14,11 +14,9 @@ const deleteOutboxEntry = vi.fn();
 const incrementOutboxRetryCount = vi.fn();
 
 vi.mock("../database/sync-outbox", () => ({
-  getPendingOutboxEntries: (...args: unknown[]) =>
-    getPendingOutboxEntries(...args),
+  getPendingOutboxEntries: (...args: unknown[]) => getPendingOutboxEntries(...args),
   deleteOutboxEntry: (...args: unknown[]) => deleteOutboxEntry(...args),
-  incrementOutboxRetryCount: (...args: unknown[]) =>
-    incrementOutboxRetryCount(...args)
+  incrementOutboxRetryCount: (...args: unknown[]) => incrementOutboxRetryCount(...args)
 }));
 
 const runSync = vi.fn();
@@ -194,9 +192,7 @@ describe("processOutbox", () => {
   });
 
   it("removes the entry on deleted_local result", async () => {
-    getPendingOutboxEntries.mockReturnValue([
-      makeEntry({ id: 2, operation: "delete" })
-    ]);
+    getPendingOutboxEntries.mockReturnValue([makeEntry({ id: 2, operation: "delete" })]);
     handlerVisita.mockResolvedValue({ status: "deleted_local" });
 
     const result = await processOutbox();

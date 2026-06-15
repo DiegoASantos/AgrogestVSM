@@ -43,9 +43,7 @@ export function VisitaLaboresCulturalesScreen() {
   const isCompactLayout = width < 460;
 
   const [labores, setLabores] = useState<LaborCulturalCatalogItem[]>([]);
-  const [selectedLaborIds, setSelectedLaborIds] = useState<Set<string>>(
-    () => new Set()
-  );
+  const [selectedLaborIds, setSelectedLaborIds] = useState<Set<string>>(() => new Set());
   const [helpItem, setHelpItem] = useState<LaborCulturalCatalogItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -233,9 +231,7 @@ export function VisitaLaboresCulturalesScreen() {
       const existingLabores = await laboresCulturalesVisitaService.getByVisitaId(id);
 
       setLabores(nextLabores.filter((labor) => labor.isActive));
-      setSelectedLaborIds(
-        new Set(existingLabores.map((labor) => labor.laborCulturalId))
-      );
+      setSelectedLaborIds(new Set(existingLabores.map((labor) => labor.laborCulturalId)));
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setError(apiError.message || "No se pudo cargar labores culturales.");

@@ -47,10 +47,7 @@ export const visitasCampoService = {
 
   getRecentByAccessToken(accessToken: string, limit = 3) {
     const agronomistUserId = getUserIdFromAccessToken(accessToken);
-    return visitasCampoRepository.getRecentByAgronomistUserId(
-      agronomistUserId,
-      limit
-    );
+    return visitasCampoRepository.getRecentByAgronomistUserId(agronomistUserId, limit);
   },
 
   getByAccessToken(accessToken: string) {
@@ -85,8 +82,7 @@ export const visitasCampoService = {
       observacionesSanitarias:
         observacionesSanitariasRepository.getByVisitaLocalId(localId),
       riego: riegosRepository.getByVisitaLocalId(localId),
-      laboresCulturales:
-        laboresCulturalesVisitaRepository.getByVisitaLocalId(localId),
+      laboresCulturales: laboresCulturalesVisitaRepository.getByVisitaLocalId(localId),
       stepNotes: [1, 2, 3, 4, 5]
         .map((stepNumber) =>
           visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
@@ -113,16 +109,14 @@ export const visitasCampoService = {
     }
 
     const evaluaciones = evaluacionesRepository.getByVisitaLocalId(localId);
-    const observaciones =
-      observacionesSanitariasRepository.getByVisitaLocalId(localId);
+    const observaciones = observacionesSanitariasRepository.getByVisitaLocalId(localId);
     const stepNotes = [1, 2, 3, 4, 5]
       .map((stepNumber) =>
         visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
       )
       .filter((stepNote) => stepNote !== null);
     const riego = riegosRepository.getByVisitaLocalId(localId);
-    const labores =
-      laboresCulturalesVisitaRepository.getByVisitaLocalId(localId);
+    const labores = laboresCulturalesVisitaRepository.getByVisitaLocalId(localId);
 
     const allStatuses = [
       visita.syncStatus,
@@ -167,16 +161,14 @@ export const visitasCampoService = {
     }
 
     const evaluaciones = evaluacionesRepository.getByVisitaLocalId(localId);
-    const observaciones =
-      observacionesSanitariasRepository.getByVisitaLocalId(localId);
+    const observaciones = observacionesSanitariasRepository.getByVisitaLocalId(localId);
     const stepNotes = [1, 2, 3, 4, 5]
       .map((stepNumber) =>
         visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
       )
       .filter((stepNote) => stepNote !== null);
     const riego = riegosRepository.getByVisitaLocalId(localId);
-    const labores =
-      laboresCulturalesVisitaRepository.getByVisitaLocalId(localId);
+    const labores = laboresCulturalesVisitaRepository.getByVisitaLocalId(localId);
 
     type EntityToRetry = {
       entityType: SyncEntityType;

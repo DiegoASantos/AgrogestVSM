@@ -24,10 +24,7 @@ type ApiFailureResponse = {
   };
 };
 
-export async function apiRequest<T>(
-  path: string,
-  options: ApiRequestOptions = {}
-) {
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}) {
   let response = await performRequest(path, options);
 
   if (
@@ -109,9 +106,7 @@ function performRequest(
         ? { Authorization: `Bearer ${apiToken}` }
         : {})
     },
-    ...(options.body !== undefined
-      ? { body: JSON.stringify(options.body) }
-      : {})
+    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {})
   });
 }
 

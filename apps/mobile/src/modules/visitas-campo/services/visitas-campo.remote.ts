@@ -1,10 +1,6 @@
 import { apiRequest } from "../../../shared/services";
 import { getUserIdFromAccessToken } from "../../../shared/utils/auth-token";
-import type {
-  CreateVisitaCampoDraft,
-  VisitaCampo,
-  VisitaCampoFull
-} from "../types";
+import type { CreateVisitaCampoDraft, VisitaCampo, VisitaCampoFull } from "../types";
 
 type AuthToken = {
   accessToken: string;

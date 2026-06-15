@@ -66,9 +66,7 @@ export function AppMap({
                 fillColor={polygon.fillColor ?? DEFAULT_POLYGON_FILL}
                 holes={shape.holes.length > 0 ? shape.holes : undefined}
                 key={`${polygon.id}-${index}`}
-                onPress={() =>
-                  setSelectedFeatureKey(`polygon:${polygon.id}`)
-                }
+                onPress={() => setSelectedFeatureKey(`polygon:${polygon.id}`)}
                 strokeColor={polygon.strokeColor ?? DEFAULT_POLYGON_STROKE}
                 tappable
               />
@@ -97,8 +95,7 @@ export function AppMap({
         ) : null}
       </View>
 
-      {hasFeatures &&
-      (selectedFeature?.title || selectedFeature?.description) ? (
+      {hasFeatures && (selectedFeature?.title || selectedFeature?.description) ? (
         <View style={styles.infoCard}>
           <AppText variant="label">
             {selectedFeature.title || "Elemento georreferenciado"}
@@ -164,7 +161,10 @@ function buildSelectedFeature(
   };
 }
 
-function getDefaultSelectedFeature(points: AppMapProps["points"], polygons: AppMapProps["polygons"]) {
+function getDefaultSelectedFeature(
+  points: AppMapProps["points"],
+  polygons: AppMapProps["polygons"]
+) {
   if (points?.[0]) {
     return buildSelectedFeature(
       `point:${points[0].id}`,
@@ -197,18 +197,14 @@ function resolveSelectedFeature(
     const pointId = key.slice("point:".length);
     const point = points?.find((item) => item.id === pointId);
 
-    return point
-      ? buildSelectedFeature(key, point.title, point.description)
-      : null;
+    return point ? buildSelectedFeature(key, point.title, point.description) : null;
   }
 
   if (key.startsWith("polygon:")) {
     const polygonId = key.slice("polygon:".length);
     const polygon = polygons?.find((item) => item.id === polygonId);
 
-    return polygon
-      ? buildSelectedFeature(key, polygon.title, polygon.description)
-      : null;
+    return polygon ? buildSelectedFeature(key, polygon.title, polygon.description) : null;
   }
 
   return null;

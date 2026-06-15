@@ -22,15 +22,11 @@ const LOGIN_BACKGROUND = require("../../../../../assets/images/login_fondo.webp"
 export function LoginScreen() {
   const { height } = useWindowDimensions();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const heroHeight = isKeyboardVisible
-    ? 12
-    : Math.max(235, Math.min(height * 0.32, 300));
+  const heroHeight = isKeyboardVisible ? 12 : Math.max(235, Math.min(height * 0.32, 300));
 
   useEffect(() => {
-    const showEvent =
-      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent =
-      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     const showSubscription = Keyboard.addListener(showEvent, () => {
       setIsKeyboardVisible(true);
     });

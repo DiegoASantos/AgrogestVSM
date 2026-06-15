@@ -34,10 +34,7 @@ export type SyncOutboxItem = {
   createdAt: string;
 };
 
-export function insertSyncOutboxEntry(
-  db: SQLiteDatabase,
-  entry: SyncOutboxEntry
-) {
+export function insertSyncOutboxEntry(db: SQLiteDatabase, entry: SyncOutboxEntry) {
   const existingEntries = db.getAllSync<Pick<SyncOutboxRow, "id" | "operation">>(
     `SELECT id, operation
      FROM sync_outbox

@@ -159,8 +159,7 @@ export const visitaStepNotesRepository = {
         throw new Error("No se encontro la nota del paso para actualizar.");
       }
 
-      const isSyncUpdate =
-        input.syncStatus !== undefined || input.serverId !== undefined;
+      const isSyncUpdate = input.syncStatus !== undefined || input.serverId !== undefined;
 
       if (!isSyncUpdate) {
         db.runSync(

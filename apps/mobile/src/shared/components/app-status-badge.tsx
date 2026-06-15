@@ -8,10 +8,7 @@ type AppStatusBadgeProps = {
   variant?: "success" | "error" | "warning" | "info" | "neutral";
 };
 
-export function AppStatusBadge({
-  label,
-  variant = "neutral"
-}: AppStatusBadgeProps) {
+export function AppStatusBadge({ label, variant = "neutral" }: AppStatusBadgeProps) {
   return (
     <View style={[styles.badge, badgeStyles[variant]]}>
       <View style={[styles.dot, dotStyles[variant]]} />

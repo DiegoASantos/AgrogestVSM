@@ -1,11 +1,6 @@
 import { StyleSheet, View } from "react-native";
 
-import {
-  AppButton,
-  AppCard,
-  AppInput,
-  AppText
-} from "../../../../shared/components";
+import { AppButton, AppCard, AppInput, AppText } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
 import type { EvaluacionFormErrors, EvaluacionFormValues } from "../../types";
 

@@ -38,9 +38,11 @@ function parseAccessTokenPayload(accessToken: string) {
       .replace(/_/g, "/")
       .padEnd(Math.ceil(tokenParts[1].length / 4) * 4, "=");
 
-    const decodeBase64 = (globalThis as {
-      atob?: (value: string) => string;
-    }).atob;
+    const decodeBase64 = (
+      globalThis as {
+        atob?: (value: string) => string;
+      }
+    ).atob;
 
     if (!decodeBase64) {
       throw new ApiError("El entorno actual no puede leer el token de sesion.");

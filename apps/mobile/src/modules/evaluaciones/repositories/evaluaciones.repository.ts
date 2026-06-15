@@ -174,8 +174,7 @@ export const evaluacionesRepository = {
         throw new Error("No se encontro la evaluacion local para actualizar.");
       }
 
-      const isSyncUpdate =
-        data.syncStatus !== undefined || data.serverId !== undefined;
+      const isSyncUpdate = data.syncStatus !== undefined || data.serverId !== undefined;
 
       if (!isSyncUpdate) {
         db.runSync(

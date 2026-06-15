@@ -16,7 +16,9 @@ function SyncRunner() {
 }
 
 export default function RootLayout() {
-  useEffect(() => { initDatabase(); }, []);
+  useEffect(() => {
+    initDatabase();
+  }, []);
 
   return (
     <SafeAreaProvider>
@@ -141,10 +143,7 @@ function isProtectedMobilePath(pathname: string | null) {
     return false;
   }
 
-  return (
-    pathname.startsWith("/home") ||
-    pathname.startsWith("/visitas-campo")
-  );
+  return pathname.startsWith("/home") || pathname.startsWith("/visitas-campo");
 }
 
 const styles = StyleSheet.create({

@@ -1,7 +1,4 @@
-import {
-  openDatabaseSync,
-  type SQLiteDatabase
-} from "expo-sqlite";
+import { openDatabaseSync, type SQLiteDatabase } from "expo-sqlite";
 
 import { runMigrations } from "./migrations";
 

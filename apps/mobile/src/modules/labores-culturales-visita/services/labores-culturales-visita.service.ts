@@ -2,9 +2,7 @@ import { laboresCulturalesVisitaRepository } from "../repositories/labores-cultu
 
 export const laboresCulturalesVisitaService = {
   getLaboresCulturales() {
-    return Promise.resolve(
-      laboresCulturalesVisitaRepository.getLaboresCulturales()
-    );
+    return Promise.resolve(laboresCulturalesVisitaRepository.getLaboresCulturales());
   },
 
   getByVisitaId(visitaId: string) {
@@ -15,8 +13,7 @@ export const laboresCulturalesVisitaService = {
 
   saveSelections(visitaId: string, selectedLaborIds: string[]) {
     const selectedSet = new Set(selectedLaborIds);
-    const currentLabores =
-      laboresCulturalesVisitaRepository.getByVisitaLocalId(visitaId);
+    const currentLabores = laboresCulturalesVisitaRepository.getByVisitaLocalId(visitaId);
 
     for (const currentLabor of currentLabores) {
       if (!selectedSet.has(currentLabor.laborCulturalId)) {

@@ -16,7 +16,6 @@ export const nutricionRemote = {
   async getNutrientsByCrop(cropId: string) {
     const nutrients = await this.getNutrients();
 
-    return nutrients
-      .filter((nutrient) => nutrient.cultivoId === cropId);
+    return nutrients.filter((nutrient) => nutrient.cultivoId === cropId);
   }
 };

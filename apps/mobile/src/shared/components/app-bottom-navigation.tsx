@@ -77,7 +77,10 @@ function getActiveTab(pathname: string): NavigationTab {
     return "inicio";
   }
 
-  if (pathname === "/visitas-campo/historial" || pathname.startsWith("/visitas-campo/historial/")) {
+  if (
+    pathname === "/visitas-campo/historial" ||
+    pathname.startsWith("/visitas-campo/historial/")
+  ) {
     return "historial";
   }
 

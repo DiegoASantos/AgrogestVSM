@@ -59,7 +59,9 @@ export async function processOutbox(): Promise<{
     const handler = entityHandlerMap[entry.entityType];
 
     if (!handler) {
-      console.warn(`No sync handler for entity type: ${entry.entityType}. Removing orphaned entry.`);
+      console.warn(
+        `No sync handler for entity type: ${entry.entityType}. Removing orphaned entry.`
+      );
       deleteOutboxEntry(entry.id);
       skipped++;
       continue;
@@ -144,11 +146,9 @@ function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {
     return;
   }
 
-  debugLog(
-    "Sync",
-    `Conflict resolved for ${entry.entityType}:${entry.entityLocalId}`,
-    { serverId: data.id }
-  );
+  debugLog("Sync", `Conflict resolved for ${entry.entityType}:${entry.entityLocalId}`, {
+    serverId: data.id
+  });
 
   try {
     if (entry.entityType === "visitas_campo") {
@@ -195,8 +195,7 @@ function getChildVisitaLocalId(entry: SyncOutboxItem): string | null {
       return evaluacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
     case "visita_observaciones_sanitarias":
       return (
-        observacionesSanitariasRepository.getById(entry.entityLocalId)?.visitaId ??
-        null
+        observacionesSanitariasRepository.getById(entry.entityLocalId)?.visitaId ?? null
       );
     case "visita_paso_observaciones":
       return visitaStepNotesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
@@ -204,8 +203,7 @@ function getChildVisitaLocalId(entry: SyncOutboxItem): string | null {
       return riegosRepository.getById(entry.entityLocalId)?.visitaId ?? null;
     case "visita_labores_culturales":
       return (
-        laboresCulturalesVisitaRepository.getById(entry.entityLocalId)?.visitaId ??
-        null
+        laboresCulturalesVisitaRepository.getById(entry.entityLocalId)?.visitaId ?? null
       );
     default:
       return null;

@@ -14,9 +14,7 @@ export function getApiBaseUrl() {
 
 function getInferredDevelopmentApiUrl() {
   const rawHost =
-    Constants.expoConfig?.hostUri ??
-    Constants.expoGoConfig?.debuggerHost ??
-    null;
+    Constants.expoConfig?.hostUri ?? Constants.expoGoConfig?.debuggerHost ?? null;
 
   const host = extractHostname(rawHost);
 
@@ -45,10 +43,7 @@ function extractHostname(value: string | null | undefined) {
   const withoutPath = normalizedValue.split("/")[0];
 
   // Expo usually exposes the dev host as "ip:port".
-  if (
-    withoutPath.startsWith("[") &&
-    withoutPath.includes("]:")
-  ) {
+  if (withoutPath.startsWith("[") && withoutPath.includes("]:")) {
     return withoutPath.slice(1, withoutPath.indexOf("]:"));
   }
 

@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   ImageBackground,
   Pressable,
   ScrollView,
@@ -14,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "../../../../shared/components";
 import { useIsOnline } from "../../../../shared/connectivity/use-is-online";
+import { useCatalogDownloadStatus } from "../../../../shared/database/catalog-download-state";
 import { getLastSyncTime, getSyncCounts, requestSync } from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { visitasCampoService } from "../../../visitas-campo/services";
@@ -39,6 +41,7 @@ export function HomeScreen() {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
+  const catalogStatus = useCatalogDownloadStatus();
   const heroHeight = Math.min(Math.max(width * 0.58, 218), 330);
 
   const loadDashboard = useCallback(() => {
@@ -117,6 +120,34 @@ export function HomeScreen() {
             </Pressable>
           ) : null}
         </View>
+
+        {catalogStatus.isDownloading || catalogStatus.error ? (
+          <View
+            style={[
+              styles.catalogBanner,
+              catalogStatus.error && styles.catalogBannerError
+            ]}
+          >
+            {catalogStatus.isDownloading ? (
+              <ActivityIndicator color="#064b31" size="small" />
+            ) : (
+              <Ionicons color="#bc3f36" name="warning-outline" size={20} />
+            )}
+            <AppText
+              style={[
+                styles.catalogBannerText,
+                catalogStatus.error && styles.catalogBannerTextError
+              ]}
+              variant="caption"
+            >
+              {catalogStatus.isDownloading
+                ? "Descargando datos de referencia..."
+                : catalogStatus.error
+                  ? `Error al descargar catalogos: ${catalogStatus.error}`
+                  : null}
+            </AppText>
+          </View>
+        ) : null}
 
         <ImageBackground
           imageStyle={styles.heroImage}
@@ -824,6 +855,30 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3
+  },
+  catalogBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: "#edf6e6",
+    borderWidth: 1,
+    borderColor: "#b7d7a3"
+  },
+  catalogBannerError: {
+    backgroundColor: "#fceae7",
+    borderColor: "#e8b5ae"
+  },
+  catalogBannerText: {
+    flex: 1,
+    color: "#064b31",
+    fontSize: 12
+  },
+  catalogBannerTextError: {
+    color: "#bc3f36"
   },
   pressed: {
     opacity: 0.8

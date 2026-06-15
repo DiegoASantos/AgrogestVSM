@@ -106,7 +106,9 @@ export function VisitasHistoryScreen() {
                 onSharePdf={() => {
                   void handlePdfAction(visita.id, "share");
                 }}
-                pdfAction={activePdfAction?.visitaId === visita.id ? activePdfAction.action : null}
+                pdfAction={
+                  activePdfAction?.visitaId === visita.id ? activePdfAction.action : null
+                }
                 visita={visita}
               />
             ))
@@ -129,10 +131,7 @@ export function VisitasHistoryScreen() {
       }
     } catch (nextError) {
       const apiError = toApiError(nextError);
-      Alert.alert(
-        "No se pudo generar el PDF",
-        apiError.message || "Intenta nuevamente."
-      );
+      Alert.alert("No se pudo generar el PDF", apiError.message || "Intenta nuevamente.");
     } finally {
       setActivePdfAction(null);
     }

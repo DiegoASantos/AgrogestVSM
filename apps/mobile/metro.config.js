@@ -14,10 +14,7 @@ const defaultResolveRequest = config.resolver.resolveRequest;
 config.watchFolders = Array.from(
   new Set([...(config.watchFolders ?? []), workspaceRoot])
 );
-config.resolver.nodeModulesPaths = [
-  mobileNodeModules,
-  rootNodeModules
-];
+config.resolver.nodeModulesPaths = [mobileNodeModules, rootNodeModules];
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === "react" || moduleName.startsWith("react/")) {

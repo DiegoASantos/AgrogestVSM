@@ -48,11 +48,7 @@ import { getSubEtapaImageSource } from "../../utils/sub-etapa-images";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
-type ActiveVisitaField =
-  | "crop"
-  | "variety"
-  | "phenologicalStage"
-  | "sowingDate";
+type ActiveVisitaField = "crop" | "variety" | "phenologicalStage" | "sowingDate";
 
 type WizardStep = {
   index: number;
@@ -168,8 +164,7 @@ export function NewVisitaCampoScreen() {
           ? ""
           : String(defaults.plantsCount)),
       sowingDate: currentValues.sowingDate || defaults.sowingDate || "",
-      areaHectares:
-        currentValues.areaHectares || defaults.areaHectares || ""
+      areaHectares: currentValues.areaHectares || defaults.areaHectares || ""
     }));
   }, [isEditingVisita, values.parcelaId]);
 
@@ -209,8 +204,7 @@ export function NewVisitaCampoScreen() {
           phenologicalStage: visita.phenologicalStageId ?? "",
           subEtapaId: visita.subEtapaId ?? "",
           subEtapaPercentage:
-            visita.subEtapaPercentage === null ||
-            visita.subEtapaPercentage === undefined
+            visita.subEtapaPercentage === null || visita.subEtapaPercentage === undefined
               ? ""
               : String(visita.subEtapaPercentage),
           generalObservation: visita.generalObservation ?? ""
@@ -249,8 +243,7 @@ export function NewVisitaCampoScreen() {
 
   const selectedEtapaFenologica = useMemo(
     () =>
-      etapasFenologicas.find((etapa) => etapa.id === values.phenologicalStage) ??
-      null,
+      etapasFenologicas.find((etapa) => etapa.id === values.phenologicalStage) ?? null,
     [etapasFenologicas, values.phenologicalStage]
   );
 
@@ -323,8 +316,7 @@ export function NewVisitaCampoScreen() {
     selectedEtapaFenologica?.type === "Etapa" &&
     (isLoadingSubEtapas || subEtapas.length > 0 || !!subEtapasError);
   const shouldShowLaborProgress =
-    selectedEtapaFenologica?.type === "Labor" &&
-    !isPendingLabor(selectedEtapaFenologica);
+    selectedEtapaFenologica?.type === "Labor" && !isPendingLabor(selectedEtapaFenologica);
 
   if (!session.accessToken) {
     return (
@@ -382,8 +374,8 @@ export function NewVisitaCampoScreen() {
               Datos basicos y etapas fenologicas
             </AppText>
             <AppText style={styles.heroSubtitle} variant="body">
-              Completa la informacion inicial de la visita y selecciona la etapa
-              del cultivo.
+              Completa la informacion inicial de la visita y selecciona la etapa del
+              cultivo.
             </AppText>
           </View>
         </ImageBackground>
@@ -435,9 +427,7 @@ export function NewVisitaCampoScreen() {
                   onSelect={(value) => handleCatalogSelection("variety", value)}
                   onToggle={() => toggleCatalog("variety")}
                   options={variedadOptions}
-                  placeholder={
-                    values.crop ? "Selecciona variedad" : "Selecciona cultivo"
-                  }
+                  placeholder={values.crop ? "Selecciona variedad" : "Selecciona cultivo"}
                   selectedLabel={getSelectedLabel(variedadOptions, values.variety)}
                 />
               </View>
@@ -518,7 +508,10 @@ export function NewVisitaCampoScreen() {
                     updateField("startVisitTime", formatTypedTimeInput(value))
                   }
                   onEndEditing={() =>
-                    updateField("startVisitTime", normalizeTypedTimeInput(values.startVisitTime))
+                    updateField(
+                      "startVisitTime",
+                      normalizeTypedTimeInput(values.startVisitTime)
+                    )
                   }
                   placeholder="HH:MM"
                   value={values.startVisitTime}
@@ -538,7 +531,10 @@ export function NewVisitaCampoScreen() {
                     updateField("endVisitTime", formatTypedTimeInput(value))
                   }
                   onEndEditing={() =>
-                    updateField("endVisitTime", normalizeTypedTimeInput(values.endVisitTime))
+                    updateField(
+                      "endVisitTime",
+                      normalizeTypedTimeInput(values.endVisitTime)
+                    )
                   }
                   placeholder="HH:MM"
                   value={values.endVisitTime}
@@ -670,16 +666,16 @@ export function NewVisitaCampoScreen() {
                 pressed && !isSubmitting && styles.pressed,
                 isSubmitting && styles.disabledButton
               ]}
-              >
-                <Ionicons color="#d8f3dc" name="leaf" size={20} />
-                <AppText style={styles.continueButtonText} variant="label">
+            >
+              <Ionicons color="#d8f3dc" name="leaf" size={20} />
+              <AppText style={styles.continueButtonText} variant="label">
                 {isSubmitting
                   ? "Guardando..."
                   : isEditingVisita
                     ? "Actualizar"
                     : "Continuar"}
-                </AppText>
-              </Pressable>
+              </AppText>
+            </Pressable>
 
             <Pressable
               accessibilityRole="button"
@@ -763,10 +759,7 @@ export function NewVisitaCampoScreen() {
     setActiveCatalog(null);
   }
 
-  function handleDateSelection(
-    field: "sowingDate",
-    value: string
-  ) {
+  function handleDateSelection(field: "sowingDate", value: string) {
     updateField(field, value);
     setActiveCatalog(null);
   }
@@ -925,10 +918,7 @@ export function NewVisitaCampoScreen() {
       const selectedCampaign = campaniasResult.value.find(
         (campania) => campania.id === values.campaign
       );
-      updateField(
-        "campaign",
-        selectedCampaign?.id ?? campaniasResult.value[0]?.id ?? ""
-      );
+      updateField("campaign", selectedCampaign?.id ?? campaniasResult.value[0]?.id ?? "");
 
       if (campaniasResult.value.length === 0) {
         setCampaniasError("No hay campaña activa para el cultivo seleccionado.");
@@ -961,21 +951,16 @@ export function NewVisitaCampoScreen() {
 
     try {
       const nextSubEtapas =
-        await visitaCampoCatalogsService.getSubEtapasByEtapaFenologica(
-          etapaFenologicaId
-        );
+        await visitaCampoCatalogsService.getSubEtapasByEtapaFenologica(etapaFenologicaId);
 
       setSubEtapas(nextSubEtapas);
 
       if (nextSubEtapas.length > 0) {
         const initialPercentage =
           values.subEtapaPercentage.trim().length > 0
-            ? parsePercentageValue(values.subEtapaPercentage) ?? 0
-            : nextSubEtapas[0]?.percentage ?? 0;
-        const initialSubEtapa = findClosestSubEtapa(
-          nextSubEtapas,
-          initialPercentage
-        );
+            ? (parsePercentageValue(values.subEtapaPercentage) ?? 0)
+            : (nextSubEtapas[0]?.percentage ?? 0);
+        const initialSubEtapa = findClosestSubEtapa(nextSubEtapas, initialPercentage);
 
         setValues((currentValues) => ({
           ...currentValues,
@@ -991,9 +976,7 @@ export function NewVisitaCampoScreen() {
       }
     } catch (error) {
       setSubEtapas([]);
-      setSubEtapasError(
-        toApiError(error).message || "No se pudo cargar sub etapas."
-      );
+      setSubEtapasError(toApiError(error).message || "No se pudo cargar sub etapas.");
     } finally {
       setIsLoadingSubEtapas(false);
     }
@@ -1110,9 +1093,7 @@ function ProgressGuide({
   const markerImageSize = markerSize - 8;
   const clampedProgress = clampNumber(progress, 0, 100);
   const thumbLeft =
-    sliderTrackWidth > 0
-      ? (clampedProgress / 100) * sliderTrackWidth - 13
-      : 0;
+    sliderTrackWidth > 0 ? (clampedProgress / 100) * sliderTrackWidth - 13 : 0;
 
   return (
     <View style={styles.subEtapasPanel}>
@@ -1161,71 +1142,64 @@ function ProgressGuide({
             style={styles.sliderTrack}
             {...panResponder.panHandlers}
           >
-            <View
-              style={[
-                styles.sliderTrackFill,
-                { width: `${clampedProgress}%` }
-              ]}
-            />
+            <View style={[styles.sliderTrackFill, { width: `${clampedProgress}%` }]} />
             <View
               style={[
                 styles.sliderThumb,
                 {
-                  left: clampNumber(
-                    thumbLeft,
-                    0,
-                    Math.max(0, sliderTrackWidth - 26)
-                  )
+                  left: clampNumber(thumbLeft, 0, Math.max(0, sliderTrackWidth - 26))
                 }
               ]}
             />
-            {showMarkers ? subEtapas.map((subEtapa) => {
-              const percentage = subEtapa.percentage ?? 0;
-              const markerLeft =
-                sliderTrackWidth > 0
-                  ? (clampNumber(percentage, 0, 100) / 100) * sliderTrackWidth -
-                    markerSize / 2
-                  : 0;
+            {showMarkers
+              ? subEtapas.map((subEtapa) => {
+                  const percentage = subEtapa.percentage ?? 0;
+                  const markerLeft =
+                    sliderTrackWidth > 0
+                      ? (clampNumber(percentage, 0, 100) / 100) * sliderTrackWidth -
+                        markerSize / 2
+                      : 0;
 
-              return (
-                <Pressable
-                  accessibilityLabel={`Ver sub etapa ${subEtapa.name}`}
-                  accessibilityRole="button"
-                  key={subEtapa.id}
-                  onPress={() => onImagePress(subEtapa)}
-                  style={({ pressed }) => [
-                    styles.subEtapaMarker,
-                    {
-                      width: markerSize,
-                      left: clampNumber(
-                        markerLeft,
-                        0,
-                        Math.max(0, sliderTrackWidth - markerSize)
-                      )
-                    },
-                    pressed && styles.pressed
-                  ]}
-                >
-                  <Image
-                    source={getSubEtapaImageSource(subEtapa.name)}
-                    style={[
-                      styles.subEtapaMarkerImage,
-                      {
-                        width: markerImageSize,
-                        height: markerImageSize
-                      }
-                    ]}
-                  />
-                  <AppText
-                    numberOfLines={1}
-                    style={styles.subEtapaMarkerPercent}
-                    variant="caption"
-                  >
-                    {formatPercentageValue(percentage)}%
-                  </AppText>
-                </Pressable>
-              );
-            }) : null}
+                  return (
+                    <Pressable
+                      accessibilityLabel={`Ver sub etapa ${subEtapa.name}`}
+                      accessibilityRole="button"
+                      key={subEtapa.id}
+                      onPress={() => onImagePress(subEtapa)}
+                      style={({ pressed }) => [
+                        styles.subEtapaMarker,
+                        {
+                          width: markerSize,
+                          left: clampNumber(
+                            markerLeft,
+                            0,
+                            Math.max(0, sliderTrackWidth - markerSize)
+                          )
+                        },
+                        pressed && styles.pressed
+                      ]}
+                    >
+                      <Image
+                        source={getSubEtapaImageSource(subEtapa.name)}
+                        style={[
+                          styles.subEtapaMarkerImage,
+                          {
+                            width: markerImageSize,
+                            height: markerImageSize
+                          }
+                        ]}
+                      />
+                      <AppText
+                        numberOfLines={1}
+                        style={styles.subEtapaMarkerPercent}
+                        variant="caption"
+                      >
+                        {formatPercentageValue(percentage)}%
+                      </AppText>
+                    </Pressable>
+                  );
+                })
+              : null}
           </View>
           <View style={styles.sliderFooter}>
             <AppText style={styles.sliderBoundText} variant="caption">
@@ -1245,7 +1219,8 @@ function ProgressGuide({
       return;
     }
 
-    const rawValue = (clampNumber(locationX, 0, sliderTrackWidth) / sliderTrackWidth) * 100;
+    const rawValue =
+      (clampNumber(locationX, 0, sliderTrackWidth) / sliderTrackWidth) * 100;
     onValueChange(Math.round(rawValue / 5) * 5);
   }
 }
@@ -1313,13 +1288,7 @@ type ReadonlyFieldProps = {
   error?: string | null;
 };
 
-function ReadonlyField({
-  icon,
-  label,
-  value,
-  helper,
-  error
-}: ReadonlyFieldProps) {
+function ReadonlyField({ icon, label, value, helper, error }: ReadonlyFieldProps) {
   return (
     <View style={styles.localFieldWrapper}>
       <AppText style={styles.localFieldLabel} variant="label">
@@ -1505,10 +1474,7 @@ function DatePickerField({
     setVisibleMonth(getMonthStart(parseDateValue(value) ?? new Date()));
   }, [isOpen, value]);
 
-  const calendarWeeks = useMemo(
-    () => buildCalendarWeeks(visibleMonth),
-    [visibleMonth]
-  );
+  const calendarWeeks = useMemo(() => buildCalendarWeeks(visibleMonth), [visibleMonth]);
 
   return (
     <InlinePickerField
@@ -1558,7 +1524,10 @@ function DatePickerField({
 
       <View style={styles.calendarGrid}>
         {calendarWeeks.map((week, weekIndex) => (
-          <View key={`${visibleMonth.toISOString()}-${weekIndex}`} style={styles.calendarWeekRow}>
+          <View
+            key={`${visibleMonth.toISOString()}-${weekIndex}`}
+            style={styles.calendarWeekRow}
+          >
             {week.map((day, dayIndex) => {
               const isFutureDay =
                 !!day.value && !!maxDate && compareDateValues(day.value, maxDate) > 0;
@@ -1637,7 +1606,9 @@ function getCatalogError(loadError: string | null, validationError?: string) {
 }
 
 function isPendingLabor(etapa: EtapaFenologicaCatalogItem) {
-  return etapa.type === "Labor" && normalizeCatalogName(etapa.name).includes("induccion flor");
+  return (
+    etapa.type === "Labor" && normalizeCatalogName(etapa.name).includes("induccion flor")
+  );
 }
 
 function normalizeCatalogName(value: string) {
@@ -1716,8 +1687,7 @@ function validateForm(
       normalizeTimeForApi(values.startVisitTime) >
         normalizeTimeForApi(values.endVisitTime)
     ) {
-      nextErrors.startVisitTime =
-        "Hora de inicio no puede ser mayor a la hora de fin.";
+      nextErrors.startVisitTime = "Hora de inicio no puede ser mayor a la hora de fin.";
     }
   }
 
@@ -1729,11 +1699,9 @@ function validateForm(
       subEtapaPercentage < 0 ||
       subEtapaPercentage > 100
     ) {
-      nextErrors.subEtapaPercentage =
-        "Porcentaje de sub etapa debe estar entre 0 y 100.";
+      nextErrors.subEtapaPercentage = "Porcentaje de sub etapa debe estar entre 0 y 100.";
     } else if (!isPercentageStep(subEtapaPercentage)) {
-      nextErrors.subEtapaPercentage =
-        "Porcentaje debe avanzar de 5 en 5.";
+      nextErrors.subEtapaPercentage = "Porcentaje debe avanzar de 5 en 5.";
     }
   }
 
@@ -1773,9 +1741,7 @@ function buildCreateDraft(
     ...(values.plantsCount.trim()
       ? { plantsCount: Number(values.plantsCount.trim()) }
       : {}),
-    ...(values.areaHectares.trim()
-      ? { areaHectares: values.areaHectares.trim() }
-      : {}),
+    ...(values.areaHectares.trim() ? { areaHectares: values.areaHectares.trim() } : {}),
     ...(values.sowingDate.trim() ? { sowingDate: values.sowingDate.trim() } : {}),
     visitDate: values.visitDate.trim(),
     startVisitTime: normalizeTimeForApi(values.startVisitTime),
@@ -1795,10 +1761,7 @@ function buildCreateDraft(
   };
 }
 
-function findClosestSubEtapa(
-  subEtapas: SubEtapaCatalogItem[],
-  percentage: number
-) {
+function findClosestSubEtapa(subEtapas: SubEtapaCatalogItem[], percentage: number) {
   return subEtapas.reduce<SubEtapaCatalogItem | null>((closest, subEtapa) => {
     if (subEtapa.percentage === null) {
       return closest;
@@ -1894,9 +1857,7 @@ function formatTypedTimeInput(value: string) {
 
   const hour = formatBoundedTimePart(digits.slice(0, 2), 23);
   const minute =
-    digits.length === 3
-      ? digits.slice(2)
-      : formatBoundedTimePart(digits.slice(2), 59);
+    digits.length === 3 ? digits.slice(2) : formatBoundedTimePart(digits.slice(2), 59);
 
   return `${hour}:${minute}`;
 }
@@ -2012,11 +1973,7 @@ function buildCalendarWeeks(date: Date) {
     const targetWeek = weeks[weekIndex] ?? [];
 
     if (isCurrentMonth) {
-      const currentDate = new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        dayOffset
-      );
+      const currentDate = new Date(date.getFullYear(), date.getMonth(), dayOffset);
 
       targetWeek.push({
         value: formatDateForApi(currentDate),

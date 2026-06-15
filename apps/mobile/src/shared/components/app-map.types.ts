@@ -1,7 +1,4 @@
-import type {
-  GeoJsonMultiPolygonGeometry,
-  GeoJsonPointGeometry
-} from "../maps/geo";
+import type { GeoJsonMultiPolygonGeometry, GeoJsonPointGeometry } from "../maps/geo";
 
 type AppMapFeatureBase = {
   id: string;
