@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "../../../../shared/components";
 import { useIsOnline } from "../../../../shared/connectivity/use-is-online";
-import { getLastSyncTime, getSyncCounts } from "../../../../shared/sync";
+import { getLastSyncTime, getSyncCounts, requestSync } from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import type { RecentVisitaCampo } from "../../../visitas-campo/types";
@@ -37,6 +37,7 @@ export function HomeScreen() {
   const { isAuthenticated, session, signOut } = useAuthSession();
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
   const heroHeight = Math.min(Math.max(width * 0.58, 218), 330);
 
@@ -50,9 +51,7 @@ export function HomeScreen() {
     }
 
     try {
-      setRecentVisits(
-        visitasCampoService.getRecentByAccessToken(session.accessToken)
-      );
+      setRecentVisits(visitasCampoService.getRecentByAccessToken(session.accessToken));
     } catch {
       setRecentVisits([]);
     }
@@ -67,6 +66,20 @@ export function HomeScreen() {
   const goToNewVisit = useCallback(() => {
     router.push(NEW_VISIT_ROUTE);
   }, [router]);
+  const handleManualSync = useCallback(async () => {
+    if (!isOnline || isManualSyncing) {
+      return;
+    }
+
+    setIsManualSyncing(true);
+
+    try {
+      await requestSync({ immediate: true });
+      loadDashboard();
+    } finally {
+      setIsManualSyncing(false);
+    }
+  }, [isManualSyncing, isOnline, loadDashboard]);
 
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
@@ -95,10 +108,7 @@ export function HomeScreen() {
                 signOut();
                 router.replace("/login");
               }}
-              style={({ pressed }) => [
-                styles.logoutButton,
-                pressed && styles.pressed
-              ]}
+              style={({ pressed }) => [styles.logoutButton, pressed && styles.pressed]}
             >
               <Ionicons color="#064b31" name="log-out-outline" size={25} />
               <AppText style={styles.logoutText} variant="label">
@@ -119,9 +129,7 @@ export function HomeScreen() {
           <View style={styles.connectionGrid}>
             <InfoCard
               description={
-                isOnline
-                  ? "Conexion estable"
-                  : "Tus cambios se guardaran localmente"
+                isOnline ? "Conexion estable" : "Tus cambios se guardaran localmente"
               }
               icon={isOnline ? "wifi" : "cloud-offline-outline"}
               title={isOnline ? "Online" : "Offline"}
@@ -159,6 +167,29 @@ export function HomeScreen() {
                 variant={syncStatus.variant}
               />
             </View>
+            {syncCounts.pendingCount > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={!isOnline || isManualSyncing}
+                onPress={() => {
+                  void handleManualSync();
+                }}
+                style={({ pressed }) => [
+                  styles.manualSyncButton,
+                  pressed && styles.pressed,
+                  (!isOnline || isManualSyncing) && styles.manualSyncButtonDisabled
+                ]}
+              >
+                <Ionicons
+                  color="#ffffff"
+                  name={isManualSyncing ? "sync" : "cloud-upload-outline"}
+                  size={20}
+                />
+                <AppText style={styles.manualSyncButtonText} variant="label">
+                  {isManualSyncing ? "Sincronizando..." : "Sincronizar ahora"}
+                </AppText>
+              </Pressable>
+            ) : null}
           </View>
 
           <View style={styles.actionGrid}>
@@ -209,7 +240,6 @@ export function HomeScreen() {
           </View>
         </View>
       </ScrollView>
-
     </SafeAreaView>
   );
 }
@@ -389,14 +419,22 @@ function getSyncStatus(syncCounts: { pendingCount: number; errorCount: number })
 
 function getVisitStatus(syncStatus: RecentVisitaCampo["syncStatus"]) {
   if (syncStatus === "error") {
-    return { icon: "alert-circle" as const, label: "Con error", variant: "error" as const };
+    return {
+      icon: "alert-circle" as const,
+      label: "Con error",
+      variant: "error" as const
+    };
   }
 
   if (syncStatus === "pending") {
     return { icon: "time" as const, label: "Pendiente", variant: "warning" as const };
   }
 
-  return { icon: "checkmark-circle" as const, label: "Sincronizado", variant: "success" as const };
+  return {
+    icon: "checkmark-circle" as const,
+    label: "Sincronizado",
+    variant: "success" as const
+  };
 }
 
 function getUserName(displayName?: string) {
@@ -621,6 +659,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     marginTop: 14
+  },
+  manualSyncButton: {
+    minHeight: 47,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+    marginTop: 14,
+    borderRadius: 14,
+    backgroundColor: "#08643f"
+  },
+  manualSyncButtonDisabled: {
+    opacity: 0.56
+  },
+  manualSyncButtonText: {
+    color: "#ffffff",
+    fontSize: 15
   },
   syncMetric: {
     minWidth: 0,

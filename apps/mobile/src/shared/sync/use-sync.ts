@@ -7,10 +7,11 @@ import { refreshCatalogsIfStale } from "../database/seed-catalogs";
 import { debugLog } from "../utils/debug-log";
 import { getLastSyncTime, getSyncCounts } from "./sync-status";
 import { processOutbox } from "./sync-engine";
-import { subscribeToSyncRequests } from "./sync-requests";
+import { subscribeToSyncRequests, type SyncRequestOptions } from "./sync-requests";
 
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const OUTBOX_SYNC_DEBOUNCE_MS = 750;
+const RECONNECT_RETRY_DELAYS_MS = [10_000, 30_000, 90_000] as const;
 
 export function useSync() {
   const { isOnline } = useIsOnline();
@@ -20,6 +21,8 @@ export function useSync() {
   const isAuthenticatedRef = useRef(isAuthenticated);
   const ensureOnlineSessionRef = useRef(ensureOnlineSession);
   const scheduledSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduledSyncResolveRef = useRef<(() => void) | null>(null);
+  const reconnectRetryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const rerunAfterCurrentSyncRef = useRef(false);
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -27,6 +30,11 @@ export function useSync() {
   isOnlineRef.current = isOnline;
   isAuthenticatedRef.current = isAuthenticated;
   ensureOnlineSessionRef.current = ensureOnlineSession;
+
+  const clearReconnectRetryTimers = useCallback(() => {
+    clearTimers(reconnectRetryTimersRef.current);
+    reconnectRetryTimersRef.current = [];
+  }, []);
 
   const runSync = useCallback(async (forceRefresh = false) => {
     if (isSyncingRef.current) {
@@ -78,16 +86,28 @@ export function useSync() {
     }
   }, []);
 
-  const scheduleSync = useCallback(() => {
-    if (scheduledSyncRef.current) {
-      clearTimeout(scheduledSyncRef.current);
-    }
+  const scheduleSync = useCallback(
+    (options: SyncRequestOptions = {}) => {
+      if (scheduledSyncRef.current) {
+        clearTimeout(scheduledSyncRef.current);
+        scheduledSyncResolveRef.current?.();
+      }
 
-    scheduledSyncRef.current = setTimeout(() => {
-      scheduledSyncRef.current = null;
-      void runSync();
-    }, OUTBOX_SYNC_DEBOUNCE_MS);
-  }, [runSync]);
+      return new Promise<void>((resolve) => {
+        scheduledSyncResolveRef.current = resolve;
+        scheduledSyncRef.current = setTimeout(
+          async () => {
+            scheduledSyncRef.current = null;
+            scheduledSyncResolveRef.current = null;
+            await runSync(Boolean(options.forceRefresh));
+            resolve();
+          },
+          options.immediate ? 0 : OUTBOX_SYNC_DEBOUNCE_MS
+        );
+      });
+    },
+    [runSync]
+  );
 
   useEffect(() => {
     return subscribeToSyncRequests(scheduleSync);
@@ -109,22 +129,41 @@ export function useSync() {
         clearTimeout(scheduledSyncRef.current);
         scheduledSyncRef.current = null;
       }
+
+      scheduledSyncResolveRef.current?.();
+      scheduledSyncResolveRef.current = null;
+      clearReconnectRetryTimers();
     };
-  }, []);
+  }, [clearReconnectRetryTimers]);
 
   useEffect(() => {
     if (!isOnline || !isAuthenticated) {
       return;
     }
 
-    void runSync(true);
+    void runSync(false);
+
+    reconnectRetryTimersRef.current = RECONNECT_RETRY_DELAYS_MS.map((delay) =>
+      setTimeout(() => {
+        void runSync(false);
+      }, delay)
+    );
 
     const interval = setInterval(() => {
       void runSync();
     }, SYNC_INTERVAL_MS);
 
-    return () => clearInterval(interval);
-  }, [isOnline, isAuthenticated, runSync]);
+    return () => {
+      clearInterval(interval);
+      clearReconnectRetryTimers();
+    };
+  }, [clearReconnectRetryTimers, isOnline, isAuthenticated, runSync]);
 
   return { runSync, lastSyncTime, syncCounts };
+}
+
+function clearTimers(timers: ReturnType<typeof setTimeout>[]) {
+  for (const timer of timers) {
+    clearTimeout(timer);
+  }
 }

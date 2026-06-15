@@ -20,7 +20,6 @@ import {
   loadAuthTokens,
   storeAuthTokens
 } from "../../../shared/services/api/secure-token-store";
-import { ApiError } from "../../../shared/services";
 import { isAccessTokenExpired } from "../../../shared/utils/auth-token";
 import { authService } from "../services";
 import type { AuthLoginResult, AuthSession, AuthUser } from "../types/auth.types";
@@ -35,9 +34,7 @@ type AuthSessionContextValue = {
 
 const OFFLINE_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-const AuthSessionContext = createContext<AuthSessionContextValue | undefined>(
-  undefined
-);
+const AuthSessionContext = createContext<AuthSessionContextValue | undefined>(undefined);
 
 const GUEST_SESSION: AuthSession = {
   status: "guest",
@@ -116,7 +113,6 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
         const refreshToken = refreshTokenRef.current ?? tokens?.refreshToken;
 
         if (!refreshToken) {
-          clearLocalSession();
           return false;
         }
 
@@ -124,11 +120,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
           const nextSession = await authService.refresh(refreshToken);
           await setActiveSession(nextSession);
           return true;
-        } catch (error) {
-          if (error instanceof ApiError && error.statusCode === 401) {
-            clearLocalSession();
-          }
-
+        } catch {
           return false;
         }
       })();
@@ -141,7 +133,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
         refreshInFlightRef.current = null;
       }
     },
-    [clearLocalSession, setActiveSession]
+    [setActiveSession]
   );
 
   useEffect(() => {
@@ -180,9 +172,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
   }
 
   return (
-    <AuthSessionContext.Provider value={value}>
-      {children}
-    </AuthSessionContext.Provider>
+    <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>
   );
 }
 
@@ -190,9 +180,7 @@ export function useAuthSessionContext() {
   const context = useContext(AuthSessionContext);
 
   if (!context) {
-    throw new Error(
-      "useAuthSessionContext must be used within an AuthSessionProvider."
-    );
+    throw new Error("useAuthSessionContext must be used within an AuthSessionProvider.");
   }
 
   return context;
@@ -204,9 +192,7 @@ function toAuthenticatedSession(result: AuthLoginResult): AuthSession {
     accessToken: result.accessToken,
     tokenType: result.tokenType,
     expiresIn: result.expiresIn,
-    offlineSessionExpiresAt: new Date(
-      Date.now() + OFFLINE_SESSION_TTL_MS
-    ).toISOString(),
+    offlineSessionExpiresAt: new Date(Date.now() + OFFLINE_SESSION_TTL_MS).toISOString(),
     user: result.user
   };
 }
@@ -267,9 +253,7 @@ async function loadPersistedSession(): Promise<{
       user: AuthUser;
     };
 
-    const offlineSessionExpiresAt = new Date(
-      data.offlineSessionExpiresAt
-    ).getTime();
+    const offlineSessionExpiresAt = new Date(data.offlineSessionExpiresAt).getTime();
 
     if (
       typeof data.tokenType !== "string" ||
