@@ -1,5 +1,8 @@
 import { getDatabase } from "../../../shared/database/connection";
-import { fromSqliteBoolean, toSqliteBoolean } from "../../../shared/database/sqlite-utils";
+import {
+  fromSqliteBoolean,
+  toSqliteBoolean
+} from "../../../shared/database/sqlite-utils";
 import type { NutrientCatalogItem, NutrientDetailCatalogItem } from "../types";
 
 type NutrientRow = {
@@ -18,7 +21,17 @@ type NutrientDetailRow = {
   is_active: number;
 };
 
+type InsertNutrientsOptions = {
+  ensureTables?: boolean;
+  useTransaction?: boolean;
+};
+
 export const nutricionRepository = {
+  ensureStorage() {
+    const db = getDatabase();
+    ensureNutritionTables(db);
+  },
+
   getNutrients(): NutrientCatalogItem[] {
     const db = getDatabase();
     ensureNutritionTables(db);
@@ -80,10 +93,16 @@ export const nutricionRepository = {
     }));
   },
 
-  insertNutrients(nutrients: NutrientCatalogItem[]) {
+  insertNutrients(
+    nutrients: NutrientCatalogItem[],
+    options: InsertNutrientsOptions = {}
+  ) {
     const db = getDatabase();
-    ensureNutritionTables(db);
-    db.withTransactionSync(() => {
+    if (options.ensureTables !== false) {
+      ensureNutritionTables(db);
+    }
+
+    const writeNutrients = () => {
       for (const nutrient of nutrients) {
         db.runSync(
           `INSERT OR REPLACE INTO nutrientes (id, cultivo_id, name, description, is_active)
@@ -107,7 +126,14 @@ export const nutricionRepository = {
           );
         }
       }
-    });
+    };
+
+    if (options.useTransaction === false) {
+      writeNutrients();
+      return;
+    }
+
+    db.withTransactionSync(writeNutrients);
   }
 };
 
