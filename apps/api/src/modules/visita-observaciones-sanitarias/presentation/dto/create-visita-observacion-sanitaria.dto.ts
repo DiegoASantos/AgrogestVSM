@@ -59,7 +59,7 @@ export class CreateVisitaObservacionSanitariaDto {
   observation?: string | null;
 
   @ApiProperty({
-    example: ["hoja", "fruto"],
+    example: ["hoja", "fruto_verde"],
     description: "Organos de la planta afectados por la plaga o enfermedad.",
     enum: ORGANOS_AFECTADOS,
     isArray: true
@@ -109,5 +109,9 @@ function normalizeOrganosAfectados(value: unknown): unknown {
     return value;
   }
 
-  return value.map((item) => String(item ?? "").trim().toLowerCase());
+  return value.map((item) =>
+    String(item ?? "")
+      .trim()
+      .toLowerCase()
+  );
 }

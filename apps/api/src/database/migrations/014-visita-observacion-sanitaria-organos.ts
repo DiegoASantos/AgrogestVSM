@@ -10,7 +10,7 @@ export const VISITA_OBSERVACION_SANITARIA_ORGANOS_MIGRATION: DatabaseMigration =
       organo varchar(20) NOT NULL,
       creado_at timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT visita_observacion_sanitaria_organos_organo_check
-        CHECK (organo IN ('hoja', 'tallo', 'flores', 'fruto')),
+        CHECK (organo IN ('tronco_rama', 'yema_apical', 'brote_vegetativo', 'hoja', 'panicula_floral', 'flor_individual', 'fruto_recien_cuajado', 'fruto_verde', 'fruto_maduro')),
       CONSTRAINT visita_observacion_sanitaria_organos_observacion_fkey
         FOREIGN KEY (visita_observacion_sanitaria_id)
         REFERENCES visita_observaciones_sanitarias(id)

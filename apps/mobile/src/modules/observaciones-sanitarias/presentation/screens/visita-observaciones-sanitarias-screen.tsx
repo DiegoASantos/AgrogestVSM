@@ -112,10 +112,19 @@ const ORGANO_OPTIONS: Array<{
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
 }> = [
+  { value: "tronco_rama", label: "Tronco/rama", icon: "git-branch-outline" },
+  { value: "yema_apical", label: "Yema apical", icon: "radio-button-on-outline" },
+  { value: "brote_vegetativo", label: "Brote vegetativo", icon: "leaf-outline" },
   { value: "hoja", label: "Hoja", icon: "leaf-outline" },
-  { value: "tallo", label: "Tallo", icon: "git-branch-outline" },
-  { value: "flores", label: "Flores", icon: "flower-outline" },
-  { value: "fruto", label: "Fruto", icon: "nutrition-outline" }
+  { value: "panicula_floral", label: "Panícula floral", icon: "flower-outline" },
+  { value: "flor_individual", label: "Flor individual", icon: "rose-outline" },
+  {
+    value: "fruto_recien_cuajado",
+    label: "Fruto recién cuajado",
+    icon: "ellipse-outline"
+  },
+  { value: "fruto_verde", label: "Fruto verde", icon: "nutrition-outline" },
+  { value: "fruto_maduro", label: "Fruto maduro", icon: "basket-outline" }
 ];
 
 export function VisitaObservacionesSanitariasScreen() {
@@ -709,14 +718,15 @@ function OrganoSelector({
 }) {
   return (
     <View style={[styles.organosBlock, disabled && styles.organosBlockDisabled]}>
-      <View
-        style={[
-          styles.levelPill,
-          { alignItems: "flex-start" }
-        ]}
-      >
-        <AppText style={[styles.levelPillText, { color: "#000000", textDecorationLine: "underline", fontStyle: "italic" }]} variant="caption">
-          Organos afectados
+      <View style={[styles.levelPill, { alignItems: "flex-start" }]}>
+        <AppText
+          style={[
+            styles.levelPillText,
+            { color: "#000000", textDecorationLine: "underline", fontStyle: "italic" }
+          ]}
+          variant="caption"
+        >
+          Órganos afectados
         </AppText>
       </View>
       {disabled ? (
@@ -739,12 +749,20 @@ function OrganoSelector({
                   selected ? styles.organoChipSelected : styles.organoChipInactive
                 ]}
               >
-                <Ionicons
-                  color={selected ? theme.colors.textInverse : theme.colors.primaryDark}
-                  name={option.icon}
-                  size={16}
-                />
+                <View
+                  style={[
+                    styles.organoIconBox,
+                    selected ? styles.organoIconBoxSelected : styles.organoIconBoxInactive
+                  ]}
+                >
+                  <Ionicons
+                    color={selected ? theme.colors.primary : theme.colors.primaryDark}
+                    name={option.icon}
+                    size={18}
+                  />
+                </View>
                 <AppText
+                  numberOfLines={3}
                   style={[
                     styles.organoChipText,
                     selected
@@ -795,7 +813,13 @@ function LevelSelectorRow({
     <View style={[styles.levelRow, isCompactLayout && styles.levelRowCompact]}>
       <View style={[styles.levelRowTop, isCompactLayout && styles.levelRowTopCompact]}>
         <View style={[styles.levelPill]}>
-          <AppText style={[styles.levelPillText, { color: "#000000", textDecorationLine: "underline", fontStyle: "italic" }]} variant="caption">
+          <AppText
+            style={[
+              styles.levelPillText,
+              { color: "#000000", textDecorationLine: "underline", fontStyle: "italic" }
+            ]}
+            variant="caption"
+          >
             {label}
           </AppText>
         </View>
@@ -1535,17 +1559,19 @@ const styles = StyleSheet.create({
   organosGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 7
+    gap: 7,
+    justifyContent: "space-between"
   },
   organoChip: {
     alignItems: "center",
-    borderRadius: theme.radius.full,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
-    flexDirection: "row",
     gap: 5,
-    minHeight: 34,
-    paddingHorizontal: 10,
-    paddingVertical: 7
+    justifyContent: "center",
+    minHeight: 78,
+    paddingHorizontal: 5,
+    paddingVertical: 8,
+    width: "30.8%"
   },
   organoChipInactive: {
     backgroundColor: theme.colors.surfaceElevated,
@@ -1555,9 +1581,24 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary
   },
+  organoIconBox: {
+    alignItems: "center",
+    borderRadius: theme.radius.full,
+    height: 28,
+    justifyContent: "center",
+    width: 28
+  },
+  organoIconBoxInactive: {
+    backgroundColor: "#eef7e4"
+  },
+  organoIconBoxSelected: {
+    backgroundColor: theme.colors.textInverse
+  },
   organoChipText: {
-    fontSize: 12,
-    fontWeight: "700"
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 13,
+    textAlign: "center"
   },
   organoChipTextInactive: {
     color: theme.colors.primaryDark

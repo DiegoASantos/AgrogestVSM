@@ -505,14 +505,24 @@ function formatTimeRange(start: string | null, end: string | null) {
 
 function formatOrganoLabel(value: string) {
   switch (value) {
+    case "tronco_rama":
+      return "Tronco/rama";
+    case "yema_apical":
+      return "Yema apical";
+    case "brote_vegetativo":
+      return "Brote vegetativo";
     case "hoja":
       return "Hoja";
-    case "tallo":
-      return "Tallo";
-    case "flores":
-      return "Flores";
-    case "fruto":
-      return "Fruto";
+    case "panicula_floral":
+      return "Panícula floral";
+    case "flor_individual":
+      return "Flor individual";
+    case "fruto_recien_cuajado":
+      return "Fruto recién cuajado";
+    case "fruto_verde":
+      return "Fruto verde";
+    case "fruto_maduro":
+      return "Fruto maduro";
     default:
       return value;
   }
