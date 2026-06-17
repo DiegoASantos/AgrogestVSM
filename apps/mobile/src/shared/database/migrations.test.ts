@@ -2,12 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
+const LATEST_MIGRATION_VERSION = 21;
+
 type FakeDatabase = {
   currentVersion: number;
   executedStatements: string[];
   productorColumns: Set<string>;
   pestDiseaseColumns: Set<string>;
   incidenceLevelColumns: Set<string>;
+  organosRows: Array<{
+    local_id: string;
+    visita_observacion_sanitaria_local_id: string;
+    organo: string;
+    created_at: string;
+  }>;
+  organosNextRows: FakeDatabase["organosRows"];
+  organosTableUsesNewConstraint: boolean;
   execSync: (statement: string) => void;
   getAllSync: <T>(statement: string) => T[];
   getFirstSync: <T>(statement: string) => T | null;
@@ -26,8 +36,12 @@ function createFakeDatabase(
     productorColumns: new Set(productorColumns),
     pestDiseaseColumns: new Set(pestDiseaseColumns),
     incidenceLevelColumns: new Set(incidenceLevelColumns),
+    organosRows: [],
+    organosNextRows: [],
+    organosTableUsesNewConstraint: false,
     execSync(statement) {
       this.executedStatements.push(statement);
+      const normalizedStatement = statement.replace(/\s+/gu, " ").trim();
 
       if (statement.startsWith("PRAGMA user_version = ")) {
         this.currentVersion = Number.parseInt(
@@ -120,6 +134,88 @@ function createFakeDatabase(
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
         this.pestDiseaseColumns.delete("code");
       }
+
+      if (
+        normalizedStatement.startsWith(
+          "CREATE TABLE IF NOT EXISTS visita_observacion_sanitaria_organos_next"
+        )
+      ) {
+        this.organosNextRows = [];
+        return;
+      }
+
+      if (
+        normalizedStatement.startsWith(
+          "CREATE TABLE IF NOT EXISTS visita_observacion_sanitaria_organos"
+        )
+      ) {
+        this.organosTableUsesNewConstraint =
+          normalizedStatement.includes("fruto_recien_cuajado");
+        return;
+      }
+
+      if (
+        normalizedStatement.startsWith(
+          "INSERT OR IGNORE INTO visita_observacion_sanitaria_organos_next"
+        )
+      ) {
+        const allowedOrganos = new Set([
+          "hoja",
+          "tallo",
+          "flores",
+          "fruto",
+          "tronco_rama",
+          "yema_apical",
+          "brote_vegetativo",
+          "panicula_floral",
+          "flor_individual",
+          "fruto_recien_cuajado",
+          "fruto_verde",
+          "fruto_maduro"
+        ]);
+        const mappedOrganos: Record<string, string> = {
+          tallo: "tronco_rama",
+          flores: "flor_individual",
+          fruto: "fruto_verde"
+        };
+
+        for (const row of this.organosRows) {
+          if (!allowedOrganos.has(row.organo)) {
+            continue;
+          }
+
+          const nextRow = {
+            ...row,
+            organo: mappedOrganos[row.organo] ?? row.organo
+          };
+          const hasDuplicate = this.organosNextRows.some(
+            (existing) =>
+              existing.visita_observacion_sanitaria_local_id ===
+                nextRow.visita_observacion_sanitaria_local_id &&
+              existing.organo === nextRow.organo
+          );
+
+          if (!hasDuplicate) {
+            this.organosNextRows.push(nextRow);
+          }
+        }
+        return;
+      }
+
+      if (statement === "DROP TABLE visita_observacion_sanitaria_organos") {
+        this.organosRows = [];
+        this.organosTableUsesNewConstraint = false;
+        return;
+      }
+
+      if (
+        statement ===
+        "ALTER TABLE visita_observacion_sanitaria_organos_next RENAME TO visita_observacion_sanitaria_organos"
+      ) {
+        this.organosRows = this.organosNextRows;
+        this.organosNextRows = [];
+        this.organosTableUsesNewConstraint = true;
+      }
     },
     getAllSync<T>(statement: string) {
       if (statement === "PRAGMA table_info(productores)") {
@@ -149,12 +245,49 @@ function createFakeDatabase(
   };
 }
 
+function createDatabaseBeforeOrganoRefresh(): FakeDatabase {
+  const db = createFakeDatabase(20);
+  db.organosRows = [
+    {
+      local_id: "organo-1",
+      visita_observacion_sanitaria_local_id: "obs-1",
+      organo: "tallo",
+      created_at: "2026-06-17T08:00:00.000Z"
+    },
+    {
+      local_id: "organo-2",
+      visita_observacion_sanitaria_local_id: "obs-1",
+      organo: "flores",
+      created_at: "2026-06-17T08:01:00.000Z"
+    },
+    {
+      local_id: "organo-3",
+      visita_observacion_sanitaria_local_id: "obs-1",
+      organo: "fruto",
+      created_at: "2026-06-17T08:02:00.000Z"
+    },
+    {
+      local_id: "organo-4",
+      visita_observacion_sanitaria_local_id: "obs-1",
+      organo: "hoja",
+      created_at: "2026-06-17T08:03:00.000Z"
+    },
+    {
+      local_id: "organo-5",
+      visita_observacion_sanitaria_local_id: "obs-1",
+      organo: "valor_obsoleto",
+      created_at: "2026-06-17T08:04:00.000Z"
+    }
+  ];
+  return db;
+}
+
 describe("runMigrations", () => {
   it("skips duplicate productor name columns on a fresh install", () => {
     const db = createFakeDatabase(0);
 
     expect(() => runMigrations(db as never)).not.toThrow();
-    expect(db.currentVersion).toBe(14);
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
     expect(db.executedStatements).not.toContain(
       "ALTER TABLE productores ADD COLUMN first_name TEXT"
     );
@@ -193,7 +326,7 @@ describe("runMigrations", () => {
 
     runMigrations(db as never);
 
-    expect(db.currentVersion).toBe(14);
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
     expect(db.productorColumns.has("first_name")).toBe(true);
     expect(db.productorColumns.has("last_name")).toBe(true);
     expect(db.executedStatements).toContain(
@@ -222,5 +355,67 @@ describe("runMigrations", () => {
     expect(db.executedStatements).toContain(
       "ALTER TABLE incidence_levels ADD COLUMN type TEXT NOT NULL DEFAULT 'incidencia'"
     );
+  });
+
+  it("migrates old sanitary organ values into the new 3x3 organ catalog", () => {
+    const db = createDatabaseBeforeOrganoRefresh();
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.organosTableUsesNewConstraint).toBe(true);
+    expect(db.organosRows).toEqual([
+      {
+        local_id: "organo-1",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "tronco_rama",
+        created_at: "2026-06-17T08:00:00.000Z"
+      },
+      {
+        local_id: "organo-2",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "flor_individual",
+        created_at: "2026-06-17T08:01:00.000Z"
+      },
+      {
+        local_id: "organo-3",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "fruto_verde",
+        created_at: "2026-06-17T08:02:00.000Z"
+      },
+      {
+        local_id: "organo-4",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "hoja",
+        created_at: "2026-06-17T08:03:00.000Z"
+      }
+    ]);
+    expect(db.organosRows).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ organo: "valor_obsoleto" })])
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_observacion_sanitaria_organos_next RENAME TO visita_observacion_sanitaria_organos"
+    );
+    expect(db.executedStatements).toContain(
+      "CREATE INDEX IF NOT EXISTS idx_visita_obs_sanitaria_organos_observacion ON visita_observacion_sanitaria_organos(visita_observacion_sanitaria_local_id)"
+    );
+  });
+
+  it("does not rerun SQLite migrations when the database is already at the latest version", () => {
+    const db = createDatabaseBeforeOrganoRefresh();
+
+    runMigrations(db as never);
+    const statementsAfterUpgrade = db.executedStatements.length;
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.executedStatements).toHaveLength(statementsAfterUpgrade);
+    expect(db.organosRows).toEqual([
+      expect.objectContaining({ organo: "tronco_rama" }),
+      expect.objectContaining({ organo: "flor_individual" }),
+      expect.objectContaining({ organo: "fruto_verde" }),
+      expect.objectContaining({ organo: "hoja" })
+    ]);
   });
 });

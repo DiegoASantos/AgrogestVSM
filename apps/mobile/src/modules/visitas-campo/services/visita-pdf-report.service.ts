@@ -6,7 +6,11 @@ import { riegosRepository } from "../../riegos/repositories/riegos.repository";
 import { visitasCampoRepository } from "../repositories/visitas-campo.repository";
 import { visitasCampoService } from "./visitas-campo.service";
 
-const REPORT_ICON = require("../../../../assets/images/adaptive_icon_vsm.png");
+declare const process:
+  | {
+      env?: Record<string, string | undefined>;
+    }
+  | undefined;
 
 export const visitaPdfReportService = {
   async preview(visitaId: string) {
@@ -306,7 +310,13 @@ async function getReportIconUri() {
       import("expo-asset"),
       import("expo-file-system/legacy")
     ]);
-    const asset = Asset.fromModule(REPORT_ICON);
+    const reportIcon = getReportIconModule();
+
+    if (!reportIcon) {
+      return null;
+    }
+
+    const asset = Asset.fromModule(reportIcon);
     await asset.downloadAsync();
     const assetUri = asset.localUri ?? asset.uri ?? null;
 
@@ -322,6 +332,14 @@ async function getReportIconUri() {
   } catch {
     return null;
   }
+}
+
+function getReportIconModule() {
+  if (typeof process !== "undefined" && process.env?.VITEST) {
+    return null;
+  }
+
+  return require("../../../../assets/images/adaptive_icon_vsm.png");
 }
 
 function renderSection(title: string, content: string) {
@@ -504,6 +522,22 @@ function formatTimeRange(start: string | null, end: string | null) {
 }
 
 function formatOrganoLabel(value: string) {
+  const labels: Record<string, string> = {
+    tronco_rama: "Tronco/rama",
+    yema_apical: "Yema apical",
+    brote_vegetativo: "Brote vegetativo",
+    hoja: "Hoja",
+    panicula_floral: "Panícula floral",
+    flor_individual: "Flor individual",
+    fruto_recien_cuajado: "Fruto recién cuajado",
+    fruto_verde: "Fruto verde",
+    fruto_maduro: "Fruto maduro"
+  };
+
+  if (labels[value]) {
+    return labels[value];
+  }
+
   switch (value) {
     case "tronco_rama":
       return "Tronco/rama";

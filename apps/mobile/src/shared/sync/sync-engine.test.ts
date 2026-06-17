@@ -96,6 +96,39 @@ vi.mock(
   })
 );
 
+const visitaStepNotesUpdate = vi.fn();
+const visitaStepNotesGetById = vi.fn();
+vi.mock(
+  "../../modules/observaciones-sanitarias/repositories/visita-step-notes.repository",
+  () => ({
+    visitaStepNotesRepository: {
+      update: visitaStepNotesUpdate,
+      getById: visitaStepNotesGetById
+    }
+  })
+);
+
+const riegosUpdate = vi.fn();
+const riegosGetById = vi.fn();
+vi.mock("../../modules/riegos/repositories/riegos.repository", () => ({
+  riegosRepository: {
+    update: riegosUpdate,
+    getById: riegosGetById
+  }
+}));
+
+const laboresCulturalesUpdate = vi.fn();
+const laboresCulturalesGetById = vi.fn();
+vi.mock(
+  "../../modules/labores-culturales-visita/repositories/labores-culturales-visita.repository",
+  () => ({
+    laboresCulturalesVisitaRepository: {
+      update: laboresCulturalesUpdate,
+      getById: laboresCulturalesGetById
+    }
+  })
+);
+
 const handlerVisita = vi.fn();
 const handlerEvaluacion = vi.fn();
 vi.mock("./sync-handlers", () => ({
