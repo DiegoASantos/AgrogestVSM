@@ -263,10 +263,10 @@ function buildRiego(overrides: Partial<VisitaRiego> = {}): VisitaRiego {
     syncStatus: "synced",
     visitaId: "visita-1",
     tipoRiegoId: "riego-goteo",
-    fuenteAgua: null,
-    tipoSuelo: null,
-    humedadSuelo: null,
-    estresHidrico: null,
+    fuenteAgua: "subterranea",
+    tipoSuelo: "franco",
+    humedadSuelo: "optimo",
+    estresHidrico: false,
     createdAt: now,
     updatedAt: now,
     ...overrides
@@ -530,6 +530,11 @@ describe("visitaPdfReportService", () => {
     expect(html).toContain("Programar fertilizacion foliar");
     expect(html).toContain("Paso 4 - Riego");
     expect(html).toContain("Goteo");
+    expect(html).toContain("Subterranea");
+    expect(html).toContain("Franco");
+    expect(html).toContain("Optimo");
+    expect(html).toContain("Estres hidrico intencional");
+    expect(html).toContain("No");
     expect(html).toContain("Mantener humedad optima");
     expect(html).toContain("Paso 5 - Labores culturales");
     expect(html).toContain("Poda sanitaria");
@@ -594,7 +599,42 @@ describe("visitaPdfReportService", () => {
 
     expect(html).toContain("No hay plagas o enfermedades registradas.");
     expect(html).toContain("No hay datos de nutricion registrados.");
-    expect(html).toContain("No registrado");
+    expect(html).toContain("No hay informacion de riego registrada.");
     expect(html).toContain("No hay labores culturales registradas.");
+  });
+
+  it("renders step 4 and step 5 saved records even when catalogs are unavailable", async () => {
+    mocks.getFullDetail.mockResolvedValue(
+      buildDetail({
+        riego: buildRiego({
+          tipoRiegoId: "tipo-riego-local-123",
+          fuenteAgua: "superficial",
+          tipoSuelo: "arenoso",
+          humedadSuelo: "seco",
+          estresHidrico: true
+        }),
+        laboresCulturales: [
+          buildLabor({ laborCulturalId: "labor-local-abc" }),
+          buildLabor({ id: "labor-visita-2", laborCulturalId: "labor-local-def" })
+        ]
+      })
+    );
+    mocks.getTiposRiego.mockReturnValue([]);
+    mocks.getLaboresCulturales.mockReturnValue([]);
+    const { visitaPdfReportService } = await import("./visita-pdf-report.service");
+
+    await visitaPdfReportService.preview("visita-1");
+
+    const html = getPreviewHtml();
+
+    expect(html).toContain("Paso 4 - Riego");
+    expect(html).toContain("Tipo registrado: tipo-riego-local-123");
+    expect(html).toContain("Superficial");
+    expect(html).toContain("Arenoso");
+    expect(html).toContain("Seco");
+    expect(html).toContain("Si");
+    expect(html).toContain("Paso 5 - Labores culturales");
+    expect(html).toContain("Seleccion registrada: labor-local-abc");
+    expect(html).toContain("Seleccion registrada: labor-local-def");
   });
 });

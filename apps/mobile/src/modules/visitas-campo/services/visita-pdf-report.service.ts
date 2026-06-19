@@ -98,30 +98,6 @@ async function buildVisitReportHtml(visitaId: string) {
     }
   }
 
-  const riego = detail.riego
-    ? (findById(tiposRiego, detail.riego.tipoRiegoId)?.name ??
-      `ID ${detail.riego.tipoRiegoId}`)
-    : "No registrado";
-
-  const fuenteAguaLabel = detail.riego?.fuenteAgua
-    ? FUENTE_AGUA_LABELS[detail.riego.fuenteAgua]
-    : null;
-
-  const tipoSueloLabel = detail.riego?.tipoSuelo
-    ? TIPO_SUELO_LABELS[detail.riego.tipoSuelo]
-    : null;
-
-  const humedadSueloLabel = detail.riego?.humedadSuelo
-    ? HUMEDAD_SUELO_LABELS[detail.riego.humedadSuelo]
-    : null;
-
-  const estresHidricoLabel =
-    detail.riego?.estresHidrico === null
-      ? null
-      : detail.riego?.estresHidrico
-        ? "Si"
-        : "No";
-
   return `<!doctype html>
 <html>
   <head>
@@ -310,13 +286,7 @@ async function buildVisitReportHtml(visitaId: string) {
 
     ${renderSection(
       "Paso 4 - Riego",
-      renderFields([
-        ["Tipo de riego", riego],
-        ["Fuente de agua", fuenteAguaLabel, true],
-        ["Tipo de suelo", tipoSueloLabel, true],
-        ["Humedad del suelo", humedadSueloLabel, true],
-        ["Estres hidrico", estresHidricoLabel, true]
-      ]) + renderStepNote(stepNotes.get(4))
+      renderRiego(detail.riego, tiposRiego) + renderStepNote(stepNotes.get(4))
     )}
 
     ${renderSection(
@@ -510,6 +480,56 @@ function renderNutrition(
     .join("")}</ul>`;
 }
 
+function renderRiego(
+  riego: {
+    tipoRiegoId: string;
+    fuenteAgua: keyof typeof FUENTE_AGUA_LABELS | null;
+    tipoSuelo: keyof typeof TIPO_SUELO_LABELS | null;
+    humedadSuelo: keyof typeof HUMEDAD_SUELO_LABELS | null;
+    estresHidrico: boolean | null;
+  } | null,
+  tiposRiego: Array<{ id: string; name: string; description: string | null }>
+) {
+  if (!riego) {
+    return `<div class="empty">No hay informacion de riego registrada.</div>`;
+  }
+
+  const tipoRiego = findById(tiposRiego, riego.tipoRiegoId);
+  const tipoRiegoLabel = tipoRiego
+    ? appendDescription(tipoRiego.name, tipoRiego.description)
+    : `Tipo registrado: ${riego.tipoRiegoId}`;
+
+  return renderFields([
+    ["Tipo de riego", tipoRiegoLabel, true],
+    [
+      "Fuente de agua",
+      riego.fuenteAgua
+        ? (FUENTE_AGUA_LABELS[riego.fuenteAgua] ?? riego.fuenteAgua)
+        : "No registrada",
+      true
+    ],
+    [
+      "Tipo de suelo",
+      riego.tipoSuelo
+        ? (TIPO_SUELO_LABELS[riego.tipoSuelo] ?? riego.tipoSuelo)
+        : "No registrado",
+      true
+    ],
+    [
+      "Humedad del suelo",
+      riego.humedadSuelo
+        ? (HUMEDAD_SUELO_LABELS[riego.humedadSuelo] ?? riego.humedadSuelo)
+        : "No registrada",
+      true
+    ],
+    [
+      "Estres hidrico intencional",
+      riego.estresHidrico === null ? "No registrado" : riego.estresHidrico ? "Si" : "No",
+      true
+    ]
+  ]);
+}
+
 function renderCulturalLabors(
   selectedLabors: Array<{ laborCulturalId: string }>,
   catalog: Array<{
@@ -532,7 +552,10 @@ function renderCulturalLabors(
 
       return {
         category: labor?.categoryName ?? "Labores culturales",
-        option: labor?.optionLabel ?? labor?.name ?? selectedLabor.laborCulturalId,
+        option:
+          labor?.optionLabel ??
+          labor?.name ??
+          `Seleccion registrada: ${selectedLabor.laborCulturalId}`,
         legend: labor?.legend ?? labor?.description ?? null,
         sortOrder: labor?.sortOrder ?? 9999
       };
@@ -552,6 +575,10 @@ function renderCulturalLabors(
       </li>`
     )
     .join("")}</ul>`;
+}
+
+function appendDescription(label: string, description: string | null | undefined) {
+  return description ? `${label} (${description})` : label;
 }
 
 function renderStepNote(
