@@ -1203,11 +1203,11 @@ function parseJsonArray(value: string | null): string[] {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: theme.colors.background,
-    flex: 1
+    paddingHorizontal: 0,
+    paddingVertical: 0
   },
   scrollContent: {
-    paddingBottom: 80
+    paddingBottom: 24
   },
   centeredContainer: {
     alignItems: "center",
@@ -1217,23 +1217,29 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg
   },
   hero: {
+    minHeight: 320,
     overflow: "hidden",
     paddingHorizontal: 0,
     paddingTop: 0
   },
   heroImage: {
-    opacity: 0.35
+    opacity: 0.82
   },
   heroContent: {
-    paddingBottom: 28,
-    paddingHorizontal: 20
+    gap: 10,
+    paddingBottom: 34,
+    paddingHorizontal: 24,
+    paddingTop: 34
   },
   heroTitle: {
-    color: theme.colors.textInverse
+    color: theme.colors.primaryDark,
+    fontSize: 40,
+    lineHeight: 45,
+    maxWidth: 300
   },
   heroSubtitle: {
-    color: theme.colors.textInverse,
-    marginTop: 6
+    color: "#173f2d",
+    maxWidth: 320
   },
   topBar: {
     alignItems: "center",
