@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 30;
+const LATEST_MIGRATION_VERSION = 31;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -857,6 +857,24 @@ describe("runMigrations", () => {
         (statement) =>
           statement.includes("UPDATE visita_riegos") &&
           statement.includes("Internal server error") &&
+          statement.includes("sync_status = 'pending'")
+      )
+    ).toBe(true);
+  });
+
+  it("requeues sanitary level sync errors again after the API deploy is available", () => {
+    const db = createFakeDatabase(30);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("UPDATE visita_observaciones_sanitarias") &&
+          statement.includes(
+            "Selected level is not available for the pest disease and visit phenological stage."
+          ) &&
           statement.includes("sync_status = 'pending'")
       )
     ).toBe(true);
