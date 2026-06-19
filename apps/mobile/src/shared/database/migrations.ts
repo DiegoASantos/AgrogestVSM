@@ -695,6 +695,126 @@ const MIGRATIONS: Migration[] = [
         "TEXT DEFAULT NULL"
       );
     }
+  },
+  {
+    version: 28,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS coadyuvantes (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS ingredientes_activos (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS marcas_producto (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        ingrediente_activo_id TEXT,
+        concentracion TEXT,
+        ingrediente_activo_nombre TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS modos_accion (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS tipos_control (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS tipos_producto_fitosanitario (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS fertilizantes (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('solido', 'liquido'))
+      )`,
+      `CREATE TABLE IF NOT EXISTS visita_recetas (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        server_id TEXT,
+        visita_local_id TEXT NOT NULL,
+        etapa_fenologica TEXT,
+        version INTEGER NOT NULL DEFAULT 1,
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+        UNIQUE (visita_local_id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS visita_receta_fitosanidad (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        server_id TEXT,
+        receta_local_id TEXT NOT NULL,
+        numero INTEGER NOT NULL DEFAULT 1,
+        objetivo TEXT NOT NULL CHECK(objetivo IN ('plaga', 'enfermedad')),
+        objetivo_nombre TEXT NOT NULL,
+        tipo_control_id TEXT,
+        tipo_producto_id TEXT,
+        disolvente TEXT NOT NULL DEFAULT 'Agua',
+        modo_accion_id TEXT,
+        ingrediente_activo_nombre TEXT,
+        dosis_ia TEXT,
+        volumen_aplicacion TEXT,
+        cantidad_total_ia TEXT,
+        marca_producto_nombre TEXT,
+        concentracion_producto TEXT,
+        cantidad_total_producto TEXT,
+        coadyuvantes_ids TEXT,
+        orden_mezcla TEXT,
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS visita_receta_fertilizacion (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        server_id TEXT,
+        receta_local_id TEXT NOT NULL,
+        via_aplicacion TEXT NOT NULL CHECK(via_aplicacion IN ('edafica', 'foliar')),
+        fertilizante_nombre TEXT,
+        tipo_producto TEXT CHECK(tipo_producto IN ('solido', 'liquido')),
+        dosis TEXT,
+        unidad_dosis TEXT,
+        cantidad_total_plantas TEXT,
+        volumen_aplicacion TEXT,
+        cantidad_total_fertilizante TEXT,
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE
+      )`,
+      `CREATE TABLE IF NOT EXISTS visita_receta_riego (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        server_id TEXT,
+        receta_local_id TEXT NOT NULL,
+        tipo_recomendacion TEXT NOT NULL CHECK(tipo_recomendacion IN ('riego_pesado', 'riego_ligero', 'inicio_agoste', 'ruptura_agoste')),
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE,
+        UNIQUE (receta_local_id)
+      )`,
+      `CREATE TABLE IF NOT EXISTS visita_receta_labores (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        server_id TEXT,
+        receta_local_id TEXT NOT NULL,
+        labor TEXT NOT NULL CHECK(labor IN ('limpieza_maleza_pala', 'limpieza_maleza_motoguadana', 'horqueteo', 'enzunchado', 'recoleccion_frutos', 'trampas_mosca')),
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE,
+        UNIQUE (receta_local_id, labor)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_visita_recetas_visita ON visita_recetas(visita_local_id)",
+      "CREATE INDEX IF NOT EXISTS idx_visita_receta_fitosanidad_receta ON visita_receta_fitosanidad(receta_local_id)",
+      "CREATE INDEX IF NOT EXISTS idx_visita_receta_fertilizacion_receta ON visita_receta_fertilizacion(receta_local_id)",
+      "CREATE INDEX IF NOT EXISTS idx_visita_receta_labores_receta ON visita_receta_labores(receta_local_id)",
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    ]
   }
 ];
 
