@@ -27,6 +27,9 @@ import type { SyncOutboxItem } from "../database/sync-outbox";
 import type { SyncEntityType } from "./sync-entities";
 import { generatePublicId, isUuid } from "../utils/local-id";
 
+import { visitaRecetasRepository } from "../../modules/visita-recetas/repositories/visita-recetas.repository";
+import { visitaRecetasRemote } from "../../modules/visita-recetas/services/visita-recetas.remote";
+
 export type SyncHandlerResult =
   | { status: "synced"; serverId: string }
   | { status: "skipped" }
@@ -400,7 +403,12 @@ export const entityHandlerMap: Record<
   visita_observaciones_sanitarias: handleObservacion,
   visita_paso_observaciones: handleStepNote,
   visita_riegos: handleRiego,
-  visita_labores_culturales: handleLaborCultural
+  visita_labores_culturales: handleLaborCultural,
+  visita_recetas: handleReceta,
+  visita_receta_fitosanidad: skipSyncHandler(),
+  visita_receta_fertilizacion: skipSyncHandler(),
+  visita_receta_riego: skipSyncHandler(),
+  visita_receta_labores: skipSyncHandler()
 };
 
 function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft {
@@ -548,5 +556,70 @@ function buildRiegoBody(riego: VisitaRiego) {
 function buildLaborCulturalBody(labor: VisitaLaborCultural) {
   return {
     laborCulturalId: Number(labor.laborCulturalId)
+  };
+}
+
+async function handleReceta(
+  entry: SyncOutboxItem
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    return { status: "deleted_local" };
+  }
+
+  const receta = visitaRecetasRepository.getRecetaByVisitaLocalId(entry.entityLocalId);
+
+  if (!receta) {
+    return { status: "deleted_local" };
+  }
+
+  try {
+    const response = await visitaRecetasRemote.save(
+      receta.visitaLocalId,
+      {
+        etapaFenologica: receta.etapaFenologica,
+        fitosanidad: receta.fitosanidad.map((f) => ({
+          numero: f.numero,
+          objetivo: f.objetivo,
+          objetivoNombre: f.objetivoNombre,
+          tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
+          tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
+          disolvente: f.disolvente,
+          modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
+          ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
+          dosisIa: f.dosisIa ?? undefined,
+          volumenAplicacion: f.volumenAplicacion ?? undefined,
+          cantidadTotalIa: f.cantidadTotalIa ?? undefined,
+          marcaProductoNombre: f.marcaProductoNombre ?? undefined,
+          concentracionProducto: f.concentracionProducto ?? undefined,
+          cantidadTotalProducto: f.cantidadTotalProducto ?? undefined,
+          coadyuvantesIds: f.coadyuvantesIds ?? undefined,
+          ordenMezcla: f.ordenMezcla ?? undefined
+        })),
+        fertilizacion: receta.fertilizacion.map((f) => ({
+          viaAplicacion: f.viaAplicacion,
+          fertilizanteNombre: f.fertilizanteNombre ?? undefined,
+          tipoProducto: f.tipoProducto ?? undefined,
+          dosis: f.dosis ?? undefined,
+          unidadDosis: f.unidadDosis ?? undefined,
+          cantidadTotalPlantas: f.cantidadTotalPlantas ?? undefined,
+          volumenAplicacion: f.volumenAplicacion ?? undefined,
+          cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined
+        })),
+        riego: receta.riego
+          ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
+          : undefined,
+        labores: receta.labores.map((l) => ({ labor: l.labor }))
+      }
+    );
+
+    return { status: "synced", serverId: response.id };
+  } catch {
+    return { status: "skipped" };
+  }
+}
+
+function skipSyncHandler() {
+  return async (): Promise<SyncHandlerResult> => {
+    return { status: "skipped" };
   };
 }

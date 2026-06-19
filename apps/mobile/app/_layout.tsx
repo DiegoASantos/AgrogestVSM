@@ -132,6 +132,12 @@ function AppNavigation() {
             title: "Plagas y enfermedades"
           }}
         />
+        <Stack.Screen
+          name="visitas-campo/[id]/receta"
+          options={{
+            title: "Receta"
+          }}
+        />
       </Stack>
       {showBottomNavigation ? <AppBottomNavigation /> : null}
     </View>

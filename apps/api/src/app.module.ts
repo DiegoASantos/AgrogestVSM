@@ -19,6 +19,7 @@ import { VariedadesModule } from "./modules/variedades/variedades.module";
 import { VisitaEvaluacionesModule } from "./modules/visita-evaluaciones/visita-evaluaciones.module";
 import { VisitaLaboresCulturalesModule } from "./modules/visita-labores-culturales/visita-labores-culturales.module";
 import { VisitaObservacionesSanitariasModule } from "./modules/visita-observaciones-sanitarias/visita-observaciones-sanitarias.module";
+import { VisitaRecetasModule } from "./modules/visita-recetas/visita-recetas.module";
 import { VisitaRiegosModule } from "./modules/visita-riegos/visita-riegos.module";
 import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module";
 
@@ -44,7 +45,8 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     VisitaEvaluacionesModule,
     VisitaObservacionesSanitariasModule,
     VisitaRiegosModule,
-    VisitaLaboresCulturalesModule
+    VisitaLaboresCulturalesModule,
+    VisitaRecetasModule
   ]
 })
 export class AppModule {}

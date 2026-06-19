@@ -323,7 +323,10 @@ export function VisitaLaboresCulturalesScreen() {
     try {
       await laboresCulturalesVisitaService.saveSelections(visitaId, selectedIds);
       await processOutbox();
-      router.replace("/visitas-campo/historial");
+      router.replace({
+        pathname: "/visitas-campo/[id]/receta",
+        params: { id: visitaId }
+      });
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setSubmitError(apiError.message || "No se pudo guardar el paso 5.");

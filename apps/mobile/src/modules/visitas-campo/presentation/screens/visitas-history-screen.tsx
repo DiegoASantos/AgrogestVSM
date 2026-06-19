@@ -17,9 +17,10 @@ import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { visitaPdfReportService, visitasCampoService } from "../../services";
+import { visitaRecetaPdfReportService } from "../../../visita-recetas/services";
 import type { RecentVisitaCampo, VisitaCampo } from "../../types";
 
-type PdfAction = "preview" | "share";
+type PdfAction = "preview" | "share" | "receta";
 
 export function VisitasHistoryScreen() {
   const router = useRouter();
@@ -106,6 +107,9 @@ export function VisitasHistoryScreen() {
                 onSharePdf={() => {
                   void handlePdfAction(visita.id, "share");
                 }}
+                onPreviewReceta={() => {
+                  void handlePdfAction(visita.id, "receta");
+                }}
                 pdfAction={
                   activePdfAction?.visitaId === visita.id ? activePdfAction.action : null
                 }
@@ -126,6 +130,8 @@ export function VisitasHistoryScreen() {
     try {
       if (action === "preview") {
         await visitaPdfReportService.preview(visitaId);
+      } else if (action === "receta") {
+        await visitaRecetaPdfReportService.preview(visitaId);
       } else {
         await visitaPdfReportService.share(visitaId);
       }
@@ -142,12 +148,14 @@ function HistoryItem({
   onPress,
   onPreviewPdf,
   onSharePdf,
+  onPreviewReceta,
   pdfAction,
   visita
 }: {
   onPress: () => void;
   onPreviewPdf: () => void;
   onSharePdf: () => void;
+  onPreviewReceta: () => void;
   pdfAction: PdfAction | null;
   visita: RecentVisitaCampo;
 }) {
@@ -185,6 +193,16 @@ function HistoryItem({
             label="Ver PDF"
             loading={pdfAction === "preview"}
             onPress={onPreviewPdf}
+            size="small"
+            variant="outline"
+          />
+        </View>
+        <View style={styles.pdfActionButton}>
+          <AppButton
+            icon="receipt-outline"
+            label="Ver receta"
+            loading={pdfAction === "receta"}
+            onPress={onPreviewReceta}
             size="small"
             variant="outline"
           />

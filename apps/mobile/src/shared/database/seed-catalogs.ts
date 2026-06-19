@@ -8,6 +8,7 @@ import { nutricionRemote } from "../../modules/nutricion/services/nutricion.remo
 import { nutricionRepository } from "../../modules/nutricion/repositories";
 import { observacionesSanitariasRemote } from "../../modules/observaciones-sanitarias/services/observaciones-sanitarias.remote";
 import { visitaCampoCatalogsRemote } from "../../modules/visitas-campo/services/visita-campo-catalogs.remote";
+import { visitaRecetasRemote } from "../../modules/visita-recetas/services/visita-recetas.remote";
 import { getCatalogsDownloadedAt } from "./catalog-status";
 import {
   notifyCatalogDownloadCompleted,
@@ -32,6 +33,13 @@ export async function downloadAllCatalogs() {
       nutrients,
       tiposRiego,
       laboresCulturales,
+      coadyuvantes,
+      ingredientesActivos,
+      marcasProducto,
+      modosAccion,
+      tiposControl,
+      tiposProductoFitosanitario,
+      fertilizantes,
       productores,
       distritos,
       sectores,
@@ -59,6 +67,13 @@ export async function downloadAllCatalogs() {
       nutricionRemote.getNutrients(),
       riegosRemote.getTiposRiego(),
       laboresCulturalesVisitaRemote.getLaboresCulturales(),
+      visitaRecetasRemote.getCoadyuvantes(),
+      visitaRecetasRemote.getIngredientesActivos(),
+      visitaRecetasRemote.getMarcasProducto(),
+      visitaRecetasRemote.getModosAccion(),
+      visitaRecetasRemote.getTiposControl(),
+      visitaRecetasRemote.getTiposProductoFitosanitario(),
+      visitaRecetasRemote.getFertilizantes(),
       productoresRemote.getAll(),
       geografiasRemote.getDistritos(),
       sectoresRemote.getAll(),
@@ -251,6 +266,75 @@ export async function downloadAllCatalogs() {
             laborCultural.legend ?? null,
             laborCultural.sortOrder ?? null,
             toSqliteBoolean(laborCultural.isActive)
+          );
+        }
+
+        for (const item of coadyuvantes) {
+          db.runSync(
+            `INSERT OR REPLACE INTO coadyuvantes (id, name, description)
+         VALUES (?, ?, ?)`,
+            item.id,
+            item.name,
+            item.description ?? null
+          );
+        }
+
+        for (const item of ingredientesActivos) {
+          db.runSync(
+            `INSERT OR REPLACE INTO ingredientes_activos (id, name, description)
+         VALUES (?, ?, ?)`,
+            item.id,
+            item.name,
+            item.description ?? null
+          );
+        }
+
+        for (const item of marcasProducto) {
+          db.runSync(
+            `INSERT OR REPLACE INTO marcas_producto (id, name, ingrediente_activo_id, concentracion, ingrediente_activo_nombre)
+         VALUES (?, ?, ?, ?, ?)`,
+            item.id,
+            item.name,
+            item.ingredienteActivoId ?? null,
+            item.concentracion?.toString() ?? null,
+            item.ingredienteActivoNombre ?? null
+          );
+        }
+
+        for (const item of modosAccion) {
+          db.runSync(
+            `INSERT OR REPLACE INTO modos_accion (id, name)
+         VALUES (?, ?)`,
+            item.id,
+            item.name
+          );
+        }
+
+        for (const item of tiposControl) {
+          db.runSync(
+            `INSERT OR REPLACE INTO tipos_control (id, name)
+         VALUES (?, ?)`,
+            item.id,
+            item.name
+          );
+        }
+
+        for (const item of tiposProductoFitosanitario) {
+          db.runSync(
+            `INSERT OR REPLACE INTO tipos_producto_fitosanitario (id, name)
+         VALUES (?, ?)`,
+            item.id,
+            item.name
+          );
+        }
+
+        for (const item of fertilizantes) {
+          db.runSync(
+            `INSERT OR REPLACE INTO fertilizantes (id, name, type)
+         VALUES (?, ?, ?)`,
+            item.id,
+            item.name,
+            item.type
           );
         }
 
