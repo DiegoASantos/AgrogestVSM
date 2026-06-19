@@ -22,8 +22,10 @@ import {
   getLastSyncTime,
   getSyncCounts,
   getSyncErrorDetails,
+  getSyncPendingDetails,
   requestSync,
-  type SyncErrorDetail
+  type SyncErrorDetail,
+  type SyncPendingDetail
 } from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { visitasCampoService } from "../../../visitas-campo/services";
@@ -47,7 +49,9 @@ export function HomeScreen() {
   const { isAuthenticated, session, signOut } = useAuthSession();
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
   const [syncErrors, setSyncErrors] = useState<SyncErrorDetail[]>([]);
+  const [syncPending, setSyncPending] = useState<SyncPendingDetail[]>([]);
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
+  const [isPendingModalVisible, setIsPendingModalVisible] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [isRefreshingCatalogs, setIsRefreshingCatalogs] = useState(false);
@@ -58,6 +62,7 @@ export function HomeScreen() {
   const loadDashboard = useCallback(() => {
     setSyncCounts(getSyncCounts());
     setSyncErrors(getSyncErrorDetails());
+    setSyncPending(getSyncPendingDetails());
     setLastSyncTime(getLastSyncTime());
 
     if (!session.accessToken) {
@@ -209,6 +214,11 @@ export function HomeScreen() {
               <SyncMetric
                 icon="document-text-outline"
                 label="Datos pendientes"
+                onPress={
+                  syncCounts.pendingCount > 0
+                    ? () => setIsPendingModalVisible(true)
+                    : undefined
+                }
                 value={syncCounts.pendingCount}
                 variant="success"
               />
@@ -337,6 +347,12 @@ export function HomeScreen() {
         errors={syncErrors}
         onClose={() => setIsErrorModalVisible(false)}
         visible={isErrorModalVisible}
+      />
+
+      <SyncPendingModal
+        onClose={() => setIsPendingModalVisible(false)}
+        pending={syncPending}
+        visible={isPendingModalVisible}
       />
     </SafeAreaView>
   );
@@ -494,6 +510,89 @@ function SyncErrorsModal({
                 <Ionicons color="#4d9f13" name="checkmark-circle-outline" size={30} />
                 <AppText style={styles.errorEmptyTitle} variant="label">
                   No hay errores registrados
+                </AppText>
+                <AppText style={styles.errorEmptyText} variant="caption">
+                  El contador puede actualizarse al volver a sincronizar.
+                </AppText>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function SyncPendingModal({
+  onClose,
+  pending,
+  visible
+}: {
+  onClose: () => void;
+  pending: SyncPendingDetail[];
+  visible: boolean;
+}) {
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
+      <View style={styles.errorModalOverlay}>
+        <View style={styles.errorModalCard}>
+          <View style={styles.errorModalHeader}>
+            <View style={styles.errorModalTitleRow}>
+              <View style={[styles.errorModalIcon, { backgroundColor: "#fff4e2" }]}>
+                <Ionicons color="#e28700" name="time-outline" size={24} />
+              </View>
+              <View style={styles.errorModalTitleCopy}>
+                <AppText style={styles.errorModalTitle} variant="heading">
+                  Datos pendientes de sincronizar
+                </AppText>
+                <AppText style={styles.errorModalSubtitle} variant="caption">
+                  {pending.length} registro{pending.length === 1 ? "" : "s"} en espera.
+                </AppText>
+              </View>
+            </View>
+            <Pressable
+              accessibilityLabel="Cerrar detalle de pendientes"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={({ pressed }) => [
+                styles.errorModalCloseButton,
+                pressed && styles.pressed
+              ]}
+            >
+              <Ionicons color="#4d5a54" name="close" size={22} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.errorModalList}
+            showsVerticalScrollIndicator={false}
+          >
+            {pending.length > 0 ? (
+              pending.map((item, index) => (
+                <View
+                  key={`${item.entityType}-${item.localId}`}
+                  style={[styles.errorItem, { borderColor: "#f3cd8c", backgroundColor: "#fef9e7" }]}
+                >
+                  <View style={styles.errorItemHeader}>
+                    <AppText style={{ color: "#b45309" }} variant="eyebrow">
+                      #{index + 1}
+                    </AppText>
+                    <AppText style={styles.errorItemEntity} variant="label">
+                      {item.entityLabel}
+                    </AppText>
+                  </View>
+                  <ErrorField label="ID local" value={item.localId} />
+                  <ErrorField
+                    label="Ultima actualizacion"
+                    value={formatErrorDateTime(item.updatedAt)}
+                  />
+                </View>
+              ))
+            ) : (
+              <View style={styles.errorEmptyState}>
+                <Ionicons color="#4d9f13" name="checkmark-circle-outline" size={30} />
+                <AppText style={styles.errorEmptyTitle} variant="label">
+                  No hay datos pendientes
                 </AppText>
                 <AppText style={styles.errorEmptyText} variant="caption">
                   El contador puede actualizarse al volver a sincronizar.

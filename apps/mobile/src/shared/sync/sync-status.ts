@@ -19,6 +19,13 @@ export type SyncErrorDetail = {
   updatedAt: string | null;
 };
 
+export type SyncPendingDetail = {
+  entityType: SyncEntityType;
+  entityLabel: string;
+  localId: string;
+  updatedAt: string | null;
+};
+
 const SYNC_ENTITY_LABELS: Record<SyncEntityType, string> = {
   visitas_campo: "Visita de campo",
   visita_evaluaciones: "Evaluacion",
@@ -89,6 +96,36 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
         message:
           row.sync_error_message?.trim() ||
           "Sin detalle tecnico registrado. Reintenta la sincronizacion para capturar el mensaje actualizado.",
+        updatedAt: row.updated_at
+      });
+    }
+  }
+
+  return details;
+}
+
+export function getSyncPendingDetails(): SyncPendingDetail[] {
+  const db = getDatabase();
+  const details: SyncPendingDetail[] = [];
+
+  for (const entityType of SYNC_ENTITY_TYPES) {
+    const table = SYNC_ENTITY_TABLES[entityType];
+
+    const rows = db.getAllSync<{
+      local_id: string;
+      updated_at: string | null;
+    }>(
+      `SELECT local_id, updated_at
+       FROM ${table}
+       WHERE sync_status = 'pending'
+       ORDER BY updated_at ASC, local_id ASC`
+    );
+
+    for (const row of rows) {
+      details.push({
+        entityType,
+        entityLabel: SYNC_ENTITY_LABELS[entityType],
+        localId: row.local_id,
         updatedAt: row.updated_at
       });
     }

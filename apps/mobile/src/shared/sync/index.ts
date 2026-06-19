@@ -4,6 +4,8 @@ export { requestSync } from "./sync-requests";
 export {
   getSyncCounts,
   getSyncErrorDetails,
+  getSyncPendingDetails,
   getLastSyncTime,
-  type SyncErrorDetail
+  type SyncErrorDetail,
+  type SyncPendingDetail
 } from "./sync-status";
