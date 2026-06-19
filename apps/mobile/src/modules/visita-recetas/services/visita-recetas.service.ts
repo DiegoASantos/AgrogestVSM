@@ -1,5 +1,7 @@
 import { visitaRecetasRepository } from "../repositories/visita-recetas.repository";
 import { visitaRecetasRemote } from "./visita-recetas.remote";
+import { observacionesSanitariasRepository } from "../../observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
+import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
 import type { VisitaRecetaCompleta, ConsolidacionHallazgo } from "../types";
 
 export type SaveRecetaData = {
@@ -57,10 +59,60 @@ export const visitaRecetasService = {
     return visitaRecetasRepository.saveReceta(visitaId, data);
   },
 
-  async fetchConsolidacionFromRemote(
-    visitaId: string
-  ): Promise<ConsolidacionHallazgo> {
+  async fetchConsolidacionFromRemote(visitaId: string): Promise<ConsolidacionHallazgo> {
     return visitaRecetasRemote.getConsolidacion(visitaId);
+  },
+
+  getConsolidacionLocal(visitaId: string): ConsolidacionHallazgo {
+    const visita = visitasCampoRepository.getById(visitaId);
+    const pestDiseases = observacionesSanitariasRepository.getPestDiseases();
+    const incidenceLevels = observacionesSanitariasRepository.getIncidenceLevels();
+    const observaciones = observacionesSanitariasRepository.getByVisitaLocalId(visitaId);
+    const pestById = new Map(pestDiseases.map((pest) => [pest.id, pest]));
+    const levelById = new Map(incidenceLevels.map((level) => [level.id, level]));
+    const plagas: ConsolidacionHallazgo["plagas"] = [];
+    const enfermedades: ConsolidacionHallazgo["enfermedades"] = [];
+
+    for (const observacion of observaciones) {
+      const pest = pestById.get(observacion.pestDiseaseId);
+
+      if (!pest) {
+        continue;
+      }
+
+      const item = {
+        nombre: pest.name,
+        incidencia:
+          observacion.incidencePercentage !== null
+            ? `${observacion.incidencePercentage}%`
+            : ((observacion.incidenceLevelId
+                ? levelById.get(observacion.incidenceLevelId)?.name
+                : null) ?? "No especificada"),
+        severidad:
+          (observacion.severityLevelId
+            ? levelById.get(observacion.severityLevelId)?.name
+            : null) ?? "No especificada",
+        organos: observacion.organosAfectados
+      };
+
+      if (pest.type === "enfermedad") {
+        enfermedades.push(item);
+      } else if (pest.type === "plaga") {
+        plagas.push(item);
+      }
+    }
+
+    return {
+      etapaFenologica: visita?.phenologicalStageId ?? null,
+      plagas,
+      enfermedades,
+      nutricion: [],
+      riego: {
+        humedadSuelo: null,
+        estresHidrico: null
+      },
+      labores: []
+    };
   },
 
   async syncToRemote(

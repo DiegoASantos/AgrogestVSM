@@ -49,12 +49,10 @@ const COADYUVANTE_ORDER: Record<string, number> = {
 
 function toSingleParam(value: string | string[] | undefined): string | null {
   if (!value) return null;
-  return Array.isArray(value) ? value[0] ?? null : value;
+  return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
-function generateOrdenMezcla(
-  coadyuvanteNombres: string[]
-): string[] {
+function generateOrdenMezcla(coadyuvanteNombres: string[]): string[] {
   const orden: string[] = ["Agua"];
   const sortedAdyuvantes = [...coadyuvanteNombres].sort(
     (a, b) => (COADYUVANTE_ORDER[a] ?? 99) - (COADYUVANTE_ORDER[b] ?? 99)
@@ -84,7 +82,9 @@ export function VisitaRecetaScreen() {
   const [coadyuvantes, setCoadyuvantes] = useState<CoadyuvanteCatalogItem[]>([]);
   const [modosAccion, setModosAccion] = useState<ModoAccionCatalogItem[]>([]);
   const [tiposControl, setTiposControl] = useState<TipoControlCatalogItem[]>([]);
-  const [tiposProducto, setTiposProducto] = useState<TipoProductoFitosanitarioCatalogItem[]>([]);
+  const [tiposProducto, setTiposProducto] = useState<
+    TipoProductoFitosanitarioCatalogItem[]
+  >([]);
   const [fertilizantes, setFertilizantes] = useState<FertilizanteCatalogItem[]>([]);
 
   const [fitosanidadApps, setFitosanidadApps] = useState<AppFitosanidad[]>([]);
@@ -126,19 +126,40 @@ export function VisitaRecetaScreen() {
         visitaRecetasService.fetchConsolidacionFromRemote(vId).catch(() => null),
         Promise.resolve(visitaRecetasService.getByVisitaId(vId))
       ]);
+      const localConsData = visitaRecetasService.getConsolidacionLocal(vId);
+      const resolvedConsData = hasFitosanidadFindings(consData)
+        ? consData
+        : hasFitosanidadFindings(localConsData)
+          ? mergeFitosanidadConsolidacion(consData, localConsData)
+          : consData;
 
-      setConsolidacion(consData);
+      setConsolidacion(resolvedConsData);
 
       if (recetaData) {
         restoreFromReceta(recetaData);
-      } else if (consData) {
-        initFitosanidadFromConsolidacion(consData);
+      } else if (resolvedConsData) {
+        initFitosanidadFromConsolidacion(resolvedConsData);
       }
     } catch (err) {
       setError(toApiError(err).message || "No se pudo cargar la receta.");
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function hasFitosanidadFindings(cons: ConsolidacionHallazgo | null) {
+    return Boolean(cons && (cons.plagas.length > 0 || cons.enfermedades.length > 0));
+  }
+
+  function mergeFitosanidadConsolidacion(
+    remoteCons: ConsolidacionHallazgo | null,
+    localCons: ConsolidacionHallazgo
+  ): ConsolidacionHallazgo {
+    return {
+      ...(remoteCons ?? localCons),
+      plagas: localCons.plagas,
+      enfermedades: localCons.enfermedades
+    };
   }
 
   function restoreFromReceta(receta: VisitaRecetaCompleta) {
@@ -269,8 +290,7 @@ export function VisitaRecetaScreen() {
       } else {
         const dosis = parseFloat(current.dosis) || 0;
         const vol = parseFloat(current.volumenAplicacion) || 0;
-        current.cantidadTotalFertilizante =
-          dosis && vol ? (dosis * vol).toFixed(4) : "";
+        current.cantidadTotalFertilizante = dosis && vol ? (dosis * vol).toFixed(4) : "";
       }
 
       return current;
@@ -286,7 +306,8 @@ export function VisitaRecetaScreen() {
       const data: SaveRecetaData = {
         etapaFenologica: consolidacion?.etapaFenologica ?? null,
         fitosanidad: fitosanidadApps.map((app) => {
-          const computedIa = (parseFloat(app.dosisIa) || 0) * (parseFloat(app.volumenAplicacion) || 0);
+          const computedIa =
+            (parseFloat(app.dosisIa) || 0) * (parseFloat(app.volumenAplicacion) || 0);
           const totalIa = computedIa || 0;
           const conc = parseFloat(app.concentracionProducto) || 0;
           const totalProducto = totalIa && conc ? totalIa / conc : 0;
@@ -307,13 +328,9 @@ export function VisitaRecetaScreen() {
             concentracionProducto: parseFloat(app.concentracionProducto) || null,
             cantidadTotalProducto: totalProducto || null,
             coadyuvantesIds:
-              app.coadyuvantesIds.length > 0
-                ? JSON.stringify(app.coadyuvantesIds)
-                : null,
+              app.coadyuvantesIds.length > 0 ? JSON.stringify(app.coadyuvantesIds) : null,
             ordenMezcla:
-              app.ordenMezcla.length > 0
-                ? JSON.stringify(app.ordenMezcla)
-                : null
+              app.ordenMezcla.length > 0 ? JSON.stringify(app.ordenMezcla) : null
           };
         }),
         fertilizacion: [
@@ -323,7 +340,8 @@ export function VisitaRecetaScreen() {
             tipoProducto: fertilizacion.tipoProducto,
             dosis: parseFloat(fertilizacion.dosis) || null,
             unidadDosis: getUnidadDosis(),
-            cantidadTotalPlantas: parseInt(fertilizacion.cantidadTotalPlantas, 10) || null,
+            cantidadTotalPlantas:
+              parseInt(fertilizacion.cantidadTotalPlantas, 10) || null,
             volumenAplicacion: parseFloat(fertilizacion.volumenAplicacion) || null,
             cantidadTotalFertilizante:
               parseFloat(fertilizacion.cantidadTotalFertilizante) || null
@@ -381,10 +399,7 @@ export function VisitaRecetaScreen() {
         <View style={styles.centeredContainer}>
           <AppText variant="heading">Error</AppText>
           <AppText variant="muted">{error}</AppText>
-          <AppButton
-            label="Volver"
-            onPress={() => goBackToSteps()}
-          />
+          <AppButton label="Volver" onPress={() => goBackToSteps()} />
         </View>
       </ScreenContainer>
     );
@@ -430,9 +445,7 @@ export function VisitaRecetaScreen() {
         </ImageBackground>
 
         <View style={styles.body}>
-          {consolidacion ? (
-            <ConsolidacionPanel data={consolidacion} />
-          ) : null}
+          {consolidacion ? <ConsolidacionPanel data={consolidacion} /> : null}
 
           <SectionHeader
             icon="flask"
@@ -477,16 +490,9 @@ export function VisitaRecetaScreen() {
             value={fertilizacion}
           />
 
-          <SectionHeader
-            icon="water"
-            label="Riego"
-            subtitle="Recomendacion de riego"
-          />
+          <SectionHeader icon="water" label="Riego" subtitle="Recomendacion de riego" />
 
-          <RiegoSection
-            onSelect={setRiegoSelection}
-            selected={riegoSelection}
-          />
+          <RiegoSection onSelect={setRiegoSelection} selected={riegoSelection} />
 
           <SectionHeader
             icon="construct"
@@ -789,13 +795,11 @@ function FitosanidadCard({
               style={[styles.chip, selected && styles.chipSelected]}
             >
               <AppText
-                style={[
-                  styles.chipText,
-                  selected && styles.chipTextSelected
-                ]}
+                style={[styles.chipText, selected && styles.chipTextSelected]}
                 variant="caption"
               >
-                {selected ? "✓ " : ""}{c.name}
+                {selected ? "✓ " : ""}
+                {c.name}
               </AppText>
             </Pressable>
           );
@@ -858,14 +862,10 @@ function FertilizacionCard({
           { value: "foliar", label: "Foliar" }
         ]}
         placeholder="Seleccionar via"
-        selectedLabel={
-          value.viaAplicacion === "edafica" ? "Edafica" : "Foliar"
-        }
+        selectedLabel={value.viaAplicacion === "edafica" ? "Edafica" : "Foliar"}
         isOpen={openDropdown === "fert_via"}
         onToggle={() => toggleDropdown("fert_via")}
-        onSelect={(v) =>
-          onChange({ viaAplicacion: v as "edafica" | "foliar" })
-        }
+        onSelect={(v) => onChange({ viaAplicacion: v as "edafica" | "foliar" })}
       />
 
       <AppSelectField
@@ -897,14 +897,10 @@ function FertilizacionCard({
           { value: "liquido", label: "Liquido" }
         ]}
         placeholder="Seleccionar tipo"
-        selectedLabel={
-          value.tipoProducto === "solido" ? "Solido" : "Liquido"
-        }
+        selectedLabel={value.tipoProducto === "solido" ? "Solido" : "Liquido"}
         isOpen={openDropdown === "fert_tipo"}
         onToggle={() => toggleDropdown("fert_tipo")}
-        onSelect={(v) =>
-          onChange({ tipoProducto: v as "solido" | "liquido" })
-        }
+        onSelect={(v) => onChange({ tipoProducto: v as "solido" | "liquido" })}
       />
 
       <LabeledNumericInput
@@ -965,19 +961,22 @@ function RiegoSection({
     {
       key: "riego_ligero",
       label: "Riego ligero",
-      description: "Aplicar una lamina de agua de bajo volumen para humedecer superficialmente.",
+      description:
+        "Aplicar una lamina de agua de bajo volumen para humedecer superficialmente.",
       icon: "water"
     },
     {
       key: "inicio_agoste",
       label: "Inicio de agoste",
-      description: "Suspension total o restriccion del riego por 45-60 dias dependiendo del cultivo.",
+      description:
+        "Suspension total o restriccion del riego por 45-60 dias dependiendo del cultivo.",
       icon: "pause-circle-outline"
     },
     {
       key: "ruptura_agoste",
       label: "Ruptura de agoste",
-      description: "Riego ligero inmediatamente despues de obtener floracion para estimular flor sana.",
+      description:
+        "Riego ligero inmediatamente despues de obtener floracion para estimular flor sana.",
       icon: "play-circle-outline"
     }
   ];
@@ -990,10 +989,7 @@ function RiegoSection({
           <Pressable
             key={opt.key}
             onPress={() => onSelect(opt.key)}
-            style={[
-              styles.riegoOption,
-              isSel && styles.riegoOptionSelected
-            ]}
+            style={[styles.riegoOption, isSel && styles.riegoOptionSelected]}
           >
             <Ionicons
               color={isSel ? theme.colors.primary : theme.colors.textMuted}
@@ -1001,20 +997,13 @@ function RiegoSection({
               size={28}
             />
             <View style={styles.riegoOptionText}>
-              <AppText
-                variant="label"
-                style={isSel && { color: theme.colors.primary }}
-              >
+              <AppText variant="label" style={isSel && { color: theme.colors.primary }}>
                 {opt.label}
               </AppText>
               <AppText variant="muted">{opt.description}</AppText>
             </View>
             {isSel ? (
-              <Ionicons
-                color={theme.colors.primary}
-                name="checkmark-circle"
-                size={24}
-              />
+              <Ionicons color={theme.colors.primary} name="checkmark-circle" size={24} />
             ) : null}
           </Pressable>
         );
@@ -1051,13 +1040,15 @@ function LaboresSection({
     {
       key: "horqueteo",
       label: "Horqueteo",
-      description: "Colocar horquetas de madera bajo ramas principales para sostener peso de fruta.",
+      description:
+        "Colocar horquetas de madera bajo ramas principales para sostener peso de fruta.",
       icon: "git-branch-outline"
     },
     {
       key: "enzunchado",
       label: "Enzunchado",
-      description: "Amarrar y asegurar ramas principales hacia el centro para evitar quiebres.",
+      description:
+        "Amarrar y asegurar ramas principales hacia el centro para evitar quiebres.",
       icon: "link-outline"
     },
     {
@@ -1090,10 +1081,7 @@ function LaboresSection({
               size={26}
             />
             <View style={styles.laborOptionText}>
-              <AppText
-                variant="label"
-                style={isSel && { color: theme.colors.primary }}
-              >
+              <AppText variant="label" style={isSel && { color: theme.colors.primary }}>
                 {opt.label}
               </AppText>
               <AppText variant="muted">{opt.description}</AppText>
@@ -1164,13 +1152,7 @@ function LabeledNumericInput({
   );
 }
 
-function ReadonlyField({
-  label,
-  value
-}: {
-  label: string;
-  value: string;
-}) {
+function ReadonlyField({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.fieldWrapper}>
       <AppText variant="label" style={styles.fieldLabel}>
@@ -1178,9 +1160,7 @@ function ReadonlyField({
       </AppText>
       <View style={styles.readonlyField}>
         <AppText
-          style={
-            value ? styles.readonlyValue : styles.readonlyPlaceholder
-          }
+          style={value ? styles.readonlyValue : styles.readonlyPlaceholder}
           variant="body"
         >
           {value || "Calculado automaticamente"}
