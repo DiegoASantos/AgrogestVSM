@@ -352,7 +352,13 @@ export function VisitaRecetaScreen() {
       };
 
       visitaRecetasService.save(visitaId, data);
-      await processOutbox();
+
+      try {
+        await processOutbox();
+      } catch (syncError) {
+        console.warn("No se pudo sincronizar la receta despues de guardarla.", syncError);
+      }
+
       router.replace("/visitas-campo/historial");
     } catch (err) {
       setSubmitError(toApiError(err).message || "No se pudo guardar la receta.");

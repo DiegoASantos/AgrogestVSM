@@ -1261,10 +1261,12 @@ function getLevelOptionsForItem(
   const levelIds = new Set(
     item.stageLevels.map((relation) => relation.nivelIncidenciaSeveridadId)
   );
+  const typedLevels = incidenceLevels.filter((level) => level.type === type);
+  const stageLevels = typedLevels.filter((level) => levelIds.has(level.id));
 
-  return incidenceLevels
-    .filter((level) => level.type === type && levelIds.has(level.id))
-    .sort((left, right) => left.sortOrder - right.sortOrder);
+  return (stageLevels.length > 0 ? stageLevels : typedLevels).sort(
+    (left, right) => left.sortOrder - right.sortOrder
+  );
 }
 
 function validateSelections(
