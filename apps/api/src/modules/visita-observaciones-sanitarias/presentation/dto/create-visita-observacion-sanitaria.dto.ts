@@ -59,7 +59,7 @@ export class CreateVisitaObservacionSanitariaDto {
   observation?: string | null;
 
   @ApiProperty({
-    example: ["hoja", "fruto_verde"],
+    example: ["hoja_tierna", "fruto_verde"],
     description: "Organos de la planta afectados por la plaga o enfermedad.",
     enum: ORGANOS_AFECTADOS,
     isArray: true

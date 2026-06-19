@@ -580,7 +580,11 @@ function formatOrganoLabel(value: string) {
     case "brote_vegetativo":
       return "Brote vegetativo";
     case "hoja":
-      return "Hoja";
+      return "Hoja tierna";
+    case "hoja_tierna":
+      return "Hoja tierna";
+    case "hoja_madura":
+      return "Hoja madura";
     case "panicula_floral":
       return "Panícula floral";
     case "flor_individual":
@@ -591,6 +595,8 @@ function formatOrganoLabel(value: string) {
       return "Fruto verde";
     case "fruto_maduro":
       return "Fruto maduro";
+    case "raices":
+      return "Raices";
     default:
       return value;
   }

@@ -374,6 +374,50 @@ const MIGRATIONS: Migration[] = [
       db.execSync("DELETE FROM detalle_nutrientes WHERE name LIKE '%Grado 0%'");
       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
     }
+  },
+  {
+    version: 24,
+    run: (db) => {
+      db.execSync("DROP TABLE IF EXISTS visita_observacion_sanitaria_organos_next");
+      db.execSync(`
+        CREATE TABLE visita_observacion_sanitaria_organos_next (
+          local_id TEXT PRIMARY KEY NOT NULL,
+          visita_observacion_sanitaria_local_id TEXT NOT NULL,
+          organo TEXT NOT NULL CHECK(organo IN ('tronco_rama', 'yema_apical', 'brote_vegetativo', 'hoja_tierna', 'hoja_madura', 'panicula_floral', 'flor_individual', 'fruto_recien_cuajado', 'fruto_verde', 'fruto_maduro', 'raices')),
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (visita_observacion_sanitaria_local_id) REFERENCES visita_observaciones_sanitarias(local_id) ON DELETE CASCADE,
+          UNIQUE (visita_observacion_sanitaria_local_id, organo)
+        )
+      `);
+      db.execSync(`
+        INSERT OR IGNORE INTO visita_observacion_sanitaria_organos_next (
+          local_id,
+          visita_observacion_sanitaria_local_id,
+          organo,
+          created_at
+        )
+        SELECT
+          local_id,
+          visita_observacion_sanitaria_local_id,
+          CASE organo
+            WHEN 'tallo' THEN 'tronco_rama'
+            WHEN 'flores' THEN 'flor_individual'
+            WHEN 'fruto' THEN 'fruto_verde'
+            WHEN 'hoja' THEN 'hoja_tierna'
+            ELSE organo
+          END,
+          created_at
+        FROM visita_observacion_sanitaria_organos
+        WHERE organo IN ('hoja', 'tallo', 'flores', 'fruto', 'tronco_rama', 'yema_apical', 'brote_vegetativo', 'hoja_tierna', 'hoja_madura', 'panicula_floral', 'flor_individual', 'fruto_recien_cuajado', 'fruto_verde', 'fruto_maduro', 'raices')
+      `);
+      db.execSync("DROP TABLE visita_observacion_sanitaria_organos");
+      db.execSync(
+        "ALTER TABLE visita_observacion_sanitaria_organos_next RENAME TO visita_observacion_sanitaria_organos"
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_visita_obs_sanitaria_organos_observacion ON visita_observacion_sanitaria_organos(visita_observacion_sanitaria_local_id)"
+      );
+    }
   }
 ];
 

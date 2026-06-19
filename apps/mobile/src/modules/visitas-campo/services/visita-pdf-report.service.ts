@@ -554,12 +554,15 @@ function formatOrganoLabel(value: string) {
     tronco_rama: "Tronco/rama",
     yema_apical: "Yema apical",
     brote_vegetativo: "Brote vegetativo",
-    hoja: "Hoja",
+    hoja: "Hoja tierna",
+    hoja_tierna: "Hoja tierna",
+    hoja_madura: "Hoja madura",
     panicula_floral: "Panícula floral",
     flor_individual: "Flor individual",
     fruto_recien_cuajado: "Fruto recién cuajado",
     fruto_verde: "Fruto verde",
-    fruto_maduro: "Fruto maduro"
+    fruto_maduro: "Fruto maduro",
+    raices: "Raices"
   };
 
   if (labels[value]) {
@@ -574,7 +577,11 @@ function formatOrganoLabel(value: string) {
     case "brote_vegetativo":
       return "Brote vegetativo";
     case "hoja":
-      return "Hoja";
+      return "Hoja tierna";
+    case "hoja_tierna":
+      return "Hoja tierna";
+    case "hoja_madura":
+      return "Hoja madura";
     case "panicula_floral":
       return "Panícula floral";
     case "flor_individual":
@@ -585,6 +592,8 @@ function formatOrganoLabel(value: string) {
       return "Fruto verde";
     case "fruto_maduro":
       return "Fruto maduro";
+    case "raices":
+      return "Raices";
     default:
       return value;
   }

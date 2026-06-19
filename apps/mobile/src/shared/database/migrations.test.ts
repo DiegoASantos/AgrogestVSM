@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 23;
+const LATEST_MIGRATION_VERSION = 24;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -202,6 +202,9 @@ function createFakeDatabase(
       if (
         normalizedStatement.startsWith(
           "CREATE TABLE IF NOT EXISTS visita_observacion_sanitaria_organos_next"
+        ) ||
+        normalizedStatement.startsWith(
+          "CREATE TABLE visita_observacion_sanitaria_organos_next"
         )
       ) {
         this.organosNextRows = [];
@@ -231,17 +234,24 @@ function createFakeDatabase(
           "tronco_rama",
           "yema_apical",
           "brote_vegetativo",
+          "hoja_tierna",
+          "hoja_madura",
           "panicula_floral",
           "flor_individual",
           "fruto_recien_cuajado",
           "fruto_verde",
-          "fruto_maduro"
+          "fruto_maduro",
+          "raices"
         ]);
         const mappedOrganos: Record<string, string> = {
           tallo: "tronco_rama",
           flores: "flor_individual",
           fruto: "fruto_verde"
         };
+
+        if (normalizedStatement.includes("WHEN 'hoja' THEN 'hoja_tierna'")) {
+          mappedOrganos.hoja = "hoja_tierna";
+        }
 
         for (const row of this.organosRows) {
           if (!allowedOrganos.has(row.organo)) {
@@ -263,6 +273,11 @@ function createFakeDatabase(
             this.organosNextRows.push(nextRow);
           }
         }
+        return;
+      }
+
+      if (statement === "DROP TABLE IF EXISTS visita_observacion_sanitaria_organos_next") {
+        this.organosNextRows = [];
         return;
       }
 
@@ -425,7 +440,7 @@ describe("runMigrations", () => {
     );
   });
 
-  it("migrates old sanitary organ values into the new 3x3 organ catalog", () => {
+  it("migrates old sanitary organ values into the current organ catalog", () => {
     const db = createDatabaseBeforeOrganoRefresh();
 
     runMigrations(db as never);
@@ -454,7 +469,7 @@ describe("runMigrations", () => {
       {
         local_id: "organo-4",
         visita_observacion_sanitaria_local_id: "obs-1",
-        organo: "hoja",
+        organo: "hoja_tierna",
         created_at: "2026-06-17T08:03:00.000Z"
       }
     ]);
@@ -528,6 +543,57 @@ describe("runMigrations", () => {
     );
   });
 
+  it("updates the local sanitary organ constraint to accept the current organ values", () => {
+    const db = createFakeDatabase(23);
+    db.organosRows = [
+      {
+        local_id: "organo-1",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "hoja",
+        created_at: "2026-06-18T08:00:00.000Z"
+      },
+      {
+        local_id: "organo-2",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "hoja_madura",
+        created_at: "2026-06-18T08:01:00.000Z"
+      },
+      {
+        local_id: "organo-3",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "raices",
+        created_at: "2026-06-18T08:02:00.000Z"
+      }
+    ];
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.organosRows).toEqual([
+      {
+        local_id: "organo-1",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "hoja_tierna",
+        created_at: "2026-06-18T08:00:00.000Z"
+      },
+      {
+        local_id: "organo-2",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "hoja_madura",
+        created_at: "2026-06-18T08:01:00.000Z"
+      },
+      {
+        local_id: "organo-3",
+        visita_observacion_sanitaria_local_id: "obs-1",
+        organo: "raices",
+        created_at: "2026-06-18T08:02:00.000Z"
+      }
+    ]);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_observacion_sanitaria_organos_next RENAME TO visita_observacion_sanitaria_organos"
+    );
+  });
+
   it("does not rerun SQLite migrations when the database is already at the latest version", () => {
     const db = createDatabaseBeforeOrganoRefresh();
 
@@ -542,7 +608,7 @@ describe("runMigrations", () => {
       expect.objectContaining({ organo: "tronco_rama" }),
       expect.objectContaining({ organo: "flor_individual" }),
       expect.objectContaining({ organo: "fruto_verde" }),
-      expect.objectContaining({ organo: "hoja" })
+      expect.objectContaining({ organo: "hoja_tierna" })
     ]);
   });
 });

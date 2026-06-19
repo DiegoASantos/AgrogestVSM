@@ -222,7 +222,7 @@ export const SQL_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS visita_observacion_sanitaria_organos (
     local_id TEXT PRIMARY KEY NOT NULL,
     visita_observacion_sanitaria_local_id TEXT NOT NULL,
-    organo TEXT NOT NULL CHECK(organo IN ('tronco_rama', 'yema_apical', 'brote_vegetativo', 'hoja', 'panicula_floral', 'flor_individual', 'fruto_recien_cuajado', 'fruto_verde', 'fruto_maduro')),
+    organo TEXT NOT NULL CHECK(organo IN ('tronco_rama', 'yema_apical', 'brote_vegetativo', 'hoja_tierna', 'hoja_madura', 'panicula_floral', 'flor_individual', 'fruto_recien_cuajado', 'fruto_verde', 'fruto_maduro', 'raices')),
     created_at TEXT NOT NULL,
     FOREIGN KEY (visita_observacion_sanitaria_local_id) REFERENCES visita_observaciones_sanitarias(local_id) ON DELETE CASCADE,
     UNIQUE (visita_observacion_sanitaria_local_id, organo)
