@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 21;
+const LATEST_MIGRATION_VERSION = 22;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -10,6 +10,7 @@ type FakeDatabase = {
   productorColumns: Set<string>;
   pestDiseaseColumns: Set<string>;
   incidenceLevelColumns: Set<string>;
+  visitaRiegosColumns: Set<string>;
   organosRows: Array<{
     local_id: string;
     visita_observacion_sanitaria_local_id: string;
@@ -28,7 +29,8 @@ function createFakeDatabase(
   currentVersion: number,
   productorColumns: Iterable<string> = [],
   pestDiseaseColumns: Iterable<string> = [],
-  incidenceLevelColumns: Iterable<string> = []
+  incidenceLevelColumns: Iterable<string> = [],
+  visitaRiegosColumns: Iterable<string> = []
 ): FakeDatabase {
   return {
     currentVersion,
@@ -36,6 +38,7 @@ function createFakeDatabase(
     productorColumns: new Set(productorColumns),
     pestDiseaseColumns: new Set(pestDiseaseColumns),
     incidenceLevelColumns: new Set(incidenceLevelColumns),
+    visitaRiegosColumns: new Set(visitaRiegosColumns),
     organosRows: [],
     organosNextRows: [],
     organosTableUsesNewConstraint: false,
@@ -86,6 +89,36 @@ function createFakeDatabase(
         return;
       }
 
+      if (statement.startsWith("CREATE TABLE IF NOT EXISTS visita_riegos")) {
+        if (this.visitaRiegosColumns.size > 0) {
+          return;
+        }
+
+        const baseColumns = [
+          "local_id",
+          "server_id",
+          "visita_local_id",
+          "tipo_riego_id",
+          "sync_status",
+          "sync_error_message",
+          "created_at",
+          "updated_at"
+        ];
+        const contextColumns = [
+          "fuente_agua",
+          "tipo_suelo",
+          "humedad_suelo",
+          "estres_hidrico"
+        ];
+
+        this.visitaRiegosColumns = new Set(
+          statement.includes("fuente_agua")
+            ? [...baseColumns, ...contextColumns]
+            : baseColumns
+        );
+        return;
+      }
+
       if (statement.startsWith("ALTER TABLE productores ADD COLUMN ")) {
         const parts = statement.split(/\s+/u);
         const columnName = parts[5];
@@ -129,6 +162,21 @@ function createFakeDatabase(
         }
 
         this.incidenceLevelColumns.add(columnName);
+      }
+
+      if (statement.startsWith("ALTER TABLE visita_riegos ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.visitaRiegosColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.visitaRiegosColumns.add(columnName);
       }
 
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
@@ -228,6 +276,10 @@ function createFakeDatabase(
 
       if (statement === "PRAGMA table_info(incidence_levels)") {
         return Array.from(this.incidenceLevelColumns, (name) => ({ name })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(visita_riegos)") {
+        return Array.from(this.visitaRiegosColumns, (name) => ({ name })) as T[];
       }
 
       return [];
@@ -398,6 +450,39 @@ describe("runMigrations", () => {
     );
     expect(db.executedStatements).toContain(
       "CREATE INDEX IF NOT EXISTS idx_visita_obs_sanitaria_organos_observacion ON visita_observacion_sanitaria_organos(visita_observacion_sanitaria_local_id)"
+    );
+  });
+
+  it("adds the irrigation context columns to databases created before step 4 was extended", () => {
+    const db = createFakeDatabase(21, [], [], [], [
+      "local_id",
+      "server_id",
+      "visita_local_id",
+      "tipo_riego_id",
+      "sync_status",
+      "sync_error_message",
+      "created_at",
+      "updated_at"
+    ]);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.visitaRiegosColumns.has("fuente_agua")).toBe(true);
+    expect(db.visitaRiegosColumns.has("tipo_suelo")).toBe(true);
+    expect(db.visitaRiegosColumns.has("humedad_suelo")).toBe(true);
+    expect(db.visitaRiegosColumns.has("estres_hidrico")).toBe(true);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_riegos ADD COLUMN fuente_agua TEXT DEFAULT NULL CHECK(fuente_agua IS NULL OR fuente_agua IN ('subterranea', 'superficial', 'pluvial'))"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_riegos ADD COLUMN tipo_suelo TEXT DEFAULT NULL CHECK(tipo_suelo IS NULL OR tipo_suelo IN ('arenoso', 'arcilloso', 'limoso', 'franco'))"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_riegos ADD COLUMN humedad_suelo TEXT DEFAULT NULL CHECK(humedad_suelo IS NULL OR humedad_suelo IN ('saturado', 'optimo', 'moderadamente_seco', 'seco'))"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_riegos ADD COLUMN estres_hidrico INTEGER DEFAULT NULL CHECK(estres_hidrico IS NULL OR estres_hidrico IN (0, 1))"
     );
   });
 

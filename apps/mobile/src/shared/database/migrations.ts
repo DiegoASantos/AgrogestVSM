@@ -338,6 +338,35 @@ const MIGRATIONS: Migration[] = [
         "CREATE INDEX IF NOT EXISTS idx_visita_obs_sanitaria_organos_observacion ON visita_observacion_sanitaria_organos(visita_observacion_sanitaria_local_id)"
       );
     }
+  },
+  {
+    version: 22,
+    run: (db) => {
+      addColumnIfMissing(
+        db,
+        "visita_riegos",
+        "fuente_agua",
+        "TEXT DEFAULT NULL CHECK(fuente_agua IS NULL OR fuente_agua IN ('subterranea', 'superficial', 'pluvial'))"
+      );
+      addColumnIfMissing(
+        db,
+        "visita_riegos",
+        "tipo_suelo",
+        "TEXT DEFAULT NULL CHECK(tipo_suelo IS NULL OR tipo_suelo IN ('arenoso', 'arcilloso', 'limoso', 'franco'))"
+      );
+      addColumnIfMissing(
+        db,
+        "visita_riegos",
+        "humedad_suelo",
+        "TEXT DEFAULT NULL CHECK(humedad_suelo IS NULL OR humedad_suelo IN ('saturado', 'optimo', 'moderadamente_seco', 'seco'))"
+      );
+      addColumnIfMissing(
+        db,
+        "visita_riegos",
+        "estres_hidrico",
+        "INTEGER DEFAULT NULL CHECK(estres_hidrico IS NULL OR estres_hidrico IN (0, 1))"
+      );
+    }
   }
 ];
 

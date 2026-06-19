@@ -161,22 +161,33 @@ vi.mock(
 const riegosGetByVisitaLocalId = vi.fn((visitaId: string) =>
   riegoState?.visitaId === visitaId ? riegoState : null
 );
-const riegosInsert = vi.fn((input: { tipoRiegoId: string; fuenteAgua?: string | null; tipoSuelo?: string | null; humedadSuelo?: string | null; estresHidrico?: boolean | null }, visitaId: string) => {
-  riegoState = {
-    id: "riego-1",
-    serverId: null,
-    syncStatus: "pending",
-    visitaId,
-    tipoRiegoId: input.tipoRiegoId,
-    fuenteAgua: input.fuenteAgua ?? null,
-    tipoSuelo: input.tipoSuelo ?? null,
-    humedadSuelo: input.humedadSuelo ?? null,
-    estresHidrico: input.estresHidrico ?? null,
-    createdAt: now,
-    updatedAt: now
-  };
-  return riegoState;
-});
+const riegosInsert = vi.fn(
+  (
+    input: {
+      tipoRiegoId: string;
+      fuenteAgua?: VisitaRiego["fuenteAgua"];
+      tipoSuelo?: VisitaRiego["tipoSuelo"];
+      humedadSuelo?: VisitaRiego["humedadSuelo"];
+      estresHidrico?: VisitaRiego["estresHidrico"];
+    },
+    visitaId: string
+  ) => {
+    riegoState = {
+      id: "riego-1",
+      serverId: null,
+      syncStatus: "pending",
+      visitaId,
+      tipoRiegoId: input.tipoRiegoId,
+      fuenteAgua: input.fuenteAgua ?? null,
+      tipoSuelo: input.tipoSuelo ?? null,
+      humedadSuelo: input.humedadSuelo ?? null,
+      estresHidrico: input.estresHidrico ?? null,
+      createdAt: now,
+      updatedAt: now
+    };
+    return riegoState;
+  }
+);
 const riegosUpdate = vi.fn((id: string, input: Partial<VisitaRiego>) => {
   if (!riegoState || riegoState.id !== id) {
     throw new Error("No riego");
