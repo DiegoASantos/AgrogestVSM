@@ -5,14 +5,13 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import type {
-  FindOptionsWhere,
-  Repository,
-  SelectQueryBuilder
-} from "typeorm";
+import type { FindOptionsWhere, Repository, SelectQueryBuilder } from "typeorm";
 import { QueryFailedError } from "typeorm";
 
-import { createPaginatedMeta, createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
 import {
   createGeoJsonFeature,
   createGeoJsonFeatureCollection,
@@ -99,9 +98,7 @@ export class VisitasCampoService {
       campaniaId: createVisitaCampoDto.campaignId,
       agronomoUsuarioId: createVisitaCampoDto.agronomistUserId,
       nroPlantas: createVisitaCampoDto.plantsCount ?? null,
-      areaHectares: normalizeAreaHectares(
-        createVisitaCampoDto.areaHectares ?? null
-      ),
+      areaHectares: normalizeAreaHectares(createVisitaCampoDto.areaHectares ?? null),
       fechaSiembra: normalizeDateOnly(createVisitaCampoDto.sowingDate ?? null),
       fechaVisita: normalizeRequiredDateOnly(createVisitaCampoDto.visitDate),
       horaVisitaInicio: createVisitaCampoDto.startVisitTime,
@@ -296,8 +293,7 @@ export class VisitasCampoService {
     const visitaCampo = await this.findEntityById(id);
     const nextCropId = updateVisitaCampoDto.cropId ?? visitaCampo.cultivoId;
     const nextVarietyId = updateVisitaCampoDto.varietyId ?? visitaCampo.variedadId;
-    const nextCampaignId =
-      updateVisitaCampoDto.campaignId ?? visitaCampo.campaniaId;
+    const nextCampaignId = updateVisitaCampoDto.campaignId ?? visitaCampo.campaniaId;
     const nextNroFicha =
       updateVisitaCampoDto.nroFicha !== undefined
         ? updateVisitaCampoDto.nroFicha
@@ -362,9 +358,7 @@ export class VisitasCampoService {
         : {}),
       ...(updateVisitaCampoDto.areaHectares !== undefined
         ? {
-            areaHectares: normalizeAreaHectares(
-              updateVisitaCampoDto.areaHectares
-            )
+            areaHectares: normalizeAreaHectares(updateVisitaCampoDto.areaHectares)
           }
         : {}),
       ...(updateVisitaCampoDto.sowingDate !== undefined
@@ -408,17 +402,14 @@ export class VisitasCampoService {
         : {}),
       ...(updateVisitaCampoDto.visitLocation !== undefined
         ? {
-            ubicacionVisita: validatePointGeometry(
-              updateVisitaCampoDto.visitLocation
-            )
+            ubicacionVisita: validatePointGeometry(updateVisitaCampoDto.visitLocation)
           }
         : {}),
       updatedAt: new Date()
     });
 
     try {
-      const savedVisitaCampo =
-        await this.visitasCampoRepository.save(updatedVisitaCampo);
+      const savedVisitaCampo = await this.visitasCampoRepository.save(updatedVisitaCampo);
 
       return createSuccessResponse(this.toResponse(savedVisitaCampo));
     } catch (error) {
@@ -490,26 +481,19 @@ export class VisitasCampoService {
     );
 
     if (variedad.cultivoId !== input.cropId) {
-      throw new BadRequestException(
-        "Variedad does not belong to the selected cultivo."
-      );
+      throw new BadRequestException("Variedad does not belong to the selected cultivo.");
     }
 
     if (campania.cultivoId !== input.cropId) {
-      throw new BadRequestException(
-        "Campania does not belong to the selected cultivo."
-      );
+      throw new BadRequestException("Campania does not belong to the selected cultivo.");
     }
 
     if (input.phenologicalStageId === undefined || input.phenologicalStageId === null) {
       if (
         (input.subEtapaId !== undefined && input.subEtapaId !== null) ||
-        (input.subEtapaPercentage !== undefined &&
-          input.subEtapaPercentage !== null)
+        (input.subEtapaPercentage !== undefined && input.subEtapaPercentage !== null)
       ) {
-        throw new BadRequestException(
-          "Sub etapa requires a phenological stage."
-        );
+        throw new BadRequestException("Sub etapa requires a phenological stage.");
       }
 
       return;
@@ -528,13 +512,8 @@ export class VisitasCampoService {
     }
 
     if (input.subEtapaId === undefined || input.subEtapaId === null) {
-      if (
-        input.subEtapaPercentage !== undefined &&
-        input.subEtapaPercentage !== null
-      ) {
-        throw new BadRequestException(
-          "subEtapaPercentage requires a sub etapa."
-        );
+      if (input.subEtapaPercentage !== undefined && input.subEtapaPercentage !== null) {
+        throw new BadRequestException("subEtapaPercentage requires a sub etapa.");
       }
 
       return;
@@ -614,11 +593,7 @@ export class VisitasCampoService {
     const queryBuilder = this.visitasCampoRepository.createQueryBuilder("visita");
 
     if (query.productor_id !== undefined) {
-      queryBuilder.innerJoin(
-        ParcelaEntity,
-        "parcela",
-        "parcela.id = visita.parcela_id"
-      );
+      queryBuilder.innerJoin(ParcelaEntity, "parcela", "parcela.id = visita.parcela_id");
       queryBuilder.andWhere("parcela.productor_id = :productorId", {
         productorId: query.productor_id
       });
@@ -742,9 +717,7 @@ export class VisitasCampoService {
         databaseError?.code === "23514" &&
         databaseError.constraint === "visitas_campo_sub_etapa_porcentaje_check"
       ) {
-        throw new BadRequestException(
-          "subEtapaPercentage must be between 0 and 100."
-        );
+        throw new BadRequestException("subEtapaPercentage must be between 0 and 100.");
       }
 
       if (databaseError?.code === "23503") {
@@ -835,20 +808,21 @@ export class VisitasCampoService {
       id: visitaEvaluacion.id,
       visitaId: visitaEvaluacion.visitaId,
       order: visitaEvaluacion.order,
+      incidencePercentage: visitaEvaluacion.incidencePercentage,
       percentage: visitaEvaluacion.percentage,
-      description: visitaEvaluacion.description
+      description: visitaEvaluacion.description,
+      organosAfectados: visitaEvaluacion.organosAfectados ?? []
     };
   }
 
-  private toObservacionSanitariaResponse(
-    observacion: VisitaObservacionSanitariaEntity
-  ) {
+  private toObservacionSanitariaResponse(observacion: VisitaObservacionSanitariaEntity) {
     return {
       id: observacion.id,
       visitaId: observacion.visitaId,
       pestDiseaseId: observacion.plagaEnfermedadId,
       incidenceLevelId: observacion.nivelIncidenciaId,
       severityLevelId: observacion.nivelSeveridadId,
+      incidencePercentage: observacion.incidencePercentage,
       observation: observacion.observation,
       organosAfectados: (observacion.organosAfectados ?? [])
         .map((organo) => organo.organo)
@@ -912,10 +886,7 @@ export class VisitasCampoService {
   }
 }
 
-function validateVisitTimes(
-  startVisitTime: string,
-  endVisitTime: string | null
-) {
+function validateVisitTimes(startVisitTime: string, endVisitTime: string | null) {
   if (!endVisitTime) {
     return;
   }
@@ -927,10 +898,7 @@ function validateVisitTimes(
   }
 }
 
-function validateDateRange(
-  startDate: string | undefined,
-  endDate: string | undefined
-) {
+function validateDateRange(startDate: string | undefined, endDate: string | undefined) {
   if (!startDate || !endDate) {
     return;
   }

@@ -47,6 +47,15 @@ export class VisitaObservacionSanitariaEntity {
   nivelSeveridadId!: number | null;
 
   @Column({
+    name: "incidencia_porcentaje",
+    type: "numeric",
+    precision: 5,
+    scale: 2,
+    nullable: true
+  })
+  incidencePercentage!: string | null;
+
+  @Column({
     name: "observacion",
     type: "text",
     nullable: true

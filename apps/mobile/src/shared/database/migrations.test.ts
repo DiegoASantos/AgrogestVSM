@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 25;
+const LATEST_MIGRATION_VERSION = 27;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -11,6 +11,8 @@ type FakeDatabase = {
   pestDiseaseColumns: Set<string>;
   incidenceLevelColumns: Set<string>;
   visitaRiegosColumns: Set<string>;
+  visitaEvaluacionesColumns: Set<string>;
+  visitaObservacionesSanitariasColumns: Set<string>;
   detalleNutrientesRows: Array<{ id: string; name: string }>;
   appMetaRows: Map<string, string | null>;
   organosRows: Array<{
@@ -32,7 +34,9 @@ function createFakeDatabase(
   productorColumns: Iterable<string> = [],
   pestDiseaseColumns: Iterable<string> = [],
   incidenceLevelColumns: Iterable<string> = [],
-  visitaRiegosColumns: Iterable<string> = []
+  visitaRiegosColumns: Iterable<string> = [],
+  visitaEvaluacionesColumns: Iterable<string> = [],
+  visitaObservacionesSanitariasColumns: Iterable<string> = []
 ): FakeDatabase {
   return {
     currentVersion,
@@ -41,6 +45,8 @@ function createFakeDatabase(
     pestDiseaseColumns: new Set(pestDiseaseColumns),
     incidenceLevelColumns: new Set(incidenceLevelColumns),
     visitaRiegosColumns: new Set(visitaRiegosColumns),
+    visitaEvaluacionesColumns: new Set(visitaEvaluacionesColumns),
+    visitaObservacionesSanitariasColumns: new Set(visitaObservacionesSanitariasColumns),
     detalleNutrientesRows: [],
     appMetaRows: new Map(),
     organosRows: [],
@@ -123,6 +129,50 @@ function createFakeDatabase(
         return;
       }
 
+      if (statement.startsWith("CREATE TABLE IF NOT EXISTS visita_evaluaciones")) {
+        if (this.visitaEvaluacionesColumns.size > 0) {
+          return;
+        }
+
+        this.visitaEvaluacionesColumns = new Set([
+          "local_id",
+          "server_id",
+          "visita_local_id",
+          "sort_order",
+          ...(statement.includes("incidence_percentage") ? ["incidence_percentage"] : []),
+          "percentage",
+          "description",
+          ...(statement.includes("organos_afectados") ? ["organos_afectados"] : []),
+          "sync_status",
+          "created_at",
+          "updated_at"
+        ]);
+        return;
+      }
+
+      if (
+        statement.startsWith("CREATE TABLE IF NOT EXISTS visita_observaciones_sanitarias")
+      ) {
+        if (this.visitaObservacionesSanitariasColumns.size > 0) {
+          return;
+        }
+
+        this.visitaObservacionesSanitariasColumns = new Set([
+          "local_id",
+          "server_id",
+          "visita_local_id",
+          "pest_disease_id",
+          "incidence_level_id",
+          "severity_level_id",
+          ...(statement.includes("incidence_percentage") ? ["incidence_percentage"] : []),
+          "observation",
+          "sync_status",
+          "created_at",
+          "updated_at"
+        ]);
+        return;
+      }
+
       if (statement.startsWith("ALTER TABLE productores ADD COLUMN ")) {
         const parts = statement.split(/\s+/u);
         const columnName = parts[5];
@@ -181,6 +231,38 @@ function createFakeDatabase(
         }
 
         this.visitaRiegosColumns.add(columnName);
+      }
+
+      if (statement.startsWith("ALTER TABLE visita_evaluaciones ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.visitaEvaluacionesColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.visitaEvaluacionesColumns.add(columnName);
+      }
+
+      if (
+        statement.startsWith("ALTER TABLE visita_observaciones_sanitarias ADD COLUMN ")
+      ) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.visitaObservacionesSanitariasColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.visitaObservacionesSanitariasColumns.add(columnName);
       }
 
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
@@ -276,7 +358,9 @@ function createFakeDatabase(
         return;
       }
 
-      if (statement === "DROP TABLE IF EXISTS visita_observacion_sanitaria_organos_next") {
+      if (
+        statement === "DROP TABLE IF EXISTS visita_observacion_sanitaria_organos_next"
+      ) {
         this.organosNextRows = [];
         return;
       }
@@ -311,6 +395,16 @@ function createFakeDatabase(
 
       if (statement === "PRAGMA table_info(visita_riegos)") {
         return Array.from(this.visitaRiegosColumns, (name) => ({ name })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(visita_evaluaciones)") {
+        return Array.from(this.visitaEvaluacionesColumns, (name) => ({ name })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(visita_observaciones_sanitarias)") {
+        return Array.from(this.visitaObservacionesSanitariasColumns, (name) => ({
+          name
+        })) as T[];
       }
 
       return [];
@@ -485,16 +579,22 @@ describe("runMigrations", () => {
   });
 
   it("adds the irrigation context columns to databases created before step 4 was extended", () => {
-    const db = createFakeDatabase(21, [], [], [], [
-      "local_id",
-      "server_id",
-      "visita_local_id",
-      "tipo_riego_id",
-      "sync_status",
-      "sync_error_message",
-      "created_at",
-      "updated_at"
-    ]);
+    const db = createFakeDatabase(
+      21,
+      [],
+      [],
+      [],
+      [
+        "local_id",
+        "server_id",
+        "visita_local_id",
+        "tipo_riego_id",
+        "sync_status",
+        "sync_error_message",
+        "created_at",
+        "updated_at"
+      ]
+    );
 
     runMigrations(db as never);
 
@@ -630,6 +730,91 @@ describe("runMigrations", () => {
     );
     expect(db.executedStatements).toContain(
       "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    );
+  });
+
+  it("removes Ruptura de Agoste from irrigation catalogs and affected local visits", () => {
+    const db = createFakeDatabase(25);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("DELETE FROM sync_outbox") &&
+          statement.includes("visita_riegos") &&
+          statement.includes("Ruptura de Agoste")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("DELETE FROM visitas_campo") &&
+          statement.includes("visita_riegos") &&
+          statement.includes("Ruptura de Agoste")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("DELETE FROM tipos_riego") &&
+          statement.includes("Ruptura de Agoste")
+      )
+    ).toBe(true);
+    expect(db.executedStatements).toContain(
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    );
+  });
+
+  it("adds incidence percentage and nutrition affected organs fields", () => {
+    const db = createFakeDatabase(
+      26,
+      [],
+      [],
+      [],
+      [],
+      [
+        "local_id",
+        "server_id",
+        "visita_local_id",
+        "sort_order",
+        "percentage",
+        "description",
+        "sync_status",
+        "created_at",
+        "updated_at"
+      ],
+      [
+        "local_id",
+        "server_id",
+        "visita_local_id",
+        "pest_disease_id",
+        "incidence_level_id",
+        "severity_level_id",
+        "observation",
+        "sync_status",
+        "created_at",
+        "updated_at"
+      ]
+    );
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.visitaEvaluacionesColumns.has("incidence_percentage")).toBe(true);
+    expect(db.visitaEvaluacionesColumns.has("organos_afectados")).toBe(true);
+    expect(db.visitaObservacionesSanitariasColumns.has("incidence_percentage")).toBe(
+      true
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_observaciones_sanitarias ADD COLUMN incidence_percentage TEXT DEFAULT NULL"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_evaluaciones ADD COLUMN incidence_percentage TEXT DEFAULT NULL"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_evaluaciones ADD COLUMN organos_afectados TEXT DEFAULT NULL"
     );
   });
 

@@ -9,6 +9,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   type ImageSourcePropType,
   useWindowDimensions,
   View
@@ -40,6 +41,7 @@ import type {
   NutrientCatalogItem,
   NutrientDetailCatalogItem
 } from "../../../nutricion/types";
+import type { OrganoAfectado } from "../../../observaciones-sanitarias/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import { evaluacionesService } from "../../services";
 import type { VisitaEvaluacion } from "../../types";
@@ -93,6 +95,34 @@ const NUTRIENT_IMAGES: Array<{
   { patterns: ["zinc"], source: ZINC_IMAGE }
 ];
 
+const ORGANO_OPTIONS: Array<{
+  value: OrganoAfectado;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}> = [
+  { value: "tronco_rama", label: "Tronco/rama", icon: "git-branch-outline" },
+  { value: "yema_apical", label: "Yema apical", icon: "radio-button-on-outline" },
+  { value: "brote_vegetativo", label: "Brote vegetativo", icon: "leaf-outline" },
+  { value: "hoja_tierna", label: "Hoja tierna", icon: "leaf-outline" },
+  { value: "hoja_madura", label: "Hoja madura", icon: "leaf-outline" },
+  { value: "panicula_floral", label: "Panicula floral", icon: "flower-outline" },
+  { value: "flor_individual", label: "Flor individual", icon: "rose-outline" },
+  {
+    value: "fruto_recien_cuajado",
+    label: "Fruto recien cuajado",
+    icon: "ellipse-outline"
+  },
+  { value: "fruto_verde", label: "Fruto verde", icon: "nutrition-outline" },
+  { value: "fruto_maduro", label: "Fruto maduro", icon: "basket-outline" },
+  { value: "raices", label: "Raices", icon: "nutrition-outline" }
+];
+
+type NutritionSelection = {
+  detailId: string | null;
+  incidencePercentage: string;
+  organosAfectados: OrganoAfectado[];
+};
+
 export function VisitaNutricionScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -102,7 +132,7 @@ export function VisitaNutricionScreen() {
 
   const [nutrients, setNutrients] = useState<NutrientCatalogItem[]>([]);
   const [evaluaciones, setEvaluaciones] = useState<VisitaEvaluacion[]>([]);
-  const [selections, setSelections] = useState<Record<string, string | null>>({});
+  const [selections, setSelections] = useState<Record<string, NutritionSelection>>({});
   const [imagePreview, setImagePreview] = useState<NutrientCatalogItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -193,8 +223,10 @@ export function VisitaNutricionScreen() {
             <NutrientSection
               isCompactLayout={isCompactLayout}
               nutrients={nutrients}
+              onIncidencePercentageChange={handleIncidencePercentageChange}
               onImagePress={setImagePreview}
               onSelectDetail={handleSelectDetail}
+              onToggleOrgano={handleToggleOrgano}
               selections={selections}
             />
           ) : null}
@@ -299,10 +331,59 @@ export function VisitaNutricionScreen() {
 
   function handleSelectDetail(nutrientId: string, detailId: string) {
     setSubmitError(null);
-    setSelections((currentSelections) => ({
-      ...currentSelections,
-      [nutrientId]: currentSelections[nutrientId] === detailId ? null : detailId
-    }));
+    setSelections((currentSelections) => {
+      const currentSelection = currentSelections[nutrientId] ?? createEmptySelection();
+
+      return {
+        ...currentSelections,
+        [nutrientId]: {
+          ...currentSelection,
+          detailId: currentSelection.detailId === detailId ? null : detailId
+        }
+      };
+    });
+  }
+
+  function handleIncidencePercentageChange(nutrientId: string, value: string) {
+    setSubmitError(null);
+    setSelections((currentSelections) => {
+      const currentSelection = currentSelections[nutrientId] ?? createEmptySelection();
+      const normalizedValue = sanitizePercentageInput(value);
+      const shouldClearDependents =
+        normalizedValue === "" || Number(normalizedValue) === 0;
+
+      return {
+        ...currentSelections,
+        [nutrientId]: {
+          ...currentSelection,
+          incidencePercentage: normalizedValue,
+          detailId: shouldClearDependents ? null : currentSelection.detailId,
+          organosAfectados: shouldClearDependents ? [] : currentSelection.organosAfectados
+        }
+      };
+    });
+  }
+
+  function handleToggleOrgano(nutrientId: string, organo: OrganoAfectado) {
+    setSubmitError(null);
+    setSelections((currentSelections) => {
+      const currentSelection = currentSelections[nutrientId] ?? createEmptySelection();
+      const selectedOrganos = new Set(currentSelection.organosAfectados);
+
+      if (selectedOrganos.has(organo)) {
+        selectedOrganos.delete(organo);
+      } else {
+        selectedOrganos.add(organo);
+      }
+
+      return {
+        ...currentSelections,
+        [nutrientId]: {
+          ...currentSelection,
+          organosAfectados: Array.from(selectedOrganos)
+        }
+      };
+    });
   }
 
   async function handleContinue() {
@@ -311,10 +392,10 @@ export function VisitaNutricionScreen() {
       return;
     }
 
-    const selectedCount = Object.values(selections).filter(Boolean).length;
+    const validationMessage = validateNutritionSelections(selections, nutrients);
 
-    if (nutrients.length > 0 && selectedCount === 0) {
-      setSubmitError("Selecciona al menos un grado nutricional.");
+    if (validationMessage) {
+      setSubmitError(validationMessage);
       return;
     }
 
@@ -327,11 +408,13 @@ export function VisitaNutricionScreen() {
         const existingEvaluation = evaluaciones.find(
           (evaluacion) => evaluacion.order === order
         );
+        const selection = selections[nutrient.id] ?? createEmptySelection();
         const selectedDetail = nutrient.details.find(
-          (detail) => detail.id === selections[nutrient.id]
+          (detail) => detail.id === selection.detailId
         );
+        const hasIncidence = selection.incidencePercentage !== "";
 
-        if (!selectedDetail) {
+        if (!hasIncidence && !selectedDetail) {
           if (existingEvaluation) {
             await evaluacionesService.remove(existingEvaluation.id);
           }
@@ -340,8 +423,10 @@ export function VisitaNutricionScreen() {
 
         const payload = {
           order,
-          percentage: getDetailNumericValue(selectedDetail),
-          description: buildEvaluationDescription(nutrient, selectedDetail)
+          incidencePercentage: Number(selection.incidencePercentage),
+          percentage: selectedDetail ? getDetailNumericValue(selectedDetail) : null,
+          description: buildEvaluationDescription(nutrient, selectedDetail, selection),
+          organosAfectados: selection.organosAfectados
         };
 
         if (existingEvaluation) {
@@ -367,16 +452,20 @@ export function VisitaNutricionScreen() {
 type NutrientSectionProps = {
   isCompactLayout: boolean;
   nutrients: NutrientCatalogItem[];
+  onIncidencePercentageChange: (nutrientId: string, value: string) => void;
   onImagePress: (nutrient: NutrientCatalogItem) => void;
   onSelectDetail: (nutrientId: string, detailId: string) => void;
-  selections: Record<string, string | null>;
+  onToggleOrgano: (nutrientId: string, organo: OrganoAfectado) => void;
+  selections: Record<string, NutritionSelection>;
 };
 
 function NutrientSection({
   isCompactLayout,
   nutrients,
+  onIncidencePercentageChange,
   onImagePress,
   onSelectDetail,
+  onToggleOrgano,
   selections
 }: NutrientSectionProps) {
   return (
@@ -404,9 +493,11 @@ function NutrientSection({
           isCompactLayout={isCompactLayout}
           key={nutrient.id}
           nutrient={nutrient}
+          onIncidencePercentageChange={onIncidencePercentageChange}
           onImagePress={onImagePress}
           onSelectDetail={onSelectDetail}
-          selectedDetailId={selections[nutrient.id] ?? null}
+          onToggleOrgano={onToggleOrgano}
+          selection={selections[nutrient.id] ?? createEmptySelection()}
         />
       ))}
     </View>
@@ -416,24 +507,31 @@ function NutrientSection({
 type NutrientCardProps = {
   isCompactLayout: boolean;
   nutrient: NutrientCatalogItem;
+  onIncidencePercentageChange: (nutrientId: string, value: string) => void;
   onImagePress: (nutrient: NutrientCatalogItem) => void;
   onSelectDetail: (nutrientId: string, detailId: string) => void;
-  selectedDetailId: string | null;
+  onToggleOrgano: (nutrientId: string, organo: OrganoAfectado) => void;
+  selection: NutritionSelection;
 };
 
 function NutrientCard({
   isCompactLayout,
   nutrient,
+  onIncidencePercentageChange,
   onImagePress,
   onSelectDetail,
-  selectedDetailId
+  onToggleOrgano,
+  selection
 }: NutrientCardProps) {
   const [expanded, setExpanded] = useState(false);
   const imageSource = getNutrientImageSource(nutrient);
-  const selectedDetail = nutrient.details.find((d) => d.id === selectedDetailId);
+  const selectedDetail = nutrient.details.find((d) => d.id === selection.detailId);
   const description = selectedDetail?.description ?? null;
   const hasDescription = typeof description === "string" && description.trim().length > 0;
   const isLongDescription = hasDescription && description.length > 50;
+  const hasIncidence = selection.incidencePercentage !== "";
+  const incidenceIsZero = hasIncidence && Number(selection.incidencePercentage) === 0;
+  const disablesSeverity = !hasIncidence || incidenceIsZero;
 
   return (
     <View style={[styles.nutrientCard, isCompactLayout && styles.nutrientCardCompact]}>
@@ -458,21 +556,43 @@ function NutrientCard({
           </View>
         </View>
 
+        <PercentageInputBlock
+          label="Incidencia"
+          onChangeText={(value) => onIncidencePercentageChange(nutrient.id, value)}
+          value={selection.incidencePercentage}
+        />
+
         {nutrient.details.length > 0 ? (
           <>
             <View
+              style={[styles.detailLabelRow, disablesSeverity && styles.disabledArea]}
+            >
+              <AppText style={styles.detailLabel} variant="caption">
+                Severidad
+              </AppText>
+              {disablesSeverity ? (
+                <AppText style={styles.disabledHint} variant="caption">
+                  {incidenceIsZero
+                    ? "Incidencia 0: no hay severidad que evaluar."
+                    : "Indica primero la incidencia."}
+                </AppText>
+              ) : null}
+            </View>
+            <View
               style={[
                 styles.detailButtons,
-                isCompactLayout && styles.detailButtonsCompact
+                isCompactLayout && styles.detailButtonsCompact,
+                disablesSeverity && styles.disabledArea
               ]}
             >
               {nutrient.details.map((detail, index) => {
-                const selected = detail.id === selectedDetailId;
+                const selected = detail.id === selection.detailId;
 
                 return (
                   <Pressable
                     accessibilityLabel={`${nutrient.name} ${detail.name}`}
                     accessibilityRole="button"
+                    disabled={disablesSeverity}
                     key={detail.id}
                     onPress={() => {
                       onSelectDetail(nutrient.id, detail.id);
@@ -506,7 +626,7 @@ function NutrientCard({
               })}
             </View>
 
-            {selectedDetail && hasDescription ? (
+            {!disablesSeverity && selectedDetail && hasDescription ? (
               <Pressable
                 accessibilityLabel={`Ver descripcion de ${selectedDetail.name}`}
                 accessibilityRole="button"
@@ -543,7 +663,121 @@ function NutrientCard({
         ) : (
           <AppText variant="muted">Sin grados registrados.</AppText>
         )}
+
+        <OrganoSelector
+          disabled={disablesSeverity}
+          disabledHint={
+            incidenceIsZero
+              ? "Incidencia 0: no hay organos afectados."
+              : "Indica primero la incidencia."
+          }
+          onToggle={(organo) => onToggleOrgano(nutrient.id, organo)}
+          selectedOrganos={selection.organosAfectados}
+        />
       </View>
+    </View>
+  );
+}
+
+function PercentageInputBlock({
+  label,
+  onChangeText,
+  value
+}: {
+  label: string;
+  onChangeText: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <View style={styles.percentageBlock}>
+      <View style={styles.percentageHeader}>
+        <AppText style={styles.detailLabel} variant="caption">
+          {label}
+        </AppText>
+        <AppText style={styles.percentageHint} variant="caption">
+          Arboles afectados. Escala de 1% en 1%.
+        </AppText>
+      </View>
+      <View style={styles.percentageInputShell}>
+        <TextInput
+          accessibilityLabel={`${label} en porcentaje`}
+          keyboardType="number-pad"
+          maxLength={3}
+          onChangeText={onChangeText}
+          placeholder="0"
+          placeholderTextColor={theme.colors.textMuted}
+          style={styles.percentageInput}
+          value={value}
+        />
+        <AppText style={styles.percentageSymbol} variant="label">
+          %
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+function OrganoSelector({
+  disabled,
+  disabledHint,
+  onToggle,
+  selectedOrganos
+}: {
+  disabled: boolean;
+  disabledHint: string;
+  onToggle: (organo: OrganoAfectado) => void;
+  selectedOrganos: OrganoAfectado[];
+}) {
+  return (
+    <View style={[styles.organosBlock, disabled && styles.disabledArea]}>
+      <View style={styles.detailLabelRow}>
+        <AppText style={styles.detailLabel} variant="caption">
+          Organos afectados
+        </AppText>
+        {disabled ? (
+          <AppText style={styles.disabledHint} variant="caption">
+            {disabledHint}
+          </AppText>
+        ) : null}
+      </View>
+      {!disabled ? (
+        <View style={styles.organosGrid}>
+          {ORGANO_OPTIONS.map((option) => {
+            const selected = selectedOrganos.includes(option.value);
+
+            return (
+              <Pressable
+                accessibilityLabel={`Organo afectado ${option.label}`}
+                accessibilityRole="button"
+                key={option.value}
+                onPress={() => onToggle(option.value)}
+                style={[
+                  styles.organoChip,
+                  selected ? styles.organoChipSelected : styles.organoChipInactive
+                ]}
+              >
+                <Ionicons
+                  color={selected ? theme.colors.primary : theme.colors.primaryDark}
+                  name={option.icon}
+                  size={17}
+                />
+                <AppText
+                  numberOfLines={2}
+                  style={[
+                    styles.organoChipText,
+                    selected
+                      ? styles.organoChipTextSelected
+                      : styles.organoChipTextInactive
+                  ]}
+                  variant="caption"
+                >
+                  {option.label}
+                </AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -802,13 +1036,67 @@ function buildSelectionMap(
     );
 
     if (!evaluation) {
-      return [nutrient.id, null] as const;
+      return [nutrient.id, createEmptySelection()] as const;
     }
 
-    return [nutrient.id, findSelectedDetailId(nutrient, evaluation) ?? null] as const;
+    return [
+      nutrient.id,
+      {
+        detailId: findSelectedDetailId(nutrient, evaluation) ?? null,
+        incidencePercentage: evaluation.incidencePercentage ?? "",
+        organosAfectados: evaluation.organosAfectados
+      }
+    ] as const;
   });
 
   return Object.fromEntries(selectionEntries);
+}
+
+function validateNutritionSelections(
+  selections: Record<string, NutritionSelection>,
+  nutrients: NutrientCatalogItem[]
+) {
+  const hasAnySelection = nutrients.some((nutrient) => {
+    const selection = selections[nutrient.id];
+
+    return Boolean(
+      selection?.incidencePercentage ||
+      selection?.detailId ||
+      selection?.organosAfectados.length
+    );
+  });
+
+  if (nutrients.length > 0 && !hasAnySelection) {
+    return "Indica al menos una incidencia nutricional.";
+  }
+
+  for (const nutrient of nutrients) {
+    const selection = selections[nutrient.id] ?? createEmptySelection();
+
+    if (
+      !selection.incidencePercentage &&
+      !selection.detailId &&
+      selection.organosAfectados.length === 0
+    ) {
+      continue;
+    }
+
+    if (!selection.incidencePercentage) {
+      return `Indica incidencia para ${nutrient.name}.`;
+    }
+
+    const incidenceIsZero = Number(selection.incidencePercentage) === 0;
+
+    if (!incidenceIsZero && !selection.detailId) {
+      return `Selecciona severidad para ${nutrient.name}.`;
+    }
+
+    if (!incidenceIsZero && selection.organosAfectados.length === 0) {
+      return `Selecciona al menos un organo afectado para ${nutrient.name}.`;
+    }
+  }
+
+  return null;
 }
 
 function findSelectedDetailId(
@@ -842,11 +1130,38 @@ function findSelectedDetailId(
 
 function buildEvaluationDescription(
   nutrient: NutrientCatalogItem,
-  detail: NutrientDetailCatalogItem
+  detail: NutrientDetailCatalogItem | undefined,
+  selection: NutritionSelection
 ) {
-  const description = `${NUTRITION_DESCRIPTION_PREFIX} ${nutrient.name}: ${detail.name}`;
+  const parts = [`Incidencia ${selection.incidencePercentage}%`];
+
+  if (detail) {
+    parts.push(`Severidad ${detail.name}`);
+  }
+
+  const description = `${NUTRITION_DESCRIPTION_PREFIX} ${nutrient.name}: ${parts.join(
+    " - "
+  )}`;
 
   return description.length <= 190 ? description : description.slice(0, 190);
+}
+
+function createEmptySelection(): NutritionSelection {
+  return {
+    detailId: null,
+    incidencePercentage: "",
+    organosAfectados: []
+  };
+}
+
+function sanitizePercentageInput(value: string) {
+  const digits = value.replace(/\D/gu, "").slice(0, 3);
+
+  if (digits === "") {
+    return "";
+  }
+
+  return String(Math.min(100, Number(digits)));
 }
 
 function getNutrientEvaluationOrder(nutrient: NutrientCatalogItem) {
@@ -1012,6 +1327,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#eef1ef",
     borderColor: theme.colors.border
   },
+  detailLabel: {
+    color: "#000000",
+    fontSize: 12,
+    fontStyle: "italic",
+    fontWeight: "700",
+    textDecorationLine: "underline"
+  },
+  detailLabelRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between"
+  },
   detailButtonText: {
     fontSize: 16
   },
@@ -1059,6 +1387,16 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.55
+  },
+  disabledArea: {
+    opacity: 0.58
+  },
+  disabledHint: {
+    color: theme.colors.textMuted,
+    flex: 1,
+    fontSize: 11,
+    fontStyle: "italic",
+    textAlign: "right"
   },
   errorBanner: {
     backgroundColor: theme.colors.errorMuted,
@@ -1160,6 +1498,88 @@ const styles = StyleSheet.create({
     color: theme.colors.primaryDark,
     flex: 1,
     fontSize: 20
+  },
+  organosBlock: {
+    gap: 8,
+    paddingTop: 2
+  },
+  organosGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+    justifyContent: "space-between"
+  },
+  organoChip: {
+    alignItems: "center",
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 5,
+    justifyContent: "center",
+    minHeight: 70,
+    paddingHorizontal: 5,
+    paddingVertical: 8,
+    width: "30.8%"
+  },
+  organoChipInactive: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border
+  },
+  organoChipSelected: {
+    backgroundColor: "#eef9e8",
+    borderColor: theme.colors.primary
+  },
+  organoChipText: {
+    fontSize: 10,
+    lineHeight: 13,
+    textAlign: "center"
+  },
+  organoChipTextInactive: {
+    color: theme.colors.primaryDark
+  },
+  organoChipTextSelected: {
+    color: theme.colors.primaryDark,
+    fontWeight: "700"
+  },
+  percentageBlock: {
+    gap: 8
+  },
+  percentageHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between"
+  },
+  percentageHint: {
+    color: theme.colors.textMuted,
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: "right"
+  },
+  percentageInput: {
+    color: theme.colors.text,
+    fontSize: 17,
+    fontWeight: "700",
+    minWidth: 44,
+    paddingVertical: 0,
+    textAlign: "right"
+  },
+  percentageInputShell: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.2,
+    flexDirection: "row",
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 9,
+    width: 92
+  },
+  percentageSymbol: {
+    color: theme.colors.primaryDark,
+    fontSize: 16
   },
   nutrientCard: {
     backgroundColor: theme.colors.surface,

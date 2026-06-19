@@ -1,16 +1,21 @@
 import { apiRequest } from "../../../shared/services";
 import type { VisitaEvaluacion } from "../types";
+import type { OrganoAfectado } from "../../observaciones-sanitarias/types";
 
 type CreateEvaluacionInput = {
   order: number;
-  percentage?: number;
+  incidencePercentage?: number | null;
+  percentage?: number | null;
   description: string;
+  organosAfectados?: OrganoAfectado[];
 };
 
 type UpdateEvaluacionInput = {
   order?: number;
+  incidencePercentage?: number | null;
   percentage?: number | null;
   description?: string;
+  organosAfectados?: OrganoAfectado[];
 };
 
 export const evaluacionesRemote = {

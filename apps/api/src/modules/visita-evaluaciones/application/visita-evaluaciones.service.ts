@@ -30,7 +30,11 @@ export class VisitaEvaluacionesService {
       visitaId,
       order: createVisitaEvaluacionDto.order,
       percentage: normalizePercentage(createVisitaEvaluacionDto.percentage),
-      description: createVisitaEvaluacionDto.description
+      incidencePercentage: normalizePercentage(
+        createVisitaEvaluacionDto.incidencePercentage
+      ),
+      description: createVisitaEvaluacionDto.description,
+      organosAfectados: createVisitaEvaluacionDto.organosAfectados ?? []
     });
 
     try {
@@ -85,8 +89,18 @@ export class VisitaEvaluacionesService {
             percentage: normalizePercentage(updateVisitaEvaluacionDto.percentage)
           }
         : {}),
+      ...(updateVisitaEvaluacionDto.incidencePercentage !== undefined
+        ? {
+            incidencePercentage: normalizePercentage(
+              updateVisitaEvaluacionDto.incidencePercentage
+            )
+          }
+        : {}),
       ...(updateVisitaEvaluacionDto.description !== undefined
         ? { description: updateVisitaEvaluacionDto.description }
+        : {}),
+      ...(updateVisitaEvaluacionDto.organosAfectados !== undefined
+        ? { organosAfectados: updateVisitaEvaluacionDto.organosAfectados }
         : {})
     });
 
@@ -121,10 +135,7 @@ export class VisitaEvaluacionesService {
     return evaluacion;
   }
 
-  private async ensureVisitaExists(
-    visitaId: string,
-    useNotFoundException = false
-  ) {
+  private async ensureVisitaExists(visitaId: string, useNotFoundException = false) {
     const visita = await this.visitasCampoRepository.findOne({
       where: { id: visitaId }
     });
@@ -138,11 +149,7 @@ export class VisitaEvaluacionesService {
     }
   }
 
-  private async ensureUniqueOrder(
-    visitaId: string,
-    order: number,
-    excludedId?: string
-  ) {
+  private async ensureUniqueOrder(visitaId: string, order: number, excludedId?: string) {
     const existingEvaluacion = await this.visitaEvaluacionesRepository.findOne({
       where: {
         visitaId,
@@ -184,11 +191,19 @@ export class VisitaEvaluacionesService {
 
       if (
         databaseError?.code === "23514" &&
-        databaseError.constraint === "visita_evaluaciones_porcentaje_check"
+        (databaseError.constraint === "visita_evaluaciones_porcentaje_check" ||
+          databaseError.constraint === "visita_evaluaciones_incidencia_porcentaje_check")
       ) {
         throw new BadRequestException(
-          "percentage must be between 0 and 100."
+          "percentage values must be integers between 0 and 100."
         );
+      }
+
+      if (
+        databaseError?.code === "23514" &&
+        databaseError.constraint === "visita_evaluaciones_organos_afectados_check"
+      ) {
+        throw new BadRequestException("organosAfectados contains invalid values.");
       }
     }
 
@@ -200,8 +215,10 @@ export class VisitaEvaluacionesService {
       id: visitaEvaluacion.id,
       visitaId: visitaEvaluacion.visitaId,
       order: visitaEvaluacion.order,
+      incidencePercentage: visitaEvaluacion.incidencePercentage,
       percentage: visitaEvaluacion.percentage,
-      description: visitaEvaluacion.description
+      description: visitaEvaluacion.description,
+      organosAfectados: visitaEvaluacion.organosAfectados ?? []
     };
   }
 }

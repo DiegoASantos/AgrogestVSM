@@ -195,8 +195,10 @@ function buildEvaluation(overrides: Partial<VisitaEvaluacion> = {}): VisitaEvalu
     syncStatus: "synced",
     visitaId: "visita-1",
     order: 1,
+    incidencePercentage: null,
     percentage: "25",
     description: "Deficiencia",
+    organosAfectados: [],
     createdAt: now,
     updatedAt: now,
     ...overrides
@@ -214,6 +216,7 @@ function buildSanitaryObservation(
     pestDiseaseId: "pest-trips",
     incidenceLevelId: "inc-baja",
     severityLevelId: "sev-alta",
+    incidencePercentage: null,
     observation: "Observacion sanitaria",
     organosAfectados: ["hoja_tierna"],
     createdAt: now,

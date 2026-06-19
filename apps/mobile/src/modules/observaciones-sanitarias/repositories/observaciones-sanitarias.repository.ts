@@ -23,6 +23,7 @@ type ObservacionRow = {
   pest_disease_id: string;
   incidence_level_id: string | null;
   severity_level_id: string | null;
+  incidence_percentage: string | null;
   observation: string | null;
   sync_status: SyncStatus;
   created_at: string;
@@ -64,6 +65,7 @@ type CreateObservacionInput = {
   pestDiseaseId: string;
   incidenceLevelId?: string | null;
   severityLevelId?: string | null;
+  incidencePercentage?: number | null;
   observation?: string;
   organosAfectados: OrganoAfectado[];
 };
@@ -72,6 +74,7 @@ type UpdateObservacionInput = {
   pestDiseaseId?: string;
   incidenceLevelId?: string | null;
   severityLevelId?: string | null;
+  incidencePercentage?: number | null;
   observation?: string | null;
   organosAfectados?: OrganoAfectado[];
   serverId?: string | null;
@@ -85,6 +88,7 @@ const OBSERVACION_COLUMNS = `
   pest_disease_id,
   incidence_level_id,
   severity_level_id,
+  incidence_percentage,
   observation,
   sync_status,
   created_at,
@@ -147,17 +151,21 @@ export const observacionesSanitariasRepository = {
           pest_disease_id,
           incidence_level_id,
           severity_level_id,
+          incidence_percentage,
           observation,
           sync_status,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         null,
         visitaLocalId,
         input.pestDiseaseId,
         input.incidenceLevelId ?? null,
         input.severityLevelId ?? null,
+        input.incidencePercentage === undefined || input.incidencePercentage === null
+          ? null
+          : String(input.incidencePercentage),
         input.observation ?? null,
         "pending",
         timestamp,
@@ -200,6 +208,13 @@ export const observacionesSanitariasRepository = {
     if (data.severityLevelId !== undefined) {
       sets.push("severity_level_id = ?");
       params.push(data.severityLevelId);
+    }
+
+    if (data.incidencePercentage !== undefined) {
+      sets.push("incidence_percentage = ?");
+      params.push(
+        data.incidencePercentage === null ? null : String(data.incidencePercentage)
+      );
     }
 
     if (data.observation !== undefined) {
@@ -443,6 +458,7 @@ function mapObservacionRow(
     pestDiseaseId: row.pest_disease_id,
     incidenceLevelId: row.incidence_level_id,
     severityLevelId: row.severity_level_id,
+    incidencePercentage: row.incidence_percentage,
     observation: row.observation,
     organosAfectados,
     createdAt: row.created_at,

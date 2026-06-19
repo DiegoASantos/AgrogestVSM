@@ -580,6 +580,121 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, "labores_culturales", "sort_order", "INTEGER");
       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
     }
+  },
+  {
+    version: 26,
+    run: (db) => {
+      db.execSync(`
+        DELETE FROM sync_outbox
+        WHERE entity_local_id IN (
+          SELECT local_id FROM visitas_campo
+          WHERE local_id IN (
+            SELECT visita_local_id
+            FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id
+              FROM tipos_riego
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_evaluaciones
+          WHERE visita_local_id IN (
+            SELECT visita_local_id
+            FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id
+              FROM tipos_riego
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_observaciones_sanitarias
+          WHERE visita_local_id IN (
+            SELECT visita_local_id
+            FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id
+              FROM tipos_riego
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_paso_observaciones
+          WHERE visita_local_id IN (
+            SELECT visita_local_id
+            FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id
+              FROM tipos_riego
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_riegos
+          WHERE visita_local_id IN (
+            SELECT visita_local_id
+            FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id
+              FROM tipos_riego
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_labores_culturales
+          WHERE visita_local_id IN (
+            SELECT visita_local_id
+            FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id
+              FROM tipos_riego
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+        )
+      `);
+      db.execSync(`
+        DELETE FROM visitas_campo
+        WHERE local_id IN (
+          SELECT visita_local_id
+          FROM visita_riegos
+          WHERE tipo_riego_id IN (
+            SELECT id
+            FROM tipos_riego
+            WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+          )
+        )
+      `);
+      db.execSync(`
+        DELETE FROM tipos_riego
+        WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+      `);
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
+  },
+  {
+    version: 27,
+    run: (db) => {
+      addColumnIfMissing(
+        db,
+        "visita_observaciones_sanitarias",
+        "incidence_percentage",
+        "TEXT DEFAULT NULL"
+      );
+      addColumnIfMissing(
+        db,
+        "visita_evaluaciones",
+        "incidence_percentage",
+        "TEXT DEFAULT NULL"
+      );
+      addColumnIfMissing(
+        db,
+        "visita_evaluaciones",
+        "organos_afectados",
+        "TEXT DEFAULT NULL"
+      );
+    }
   }
 ];
 

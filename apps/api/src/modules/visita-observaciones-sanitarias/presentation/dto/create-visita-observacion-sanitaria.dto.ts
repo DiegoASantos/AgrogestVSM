@@ -1,6 +1,5 @@
 import { Transform } from "class-transformer";
 import {
-  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsInt,
@@ -8,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Max,
   MaxLength,
   Min
 } from "class-validator";
@@ -50,6 +50,19 @@ export class CreateVisitaObservacionSanitariaDto {
   severityLevelId?: number | null;
 
   @ApiPropertyOptional({
+    example: 12,
+    description: "Porcentaje de arboles enfermos. Entero entre 0 y 100."
+  })
+  @Transform(({ value }) => parseOptionalNumber(value))
+  @IsOptional()
+  @IsInt({
+    message: "incidencePercentage must be an integer."
+  })
+  @Min(0)
+  @Max(100)
+  incidencePercentage?: number | null;
+
+  @ApiPropertyOptional({
     example: "Se observaron manchas foliares leves."
   })
   @Transform(({ value }) => trimOptionalString(value))
@@ -66,7 +79,6 @@ export class CreateVisitaObservacionSanitariaDto {
   })
   @Transform(({ value }) => normalizeOrganosAfectados(value))
   @IsArray()
-  @ArrayMinSize(1)
   @ArrayUnique()
   @IsIn(ORGANOS_AFECTADOS, { each: true })
   organosAfectados!: string[];
@@ -91,6 +103,20 @@ function trimOptionalString(value: unknown): string | null | undefined {
 }
 
 function parseOptionalInteger(value: unknown): number | null | undefined | unknown {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null || value === "") {
+    return null;
+  }
+
+  const parsedValue = Number(value);
+
+  return Number.isInteger(parsedValue) ? parsedValue : value;
+}
+
+function parseOptionalNumber(value: unknown): number | null | undefined | unknown {
   if (value === undefined) {
     return undefined;
   }

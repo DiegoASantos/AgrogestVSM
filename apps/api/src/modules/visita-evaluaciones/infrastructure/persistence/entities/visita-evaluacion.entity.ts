@@ -1,10 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn
-} from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 
 import { VisitaCampoEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 
@@ -38,11 +32,28 @@ export class VisitaEvaluacionEntity {
   percentage!: string | null;
 
   @Column({
+    name: "incidencia_porcentaje",
+    type: "numeric",
+    precision: 5,
+    scale: 2,
+    nullable: true
+  })
+  incidencePercentage!: string | null;
+
+  @Column({
     name: "descripcion",
     type: "varchar",
     length: 200
   })
   description!: string;
+
+  @Column({
+    name: "organos_afectados",
+    type: "text",
+    array: true,
+    default: () => "'{}'"
+  })
+  organosAfectados!: string[];
 
   @ManyToOne(() => VisitaCampoEntity, (visitaCampo) => visitaCampo.evaluaciones, {
     onDelete: "CASCADE",

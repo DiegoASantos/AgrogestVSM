@@ -89,6 +89,7 @@ const PEST_DISEASE_IMAGES: Array<{
 type SanitarySelection = {
   incidenceLevelId: string | null;
   severityLevelId: string | null;
+  incidencePercentage: string;
   organosAfectados: OrganoAfectado[];
 };
 
@@ -247,6 +248,7 @@ export function VisitaObservacionesSanitariasScreen() {
               isCompactLayout={isCompactLayout}
               items={plagas}
               onImagePress={setImagePreview}
+              onIncidencePercentageChange={handleIncidencePercentageChange}
               onSelectLevel={handleSelectLevel}
               onToggleOrgano={handleToggleOrgano}
               selections={selections}
@@ -261,6 +263,7 @@ export function VisitaObservacionesSanitariasScreen() {
               isCompactLayout={isCompactLayout}
               items={enfermedades}
               onImagePress={setImagePreview}
+              onIncidencePercentageChange={handleIncidencePercentageChange}
               onSelectLevel={handleSelectLevel}
               onToggleOrgano={handleToggleOrgano}
               selections={selections}
@@ -440,14 +443,25 @@ export function VisitaObservacionesSanitariasScreen() {
       const currentSelection = currentSelections[pestDiseaseId] ?? {
         incidenceLevelId: null,
         severityLevelId: null,
+        incidencePercentage: "",
         organosAfectados: []
       };
+      const isSelected = currentSelection.incidenceLevelId === levelId;
+      const selectedLevel = incidenceLevels.find((level) => level.id === levelId);
+      const shouldClearDependents =
+        type === "incidencia" &&
+        (isSelected || (selectedLevel ? isZeroIncidenceLevel(selectedLevel) : false));
       const nextSelection =
         type === "incidencia"
           ? {
               ...currentSelection,
-              incidenceLevelId:
-                currentSelection.incidenceLevelId === levelId ? null : levelId
+              incidenceLevelId: isSelected ? null : levelId,
+              severityLevelId: shouldClearDependents
+                ? null
+                : currentSelection.severityLevelId,
+              organosAfectados: shouldClearDependents
+                ? []
+                : currentSelection.organosAfectados
             }
           : {
               ...currentSelection,
@@ -462,12 +476,41 @@ export function VisitaObservacionesSanitariasScreen() {
     });
   }
 
+  function handleIncidencePercentageChange(pestDiseaseId: string, value: string) {
+    setSubmitError(null);
+    setSelections((currentSelections) => {
+      const currentSelection = currentSelections[pestDiseaseId] ?? {
+        incidenceLevelId: null,
+        severityLevelId: null,
+        incidencePercentage: "",
+        organosAfectados: []
+      };
+      const normalizedValue = sanitizePercentageInput(value);
+      const shouldClearDependents =
+        normalizedValue === "" || Number(normalizedValue) === 0;
+
+      return {
+        ...currentSelections,
+        [pestDiseaseId]: {
+          ...currentSelection,
+          incidenceLevelId: null,
+          incidencePercentage: normalizedValue,
+          severityLevelId: shouldClearDependents
+            ? null
+            : currentSelection.severityLevelId,
+          organosAfectados: shouldClearDependents ? [] : currentSelection.organosAfectados
+        }
+      };
+    });
+  }
+
   function handleToggleOrgano(pestDiseaseId: string, organo: OrganoAfectado) {
     setSubmitError(null);
     setSelections((currentSelections) => {
       const currentSelection = currentSelections[pestDiseaseId] ?? {
         incidenceLevelId: null,
         severityLevelId: null,
+        incidencePercentage: "",
         organosAfectados: []
       };
       const selectedOrganos = new Set(currentSelection.organosAfectados);
@@ -512,6 +555,7 @@ export function VisitaObservacionesSanitariasScreen() {
       const selectedEntries = Object.entries(selections).filter(([, selection]) =>
         Boolean(
           selection.incidenceLevelId ||
+          selection.incidencePercentage !== "" ||
           selection.severityLevelId ||
           selection.organosAfectados.length > 0
         )
@@ -525,6 +569,10 @@ export function VisitaObservacionesSanitariasScreen() {
           pestDiseaseId,
           incidenceLevelId: selection.incidenceLevelId,
           severityLevelId: selection.severityLevelId,
+          incidencePercentage:
+            selection.incidencePercentage === ""
+              ? null
+              : Number(selection.incidencePercentage),
           organosAfectados: selection.organosAfectados
         };
 
@@ -561,6 +609,7 @@ type SanitarySectionProps = {
   isCompactLayout: boolean;
   items: PestDiseaseByStageItem[];
   onImagePress: (item: PestDiseaseByStageItem) => void;
+  onIncidencePercentageChange: (pestDiseaseId: string, value: string) => void;
   onSelectLevel: (
     pestDiseaseId: string,
     type: IncidenceLevelCatalogItem["type"],
@@ -577,6 +626,7 @@ function SanitarySection({
   isCompactLayout,
   items,
   onImagePress,
+  onIncidencePercentageChange,
   onSelectLevel,
   onToggleOrgano,
   selections,
@@ -605,6 +655,7 @@ function SanitarySection({
           item={item}
           key={item.id}
           onImagePress={onImagePress}
+          onIncidencePercentageChange={onIncidencePercentageChange}
           onSelectLevel={onSelectLevel}
           onToggleOrgano={onToggleOrgano}
           selection={selections[item.id]}
@@ -619,6 +670,7 @@ type SanitaryCardProps = {
   isCompactLayout: boolean;
   item: PestDiseaseByStageItem;
   onImagePress: (item: PestDiseaseByStageItem) => void;
+  onIncidencePercentageChange: (pestDiseaseId: string, value: string) => void;
   onSelectLevel: (
     pestDiseaseId: string,
     type: IncidenceLevelCatalogItem["type"],
@@ -633,6 +685,7 @@ function SanitaryCard({
   isCompactLayout,
   item,
   onImagePress,
+  onIncidencePercentageChange,
   onSelectLevel,
   onToggleOrgano,
   selection
@@ -640,6 +693,17 @@ function SanitaryCard({
   const incidenceOptions = getLevelOptionsForItem(item, incidenceLevels, "incidencia");
   const severityOptions = getLevelOptionsForItem(item, incidenceLevels, "severidad");
   const imageSource = getPestDiseaseImageSource(item);
+  const usesPercentageIncidence = item.type === "enfermedad";
+  const hasIncidence = usesPercentageIncidence
+    ? (selection?.incidencePercentage ?? "") !== ""
+    : (selection?.incidenceLevelId ?? null) !== null;
+  const incidenceIsZero = usesPercentageIncidence
+    ? (selection?.incidencePercentage ?? "") !== "" &&
+      Number(selection?.incidencePercentage) === 0
+    : isZeroIncidenceLevel(
+        incidenceLevels.find((level) => level.id === selection?.incidenceLevelId)
+      );
+  const disablesSeverity = !hasIncidence || incidenceIsZero;
 
   const levelDescriptions = useMemo(() => {
     const map: Record<string, string | null> = {};
@@ -648,10 +712,6 @@ function SanitaryCard({
     }
     return map;
   }, [item.stageLevels]);
-
-  const hasLevelSelected =
-    (selection?.incidenceLevelId ?? null) !== null ||
-    (selection?.severityLevelId ?? null) !== null;
 
   return (
     <View style={[styles.sanitaryCard, isCompactLayout && styles.sanitaryCardCompact]}>
@@ -676,7 +736,13 @@ function SanitaryCard({
           </View>
         </View>
 
-        {incidenceOptions.length > 0 ? (
+        {usesPercentageIncidence ? (
+          <PercentageInputBlock
+            label="Incidencia"
+            onChangeText={(value) => onIncidencePercentageChange(item.id, value)}
+            value={selection?.incidencePercentage ?? ""}
+          />
+        ) : incidenceOptions.length > 0 ? (
           <LevelSelectorRow
             accentColor="#12622f"
             label="Incidencia"
@@ -690,6 +756,12 @@ function SanitaryCard({
         {severityOptions.length > 0 ? (
           <LevelSelectorRow
             accentColor="#7b4b00"
+            disabled={disablesSeverity}
+            disabledHint={
+              incidenceIsZero
+                ? "Incidencia 0: no hay severidad que evaluar."
+                : "Indica primero la incidencia."
+            }
             label="Severidad"
             levels={severityOptions}
             isCompactLayout={isCompactLayout}
@@ -700,7 +772,12 @@ function SanitaryCard({
         ) : null}
 
         <OrganoSelector
-          disabled={!hasLevelSelected}
+          disabled={disablesSeverity}
+          disabledHint={
+            incidenceIsZero
+              ? "Incidencia 0: no hay organos afectados."
+              : "Indica primero la incidencia."
+          }
           onToggle={(organo) => onToggleOrgano(item.id, organo)}
           selectedOrganos={selection?.organosAfectados ?? []}
         />
@@ -711,10 +788,12 @@ function SanitaryCard({
 
 function OrganoSelector({
   disabled,
+  disabledHint,
   onToggle,
   selectedOrganos
 }: {
   disabled: boolean;
+  disabledHint: string;
   onToggle: (organo: OrganoAfectado) => void;
   selectedOrganos: OrganoAfectado[];
 }) {
@@ -733,7 +812,7 @@ function OrganoSelector({
       </View>
       {disabled ? (
         <AppText style={styles.organosDisabledHint} variant="caption">
-          Selecciona incidencia o severidad primero
+          {disabledHint}
         </AppText>
       ) : (
         <View style={styles.organosGrid}>
@@ -784,8 +863,56 @@ function OrganoSelector({
   );
 }
 
+function PercentageInputBlock({
+  label,
+  onChangeText,
+  value
+}: {
+  label: string;
+  onChangeText: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <View style={styles.percentageBlock}>
+      <View style={[styles.levelPill, { alignItems: "flex-start" }]}>
+        <AppText
+          style={[
+            styles.levelPillText,
+            { color: "#000000", textDecorationLine: "underline", fontStyle: "italic" }
+          ]}
+          variant="caption"
+        >
+          {label}
+        </AppText>
+      </View>
+      <View style={styles.percentageInputRow}>
+        <View style={styles.percentageInputShell}>
+          <TextInput
+            accessibilityLabel={`${label} en porcentaje`}
+            keyboardType="number-pad"
+            maxLength={3}
+            onChangeText={onChangeText}
+            placeholder="0"
+            placeholderTextColor={theme.colors.textMuted}
+            style={styles.percentageInput}
+            value={value}
+          />
+          <AppText style={styles.percentageSymbol} variant="label">
+            %
+          </AppText>
+        </View>
+        <AppText style={styles.percentageHint} variant="caption">
+          Arboles enfermos. Escala de 1% en 1%.
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
 type LevelSelectorRowProps = {
   accentColor: string;
+  disabled?: boolean;
+  disabledHint?: string;
   label: string;
   isCompactLayout: boolean;
   levels: IncidenceLevelCatalogItem[];
@@ -796,6 +923,8 @@ type LevelSelectorRowProps = {
 
 function LevelSelectorRow({
   accentColor,
+  disabled = false,
+  disabledHint,
   label,
   isCompactLayout,
   levels,
@@ -812,7 +941,13 @@ function LevelSelectorRow({
   const isLongDescription = hasDescription && description.length > 50;
 
   return (
-    <View style={[styles.levelRow, isCompactLayout && styles.levelRowCompact]}>
+    <View
+      style={[
+        styles.levelRow,
+        isCompactLayout && styles.levelRowCompact,
+        disabled && styles.levelRowDisabled
+      ]}
+    >
       <View style={[styles.levelRowTop, isCompactLayout && styles.levelRowTopCompact]}>
         <View style={[styles.levelPill]}>
           <AppText
@@ -834,6 +969,7 @@ function LevelSelectorRow({
               <Pressable
                 accessibilityLabel={`${label} grado ${level.sortOrder}`}
                 accessibilityRole="button"
+                disabled={disabled}
                 key={level.id}
                 onPress={() => {
                   onSelect(level.id);
@@ -842,6 +978,7 @@ function LevelSelectorRow({
                 style={[
                   styles.levelButton,
                   isCompactLayout && styles.levelButtonCompact,
+                  disabled && styles.levelButtonDisabled,
                   selected
                     ? {
                         backgroundColor: getLevelColor(level.sortOrder),
@@ -868,7 +1005,13 @@ function LevelSelectorRow({
         </View>
       </View>
 
-      {selectedLevel && hasDescription ? (
+      {disabled && disabledHint ? (
+        <AppText style={styles.levelDisabledHint} variant="caption">
+          {disabledHint}
+        </AppText>
+      ) : null}
+
+      {!disabled && selectedLevel && hasDescription ? (
         <Pressable
           accessibilityLabel={`Ver descripcion de ${label} ${selectedLevel.name}`}
           accessibilityRole="button"
@@ -1123,6 +1266,7 @@ function validateSelections(
 
     if (
       !selection?.incidenceLevelId &&
+      !selection?.incidencePercentage &&
       !selection?.severityLevelId &&
       !selection?.organosAfectados.length
     ) {
@@ -1140,15 +1284,30 @@ function validateSelections(
       "severidad"
     );
 
-    if (incidenceOptions.length > 0 && !selection.incidenceLevelId) {
+    const usesPercentageIncidence = pestDisease.type === "enfermedad";
+    const hasIncidence = usesPercentageIncidence
+      ? selection.incidencePercentage !== ""
+      : Boolean(selection.incidenceLevelId);
+    const incidenceIsZero = usesPercentageIncidence
+      ? selection.incidencePercentage !== "" &&
+        Number(selection.incidencePercentage) === 0
+      : isZeroIncidenceLevel(
+          incidenceLevels.find((level) => level.id === selection.incidenceLevelId)
+        );
+
+    if (usesPercentageIncidence && !hasIncidence) {
+      return `Indica incidencia para ${pestDisease.name}.`;
+    }
+
+    if (!usesPercentageIncidence && incidenceOptions.length > 0 && !hasIncidence) {
       return `Selecciona incidencia para ${pestDisease.name}.`;
     }
 
-    if (severityOptions.length > 0 && !selection.severityLevelId) {
+    if (!incidenceIsZero && severityOptions.length > 0 && !selection.severityLevelId) {
       return `Selecciona severidad para ${pestDisease.name}.`;
     }
 
-    if (selection.organosAfectados.length === 0) {
+    if (!incidenceIsZero && selection.organosAfectados.length === 0) {
       return `Selecciona al menos un organo afectado para ${pestDisease.name}.`;
     }
   }
@@ -1163,6 +1322,7 @@ function buildSelectionMap(observaciones: VisitaObservacionSanitaria[]) {
       {
         incidenceLevelId: observacion.incidenceLevelId,
         severityLevelId: observacion.severityLevelId,
+        incidencePercentage: observacion.incidencePercentage ?? "",
         organosAfectados: observacion.organosAfectados
       }
     ])
@@ -1208,6 +1368,24 @@ function normalizeCatalogName(value: string) {
     .replace(/[^a-zA-Z0-9]+/g, " ")
     .trim()
     .toLowerCase();
+}
+
+function sanitizePercentageInput(value: string) {
+  const digits = value.replace(/\D/gu, "").slice(0, 3);
+
+  if (digits === "") {
+    return "";
+  }
+
+  return String(Math.min(100, Number(digits)));
+}
+
+function isZeroIncidenceLevel(level?: IncidenceLevelCatalogItem | null) {
+  if (!level) {
+    return false;
+  }
+
+  return level.sortOrder <= 0 || normalizeCatalogName(level.name).includes("0");
 }
 
 function getLevelColor(sortOrder: number) {
@@ -1404,6 +1582,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#eef1ef",
     borderColor: theme.colors.border
   },
+  levelButtonDisabled: {
+    opacity: 0.5
+  },
   levelButtonText: {
     fontSize: 13,
     fontWeight: "600"
@@ -1439,11 +1620,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700"
   },
+  levelDisabledHint: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontStyle: "italic"
+  },
   levelRow: {
     gap: 6
   },
   levelRowCompact: {
     gap: 4
+  },
+  levelRowDisabled: {
+    opacity: 0.68
   },
   levelRowTop: {
     alignItems: "center",
@@ -1507,6 +1696,44 @@ const styles = StyleSheet.create({
   },
   modalRoot: {
     flex: 1
+  },
+  percentageBlock: {
+    gap: 7
+  },
+  percentageHint: {
+    color: theme.colors.textMuted,
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 16
+  },
+  percentageInput: {
+    color: theme.colors.text,
+    fontSize: 17,
+    fontWeight: "700",
+    minWidth: 44,
+    paddingVertical: 0,
+    textAlign: "right"
+  },
+  percentageInputRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10
+  },
+  percentageInputShell: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.2,
+    flexDirection: "row",
+    justifyContent: "center",
+    minHeight: 46,
+    paddingHorizontal: 9,
+    width: 92
+  },
+  percentageSymbol: {
+    color: theme.colors.primaryDark,
+    fontSize: 16
   },
   pestImage: {
     backgroundColor: theme.colors.primaryMuted,

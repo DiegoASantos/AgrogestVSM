@@ -477,16 +477,20 @@ function getDeleteServerId(entry: SyncOutboxItem) {
 function buildEvaluacionCreateBody(evaluacion: VisitaEvaluacion) {
   return {
     order: evaluacion.order,
+    incidencePercentage: toOptionalNumber(evaluacion.incidencePercentage),
     percentage: evaluacion.percentage ? Number(evaluacion.percentage) : undefined,
-    description: evaluacion.description
+    description: evaluacion.description,
+    organosAfectados: evaluacion.organosAfectados
   };
 }
 
 function buildEvaluacionUpdateBody(evaluacion: VisitaEvaluacion) {
   return {
     order: evaluacion.order,
+    incidencePercentage: toOptionalNumber(evaluacion.incidencePercentage),
     percentage: evaluacion.percentage ? Number(evaluacion.percentage) : null,
-    description: evaluacion.description
+    description: evaluacion.description,
+    organosAfectados: evaluacion.organosAfectados
   };
 }
 
@@ -499,6 +503,7 @@ function buildObservacionCreateBody(observacion: VisitaObservacionSanitaria) {
     severityLevelId: observacion.severityLevelId
       ? Number(observacion.severityLevelId)
       : null,
+    incidencePercentage: toOptionalNumber(observacion.incidencePercentage),
     observation: observacion.observation ?? undefined,
     organosAfectados: observacion.organosAfectados
   };
@@ -513,9 +518,14 @@ function buildObservacionUpdateBody(observacion: VisitaObservacionSanitaria) {
     severityLevelId: observacion.severityLevelId
       ? Number(observacion.severityLevelId)
       : null,
+    incidencePercentage: toOptionalNumber(observacion.incidencePercentage),
     observation: observacion.observation ?? null,
     organosAfectados: observacion.organosAfectados
   };
+}
+
+function toOptionalNumber(value: string | null) {
+  return value === null ? null : Number(value);
 }
 
 function buildStepNoteBody(stepNote: VisitaStepNote) {

@@ -2,6 +2,7 @@ import { getDatabase } from "../../../shared/database/connection";
 import { insertSyncOutboxEntry } from "../../../shared/database/sync-outbox";
 import { getNowIsoString } from "../../../shared/database/sqlite-utils";
 import { generateLocalId } from "../../../shared/utils/local-id";
+import type { OrganoAfectado } from "../../observaciones-sanitarias/types";
 import type { VisitaEvaluacion } from "../types";
 
 type SyncStatus = "pending" | "synced" | "error";
@@ -11,8 +12,10 @@ type EvaluacionRow = {
   server_id: string | null;
   visita_local_id: string;
   sort_order: number;
+  incidence_percentage: string | null;
   percentage: string | null;
   description: string;
+  organos_afectados: string | null;
   sync_status: SyncStatus;
   created_at: string;
   updated_at: string;
@@ -20,14 +23,18 @@ type EvaluacionRow = {
 
 type CreateEvaluacionInput = {
   order: number;
-  percentage?: number;
+  incidencePercentage?: number | null;
+  percentage?: number | null;
   description: string;
+  organosAfectados?: OrganoAfectado[];
 };
 
 type UpdateEvaluacionInput = {
   order?: number;
+  incidencePercentage?: number | null;
   percentage?: number | null;
   description?: string;
+  organosAfectados?: OrganoAfectado[];
   serverId?: string | null;
   syncStatus?: SyncStatus;
 };
@@ -37,8 +44,10 @@ const EVALUACION_COLUMNS = `
   server_id,
   visita_local_id,
   sort_order,
+  incidence_percentage,
   percentage,
   description,
+  organos_afectados,
   sync_status,
   created_at,
   updated_at
@@ -94,18 +103,26 @@ export const evaluacionesRepository = {
           server_id,
           visita_local_id,
           sort_order,
+          incidence_percentage,
           percentage,
           description,
+          organos_afectados,
           sync_status,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         null,
         visitaLocalId,
         input.order,
-        input.percentage === undefined ? null : String(input.percentage),
+        input.incidencePercentage === undefined || input.incidencePercentage === null
+          ? null
+          : String(input.incidencePercentage),
+        input.percentage === undefined || input.percentage === null
+          ? null
+          : String(input.percentage),
         input.description,
+        serializeOrganos(input.organosAfectados ?? []),
         "pending",
         timestamp,
         timestamp
@@ -143,9 +160,21 @@ export const evaluacionesRepository = {
       params.push(data.percentage === null ? null : String(data.percentage));
     }
 
+    if (data.incidencePercentage !== undefined) {
+      sets.push("incidence_percentage = ?");
+      params.push(
+        data.incidencePercentage === null ? null : String(data.incidencePercentage)
+      );
+    }
+
     if (data.description !== undefined) {
       sets.push("description = ?");
       params.push(data.description);
+    }
+
+    if (data.organosAfectados !== undefined) {
+      sets.push("organos_afectados = ?");
+      params.push(serializeOrganos(data.organosAfectados));
     }
 
     if (data.serverId !== undefined) {
@@ -235,9 +264,31 @@ function mapEvaluacionRow(row: EvaluacionRow): VisitaEvaluacion {
     syncStatus: row.sync_status,
     visitaId: row.visita_local_id,
     order: row.sort_order,
+    incidencePercentage: row.incidence_percentage,
     percentage: row.percentage,
     description: row.description,
+    organosAfectados: deserializeOrganos(row.organos_afectados),
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+function serializeOrganos(organos: OrganoAfectado[]) {
+  return JSON.stringify([...new Set(organos)]);
+}
+
+function deserializeOrganos(value: string | null): OrganoAfectado[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+
+    return Array.isArray(parsed)
+      ? (parsed.filter((item) => typeof item === "string") as OrganoAfectado[])
+      : [];
+  } catch {
+    return [];
+  }
 }

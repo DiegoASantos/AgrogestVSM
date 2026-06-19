@@ -35,10 +35,7 @@ export class VisitaObservacionesSanitariasService {
     private readonly observacionOrganosRepository: Repository<VisitaObservacionSanitariaOrganoEntity>
   ) {}
 
-  async create(
-    visitaId: string,
-    createDto: CreateVisitaObservacionSanitariaDto
-  ) {
+  async create(visitaId: string, createDto: CreateVisitaObservacionSanitariaDto) {
     const visita = await this.ensureVisitaExists(visitaId);
     await this.ensurePlagaEnfermedadExists(createDto.pestDiseaseId);
     await this.ensureNivelIncidenciaExists(createDto.incidenceLevelId, "incidencia");
@@ -54,15 +51,13 @@ export class VisitaObservacionesSanitariasService {
       plagaEnfermedadId: createDto.pestDiseaseId,
       nivelIncidenciaId: createDto.incidenceLevelId ?? null,
       nivelSeveridadId: createDto.severityLevelId ?? null,
+      incidencePercentage: normalizePercentage(createDto.incidencePercentage),
       observation: createDto.observation ?? null
     });
 
     try {
       const savedObservacion = await this.observacionesRepository.save(observacion);
-      await this.replaceOrganosAfectados(
-        savedObservacion.id,
-        createDto.organosAfectados
-      );
+      await this.replaceOrganosAfectados(savedObservacion.id, createDto.organosAfectados);
       const savedWithOrganos = await this.findEntityById(savedObservacion.id);
 
       return createSuccessResponse(this.toResponse(savedWithOrganos));
@@ -100,13 +95,9 @@ export class VisitaObservacionesSanitariasService {
     return createSuccessResponse(this.toResponse(observacion));
   }
 
-  async update(
-    id: string,
-    updateDto: UpdateVisitaObservacionSanitariaDto
-  ) {
+  async update(id: string, updateDto: UpdateVisitaObservacionSanitariaDto) {
     const observacion = await this.findEntityById(id);
-    const nextPestDiseaseId =
-      updateDto.pestDiseaseId ?? observacion.plagaEnfermedadId;
+    const nextPestDiseaseId = updateDto.pestDiseaseId ?? observacion.plagaEnfermedadId;
     const nextIncidenceLevelId =
       updateDto.incidenceLevelId !== undefined
         ? updateDto.incidenceLevelId
@@ -149,6 +140,9 @@ export class VisitaObservacionesSanitariasService {
         : {}),
       ...(updateDto.severityLevelId !== undefined
         ? { nivelSeveridadId: nextSeverityLevelId ?? null }
+        : {}),
+      ...(updateDto.incidencePercentage !== undefined
+        ? { incidencePercentage: normalizePercentage(updateDto.incidencePercentage) }
         : {}),
       ...(updateDto.observation !== undefined
         ? { observation: updateDto.observation }
@@ -198,10 +192,7 @@ export class VisitaObservacionesSanitariasService {
     return observacion;
   }
 
-  private async ensureVisitaExists(
-    visitaId: string,
-    useNotFoundException = false
-  ) {
+  private async ensureVisitaExists(visitaId: string, useNotFoundException = false) {
     const visita = await this.visitasCampoRepository.findOne({
       where: { id: visitaId }
     });
@@ -244,9 +235,7 @@ export class VisitaObservacionesSanitariasService {
     }
 
     if (nivelIncidencia.type !== expectedType) {
-      throw new BadRequestException(
-        `Nivel must be classified as ${expectedType}.`
-      );
+      throw new BadRequestException(`Nivel must be classified as ${expectedType}.`);
     }
   }
 
@@ -264,14 +253,13 @@ export class VisitaObservacionesSanitariasService {
     );
 
     if (selectedLevelIds.length === 0) {
-      const relation =
-        await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
-          where: {
-            plagaEnfermedadId,
-            etapaFenologicaId: visita.etapaFenologicaId,
-            isActive: true
-          }
-        });
+      const relation = await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
+        where: {
+          plagaEnfermedadId,
+          etapaFenologicaId: visita.etapaFenologicaId,
+          isActive: true
+        }
+      });
 
       if (!relation) {
         throw new BadRequestException(
@@ -283,15 +271,14 @@ export class VisitaObservacionesSanitariasService {
     }
 
     for (const levelId of selectedLevelIds) {
-      const relation =
-        await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
-          where: {
-            plagaEnfermedadId,
-            etapaFenologicaId: visita.etapaFenologicaId,
-            nivelIncidenciaSeveridadId: levelId,
-            isActive: true
-          }
-        });
+      const relation = await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
+        where: {
+          plagaEnfermedadId,
+          etapaFenologicaId: visita.etapaFenologicaId,
+          nivelIncidenciaSeveridadId: levelId,
+          isActive: true
+        }
+      });
 
       if (!relation) {
         throw new BadRequestException(
@@ -375,24 +362,41 @@ export class VisitaObservacionesSanitariasService {
             throw new BadRequestException("Nivel severidad not found.");
         }
       }
+
+      if (
+        databaseError?.code === "23514" &&
+        databaseError.constraint ===
+          "visita_observaciones_sanitarias_incidencia_porcentaje_check"
+      ) {
+        throw new BadRequestException(
+          "incidencePercentage must be an integer between 0 and 100."
+        );
+      }
     }
 
     throw error;
   }
 
-  private toResponse(
-    observacion: VisitaObservacionSanitariaEntity
-  ) {
+  private toResponse(observacion: VisitaObservacionSanitariaEntity) {
     return {
       id: observacion.id,
       visitaId: observacion.visitaId,
       pestDiseaseId: observacion.plagaEnfermedadId,
       incidenceLevelId: observacion.nivelIncidenciaId,
       severityLevelId: observacion.nivelSeveridadId,
+      incidencePercentage: observacion.incidencePercentage,
       observation: observacion.observation,
       organosAfectados: (observacion.organosAfectados ?? [])
         .map((organo) => organo.organo)
         .sort()
     };
   }
+}
+
+function normalizePercentage(value: number | null | undefined): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  return String(value);
 }

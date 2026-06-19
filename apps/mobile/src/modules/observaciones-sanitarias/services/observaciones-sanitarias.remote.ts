@@ -12,6 +12,7 @@ type CreateObservacionSanitariaInput = {
   pestDiseaseId: string;
   incidenceLevelId?: number | null;
   severityLevelId?: number | null;
+  incidencePercentage?: number | null;
   observation?: string;
   organosAfectados: OrganoAfectado[];
 };
@@ -20,6 +21,7 @@ type UpdateObservacionSanitariaInput = {
   pestDiseaseId?: string;
   incidenceLevelId?: number | null;
   severityLevelId?: number | null;
+  incidencePercentage?: number | null;
   observation?: string | null;
   organosAfectados?: OrganoAfectado[];
 };

@@ -84,8 +84,10 @@ const evaluacionesInsert = vi.fn(
       syncStatus: "pending",
       visitaId: visitaLocalId,
       order: input.order,
+      incidencePercentage: null,
       percentage: input.percentage === undefined ? null : String(input.percentage),
       description: input.description,
+      organosAfectados: [],
       createdAt: now,
       updatedAt: now
     };
@@ -130,6 +132,7 @@ const observacionesInsert = vi.fn(
       pestDiseaseId: input.pestDiseaseId,
       incidenceLevelId: input.incidenceLevelId ?? null,
       severityLevelId: input.severityLevelId ?? null,
+      incidencePercentage: null,
       observation: input.observation ?? null,
       organosAfectados: input.organosAfectados,
       createdAt: now,
@@ -416,7 +419,13 @@ describe("visita de campo complete flow", () => {
     }
 
     const nutrientes = nutricionService.getNutrientsByCrop(visita.cropId);
-    await riegosService.saveSelection(visita.id, { tipoRiegoId: "riego-goteo", fuenteAgua: "subterranea", tipoSuelo: "franco", humedadSuelo: "optimo", estresHidrico: false });
+    await riegosService.saveSelection(visita.id, {
+      tipoRiegoId: "riego-goteo",
+      fuenteAgua: "subterranea",
+      tipoSuelo: "franco",
+      humedadSuelo: "optimo",
+      estresHidrico: false
+    });
     await laboresCulturalesVisitaService.saveSelections(visita.id, [
       "labor-poda",
       "labor-limpieza"
@@ -480,7 +489,13 @@ describe("visita de campo complete flow", () => {
       order: 1,
       description: "Evaluacion pendiente de sincronizar."
     });
-    await riegosService.saveSelection(visita.id, { tipoRiegoId: "riego-goteo", fuenteAgua: "subterranea", tipoSuelo: "franco", humedadSuelo: "optimo", estresHidrico: false });
+    await riegosService.saveSelection(visita.id, {
+      tipoRiegoId: "riego-goteo",
+      fuenteAgua: "subterranea",
+      tipoSuelo: "franco",
+      humedadSuelo: "optimo",
+      estresHidrico: false
+    });
 
     expect(visitasCampoService.getVisitaSyncSummary(visita.id)).toEqual({
       overallStatus: "partial",

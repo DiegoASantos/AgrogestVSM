@@ -1,14 +1,13 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState, type ComponentProps } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
   ImageBackground,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
-  useWindowDimensions,
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -42,10 +41,8 @@ type LaborGroup = {
 
 export function VisitaLaboresCulturalesScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
-  const isCompactLayout = width < 460;
 
   const [labores, setLabores] = useState<LaborCulturalCatalogItem[]>([]);
   const [selectedLaborIds, setSelectedLaborIds] = useState<Set<string>>(() => new Set());
@@ -54,6 +51,19 @@ export function VisitaLaboresCulturalesScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const laborGroups = useMemo(() => groupLabores(labores), [labores]);
+  const selectedCategoryCodes = useMemo(
+    () =>
+      new Set(
+        labores
+          .filter((labor) => selectedLaborIds.has(labor.id))
+          .map((labor) => labor.categoryCode)
+      ),
+    [labores, selectedLaborIds]
+  );
+  const completedCategoriesCount = laborGroups.filter((group) =>
+    selectedCategoryCodes.has(group.categoryCode)
+  ).length;
 
   useEffect(() => {
     if (!visitaId) {
@@ -141,39 +151,34 @@ export function VisitaLaboresCulturalesScreen() {
                 <View style={styles.sectionIcon}>
                   <Ionicons
                     color={theme.colors.primaryDark}
-                    name="leaf-outline"
+                    name="checkmark-done-outline"
                     size={22}
                   />
                 </View>
                 <View style={styles.sectionHeaderText}>
                   <AppText style={styles.sectionTitle} variant="heading">
-                    Selecciona una opcion por categoria
+                    Labores culturales
                   </AppText>
                   <AppText variant="muted">
-                    La leyenda aparece debajo de cada opcion cuando aplica.
+                    Una respuesta por categoria. La leyenda queda visible para comparar.
                   </AppText>
                 </View>
               </View>
 
-              {groupLabores(labores).map((group) => (
-                <View key={group.categoryCode} style={styles.categorySection}>
-                  <AppText style={styles.categoryTitle} variant="heading">
-                    {group.categoryName}
-                  </AppText>
-                  <View style={styles.optionGrid}>
-                    {group.items.map((labor) => (
-                      <CatalogOptionCard
-                        iconName={getLaborIcon(labor.categoryName ?? labor.name)}
-                        isCompactLayout={isCompactLayout}
-                        isSelected={selectedLaborIds.has(labor.id)}
-                        item={labor}
-                        key={labor.id}
-                        onHelpPress={setHelpItem}
-                        onPress={() => toggleLabor(labor)}
-                      />
-                    ))}
-                  </View>
-                </View>
+              <SelectionProgressSummary
+                completedCount={completedCategoriesCount}
+                totalCount={laborGroups.length}
+              />
+
+              {laborGroups.map((group) => (
+                <CategoryOptionGroup
+                  group={group}
+                  isComplete={selectedCategoryCodes.has(group.categoryCode)}
+                  key={group.categoryCode}
+                  onHelpPress={setHelpItem}
+                  onSelect={toggleLabor}
+                  selectedLaborIds={selectedLaborIds}
+                />
               ))}
 
               {submitError ? (
@@ -306,14 +311,8 @@ export function VisitaLaboresCulturalesScreen() {
     const selectedIds = labores
       .filter((labor) => selectedLaborIds.has(labor.id))
       .map((labor) => labor.id);
-    const groups = groupLabores(labores);
-    const selectedCategoryCodes = new Set(
-      labores
-        .filter((labor) => selectedLaborIds.has(labor.id))
-        .map((labor) => labor.categoryCode)
-    );
 
-    if (selectedCategoryCodes.size < groups.length) {
+    if (selectedCategoryCodes.size < laborGroups.length) {
       setSubmitError("Selecciona una opcion en cada categoria del paso 5.");
       return;
     }
@@ -334,16 +333,114 @@ export function VisitaLaboresCulturalesScreen() {
   }
 }
 
-function CatalogOptionCard({
-  iconName,
-  isCompactLayout,
+function SelectionProgressSummary({
+  completedCount,
+  totalCount
+}: {
+  completedCount: number;
+  totalCount: number;
+}) {
+  const completionPercent =
+    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  return (
+    <View style={styles.completionPanel}>
+      <View style={styles.completionHeader}>
+        <AppText style={styles.completionTitle} variant="label">
+          Avance del paso 5
+        </AppText>
+        <AppText style={styles.completionCount} variant="label">
+          {completedCount}/{totalCount}
+        </AppText>
+      </View>
+      <View style={styles.completionTrack}>
+        <View style={[styles.completionFill, { width: `${completionPercent}%` }]} />
+      </View>
+      <AppText style={styles.completionHint} variant="caption">
+        Completa todas las categorias para guardar la visita.
+      </AppText>
+    </View>
+  );
+}
+
+function CategoryOptionGroup({
+  group,
+  isComplete,
+  onHelpPress,
+  onSelect,
+  selectedLaborIds
+}: {
+  group: LaborGroup;
+  isComplete: boolean;
+  onHelpPress: (item: LaborCulturalCatalogItem) => void;
+  onSelect: (item: LaborCulturalCatalogItem) => void;
+  selectedLaborIds: Set<string>;
+}) {
+  const selectedItem = group.items.find((item) => selectedLaborIds.has(item.id));
+
+  return (
+    <View style={styles.categoryBlock}>
+      <View style={styles.categoryHeader}>
+        <View style={styles.categoryHeading}>
+          <View style={styles.categoryIcon}>
+            <Ionicons
+              color={theme.colors.primaryDark}
+              name={getLaborIcon(group.categoryName)}
+              size={24}
+            />
+          </View>
+          <View style={styles.categoryCopy}>
+            <AppText style={styles.categoryTitle} variant="heading">
+              {group.categoryName}
+            </AppText>
+            <AppText style={styles.categorySubtitle} variant="caption">
+              {selectedItem
+                ? `Seleccionado: ${selectedItem.optionLabel ?? selectedItem.name}`
+                : "Elige una opcion"}
+            </AppText>
+          </View>
+        </View>
+        <View
+          style={[
+            styles.categoryBadge,
+            isComplete ? styles.categoryBadgeComplete : styles.categoryBadgePending
+          ]}
+        >
+          <AppText
+            style={[
+              styles.categoryBadgeText,
+              isComplete
+                ? styles.categoryBadgeTextComplete
+                : styles.categoryBadgeTextPending
+            ]}
+            variant="caption"
+          >
+            {isComplete ? "Completo" : "Pendiente"}
+          </AppText>
+        </View>
+      </View>
+
+      <View style={styles.optionList}>
+        {group.items.map((labor) => (
+          <LaborOptionRow
+            isSelected={selectedLaborIds.has(labor.id)}
+            item={labor}
+            key={labor.id}
+            onHelpPress={onHelpPress}
+            onPress={() => onSelect(labor)}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function LaborOptionRow({
   isSelected,
   item,
   onHelpPress,
   onPress
 }: {
-  iconName: IoniconName;
-  isCompactLayout: boolean;
   isSelected: boolean;
   item: LaborCulturalCatalogItem;
   onHelpPress: (item: LaborCulturalCatalogItem) => void;
@@ -356,31 +453,45 @@ function CatalogOptionCard({
       accessibilityState={{ checked: isSelected }}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.optionCard,
-        isCompactLayout && styles.optionCardCompact,
-        isSelected && styles.optionCardSelected,
+        styles.optionRow,
+        isSelected && styles.optionRowSelected,
         pressed && styles.pressed
       ]}
     >
-      <View style={styles.iconTile}>
-        <Ionicons color={theme.colors.primaryDark} name={iconName} size={38} />
+      <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+        {isSelected ? <View style={styles.radioInner} /> : null}
       </View>
-      <AppText style={styles.optionTitle} variant="label">
-        {item.optionLabel ?? item.name}
-      </AppText>
-      {item.legend ? (
-        <AppText style={styles.optionLegend} variant="caption">
-          {item.legend}
-        </AppText>
-      ) : null}
+      <View style={styles.optionCopy}>
+        <View style={styles.optionTitleRow}>
+          <AppText style={styles.optionTitle} variant="label">
+            {item.optionLabel ?? item.name}
+          </AppText>
+          {isSelected ? (
+            <Ionicons
+              color={theme.colors.primaryDark}
+              name="checkmark-circle"
+              size={20}
+            />
+          ) : null}
+        </View>
+        {item.legend ? (
+          <AppText style={styles.optionLegend} variant="caption">
+            {item.legend}
+          </AppText>
+        ) : null}
+      </View>
       <Pressable
         accessibilityLabel={`Ver descripcion de ${item.name}`}
         accessibilityRole="button"
         hitSlop={8}
         onPress={() => onHelpPress(item)}
-        style={styles.helpButton}
+        style={styles.optionHelpButton}
       >
-        <Ionicons color={theme.colors.primaryDark} name="help" size={22} />
+        <Ionicons
+          color={theme.colors.primaryDark}
+          name="information-circle-outline"
+          size={22}
+        />
       </Pressable>
     </Pressable>
   );
@@ -445,7 +556,7 @@ function HelpModal({
       <View style={styles.modalBackdrop}>
         <View style={styles.helpModalContent}>
           <View style={styles.modalHeader}>
-          <AppText style={styles.modalTitle} variant="heading">
+            <AppText style={styles.modalTitle} variant="heading">
               {item.optionLabel ?? item.name}
             </AppText>
             <Pressable
@@ -577,12 +688,105 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16
   },
-  categorySection: {
-    gap: 12
+  categoryBadge: {
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5
+  },
+  categoryBadgeComplete: {
+    backgroundColor: theme.colors.successMuted,
+    borderColor: theme.colors.success
+  },
+  categoryBadgePending: {
+    backgroundColor: theme.colors.warningMuted,
+    borderColor: theme.colors.warning
+  },
+  categoryBadgeText: {
+    fontSize: 12
+  },
+  categoryBadgeTextComplete: {
+    color: theme.colors.primaryDark
+  },
+  categoryBadgeTextPending: {
+    color: "#7a4d00"
+  },
+  categoryBlock: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 12,
+    padding: 12
+  },
+  categoryCopy: {
+    flex: 1,
+    gap: 2
+  },
+  categoryHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "space-between"
+  },
+  categoryHeading: {
+    alignItems: "center",
+    flex: 1,
+    flexDirection: "row",
+    gap: 10
+  },
+  categoryIcon: {
+    alignItems: "center",
+    backgroundColor: "#eaf3dc",
+    borderRadius: theme.radius.full,
+    height: 44,
+    justifyContent: "center",
+    width: 44
+  },
+  categorySubtitle: {
+    color: theme.colors.textMuted,
+    lineHeight: 18
   },
   categoryTitle: {
     color: theme.colors.primaryDark,
-    fontSize: 18
+    fontSize: 17,
+    lineHeight: 22
+  },
+  completionCount: {
+    color: theme.colors.primaryDark,
+    fontSize: 17
+  },
+  completionFill: {
+    backgroundColor: theme.colors.primaryDark,
+    borderRadius: theme.radius.full,
+    height: "100%"
+  },
+  completionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  completionHint: {
+    color: theme.colors.textMuted,
+    lineHeight: 18
+  },
+  completionPanel: {
+    backgroundColor: "#f7fbf4",
+    borderColor: theme.colors.primaryLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12
+  },
+  completionTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 16
+  },
+  completionTrack: {
+    backgroundColor: theme.colors.borderLight,
+    borderRadius: theme.radius.full,
+    height: 9,
+    overflow: "hidden"
   },
   container: {
     paddingHorizontal: 0,
@@ -610,18 +814,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     borderWidth: 1,
     padding: 12
-  },
-  helpButton: {
-    alignItems: "center",
-    borderColor: theme.colors.primary,
-    borderRadius: theme.radius.full,
-    borderWidth: 1.5,
-    height: 40,
-    justifyContent: "center",
-    position: "absolute",
-    right: 16,
-    top: 16,
-    width: 40
   },
   helpModalContent: {
     backgroundColor: theme.colors.surface,
@@ -652,14 +844,6 @@ const styles = StyleSheet.create({
     lineHeight: 45,
     maxWidth: 300
   },
-  iconTile: {
-    alignItems: "center",
-    backgroundColor: "#eaf3dc",
-    borderRadius: 14,
-    height: 70,
-    justifyContent: "center",
-    width: 70
-  },
   modalBackdrop: {
     alignItems: "center",
     backgroundColor: "rgba(8, 31, 20, 0.56)",
@@ -684,45 +868,74 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 21
   },
-  optionCard: {
+  optionCopy: {
+    flex: 1,
+    gap: 4
+  },
+  optionHelpButton: {
     alignItems: "center",
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.borderLight,
-    borderRadius: theme.radius.lg,
+    alignSelf: "stretch",
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.full,
     borderWidth: 1,
-    flexBasis: "48%",
-    gap: 14,
     justifyContent: "center",
-    minHeight: 178,
-    padding: 18,
-    position: "relative"
-  },
-  optionCardCompact: {
-    flexBasis: "100%"
-  },
-  optionCardSelected: {
-    backgroundColor: "#fbfdf7",
-    borderColor: theme.colors.primaryDark,
-    borderWidth: 2
-  },
-  optionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 14
-  },
-  optionTitle: {
-    color: "#0d1739",
-    fontSize: 18,
-    lineHeight: 24,
-    textAlign: "center"
+    minHeight: 44,
+    width: 44
   },
   optionLegend: {
     color: theme.colors.textMuted,
-    lineHeight: 18,
-    textAlign: "center"
+    lineHeight: 18
+  },
+  optionList: {
+    gap: 8
+  },
+  optionRow: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    minHeight: 72,
+    padding: 12
+  },
+  optionRowSelected: {
+    backgroundColor: "#fbfdf7",
+    borderColor: theme.colors.primaryDark,
+    borderWidth: 1.5
+  },
+  optionTitle: {
+    color: "#0d1739",
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 22
+  },
+  optionTitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8
   },
   pressed: {
     opacity: 0.72
+  },
+  radioInner: {
+    backgroundColor: theme.colors.primaryDark,
+    borderRadius: theme.radius.full,
+    height: 10,
+    width: 10
+  },
+  radioOuter: {
+    alignItems: "center",
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.full,
+    borderWidth: 2,
+    height: 24,
+    justifyContent: "center",
+    width: 24
+  },
+  radioOuterSelected: {
+    borderColor: theme.colors.primaryDark
   },
   progressActiveBar: {
     backgroundColor: theme.colors.primary,

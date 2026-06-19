@@ -50,6 +50,7 @@ export type VisitaObservacionSanitaria = {
   pestDiseaseId: string;
   incidenceLevelId: string | null;
   severityLevelId: string | null;
+  incidencePercentage: string | null;
   observation: string | null;
   organosAfectados: OrganoAfectado[];
   createdAt: string;

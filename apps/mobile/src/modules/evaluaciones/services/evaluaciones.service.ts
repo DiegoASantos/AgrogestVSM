@@ -1,15 +1,20 @@
 import { evaluacionesRepository } from "../repositories/evaluaciones.repository";
+import type { OrganoAfectado } from "../../observaciones-sanitarias/types";
 
 type CreateEvaluacionInput = {
   order: number;
-  percentage?: number;
+  incidencePercentage?: number | null;
+  percentage?: number | null;
   description: string;
+  organosAfectados?: OrganoAfectado[];
 };
 
 type UpdateEvaluacionInput = {
   order?: number;
+  incidencePercentage?: number | null;
   percentage?: number | null;
   description?: string;
+  organosAfectados?: OrganoAfectado[];
 };
 
 export const evaluacionesService = {

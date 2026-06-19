@@ -5,6 +5,8 @@ import type { OrganoAfectado } from "../types";
 type CreateObservacionSanitariaInput = {
   pestDiseaseId: string;
   incidenceLevelId?: string | null;
+  severityLevelId?: string | null;
+  incidencePercentage?: number | null;
   observation?: string;
   organosAfectados: OrganoAfectado[];
 };
@@ -12,6 +14,8 @@ type CreateObservacionSanitariaInput = {
 type UpdateObservacionSanitariaInput = {
   pestDiseaseId?: string;
   incidenceLevelId?: string | null;
+  severityLevelId?: string | null;
+  incidencePercentage?: number | null;
   observation?: string | null;
   organosAfectados?: OrganoAfectado[];
 };

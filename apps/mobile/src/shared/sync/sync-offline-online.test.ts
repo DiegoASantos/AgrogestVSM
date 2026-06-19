@@ -318,8 +318,10 @@ function seedOfflineCompleteVisit() {
     syncStatus: "pending",
     visitaId: visita.id,
     order: 1,
+    incidencePercentage: null,
     percentage: "40",
     description: "Evaluacion vegetativa registrada sin conexion.",
+    organosAfectados: [],
     createdAt: now,
     updatedAt: now
   };
@@ -331,6 +333,7 @@ function seedOfflineCompleteVisit() {
     pestDiseaseId: "7",
     incidenceLevelId: "8",
     severityLevelId: "9",
+    incidencePercentage: null,
     observation: "Sintomas leves en hoja y fruto verde.",
     organosAfectados: ["hoja_tierna", "fruto_verde"],
     createdAt: now,
@@ -418,13 +421,16 @@ describe("offline/online sync with complete visit data", () => {
     );
     expect(evaluacionRemoteCreate).toHaveBeenCalledWith("server-visita-1", {
       order: 1,
+      incidencePercentage: null,
       percentage: 40,
-      description: "Evaluacion vegetativa registrada sin conexion."
+      description: "Evaluacion vegetativa registrada sin conexion.",
+      organosAfectados: []
     });
     expect(observacionRemoteCreate).toHaveBeenCalledWith("server-visita-1", {
       pestDiseaseId: "7",
       incidenceLevelId: 8,
       severityLevelId: 9,
+      incidencePercentage: null,
       observation: "Sintomas leves en hoja y fruto verde.",
       organosAfectados: ["hoja_tierna", "fruto_verde"]
     });
