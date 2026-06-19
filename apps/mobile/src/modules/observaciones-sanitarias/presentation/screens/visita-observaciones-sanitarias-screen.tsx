@@ -115,7 +115,8 @@ const ORGANO_OPTIONS: Array<{
   { value: "tronco_rama", label: "Tronco/rama", icon: "git-branch-outline" },
   { value: "yema_apical", label: "Yema apical", icon: "radio-button-on-outline" },
   { value: "brote_vegetativo", label: "Brote vegetativo", icon: "leaf-outline" },
-  { value: "hoja", label: "Hoja", icon: "leaf-outline" },
+  { value: "hoja_tierna", label: "Hoja tierna", icon: "leaf-outline" },
+  { value: "hoja_madura", label: "Hoja madura", icon: "leaf-outline" },
   { value: "panicula_floral", label: "Panícula floral", icon: "flower-outline" },
   { value: "flor_individual", label: "Flor individual", icon: "rose-outline" },
   {
@@ -124,7 +125,8 @@ const ORGANO_OPTIONS: Array<{
     icon: "ellipse-outline"
   },
   { value: "fruto_verde", label: "Fruto verde", icon: "nutrition-outline" },
-  { value: "fruto_maduro", label: "Fruto maduro", icon: "basket-outline" }
+  { value: "fruto_maduro", label: "Fruto maduro", icon: "basket-outline" },
+  { value: "raices", label: "Raíces", icon: "nutrition-outline" }
 ];
 
 export function VisitaObservacionesSanitariasScreen() {

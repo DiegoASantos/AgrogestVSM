@@ -39,7 +39,11 @@ export class VisitaRiegosService {
 
     const riego = this.visitaRiegosRepository.create({
       visitaId,
-      tipoRiegoId: String(createDto.tipoRiegoId)
+      tipoRiegoId: String(createDto.tipoRiegoId),
+      fuenteAgua: createDto.fuenteAgua ?? null,
+      tipoSuelo: createDto.tipoSuelo ?? null,
+      humedadSuelo: createDto.humedadSuelo ?? null,
+      estresHidrico: createDto.estresHidrico ?? null
     });
 
     try {
@@ -67,6 +71,22 @@ export class VisitaRiegosService {
     if (updateDto.tipoRiegoId !== undefined) {
       await this.ensureTipoRiegoExists(String(updateDto.tipoRiegoId));
       riego.tipoRiegoId = String(updateDto.tipoRiegoId);
+    }
+
+    if (updateDto.fuenteAgua !== undefined) {
+      riego.fuenteAgua = updateDto.fuenteAgua;
+    }
+
+    if (updateDto.tipoSuelo !== undefined) {
+      riego.tipoSuelo = updateDto.tipoSuelo;
+    }
+
+    if (updateDto.humedadSuelo !== undefined) {
+      riego.humedadSuelo = updateDto.humedadSuelo;
+    }
+
+    if (updateDto.estresHidrico !== undefined) {
+      riego.estresHidrico = updateDto.estresHidrico;
     }
 
     try {
@@ -154,7 +174,11 @@ export class VisitaRiegosService {
     return {
       id: riego.id,
       visitaId: riego.visitaId,
-      tipoRiegoId: riego.tipoRiegoId
+      tipoRiegoId: riego.tipoRiegoId,
+      fuenteAgua: riego.fuenteAgua,
+      tipoSuelo: riego.tipoSuelo,
+      humedadSuelo: riego.humedadSuelo,
+      estresHidrico: riego.estresHidrico
     };
   }
 }

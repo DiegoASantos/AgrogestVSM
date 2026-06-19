@@ -3,10 +3,18 @@ import type { TipoRiegoCatalogItem, VisitaRiego } from "../types";
 
 type CreateRiegoInput = {
   tipoRiegoId: number;
+  fuenteAgua?: string | null;
+  tipoSuelo?: string | null;
+  humedadSuelo?: string | null;
+  estresHidrico?: boolean | null;
 };
 
 type UpdateRiegoInput = {
   tipoRiegoId?: number;
+  fuenteAgua?: string | null;
+  tipoSuelo?: string | null;
+  humedadSuelo?: string | null;
+  estresHidrico?: boolean | null;
 };
 
 export const riegosRemote = {

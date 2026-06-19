@@ -3,6 +3,11 @@ import { observacionesSanitariasRepository } from "../../observaciones-sanitaria
 import { parcelasRepository } from "../../parcelas/repositories/parcelas.repository";
 import { productoresRepository } from "../../productores/repositories/productores.repository";
 import { riegosRepository } from "../../riegos/repositories/riegos.repository";
+import {
+  FUENTE_AGUA_LABELS,
+  TIPO_SUELO_LABELS,
+  HUMEDAD_SUELO_LABELS
+} from "../../riegos/types";
 import { visitasCampoRepository } from "../repositories/visitas-campo.repository";
 import { visitasCampoService } from "./visitas-campo.service";
 
@@ -96,6 +101,25 @@ async function buildVisitReportHtml(visitaId: string) {
     ? (findById(tiposRiego, detail.riego.tipoRiegoId)?.name ??
       `ID ${detail.riego.tipoRiegoId}`)
     : "No registrado";
+
+  const fuenteAguaLabel = detail.riego?.fuenteAgua
+    ? FUENTE_AGUA_LABELS[detail.riego.fuenteAgua]
+    : null;
+
+  const tipoSueloLabel = detail.riego?.tipoSuelo
+    ? TIPO_SUELO_LABELS[detail.riego.tipoSuelo]
+    : null;
+
+  const humedadSueloLabel = detail.riego?.humedadSuelo
+    ? HUMEDAD_SUELO_LABELS[detail.riego.humedadSuelo]
+    : null;
+
+  const estresHidricoLabel =
+    detail.riego?.estresHidrico === null
+      ? null
+      : detail.riego?.estresHidrico
+        ? "Si"
+        : "No";
 
   return `<!doctype html>
 <html>
@@ -287,6 +311,10 @@ async function buildVisitReportHtml(visitaId: string) {
       "Paso 4 - Riego",
       renderFields([
         ["Tipo de riego", riego],
+        ["Fuente de agua", fuenteAguaLabel, true],
+        ["Tipo de suelo", tipoSueloLabel, true],
+        ["Humedad del suelo", humedadSueloLabel, true],
+        ["Estres hidrico", estresHidricoLabel, true],
         ["Observacion del paso", stepNotes.get(4)?.observation ?? null, true]
       ])
     )}

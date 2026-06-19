@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   useWindowDimensions,
   View
 } from "react-native";
@@ -20,17 +21,36 @@ import {
   AppText,
   ScreenContainer
 } from "../../../../shared/components";
+import { getDatabase } from "../../../../shared/database/connection";
 import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
 import { riegosService } from "../../services";
 import type { TipoRiegoCatalogItem } from "../../types";
+import {
+  FUENTES_AGUA,
+  FUENTE_AGUA_LABELS,
+  TIPOS_SUELO,
+  TIPO_SUELO_LABELS,
+  TIPO_SUELO_DESCRIPTIONS,
+  HUMEDADES_SUELO,
+  HUMEDAD_SUELO_LABELS,
+  HUMEDAD_SUELO_DESCRIPTIONS,
+  type FuenteAgua,
+  type TipoSuelo,
+  type HumedadSuelo
+} from "../../types";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
 const STEP_NUMBER = 4;
 const WIZARD_STEPS = [1, 2, 3, 4, 5] as const;
+
+const META_KEYS = {
+  fuenteAgua: "riego_fuente_agua_default",
+  tipoSuelo: "riego_tipo_suelo_default"
+} as const;
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -43,7 +63,14 @@ export function VisitaRiegoScreen() {
 
   const [tiposRiego, setTiposRiego] = useState<TipoRiegoCatalogItem[]>([]);
   const [selectedTipoRiegoId, setSelectedTipoRiegoId] = useState<string | null>(null);
+  const [fuenteAgua, setFuenteAgua] = useState<FuenteAgua | null>(null);
+  const [tipoSuelo, setTipoSuelo] = useState<TipoSuelo | null>(null);
+  const [humedadSuelo, setHumedadSuelo] = useState<HumedadSuelo | null>(null);
+  const [estresHidrico, setEstresHidrico] = useState(false);
+
   const [helpItem, setHelpItem] = useState<TipoRiegoCatalogItem | null>(null);
+  const [legendSuelo, setLegendSuelo] = useState(false);
+  const [legendHumedad, setLegendHumedad] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +120,7 @@ export function VisitaRiegoScreen() {
               Riego
             </AppText>
             <AppText style={styles.heroSubtitle} variant="body">
-              Registra la labor de riego realizada durante la visita a campo.
+              Registra la labor de riego y las condiciones del suelo durante la visita a campo.
             </AppText>
           </View>
         </ImageBackground>
@@ -103,7 +130,7 @@ export function VisitaRiegoScreen() {
 
           {isLoading ? (
             <AppCard>
-              <AppText variant="muted">Cargando tipos de riego...</AppText>
+              <AppText variant="muted">Cargando...</AppText>
             </AppCard>
           ) : null}
 
@@ -130,40 +157,256 @@ export function VisitaRiegoScreen() {
           ) : null}
 
           {!isLoading && !error && tiposRiego.length > 0 ? (
-            <View style={styles.selectionCard}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionIcon}>
-                  <Ionicons
-                    color={theme.colors.primaryDark}
-                    name="water-outline"
-                    size={22}
-                  />
+            <>
+              <View style={styles.selectionCard}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIcon}>
+                    <Ionicons
+                      color={theme.colors.primaryDark}
+                      name="water-outline"
+                      size={22}
+                    />
+                  </View>
+                  <View style={styles.sectionHeaderText}>
+                    <AppText style={styles.sectionTitle} variant="heading">
+                      Labor de riego
+                    </AppText>
+                    <AppText variant="muted">
+                      Selecciona el tipo de riego aplicado.
+                    </AppText>
+                  </View>
                 </View>
-                <View style={styles.sectionHeaderText}>
-                  <AppText style={styles.sectionTitle} variant="heading">
-                    Selecciona una labor de riego
-                  </AppText>
-                  <AppText variant="muted">
-                    Debes elegir una opcion para continuar.
-                  </AppText>
+
+                <View style={styles.optionGrid}>
+                  {tiposRiego.map((tipoRiego) => (
+                    <CatalogOptionCard
+                      iconName={getRiegoIcon(tipoRiego.name)}
+                      isCompactLayout={isCompactLayout}
+                      isSelected={selectedTipoRiegoId === tipoRiego.id}
+                      item={tipoRiego}
+                      key={tipoRiego.id}
+                      onHelpPress={setHelpItem}
+                      onPress={() => {
+                        setSubmitError(null);
+                        setSelectedTipoRiegoId(tipoRiego.id);
+                      }}
+                    />
+                  ))}
                 </View>
               </View>
 
-              <View style={styles.optionGrid}>
-                {tiposRiego.map((tipoRiego) => (
-                  <CatalogOptionCard
-                    iconName={getRiegoIcon(tipoRiego.name)}
-                    isCompactLayout={isCompactLayout}
-                    isSelected={selectedTipoRiegoId === tipoRiego.id}
-                    item={tipoRiego}
-                    key={tipoRiego.id}
-                    onHelpPress={setHelpItem}
-                    onPress={() => {
+              <View style={styles.selectionCard}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIcon}>
+                    <Ionicons
+                      color={theme.colors.primaryDark}
+                      name="color-filter-outline"
+                      size={22}
+                    />
+                  </View>
+                  <View style={styles.sectionHeaderText}>
+                    <AppText style={styles.sectionTitle} variant="heading">
+                      Fuente de agua
+                    </AppText>
+                    <AppText variant="muted">
+                      Origen del agua utilizada en el riego.
+                    </AppText>
+                  </View>
+                </View>
+
+                <View style={styles.radioRow}>
+                  {FUENTES_AGUA.map((opcion) => {
+                    const isSelected = fuenteAgua === opcion;
+                    return (
+                      <Pressable
+                        accessibilityLabel={FUENTE_AGUA_LABELS[opcion]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: isSelected }}
+                        key={opcion}
+                        onPress={() => {
+                          setSubmitError(null);
+                          setFuenteAgua(opcion);
+                        }}
+                        style={({ pressed }) => [
+                          styles.radioCard,
+                          isSelected && styles.radioCardSelected,
+                          pressed && styles.pressed
+                        ]}
+                      >
+                        <Ionicons
+                          color={isSelected ? theme.colors.primaryDark : theme.colors.textMuted}
+                          name={isSelected ? "radio-button-on" : "radio-button-off"}
+                          size={20}
+                        />
+                        <AppText
+                          style={[
+                            styles.radioLabel,
+                            isSelected && styles.radioLabelSelected
+                          ]}
+                          variant="label"
+                        >
+                          {FUENTE_AGUA_LABELS[opcion]}
+                        </AppText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.selectionCard}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIcon}>
+                    <Ionicons
+                      color={theme.colors.primaryDark}
+                      name="earth-outline"
+                      size={22}
+                    />
+                  </View>
+                  <View style={styles.sectionHeaderText}>
+                    <AppText style={styles.sectionTitle} variant="heading">
+                      Tipo de suelo
+                    </AppText>
+                  </View>
+                  <Pressable
+                    accessibilityLabel="Ver leyenda de tipos de suelo"
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => setLegendSuelo(true)}
+                    style={styles.legendButton}
+                  >
+                    <Ionicons color={theme.colors.info} name="information-circle-outline" size={24} />
+                  </Pressable>
+                </View>
+
+                <View style={styles.optionGrid}>
+                  {TIPOS_SUELO.map((opcion) => {
+                    const isSelected = tipoSuelo === opcion;
+                    return (
+                      <Pressable
+                        accessibilityLabel={TIPO_SUELO_LABELS[opcion]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: isSelected }}
+                        key={opcion}
+                        onPress={() => {
+                          setSubmitError(null);
+                          setTipoSuelo(opcion);
+                        }}
+                        style={({ pressed }) => [
+                          styles.selectCard,
+                          isCompactLayout && styles.selectCardCompact,
+                          isSelected && styles.selectCardSelected,
+                          pressed && styles.pressed
+                        ]}
+                      >
+                        <AppText
+                          style={[
+                            styles.selectCardLabel,
+                            isSelected && styles.selectCardLabelSelected
+                          ]}
+                          variant="label"
+                        >
+                          {TIPO_SUELO_LABELS[opcion]}
+                        </AppText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.selectionCard}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIcon}>
+                    <Ionicons
+                      color={theme.colors.primaryDark}
+                      name="water-outline"
+                      size={22}
+                    />
+                  </View>
+                  <View style={styles.sectionHeaderText}>
+                    <AppText style={styles.sectionTitle} variant="heading">
+                      Humedad del suelo
+                    </AppText>
+                  </View>
+                  <Pressable
+                    accessibilityLabel="Ver leyenda de humedad del suelo"
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => setLegendHumedad(true)}
+                    style={styles.legendButton}
+                  >
+                    <Ionicons color={theme.colors.info} name="information-circle-outline" size={24} />
+                  </Pressable>
+                </View>
+
+                <View style={styles.optionGrid}>
+                  {HUMEDADES_SUELO.map((opcion) => {
+                    const isSelected = humedadSuelo === opcion;
+                    return (
+                      <Pressable
+                        accessibilityLabel={HUMEDAD_SUELO_LABELS[opcion]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: isSelected }}
+                        key={opcion}
+                        onPress={() => {
+                          setSubmitError(null);
+                          setHumedadSuelo(opcion);
+                        }}
+                        style={({ pressed }) => [
+                          styles.selectCard,
+                          isCompactLayout && styles.selectCardCompact,
+                          isSelected && styles.selectCardSelected,
+                          pressed && styles.pressed
+                        ]}
+                      >
+                        <AppText
+                          style={[
+                            styles.selectCardLabel,
+                            isSelected && styles.selectCardLabelSelected
+                          ]}
+                          variant="label"
+                        >
+                          {HUMEDAD_SUELO_LABELS[opcion]}
+                        </AppText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.switchCard}>
+                <View style={styles.switchContent}>
+                  <View style={styles.switchTextArea}>
+                    <AppText style={styles.switchTitle} variant="heading">
+                      Estres hidrico
+                    </AppText>
+                    <AppText variant="muted">
+                      Indica si el cultivo presenta signos de estres por falta de agua.
+                    </AppText>
+                  </View>
+                  <Switch
+                    accessibilityLabel="Estres hidrico"
+                    accessibilityRole="switch"
+                    ios_backgroundColor={theme.colors.border}
+                    onValueChange={(value) => {
                       setSubmitError(null);
-                      setSelectedTipoRiegoId(tipoRiego.id);
+                      setEstresHidrico(value);
                     }}
+                    thumbColor={estresHidrico ? theme.colors.primaryDark : theme.colors.surface}
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: theme.colors.primaryMuted
+                    }}
+                    value={estresHidrico}
                   />
-                ))}
+                </View>
+                {estresHidrico ? (
+                  <View style={styles.stressBadge}>
+                    <Ionicons color={theme.colors.warning} name="warning" size={16} />
+                    <AppText style={styles.stressBadgeText} variant="caption">
+                      Estres hidrico presente
+                    </AppText>
+                  </View>
+                ) : null}
               </View>
 
               {submitError ? (
@@ -208,12 +451,20 @@ export function VisitaRiegoScreen() {
                   </AppText>
                 </Pressable>
               </View>
-            </View>
+            </>
           ) : null}
         </View>
       </ScrollView>
 
       <HelpModal item={helpItem} onClose={() => setHelpItem(null)} />
+      <SueloLegendModal
+        onClose={() => setLegendSuelo(false)}
+        visible={legendSuelo}
+      />
+      <HumedadLegendModal
+        onClose={() => setLegendHumedad(false)}
+        visible={legendHumedad}
+      />
     </ScreenContainer>
   );
 
@@ -233,12 +484,66 @@ export function VisitaRiegoScreen() {
       const existingRiego = await riegosService.getByVisitaId(id);
 
       setTiposRiego(nextTiposRiego.filter((tipoRiego) => tipoRiego.isActive));
-      setSelectedTipoRiegoId(existingRiego?.tipoRiegoId ?? null);
+
+      if (existingRiego) {
+        setSelectedTipoRiegoId(existingRiego.tipoRiegoId);
+        setFuenteAgua(existingRiego.fuenteAgua);
+        setTipoSuelo(existingRiego.tipoSuelo);
+        setHumedadSuelo(existingRiego.humedadSuelo);
+        setEstresHidrico(existingRiego.estresHidrico ?? false);
+      } else {
+        loadDefaults();
+      }
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setError(apiError.message || "No se pudo cargar riego.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  function loadDefaults() {
+    try {
+      const db = getDatabase();
+      const row = db.getFirstSync<{ value: string }>(
+        "SELECT value FROM app_meta WHERE key = ? LIMIT 1",
+        META_KEYS.fuenteAgua
+      );
+      if (row?.value && FUENTES_AGUA.includes(row.value as FuenteAgua)) {
+        setFuenteAgua(row.value as FuenteAgua);
+      }
+
+      const sueloRow = db.getFirstSync<{ value: string }>(
+        "SELECT value FROM app_meta WHERE key = ? LIMIT 1",
+        META_KEYS.tipoSuelo
+      );
+      if (sueloRow?.value && TIPOS_SUELO.includes(sueloRow.value as TipoSuelo)) {
+        setTipoSuelo(sueloRow.value as TipoSuelo);
+      }
+    } catch {
+      // defaults not available, user will pick manually
+    }
+  }
+
+  function persistDefaults() {
+    try {
+      const db = getDatabase();
+      if (fuenteAgua) {
+        db.runSync(
+          "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)",
+          META_KEYS.fuenteAgua,
+          fuenteAgua
+        );
+      }
+      if (tipoSuelo) {
+        db.runSync(
+          "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)",
+          META_KEYS.tipoSuelo,
+          tipoSuelo
+        );
+      }
+    } catch {
+      // non-critical, ignore persistence errors
     }
   }
 
@@ -265,11 +570,33 @@ export function VisitaRiegoScreen() {
       return;
     }
 
+    if (!fuenteAgua) {
+      setSubmitError("Selecciona una fuente de agua.");
+      return;
+    }
+
+    if (!tipoSuelo) {
+      setSubmitError("Selecciona un tipo de suelo.");
+      return;
+    }
+
+    if (!humedadSuelo) {
+      setSubmitError("Selecciona la humedad del suelo.");
+      return;
+    }
+
     setIsSaving(true);
     setSubmitError(null);
 
     try {
-      await riegosService.saveSelection(visitaId, selectedTipoRiegoId);
+      persistDefaults();
+      await riegosService.saveSelection(visitaId, {
+        tipoRiegoId: selectedTipoRiegoId,
+        fuenteAgua,
+        tipoSuelo,
+        humedadSuelo,
+        estresHidrico
+      });
       router.replace({
         pathname: "/visitas-campo/[id]/labores-culturales",
         params: { id: visitaId }
@@ -410,6 +737,94 @@ function HelpModal({
   );
 }
 
+function SueloLegendModal({
+  onClose,
+  visible
+}: {
+  onClose: () => void;
+  visible: boolean;
+}) {
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.legendModalContent}>
+          <View style={styles.modalHeader}>
+            <AppText style={styles.modalTitle} variant="heading">
+              Tipos de suelo
+            </AppText>
+            <Pressable
+              accessibilityLabel="Cerrar"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
+            </Pressable>
+          </View>
+          <ScrollView style={styles.legendScroll}>
+            {TIPOS_SUELO.map((opt) => (
+              <View key={opt} style={styles.legendItem}>
+                <AppText style={styles.legendItemTitle} variant="label">
+                  {TIPO_SUELO_LABELS[opt]}
+                </AppText>
+                <AppText variant="muted">{TIPO_SUELO_DESCRIPTIONS[opt]}</AppText>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function HumedadLegendModal({
+  onClose,
+  visible
+}: {
+  onClose: () => void;
+  visible: boolean;
+}) {
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.legendModalContent}>
+          <View style={styles.modalHeader}>
+            <AppText style={styles.modalTitle} variant="heading">
+              Humedad del suelo
+            </AppText>
+            <Pressable
+              accessibilityLabel="Cerrar"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
+            </Pressable>
+          </View>
+          <ScrollView style={styles.legendScroll}>
+            {HUMEDADES_SUELO.map((opt) => (
+              <View key={opt} style={styles.legendItem}>
+                <AppText style={styles.legendItemTitle} variant="label">
+                  {HUMEDAD_SUELO_LABELS[opt]}
+                </AppText>
+                <AppText variant="muted">{HUMEDAD_SUELO_DESCRIPTIONS[opt]}</AppText>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function getRiegoIcon(name: string): IoniconName {
   const normalizedName = normalizeCatalogName(name);
 
@@ -543,6 +958,37 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 70
   },
+  legendButton: {
+    alignItems: "center",
+    borderColor: theme.colors.info,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: "center",
+    width: 38
+  },
+  legendItem: {
+    borderBottomColor: theme.colors.borderLight,
+    borderBottomWidth: 1,
+    gap: 4,
+    paddingBottom: 14,
+    paddingTop: 14
+  },
+  legendItemTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 16
+  },
+  legendModalContent: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    gap: 12,
+    maxHeight: "70%",
+    padding: 18,
+    width: "90%"
+  },
+  legendScroll: {
+    maxHeight: 400
+  },
   modalBackdrop: {
     alignItems: "center",
     backgroundColor: "rgba(8, 31, 20, 0.56)",
@@ -657,6 +1103,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8
   },
+  radioCard: {
+    alignItems: "center",
+    backgroundColor: theme.colors.background,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 10
+  },
+  radioCardSelected: {
+    backgroundColor: "#fbfdf7",
+    borderColor: theme.colors.primaryDark,
+    borderWidth: 2
+  },
+  radioLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 13
+  },
+  radioLabelSelected: {
+    color: theme.colors.primaryDark
+  },
+  radioRow: {
+    flexDirection: "row",
+    gap: 8
+  },
   scrollContent: {
     paddingBottom: 24
   },
@@ -681,6 +1156,34 @@ const styles = StyleSheet.create({
     color: theme.colors.primaryDark,
     fontSize: 21
   },
+  selectCard: {
+    alignItems: "center",
+    backgroundColor: theme.colors.background,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    flexBasis: "48%",
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 10
+  },
+  selectCardCompact: {
+    flexBasis: "100%"
+  },
+  selectCardLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    textAlign: "center"
+  },
+  selectCardLabelSelected: {
+    color: theme.colors.primaryDark
+  },
+  selectCardSelected: {
+    backgroundColor: "#fbfdf7",
+    borderColor: theme.colors.primaryDark,
+    borderWidth: 2
+  },
   selectionCard: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.borderLight,
@@ -690,8 +1193,43 @@ const styles = StyleSheet.create({
     padding: 16,
     ...theme.shadow.sm
   },
+  stressBadge: {
+    alignItems: "center",
+    backgroundColor: theme.colors.warningMuted,
+    borderRadius: theme.radius.sm,
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6
+  },
+  stressBadgeText: {
+    color: theme.colors.warning
+  },
   submitErrorText: {
     color: theme.colors.error
+  },
+  switchCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    padding: 16,
+    ...theme.shadow.sm
+  },
+  switchContent: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 14,
+    justifyContent: "space-between"
+  },
+  switchTextArea: {
+    flex: 1,
+    gap: 3
+  },
+  switchTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 18
   },
   topBar: {
     alignItems: "center",

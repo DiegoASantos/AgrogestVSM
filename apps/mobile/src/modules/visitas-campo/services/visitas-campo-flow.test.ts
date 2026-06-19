@@ -227,6 +227,10 @@ const riegoInsert = vi.fn((input: { tipoRiegoId: string }, visitaLocalId: string
     syncStatus: "pending",
     visitaId: visitaLocalId,
     tipoRiegoId: input.tipoRiegoId,
+    fuenteAgua: null,
+    tipoSuelo: null,
+    humedadSuelo: null,
+    estresHidrico: null,
     createdAt: now,
     updatedAt: now
   };
@@ -401,7 +405,7 @@ describe("visita de campo complete flow", () => {
       pestDiseaseId: "pest-oidium",
       incidenceLevelId: "incidence-low",
       observation: "Se observan sintomas leves en hojas y fruto verde.",
-      organosAfectados: ["hoja", "fruto_verde"]
+      organosAfectados: ["hoja_tierna", "fruto_verde"]
     });
 
     for (const stepNumber of [1, 2, 3, 4, 5]) {
@@ -412,7 +416,7 @@ describe("visita de campo complete flow", () => {
     }
 
     const nutrientes = nutricionService.getNutrientsByCrop(visita.cropId);
-    await riegosService.saveSelection(visita.id, "riego-goteo");
+    await riegosService.saveSelection(visita.id, { tipoRiegoId: "riego-goteo", fuenteAgua: "subterranea", tipoSuelo: "franco", humedadSuelo: "optimo", estresHidrico: false });
     await laboresCulturalesVisitaService.saveSelections(visita.id, [
       "labor-poda",
       "labor-limpieza"
@@ -439,7 +443,7 @@ describe("visita de campo complete flow", () => {
     expect(detail.observacionesSanitarias).toHaveLength(1);
     expect(detail.observacionesSanitarias[0]).toMatchObject({
       pestDiseaseId: "pest-oidium",
-      organosAfectados: ["hoja", "fruto_verde"]
+      organosAfectados: ["hoja_tierna", "fruto_verde"]
     });
     expect(detail.stepNotes).toHaveLength(5);
     expect(detail.riego).toMatchObject({ tipoRiegoId: "riego-goteo" });
@@ -476,7 +480,7 @@ describe("visita de campo complete flow", () => {
       order: 1,
       description: "Evaluacion pendiente de sincronizar."
     });
-    await riegosService.saveSelection(visita.id, "riego-goteo");
+    await riegosService.saveSelection(visita.id, { tipoRiegoId: "riego-goteo", fuenteAgua: "subterranea", tipoSuelo: "franco", humedadSuelo: "optimo", estresHidrico: false });
 
     expect(visitasCampoService.getVisitaSyncSummary(visita.id)).toEqual({
       overallStatus: "partial",

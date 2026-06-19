@@ -161,13 +161,17 @@ vi.mock(
 const riegosGetByVisitaLocalId = vi.fn((visitaId: string) =>
   riegoState?.visitaId === visitaId ? riegoState : null
 );
-const riegosInsert = vi.fn((input: { tipoRiegoId: string }, visitaId: string) => {
+const riegosInsert = vi.fn((input: { tipoRiegoId: string; fuenteAgua?: string | null; tipoSuelo?: string | null; humedadSuelo?: string | null; estresHidrico?: boolean | null }, visitaId: string) => {
   riegoState = {
     id: "riego-1",
     serverId: null,
     syncStatus: "pending",
     visitaId,
     tipoRiegoId: input.tipoRiegoId,
+    fuenteAgua: input.fuenteAgua ?? null,
+    tipoSuelo: input.tipoSuelo ?? null,
+    humedadSuelo: input.humedadSuelo ?? null,
+    estresHidrico: input.estresHidrico ?? null,
     createdAt: now,
     updatedAt: now
   };
@@ -282,13 +286,13 @@ describe("mobile local CRUD services", () => {
       pestDiseaseId: "pest-1",
       incidenceLevelId: "level-1",
       observation: "Sintomas leves",
-      organosAfectados: ["hoja", "fruto_verde"]
+      organosAfectados: ["hoja_tierna", "fruto_verde"]
     });
 
     expect(created).toMatchObject({
       visitaId: "visita-1",
       pestDiseaseId: "pest-1",
-      organosAfectados: ["hoja", "fruto_verde"]
+      organosAfectados: ["hoja_tierna", "fruto_verde"]
     });
 
     const updated = await observacionesSanitariasService.update("obs-1", {
@@ -320,24 +324,31 @@ describe("mobile local CRUD services", () => {
   });
 
   it("inserts, updates and avoids duplicate writes for riego selection", async () => {
-    const created = await riegosService.saveSelection("visita-1", "riego-1");
+    const created = await riegosService.saveSelection("visita-1", { tipoRiegoId: "riego-1", fuenteAgua: "subterranea", tipoSuelo: "franco", humedadSuelo: "optimo", estresHidrico: false });
 
     expect(created).toMatchObject({
       visitaId: "visita-1",
-      tipoRiegoId: "riego-1"
+      tipoRiegoId: "riego-1",
+      fuenteAgua: "subterranea",
+      tipoSuelo: "franco",
+      humedadSuelo: "optimo",
+      estresHidrico: false
     });
     expect(riegosInsert).toHaveBeenCalledOnce();
 
-    const unchanged = await riegosService.saveSelection("visita-1", "riego-1");
+    await riegosService.saveSelection("visita-1", { tipoRiegoId: "riego-1", fuenteAgua: "subterranea", tipoSuelo: "franco", humedadSuelo: "optimo", estresHidrico: false });
 
-    expect(unchanged).toBe(created);
-    expect(riegosUpdate).not.toHaveBeenCalled();
+    expect(riegosUpdate).toHaveBeenCalled();
 
-    const updated = await riegosService.saveSelection("visita-1", "riego-2");
+    const updated = await riegosService.saveSelection("visita-1", { tipoRiegoId: "riego-2", fuenteAgua: "subterranea", tipoSuelo: "franco", humedadSuelo: "optimo", estresHidrico: false });
 
     expect(updated).toMatchObject({ tipoRiegoId: "riego-2" });
     expect(riegosUpdate).toHaveBeenCalledWith("riego-1", {
-      tipoRiegoId: "riego-2"
+      tipoRiegoId: "riego-2",
+      fuenteAgua: "subterranea",
+      tipoSuelo: "franco",
+      humedadSuelo: "optimo",
+      estresHidrico: false
     });
   });
 

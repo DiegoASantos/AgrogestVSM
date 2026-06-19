@@ -2,10 +2,17 @@ import { getDatabase } from "../../../shared/database/connection";
 import { insertSyncOutboxEntry } from "../../../shared/database/sync-outbox";
 import {
   fromSqliteBoolean,
+  toSqliteBoolean,
   getNowIsoString
 } from "../../../shared/database/sqlite-utils";
 import { generateLocalId } from "../../../shared/utils/local-id";
-import type { TipoRiegoCatalogItem, VisitaRiego } from "../types";
+import type {
+  TipoRiegoCatalogItem,
+  VisitaRiego,
+  FuenteAgua,
+  TipoSuelo,
+  HumedadSuelo
+} from "../types";
 
 type SyncStatus = "pending" | "synced" | "error";
 
@@ -21,6 +28,10 @@ type VisitaRiegoRow = {
   server_id: string | null;
   visita_local_id: string;
   tipo_riego_id: string;
+  fuente_agua: string | null;
+  tipo_suelo: string | null;
+  humedad_suelo: string | null;
+  estres_hidrico: number | null;
   sync_status: SyncStatus;
   created_at: string;
   updated_at: string;
@@ -28,10 +39,18 @@ type VisitaRiegoRow = {
 
 type CreateRiegoInput = {
   tipoRiegoId: string;
+  fuenteAgua?: FuenteAgua | null;
+  tipoSuelo?: TipoSuelo | null;
+  humedadSuelo?: HumedadSuelo | null;
+  estresHidrico?: boolean | null;
 };
 
 type UpdateRiegoInput = {
   tipoRiegoId?: string;
+  fuenteAgua?: FuenteAgua | null;
+  tipoSuelo?: TipoSuelo | null;
+  humedadSuelo?: HumedadSuelo | null;
+  estresHidrico?: boolean | null;
   serverId?: string | null;
   syncStatus?: SyncStatus;
 };
@@ -41,6 +60,10 @@ const RIEGO_COLUMNS = `
   server_id,
   visita_local_id,
   tipo_riego_id,
+  fuente_agua,
+  tipo_suelo,
+  humedad_suelo,
+  estres_hidrico,
   sync_status,
   created_at,
   updated_at
@@ -101,14 +124,22 @@ export const riegosRepository = {
           server_id,
           visita_local_id,
           tipo_riego_id,
+          fuente_agua,
+          tipo_suelo,
+          humedad_suelo,
+          estres_hidrico,
           sync_status,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         null,
         visitaLocalId,
         input.tipoRiegoId,
+        input.fuenteAgua ?? null,
+        input.tipoSuelo ?? null,
+        input.humedadSuelo ?? null,
+        toNullableSqliteBoolean(input.estresHidrico),
         "pending",
         timestamp,
         timestamp
@@ -134,11 +165,31 @@ export const riegosRepository = {
     const db = getDatabase();
     const timestamp = getNowIsoString();
     const sets: string[] = [];
-    const params: Array<string | null> = [];
+    const params: Array<string | number | null> = [];
 
     if (data.tipoRiegoId !== undefined) {
       sets.push("tipo_riego_id = ?");
       params.push(data.tipoRiegoId);
+    }
+
+    if (data.fuenteAgua !== undefined) {
+      sets.push("fuente_agua = ?");
+      params.push(data.fuenteAgua);
+    }
+
+    if (data.tipoSuelo !== undefined) {
+      sets.push("tipo_suelo = ?");
+      params.push(data.tipoSuelo);
+    }
+
+    if (data.humedadSuelo !== undefined) {
+      sets.push("humedad_suelo = ?");
+      params.push(data.humedadSuelo);
+    }
+
+    if (data.estresHidrico !== undefined) {
+      sets.push("estres_hidrico = ?");
+      params.push(toNullableSqliteBoolean(data.estresHidrico));
     }
 
     if (data.serverId !== undefined) {
@@ -228,7 +279,16 @@ function mapRiegoRow(row: VisitaRiegoRow): VisitaRiego {
     syncStatus: row.sync_status,
     visitaId: row.visita_local_id,
     tipoRiegoId: row.tipo_riego_id,
+    fuenteAgua: row.fuente_agua as VisitaRiego["fuenteAgua"],
+    tipoSuelo: row.tipo_suelo as VisitaRiego["tipoSuelo"],
+    humedadSuelo: row.humedad_suelo as VisitaRiego["humedadSuelo"],
+    estresHidrico: row.estres_hidrico === null ? null : row.estres_hidrico === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+function toNullableSqliteBoolean(value: boolean | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  return toSqliteBoolean(value);
 }

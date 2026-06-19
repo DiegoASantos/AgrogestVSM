@@ -1,4 +1,13 @@
 import { riegosRepository } from "../repositories/riegos.repository";
+import type { FuenteAgua, TipoSuelo, HumedadSuelo } from "../types";
+
+export type SaveRiegoInput = {
+  tipoRiegoId: string;
+  fuenteAgua: FuenteAgua;
+  tipoSuelo: TipoSuelo;
+  humedadSuelo: HumedadSuelo;
+  estresHidrico: boolean;
+};
 
 export const riegosService = {
   getTiposRiego() {
@@ -9,17 +18,17 @@ export const riegosService = {
     return Promise.resolve(riegosRepository.getByVisitaLocalId(visitaId));
   },
 
-  saveSelection(visitaId: string, tipoRiegoId: string) {
+  saveSelection(visitaId: string, input: SaveRiegoInput) {
     const existing = riegosRepository.getByVisitaLocalId(visitaId);
 
     if (existing) {
-      if (existing.tipoRiegoId === tipoRiegoId) {
-        return Promise.resolve(existing);
-      }
-
       return Promise.resolve(
         riegosRepository.update(existing.id, {
-          tipoRiegoId
+          tipoRiegoId: input.tipoRiegoId,
+          fuenteAgua: input.fuenteAgua,
+          tipoSuelo: input.tipoSuelo,
+          humedadSuelo: input.humedadSuelo,
+          estresHidrico: input.estresHidrico
         })
       );
     }
@@ -27,7 +36,11 @@ export const riegosService = {
     return Promise.resolve(
       riegosRepository.insert(
         {
-          tipoRiegoId
+          tipoRiegoId: input.tipoRiegoId,
+          fuenteAgua: input.fuenteAgua,
+          tipoSuelo: input.tipoSuelo,
+          humedadSuelo: input.humedadSuelo,
+          estresHidrico: input.estresHidrico
         },
         visitaId
       )

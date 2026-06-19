@@ -31,6 +31,37 @@ export class VisitaRiegoEntity {
   })
   tipoRiegoId!: string;
 
+  @Column({
+    name: "fuente_agua",
+    type: "varchar",
+    length: 20,
+    nullable: true
+  })
+  fuenteAgua!: string | null;
+
+  @Column({
+    name: "tipo_suelo",
+    type: "varchar",
+    length: 20,
+    nullable: true
+  })
+  tipoSuelo!: string | null;
+
+  @Column({
+    name: "humedad_suelo",
+    type: "varchar",
+    length: 25,
+    nullable: true
+  })
+  humedadSuelo!: string | null;
+
+  @Column({
+    name: "estres_hidrico",
+    type: "boolean",
+    nullable: true
+  })
+  estresHidrico!: boolean | null;
+
   @CreateDateColumn({
     name: "creado_at",
     type: "timestamptz"

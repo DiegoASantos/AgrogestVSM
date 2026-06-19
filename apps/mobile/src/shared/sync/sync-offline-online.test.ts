@@ -332,7 +332,7 @@ function seedOfflineCompleteVisit() {
     incidenceLevelId: "8",
     severityLevelId: "9",
     observation: "Sintomas leves en hoja y fruto verde.",
-    organosAfectados: ["hoja", "fruto_verde"],
+    organosAfectados: ["hoja_tierna", "fruto_verde"],
     createdAt: now,
     updatedAt: now
   };
@@ -353,6 +353,10 @@ function seedOfflineCompleteVisit() {
     syncStatus: "pending",
     visitaId: visita.id,
     tipoRiegoId: "10",
+    fuenteAgua: null,
+    tipoSuelo: null,
+    humedadSuelo: null,
+    estresHidrico: null,
     createdAt: now,
     updatedAt: now
   };
@@ -422,14 +426,18 @@ describe("offline/online sync with complete visit data", () => {
       incidenceLevelId: 8,
       severityLevelId: 9,
       observation: "Sintomas leves en hoja y fruto verde.",
-      organosAfectados: ["hoja", "fruto_verde"]
+      organosAfectados: ["hoja_tierna", "fruto_verde"]
     });
     expect(stepNoteRemoteUpsert).toHaveBeenCalledWith("server-visita-1", 2, {
       observation: "Observacion sanitaria general.",
       recommendation: "Monitorear evolucion en siguiente visita."
     });
     expect(riegoRemoteCreate).toHaveBeenCalledWith("server-visita-1", {
-      tipoRiegoId: 10
+      tipoRiegoId: 10,
+      fuenteAgua: null,
+      tipoSuelo: null,
+      humedadSuelo: null,
+      estresHidrico: null
     });
     expect(laborRemoteCreate).toHaveBeenCalledWith("server-visita-1", {
       laborCulturalId: 11

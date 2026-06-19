@@ -215,7 +215,7 @@ function buildSanitaryObservation(
     incidenceLevelId: "inc-baja",
     severityLevelId: "sev-alta",
     observation: "Observacion sanitaria",
-    organosAfectados: ["hoja"],
+    organosAfectados: ["hoja_tierna"],
     createdAt: now,
     updatedAt: now,
     ...overrides
@@ -229,6 +229,10 @@ function buildRiego(overrides: Partial<VisitaRiego> = {}): VisitaRiego {
     syncStatus: "synced",
     visitaId: "visita-1",
     tipoRiegoId: "riego-goteo",
+    fuenteAgua: null,
+    tipoSuelo: null,
+    humedadSuelo: null,
+    estresHidrico: null,
     createdAt: now,
     updatedAt: now,
     ...overrides

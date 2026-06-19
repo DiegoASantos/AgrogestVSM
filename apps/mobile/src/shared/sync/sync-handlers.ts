@@ -527,7 +527,11 @@ function buildStepNoteBody(stepNote: VisitaStepNote) {
 
 function buildRiegoBody(riego: VisitaRiego) {
   return {
-    tipoRiegoId: Number(riego.tipoRiegoId)
+    tipoRiegoId: Number(riego.tipoRiegoId),
+    fuenteAgua: riego.fuenteAgua,
+    tipoSuelo: riego.tipoSuelo,
+    humedadSuelo: riego.humedadSuelo,
+    estresHidrico: riego.estresHidrico
   };
 }
 
