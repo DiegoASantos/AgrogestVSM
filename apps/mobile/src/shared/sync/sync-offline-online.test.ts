@@ -7,6 +7,7 @@ import type {
   VisitaStepNote
 } from "../../modules/observaciones-sanitarias/types";
 import type { VisitaRiego } from "../../modules/riegos/types";
+import type { VisitaRecetaCompleta } from "../../modules/visita-recetas/types";
 import type { VisitaCampo } from "../../modules/visitas-campo/types";
 import type { SyncOutboxItem } from "../database/sync-outbox";
 
@@ -20,6 +21,7 @@ let observacion: VisitaObservacionSanitaria;
 let stepNote: VisitaStepNote;
 let riego: VisitaRiego;
 let labor: VisitaLaborCultural;
+let receta: VisitaRecetaCompleta;
 
 const getPendingOutboxEntries = vi.fn(() => pendingOutbox);
 const deleteOutboxEntry = vi.fn((id: number) => {
@@ -38,8 +40,9 @@ vi.mock("../database/sync-outbox", () => ({
 }));
 
 const runSync = vi.fn();
+const getAllSync = vi.fn(() => []);
 vi.mock("../database/connection", () => ({
-  getDatabase: () => ({ runSync })
+  getDatabase: () => ({ runSync, getAllSync })
 }));
 
 vi.mock("../database/sqlite-utils", () => ({
@@ -260,6 +263,49 @@ vi.mock(
   })
 );
 
+const recetaGetByLocalId = vi.fn((localId: string) =>
+  receta.id === localId ? receta : null
+);
+const recetaGetByVisitaLocalId = vi.fn((visitaLocalId: string) =>
+  receta.visitaLocalId === visitaLocalId ? receta : null
+);
+const recetaMarkSynced = vi.fn((recetaLocalId: string, serverId: string | null) => {
+  if (receta.id === recetaLocalId) {
+    receta = {
+      ...receta,
+      serverId,
+      syncStatus: "synced",
+      fitosanidad: receta.fitosanidad.map((item) => ({
+        ...item,
+        syncStatus: "synced"
+      })),
+      fertilizacion: receta.fertilizacion.map((item) => ({
+        ...item,
+        syncStatus: "synced"
+      })),
+      riego: receta.riego ? { ...receta.riego, syncStatus: "synced" } : null,
+      labores: receta.labores.map((item) => ({
+        ...item,
+        syncStatus: "synced"
+      }))
+    };
+  }
+});
+vi.mock("../../modules/visita-recetas/repositories/visita-recetas.repository", () => ({
+  visitaRecetasRepository: {
+    getRecetaByLocalId: recetaGetByLocalId,
+    getRecetaByVisitaLocalId: recetaGetByVisitaLocalId,
+    markSynced: recetaMarkSynced
+  }
+}));
+
+const recetaRemoteSave = vi.fn(async () => ({ id: "server-receta-1" }));
+vi.mock("../../modules/visita-recetas/services/visita-recetas.remote", () => ({
+  visitaRecetasRemote: {
+    save: recetaRemoteSave
+  }
+}));
+
 const { processOutbox } = await import("./sync-engine");
 
 function makeOutboxEntry(
@@ -372,13 +418,61 @@ function seedOfflineCompleteVisit() {
     createdAt: now,
     updatedAt: now
   };
+  receta = {
+    id: "receta-local-1",
+    serverId: null,
+    visitaLocalId: visita.id,
+    etapaFenologica: "Floracion",
+    version: 1,
+    syncStatus: "pending",
+    createdAt: now,
+    updatedAt: now,
+    fitosanidad: [
+      {
+        id: "receta-fito-local-1",
+        serverId: null,
+        recetaLocalId: "receta-local-1",
+        numero: 1,
+        objetivo: "plaga",
+        objetivoNombre: "Trips",
+        tipoControlId: "1",
+        tipoProductoId: "2",
+        disolvente: "agua",
+        modoAccionId: "3",
+        ingredienteActivoNombre: "Spinosad",
+        dosisIa: 0.15,
+        volumenAplicacion: 200,
+        cantidadTotalIa: 30,
+        marcaProductoNombre: "Producto X",
+        concentracionProducto: 120,
+        cantidadTotalProducto: 0.25,
+        coadyuvantesIds: null,
+        ordenMezcla: null,
+        syncStatus: "pending",
+        createdAt: now,
+        updatedAt: now
+      }
+    ],
+    fertilizacion: [],
+    riego: {
+      id: "receta-riego-local-1",
+      serverId: null,
+      recetaLocalId: "receta-local-1",
+      tipoRecomendacion: "riego_ligero",
+      syncStatus: "pending",
+      createdAt: now,
+      updatedAt: now
+    },
+    labores: []
+  };
   pendingOutbox = [
     makeOutboxEntry(1, "visitas_campo", visita.id),
     makeOutboxEntry(2, "visita_evaluaciones", evaluacion.id),
     makeOutboxEntry(3, "visita_observaciones_sanitarias", observacion.id),
     makeOutboxEntry(4, "visita_paso_observaciones", stepNote.id),
     makeOutboxEntry(5, "visita_riegos", riego.id),
-    makeOutboxEntry(6, "visita_labores_culturales", labor.id)
+    makeOutboxEntry(6, "visita_labores_culturales", labor.id),
+    makeOutboxEntry(7, "visita_recetas", receta.id)
   ];
 }
 
@@ -396,7 +490,7 @@ describe("offline/online sync with complete visit data", () => {
     expect(getPendingOutboxEntries).not.toHaveBeenCalled();
     expect(deleteOutboxEntry).not.toHaveBeenCalled();
     expect(visitaRemoteCreate).not.toHaveBeenCalled();
-    expect(pendingOutbox).toHaveLength(6);
+    expect(pendingOutbox).toHaveLength(7);
     expect(visita.serverId).toBeNull();
     expect(evaluacion.syncStatus).toBe("pending");
   });
@@ -406,7 +500,7 @@ describe("offline/online sync with complete visit data", () => {
 
     const result = await processOutbox();
 
-    expect(result).toEqual({ processed: 6, skipped: 0, errors: 0 });
+    expect(result).toEqual({ processed: 7, skipped: 0, errors: 0 });
     expect(pendingOutbox).toEqual([]);
     expect(setLastSyncTime).toHaveBeenCalledWith(now);
 
@@ -448,6 +542,22 @@ describe("offline/online sync with complete visit data", () => {
     expect(laborRemoteCreate).toHaveBeenCalledWith("server-visita-1", {
       laborCulturalId: 11
     });
+    expect(recetaRemoteSave).toHaveBeenCalledWith(
+      "server-visita-1",
+      expect.objectContaining({
+        etapaFenologica: "Floracion",
+        fitosanidad: [
+          expect.objectContaining({
+            numero: 1,
+            objetivo: "plaga",
+            objetivoNombre: "Trips",
+            tipoControlId: 1,
+            tipoProductoId: 2
+          })
+        ],
+        riego: { tipoRecomendacion: "riego_ligero" }
+      })
+    );
 
     expect(visita).toMatchObject({
       serverId: "server-visita-1",
@@ -474,6 +584,12 @@ describe("offline/online sync with complete visit data", () => {
       serverId: "server-labor-1",
       syncStatus: "synced"
     });
+    expect(receta).toMatchObject({
+      serverId: "server-receta-1",
+      syncStatus: "synced",
+      fitosanidad: [expect.objectContaining({ syncStatus: "synced" })],
+      riego: expect.objectContaining({ syncStatus: "synced" })
+    });
   });
 
   it("does not duplicate remote calls after a successful sync emptied the outbox", async () => {
@@ -491,5 +607,6 @@ describe("offline/online sync with complete visit data", () => {
     expect(stepNoteRemoteUpsert).not.toHaveBeenCalled();
     expect(riegoRemoteCreate).not.toHaveBeenCalled();
     expect(laborRemoteCreate).not.toHaveBeenCalled();
+    expect(recetaRemoteSave).not.toHaveBeenCalled();
   });
 });

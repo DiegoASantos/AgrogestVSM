@@ -3,6 +3,7 @@ import { laboresCulturalesVisitaRepository } from "../../modules/labores-cultura
 import { observacionesSanitariasRepository } from "../../modules/observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
 import { visitaStepNotesRepository } from "../../modules/observaciones-sanitarias/repositories/visita-step-notes.repository";
 import { riegosRepository } from "../../modules/riegos/repositories/riegos.repository";
+import { visitaRecetasRepository } from "../../modules/visita-recetas/repositories/visita-recetas.repository";
 import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
 import {
   deleteOutboxEntry,
@@ -21,6 +22,21 @@ import { entityHandlerMap } from "./sync-handlers";
 import { setLastSyncTime } from "./sync-status";
 
 const MAX_RETRIES = 5;
+const RECONCILABLE_SYNC_ENTITIES: Array<{
+  entityType: keyof typeof SYNC_ENTITY_TABLES;
+  table: string;
+}> = [
+  { entityType: "visitas_campo", table: "visitas_campo" },
+  { entityType: "visita_evaluaciones", table: "visita_evaluaciones" },
+  {
+    entityType: "visita_observaciones_sanitarias",
+    table: "visita_observaciones_sanitarias"
+  },
+  { entityType: "visita_paso_observaciones", table: "visita_paso_observaciones" },
+  { entityType: "visita_riegos", table: "visita_riegos" },
+  { entityType: "visita_labores_culturales", table: "visita_labores_culturales" },
+  { entityType: "visita_recetas", table: "visita_recetas" }
+];
 
 export async function processOutbox(): Promise<{
   processed: number;
@@ -32,6 +48,8 @@ export async function processOutbox(): Promise<{
   if (!token) {
     return { processed: 0, skipped: 0, errors: 0 };
   }
+
+  reconcilePendingOutboxEntries();
 
   const entries = getPendingOutboxEntries();
   if (entries.length > 0) {
@@ -205,6 +223,13 @@ function getChildVisitaLocalId(entry: SyncOutboxItem): string | null {
       return (
         laboresCulturalesVisitaRepository.getById(entry.entityLocalId)?.visitaId ?? null
       );
+    case "visita_recetas":
+      return (
+        visitaRecetasRepository.getRecetaByLocalId(entry.entityLocalId)?.visitaLocalId ??
+        visitaRecetasRepository.getRecetaByVisitaLocalId(entry.entityLocalId)
+          ?.visitaLocalId ??
+        null
+      );
     default:
       return null;
   }
@@ -249,6 +274,15 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
           syncStatus: "error"
         });
         break;
+      case "visita_recetas":
+        getDatabase().runSync(
+          `UPDATE visita_recetas
+           SET sync_status = 'error'
+           WHERE local_id = ? OR visita_local_id = ?`,
+          entry.entityLocalId,
+          entry.entityLocalId
+        );
+        break;
       default:
         return;
     }
@@ -260,5 +294,68 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
     );
   } catch {
     // El registro puede no existir si era un delete local ya aplicado.
+  }
+}
+
+function reconcilePendingOutboxEntries() {
+  const db = getDatabase();
+  const timestamp = getNowIsoString();
+
+  db.runSync(`
+    UPDATE visita_recetas
+    SET sync_status = 'pending'
+    WHERE local_id IN (
+      SELECT receta_local_id FROM visita_receta_fitosanidad WHERE sync_status = 'pending'
+      UNION
+      SELECT receta_local_id FROM visita_receta_fertilizacion WHERE sync_status = 'pending'
+      UNION
+      SELECT receta_local_id FROM visita_receta_riego WHERE sync_status = 'pending'
+      UNION
+      SELECT receta_local_id FROM visita_receta_labores WHERE sync_status = 'pending'
+    )
+  `);
+
+  for (const entity of RECONCILABLE_SYNC_ENTITIES) {
+    const rows =
+      entity.entityType === "visita_recetas"
+        ? db.getAllSync<{ local_id: string; server_id: string | null }>(
+            `SELECT local_id, server_id
+             FROM visita_recetas
+             WHERE sync_status = 'pending'
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM sync_outbox
+                 WHERE entity_type = ?
+                   AND entity_local_id IN (
+                     visita_recetas.local_id,
+                     visita_recetas.visita_local_id
+                   )
+               )`,
+            entity.entityType
+          )
+        : db.getAllSync<{ local_id: string; server_id: string | null }>(
+            `SELECT local_id, server_id
+             FROM ${entity.table}
+             WHERE sync_status = 'pending'
+               AND NOT EXISTS (
+                 SELECT 1
+                 FROM sync_outbox
+                 WHERE entity_type = ?
+                   AND entity_local_id = ${entity.table}.local_id
+               )`,
+            entity.entityType
+          );
+
+    for (const row of rows) {
+      db.runSync(
+        `INSERT INTO sync_outbox
+           (entity_type, entity_local_id, operation, payload, created_at)
+         VALUES (?, ?, ?, NULL, ?)`,
+        entity.entityType,
+        row.local_id,
+        row.server_id ? "update" : "create",
+        timestamp
+      );
+    }
   }
 }

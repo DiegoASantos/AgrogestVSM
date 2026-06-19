@@ -20,8 +20,9 @@ vi.mock("../database/sync-outbox", () => ({
 }));
 
 const runSync = vi.fn();
+const getAllSync = vi.fn(() => []);
 vi.mock("../database/connection", () => ({
-  getDatabase: () => ({ runSync })
+  getDatabase: () => ({ runSync, getAllSync })
 }));
 
 vi.mock("../database/sqlite-utils", () => ({
@@ -128,6 +129,15 @@ vi.mock(
     }
   })
 );
+
+const recetaGetByLocalId = vi.fn();
+const recetaGetByVisitaLocalId = vi.fn();
+vi.mock("../../modules/visita-recetas/repositories/visita-recetas.repository", () => ({
+  visitaRecetasRepository: {
+    getRecetaByLocalId: recetaGetByLocalId,
+    getRecetaByVisitaLocalId: recetaGetByVisitaLocalId
+  }
+}));
 
 const handlerVisita = vi.fn();
 const handlerEvaluacion = vi.fn();

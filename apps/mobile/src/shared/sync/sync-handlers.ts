@@ -559,63 +559,72 @@ function buildLaborCulturalBody(labor: VisitaLaborCultural) {
   };
 }
 
-async function handleReceta(
-  entry: SyncOutboxItem
-): Promise<SyncHandlerResult> {
+async function handleReceta(entry: SyncOutboxItem): Promise<SyncHandlerResult> {
   if (entry.operation === "delete") {
     return { status: "deleted_local" };
   }
 
-  const receta = visitaRecetasRepository.getRecetaByVisitaLocalId(entry.entityLocalId);
+  const receta =
+    visitaRecetasRepository.getRecetaByLocalId(entry.entityLocalId) ??
+    visitaRecetasRepository.getRecetaByVisitaLocalId(entry.entityLocalId);
 
   if (!receta) {
     return { status: "deleted_local" };
   }
 
-  try {
-    const response = await visitaRecetasRemote.save(
-      receta.visitaLocalId,
-      {
-        etapaFenologica: receta.etapaFenologica,
-        fitosanidad: receta.fitosanidad.map((f) => ({
-          numero: f.numero,
-          objetivo: f.objetivo,
-          objetivoNombre: f.objetivoNombre,
-          tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
-          tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
-          disolvente: f.disolvente,
-          modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
-          ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
-          dosisIa: f.dosisIa ?? undefined,
-          volumenAplicacion: f.volumenAplicacion ?? undefined,
-          cantidadTotalIa: f.cantidadTotalIa ?? undefined,
-          marcaProductoNombre: f.marcaProductoNombre ?? undefined,
-          concentracionProducto: f.concentracionProducto ?? undefined,
-          cantidadTotalProducto: f.cantidadTotalProducto ?? undefined,
-          coadyuvantesIds: f.coadyuvantesIds ?? undefined,
-          ordenMezcla: f.ordenMezcla ?? undefined
-        })),
-        fertilizacion: receta.fertilizacion.map((f) => ({
-          viaAplicacion: f.viaAplicacion,
-          fertilizanteNombre: f.fertilizanteNombre ?? undefined,
-          tipoProducto: f.tipoProducto ?? undefined,
-          dosis: f.dosis ?? undefined,
-          unidadDosis: f.unidadDosis ?? undefined,
-          cantidadTotalPlantas: f.cantidadTotalPlantas ?? undefined,
-          volumenAplicacion: f.volumenAplicacion ?? undefined,
-          cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined
-        })),
-        riego: receta.riego
-          ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
-          : undefined,
-        labores: receta.labores.map((l) => ({ labor: l.labor }))
-      }
-    );
+  const visitaPadre = visitasCampoRepository.getById(receta.visitaLocalId);
 
-    return { status: "synced", serverId: response.id };
-  } catch {
+  if (!visitaPadre) {
+    return { status: "deleted_local" };
+  }
+
+  if (visitaPadre.syncStatus === "error") {
+    throw new Error("La visita padre no pudo sincronizarse.");
+  }
+
+  if (!visitaPadre.serverId) {
     return { status: "skipped" };
   }
+
+  const response = await visitaRecetasRemote.save(visitaPadre.serverId, {
+    etapaFenologica: receta.etapaFenologica,
+    fitosanidad: receta.fitosanidad.map((f) => ({
+      numero: f.numero,
+      objetivo: f.objetivo,
+      objetivoNombre: f.objetivoNombre,
+      tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
+      tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
+      disolvente: f.disolvente,
+      modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
+      ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
+      dosisIa: f.dosisIa ?? undefined,
+      volumenAplicacion: f.volumenAplicacion ?? undefined,
+      cantidadTotalIa: f.cantidadTotalIa ?? undefined,
+      marcaProductoNombre: f.marcaProductoNombre ?? undefined,
+      concentracionProducto: f.concentracionProducto ?? undefined,
+      cantidadTotalProducto: f.cantidadTotalProducto ?? undefined,
+      coadyuvantesIds: f.coadyuvantesIds ?? undefined,
+      ordenMezcla: f.ordenMezcla ?? undefined
+    })),
+    fertilizacion: receta.fertilizacion.map((f) => ({
+      viaAplicacion: f.viaAplicacion,
+      fertilizanteNombre: f.fertilizanteNombre ?? undefined,
+      tipoProducto: f.tipoProducto ?? undefined,
+      dosis: f.dosis ?? undefined,
+      unidadDosis: f.unidadDosis ?? undefined,
+      cantidadTotalPlantas: f.cantidadTotalPlantas ?? undefined,
+      volumenAplicacion: f.volumenAplicacion ?? undefined,
+      cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined
+    })),
+    riego: receta.riego
+      ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
+      : undefined,
+    labores: receta.labores.map((l) => ({ labor: l.labor }))
+  });
+
+  visitaRecetasRepository.markSynced(receta.id, response.id);
+
+  return { status: "synced", serverId: response.id };
 }
 
 function skipSyncHandler() {

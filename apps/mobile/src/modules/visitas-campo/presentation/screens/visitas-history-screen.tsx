@@ -20,7 +20,7 @@ import { visitaPdfReportService, visitasCampoService } from "../../services";
 import { visitaRecetaPdfReportService } from "../../../visita-recetas/services";
 import type { RecentVisitaCampo, VisitaCampo } from "../../types";
 
-type PdfAction = "preview" | "share" | "receta";
+type PdfAction = "diagnostico" | "receta";
 
 export function VisitasHistoryScreen() {
   const router = useRouter();
@@ -101,13 +101,10 @@ export function VisitasHistoryScreen() {
                     params: { id: visita.id }
                   })
                 }
-                onPreviewPdf={() => {
-                  void handlePdfAction(visita.id, "preview");
+                onShareDiagnostico={() => {
+                  void handlePdfAction(visita.id, "diagnostico");
                 }}
-                onSharePdf={() => {
-                  void handlePdfAction(visita.id, "share");
-                }}
-                onPreviewReceta={() => {
+                onShareReceta={() => {
                   void handlePdfAction(visita.id, "receta");
                 }}
                 pdfAction={
@@ -128,16 +125,17 @@ export function VisitasHistoryScreen() {
     setActivePdfAction({ visitaId, action });
 
     try {
-      if (action === "preview") {
-        await visitaPdfReportService.preview(visitaId);
-      } else if (action === "receta") {
-        await visitaRecetaPdfReportService.preview(visitaId);
-      } else {
+      if (action === "diagnostico") {
         await visitaPdfReportService.share(visitaId);
+      } else {
+        await visitaRecetaPdfReportService.share(visitaId);
       }
     } catch (nextError) {
       const apiError = toApiError(nextError);
-      Alert.alert("No se pudo generar el PDF", apiError.message || "Intenta nuevamente.");
+      Alert.alert(
+        "No se pudo compartir el PDF",
+        apiError.message || "Intenta nuevamente."
+      );
     } finally {
       setActivePdfAction(null);
     }
@@ -146,16 +144,14 @@ export function VisitasHistoryScreen() {
 
 function HistoryItem({
   onPress,
-  onPreviewPdf,
-  onSharePdf,
-  onPreviewReceta,
+  onShareDiagnostico,
+  onShareReceta,
   pdfAction,
   visita
 }: {
   onPress: () => void;
-  onPreviewPdf: () => void;
-  onSharePdf: () => void;
-  onPreviewReceta: () => void;
+  onShareDiagnostico: () => void;
+  onShareReceta: () => void;
   pdfAction: PdfAction | null;
   visita: RecentVisitaCampo;
 }) {
@@ -189,32 +185,22 @@ function HistoryItem({
       <View style={styles.pdfActions}>
         <View style={styles.pdfActionButton}>
           <AppButton
-            icon="document-text-outline"
-            label="Ver PDF"
-            loading={pdfAction === "preview"}
-            onPress={onPreviewPdf}
+            icon="share-social-outline"
+            label="Compartir diagnostico"
+            loading={pdfAction === "diagnostico"}
+            onPress={onShareDiagnostico}
             size="small"
-            variant="outline"
+            variant="secondary"
           />
         </View>
         <View style={styles.pdfActionButton}>
           <AppButton
             icon="receipt-outline"
-            label="Ver receta"
+            label="Compartir receta"
             loading={pdfAction === "receta"}
-            onPress={onPreviewReceta}
+            onPress={onShareReceta}
             size="small"
             variant="outline"
-          />
-        </View>
-        <View style={styles.pdfActionButton}>
-          <AppButton
-            icon="share-social-outline"
-            label="Compartir"
-            loading={pdfAction === "share"}
-            onPress={onSharePdf}
-            size="small"
-            variant="secondary"
           />
         </View>
       </View>
@@ -303,7 +289,7 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   pdfActions: {
-    flexDirection: "row",
+    flexDirection: "column",
     gap: 8,
     marginTop: 12
   },

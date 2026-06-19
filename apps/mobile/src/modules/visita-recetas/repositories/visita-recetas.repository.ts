@@ -115,9 +115,7 @@ export const visitaRecetasRepository = {
       id: string;
       name: string;
       description: string | null;
-    }>(
-      "SELECT id, name, description FROM ingredientes_activos ORDER BY name ASC"
-    );
+    }>("SELECT id, name, description FROM ingredientes_activos ORDER BY name ASC");
     return rows;
   },
 
@@ -183,41 +181,59 @@ export const visitaRecetasRepository = {
        FROM visita_recetas WHERE visita_local_id = ? LIMIT 1`,
       visitaLocalId
     );
-    if (!recetaRow) return null;
+    return recetaRow ? readRecetaFromRow(db, recetaRow) : null;
+  },
 
-    const recetaLocalId = recetaRow.local_id;
+  getRecetaByLocalId(recetaLocalId: string): VisitaRecetaCompleta | null {
+    const db = getDatabase();
+    const recetaRow = db.getFirstSync<VisitaRecetaRow>(
+      `SELECT local_id, server_id, visita_local_id, etapa_fenologica, version, sync_status, created_at, updated_at
+       FROM visita_recetas WHERE local_id = ? LIMIT 1`,
+      recetaLocalId
+    );
+    return recetaRow ? readRecetaFromRow(db, recetaRow) : null;
+  },
 
-    const fitosanidadRows = db.getAllSync<FitosanidadRow>(
-      `SELECT * FROM visita_receta_fitosanidad WHERE receta_local_id = ? ORDER BY numero ASC`,
-      recetaLocalId
-    );
-    const fertilizacionRows = db.getAllSync<FertilizacionRow>(
-      `SELECT * FROM visita_receta_fertilizacion WHERE receta_local_id = ? ORDER BY local_id ASC`,
-      recetaLocalId
-    );
-    const riegoRow = db.getFirstSync<RiegoRow>(
-      `SELECT * FROM visita_receta_riego WHERE receta_local_id = ? LIMIT 1`,
-      recetaLocalId
-    );
-    const laboresRows = db.getAllSync<LaborRow>(
-      `SELECT * FROM visita_receta_labores WHERE receta_local_id = ?`,
-      recetaLocalId
-    );
+  markSynced(recetaLocalId: string, serverId: string | null) {
+    const db = getDatabase();
+    const timestamp = getNowIsoString();
 
-    return {
-      id: recetaRow.local_id,
-      serverId: recetaRow.server_id,
-      visitaLocalId: recetaRow.visita_local_id,
-      etapaFenologica: recetaRow.etapa_fenologica,
-      version: recetaRow.version,
-      syncStatus: recetaRow.sync_status,
-      createdAt: recetaRow.created_at,
-      updatedAt: recetaRow.updated_at,
-      fitosanidad: fitosanidadRows.map(mapFitosanidadRow),
-      fertilizacion: fertilizacionRows.map(mapFertilizacionRow),
-      riego: riegoRow ? mapRiegoRow(riegoRow) : null,
-      labores: laboresRows.map(mapLaborRow)
-    } satisfies VisitaRecetaCompleta;
+    db.runSync(
+      `UPDATE visita_recetas
+       SET server_id = ?, sync_status = 'synced', updated_at = ?
+       WHERE local_id = ?`,
+      serverId,
+      timestamp,
+      recetaLocalId
+    );
+    db.runSync(
+      `UPDATE visita_receta_fitosanidad
+       SET sync_status = 'synced', updated_at = ?
+       WHERE receta_local_id = ?`,
+      timestamp,
+      recetaLocalId
+    );
+    db.runSync(
+      `UPDATE visita_receta_fertilizacion
+       SET sync_status = 'synced', updated_at = ?
+       WHERE receta_local_id = ?`,
+      timestamp,
+      recetaLocalId
+    );
+    db.runSync(
+      `UPDATE visita_receta_riego
+       SET sync_status = 'synced', updated_at = ?
+       WHERE receta_local_id = ?`,
+      timestamp,
+      recetaLocalId
+    );
+    db.runSync(
+      `UPDATE visita_receta_labores
+       SET sync_status = 'synced', updated_at = ?
+       WHERE receta_local_id = ?`,
+      timestamp,
+      recetaLocalId
+    );
   },
 
   saveReceta(
@@ -279,10 +295,22 @@ export const visitaRecetasRepository = {
         timestamp,
         recetaLocalId
       );
-      db.runSync("DELETE FROM visita_receta_fitosanidad WHERE receta_local_id = ?", recetaLocalId);
-      db.runSync("DELETE FROM visita_receta_fertilizacion WHERE receta_local_id = ?", recetaLocalId);
-      db.runSync("DELETE FROM visita_receta_riego WHERE receta_local_id = ?", recetaLocalId);
-      db.runSync("DELETE FROM visita_receta_labores WHERE receta_local_id = ?", recetaLocalId);
+      db.runSync(
+        "DELETE FROM visita_receta_fitosanidad WHERE receta_local_id = ?",
+        recetaLocalId
+      );
+      db.runSync(
+        "DELETE FROM visita_receta_fertilizacion WHERE receta_local_id = ?",
+        recetaLocalId
+      );
+      db.runSync(
+        "DELETE FROM visita_receta_riego WHERE receta_local_id = ?",
+        recetaLocalId
+      );
+      db.runSync(
+        "DELETE FROM visita_receta_labores WHERE receta_local_id = ?",
+        recetaLocalId
+      );
       isNew = false;
     } else {
       recetaLocalId = generateLocalId();
@@ -384,7 +412,14 @@ export const visitaRecetasRepository = {
          VALUES (?, ?, ?, ?, 'pending', ?, ?)`
       );
       for (const labor of data.labores) {
-        stmtLab.executeSync([generateLocalId(), null, recetaLocalId, labor, timestamp, timestamp]);
+        stmtLab.executeSync([
+          generateLocalId(),
+          null,
+          recetaLocalId,
+          labor,
+          timestamp,
+          timestamp
+        ]);
       }
       stmtLab.finalizeSync();
     }
@@ -404,6 +439,45 @@ export const visitaRecetasRepository = {
     return result;
   }
 };
+
+function readRecetaFromRow(
+  db: ReturnType<typeof getDatabase>,
+  recetaRow: VisitaRecetaRow
+) {
+  const recetaLocalId = recetaRow.local_id;
+
+  const fitosanidadRows = db.getAllSync<FitosanidadRow>(
+    `SELECT * FROM visita_receta_fitosanidad WHERE receta_local_id = ? ORDER BY numero ASC`,
+    recetaLocalId
+  );
+  const fertilizacionRows = db.getAllSync<FertilizacionRow>(
+    `SELECT * FROM visita_receta_fertilizacion WHERE receta_local_id = ? ORDER BY local_id ASC`,
+    recetaLocalId
+  );
+  const riegoRow = db.getFirstSync<RiegoRow>(
+    `SELECT * FROM visita_receta_riego WHERE receta_local_id = ? LIMIT 1`,
+    recetaLocalId
+  );
+  const laboresRows = db.getAllSync<LaborRow>(
+    `SELECT * FROM visita_receta_labores WHERE receta_local_id = ?`,
+    recetaLocalId
+  );
+
+  return {
+    id: recetaRow.local_id,
+    serverId: recetaRow.server_id,
+    visitaLocalId: recetaRow.visita_local_id,
+    etapaFenologica: recetaRow.etapa_fenologica,
+    version: recetaRow.version,
+    syncStatus: recetaRow.sync_status,
+    createdAt: recetaRow.created_at,
+    updatedAt: recetaRow.updated_at,
+    fitosanidad: fitosanidadRows.map(mapFitosanidadRow),
+    fertilizacion: fertilizacionRows.map(mapFertilizacionRow),
+    riego: riegoRow ? mapRiegoRow(riegoRow) : null,
+    labores: laboresRows.map(mapLaborRow)
+  } satisfies VisitaRecetaCompleta;
+}
 
 function mapFitosanidadRow(r: FitosanidadRow): RecetaFitosanidad {
   return {
@@ -442,7 +516,9 @@ function mapFertilizacionRow(r: FertilizacionRow): RecetaFertilizacion {
     tipoProducto: r.tipo_producto,
     dosis: parseNullableNumeric(r.dosis),
     unidadDosis: r.unidad_dosis,
-    cantidadTotalPlantas: r.cantidad_total_plantas ? Number(r.cantidad_total_plantas) : null,
+    cantidadTotalPlantas: r.cantidad_total_plantas
+      ? Number(r.cantidad_total_plantas)
+      : null,
     volumenAplicacion: parseNullableNumeric(r.volumen_aplicacion),
     cantidadTotalFertilizante: parseNullableNumeric(r.cantidad_total_fertilizante),
     syncStatus: r.sync_status,
