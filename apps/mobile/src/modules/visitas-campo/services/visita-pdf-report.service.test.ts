@@ -163,7 +163,9 @@ function buildDetail(overrides: Partial<VisitaCampoFull> = {}): VisitaCampoFull 
       buildEvaluation({
         order: 1,
         description: "Deficiencia de nitrogeno",
-        percentage: "25"
+        incidencePercentage: "18",
+        percentage: "25",
+        organosAfectados: ["hoja_madura", "raices"]
       })
     ],
     observacionesSanitarias: [
@@ -173,16 +175,45 @@ function buildDetail(overrides: Partial<VisitaCampoFull> = {}): VisitaCampoFull 
         severityLevelId: "sev-alta",
         observation: "Se observa dano en brotes",
         organosAfectados: ["tronco_rama", "panicula_floral", "fruto_recien_cuajado"]
+      }),
+      buildSanitaryObservation({
+        id: "obs-2",
+        pestDiseaseId: "disease-oidio",
+        incidenceLevelId: "inc-baja",
+        severityLevelId: "sev-alta",
+        incidencePercentage: "12",
+        observation: "Sintomas en hojas maduras",
+        organosAfectados: ["hoja_madura"]
       })
     ],
     riego: buildRiego(),
     laboresCulturales: [buildLabor()],
     stepNotes: [
-      buildStepNote({ stepNumber: 1, observation: "Productor confirma manejo regular" }),
-      buildStepNote({ stepNumber: 2, observation: "Monitorear focos activos" }),
-      buildStepNote({ stepNumber: 3, observation: "Reforzar plan nutricional" }),
-      buildStepNote({ stepNumber: 4, observation: "Riego suficiente" }),
-      buildStepNote({ stepNumber: 5, observation: "Programar poda sanitaria" })
+      buildStepNote({
+        stepNumber: 1,
+        observation: "Productor confirma manejo regular",
+        recommendation: "Mantener registro semanal"
+      }),
+      buildStepNote({
+        stepNumber: 2,
+        observation: "Monitorear focos activos",
+        recommendation: "Aplicar control localizado"
+      }),
+      buildStepNote({
+        stepNumber: 3,
+        observation: "Reforzar plan nutricional",
+        recommendation: "Programar fertilizacion foliar"
+      }),
+      buildStepNote({
+        stepNumber: 4,
+        observation: "Riego suficiente",
+        recommendation: "Mantener humedad optima"
+      }),
+      buildStepNote({
+        stepNumber: 5,
+        observation: "Programar poda sanitaria",
+        recommendation: "Retirar fruta caida"
+      })
     ],
     ...overrides
   };
@@ -397,6 +428,31 @@ describe("visitaPdfReportService", () => {
             isActive: true
           }
         ]
+      } satisfies PestDiseaseByStageItem,
+      {
+        id: "disease-oidio",
+        scientificName: null,
+        name: "Oidio",
+        type: "Enfermedad",
+        isActive: true,
+        stageLevels: [
+          {
+            id: "rel-disease-inc-baja",
+            plagaEnfermedadId: "disease-oidio",
+            etapaFenologicaId: "etapa-floracion",
+            nivelIncidenciaSeveridadId: "inc-baja",
+            description: "Sintomas iniciales en copa",
+            isActive: true
+          },
+          {
+            id: "rel-disease-sev-alta",
+            plagaEnfermedadId: "disease-oidio",
+            etapaFenologicaId: "etapa-floracion",
+            nivelIncidenciaSeveridadId: "sev-alta",
+            description: "Dano visible en organos jovenes",
+            isActive: true
+          }
+        ]
       } satisfies PestDiseaseByStageItem
     ]);
     mocks.getIncidenceLevels.mockReturnValue([
@@ -461,17 +517,26 @@ describe("visitaPdfReportService", () => {
     expect(html).toContain("Severidad Alta: Dano visible en organos jovenes");
     expect(html).toContain("Organos: Tronco/rama, Panícula floral, Fruto recién cuajado");
     expect(html).toContain("Se observa dano en brotes");
+    expect(html).toContain("Oidio");
+    expect(html).toContain("% arboles enfermos: 12%");
+    expect(html).toContain("Sintomas en hojas maduras");
+    expect(html).toContain("Aplicar control localizado");
 
     expect(html).toContain("Paso 3 - Nutricion");
     expect(html).toContain("Deficiencia de nitrogeno");
+    expect(html).toContain("Incidencia: 18%");
     expect(html).toContain("25%");
+    expect(html).toContain("Organos: Hoja madura, Raices");
+    expect(html).toContain("Programar fertilizacion foliar");
     expect(html).toContain("Paso 4 - Riego");
     expect(html).toContain("Goteo");
+    expect(html).toContain("Mantener humedad optima");
     expect(html).toContain("Paso 5 - Labores culturales");
     expect(html).toContain("Poda sanitaria");
     expect(html).toContain("Retiro de material afectado");
     expect(html).toContain("Monitorear focos activos");
     expect(html).toContain("Programar poda sanitaria");
+    expect(html).toContain("Retirar fruta caida");
   });
 
   it("shares the generated report as a PDF file when sharing is available", async () => {

@@ -459,6 +459,9 @@ export function VisitaObservacionesSanitariasScreen() {
               severityLevelId: shouldClearDependents
                 ? null
                 : currentSelection.severityLevelId,
+              incidencePercentage: shouldClearDependents
+                ? ""
+                : currentSelection.incidencePercentage,
               organosAfectados: shouldClearDependents
                 ? []
                 : currentSelection.organosAfectados
@@ -486,19 +489,12 @@ export function VisitaObservacionesSanitariasScreen() {
         organosAfectados: []
       };
       const normalizedValue = sanitizePercentageInput(value);
-      const shouldClearDependents =
-        normalizedValue === "" || Number(normalizedValue) === 0;
 
       return {
         ...currentSelections,
         [pestDiseaseId]: {
           ...currentSelection,
-          incidenceLevelId: null,
-          incidencePercentage: normalizedValue,
-          severityLevelId: shouldClearDependents
-            ? null
-            : currentSelection.severityLevelId,
-          organosAfectados: shouldClearDependents ? [] : currentSelection.organosAfectados
+          incidencePercentage: normalizedValue
         }
       };
     });
@@ -693,16 +689,11 @@ function SanitaryCard({
   const incidenceOptions = getLevelOptionsForItem(item, incidenceLevels, "incidencia");
   const severityOptions = getLevelOptionsForItem(item, incidenceLevels, "severidad");
   const imageSource = getPestDiseaseImageSource(item);
-  const usesPercentageIncidence = item.type === "enfermedad";
-  const hasIncidence = usesPercentageIncidence
-    ? (selection?.incidencePercentage ?? "") !== ""
-    : (selection?.incidenceLevelId ?? null) !== null;
-  const incidenceIsZero = usesPercentageIncidence
-    ? (selection?.incidencePercentage ?? "") !== "" &&
-      Number(selection?.incidencePercentage) === 0
-    : isZeroIncidenceLevel(
-        incidenceLevels.find((level) => level.id === selection?.incidenceLevelId)
-      );
+  const showsSickTreePercentage = item.type.toLowerCase() === "enfermedad";
+  const hasIncidence = (selection?.incidenceLevelId ?? null) !== null;
+  const incidenceIsZero = isZeroIncidenceLevel(
+    incidenceLevels.find((level) => level.id === selection?.incidenceLevelId)
+  );
   const disablesSeverity = !hasIncidence || incidenceIsZero;
 
   const levelDescriptions = useMemo(() => {
@@ -736,13 +727,7 @@ function SanitaryCard({
           </View>
         </View>
 
-        {usesPercentageIncidence ? (
-          <PercentageInputBlock
-            label="Incidencia"
-            onChangeText={(value) => onIncidencePercentageChange(item.id, value)}
-            value={selection?.incidencePercentage ?? ""}
-          />
-        ) : incidenceOptions.length > 0 ? (
+        {incidenceOptions.length > 0 ? (
           <LevelSelectorRow
             accentColor="#12622f"
             label="Incidencia"
@@ -751,6 +736,20 @@ function SanitaryCard({
             levelDescriptions={levelDescriptions}
             onSelect={(levelId) => onSelectLevel(item.id, "incidencia", levelId)}
             selectedLevelId={selection?.incidenceLevelId ?? null}
+          />
+        ) : null}
+        {showsSickTreePercentage ? (
+          <PercentageInputBlock
+            disabled={disablesSeverity}
+            disabledHint={
+              incidenceIsZero
+                ? "Incidencia 0: no hay arboles enfermos que cuantificar."
+                : "Selecciona primero la incidencia."
+            }
+            hint="Porcentaje de arboles enfermos. Escala de 1% en 1%."
+            label="% de arboles enfermos"
+            onChangeText={(value) => onIncidencePercentageChange(item.id, value)}
+            value={selection?.incidencePercentage ?? ""}
           />
         ) : null}
         {severityOptions.length > 0 ? (
@@ -864,16 +863,22 @@ function OrganoSelector({
 }
 
 function PercentageInputBlock({
+  disabled = false,
+  disabledHint,
+  hint,
   label,
   onChangeText,
   value
 }: {
+  disabled?: boolean;
+  disabledHint?: string;
+  hint: string;
   label: string;
   onChangeText: (value: string) => void;
   value: string;
 }) {
   return (
-    <View style={styles.percentageBlock}>
+    <View style={[styles.percentageBlock, disabled && styles.levelRowDisabled]}>
       <View style={[styles.levelPill, { alignItems: "flex-start" }]}>
         <AppText
           style={[
@@ -885,10 +890,16 @@ function PercentageInputBlock({
           {label}
         </AppText>
       </View>
+      {disabled && disabledHint ? (
+        <AppText style={styles.levelDisabledHint} variant="caption">
+          {disabledHint}
+        </AppText>
+      ) : null}
       <View style={styles.percentageInputRow}>
         <View style={styles.percentageInputShell}>
           <TextInput
             accessibilityLabel={`${label} en porcentaje`}
+            editable={!disabled}
             keyboardType="number-pad"
             maxLength={3}
             onChangeText={onChangeText}
@@ -902,7 +913,7 @@ function PercentageInputBlock({
           </AppText>
         </View>
         <AppText style={styles.percentageHint} variant="caption">
-          Arboles enfermos. Escala de 1% en 1%.
+          {hint}
         </AppText>
       </View>
     </View>
@@ -1284,27 +1295,22 @@ function validateSelections(
       "severidad"
     );
 
-    const usesPercentageIncidence = pestDisease.type === "enfermedad";
-    const hasIncidence = usesPercentageIncidence
-      ? selection.incidencePercentage !== ""
-      : Boolean(selection.incidenceLevelId);
-    const incidenceIsZero = usesPercentageIncidence
-      ? selection.incidencePercentage !== "" &&
-        Number(selection.incidencePercentage) === 0
-      : isZeroIncidenceLevel(
-          incidenceLevels.find((level) => level.id === selection.incidenceLevelId)
-        );
+    const isDisease = pestDisease.type.toLowerCase() === "enfermedad";
+    const hasIncidence = Boolean(selection.incidenceLevelId);
+    const incidenceIsZero = isZeroIncidenceLevel(
+      incidenceLevels.find((level) => level.id === selection.incidenceLevelId)
+    );
 
-    if (usesPercentageIncidence && !hasIncidence) {
-      return `Indica incidencia para ${pestDisease.name}.`;
-    }
-
-    if (!usesPercentageIncidence && incidenceOptions.length > 0 && !hasIncidence) {
+    if (incidenceOptions.length > 0 && !hasIncidence) {
       return `Selecciona incidencia para ${pestDisease.name}.`;
     }
 
     if (!incidenceIsZero && severityOptions.length > 0 && !selection.severityLevelId) {
       return `Selecciona severidad para ${pestDisease.name}.`;
+    }
+
+    if (!incidenceIsZero && isDisease && selection.incidencePercentage === "") {
+      return `Indica el porcentaje de arboles enfermos para ${pestDisease.name}.`;
     }
 
     if (!incidenceIsZero && selection.organosAfectados.length === 0) {

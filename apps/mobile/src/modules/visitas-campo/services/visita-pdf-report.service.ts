@@ -93,6 +93,7 @@ async function buildVisitReportHtml(visitaId: string) {
   const levelDescriptions: Record<string, string | null> = {};
   for (const pest of pestDiseases) {
     for (const rel of pest.stageLevels) {
+      levelDescriptions[`${pest.id}:${rel.nivelIncidenciaSeveridadId}`] = rel.description;
       levelDescriptions[rel.nivelIncidenciaSeveridadId] = rel.description;
     }
   }
@@ -287,7 +288,8 @@ async function buildVisitReportHtml(visitaId: string) {
           visita.subEtapaPercentage === null ? null : `${visita.subEtapaPercentage}%`
         ],
         ["Observacion general", visita.generalObservation, true],
-        ["Observacion del paso", stepNotes.get(1)?.observation ?? null, true]
+        ["Observacion del paso", stepNotes.get(1)?.observation ?? null, true],
+        ["Recomendacion del paso", stepNotes.get(1)?.recommendation ?? null, true]
       ])
     )}
 
@@ -298,13 +300,12 @@ async function buildVisitReportHtml(visitaId: string) {
         pestDiseases,
         incidenceLevels,
         levelDescriptions
-      ) + renderStepObservation(stepNotes.get(2)?.observation)
+      ) + renderStepNote(stepNotes.get(2))
     )}
 
     ${renderSection(
       "Paso 3 - Nutricion",
-      renderNutrition(detail.evaluaciones) +
-        renderStepObservation(stepNotes.get(3)?.observation)
+      renderNutrition(detail.evaluaciones) + renderStepNote(stepNotes.get(3))
     )}
 
     ${renderSection(
@@ -314,15 +315,14 @@ async function buildVisitReportHtml(visitaId: string) {
         ["Fuente de agua", fuenteAguaLabel, true],
         ["Tipo de suelo", tipoSueloLabel, true],
         ["Humedad del suelo", humedadSueloLabel, true],
-        ["Estres hidrico", estresHidricoLabel, true],
-        ["Observacion del paso", stepNotes.get(4)?.observation ?? null, true]
-      ])
+        ["Estres hidrico", estresHidricoLabel, true]
+      ]) + renderStepNote(stepNotes.get(4))
     )}
 
     ${renderSection(
       "Paso 5 - Labores culturales",
       renderCulturalLabors(detail.laboresCulturales, labores) +
-        renderStepObservation(stepNotes.get(5)?.observation)
+        renderStepNote(stepNotes.get(5))
     )}
 
     <div class="footer">
@@ -367,6 +367,7 @@ function getReportIconModule() {
     return null;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require("../../../../assets/images/adaptive_icon_vsm.png");
 }
 
@@ -400,6 +401,7 @@ function renderSanitaryObservations(
     pestDiseaseId: string;
     incidenceLevelId: string | null;
     severityLevelId: string | null;
+    incidencePercentage: string | null;
     observation: string | null;
     organosAfectados: string[];
   }>,
@@ -421,10 +423,18 @@ function renderSanitaryObservations(
         ? findById(incidenceLevels, observation.severityLevelId)?.name
         : null;
       const incidenceDesc = observation.incidenceLevelId
-        ? (levelDescriptions[observation.incidenceLevelId] ?? null)
+        ? getLevelDescription(
+            levelDescriptions,
+            observation.pestDiseaseId,
+            observation.incidenceLevelId
+          )
         : null;
       const severityDesc = observation.severityLevelId
-        ? (levelDescriptions[observation.severityLevelId] ?? null)
+        ? getLevelDescription(
+            levelDescriptions,
+            observation.pestDiseaseId,
+            observation.severityLevelId
+          )
         : null;
 
       const descParts: string[] = [];
@@ -437,6 +447,11 @@ function renderSanitaryObservations(
         descParts.push(`Severidad ${severity}: ${severityDesc}`);
       } else if (severity) {
         descParts.push(`Severidad: ${severity}`);
+      }
+      if (observation.incidencePercentage) {
+        descParts.push(
+          `% arboles enfermos: ${formatPercentValue(observation.incidencePercentage)}`
+        );
       }
 
       return `<li>
@@ -461,19 +476,37 @@ function renderSanitaryObservations(
 }
 
 function renderNutrition(
-  evaluations: Array<{ order: number; description: string; percentage: string | null }>
+  evaluations: Array<{
+    order: number;
+    description: string;
+    incidencePercentage: string | null;
+    percentage: string | null;
+    organosAfectados: string[];
+  }>
 ) {
   if (evaluations.length === 0) {
     return `<div class="empty">No hay datos de nutricion registrados.</div>`;
   }
 
   return `<ul class="list">${evaluations
-    .map(
-      (evaluation) => `<li>
+    .map((evaluation) => {
+      const details = [
+        evaluation.incidencePercentage
+          ? `Incidencia: ${formatPercentValue(evaluation.incidencePercentage)}`
+          : null,
+        evaluation.percentage
+          ? `Severidad: ${formatPercentValue(evaluation.percentage)}`
+          : null,
+        evaluation.organosAfectados.length > 0
+          ? `Organos: ${evaluation.organosAfectados.map(formatOrganoLabel).join(", ")}`
+          : "Organos: No registrados"
+      ].filter(Boolean);
+
+      return `<li>
         <span class="item-title">${escapeHtml(evaluation.description)}</span>
-        <span class="muted">${escapeHtml(evaluation.percentage ? `${evaluation.percentage}%` : "Sin porcentaje")}</span>
-      </li>`
-    )
+        <span class="muted">${escapeHtml(details.join(" | ") || "Sin detalle registrado")}</span>
+      </li>`;
+    })
     .join("")}</ul>`;
 }
 
@@ -521,16 +554,35 @@ function renderCulturalLabors(
     .join("")}</ul>`;
 }
 
-function renderStepObservation(value: string | null | undefined) {
-  if (!value) {
+function renderStepNote(
+  note:
+    | {
+        observation: string | null;
+        recommendation: string | null;
+      }
+    | null
+    | undefined
+) {
+  if (!note?.observation && !note?.recommendation) {
     return "";
   }
 
-  return `<div style="margin-top: 8px;">${renderFields([["Observacion del paso", value, true]])}</div>`;
+  return `<div style="margin-top: 8px;">${renderFields([
+    ["Observacion del paso", note.observation, true],
+    ["Recomendacion del paso", note.recommendation, true]
+  ])}</div>`;
 }
 
 function findById<T extends { id: string }>(items: T[], id: string) {
   return items.find((item) => item.id === id) ?? null;
+}
+
+function getLevelDescription(
+  descriptions: Record<string, string | null>,
+  pestDiseaseId: string,
+  levelId: string
+) {
+  return descriptions[`${pestDiseaseId}:${levelId}`] ?? descriptions[levelId] ?? null;
 }
 
 function formatPersonName(firstName?: string | null, lastName?: string | null) {
@@ -571,6 +623,11 @@ function formatTimeRange(start: string | null, end: string | null) {
   }
 
   return `${start} - ${end}`;
+}
+
+function formatPercentValue(value: string | number) {
+  const text = String(value).trim();
+  return text.endsWith("%") ? text : `${text}%`;
 }
 
 function formatOrganoLabel(value: string) {
