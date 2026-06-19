@@ -65,8 +65,10 @@ export class VisitaRecetasConsolidacionService {
 
     const etapaFenologica =
       visita.etapaFenologica && visita.subEtapa
-        ? `${visita.etapaFenologica.name} (${visita.subEtapa.percentage ?? visita.subEtapaPercentage ?? ""})`
-        : visita.etapaFenologica?.name ?? null;
+        ? `${visita.etapaFenologica.name} - ${visita.subEtapa.name} (${visita.subEtapa.percentage ?? visita.subEtapaPercentage ?? ""})`
+        : visita.etapaFenologica && visita.subEtapaPercentage !== null
+          ? `${visita.etapaFenologica.name} (${visita.subEtapaPercentage})`
+          : visita.etapaFenologica?.name ?? null;
 
     const [observaciones, evaluaciones, riego, labores] = await Promise.all([
       this.observacionSanitariaRepository.find({

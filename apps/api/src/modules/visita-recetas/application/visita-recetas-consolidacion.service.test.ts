@@ -21,7 +21,7 @@ function makeRepo(): RepoMock {
   };
 }
 
-function makeVisita(etapa?: { name: string }, subEtapa?: { percentage?: string }) {
+function makeVisita(etapa?: { name: string }, subEtapa?: { name?: string; percentage?: string }) {
   return {
     id: "10",
     etapaFenologica: etapa ?? null,
@@ -110,7 +110,7 @@ describe("VisitaRecetasConsolidacionService", () => {
 
   it("returns etapa fenologica from visita relations", async () => {
     visitaRepo.findOne.mockResolvedValue(
-      makeVisita({ name: "Floracion" }, { percentage: "45%" })
+      makeVisita({ name: "Floracion" }, { name: "Boton floral", percentage: "45%" })
     );
     obsSanitariaRepo.find.mockResolvedValue([]);
     evaluacionRepo.find.mockResolvedValue([]);
@@ -119,7 +119,7 @@ describe("VisitaRecetasConsolidacionService", () => {
 
     const result = await service.getConsolidacion("10");
 
-    expect(result.data.etapaFenologica).toBe("Floracion (45%)");
+    expect(result.data.etapaFenologica).toBe("Floracion - Boton floral (45%)");
   });
 
   it("returns etapa fenologica name only when no sub-etapa", async () => {

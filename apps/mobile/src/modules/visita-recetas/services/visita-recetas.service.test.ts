@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../visitas-campo/repositories/visitas-campo.repository", () => ({
   visitasCampoRepository: {
-    getById: mocks.getById
+    getById: mocks.getById,
+    getEtapasFenologicasByCultivo: vi.fn(() => []),
+    getSubEtapasByEtapaFenologica: vi.fn(() => [])
   }
 }));
 

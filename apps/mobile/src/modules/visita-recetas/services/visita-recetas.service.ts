@@ -102,8 +102,36 @@ export const visitaRecetasService = {
       }
     }
 
+    let etapaFenologica: string | null = null;
+
+    if (visita?.phenologicalStageId) {
+      const etapas = visitasCampoRepository.getEtapasFenologicasByCultivo(visita.cropId);
+      const etapa = etapas.find((e) => e.id === visita.phenologicalStageId);
+
+      if (etapa) {
+        if (visita.subEtapaId) {
+          const subEtapas = visitasCampoRepository.getSubEtapasByEtapaFenologica(
+            visita.phenologicalStageId
+          );
+          const subEtapa = subEtapas.find((s) => s.id === visita.subEtapaId);
+
+          if (subEtapa) {
+            etapaFenologica = `${etapa.name} - ${subEtapa.name} (${subEtapa.percentage ?? visita.subEtapaPercentage ?? ""}%)`;
+          } else {
+            etapaFenologica = `${etapa.name}${visita.subEtapaPercentage !== null ? ` (${visita.subEtapaPercentage}%)` : ""}`;
+          }
+        } else if (visita.subEtapaPercentage !== null) {
+          etapaFenologica = `${etapa.name} (${visita.subEtapaPercentage}%)`;
+        } else {
+          etapaFenologica = etapa.name;
+        }
+      } else {
+        etapaFenologica = visita.phenologicalStageId;
+      }
+    }
+
     return {
-      etapaFenologica: visita?.phenologicalStageId ?? null,
+      etapaFenologica,
       plagas,
       enfermedades,
       nutricion: [],

@@ -1,5 +1,6 @@
 import { visitaRecetasService } from "./visita-recetas.service";
 import type { VisitaRecetaCompleta } from "../types";
+import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
 
 declare const process:
   | {
@@ -61,6 +62,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     </body></html>`;
   }
 
+  const visita = visitasCampoRepository.getById(visitaId);
   const iconBase64 = await getReportIconUri();
 
   return `<!DOCTYPE html>
@@ -212,7 +214,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       <p>AgroGest VSM - ${new Date().toLocaleDateString("es-PE")}</p>
     </div>
   </div>
-  ${renderEtapaFenologica(receta)}
+  ${renderEtapaFenologica(visita, receta)}
   ${renderFitosanidad(receta)}
   ${renderFertilizacion(receta)}
   ${renderRiego(receta)}
@@ -224,15 +226,50 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
 </html>`;
 }
 
-function renderEtapaFenologica(receta: VisitaRecetaCompleta): string {
-  if (!receta.etapaFenologica) return "";
+function findById<T extends { id: string }>(items: T[], id: string): T | undefined {
+  return items.find((item) => item.id === id);
+}
+
+function renderEtapaFenologica(
+  visita: ReturnType<typeof visitasCampoRepository.getById>,
+  receta: VisitaRecetaCompleta
+): string {
+  if (!visita?.phenologicalStageId && !receta.etapaFenologica) return "";
+
+  const etapas = visita?.cropId
+    ? visitasCampoRepository.getEtapasFenologicasByCultivo(visita.cropId)
+    : [];
+  const subEtapas = visita?.phenologicalStageId
+    ? visitasCampoRepository.getSubEtapasByEtapaFenologica(visita.phenologicalStageId)
+    : [];
+
+  const etapaNombre =
+    (visita?.phenologicalStageId
+      ? findById(etapas, visita.phenologicalStageId)?.name
+      : null) ?? receta.etapaFenologica ?? null;
+
+  const subEtapaNombre = visita?.subEtapaId
+    ? (findById(subEtapas, visita.subEtapaId)?.name ?? null)
+    : null;
+
+  const subEtapaPorcentaje = visita?.subEtapaPercentage ?? null;
 
   return `
     <h2>Datos de la visita</h2>
     <div class="field-row">
       <span class="field-label">Etapa fenologica:</span>
-      <span class="field-value">${escapeHtml(receta.etapaFenologica)}</span>
+      <span class="field-value">${escapeHtml(etapaNombre ?? "-")}</span>
     </div>
+    ${subEtapaNombre ? `
+    <div class="field-row">
+      <span class="field-label">Sub etapa:</span>
+      <span class="field-value">${escapeHtml(subEtapaNombre)}</span>
+    </div>` : ""}
+    ${subEtapaPorcentaje !== null ? `
+    <div class="field-row">
+      <span class="field-label">Avance sub etapa:</span>
+      <span class="field-value">${subEtapaPorcentaje}%</span>
+    </div>` : ""}
     <div class="field-row">
       <span class="field-label">Version:</span>
       <span class="field-value">${receta.version}</span>
