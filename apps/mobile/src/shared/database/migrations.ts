@@ -367,6 +367,13 @@ const MIGRATIONS: Migration[] = [
         "INTEGER DEFAULT NULL CHECK(estres_hidrico IS NULL OR estres_hidrico IN (0, 1))"
       );
     }
+  },
+  {
+    version: 23,
+    run: (db) => {
+      db.execSync("DELETE FROM detalle_nutrientes WHERE name LIKE '%Grado 0%'");
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
   }
 ];
 

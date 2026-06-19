@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 22;
+const LATEST_MIGRATION_VERSION = 23;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -11,6 +11,8 @@ type FakeDatabase = {
   pestDiseaseColumns: Set<string>;
   incidenceLevelColumns: Set<string>;
   visitaRiegosColumns: Set<string>;
+  detalleNutrientesRows: Array<{ id: string; name: string }>;
+  appMetaRows: Map<string, string | null>;
   organosRows: Array<{
     local_id: string;
     visita_observacion_sanitaria_local_id: string;
@@ -39,6 +41,8 @@ function createFakeDatabase(
     pestDiseaseColumns: new Set(pestDiseaseColumns),
     incidenceLevelColumns: new Set(incidenceLevelColumns),
     visitaRiegosColumns: new Set(visitaRiegosColumns),
+    detalleNutrientesRows: [],
+    appMetaRows: new Map(),
     organosRows: [],
     organosNextRows: [],
     organosTableUsesNewConstraint: false,
@@ -181,6 +185,18 @@ function createFakeDatabase(
 
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
         this.pestDiseaseColumns.delete("code");
+      }
+
+      if (statement === "DELETE FROM detalle_nutrientes WHERE name LIKE '%Grado 0%'") {
+        this.detalleNutrientesRows = this.detalleNutrientesRows.filter(
+          (row) => !row.name.includes("Grado 0")
+        );
+        return;
+      }
+
+      if (statement === "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'") {
+        this.appMetaRows.delete("catalogs_downloaded_at");
+        return;
       }
 
       if (
@@ -483,6 +499,32 @@ describe("runMigrations", () => {
     );
     expect(db.executedStatements).toContain(
       "ALTER TABLE visita_riegos ADD COLUMN estres_hidrico INTEGER DEFAULT NULL CHECK(estres_hidrico IS NULL OR estres_hidrico IN (0, 1))"
+    );
+  });
+
+  it("removes Grado 0 nutrient details and forces a catalog refresh", () => {
+    const db = createFakeDatabase(22);
+    db.detalleNutrientesRows = [
+      { id: "detalle-1", name: "Nitrogeno - Grado 0" },
+      { id: "detalle-2", name: "Nitrogeno - Grado 1" },
+      { id: "detalle-3", name: "Potasio Grado 0 inicial" }
+    ];
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-06-18T20:00:00.000Z");
+    db.appMetaRows.set("other_key", "kept");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.detalleNutrientesRows).toEqual([
+      { id: "detalle-2", name: "Nitrogeno - Grado 1" }
+    ]);
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
+    expect(db.appMetaRows.get("other_key")).toBe("kept");
+    expect(db.executedStatements).toContain(
+      "DELETE FROM detalle_nutrientes WHERE name LIKE '%Grado 0%'"
+    );
+    expect(db.executedStatements).toContain(
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
     );
   });
 
