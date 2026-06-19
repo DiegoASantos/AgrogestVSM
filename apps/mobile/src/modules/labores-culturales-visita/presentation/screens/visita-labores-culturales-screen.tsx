@@ -34,6 +34,11 @@ const STEP_NUMBER = 5;
 const WIZARD_STEPS = [1, 2, 3, 4, 5] as const;
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
+type LaborGroup = {
+  categoryCode: string;
+  categoryName: string;
+  items: LaborCulturalCatalogItem[];
+};
 
 export function VisitaLaboresCulturalesScreen() {
   const router = useRouter();
@@ -91,10 +96,10 @@ export function VisitaLaboresCulturalesScreen() {
 
           <View style={styles.heroContent}>
             <AppText style={styles.heroTitle} variant="title">
-              Labores culturales
+              Condiciones de manejo
             </AppText>
             <AppText style={styles.heroSubtitle} variant="body">
-              Selecciona las labores culturales realizadas durante la visita.
+              Registra una opcion por cada categoria del paso 5.
             </AppText>
           </View>
         </ImageBackground>
@@ -142,27 +147,34 @@ export function VisitaLaboresCulturalesScreen() {
                 </View>
                 <View style={styles.sectionHeaderText}>
                   <AppText style={styles.sectionTitle} variant="heading">
-                    Selecciona labores culturales
+                    Selecciona una opcion por categoria
                   </AppText>
                   <AppText variant="muted">
-                    Puedes elegir una o mas opciones para guardar la visita.
+                    La leyenda aparece debajo de cada opcion cuando aplica.
                   </AppText>
                 </View>
               </View>
 
-              <View style={styles.optionGrid}>
-                {labores.map((labor) => (
-                  <CatalogOptionCard
-                    iconName={getLaborIcon(labor.name)}
-                    isCompactLayout={isCompactLayout}
-                    isSelected={selectedLaborIds.has(labor.id)}
-                    item={labor}
-                    key={labor.id}
-                    onHelpPress={setHelpItem}
-                    onPress={() => toggleLabor(labor.id)}
-                  />
-                ))}
-              </View>
+              {groupLabores(labores).map((group) => (
+                <View key={group.categoryCode} style={styles.categorySection}>
+                  <AppText style={styles.categoryTitle} variant="heading">
+                    {group.categoryName}
+                  </AppText>
+                  <View style={styles.optionGrid}>
+                    {group.items.map((labor) => (
+                      <CatalogOptionCard
+                        iconName={getLaborIcon(labor.categoryName ?? labor.name)}
+                        isCompactLayout={isCompactLayout}
+                        isSelected={selectedLaborIds.has(labor.id)}
+                        item={labor}
+                        key={labor.id}
+                        onHelpPress={setHelpItem}
+                        onPress={() => toggleLabor(labor)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ))}
 
               {submitError ? (
                 <View style={styles.errorBanner}>
@@ -228,9 +240,20 @@ export function VisitaLaboresCulturalesScreen() {
         nextLabores = await laboresCulturalesVisitaService.getLaboresCulturales();
       }
 
+      if (!hasStructuredLabors(nextLabores)) {
+        await downloadAllCatalogs();
+        nextLabores = await laboresCulturalesVisitaService.getLaboresCulturales();
+      }
+
+      if (!hasStructuredLabors(nextLabores)) {
+        throw new Error(
+          "El catalogo local del paso 5 esta desactualizado. Sincroniza catalogos para continuar."
+        );
+      }
+
       const existingLabores = await laboresCulturalesVisitaService.getByVisitaId(id);
 
-      setLabores(nextLabores.filter((labor) => labor.isActive));
+      setLabores(nextLabores.filter((labor) => labor.isActive && labor.categoryCode));
       setSelectedLaborIds(new Set(existingLabores.map((labor) => labor.laborCulturalId)));
     } catch (nextError) {
       const apiError = toApiError(nextError);
@@ -240,16 +263,23 @@ export function VisitaLaboresCulturalesScreen() {
     }
   }
 
-  function toggleLabor(laborId: string) {
+  function toggleLabor(labor: LaborCulturalCatalogItem) {
     setSubmitError(null);
     setSelectedLaborIds((currentSelection) => {
       const nextSelection = new Set(currentSelection);
+      const sameCategoryIds = labores
+        .filter((item) => item.categoryCode === labor.categoryCode)
+        .map((item) => item.id);
 
-      if (nextSelection.has(laborId)) {
-        nextSelection.delete(laborId);
-      } else {
-        nextSelection.add(laborId);
+      if (nextSelection.has(labor.id)) {
+        return nextSelection;
       }
+
+      for (const sameCategoryId of sameCategoryIds) {
+        nextSelection.delete(sameCategoryId);
+      }
+
+      nextSelection.add(labor.id);
 
       return nextSelection;
     });
@@ -273,10 +303,18 @@ export function VisitaLaboresCulturalesScreen() {
       return;
     }
 
-    const selectedIds = Array.from(selectedLaborIds);
+    const selectedIds = labores
+      .filter((labor) => selectedLaborIds.has(labor.id))
+      .map((labor) => labor.id);
+    const groups = groupLabores(labores);
+    const selectedCategoryCodes = new Set(
+      labores
+        .filter((labor) => selectedLaborIds.has(labor.id))
+        .map((labor) => labor.categoryCode)
+    );
 
-    if (selectedIds.length === 0) {
-      setSubmitError("Selecciona al menos una labor cultural.");
+    if (selectedCategoryCodes.size < groups.length) {
+      setSubmitError("Selecciona una opcion en cada categoria del paso 5.");
       return;
     }
 
@@ -314,7 +352,7 @@ function CatalogOptionCard({
   return (
     <Pressable
       accessibilityLabel={item.name}
-      accessibilityRole="checkbox"
+      accessibilityRole="radio"
       accessibilityState={{ checked: isSelected }}
       onPress={onPress}
       style={({ pressed }) => [
@@ -328,8 +366,13 @@ function CatalogOptionCard({
         <Ionicons color={theme.colors.primaryDark} name={iconName} size={38} />
       </View>
       <AppText style={styles.optionTitle} variant="label">
-        {item.name}
+        {item.optionLabel ?? item.name}
       </AppText>
+      {item.legend ? (
+        <AppText style={styles.optionLegend} variant="caption">
+          {item.legend}
+        </AppText>
+      ) : null}
       <Pressable
         accessibilityLabel={`Ver descripcion de ${item.name}`}
         accessibilityRole="button"
@@ -402,8 +445,8 @@ function HelpModal({
       <View style={styles.modalBackdrop}>
         <View style={styles.helpModalContent}>
           <View style={styles.modalHeader}>
-            <AppText style={styles.modalTitle} variant="heading">
-              {item.name}
+          <AppText style={styles.modalTitle} variant="heading">
+              {item.optionLabel ?? item.name}
             </AppText>
             <Pressable
               accessibilityLabel="Cerrar"
@@ -414,8 +457,11 @@ function HelpModal({
               <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
             </Pressable>
           </View>
+          {item.categoryName ? (
+            <AppText variant="label">{item.categoryName}</AppText>
+          ) : null}
           <AppText variant="muted">
-            {item.description || "Sin descripcion registrada."}
+            {item.legend || item.description || "Sin leyenda registrada."}
           </AppText>
         </View>
       </View>
@@ -423,10 +469,59 @@ function HelpModal({
   );
 }
 
+function hasStructuredLabors(items: LaborCulturalCatalogItem[]) {
+  return items.some(
+    (item) => item.isActive && item.categoryCode && item.categoryName && item.optionLabel
+  );
+}
+
+function groupLabores(items: LaborCulturalCatalogItem[]): LaborGroup[] {
+  const groups = new Map<string, LaborGroup>();
+
+  for (const item of items) {
+    if (!item.categoryCode || !item.categoryName) {
+      continue;
+    }
+
+    const group = groups.get(item.categoryCode) ?? {
+      categoryCode: item.categoryCode,
+      categoryName: item.categoryName,
+      items: []
+    };
+
+    group.items.push(item);
+    groups.set(item.categoryCode, group);
+  }
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      items: group.items.sort(
+        (left, right) =>
+          (left.sortOrder ?? 9999) - (right.sortOrder ?? 9999) ||
+          (left.optionLabel ?? left.name).localeCompare(right.optionLabel ?? right.name)
+      )
+    }))
+    .sort(
+      (left, right) =>
+        (left.items[0]?.sortOrder ?? 9999) - (right.items[0]?.sortOrder ?? 9999) ||
+        left.categoryName.localeCompare(right.categoryName)
+    );
+}
+
 function getLaborIcon(name: string): IoniconName {
   const normalizedName = normalizeCatalogName(name);
 
   if (normalizedName.includes("maleza")) return "cut-outline";
+  if (normalizedName.includes("sanitario") || normalizedName.includes("suelo")) {
+    return "shield-checkmark-outline";
+  }
+  if (normalizedName.includes("rama")) return "git-branch-outline";
+  if (normalizedName.includes("quiebre") || normalizedName.includes("cargador")) {
+    return "warning-outline";
+  }
+  if (normalizedName.includes("copa")) return "partly-sunny-outline";
+  if (normalizedName.includes("carga")) return "scale-outline";
   if (normalizedName.includes("pala")) return "construct-outline";
   if (normalizedName.includes("motoguadana")) return "hardware-chip-outline";
   if (normalizedName.includes("horqueteo")) return "git-branch-outline";
@@ -481,6 +576,13 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingHorizontal: 18,
     paddingVertical: 16
+  },
+  categorySection: {
+    gap: 12
+  },
+  categoryTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 18
   },
   container: {
     paddingHorizontal: 0,
@@ -612,6 +714,11 @@ const styles = StyleSheet.create({
     color: "#0d1739",
     fontSize: 18,
     lineHeight: 24,
+    textAlign: "center"
+  },
+  optionLegend: {
+    color: theme.colors.textMuted,
+    lineHeight: 18,
     textAlign: "center"
   },
   pressed: {

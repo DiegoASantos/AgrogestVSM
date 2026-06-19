@@ -50,6 +50,7 @@ type OperationalCatalogManagementScreenProps = {
     session: Pick<AuthSession, "accessToken" | "tokenType">,
     id: string
   ) => Promise<unknown>;
+  showStructuredFields?: boolean;
 };
 
 const emptyForm: OperationalCatalogFormState = {
@@ -71,7 +72,8 @@ export function OperationalCatalogManagementScreen({
   loadItems,
   createItem,
   updateItem,
-  deleteItem
+  deleteItem,
+  showStructuredFields = false
 }: OperationalCatalogManagementScreenProps) {
   const { session } = useAuthSession();
   const [items, setItems] = useState<OperationalCatalogItem[]>([]);
@@ -106,7 +108,10 @@ export function OperationalCatalogManagementScreen({
 
       return (
         item.name.toLowerCase().includes(normalizedSearch) ||
-        (item.description ?? "").toLowerCase().includes(normalizedSearch)
+        (item.description ?? "").toLowerCase().includes(normalizedSearch) ||
+        (item.categoryName ?? "").toLowerCase().includes(normalizedSearch) ||
+        (item.optionLabel ?? "").toLowerCase().includes(normalizedSearch) ||
+        (item.legend ?? "").toLowerCase().includes(normalizedSearch)
       );
     });
   }, [items, search]);
@@ -122,6 +127,26 @@ export function OperationalCatalogManagementScreen({
       header: "Descripcion",
       cell: (item) => item.description || "Sin descripcion"
     },
+    ...(showStructuredFields
+      ? [
+          {
+            key: "category",
+            header: "Categoria",
+            cell: (item: OperationalCatalogItem) =>
+              item.categoryName || "Sin categoria"
+          } satisfies DataTableColumn<OperationalCatalogItem>,
+          {
+            key: "option",
+            header: "Opcion",
+            cell: (item: OperationalCatalogItem) =>
+              item.optionLabel
+                ? item.legend
+                  ? `${item.optionLabel} (${item.legend})`
+                  : item.optionLabel
+                : "Sin opcion"
+          } satisfies DataTableColumn<OperationalCatalogItem>
+        ]
+      : []),
     {
       key: "status",
       header: "Estado",

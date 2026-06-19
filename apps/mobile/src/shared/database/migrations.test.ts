@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 24;
+const LATEST_MIGRATION_VERSION = 25;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -591,6 +591,45 @@ describe("runMigrations", () => {
     ]);
     expect(db.executedStatements).toContain(
       "ALTER TABLE visita_observacion_sanitaria_organos_next RENAME TO visita_observacion_sanitaria_organos"
+    );
+  });
+
+  it("cleans obsolete irrigation and labor catalogs before refreshing step 5", () => {
+    const db = createFakeDatabase(24);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("DELETE FROM visitas_campo") &&
+          statement.includes("Riego por inundacion pesado") &&
+          statement.includes("Ruptura de Agoste")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("DELETE FROM tipos_riego") &&
+          statement.includes("Riego por inundación pesado")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("DELETE FROM labores_culturales") &&
+          statement.includes("Ruptura de Agoste")
+      )
+    ).toBe(true);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE labores_culturales ADD COLUMN category_code TEXT"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE labores_culturales ADD COLUMN sort_order INTEGER"
+    );
+    expect(db.executedStatements).toContain(
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
     );
   });
 

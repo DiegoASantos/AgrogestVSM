@@ -479,21 +479,45 @@ function renderNutrition(
 
 function renderCulturalLabors(
   selectedLabors: Array<{ laborCulturalId: string }>,
-  catalog: Array<{ id: string; name: string; description: string | null }>
+  catalog: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    categoryName?: string | null;
+    optionLabel?: string | null;
+    legend?: string | null;
+    sortOrder?: number | null;
+  }>
 ) {
   if (selectedLabors.length === 0) {
     return `<div class="empty">No hay labores culturales registradas.</div>`;
   }
 
-  return `<ul class="list">${selectedLabors
+  const items = selectedLabors
     .map((selectedLabor) => {
       const labor = findById(catalog, selectedLabor.laborCulturalId);
 
-      return `<li>
-        <span class="item-title">${escapeHtml(labor?.name ?? selectedLabor.laborCulturalId)}</span>
-        ${labor?.description ? `<div class="muted">${escapeHtml(labor.description)}</div>` : ""}
-      </li>`;
+      return {
+        category: labor?.categoryName ?? "Labores culturales",
+        option: labor?.optionLabel ?? labor?.name ?? selectedLabor.laborCulturalId,
+        legend: labor?.legend ?? labor?.description ?? null,
+        sortOrder: labor?.sortOrder ?? 9999
+      };
     })
+    .sort(
+      (left, right) =>
+        left.sortOrder - right.sortOrder || left.category.localeCompare(right.category)
+    );
+
+  return `<ul class="list">${items
+    .map(
+      (item) => `<li>
+        <span class="item-title">${escapeHtml(item.category)}</span>
+        <span class="muted">${escapeHtml(
+          item.legend ? `${item.option} (${item.legend})` : item.option
+        )}</span>
+      </li>`
+    )
     .join("")}</ul>`;
 }
 

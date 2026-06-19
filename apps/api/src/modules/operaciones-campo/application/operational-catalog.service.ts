@@ -17,6 +17,12 @@ type OperationalCatalogEntity = {
   id: string;
   name: string;
   description: string | null;
+  categoryCode?: string | null;
+  categoryName?: string | null;
+  optionCode?: string | null;
+  optionLabel?: string | null;
+  legend?: string | null;
+  sortOrder?: number | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +40,12 @@ export class OperationalCatalogService<TEntity extends OperationalCatalogEntity>
     const item = this.repository.create({
       name: createDto.name,
       description: createDto.description ?? null,
+      categoryCode: createDto.categoryCode ?? null,
+      categoryName: createDto.categoryName ?? null,
+      optionCode: createDto.optionCode ?? null,
+      optionLabel: createDto.optionLabel ?? null,
+      legend: createDto.legend ?? null,
+      sortOrder: createDto.sortOrder ?? null,
       isActive: createDto.isActive ?? true
     } as TEntity);
 
@@ -73,6 +85,22 @@ export class OperationalCatalogService<TEntity extends OperationalCatalogEntity>
       ...(updateDto.name !== undefined ? { name: updateDto.name } : {}),
       ...(updateDto.description !== undefined
         ? { description: updateDto.description }
+        : {}),
+      ...(updateDto.categoryCode !== undefined
+        ? { categoryCode: updateDto.categoryCode }
+        : {}),
+      ...(updateDto.categoryName !== undefined
+        ? { categoryName: updateDto.categoryName }
+        : {}),
+      ...(updateDto.optionCode !== undefined
+        ? { optionCode: updateDto.optionCode }
+        : {}),
+      ...(updateDto.optionLabel !== undefined
+        ? { optionLabel: updateDto.optionLabel }
+        : {}),
+      ...(updateDto.legend !== undefined ? { legend: updateDto.legend } : {}),
+      ...(updateDto.sortOrder !== undefined
+        ? { sortOrder: updateDto.sortOrder }
         : {}),
       ...(updateDto.isActive !== undefined ? { isActive: updateDto.isActive } : {})
     } as TEntity);
@@ -143,6 +171,12 @@ export class OperationalCatalogService<TEntity extends OperationalCatalogEntity>
       id: item.id,
       name: item.name,
       description: item.description,
+      categoryCode: item.categoryCode ?? null,
+      categoryName: item.categoryName ?? null,
+      optionCode: item.optionCode ?? null,
+      optionLabel: item.optionLabel ?? null,
+      legend: item.legend ?? null,
+      sortOrder: item.sortOrder ?? null,
       isActive: item.isActive,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt

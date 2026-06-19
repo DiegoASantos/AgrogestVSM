@@ -45,6 +45,30 @@ export type VisitaObservacionSanitaria = {
   observation: string;
 };
 
+export type VisitaRiego = {
+  id: string;
+  visitaId: string;
+  tipoRiegoId: string;
+};
+
+export type LaborCulturalLookupItem = LookupItem & {
+  description: string | null;
+  categoryCode: string | null;
+  categoryName: string | null;
+  optionCode: string | null;
+  optionLabel: string | null;
+  legend: string | null;
+  sortOrder: number | null;
+  isActive: boolean;
+};
+
+export type VisitaLaborCultural = {
+  id: string;
+  visitaId: string;
+  laborCulturalId: string;
+  laborCultural: LaborCulturalLookupItem | null;
+};
+
 export type ProductorFilterOption = {
   id: string;
   label: string;
@@ -171,6 +195,8 @@ export type VisitaDetailData = {
   visita: VisitaCampo;
   evaluaciones: VisitaEvaluacion[];
   observacionesSanitarias: VisitaObservacionSanitaria[];
+  riego: VisitaRiego | null;
+  laboresCulturales: VisitaLaborCultural[];
   lookups: {
     agronomist: LookupItem | null;
     crop: CropLookupItem | null;

@@ -200,6 +200,9 @@ export class VisitasCampoService {
           where: {
             visitaId: id
           },
+          relations: {
+            laborCultural: true
+          },
           order: {
             id: "ASC"
           }
@@ -865,7 +868,21 @@ export class VisitasCampoService {
     return {
       id: labor.id,
       visitaId: labor.visitaId,
-      laborCulturalId: labor.laborCulturalId
+      laborCulturalId: labor.laborCulturalId,
+      laborCultural: labor.laborCultural
+        ? {
+            id: labor.laborCultural.id,
+            name: labor.laborCultural.name,
+            description: labor.laborCultural.description,
+            categoryCode: labor.laborCultural.categoryCode,
+            categoryName: labor.laborCultural.categoryName,
+            optionCode: labor.laborCultural.optionCode,
+            optionLabel: labor.laborCultural.optionLabel,
+            legend: labor.laborCultural.legend,
+            sortOrder: labor.laborCultural.sortOrder,
+            isActive: labor.laborCultural.isActive
+          }
+        : null
     };
   }
 

@@ -11,6 +11,7 @@ import type {
   CampaignLookupItem,
   CropLookupItem,
   IncidenceLevelLookupItem,
+  VisitaLaborCultural,
   ParcelaLookupItem,
   ParcelasVisitadasPorAgronomoResponse,
   ParcelaVisitadaPorAgronomo,
@@ -25,7 +26,8 @@ import type {
   VisitaFilterCatalogs,
   VisitaListFilters,
   VisitaListResponse,
-  VisitaObservacionSanitaria
+  VisitaObservacionSanitaria,
+  VisitaRiego
 } from "../types/visitas.types";
 
 type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
@@ -68,6 +70,8 @@ type FullDetailApiResponse = {
   visita: VisitaCampo;
   evaluaciones: VisitaEvaluacion[];
   observacionesSanitarias: VisitaObservacionSanitaria[];
+  riego: VisitaRiego | null;
+  laboresCulturales: VisitaLaborCultural[];
 };
 
 export const visitasService = {

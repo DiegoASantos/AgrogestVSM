@@ -172,6 +172,12 @@ export type OperationalCatalogItem = {
   id: string;
   name: string;
   description: string | null;
+  categoryCode: string | null;
+  categoryName: string | null;
+  optionCode: string | null;
+  optionLabel: string | null;
+  legend: string | null;
+  sortOrder: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -180,5 +186,11 @@ export type OperationalCatalogItem = {
 export type OperationalCatalogPayload = {
   name: string;
   description?: string | null;
+  categoryCode?: string | null;
+  categoryName?: string | null;
+  optionCode?: string | null;
+  optionLabel?: string | null;
+  legend?: string | null;
+  sortOrder?: number | null;
   isActive?: boolean;
 };

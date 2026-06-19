@@ -13,6 +13,12 @@ type LaborCulturalRow = {
   id: string;
   name: string;
   description: string | null;
+  category_code: string | null;
+  category_name: string | null;
+  option_code: string | null;
+  option_label: string | null;
+  legend: string | null;
+  sort_order: number | null;
   is_active: number;
 };
 
@@ -49,15 +55,30 @@ export const laboresCulturalesVisitaRepository = {
   getLaboresCulturales() {
     const db = getDatabase();
     const rows = db.getAllSync<LaborCulturalRow>(
-      `SELECT id, name, description, is_active
+      `SELECT id,
+              name,
+              description,
+              category_code,
+              category_name,
+              option_code,
+              option_label,
+              legend,
+              sort_order,
+              is_active
        FROM labores_culturales
-       ORDER BY name ASC, id ASC`
+       ORDER BY COALESCE(sort_order, 9999) ASC, name ASC, id ASC`
     );
 
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
       description: row.description,
+      categoryCode: row.category_code,
+      categoryName: row.category_name,
+      optionCode: row.option_code,
+      optionLabel: row.option_label,
+      legend: row.legend,
+      sortOrder: row.sort_order,
       isActive: fromSqliteBoolean(row.is_active)
     })) satisfies LaborCulturalCatalogItem[];
   },

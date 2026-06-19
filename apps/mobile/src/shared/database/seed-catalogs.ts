@@ -233,11 +233,23 @@ export async function downloadAllCatalogs() {
           id,
           name,
           description,
+          category_code,
+          category_name,
+          option_code,
+          option_label,
+          legend,
+          sort_order,
           is_active
-        ) VALUES (?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             laborCultural.id,
             laborCultural.name,
             laborCultural.description,
+            laborCultural.categoryCode ?? null,
+            laborCultural.categoryName ?? null,
+            laborCultural.optionCode ?? null,
+            laborCultural.optionLabel ?? null,
+            laborCultural.legend ?? null,
+            laborCultural.sortOrder ?? null,
             toSqliteBoolean(laborCultural.isActive)
           );
         }

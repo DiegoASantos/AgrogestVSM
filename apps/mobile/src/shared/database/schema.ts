@@ -94,6 +94,12 @@ export const SQL_SCHEMA = [
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
+    category_code TEXT,
+    category_name TEXT,
+    option_code TEXT,
+    option_label TEXT,
+    legend TEXT,
+    sort_order INTEGER,
     is_active INTEGER NOT NULL DEFAULT 1
   )`,
   `CREATE TABLE IF NOT EXISTS productores (

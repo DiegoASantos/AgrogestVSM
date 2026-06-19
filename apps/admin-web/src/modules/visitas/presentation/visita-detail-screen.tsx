@@ -14,7 +14,8 @@ import { visitasService } from "../services/visitas.service";
 import type {
   IncidenceLevelLookupItem,
   PestDiseaseLookupItem,
-  VisitaDetailData
+  VisitaDetailData,
+  VisitaLaborCultural
 } from "../types/visitas.types";
 
 type VisitaDetailScreenProps = {
@@ -64,6 +65,7 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
   if (!detail) {
     return null;
   }
+  const laboresCulturales = detail.laboresCulturales ?? [];
 
   return (
     <section className="panel-grid">
@@ -245,6 +247,26 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
           )}
         </article>
       </div>
+
+      <article className="panel">
+        <p className="eyebrow">Paso 5</p>
+        <h2 className="title title--section">Labores culturales</h2>
+        {laboresCulturales.length === 0 ? (
+          <p className="body-copy">La visita no tiene labores culturales registradas.</p>
+        ) : (
+          <ul className="feature-list">
+            {groupLaboresCulturales(laboresCulturales).map((item) => (
+              <li className="feature-item" key={item.category}>
+                <strong>{item.category}</strong>
+                <span>
+                  {item.option}
+                  {item.legend ? ` (${item.legend})` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </article>
     </section>
   );
 
@@ -296,4 +318,22 @@ function formatTime(value: string | null) {
   }
 
   return value.slice(0, 5);
+}
+
+function groupLaboresCulturales(labores: VisitaLaborCultural[]) {
+  return labores
+    .map((labor) => {
+      const catalog = labor.laborCultural;
+
+      return {
+        category: catalog?.categoryName ?? "Labores culturales",
+        option: catalog?.optionLabel ?? catalog?.name ?? `Labor #${labor.laborCulturalId}`,
+        legend: catalog?.legend ?? catalog?.description ?? null,
+        sortOrder: catalog?.sortOrder ?? 9999
+      };
+    })
+    .sort(
+      (left, right) =>
+        left.sortOrder - right.sortOrder || left.category.localeCompare(right.category)
+    );
 }

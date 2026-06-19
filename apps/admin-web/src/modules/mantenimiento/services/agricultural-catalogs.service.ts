@@ -123,6 +123,12 @@ type OperationalCatalogApiItem = {
   id: string;
   name: string;
   description: string | null;
+  categoryCode?: string | null;
+  categoryName?: string | null;
+  optionCode?: string | null;
+  optionLabel?: string | null;
+  legend?: string | null;
+  sortOrder?: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -807,6 +813,12 @@ function mapOperationalCatalogItem(
     id: item.id,
     name: item.name,
     description: item.description,
+    categoryCode: item.categoryCode ?? null,
+    categoryName: item.categoryName ?? null,
+    optionCode: item.optionCode ?? null,
+    optionLabel: item.optionLabel ?? null,
+    legend: item.legend ?? null,
+    sortOrder: item.sortOrder ?? null,
     isActive: item.isActive,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt

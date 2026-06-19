@@ -418,6 +418,168 @@ const MIGRATIONS: Migration[] = [
         "CREATE INDEX IF NOT EXISTS idx_visita_obs_sanitaria_organos_observacion ON visita_observacion_sanitaria_organos(visita_observacion_sanitaria_local_id)"
       );
     }
+  },
+  {
+    version: 25,
+    run: (db) => {
+      db.execSync(`
+        DELETE FROM sync_outbox
+        WHERE entity_local_id IN (
+          SELECT local_id FROM visitas_campo
+          WHERE local_id IN (
+            SELECT visita_local_id
+            FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id
+              FROM tipos_riego
+              WHERE name COLLATE NOCASE IN (
+                'Riego por inundacion pesado',
+                'Riego por inundación pesado'
+              )
+            )
+            UNION
+            SELECT visita_local_id
+            FROM visita_labores_culturales
+            WHERE labor_cultural_id IN (
+              SELECT id
+              FROM labores_culturales
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_evaluaciones
+          WHERE visita_local_id IN (
+            SELECT visita_local_id FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id FROM tipos_riego
+              WHERE name COLLATE NOCASE IN (
+                'Riego por inundacion pesado',
+                'Riego por inundación pesado'
+              )
+            )
+            UNION
+            SELECT visita_local_id FROM visita_labores_culturales
+            WHERE labor_cultural_id IN (
+              SELECT id FROM labores_culturales
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_observaciones_sanitarias
+          WHERE visita_local_id IN (
+            SELECT visita_local_id FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id FROM tipos_riego
+              WHERE name COLLATE NOCASE IN (
+                'Riego por inundacion pesado',
+                'Riego por inundación pesado'
+              )
+            )
+            UNION
+            SELECT visita_local_id FROM visita_labores_culturales
+            WHERE labor_cultural_id IN (
+              SELECT id FROM labores_culturales
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_paso_observaciones
+          WHERE visita_local_id IN (
+            SELECT visita_local_id FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id FROM tipos_riego
+              WHERE name COLLATE NOCASE IN (
+                'Riego por inundacion pesado',
+                'Riego por inundación pesado'
+              )
+            )
+            UNION
+            SELECT visita_local_id FROM visita_labores_culturales
+            WHERE labor_cultural_id IN (
+              SELECT id FROM labores_culturales
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_riegos
+          WHERE visita_local_id IN (
+            SELECT visita_local_id FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id FROM tipos_riego
+              WHERE name COLLATE NOCASE IN (
+                'Riego por inundacion pesado',
+                'Riego por inundación pesado'
+              )
+            )
+            UNION
+            SELECT visita_local_id FROM visita_labores_culturales
+            WHERE labor_cultural_id IN (
+              SELECT id FROM labores_culturales
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+          UNION
+          SELECT local_id FROM visita_labores_culturales
+          WHERE visita_local_id IN (
+            SELECT visita_local_id FROM visita_riegos
+            WHERE tipo_riego_id IN (
+              SELECT id FROM tipos_riego
+              WHERE name COLLATE NOCASE IN (
+                'Riego por inundacion pesado',
+                'Riego por inundación pesado'
+              )
+            )
+            UNION
+            SELECT visita_local_id FROM visita_labores_culturales
+            WHERE labor_cultural_id IN (
+              SELECT id FROM labores_culturales
+              WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+            )
+          )
+        )
+      `);
+      db.execSync(`
+        DELETE FROM visitas_campo
+        WHERE local_id IN (
+          SELECT visita_local_id
+          FROM visita_riegos
+          WHERE tipo_riego_id IN (
+            SELECT id
+            FROM tipos_riego
+            WHERE name COLLATE NOCASE IN (
+              'Riego por inundacion pesado',
+              'Riego por inundación pesado'
+            )
+          )
+          UNION
+          SELECT visita_local_id
+          FROM visita_labores_culturales
+          WHERE labor_cultural_id IN (
+            SELECT id
+            FROM labores_culturales
+            WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+          )
+        )
+      `);
+      db.execSync(`
+        DELETE FROM tipos_riego
+        WHERE name COLLATE NOCASE IN (
+          'Riego por inundacion pesado',
+          'Riego por inundación pesado'
+        )
+      `);
+      db.execSync(`
+        DELETE FROM labores_culturales
+        WHERE name COLLATE NOCASE = 'Ruptura de Agoste'
+      `);
+      addColumnIfMissing(db, "labores_culturales", "category_code", "TEXT");
+      addColumnIfMissing(db, "labores_culturales", "category_name", "TEXT");
+      addColumnIfMissing(db, "labores_culturales", "option_code", "TEXT");
+      addColumnIfMissing(db, "labores_culturales", "option_label", "TEXT");
+      addColumnIfMissing(db, "labores_culturales", "legend", "TEXT");
+      addColumnIfMissing(db, "labores_culturales", "sort_order", "INTEGER");
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
   }
 ];
 

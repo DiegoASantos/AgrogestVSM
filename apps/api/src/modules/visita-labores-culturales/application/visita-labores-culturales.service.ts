@@ -5,7 +5,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { QueryFailedError, Repository } from "typeorm";
+import { In, QueryFailedError, Repository } from "typeorm";
 
 import { createSuccessResponse } from "../../../common/http/api-response";
 import { LaborCulturalEntity } from "../../operaciones-campo/infrastructure/persistence/entities/labor-cultural.entity";
@@ -26,7 +26,28 @@ export class VisitaLaboresCulturalesService {
 
   async create(visitaId: string, createDto: CreateVisitaLaborCulturalDto) {
     await this.ensureVisitaExists(visitaId);
-    await this.ensureLaborCulturalExists(String(createDto.laborCulturalId));
+    const laborCultural = await this.ensureLaborCulturalExists(
+      String(createDto.laborCulturalId)
+    );
+
+    if (laborCultural.categoryCode) {
+      const sameCategoryLabores = await this.laboresCulturalesRepository.find({
+        select: {
+          id: true
+        },
+        where: {
+          categoryCode: laborCultural.categoryCode
+        }
+      });
+      const sameCategoryIds = sameCategoryLabores.map((item) => item.id);
+
+      if (sameCategoryIds.length > 0) {
+        await this.visitaLaboresRepository.delete({
+          visitaId,
+          laborCulturalId: In(sameCategoryIds)
+        });
+      }
+    }
 
     const labor = this.visitaLaboresRepository.create({
       visitaId,
@@ -35,6 +56,7 @@ export class VisitaLaboresCulturalesService {
 
     try {
       const savedLabor = await this.visitaLaboresRepository.save(labor);
+      savedLabor.laborCultural = laborCultural;
 
       return createSuccessResponse(this.toResponse(savedLabor));
     } catch (error) {
@@ -47,6 +69,9 @@ export class VisitaLaboresCulturalesService {
 
     const labores = await this.visitaLaboresRepository.find({
       where: { visitaId },
+      relations: {
+        laborCultural: true
+      },
       order: { id: "ASC" }
     });
 
@@ -102,6 +127,8 @@ export class VisitaLaboresCulturalesService {
     if (!labor) {
       throw new BadRequestException("Labor cultural not found.");
     }
+
+    return labor;
   }
 
   private handlePersistenceError(error: unknown): never {
@@ -134,7 +161,21 @@ export class VisitaLaboresCulturalesService {
     return {
       id: labor.id,
       visitaId: labor.visitaId,
-      laborCulturalId: labor.laborCulturalId
+      laborCulturalId: labor.laborCulturalId,
+      laborCultural: labor.laborCultural
+        ? {
+            id: labor.laborCultural.id,
+            name: labor.laborCultural.name,
+            description: labor.laborCultural.description,
+            categoryCode: labor.laborCultural.categoryCode,
+            categoryName: labor.laborCultural.categoryName,
+            optionCode: labor.laborCultural.optionCode,
+            optionLabel: labor.laborCultural.optionLabel,
+            legend: labor.laborCultural.legend,
+            sortOrder: labor.laborCultural.sortOrder,
+            isActive: labor.laborCultural.isActive
+          }
+        : null
     };
   }
 }

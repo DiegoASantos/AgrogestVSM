@@ -16,6 +16,7 @@ export function LaboresCulturalesManagementScreen() {
       loadItems={agriculturalCatalogsService.getLaboresCulturales}
       modalTitleEdit="Editar labor cultural"
       modalTitleNew="Nueva labor cultural"
+      showStructuredFields
       title="Labores culturales"
       updateItem={agriculturalCatalogsService.updateLaborCultural}
     />
