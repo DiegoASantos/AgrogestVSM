@@ -18,7 +18,12 @@ export class HealthService {
       status: "ok",
       service: this.appConfig.appName,
       environment: this.appConfig.nodeEnv,
-      uptimeSeconds: Number(process.uptime().toFixed(0))
+      uptimeSeconds: Number(process.uptime().toFixed(0)),
+      deployment: {
+        commit: process.env.RENDER_GIT_COMMIT ?? null,
+        branch: process.env.RENDER_GIT_BRANCH ?? null,
+        serviceId: process.env.RENDER_SERVICE_ID ?? null
+      }
     });
   }
 

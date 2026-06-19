@@ -49,6 +49,26 @@ export class HealthController {
             uptimeSeconds: {
               type: "number",
               example: 42
+            },
+            deployment: {
+              type: "object",
+              properties: {
+                commit: {
+                  type: "string",
+                  nullable: true,
+                  example: "9deda38"
+                },
+                branch: {
+                  type: "string",
+                  nullable: true,
+                  example: "master"
+                },
+                serviceId: {
+                  type: "string",
+                  nullable: true,
+                  example: "srv_xxxxx"
+                }
+              }
             }
           }
         }

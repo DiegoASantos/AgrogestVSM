@@ -857,6 +857,18 @@ const MIGRATIONS: Migration[] = [
           AND sync_error_message = 'Selected level is not available for the pest disease and visit phenological stage.'
       `);
     }
+  },
+  {
+    version: 32,
+    run(db: SQLiteDatabase) {
+      db.execSync(`
+        UPDATE visita_observaciones_sanitarias
+        SET sync_status = 'pending',
+            sync_error_message = NULL
+        WHERE sync_status = 'error'
+          AND sync_error_message = 'Selected level is not available for the pest disease and visit phenological stage.'
+      `);
+    }
   }
 ];
 
