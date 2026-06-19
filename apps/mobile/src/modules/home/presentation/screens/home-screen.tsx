@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +18,13 @@ import { AppText } from "../../../../shared/components";
 import { useIsOnline } from "../../../../shared/connectivity/use-is-online";
 import { useCatalogDownloadStatus } from "../../../../shared/database/catalog-download-state";
 import { forceRefreshAllCatalogs } from "../../../../shared/database/seed-catalogs";
-import { getLastSyncTime, getSyncCounts, requestSync } from "../../../../shared/sync";
+import {
+  getLastSyncTime,
+  getSyncCounts,
+  getSyncErrorDetails,
+  requestSync,
+  type SyncErrorDetail
+} from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import type { RecentVisitaCampo } from "../../../visitas-campo/types";
@@ -39,6 +46,8 @@ export function HomeScreen() {
   const { isOnline } = useIsOnline();
   const { isAuthenticated, session, signOut } = useAuthSession();
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
+  const [syncErrors, setSyncErrors] = useState<SyncErrorDetail[]>([]);
+  const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [isRefreshingCatalogs, setIsRefreshingCatalogs] = useState(false);
@@ -48,6 +57,7 @@ export function HomeScreen() {
 
   const loadDashboard = useCallback(() => {
     setSyncCounts(getSyncCounts());
+    setSyncErrors(getSyncErrorDetails());
     setLastSyncTime(getLastSyncTime());
 
     if (!session.accessToken) {
@@ -205,8 +215,13 @@ export function HomeScreen() {
               <SyncMetric
                 icon="warning-outline"
                 label="Errores"
+                onPress={
+                  syncCounts.errorCount > 0
+                    ? () => setIsErrorModalVisible(true)
+                    : undefined
+                }
                 value={syncCounts.errorCount}
-                variant="warning"
+                variant="error"
               />
               <SyncMetric
                 icon="checkmark-circle-outline"
@@ -317,6 +332,12 @@ export function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <SyncErrorsModal
+        errors={syncErrors}
+        onClose={() => setIsErrorModalVisible(false)}
+        visible={isErrorModalVisible}
+      />
     </SafeAreaView>
   );
 }
@@ -355,16 +376,18 @@ function InfoCard({
 function SyncMetric({
   icon,
   label,
+  onPress,
   value,
   variant
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  onPress?: () => void;
   value: number | string;
   variant: StatusVariant;
 }) {
-  return (
-    <View style={styles.syncMetric}>
+  const content = (
+    <>
       <View style={[styles.metricIcon, statusBackgroundStyles[variant]]}>
         <Ionicons color={statusColorStyles[variant]} name={icon} size={27} />
       </View>
@@ -376,6 +399,123 @@ function SyncMetric({
           {label}
         </AppText>
       </View>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <Pressable
+        accessibilityHint="Muestra el detalle de errores de sincronizacion"
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.syncMetric,
+          styles.syncMetricPressable,
+          pressed && styles.pressed
+        ]}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.syncMetric}>{content}</View>;
+}
+
+function SyncErrorsModal({
+  errors,
+  onClose,
+  visible
+}: {
+  errors: SyncErrorDetail[];
+  onClose: () => void;
+  visible: boolean;
+}) {
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
+      <View style={styles.errorModalOverlay}>
+        <View style={styles.errorModalCard}>
+          <View style={styles.errorModalHeader}>
+            <View style={styles.errorModalTitleRow}>
+              <View style={styles.errorModalIcon}>
+                <Ionicons color="#bc3f36" name="warning-outline" size={24} />
+              </View>
+              <View style={styles.errorModalTitleCopy}>
+                <AppText style={styles.errorModalTitle} variant="heading">
+                  Errores de sincronizacion
+                </AppText>
+                <AppText style={styles.errorModalSubtitle} variant="caption">
+                  {errors.length} registro{errors.length === 1 ? "" : "s"} requieren
+                  revision.
+                </AppText>
+              </View>
+            </View>
+            <Pressable
+              accessibilityLabel="Cerrar detalle de errores"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={({ pressed }) => [
+                styles.errorModalCloseButton,
+                pressed && styles.pressed
+              ]}
+            >
+              <Ionicons color="#4d5a54" name="close" size={22} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.errorModalList}
+            showsVerticalScrollIndicator={false}
+          >
+            {errors.length > 0 ? (
+              errors.map((error, index) => (
+                <View
+                  key={`${error.entityType}-${error.localId}`}
+                  style={styles.errorItem}
+                >
+                  <View style={styles.errorItemHeader}>
+                    <AppText style={styles.errorItemNumber} variant="eyebrow">
+                      #{index + 1}
+                    </AppText>
+                    <AppText style={styles.errorItemEntity} variant="label">
+                      {error.entityLabel}
+                    </AppText>
+                  </View>
+                  <ErrorField label="ID local" value={error.localId} />
+                  <ErrorField
+                    label="Ultima actualizacion"
+                    value={formatErrorDateTime(error.updatedAt)}
+                  />
+                  <ErrorField label="Causa" value={error.message} />
+                </View>
+              ))
+            ) : (
+              <View style={styles.errorEmptyState}>
+                <Ionicons color="#4d9f13" name="checkmark-circle-outline" size={30} />
+                <AppText style={styles.errorEmptyTitle} variant="label">
+                  No hay errores registrados
+                </AppText>
+                <AppText style={styles.errorEmptyText} variant="caption">
+                  El contador puede actualizarse al volver a sincronizar.
+                </AppText>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function ErrorField({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.errorField}>
+      <AppText style={styles.errorFieldLabel} variant="caption">
+        {label}
+      </AppText>
+      <AppText style={styles.errorFieldValue} variant="body">
+        {value}
+      </AppText>
     </View>
   );
 }
@@ -534,6 +674,26 @@ function formatLastSyncTime(lastSyncTime: string | null) {
     hour: "numeric",
     minute: "2-digit",
     month: "short"
+  });
+}
+
+function formatErrorDateTime(value: string | null) {
+  if (!value) {
+    return "No registrada";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("es-PE", {
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric"
   });
 }
 
@@ -780,6 +940,10 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: "#e1e6e2"
   },
+  syncMetricPressable: {
+    minHeight: 58,
+    borderRadius: 12
+  },
   metricIcon: {
     width: 47,
     height: 47,
@@ -941,6 +1105,116 @@ const styles = StyleSheet.create({
   },
   catalogBannerTextError: {
     color: "#bc3f36"
+  },
+  errorModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(8, 24, 18, 0.52)"
+  },
+  errorModalCard: {
+    width: "100%",
+    maxWidth: 680,
+    maxHeight: "82%",
+    alignSelf: "center",
+    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    overflow: "hidden"
+  },
+  errorModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e6ebe6"
+  },
+  errorModalTitleRow: {
+    minWidth: 0,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11
+  },
+  errorModalIcon: {
+    width: 43,
+    height: 43,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: "#fceae7"
+  },
+  errorModalTitleCopy: {
+    minWidth: 0,
+    flex: 1
+  },
+  errorModalTitle: {
+    color: "#102e23",
+    fontSize: 18
+  },
+  errorModalSubtitle: {
+    marginTop: 2,
+    color: "#68726e"
+  },
+  errorModalCloseButton: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 21,
+    backgroundColor: "#f3f6f2"
+  },
+  errorModalList: {
+    gap: 12,
+    padding: 14
+  },
+  errorItem: {
+    gap: 9,
+    padding: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#f0c8c2",
+    backgroundColor: "#fff8f7"
+  },
+  errorItemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  errorItemNumber: {
+    color: "#bc3f36"
+  },
+  errorItemEntity: {
+    flex: 1,
+    color: "#102e23"
+  },
+  errorField: {
+    gap: 3
+  },
+  errorFieldLabel: {
+    color: "#7f625e",
+    fontWeight: "700",
+    textTransform: "uppercase"
+  },
+  errorFieldValue: {
+    color: "#27342f",
+    fontSize: 13,
+    lineHeight: 19
+  },
+  errorEmptyState: {
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 24,
+    paddingHorizontal: 12
+  },
+  errorEmptyTitle: {
+    color: "#102e23"
+  },
+  errorEmptyText: {
+    textAlign: "center",
+    color: "#68726e"
   },
   pressed: {
     opacity: 0.8

@@ -5,6 +5,10 @@ export function getSyncCounts() {
   };
 }
 
+export function getSyncErrorDetails() {
+  return [];
+}
+
 export function getLastSyncTime() {
   return null;
 }

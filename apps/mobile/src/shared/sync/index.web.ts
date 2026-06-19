@@ -1,5 +1,5 @@
 export { useSync } from "./use-sync.web";
-export { getSyncCounts, getLastSyncTime } from "./sync-status.web";
+export { getSyncCounts, getSyncErrorDetails, getLastSyncTime } from "./sync-status.web";
 
 export async function processOutbox() {
   return {
