@@ -102,13 +102,7 @@ export const VISITA_RECETAS_MIGRATION: DatabaseMigration = {
       creado_at timestamptz NOT NULL DEFAULT now(),
       actualizado_at timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT visita_receta_fitosanidad_receta_id_fkey
-        FOREIGN KEY (receta_id) REFERENCES visita_recetas(id) ON DELETE CASCADE,
-      CONSTRAINT visita_receta_fitosanidad_tipo_control_id_fkey
-        FOREIGN KEY (tipo_control_id) REFERENCES tipos_control(id) ON DELETE SET NULL,
-      CONSTRAINT visita_receta_fitosanidad_tipo_producto_id_fkey
-        FOREIGN KEY (tipo_producto_id) REFERENCES tipos_producto_fitosanitario(id) ON DELETE SET NULL,
-      CONSTRAINT visita_receta_fitosanidad_modo_accion_id_fkey
-        FOREIGN KEY (modo_accion_id) REFERENCES modos_accion(id) ON DELETE SET NULL
+        FOREIGN KEY (receta_id) REFERENCES visita_recetas(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS visita_receta_fertilizacion (

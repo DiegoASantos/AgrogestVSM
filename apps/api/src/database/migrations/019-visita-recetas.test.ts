@@ -68,7 +68,9 @@ describe("019-visita-recetas migration", () => {
   });
 
   it("enforces visita_receta_riego uniqueness per receta", () => {
-    expect(sql).toContain("CONSTRAINT visita_receta_riego_receta_id_key UNIQUE (receta_id)");
+    expect(sql).toContain(
+      "CONSTRAINT visita_receta_riego_receta_id_key UNIQUE (receta_id)"
+    );
   });
 
   it("enforces visita_receta_labores uniqueness per receta+labors", () => {
@@ -78,10 +80,14 @@ describe("019-visita-recetas migration", () => {
   });
 
   it("cascades deletes from visita_recetas to fitosanidad", () => {
-    expect(sql).toContain(
-      "CONSTRAINT visita_receta_fitosanidad_receta_id_fkey"
-    );
+    expect(sql).toContain("CONSTRAINT visita_receta_fitosanidad_receta_id_fkey");
     expect(sql).toContain("ON DELETE CASCADE");
+  });
+
+  it("does not enforce optional fitosanidad catalog references", () => {
+    expect(sql).not.toContain("visita_receta_fitosanidad_tipo_control_id_fkey");
+    expect(sql).not.toContain("visita_receta_fitosanidad_tipo_producto_id_fkey");
+    expect(sql).not.toContain("visita_receta_fitosanidad_modo_accion_id_fkey");
   });
 
   it("has valid migration metadata", () => {
