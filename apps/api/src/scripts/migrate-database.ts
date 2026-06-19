@@ -100,6 +100,10 @@ async function run() {
     await assertColumnExists(client, "detalle_nutrientes", "nutriente_id");
     await assertColumnExists(client, "detalle_nutrientes", "nombre");
     await assertColumnExists(client, "detalle_nutrientes", "descripcion");
+    await assertColumnExists(client, "visita_riegos", "fuente_agua");
+    await assertColumnExists(client, "visita_riegos", "tipo_suelo");
+    await assertColumnExists(client, "visita_riegos", "humedad_suelo");
+    await assertColumnExists(client, "visita_riegos", "estres_hidrico");
     console.log("Database migrations validated successfully.");
   } finally {
     await client.query("SELECT pg_advisory_unlock(842017052026)");

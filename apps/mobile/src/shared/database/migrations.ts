@@ -826,6 +826,25 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, "visita_receta_riego", "sync_error_message", "TEXT");
       addColumnIfMissing(db, "visita_receta_labores", "sync_error_message", "TEXT");
     }
+  },
+  {
+    version: 30,
+    run(db: SQLiteDatabase) {
+      db.execSync(`
+        UPDATE visita_observaciones_sanitarias
+        SET sync_status = 'pending',
+            sync_error_message = NULL
+        WHERE sync_status = 'error'
+          AND sync_error_message = 'Selected level is not available for the pest disease and visit phenological stage.'
+      `);
+      db.execSync(`
+        UPDATE visita_riegos
+        SET sync_status = 'pending',
+            sync_error_message = NULL
+        WHERE sync_status = 'error'
+          AND sync_error_message LIKE '%Internal server error%'
+      `);
+    }
   }
 ];
 

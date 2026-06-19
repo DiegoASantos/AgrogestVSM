@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 29;
+const LATEST_MIGRATION_VERSION = 30;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -834,5 +834,31 @@ describe("runMigrations", () => {
       expect.objectContaining({ organo: "fruto_verde" }),
       expect.objectContaining({ organo: "hoja_tierna" })
     ]);
+  });
+
+  it("requeues sync errors fixed by API and mobile validation changes", () => {
+    const db = createFakeDatabase(29);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("UPDATE visita_observaciones_sanitarias") &&
+          statement.includes(
+            "Selected level is not available for the pest disease and visit phenological stage."
+          ) &&
+          statement.includes("sync_status = 'pending'")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("UPDATE visita_riegos") &&
+          statement.includes("Internal server error") &&
+          statement.includes("sync_status = 'pending'")
+      )
+    ).toBe(true);
   });
 });

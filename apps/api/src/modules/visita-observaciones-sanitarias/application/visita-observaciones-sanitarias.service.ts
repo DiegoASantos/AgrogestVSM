@@ -40,10 +40,7 @@ export class VisitaObservacionesSanitariasService {
     await this.ensurePlagaEnfermedadExists(createDto.pestDiseaseId);
     await this.ensureNivelIncidenciaExists(createDto.incidenceLevelId, "incidencia");
     await this.ensureNivelIncidenciaExists(createDto.severityLevelId, "severidad");
-    await this.ensurePestDiseaseMatchesVisitStage(visita, createDto.pestDiseaseId, [
-      createDto.incidenceLevelId,
-      createDto.severityLevelId
-    ]);
+    await this.ensurePestDiseaseMatchesVisitStage(visita, createDto.pestDiseaseId);
     await this.ensureUniquePestDisease(visitaId, createDto.pestDiseaseId);
 
     const observacion = this.observacionesRepository.create({
@@ -120,10 +117,7 @@ export class VisitaObservacionesSanitariasService {
     }
 
     const visita = await this.ensureVisitaExists(observacion.visitaId);
-    await this.ensurePestDiseaseMatchesVisitStage(visita, nextPestDiseaseId, [
-      nextIncidenceLevelId,
-      nextSeverityLevelId
-    ]);
+    await this.ensurePestDiseaseMatchesVisitStage(visita, nextPestDiseaseId);
 
     await this.ensureUniquePestDisease(
       observacion.visitaId,
@@ -241,50 +235,24 @@ export class VisitaObservacionesSanitariasService {
 
   private async ensurePestDiseaseMatchesVisitStage(
     visita: VisitaCampoEntity,
-    plagaEnfermedadId: string,
-    levelIds: Array<number | null | undefined>
+    plagaEnfermedadId: string
   ) {
     if (!visita.etapaFenologicaId) {
       throw new BadRequestException("Visita has no phenological stage.");
     }
 
-    const selectedLevelIds = levelIds.filter(
-      (levelId): levelId is number => levelId !== null && levelId !== undefined
-    );
-
-    if (selectedLevelIds.length === 0) {
-      const relation = await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
-        where: {
-          plagaEnfermedadId,
-          etapaFenologicaId: visita.etapaFenologicaId,
-          isActive: true
-        }
-      });
-
-      if (!relation) {
-        throw new BadRequestException(
-          "Pest disease is not available for the visit phenological stage."
-        );
+    const relation = await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
+      where: {
+        plagaEnfermedadId,
+        etapaFenologicaId: visita.etapaFenologicaId,
+        isActive: true
       }
+    });
 
-      return;
-    }
-
-    for (const levelId of selectedLevelIds) {
-      const relation = await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
-        where: {
-          plagaEnfermedadId,
-          etapaFenologicaId: visita.etapaFenologicaId,
-          nivelIncidenciaSeveridadId: levelId,
-          isActive: true
-        }
-      });
-
-      if (!relation) {
-        throw new BadRequestException(
-          "Selected level is not available for the pest disease and visit phenological stage."
-        );
-      }
+    if (!relation) {
+      throw new BadRequestException(
+        "Pest disease is not available for the visit phenological stage."
+      );
     }
   }
 
