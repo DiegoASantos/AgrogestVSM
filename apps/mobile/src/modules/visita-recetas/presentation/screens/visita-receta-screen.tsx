@@ -78,6 +78,7 @@ export function VisitaRecetaScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [consolidacion, setConsolidacion] = useState<ConsolidacionHallazgo | null>(null);
+  const [recetaData, setRecetaData] = useState<VisitaRecetaCompleta | null>(null);
 
   const [coadyuvantes, setCoadyuvantes] = useState<CoadyuvanteCatalogItem[]>([]);
   const [modosAccion, setModosAccion] = useState<ModoAccionCatalogItem[]>([]);
@@ -136,6 +137,7 @@ export function VisitaRecetaScreen() {
       setConsolidacion(resolvedConsData);
 
       if (recetaData) {
+        setRecetaData(recetaData);
         restoreFromReceta(recetaData);
       } else if (resolvedConsData) {
         initFitosanidadFromConsolidacion(resolvedConsData);
@@ -359,7 +361,12 @@ export function VisitaRecetaScreen() {
         console.warn("No se pudo sincronizar la receta despues de guardarla.", syncError);
       }
 
-      router.replace("/visitas-campo/historial");
+      const updated = visitaRecetasService.getByVisitaId(visitaId);
+      setRecetaData(updated);
+
+      if (updated?.syncStatus !== "error") {
+        router.replace("/visitas-campo/historial");
+      }
     } catch (err) {
       setSubmitError(toApiError(err).message || "No se pudo guardar la receta.");
     } finally {
@@ -525,6 +532,14 @@ export function VisitaRecetaScreen() {
             <View style={styles.errorBanner}>
               <AppText style={styles.submitErrorText} variant="label">
                 {submitError}
+              </AppText>
+            </View>
+          ) : null}
+
+          {recetaData?.syncStatus === "error" && recetaData.syncErrorMessage ? (
+            <View style={styles.errorBanner}>
+              <AppText style={styles.submitErrorText} variant="label">
+                Error de sincronizacion: {recetaData.syncErrorMessage}
               </AppText>
             </View>
           ) : null}

@@ -118,6 +118,7 @@ export type VisitaReceta = {
   etapaFenologica: string | null;
   version: number;
   syncStatus: "pending" | "synced" | "error";
+  syncErrorMessage: string | null;
   createdAt: string;
   updatedAt: string;
 };

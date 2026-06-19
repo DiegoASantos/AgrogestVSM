@@ -425,6 +425,7 @@ function seedOfflineCompleteVisit() {
     etapaFenologica: "Floracion",
     version: 1,
     syncStatus: "pending",
+    syncErrorMessage: null,
     createdAt: now,
     updatedAt: now,
     fitosanidad: [

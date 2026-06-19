@@ -740,6 +740,7 @@ const MIGRATIONS: Migration[] = [
         etapa_fenologica TEXT,
         version INTEGER NOT NULL DEFAULT 1,
         sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+        sync_error_message TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
@@ -815,6 +816,16 @@ const MIGRATIONS: Migration[] = [
       "CREATE INDEX IF NOT EXISTS idx_visita_receta_labores_receta ON visita_receta_labores(receta_local_id)",
       "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
     ]
+  },
+  {
+    version: 29,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "visita_recetas", "sync_error_message", "TEXT");
+      addColumnIfMissing(db, "visita_receta_fitosanidad", "sync_error_message", "TEXT");
+      addColumnIfMissing(db, "visita_receta_fertilizacion", "sync_error_message", "TEXT");
+      addColumnIfMissing(db, "visita_receta_riego", "sync_error_message", "TEXT");
+      addColumnIfMissing(db, "visita_receta_labores", "sync_error_message", "TEXT");
+    }
   }
 ];
 

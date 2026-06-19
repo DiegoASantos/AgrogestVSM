@@ -26,6 +26,7 @@ type VisitaRecetaRow = {
   etapa_fenologica: string | null;
   version: number;
   sync_status: SyncStatus;
+  sync_error_message: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -177,7 +178,7 @@ export const visitaRecetasRepository = {
   getRecetaByVisitaLocalId(visitaLocalId: string): VisitaRecetaCompleta | null {
     const db = getDatabase();
     const recetaRow = db.getFirstSync<VisitaRecetaRow>(
-      `SELECT local_id, server_id, visita_local_id, etapa_fenologica, version, sync_status, created_at, updated_at
+      `SELECT local_id, server_id, visita_local_id, etapa_fenologica, version, sync_status, sync_error_message, created_at, updated_at
        FROM visita_recetas WHERE visita_local_id = ? LIMIT 1`,
       visitaLocalId
     );
@@ -187,7 +188,7 @@ export const visitaRecetasRepository = {
   getRecetaByLocalId(recetaLocalId: string): VisitaRecetaCompleta | null {
     const db = getDatabase();
     const recetaRow = db.getFirstSync<VisitaRecetaRow>(
-      `SELECT local_id, server_id, visita_local_id, etapa_fenologica, version, sync_status, created_at, updated_at
+      `SELECT local_id, server_id, visita_local_id, etapa_fenologica, version, sync_status, sync_error_message, created_at, updated_at
        FROM visita_recetas WHERE local_id = ? LIMIT 1`,
       recetaLocalId
     );
@@ -200,7 +201,7 @@ export const visitaRecetasRepository = {
 
     db.runSync(
       `UPDATE visita_recetas
-       SET server_id = ?, sync_status = 'synced', updated_at = ?
+       SET server_id = ?, sync_status = 'synced', sync_error_message = NULL, updated_at = ?
        WHERE local_id = ?`,
       serverId,
       timestamp,
@@ -470,6 +471,7 @@ function readRecetaFromRow(
     etapaFenologica: recetaRow.etapa_fenologica,
     version: recetaRow.version,
     syncStatus: recetaRow.sync_status,
+    syncErrorMessage: recetaRow.sync_error_message,
     createdAt: recetaRow.created_at,
     updatedAt: recetaRow.updated_at,
     fitosanidad: fitosanidadRows.map(mapFitosanidadRow),
