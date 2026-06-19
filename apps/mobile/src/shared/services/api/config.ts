@@ -1,15 +1,33 @@
 import Constants from "expo-constants";
 
-const DEFAULT_API_BASE_URL = "http://127.0.0.1:3001";
+const LOCAL_API_BASE_URL = "http://127.0.0.1:3001";
+const PRODUCTION_API_BASE_URL = "https://agrogest-vsm-api.onrender.com";
 const DEFAULT_API_PORT = "3001";
 
 declare const process: { env: Record<string, string | undefined> };
+declare const __DEV__: boolean;
 
 export function getApiBaseUrl() {
-  const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+  const envApiUrl = process.env.EXPO_PUBLIC_API_URL ?? getConfiguredApiUrl();
   const inferredApiUrl = getInferredDevelopmentApiUrl();
 
-  return (envApiUrl ?? inferredApiUrl ?? DEFAULT_API_BASE_URL).replace(/\/+$/, "");
+  return (envApiUrl ?? inferredApiUrl ?? getDefaultApiBaseUrl()).replace(/\/+$/, "");
+}
+
+function getConfiguredApiUrl() {
+  const extra = Constants.expoConfig?.extra;
+
+  if (!extra || typeof extra !== "object") {
+    return null;
+  }
+
+  const apiUrl = (extra as { apiUrl?: unknown }).apiUrl;
+
+  return typeof apiUrl === "string" && apiUrl.trim() ? apiUrl : null;
+}
+
+function getDefaultApiBaseUrl() {
+  return __DEV__ ? LOCAL_API_BASE_URL : PRODUCTION_API_BASE_URL;
 }
 
 function getInferredDevelopmentApiUrl() {
