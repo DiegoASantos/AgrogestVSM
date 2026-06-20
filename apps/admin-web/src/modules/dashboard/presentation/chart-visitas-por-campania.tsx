@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -11,22 +12,23 @@ import {
 } from "recharts";
 import type { VisitasPorCampania } from "../types/dashboard.types";
 
-export function ChartVisitasPorCampania({
-  data
-}: {
-  data: VisitasPorCampania[];
-}) {
+const BAR_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-5)"
+];
+
+export function ChartVisitasPorCampania({ data }: { data: VisitasPorCampania[] }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">
-        Visitas por campaña
-      </h3>
+      <h3 className="text-sm font-semibold text-foreground">Visitas por campaña</h3>
       <ResponsiveContainer height={200} width="100%">
         <BarChart data={data} layout="vertical" margin={{ left: 16 }}>
           <CartesianGrid
             horizontal={false}
+            stroke="var(--border)"
             strokeDasharray="3 3"
-            className="stroke-border"
           />
           <XAxis
             axisLine={false}
@@ -50,12 +52,11 @@ export function ChartVisitasPorCampania({
             }}
             labelStyle={{ color: "var(--foreground)" }}
           />
-          <Bar
-            dataKey="count"
-            fill="var(--primary)"
-            name="Visitas"
-            radius={[0, 4, 4, 0]}
-          />
+          <Bar dataKey="count" name="Visitas" radius={[0, 4, 4, 0]}>
+            {data.map((item, index) => (
+              <Cell fill={BAR_COLORS[index % BAR_COLORS.length]} key={item.campania} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

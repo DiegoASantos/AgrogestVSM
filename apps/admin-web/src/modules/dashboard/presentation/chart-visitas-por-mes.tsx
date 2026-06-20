@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   CartesianGrid,
   Line,
@@ -22,8 +22,18 @@ import type { VisitasPorMes } from "../types/dashboard.types";
 
 function mesLabel(key: string): string {
   const months = [
-    "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-    "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+    "Ene",
+    "Feb",
+    "Mar",
+    "Abr",
+    "May",
+    "Jun",
+    "Jul",
+    "Ago",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dic"
   ];
   const month = Number(key.split("-")[1]) - 1;
   return months[month] ?? key;
@@ -48,13 +58,8 @@ export function ChartVisitasPorMes({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">
-          Visitas por mes
-        </h3>
-        <Select
-          value={String(year)}
-          onValueChange={(v) => onYearChange(Number(v))}
-        >
+        <h3 className="text-sm font-semibold text-foreground">Visitas por mes</h3>
+        <Select value={String(year)} onValueChange={(v) => onYearChange(Number(v))}>
           <SelectTrigger className="h-8 w-[110px] text-xs">
             <SelectValue />
           </SelectTrigger>
@@ -69,7 +74,7 @@ export function ChartVisitasPorMes({
       </div>
       <ResponsiveContainer height={200} width="100%">
         <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
           <XAxis
             axisLine={false}
             className="text-xs text-muted-foreground"
@@ -92,11 +97,11 @@ export function ChartVisitasPorMes({
             labelStyle={{ color: "var(--foreground)" }}
           />
           <Line
-            activeDot={{ r: 4 }}
+            activeDot={{ fill: "var(--chart-3)", r: 5, stroke: "var(--chart-1)" }}
             dataKey="count"
-            dot={{ r: 2 }}
-            stroke="var(--primary)"
-            strokeWidth={2}
+            dot={{ fill: "var(--chart-2)", r: 3, stroke: "var(--background)" }}
+            stroke="var(--chart-1)"
+            strokeWidth={3}
             type="monotone"
           />
         </LineChart>

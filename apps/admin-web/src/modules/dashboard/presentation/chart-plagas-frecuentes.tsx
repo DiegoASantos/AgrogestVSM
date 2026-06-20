@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -11,22 +12,23 @@ import {
 } from "recharts";
 import type { PlagaFrecuente } from "../types/dashboard.types";
 
-export function ChartPlagasFrecuentes({
-  data
-}: {
-  data: PlagaFrecuente[];
-}) {
+const BAR_COLORS = [
+  "var(--chart-4)",
+  "var(--chart-3)",
+  "var(--chart-2)",
+  "var(--chart-5)"
+];
+
+export function ChartPlagasFrecuentes({ data }: { data: PlagaFrecuente[] }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">
-        Plagas mas frecuentes
-      </h3>
+      <h3 className="text-sm font-semibold text-foreground">Plagas mas frecuentes</h3>
       <ResponsiveContainer height={200} width="100%">
         <BarChart data={data} layout="vertical" margin={{ left: 8 }}>
           <CartesianGrid
             horizontal={false}
+            stroke="var(--border)"
             strokeDasharray="3 3"
-            className="stroke-border"
           />
           <XAxis
             axisLine={false}
@@ -50,12 +52,11 @@ export function ChartPlagasFrecuentes({
             }}
             labelStyle={{ color: "var(--foreground)" }}
           />
-          <Bar
-            dataKey="count"
-            fill="var(--chart-2)"
-            name="Incidencias"
-            radius={[0, 4, 4, 0]}
-          />
+          <Bar dataKey="count" name="Incidencias" radius={[0, 4, 4, 0]}>
+            {data.map((item, index) => (
+              <Cell fill={BAR_COLORS[index % BAR_COLORS.length]} key={item.plaga} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

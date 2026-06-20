@@ -1,16 +1,13 @@
 "use client";
 
-import { LayoutDashboard, Map, Settings, ShieldCheck, ClipboardList } from "lucide-react";
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { LayoutDashboard } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
-import { isAdminSession } from "../../auth/utils/authorization";
 import { dashboardService } from "../services/dashboard.service";
 import type { DashboardResumen } from "../types/dashboard.types";
 import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
-import { adminRoutes } from "../../../shared/constants/site";
 import { toApiError } from "../../../shared/services";
 
 import { KpiGrid } from "./kpi-grid";
@@ -20,25 +17,16 @@ import { ChartPlagasFrecuentes } from "./chart-plagas-frecuentes";
 import { ChartDeficienciasNutrientes } from "./chart-deficiencias-nutrientes";
 import { ActividadReciente } from "./actividad-reciente";
 
-const currentYear = new Date().getFullYear();
+const DASHBOARD_YEAR = 2026;
 const chartCardClassName =
-  "rounded-lg border border-border/70 bg-card/95 p-4 shadow-sm ring-1 ring-foreground/[0.03] transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5";
+  "rounded-lg border border-border/70 bg-card/95 p-4 shadow-sm ring-1 ring-foreground/[0.03] transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-border/80 dark:bg-card dark:ring-white/[0.04] sm:p-5";
 
 export function DashboardOverview() {
   const { session } = useAuthSession();
-  const isAdmin = isAdminSession(session);
   const [data, setData] = useState<DashboardResumen | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [year, setYear] = useState(currentYear);
-
-  const availableYears = useMemo(() => {
-    const years: number[] = [];
-    for (let y = currentYear; y >= currentYear - 3; y--) {
-      years.push(y);
-    }
-    return years;
-  }, []);
+  const [year, setYear] = useState(DASHBOARD_YEAR);
 
   const loadData = useCallback(
     async (y: number) => {
@@ -62,24 +50,6 @@ export function DashboardOverview() {
   useEffect(() => {
     void loadData(year);
   }, [loadData, year]);
-
-  const quickActions = useMemo(() => {
-    const allActions = [
-      { href: adminRoutes.visitas, label: "Gestionar visitas", icon: ClipboardList },
-      { href: adminRoutes.mapas, label: "Abrir mapas", icon: Map },
-      ...(isAdmin
-        ? [
-            {
-              href: adminRoutes.mantenimiento,
-              label: "Abrir mantenimiento",
-              icon: Settings
-            },
-            { href: adminRoutes.seguridad, label: "Abrir seguridad", icon: ShieldCheck }
-          ]
-        : [])
-    ];
-    return allActions;
-  }, [isAdmin]);
 
   if (isLoading) {
     return (
@@ -112,37 +82,19 @@ export function DashboardOverview() {
 
   return (
     <div className="animate-in fade-in space-y-6 p-4 duration-300 sm:p-6">
-      <section className="overflow-hidden rounded-lg border border-primary/10 bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),hsl(var(--background))_45%,hsl(var(--chart-2)/0.10))] p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-primary shadow-sm">
-              <LayoutDashboard className="size-3.5" />
-              Panel de control
-            </div>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              AgroGest VSM
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Resumen operativo para detectar actividad reciente, campanias activas y
-              alertas sanitarias o nutricionales desde un solo tablero.
-            </p>
+      <section className="overflow-hidden rounded-lg border border-primary/10 bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),hsl(var(--background))_45%,hsl(var(--chart-2)/0.10))] p-5 shadow-sm dark:border-primary/20 dark:bg-[linear-gradient(135deg,hsl(var(--primary)/0.20),hsl(var(--card))_48%,hsl(var(--chart-2)/0.16))] sm:p-6">
+        <div className="max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-primary shadow-sm dark:border-primary/25 dark:bg-card/80 dark:text-primary">
+            <LayoutDashboard className="size-3.5" />
+            Panel de control
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[520px]">
-            {quickActions.map((action) => {
-              const Icon = action.icon;
-
-              return (
-                <Link
-                  className="group inline-flex h-10 items-center justify-between gap-3 rounded-md border border-border/70 bg-background/80 px-3.5 text-xs font-semibold text-foreground shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  href={action.href}
-                  key={action.href}
-                >
-                  <span>{action.label}</span>
-                  <Icon className="size-4 opacity-70 transition group-hover:opacity-100" />
-                </Link>
-              );
-            })}
-          </div>
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            AgroGest VSM
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Resumen operativo para detectar actividad reciente, campanias activas y
+            alertas sanitarias o nutricionales desde un solo tablero.
+          </p>
         </div>
       </section>
 
@@ -156,7 +108,7 @@ export function DashboardOverview() {
       <div className="grid gap-6 md:grid-cols-2">
         <div className={`${chartCardClassName} md:col-span-2 xl:col-span-1`}>
           <ChartVisitasPorMes
-            availableYears={availableYears}
+            availableYears={[DASHBOARD_YEAR]}
             data={data.charts.visitasPorMes}
             year={year}
             onYearChange={setYear}

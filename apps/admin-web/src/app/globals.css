@@ -66,11 +66,11 @@
   --destructive: oklch(0.577 0.245 27.325);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: #16a34a;
+  --chart-2: #2563eb;
+  --chart-3: #d97706;
+  --chart-4: #dc2626;
+  --chart-5: #0891b2;
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -113,6 +113,25 @@
   --sidebar-hover: rgba(220, 252, 231, 0.12);
   --sidebar-active: rgba(220, 252, 231, 0.2);
   --sidebar-active-border: #86efac;
+  --card: #1a1d27;
+  --card-foreground: #e5e7eb;
+  --popover: #22252f;
+  --popover-foreground: #e5e7eb;
+  --foreground: #e5e7eb;
+  --primary-foreground: #052e16;
+  --secondary: #262a35;
+  --secondary-foreground: #e5e7eb;
+  --muted-foreground: #9ca3af;
+  --accent: #262a35;
+  --accent-foreground: #e5e7eb;
+  --destructive: #f87171;
+  --input: #3b4050;
+  --ring: #4ade80;
+  --chart-1: #4ade80;
+  --chart-2: #60a5fa;
+  --chart-3: #fbbf24;
+  --chart-4: #fb7185;
+  --chart-5: #22d3ee;
 }
 
 /* ---- View Transition API (circle expand animation) ---- */
@@ -219,7 +238,12 @@ canvas {
   flex-direction: column;
   border-right: 1px solid var(--sidebar-border);
   background:
-    linear-gradient(180deg, rgba(5, 46, 26, 0.94) 0%, rgba(4, 35, 19, 0.9) 52%, rgba(2, 44, 23, 0.95) 100%),
+    linear-gradient(
+      180deg,
+      rgba(5, 46, 26, 0.94) 0%,
+      rgba(4, 35, 19, 0.9) 52%,
+      rgba(2, 44, 23, 0.95) 100%
+    ),
     url("/images/fondo_menu_lateral_agrogest.webp") center bottom / contain no-repeat,
     #052e1a;
   color: var(--sidebar-foreground);
@@ -259,7 +283,9 @@ canvas {
   flex-shrink: 0;
   color: inherit;
   text-align: left;
-  transition: background var(--transition-fast), border-color var(--transition-fast),
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
     padding var(--transition-normal);
 }
 
@@ -277,7 +303,9 @@ canvas {
   border-radius: var(--radius-md);
   border: 1px solid rgba(187, 247, 208, 0.26);
   background: linear-gradient(145deg, #052e1a, #064e3b);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 22px rgba(0, 0, 0, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 22px rgba(0, 0, 0, 0.18);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -314,7 +342,9 @@ canvas {
 .brand-collapse-icon {
   flex-shrink: 0;
   color: var(--sidebar-muted);
-  transition: transform var(--transition-normal), color var(--transition-fast);
+  transition:
+    transform var(--transition-normal),
+    color var(--transition-fast);
 }
 
 .admin-sidebar__nav {
@@ -365,7 +395,9 @@ canvas {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .sidebar-group__toggle:hover {
@@ -411,7 +443,10 @@ canvas {
   color: var(--sidebar-muted);
   font-size: 13.5px;
   font-weight: 500;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
   position: relative;
 }
 
@@ -570,12 +605,12 @@ canvas {
     opacity: 0;
     pointer-events: none;
     transform: translateX(-6px);
-    transition: opacity var(--transition-fast), transform var(--transition-fast);
+    transition:
+      opacity var(--transition-fast),
+      transform var(--transition-fast);
   }
 
-  .admin-layout--sidebar-collapsed
-    .sidebar-group--nested:hover
-    .sidebar-group__links,
+  .admin-layout--sidebar-collapsed .sidebar-group--nested:hover .sidebar-group__links,
   .admin-layout--sidebar-collapsed
     .sidebar-group--nested:focus-within
     .sidebar-group__links {
@@ -675,7 +710,10 @@ canvas {
   color: var(--sidebar-muted);
   font-size: 13px;
   font-weight: 500;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .sidebar-logout:hover {
@@ -756,7 +794,9 @@ canvas {
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  transition: background var(--transition-fast), border-color var(--transition-fast),
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
     box-shadow var(--transition-fast);
 }
 
@@ -849,7 +889,9 @@ canvas {
   color: var(--danger);
   font-size: 13px;
   font-weight: 600;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .topbar-user-dropdown__logout:hover {
@@ -869,7 +911,9 @@ canvas {
   background: var(--surface);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast),
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
     border-color var(--transition-fast);
 }
 
@@ -1246,7 +1290,8 @@ canvas {
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  background: linear-gradient(180deg, rgba(22, 101, 52, 0.04), transparent 22%), var(--surface);
+  background:
+    linear-gradient(180deg, rgba(22, 101, 52, 0.04), transparent 22%), var(--surface);
   box-shadow: var(--shadow-xs);
 }
 
@@ -1644,7 +1689,12 @@ canvas {
   display: grid;
   grid-template-columns: minmax(0, 1.18fr) minmax(440px, 0.82fr);
   background-image:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.88) 61%, rgba(255, 255, 255, 0.96)),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.16),
+      rgba(255, 255, 255, 0.88) 61%,
+      rgba(255, 255, 255, 0.96)
+    ),
     url("/images/fondo_agrogest_vsm_4k.webp");
   background-position: center;
   background-size: cover;
@@ -1664,7 +1714,12 @@ canvas {
 
 [data-theme="dark"] .login-screen {
   background-image:
-    linear-gradient(90deg, rgba(2, 6, 23, 0.2), rgba(2, 6, 23, 0.68) 60%, rgba(2, 6, 23, 0.88)),
+    linear-gradient(
+      90deg,
+      rgba(2, 6, 23, 0.2),
+      rgba(2, 6, 23, 0.68) 60%,
+      rgba(2, 6, 23, 0.88)
+    ),
     url("/images/fondo_agrogest_vsm_4k.webp");
 }
 
@@ -1744,8 +1799,11 @@ canvas {
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   color: var(--text-secondary);
   box-shadow: var(--shadow-sm);
-  transition: background var(--transition-fast), color var(--transition-fast),
-    border-color var(--transition-fast), transform var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .login-theme-toggle:hover {
@@ -1964,7 +2022,9 @@ canvas {
   color: var(--text);
   background: rgba(255, 255, 255, 0.86);
   width: 100%;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast),
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
     background var(--transition-fast);
 }
 
@@ -2016,7 +2076,9 @@ canvas {
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
   flex-shrink: 0;
 }
 
@@ -2040,13 +2102,17 @@ canvas {
   font-size: 16px;
   font-weight: 700;
   box-shadow: inset 0 -2px 0 rgba(5, 46, 27, 0.18);
-  transition: background var(--transition-fast), transform var(--transition-fast),
+  transition:
+    background var(--transition-fast),
+    transform var(--transition-fast),
     box-shadow var(--transition-fast);
 }
 
 .login-submit:hover {
   background: linear-gradient(135deg, #14532d, #166534);
-  box-shadow: var(--shadow-sm), inset 0 -2px 0 rgba(5, 46, 27, 0.18);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 -2px 0 rgba(5, 46, 27, 0.18);
   transform: translateY(-1px);
 }
 
@@ -2398,7 +2464,9 @@ canvas {
   color: var(--text);
   background: var(--surface-strong);
   width: 100%;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .field-group input:focus,
@@ -2665,7 +2733,9 @@ canvas {
   line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .form-modal__close:hover {
@@ -3161,11 +3231,11 @@ canvas {
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: #4ade80;
+  --chart-2: #60a5fa;
+  --chart-3: #fbbf24;
+  --chart-4: #fb7185;
+  --chart-5: #22d3ee;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
