@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { InjectEntityManager } from "@nestjs/typeorm";
-import { EntityManager } from "typeorm";
+import { InjectDataSource } from "@nestjs/typeorm";
+import { DataSource } from "typeorm";
 
 import { createSuccessResponse } from "../../../common/http/api-response";
 
@@ -60,8 +60,8 @@ export type DashboardResumenData = {
 @Injectable()
 export class DashboardService {
   constructor(
-    @InjectEntityManager()
-    private readonly entityManager: EntityManager
+    @InjectDataSource()
+    private readonly dataSource: DataSource
   ) {}
 
   async getResumen(year?: number): Promise<DashboardResumenData> {
@@ -83,7 +83,7 @@ export class DashboardService {
       productoresActivos,
       recetasEmitidas
     ] = await Promise.all([
-      this.entityManager
+      this.dataSource
         .createQueryBuilder()
         .select("COUNT(*)", "count")
         .from("visitas_campo", "v")
@@ -91,7 +91,7 @@ export class DashboardService {
         .getRawOne<{ count: string }>()
         .then((r) => Number(r?.count ?? 0)),
 
-      this.entityManager
+      this.dataSource
         .createQueryBuilder()
         .select("COUNT(*)", "count")
         .from("visitas_campo", "v")
@@ -100,7 +100,7 @@ export class DashboardService {
         .getRawOne<{ count: string }>()
         .then((r) => Number(r?.count ?? 0)),
 
-      this.entityManager
+      this.dataSource
         .createQueryBuilder()
         .select("COUNT(*)", "count")
         .from("productores", "p")
@@ -108,7 +108,7 @@ export class DashboardService {
         .getRawOne<{ count: string }>()
         .then((r) => Number(r?.count ?? 0)),
 
-      this.entityManager
+      this.dataSource
         .createQueryBuilder()
         .select("COUNT(*)", "count")
         .from("visita_recetas", "vr")
@@ -132,7 +132,7 @@ export class DashboardService {
   }
 
   private async getVisitasPorMes(year: number): Promise<VisitasPorMes[]> {
-    const rows = await this.entityManager
+    const rows = await this.dataSource
       .createQueryBuilder()
       .select("TO_CHAR(v.fecha_visita, 'YYYY-MM')", "mes")
       .addSelect("COUNT(*)", "count")
@@ -165,7 +165,7 @@ export class DashboardService {
   }
 
   private async getVisitasPorCampania(): Promise<VisitasPorCampania[]> {
-    const rows = await this.entityManager
+    const rows = await this.dataSource
       .createQueryBuilder()
       .select("c.nombre", "campania")
       .addSelect("COUNT(*)", "count")
@@ -180,7 +180,7 @@ export class DashboardService {
   }
 
   private async getPlagasFrecuentes(): Promise<PlagaFrecuente[]> {
-    const rows = await this.entityManager
+    const rows = await this.dataSource
       .createQueryBuilder()
       .select("pe.nombre", "plaga")
       .addSelect("COUNT(*)", "count")
@@ -196,7 +196,7 @@ export class DashboardService {
   }
 
   private async getDeficienciasNutrientes(): Promise<DeficienciaNutriente[]> {
-    const rows = await this.entityManager
+    const rows = await this.dataSource
       .createQueryBuilder()
       .select("ve.descripcion", "nutriente")
       .addSelect("COUNT(*)", "count")
@@ -223,7 +223,7 @@ export class DashboardService {
   }
 
   private async getUltimasVisitas(): Promise<VisitaReciente[]> {
-    const rows = await this.entityManager
+    const rows = await this.dataSource
       .createQueryBuilder()
       .select("v.id", "id")
       .addSelect("COALESCE(p.nombre, 'Sin parcela')", "parcela")
@@ -231,7 +231,7 @@ export class DashboardService {
       .addSelect("COALESCE(u.email, 'Sin agronomo')", "agronomo")
       .from("visitas_campo", "v")
       .leftJoin("parcelas", "p", "p.id = v.parcela_id")
-      .leftJoin("users", "u", "u.id = v.agronomo_usuario_id::varchar")
+      .leftJoin("usuarios", "u", "u.id = v.agronomo_usuario_id")
       .where("v.activo = true")
       .orderBy("v.creado_at", "DESC")
       .limit(5)
@@ -241,7 +241,7 @@ export class DashboardService {
   }
 
   private async getUltimasRecetas(): Promise<RecetaReciente[]> {
-    const rows = await this.entityManager
+    const rows = await this.dataSource
       .createQueryBuilder()
       .select("vr.id", "id")
       .addSelect("COALESCE(p.nombre, 'Sin parcela')", "parcela")
