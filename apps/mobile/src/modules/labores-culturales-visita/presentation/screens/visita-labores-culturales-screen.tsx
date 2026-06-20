@@ -22,7 +22,6 @@ import {
 import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
-import { processOutbox } from "../../../../shared/sync";
 import { laboresCulturalesVisitaService } from "../../services";
 import type { LaborCulturalCatalogItem } from "../../types";
 
@@ -322,7 +321,6 @@ export function VisitaLaboresCulturalesScreen() {
 
     try {
       await laboresCulturalesVisitaService.saveSelections(visitaId, selectedIds);
-      await processOutbox();
       router.replace({
         pathname: "/visitas-campo/[id]/receta",
         params: { id: visitaId }

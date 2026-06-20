@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState, type ComponentProps } from "react";
+import { useEffect, useState } from "react";
 import {
   ImageBackground,
   Modal,
@@ -9,7 +9,6 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
-  useWindowDimensions,
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -52,14 +51,10 @@ const META_KEYS = {
   tipoSuelo: "riego_tipo_suelo_default"
 } as const;
 
-type IoniconName = ComponentProps<typeof Ionicons>["name"];
-
 export function VisitaRiegoScreen() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
-  const isCompactLayout = width < 460;
 
   const [tiposRiego, setTiposRiego] = useState<TipoRiegoCatalogItem[]>([]);
   const [selectedTipoRiegoId, setSelectedTipoRiegoId] = useState<string | null>(null);
@@ -68,7 +63,6 @@ export function VisitaRiegoScreen() {
   const [humedadSuelo, setHumedadSuelo] = useState<HumedadSuelo | null>(null);
   const [estresHidrico, setEstresHidrico] = useState(false);
 
-  const [helpItem, setHelpItem] = useState<TipoRiegoCatalogItem | null>(null);
   const [legendSuelo, setLegendSuelo] = useState(false);
   const [legendHumedad, setLegendHumedad] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -169,23 +163,21 @@ export function VisitaRiegoScreen() {
                   </View>
                   <View style={styles.sectionHeaderText}>
                     <AppText style={styles.sectionTitle} variant="heading">
-                      Labor de riego
+                      Sistema de riego
                     </AppText>
                     <AppText variant="muted">
-                      Selecciona el tipo de riego aplicado.
+                      Selecciona el sistema utilizado durante la visita.
                     </AppText>
                   </View>
                 </View>
 
-                <View style={styles.optionGrid}>
+                <View style={styles.optionList}>
                   {tiposRiego.map((tipoRiego) => (
-                    <CatalogOptionCard
-                      iconName={getRiegoIcon(tipoRiego.name)}
-                      isCompactLayout={isCompactLayout}
+                    <OptionListItem
+                      description={tipoRiego.description}
                       isSelected={selectedTipoRiegoId === tipoRiego.id}
-                      item={tipoRiego}
                       key={tipoRiego.id}
-                      onHelpPress={setHelpItem}
+                      label={tipoRiego.name}
                       onPress={() => {
                         setSubmitError(null);
                         setSelectedTipoRiegoId(tipoRiego.id);
@@ -214,40 +206,19 @@ export function VisitaRiegoScreen() {
                   </View>
                 </View>
 
-                <View style={styles.radioRow}>
+                <View style={styles.optionList}>
                   {FUENTES_AGUA.map((opcion) => {
                     const isSelected = fuenteAgua === opcion;
                     return (
-                      <Pressable
-                        accessibilityLabel={FUENTE_AGUA_LABELS[opcion]}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: isSelected }}
+                      <OptionListItem
+                        isSelected={isSelected}
                         key={opcion}
+                        label={FUENTE_AGUA_LABELS[opcion]}
                         onPress={() => {
                           setSubmitError(null);
                           setFuenteAgua(opcion);
                         }}
-                        style={({ pressed }) => [
-                          styles.radioCard,
-                          isSelected && styles.radioCardSelected,
-                          pressed && styles.pressed
-                        ]}
-                      >
-                        <Ionicons
-                          color={isSelected ? theme.colors.primaryDark : theme.colors.textMuted}
-                          name={isSelected ? "radio-button-on" : "radio-button-off"}
-                          size={20}
-                        />
-                        <AppText
-                          style={[
-                            styles.radioLabel,
-                            isSelected && styles.radioLabelSelected
-                          ]}
-                          variant="label"
-                        >
-                          {FUENTE_AGUA_LABELS[opcion]}
-                        </AppText>
-                      </Pressable>
+                      />
                     );
                   })}
                 </View>
@@ -278,36 +249,19 @@ export function VisitaRiegoScreen() {
                   </Pressable>
                 </View>
 
-                <View style={styles.optionGrid}>
+                <View style={styles.optionList}>
                   {TIPOS_SUELO.map((opcion) => {
                     const isSelected = tipoSuelo === opcion;
                     return (
-                      <Pressable
-                        accessibilityLabel={TIPO_SUELO_LABELS[opcion]}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: isSelected }}
+                      <OptionListItem
+                        isSelected={isSelected}
                         key={opcion}
+                        label={TIPO_SUELO_LABELS[opcion]}
                         onPress={() => {
                           setSubmitError(null);
                           setTipoSuelo(opcion);
                         }}
-                        style={({ pressed }) => [
-                          styles.selectCard,
-                          isCompactLayout && styles.selectCardCompact,
-                          isSelected && styles.selectCardSelected,
-                          pressed && styles.pressed
-                        ]}
-                      >
-                        <AppText
-                          style={[
-                            styles.selectCardLabel,
-                            isSelected && styles.selectCardLabelSelected
-                          ]}
-                          variant="label"
-                        >
-                          {TIPO_SUELO_LABELS[opcion]}
-                        </AppText>
-                      </Pressable>
+                      />
                     );
                   })}
                 </View>
@@ -338,53 +292,40 @@ export function VisitaRiegoScreen() {
                   </Pressable>
                 </View>
 
-                <View style={styles.optionGrid}>
+                <View style={styles.optionList}>
                   {HUMEDADES_SUELO.map((opcion) => {
                     const isSelected = humedadSuelo === opcion;
                     return (
-                      <Pressable
-                        accessibilityLabel={HUMEDAD_SUELO_LABELS[opcion]}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: isSelected }}
+                      <OptionListItem
+                        isSelected={isSelected}
                         key={opcion}
+                        label={HUMEDAD_SUELO_LABELS[opcion]}
                         onPress={() => {
                           setSubmitError(null);
                           setHumedadSuelo(opcion);
+                          if (opcion !== "seco") {
+                            setEstresHidrico(false);
+                          }
                         }}
-                        style={({ pressed }) => [
-                          styles.selectCard,
-                          isCompactLayout && styles.selectCardCompact,
-                          isSelected && styles.selectCardSelected,
-                          pressed && styles.pressed
-                        ]}
-                      >
-                        <AppText
-                          style={[
-                            styles.selectCardLabel,
-                            isSelected && styles.selectCardLabelSelected
-                          ]}
-                          variant="label"
-                        >
-                          {HUMEDAD_SUELO_LABELS[opcion]}
-                        </AppText>
-                      </Pressable>
+                      />
                     );
                   })}
                 </View>
               </View>
 
+              {humedadSuelo === "seco" ? (
               <View style={styles.switchCard}>
                 <View style={styles.switchContent}>
                   <View style={styles.switchTextArea}>
                     <AppText style={styles.switchTitle} variant="heading">
-                      Estres hidrico
+                      Estres hidrico intencionado
                     </AppText>
                     <AppText variant="muted">
-                      Indica si el cultivo presenta signos de estres por falta de agua.
+                      Marca si la condicion seca corresponde a un estres hidrico planificado.
                     </AppText>
                   </View>
                   <Switch
-                    accessibilityLabel="Estres hidrico"
+                    accessibilityLabel="Estres hidrico intencionado"
                     accessibilityRole="switch"
                     ios_backgroundColor={theme.colors.border}
                     onValueChange={(value) => {
@@ -403,11 +344,12 @@ export function VisitaRiegoScreen() {
                   <View style={styles.stressBadge}>
                     <Ionicons color={theme.colors.warning} name="warning" size={16} />
                     <AppText style={styles.stressBadgeText} variant="caption">
-                      Estres hidrico presente
+                      Estres hidrico intencionado
                     </AppText>
                   </View>
                 ) : null}
               </View>
+              ) : null}
 
               {submitError ? (
                 <View style={styles.errorBanner}>
@@ -456,7 +398,6 @@ export function VisitaRiegoScreen() {
         </View>
       </ScrollView>
 
-      <HelpModal item={helpItem} onClose={() => setHelpItem(null)} />
       <SueloLegendModal
         onClose={() => setLegendSuelo(false)}
         visible={legendSuelo}
@@ -490,7 +431,11 @@ export function VisitaRiegoScreen() {
         setFuenteAgua(existingRiego.fuenteAgua);
         setTipoSuelo(existingRiego.tipoSuelo);
         setHumedadSuelo(existingRiego.humedadSuelo);
-        setEstresHidrico(existingRiego.estresHidrico ?? false);
+        setEstresHidrico(
+          existingRiego.humedadSuelo === "seco"
+            ? (existingRiego.estresHidrico ?? false)
+            : false
+        );
       } else {
         loadDefaults();
       }
@@ -595,7 +540,7 @@ export function VisitaRiegoScreen() {
         fuenteAgua,
         tipoSuelo,
         humedadSuelo,
-        estresHidrico
+        estresHidrico: humedadSuelo === "seco" ? estresHidrico : false
       });
       router.replace({
         pathname: "/visitas-campo/[id]/labores-culturales",
@@ -610,49 +555,45 @@ export function VisitaRiegoScreen() {
   }
 }
 
-function CatalogOptionCard({
-  iconName,
-  isCompactLayout,
+function OptionListItem({
+  description,
   isSelected,
-  item,
-  onHelpPress,
+  label,
   onPress
 }: {
-  iconName: IoniconName;
-  isCompactLayout: boolean;
+  description?: string | null;
   isSelected: boolean;
-  item: TipoRiegoCatalogItem;
-  onHelpPress: (item: TipoRiegoCatalogItem) => void;
+  label: string;
   onPress: () => void;
 }) {
   return (
     <Pressable
-      accessibilityLabel={item.name}
+      accessibilityLabel={label}
       accessibilityRole="radio"
-      accessibilityState={{ selected: isSelected }}
+      accessibilityState={{ checked: isSelected }}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.optionCard,
-        isCompactLayout && styles.optionCardCompact,
-        isSelected && styles.optionCardSelected,
+        styles.optionRow,
+        isSelected && styles.optionRowSelected,
         pressed && styles.pressed
       ]}
     >
-      <View style={styles.iconTile}>
-        <Ionicons color="#008ce3" name={iconName} size={38} />
+      <View style={[styles.radioIndicator, isSelected && styles.radioIndicatorSelected]}>
+        {isSelected ? <View style={styles.radioIndicatorDot} /> : null}
       </View>
-      <AppText style={styles.optionTitle} variant="label">
-        {item.name}
-      </AppText>
-      <Pressable
-        accessibilityLabel={`Ver descripcion de ${item.name}`}
-        accessibilityRole="button"
-        hitSlop={8}
-        onPress={() => onHelpPress(item)}
-        style={styles.helpButton}
-      >
-        <Ionicons color={theme.colors.primaryDark} name="help" size={22} />
-      </Pressable>
+      <View style={styles.optionRowCopy}>
+        <AppText
+          style={[styles.optionRowTitle, isSelected && styles.optionRowTitleSelected]}
+          variant="label"
+        >
+          {label}
+        </AppText>
+        {description ? (
+          <AppText style={styles.optionRowDescription} variant="muted">
+            {description}
+          </AppText>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -697,43 +638,6 @@ function WizardProgress() {
         })}
       </View>
     </View>
-  );
-}
-
-function HelpModal({
-  item,
-  onClose
-}: {
-  item: TipoRiegoCatalogItem | null;
-  onClose: () => void;
-}) {
-  if (!item) {
-    return null;
-  }
-
-  return (
-    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.helpModalContent}>
-          <View style={styles.modalHeader}>
-            <AppText style={styles.modalTitle} variant="heading">
-              {item.name}
-            </AppText>
-            <Pressable
-              accessibilityLabel="Cerrar"
-              accessibilityRole="button"
-              onPress={onClose}
-              style={styles.modalCloseButton}
-            >
-              <Ionicons color={theme.colors.primaryDark} name="close" size={22} />
-            </Pressable>
-          </View>
-          <AppText variant="muted">
-            {item.description || "Sin descripcion registrada."}
-          </AppText>
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -825,28 +729,6 @@ function HumedadLegendModal({
   );
 }
 
-function getRiegoIcon(name: string): IoniconName {
-  const normalizedName = normalizeCatalogName(name);
-
-  if (normalizedName.includes("inundacion")) return "water";
-  if (normalizedName.includes("goteo")) return "ellipsis-horizontal-circle";
-  if (normalizedName.includes("aspersion")) return "rainy";
-  if (normalizedName.includes("micro")) return "water-outline";
-  if (normalizedName.includes("agoste")) return "calendar-outline";
-  if (normalizedName.includes("ruptura")) return "leaf-outline";
-
-  return "water-outline";
-}
-
-function normalizeCatalogName(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
 function toSingleParam(value?: string | string[]) {
   if (Array.isArray(value)) {
     return value[0] ?? null;
@@ -909,25 +791,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 12
   },
-  helpButton: {
-    alignItems: "center",
-    borderColor: theme.colors.primary,
-    borderRadius: theme.radius.full,
-    borderWidth: 1.5,
-    height: 40,
-    justifyContent: "center",
-    position: "absolute",
-    right: 16,
-    top: 16,
-    width: 40
-  },
-  helpModalContent: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    gap: 12,
-    padding: 18,
-    width: "88%"
-  },
   hero: {
     minHeight: 300
   },
@@ -949,14 +812,6 @@ const styles = StyleSheet.create({
     fontSize: 40,
     lineHeight: 46,
     maxWidth: 300
-  },
-  iconTile: {
-    alignItems: "center",
-    backgroundColor: "#eaf3dc",
-    borderRadius: 14,
-    height: 70,
-    justifyContent: "center",
-    width: 70
   },
   legendButton: {
     alignItems: "center",
@@ -1013,37 +868,63 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 21
   },
-  optionCard: {
+  optionList: {
+    gap: 10
+  },
+  optionRow: {
     alignItems: "center",
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.borderLight,
-    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.background,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
     borderWidth: 1,
-    flexBasis: "48%",
-    gap: 14,
-    justifyContent: "center",
-    minHeight: 190,
-    padding: 18,
-    position: "relative"
-  },
-  optionCardCompact: {
-    flexBasis: "100%"
-  },
-  optionCardSelected: {
-    backgroundColor: "#fbfdf7",
-    borderColor: theme.colors.primaryDark,
-    borderWidth: 2
-  },
-  optionGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 14
+    gap: 12,
+    minHeight: 54,
+    paddingHorizontal: 14,
+    paddingVertical: 12
   },
-  optionTitle: {
-    color: "#0d1739",
-    fontSize: 18,
-    lineHeight: 24,
-    textAlign: "center"
+  optionRowCopy: {
+    flex: 1,
+    gap: 2
+  },
+  optionRowDescription: {
+    fontSize: 12,
+    lineHeight: 17
+  },
+  optionRowSelected: {
+    backgroundColor: "#f0fdf4",
+    borderColor: theme.colors.primaryDark,
+    borderWidth: 1.5,
+    shadowColor: "#16a34a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 3
+  },
+  optionRowTitle: {
+    color: theme.colors.textMuted,
+    fontSize: 15
+  },
+  optionRowTitleSelected: {
+    color: theme.colors.primaryDark
+  },
+  radioIndicator: {
+    alignItems: "center",
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.full,
+    borderWidth: 1.5,
+    height: 20,
+    justifyContent: "center",
+    width: 20
+  },
+  radioIndicatorDot: {
+    backgroundColor: theme.colors.primaryDark,
+    borderRadius: theme.radius.full,
+    height: 10,
+    width: 10
+  },
+  radioIndicatorSelected: {
+    borderColor: theme.colors.primaryDark
   },
   pressed: {
     opacity: 0.72
@@ -1103,35 +984,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8
   },
-  radioCard: {
-    alignItems: "center",
-    backgroundColor: theme.colors.background,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: "row",
-    gap: 6,
-    justifyContent: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 10
-  },
-  radioCardSelected: {
-    backgroundColor: "#fbfdf7",
-    borderColor: theme.colors.primaryDark,
-    borderWidth: 2
-  },
-  radioLabel: {
-    color: theme.colors.textMuted,
-    fontSize: 13
-  },
-  radioLabelSelected: {
-    color: theme.colors.primaryDark
-  },
-  radioRow: {
-    flexDirection: "row",
-    gap: 8
-  },
   scrollContent: {
     paddingBottom: 24
   },
@@ -1155,34 +1007,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: theme.colors.primaryDark,
     fontSize: 21
-  },
-  selectCard: {
-    alignItems: "center",
-    backgroundColor: theme.colors.background,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    flexBasis: "48%",
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: 10,
-    paddingVertical: 10
-  },
-  selectCardCompact: {
-    flexBasis: "100%"
-  },
-  selectCardLabel: {
-    color: theme.colors.textMuted,
-    fontSize: 14,
-    textAlign: "center"
-  },
-  selectCardLabelSelected: {
-    color: theme.colors.primaryDark
-  },
-  selectCardSelected: {
-    backgroundColor: "#fbfdf7",
-    borderColor: theme.colors.primaryDark,
-    borderWidth: 2
   },
   selectionCard: {
     backgroundColor: theme.colors.surface,

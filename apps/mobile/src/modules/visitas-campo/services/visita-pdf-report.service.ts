@@ -560,10 +560,15 @@ function renderCulturalLabors(
         sortOrder: labor?.sortOrder ?? 9999
       };
     })
+    .filter((item) => !isPositiveLaborSelection(item.category, item.option))
     .sort(
       (left, right) =>
         left.sortOrder - right.sortOrder || left.category.localeCompare(right.category)
     );
+
+  if (items.length === 0) {
+    return `<div class="empty">No hay alertas de labores culturales registradas.</div>`;
+  }
 
   return `<ul class="list">${items
     .map(
@@ -575,6 +580,33 @@ function renderCulturalLabors(
       </li>`
     )
     .join("")}</ul>`;
+}
+
+function isPositiveLaborSelection(category: string, option: string) {
+  const normalizedCategory = normalizeText(category);
+  const normalizedOption = normalizeText(option);
+
+  return (
+    (normalizedCategory.includes("infestacion") &&
+      normalizedCategory.includes("maleza") &&
+      normalizedOption === "limpio") ||
+    (normalizedCategory.includes("sanitario") &&
+      normalizedCategory.includes("suelo") &&
+      normalizedOption === "limpio") ||
+    (normalizedCategory.includes("copa") && normalizedOption === "buena") ||
+    (normalizedCategory.includes("balance") &&
+      normalizedCategory.includes("carga") &&
+      normalizedOption === "equilibrado")
+  );
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function appendDescription(label: string, description: string | null | undefined) {

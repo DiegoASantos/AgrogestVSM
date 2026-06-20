@@ -165,8 +165,8 @@ export const RIEGO_RECOMENDACION_LABELS: Record<
 > = {
   riego_pesado: "Riego pesado",
   riego_ligero: "Riego ligero",
-  inicio_agoste: "Inicio de agoste",
-  ruptura_agoste: "Ruptura de agoste"
+  inicio_agoste: "Agoste",
+  ruptura_agoste: "Agoste"
 };
 
 export const RIEGO_RECOMENDACION_DESCRIPTIONS: Record<
@@ -178,9 +178,9 @@ export const RIEGO_RECOMENDACION_DESCRIPTIONS: Record<
   riego_ligero:
     "Aplicar una lamina de agua de bajo volumen para humedecer superficialmente.",
   inicio_agoste:
-    "Suspension total o restriccion del riego por 45-60 dias dependiendo del cultivo.",
+    "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo.",
   ruptura_agoste:
-    "Riego ligero inmediatamente despues de obtener floracion para estimular flor sana y activar el sistema radicular."
+    "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo."
 };
 
 export const LABOR_RECOMENDACION_LABELS: Record<

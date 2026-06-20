@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState, type ComponentProps } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import {
   ImageBackground,
   Pressable,
@@ -22,6 +22,8 @@ import { AppSelectField } from "../../../../shared/components/app-select-field";
 import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
 import { processOutbox } from "../../../../shared/sync";
+import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
+import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import { visitaRecetasService, type SaveRecetaData } from "../../services";
 import type {
   ConsolidacionHallazgo,
@@ -46,6 +48,48 @@ const COADYUVANTE_ORDER: Record<string, number> = {
   "Aceite penetrante": 5,
   Antiespumante: 6
 };
+
+function parsePositiveDecimal(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function resolveCalculationAreaHectares(
+  parcelaArea: string | number | null | undefined,
+  visitaArea: string | number | null | undefined
+) {
+  return parsePositiveDecimal(parcelaArea) ?? parsePositiveDecimal(visitaArea);
+}
+
+function getEffectiveCalculationArea(areaHectares: number | null) {
+  return areaHectares ?? 1;
+}
+
+function calculateTotalIa(
+  dosisIa: string | number | null | undefined,
+  volumenAplicacion: string | number | null | undefined,
+  areaHectares: number | null
+) {
+  const dosis = parsePositiveDecimal(dosisIa);
+  const volumen = parsePositiveDecimal(volumenAplicacion);
+
+  return dosis && volumen ? dosis * volumen * getEffectiveCalculationArea(areaHectares) : 0;
+}
+
+function calculateTotalProducto(
+  cantidadTotalIa: string | number | null | undefined,
+  concentracionProducto: string | number | null | undefined
+) {
+  const totalIa = parsePositiveDecimal(cantidadTotalIa);
+  const concentracion = parsePositiveDecimal(concentracionProducto);
+
+  return totalIa && concentracion ? totalIa / concentracion : 0;
+}
+
+function formatCompactDecimal(value: number) {
+  return value.toFixed(2).replace(/\.?0+$/, "");
+}
 
 function toSingleParam(value: string | string[] | undefined): string | null {
   if (!value) return null;
@@ -79,6 +123,9 @@ export function VisitaRecetaScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [consolidacion, setConsolidacion] = useState<ConsolidacionHallazgo | null>(null);
   const [recetaData, setRecetaData] = useState<VisitaRecetaCompleta | null>(null);
+  const [calculationAreaHectares, setCalculationAreaHectares] = useState<number | null>(
+    null
+  );
 
   const [coadyuvantes, setCoadyuvantes] = useState<CoadyuvanteCatalogItem[]>([]);
   const [modosAccion, setModosAccion] = useState<ModoAccionCatalogItem[]>([]);
@@ -102,6 +149,7 @@ export function VisitaRecetaScreen() {
   const [laborSelections, setLaborSelections] = useState<Set<string>>(() => new Set());
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const loadRequestRef = useRef(0);
 
   useEffect(() => {
     if (!visitaId) {
@@ -109,10 +157,22 @@ export function VisitaRecetaScreen() {
       setError("No se recibio una visita valida.");
       return;
     }
-    void loadAll(visitaId);
+    const requestId = loadRequestRef.current + 1;
+    loadRequestRef.current = requestId;
+    loadAll(visitaId, requestId);
+
+    return () => {
+      if (loadRequestRef.current === requestId) {
+        loadRequestRef.current += 1;
+      }
+    };
   }, [visitaId]);
 
-  async function loadAll(vId: string) {
+  function isActiveLoad(requestId: number) {
+    return loadRequestRef.current === requestId;
+  }
+
+  function loadAll(vId: string, requestId: number) {
     setIsLoading(true);
     setError(null);
     try {
@@ -123,29 +183,68 @@ export function VisitaRecetaScreen() {
       setTiposProducto(catalogos.tiposProducto);
       setFertilizantes(catalogos.fertilizantes);
 
-      const [consData, recetaData] = await Promise.all([
-        visitaRecetasService.fetchConsolidacionFromRemote(vId).catch(() => null),
-        Promise.resolve(visitaRecetasService.getByVisitaId(vId))
-      ]);
-      const localConsData = visitaRecetasService.getConsolidacionLocal(vId);
-      const resolvedConsData = hasFitosanidadFindings(consData)
-        ? consData
-        : hasFitosanidadFindings(localConsData)
-          ? mergeFitosanidadConsolidacion(consData, localConsData)
-          : consData;
+      const visita = visitasCampoRepository.getById(vId);
+      const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
+      setCalculationAreaHectares(
+        resolveCalculationAreaHectares(parcela?.areaHectares, visita?.areaHectares)
+      );
 
-      setConsolidacion(resolvedConsData);
+      const localConsData = visitaRecetasService.getConsolidacionLocal(vId);
+      const recetaData = visitaRecetasService.getByVisitaId(vId);
+
+      if (!isActiveLoad(requestId)) {
+        return;
+      }
+
+      setConsolidacion(localConsData);
 
       if (recetaData) {
         setRecetaData(recetaData);
         restoreFromReceta(recetaData);
-      } else if (resolvedConsData) {
-        initFitosanidadFromConsolidacion(resolvedConsData);
+      } else {
+        setRecetaData(null);
+        initFitosanidadFromConsolidacion(localConsData);
       }
-    } catch (err) {
-      setError(toApiError(err).message || "No se pudo cargar la receta.");
-    } finally {
+
       setIsLoading(false);
+      void refreshConsolidacionFromRemote(vId, localConsData, Boolean(recetaData), requestId);
+    } catch (err) {
+      if (!isActiveLoad(requestId)) {
+        return;
+      }
+      setError(toApiError(err).message || "No se pudo cargar la receta.");
+      setIsLoading(false);
+    }
+  }
+
+  async function refreshConsolidacionFromRemote(
+    vId: string,
+    localConsData: ConsolidacionHallazgo,
+    hasSavedReceta: boolean,
+    requestId: number
+  ) {
+    try {
+      const remoteConsData = await visitaRecetasService.fetchConsolidacionFromRemote(vId);
+
+      if (!isActiveLoad(requestId)) {
+        return;
+      }
+
+      const resolvedConsData = hasFitosanidadFindings(remoteConsData)
+        ? remoteConsData
+        : hasFitosanidadFindings(localConsData)
+          ? mergeFitosanidadConsolidacion(remoteConsData, localConsData)
+          : remoteConsData;
+
+      setConsolidacion(resolvedConsData);
+
+      if (!hasSavedReceta && hasFitosanidadFindings(resolvedConsData)) {
+        setFitosanidadApps((prev) =>
+          prev.length > 0 ? prev : buildFitosanidadFromConsolidacion(resolvedConsData)
+        );
+      }
+    } catch {
+      // La receta ya funciona con datos locales; la red no debe bloquear esta vista.
     }
   }
 
@@ -208,6 +307,10 @@ export function VisitaRecetaScreen() {
   }
 
   function initFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo) {
+    setFitosanidadApps(buildFitosanidadFromConsolidacion(cons));
+  }
+
+  function buildFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo) {
     const apps: AppFitosanidad[] = [];
     let num = 1;
 
@@ -218,7 +321,7 @@ export function VisitaRecetaScreen() {
       apps.push(createEmptyFitosanidad(num++, "enfermedad", enfermedad.nombre));
     }
 
-    setFitosanidadApps(apps);
+    return apps;
   }
 
   function createEmptyFitosanidad(
@@ -253,19 +356,25 @@ export function VisitaRecetaScreen() {
       const current = { ...updated[index], ...patch };
 
       if (patch.dosisIa !== undefined || patch.volumenAplicacion !== undefined) {
-        const dosis = parseFloat(current.dosisIa) || 0;
-        const vol = parseFloat(current.volumenAplicacion) || 0;
-        current.cantidadTotalIa = dosis && vol ? (dosis * vol).toFixed(4) : "";
+        const totalIa = calculateTotalIa(
+          current.dosisIa,
+          current.volumenAplicacion,
+          calculationAreaHectares
+        );
+        current.cantidadTotalIa = totalIa ? totalIa.toFixed(4) : "";
       }
 
       if (
         patch.cantidadTotalIa !== undefined ||
-        patch.concentracionProducto !== undefined
+        patch.concentracionProducto !== undefined ||
+        patch.dosisIa !== undefined ||
+        patch.volumenAplicacion !== undefined
       ) {
-        const totalIa = parseFloat(current.cantidadTotalIa) || 0;
-        const conc = parseFloat(current.concentracionProducto) || 0;
-        current.cantidadTotalProducto =
-          totalIa && conc ? (totalIa / conc).toFixed(4) : "";
+        const totalProducto = calculateTotalProducto(
+          current.cantidadTotalIa,
+          current.concentracionProducto
+        );
+        current.cantidadTotalProducto = totalProducto ? totalProducto.toFixed(4) : "";
       }
 
       if (patch.coadyuvantesIds !== undefined) {
@@ -308,11 +417,16 @@ export function VisitaRecetaScreen() {
       const data: SaveRecetaData = {
         etapaFenologica: consolidacion?.etapaFenologica ?? null,
         fitosanidad: fitosanidadApps.map((app) => {
-          const computedIa =
-            (parseFloat(app.dosisIa) || 0) * (parseFloat(app.volumenAplicacion) || 0);
+          const computedIa = calculateTotalIa(
+            app.dosisIa,
+            app.volumenAplicacion,
+            calculationAreaHectares
+          );
           const totalIa = computedIa || 0;
-          const conc = parseFloat(app.concentracionProducto) || 0;
-          const totalProducto = totalIa && conc ? totalIa / conc : 0;
+          const totalProducto = calculateTotalProducto(
+            totalIa,
+            app.concentracionProducto
+          );
 
           return {
             numero: app.numero,
@@ -476,6 +590,7 @@ export function VisitaRecetaScreen() {
             fitosanidadApps.map((app, index) => (
               <FitosanidadCard
                 coadyuvantes={coadyuvantes}
+                calculationAreaHectares={calculationAreaHectares}
                 index={index}
                 key={app.localId}
                 modosAccion={modosAccion}
@@ -639,10 +754,13 @@ function ConsolidacionPanel({ data }: { data: ConsolidacionHallazgo }) {
       ) : null}
 
       {data.riego.humedadSuelo ? (
-        <AppText variant="muted" style={styles.consolidacionLine}>
-          Humedad del suelo: {data.riego.humedadSuelo}
-          {data.riego.estresHidrico ? " (estres hidrico)" : ""}
-        </AppText>
+        <View style={styles.consolidacionGroup}>
+          <AppText variant="label">Riego</AppText>
+          <AppText variant="muted">
+            Humedad del suelo: {data.riego.humedadSuelo}
+            {data.riego.estresHidrico ? " (estres hidrico)" : ""}
+          </AppText>
+        </View>
       ) : null}
 
       {data.labores.length > 0 ? (
@@ -683,6 +801,7 @@ function FitosanidadCard({
   value,
   index,
   coadyuvantes,
+  calculationAreaHectares,
   tiposControl,
   tiposProducto,
   modosAccion,
@@ -693,6 +812,7 @@ function FitosanidadCard({
   value: AppFitosanidad;
   index: number;
   coadyuvantes: CoadyuvanteCatalogItem[];
+  calculationAreaHectares: number | null;
   tiposControl: TipoControlCatalogItem[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
@@ -774,6 +894,12 @@ function FitosanidadCard({
         value={value.volumenAplicacion}
         onChangeText={(v) => onChange({ volumenAplicacion: v })}
       />
+
+      {calculationAreaHectares !== null ? (
+        <AppText style={styles.calculationAreaHint} variant="caption">
+          Area usada para el calculo: {formatCompactDecimal(calculationAreaHectares)} ha
+        </AppText>
+      ) : null}
 
       <ReadonlyField
         label="Cantidad total de i.a. (mg o mL)"
@@ -988,17 +1114,10 @@ function RiegoSection({
     },
     {
       key: "inicio_agoste",
-      label: "Inicio de agoste",
+      label: "Agoste",
       description:
-        "Suspension total o restriccion del riego por 45-60 dias dependiendo del cultivo.",
+        "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo.",
       icon: "pause-circle-outline"
-    },
-    {
-      key: "ruptura_agoste",
-      label: "Ruptura de agoste",
-      description:
-        "Riego ligero inmediatamente despues de obtener floracion para estimular flor sana.",
-      icon: "play-circle-outline"
     }
   ];
 
@@ -1365,6 +1484,11 @@ const styles = StyleSheet.create({
   readonlyPlaceholder: {
     color: theme.colors.textMuted,
     fontStyle: "italic"
+  },
+  calculationAreaHint: {
+    color: theme.colors.textMuted,
+    marginTop: -8,
+    paddingHorizontal: 2
   },
   chipContainer: {
     flexDirection: "row",

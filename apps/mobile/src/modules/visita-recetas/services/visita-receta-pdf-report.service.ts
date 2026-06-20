@@ -1,5 +1,6 @@
 import { visitaRecetasService } from "./visita-recetas.service";
 import type { VisitaRecetaCompleta } from "../types";
+import { parcelasRepository } from "../../parcelas/repositories/parcelas.repository";
 import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
 
 declare const process:
@@ -63,6 +64,11 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
   }
 
   const visita = visitasCampoRepository.getById(visitaId);
+  const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
+  const calculationAreaHectares = resolveCalculationAreaHectares(
+    parcela?.areaHectares,
+    visita?.areaHectares
+  );
   const consolidacion = visitaRecetasService.getConsolidacionLocal(visitaId);
   const iconBase64 = await getReportIconUri();
 
@@ -168,6 +174,13 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       gap: 8px;
       margin-bottom: 10px;
     }
+    .visit-summary {
+      background: #f7fbf8;
+      border: 1px solid #d0ddd4;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
     .visit-data-card {
       background: #fafcfa;
       border: 1px solid #e8efe9;
@@ -183,6 +196,8 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       font-size: 12px;
       font-weight: 700;
       margin-bottom: 5px;
+      padding-left: 6px;
+      border-left: 3px solid #74c69d;
     }
     .compact-list {
       margin: 0;
@@ -197,6 +212,11 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       font-style: italic;
       padding: 1px 6px;
       border-radius: 4px;
+    }
+    .calc-hint {
+      color: #6b7a6f;
+      font-size: 10px;
+      margin-top: -4px;
     }
     .mezcla-box {
       background: #fef9e7;
@@ -246,7 +266,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     </div>
   </div>
   ${renderDatosVisita(visita, receta, consolidacion)}
-  ${renderFitosanidad(receta)}
+  ${renderFitosanidad(receta, calculationAreaHectares)}
   ${renderFertilizacion(receta)}
   ${renderRiego(receta)}
   ${renderLabores(receta)}
@@ -259,6 +279,49 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
 
 function findById<T extends { id: string }>(items: T[], id: string): T | undefined {
   return items.find((item) => item.id === id);
+}
+
+function parsePositiveDecimal(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function resolveCalculationAreaHectares(
+  parcelaArea: string | number | null | undefined,
+  visitaArea: string | number | null | undefined
+) {
+  return parsePositiveDecimal(parcelaArea) ?? parsePositiveDecimal(visitaArea);
+}
+
+function getEffectiveCalculationArea(areaHectares: number | null) {
+  return areaHectares ?? 1;
+}
+
+function calculateTotalIa(
+  dosisIa: string | number | null | undefined,
+  volumenAplicacion: string | number | null | undefined,
+  areaHectares: number | null
+) {
+  const dosis = parsePositiveDecimal(dosisIa);
+  const volumen = parsePositiveDecimal(volumenAplicacion);
+
+  return dosis && volumen ? dosis * volumen * getEffectiveCalculationArea(areaHectares) : null;
+}
+
+function calculateTotalProducto(
+  cantidadTotalIa: string | number | null | undefined,
+  concentracionProducto: string | number | null | undefined
+) {
+  const totalIa = parsePositiveDecimal(cantidadTotalIa);
+  const concentracion = parsePositiveDecimal(concentracionProducto);
+
+  return totalIa && concentracion ? totalIa / concentracion : null;
+}
+
+function formatNumber(value: string | number | null | undefined, decimals = 2) {
+  const parsed = parsePositiveDecimal(value);
+  return parsed ? parsed.toFixed(decimals) : "-";
 }
 
 function renderDatosVisita(
@@ -285,23 +348,25 @@ function renderDatosVisita(
   const subEtapaPorcentaje = visita?.subEtapaPercentage ?? null;
 
   return `
-    <h2>Datos de la visita</h2>
-    <div class="visit-data-grid">
-      <div class="visit-data-card">
-        <p class="visit-data-title">Fenologia</p>
-        ${renderFieldRow("Etapa fenologica", etapaNombre ?? receta.etapaFenologica ?? "-")}
-        ${subEtapaNombre ? renderFieldRow("Sub etapa", subEtapaNombre) : ""}
-        ${
-          subEtapaPorcentaje !== null
-            ? renderFieldRow("Avance sub etapa", `${subEtapaPorcentaje}%`)
-            : ""
-        }
+    <h2>Resumen del Diagnostico</h2>
+    <div class="visit-summary">
+      <div class="visit-data-grid">
+        <div class="visit-data-card">
+          <p class="visit-data-title">Fenologia</p>
+          ${renderFieldRow("Etapa fenologica", etapaNombre ?? receta.etapaFenologica ?? "-")}
+          ${subEtapaNombre ? renderFieldRow("Sub etapa", subEtapaNombre) : ""}
+          ${
+            subEtapaPorcentaje !== null
+              ? renderFieldRow("Avance sub etapa", `${subEtapaPorcentaje}%`)
+              : ""
+          }
+        </div>
+        ${renderSanidadVisitDataCard("Plagas", consolidacion.plagas)}
+        ${renderSanidadVisitDataCard("Enfermedades", consolidacion.enfermedades)}
+        ${renderNutricionVisitDataCard(consolidacion.nutricion)}
+        ${renderRiegoVisitDataCard(consolidacion)}
+        ${renderLaboresVisitDataCard(consolidacion.labores)}
       </div>
-      ${renderSanidadVisitDataCard("Plagas", consolidacion.plagas)}
-      ${renderSanidadVisitDataCard("Enfermedades", consolidacion.enfermedades)}
-      ${renderNutricionVisitDataCard(consolidacion.nutricion)}
-      ${renderRiegoVisitDataCard(consolidacion)}
-      ${renderLaboresVisitDataCard(consolidacion.labores)}
     </div>`;
 }
 
@@ -399,7 +464,11 @@ function renderRiegoVisitDataCard(
 function renderLaboresVisitDataCard(
   items: ReturnType<typeof visitaRecetasService.getConsolidacionLocal>["labores"]
 ) {
-  if (items.length === 0) {
+  const visibleItems = items.filter(
+    (item) => !isPositiveLaborSelection(item.nombre, item.categoria)
+  );
+
+  if (visibleItems.length === 0) {
     return "";
   }
 
@@ -407,7 +476,7 @@ function renderLaboresVisitDataCard(
     <div class="visit-data-card">
       <p class="visit-data-title">Labores</p>
       <ul class="compact-list">
-        ${items
+        ${visibleItems
           .map(
             (item) => `
               <li>
@@ -418,6 +487,33 @@ function renderLaboresVisitDataCard(
           .join("")}
       </ul>
     </div>`;
+}
+
+function isPositiveLaborSelection(category: string, option: string) {
+  const normalizedCategory = normalizeText(category);
+  const normalizedOption = normalizeText(option);
+
+  return (
+    (normalizedCategory.includes("infestacion") &&
+      normalizedCategory.includes("maleza") &&
+      normalizedOption === "limpio") ||
+    (normalizedCategory.includes("sanitario") &&
+      normalizedCategory.includes("suelo") &&
+      normalizedOption === "limpio") ||
+    (normalizedCategory.includes("copa") && normalizedOption === "buena") ||
+    (normalizedCategory.includes("balance") &&
+      normalizedCategory.includes("carga") &&
+      normalizedOption === "equilibrado")
+  );
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function formatOrganos(organos: string[]) {
@@ -446,12 +542,22 @@ function formatOrgano(organo: string) {
   return labels[organo] ?? organo;
 }
 
-function renderFitosanidad(receta: VisitaRecetaCompleta): string {
+function renderFitosanidad(
+  receta: VisitaRecetaCompleta,
+  calculationAreaHectares: number | null
+): string {
   if (receta.fitosanidad.length === 0) return "";
 
   let html = "<h2>Aplicaciones fitosanitarias</h2>";
 
   for (const app of receta.fitosanidad) {
+    const calculatedTotalIa =
+      calculateTotalIa(app.dosisIa, app.volumenAplicacion, calculationAreaHectares) ??
+      app.cantidadTotalIa;
+    const calculatedTotalProducto =
+      calculateTotalProducto(calculatedTotalIa, app.concentracionProducto) ??
+      app.cantidadTotalProducto;
+
     html += `
     <div class="section-card">
       <h3>
@@ -464,11 +570,15 @@ function renderFitosanidad(receta: VisitaRecetaCompleta): string {
         <tr><td>Ingrediente activo</td><td>${escapeHtml(app.ingredienteActivoNombre ?? "-")}</td></tr>
         <tr><td>Dosis i.a.</td><td>${app.dosisIa ?? "-"} mg o mL/cilindro</td></tr>
         <tr><td>Volumen aplicacion</td><td>${app.volumenAplicacion ?? "-"} cilindros/ha</td></tr>
-        <tr><td class="calculated">Cantidad total i.a.</td><td class="calculated">${app.cantidadTotalIa ?? "-"} mg o mL</td></tr>
+        <tr><td class="calculated">Cantidad total i.a.</td><td class="calculated">${formatNumber(calculatedTotalIa)} mg o mL</td></tr>
         <tr><td>Marca</td><td>${escapeHtml(app.marcaProductoNombre ?? "-")}</td></tr>
         <tr><td>Concentracion en producto</td><td>${app.concentracionProducto ?? "-"} mg o mL i.a./L</td></tr>
-        <tr><td class="calculated">Cantidad total producto</td><td class="calculated">${app.cantidadTotalProducto ?? "-"} L</td></tr>
+        <tr><td class="calculated">Cantidad total producto</td><td class="calculated">${formatNumber(calculatedTotalProducto)} L</td></tr>
       </table>`;
+
+    if (calculationAreaHectares !== null) {
+      html += `<p class="calc-hint">Area usada para el calculo: ${formatNumber(calculationAreaHectares)} ha.</p>`;
+    }
 
     if (app.coadyuvantesIds) {
       html += `<p style="font-size:11px;margin-top:6px;"><strong>Coadyuvantes:</strong> ${renderCoadyuvantesFromIds(app.coadyuvantesIds)}</p>`;
@@ -537,14 +647,14 @@ function renderRiego(receta: VisitaRecetaCompleta): string {
   const labels: Record<string, string> = {
     riego_pesado: "Riego pesado",
     riego_ligero: "Riego ligero",
-    inicio_agoste: "Inicio de agoste",
-    ruptura_agoste: "Ruptura de agoste"
+    inicio_agoste: "Agoste",
+    ruptura_agoste: "Agoste"
   };
   const descriptions: Record<string, string> = {
     riego_pesado: "Aplicar grandes volumenes de agua sobre la superficie del terreno.",
     riego_ligero: "Aplicar una lamina de agua de bajo volumen para humedecer superficialmente.",
-    inicio_agoste: "Suspension total o restriccion del riego por 45-60 dias dependiendo del cultivo.",
-    ruptura_agoste: "Riego ligero inmediatamente despues de obtener floracion para estimular flor sana y activar el sistema radicular."
+    inicio_agoste: "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo.",
+    ruptura_agoste: "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo."
   };
 
   return `
