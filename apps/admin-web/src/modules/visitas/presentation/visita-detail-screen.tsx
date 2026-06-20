@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { ErrorState } from "../../../shared/components/error-state";
-import { LoadingState } from "../../../shared/components/loading-state";
+import { DetailSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
 import { formatDateOnly } from "../../../shared/utils/date-only";
@@ -46,7 +46,7 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
   );
 
   if (isLoading) {
-    return <LoadingState description="Cargando cabecera y detalle completo de la visita." />;
+    return <DetailSkeleton />;
   }
 
   if (errorMessage) {
@@ -63,7 +63,12 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
   }
 
   if (!detail) {
-    return null;
+    return (
+      <ErrorState
+        title="No se pudo cargar el detalle"
+        description="La visita solicitada no existe o no se encuentra disponible."
+      />
+    );
   }
   const laboresCulturales = detail.laboresCulturales ?? [];
 

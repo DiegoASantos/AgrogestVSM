@@ -325,7 +325,7 @@ canvas {
   margin: 0;
   font-size: 15px;
   font-weight: 700;
-  color: var(--sidebar-foreground);
+  color: #ffffff;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -390,7 +390,7 @@ canvas {
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--sidebar-muted);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -402,11 +402,11 @@ canvas {
 
 .sidebar-group__toggle:hover {
   background: var(--sidebar-hover);
-  color: var(--sidebar-foreground);
+  color: #ffffff;
 }
 
 .sidebar-group--active > .sidebar-group__toggle {
-  color: var(--sidebar-foreground);
+  color: #ffffff;
 }
 
 .sidebar-group__toggle-left {
@@ -2519,6 +2519,94 @@ canvas {
   gap: 8px;
 }
 
+/* ---- Skeleton UI ---- */
+.skeleton-block {
+  background: var(--surface-hover);
+  border-radius: var(--radius-sm);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.skeleton-table {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  background: var(--surface);
+}
+
+.skeleton-table__header {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(var(--skeleton-cols, 5), minmax(0, 1fr));
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-hover);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.skeleton-table__header .skeleton-table__cell {
+  height: 12px;
+  width: auto;
+}
+
+.skeleton-table__row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(var(--skeleton-cols, 5), minmax(0, 1fr));
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.skeleton-table__row:last-child {
+  border-bottom: none;
+}
+
+.skeleton-table__cell {
+  height: 14px;
+  border-radius: var(--radius-sm);
+  width: 60%;
+}
+
+.skeleton-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+}
+
+.skeleton-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.skeleton-card__label {
+  height: 11px;
+  width: 50%;
+}
+
+.skeleton-card__value {
+  height: 16px;
+  width: 80%;
+}
+
+.state-card__loading-pulse {
+  margin-bottom: 12px;
+}
+
 /* ============================================================
    Data Table
    ============================================================ */
@@ -2560,6 +2648,9 @@ canvas {
   letter-spacing: 0.04em;
   background: var(--surface-hover);
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .data-table tbody tr {
@@ -2577,6 +2668,45 @@ canvas {
 .data-table__actions {
   width: 1%;
   white-space: nowrap;
+}
+
+.data-table__sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  user-select: none;
+}
+
+.data-table__sort-btn:hover {
+  color: var(--text);
+}
+
+.data-table__sort-chevron {
+  display: inline-flex;
+  font-size: 10px;
+  line-height: 1;
+  transition: color var(--transition-fast);
+}
+
+.data-table__sort-chevron--inactive {
+  opacity: 0.35;
+}
+
+.data-table__sort-chevron--asc,
+.data-table__sort-chevron--desc {
+  opacity: 1;
+  color: var(--primary);
 }
 
 .table-copy {
@@ -2660,6 +2790,25 @@ canvas {
   display: grid;
   gap: 12px;
   margin-top: 16px;
+}
+
+.lookup-fallback {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.92em;
+}
+
+/* ---- Visit detail responsive ---- */
+@media (max-width: 640px) {
+  .visit-detail__grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+    gap: 8px;
+  }
+
+  .visit-detail__field,
+  .visit-detail__note {
+    padding: 10px 12px;
+  }
 }
 
 /* ============================================================

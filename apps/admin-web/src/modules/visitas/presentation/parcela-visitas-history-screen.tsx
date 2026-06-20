@@ -7,6 +7,7 @@ import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
 import { buildAdminMapHref } from "../../mapas/utils/map-query";
@@ -139,7 +140,10 @@ export function ParcelaVisitasHistoryScreen({
         ) : null}
 
         {!errorMessage && isLoadingHistory ? (
-          <LoadingState description="Cargando historial de visitas de la parcela." />
+          <TableSkeleton
+            columns={6}
+            description="Cargando historial de visitas de la parcela."
+          />
         ) : null}
 
         {!errorMessage && !isLoadingHistory && history?.visitas.length === 0 ? (

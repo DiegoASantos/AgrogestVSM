@@ -8,6 +8,7 @@ import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
 import { FilterBar } from "../../../shared/components/filter-bar";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { adminRoutes } from "../../../shared/constants/site";
 import { toApiError } from "../../../shared/services";
@@ -269,7 +270,10 @@ export function VisitasOverview() {
         ) : null}
 
         {!listError && isLoadingList ? (
-          <LoadingState description="Cargando visitas segun los filtros administrativos seleccionados." />
+          <TableSkeleton
+            columns={7}
+            description="Cargando visitas segun los filtros administrativos seleccionados."
+          />
         ) : null}
 
         {!listError && !isLoadingList && items.length === 0 ? (

@@ -7,6 +7,7 @@ import { DataTable, type DataTableColumn } from "../../../shared/components/data
 import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
 import { formatDateOnly } from "../../../shared/utils/date-only";
@@ -177,7 +178,10 @@ export function ParcelasVisitadasPorAgronomoScreen() {
         ) : null}
 
         {isLoadingList ? (
-          <LoadingState description="Agrupando visitas por parcela." />
+          <TableSkeleton
+            columns={5}
+            description="Agrupando visitas por parcela."
+          />
         ) : null}
 
         {!isLoadingList && !listError && result ? (

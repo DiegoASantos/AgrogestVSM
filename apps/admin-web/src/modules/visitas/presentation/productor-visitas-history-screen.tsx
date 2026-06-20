@@ -8,6 +8,7 @@ import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
 import { FilterBar } from "../../../shared/components/filter-bar";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
 import { buildAdminMapHref } from "../../mapas/utils/map-query";
@@ -229,7 +230,10 @@ export function ProductorVisitasHistoryScreen({
         ) : null}
 
         {!errorMessage && isLoadingHistory ? (
-          <LoadingState description="Cargando historial de visitas del productor." />
+          <TableSkeleton
+            columns={7}
+            description="Cargando historial de visitas del productor."
+          />
         ) : null}
 
         {!errorMessage && !isLoadingHistory && history?.visitas.length === 0 ? (

@@ -27,6 +27,8 @@ export function VisitasTable({
     {
       key: "ficha",
       header: "Visita",
+      sortable: true,
+      sortValue: (visita) => visita.visitDate,
       cell: (visita) => (
         <div className="table-copy">
           <strong>{visita.nroFicha?.trim() || visita.publicId}</strong>
@@ -39,22 +41,37 @@ export function VisitasTable({
           {
             key: "parcela",
             header: "Parcela",
-            cell: (visita: VisitaCampo) =>
-              parcelaLabels?.get(visita.parcelaId) ?? `Parcela #${visita.parcelaId}`
+            cell: (visita: VisitaCampo) => {
+              const label = parcelaLabels?.get(visita.parcelaId);
+
+              return label ? label : <span className="lookup-fallback">Parcela #{visita.parcelaId}</span>;
+            }
           } satisfies DataTableColumn<VisitaCampo>
         ]
       : []),
     {
       key: "campania",
       header: "Campaña",
-      cell: (visita) =>
-        campaignLabels?.get(visita.campaignId) ?? `Campaña #${visita.campaignId}`
+      sortable: true,
+      sortValue: (visita) =>
+        campaignLabels?.get(visita.campaignId) ?? "",
+      cell: (visita) => {
+        const label = campaignLabels?.get(visita.campaignId);
+
+        return label ? label : <span className="lookup-fallback">Campaña #{visita.campaignId}</span>;
+      }
     },
     {
       key: "agronomo",
       header: "Agrónomo",
-      cell: (visita) =>
-        agronomistLabels?.get(visita.agronomistUserId) ?? `Usuario #${visita.agronomistUserId}`
+      sortable: true,
+      sortValue: (visita) =>
+        agronomistLabels?.get(visita.agronomistUserId) ?? "",
+      cell: (visita) => {
+        const label = agronomistLabels?.get(visita.agronomistUserId);
+
+        return label ? label : <span className="lookup-fallback">Usuario #{visita.agronomistUserId}</span>;
+      }
     },
     {
       key: "horario",
@@ -65,6 +82,8 @@ export function VisitasTable({
     {
       key: "estado",
       header: "Estado",
+      sortable: true,
+      sortValue: (visita) => (visita.isActive ? 1 : 0),
       cell: (visita) => (
         <span className={`table-badge ${visita.isActive ? "" : "table-badge--muted"}`}>
           {visita.isActive ? "Activa" : "Inactiva"}
