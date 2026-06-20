@@ -1,4 +1,16 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 
 export type SortDirection = "asc" | "desc";
 
@@ -23,6 +35,15 @@ type DataTableProps<Row> = {
   getRowKey: (row: Row) => string | number;
   caption?: string;
   initialSort?: SortState;
+  pagination?: DataTablePagination;
+};
+
+export type DataTablePagination = {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  loading?: boolean;
+  summary?: ReactNode;
 };
 
 export function DataTable<Row>({
@@ -30,7 +51,8 @@ export function DataTable<Row>({
   rows,
   getRowKey,
   caption,
-  initialSort
+  initialSort,
+  pagination
 }: DataTableProps<Row>) {
   const [sort, setSort] = useState<SortState | null>(initialSort ?? null);
 
@@ -59,12 +81,12 @@ export function DataTable<Row>({
 
   return (
     <div className="data-table__wrapper">
-      <table className="data-table">
-        {caption ? <caption>{caption}</caption> : null}
-        <thead>
-          <tr>
+      <Table className="data-table">
+        {caption ? <TableCaption>{caption}</TableCaption> : null}
+        <TableHeader>
+          <TableRow>
             {columns.map((column) => (
-              <th
+              <TableHead
                 className={column.headerClassName}
                 key={column.key}
                 scope="col"
@@ -85,22 +107,23 @@ export function DataTable<Row>({
                 ) : (
                   column.header
                 )}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {sortedRows.map((row) => (
-            <tr key={getRowKey(row)}>
+            <TableRow key={getRowKey(row)}>
               {columns.map((column) => (
-                <td className={column.className} key={column.key}>
+                <TableCell className={column.className} key={column.key}>
                   {column.cell(row)}
-                </td>
+                </TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
+      {pagination ? <DataTablePaginationControls pagination={pagination} /> : null}
     </div>
   );
 
@@ -117,6 +140,108 @@ export function DataTable<Row>({
       return { key, direction: "asc" };
     });
   }
+}
+
+function DataTablePaginationControls({
+  pagination
+}: {
+  pagination: DataTablePagination;
+}) {
+  const { page, totalPages, onPageChange, loading, summary } = pagination;
+
+  if (totalPages <= 1 && !summary) {
+    return null;
+  }
+
+  const startPage = Math.max(1, page - 2);
+  const endPage = Math.min(totalPages, page + 2);
+  const pages: number[] = [];
+
+  for (let pageIndex = startPage; pageIndex <= endPage; pageIndex++) {
+    pages.push(pageIndex);
+  }
+
+  return (
+    <div className="data-table__footer">
+      {summary ? <p className="body-copy data-table__summary">{summary}</p> : null}
+      {totalPages > 1 ? (
+        <nav className="pagination pagination--datatable" aria-label="Paginacion de resultados">
+          <Button
+            aria-label="Pagina anterior"
+            className="pagination__btn"
+            disabled={page <= 1 || loading}
+            onClick={() => onPageChange(page - 1)}
+            size="icon"
+            type="button"
+            variant="outline"
+          >
+            <ChevronLeft size={16} />
+          </Button>
+
+          {startPage > 1 ? (
+            <>
+              <Button
+                className="pagination__page"
+                disabled={loading}
+                onClick={() => onPageChange(1)}
+                size="icon"
+                type="button"
+                variant="ghost"
+              >
+                1
+              </Button>
+              {startPage > 2 ? <span className="pagination__ellipsis">&hellip;</span> : null}
+            </>
+          ) : null}
+
+          {pages.map((pageNumber) => (
+            <Button
+              aria-current={pageNumber === page ? "page" : undefined}
+              className={`pagination__page${pageNumber === page ? " pagination__page--active" : ""}`}
+              disabled={loading}
+              key={pageNumber}
+              onClick={() => onPageChange(pageNumber)}
+              size="icon"
+              type="button"
+              variant={pageNumber === page ? "default" : "ghost"}
+            >
+              {pageNumber}
+            </Button>
+          ))}
+
+          {endPage < totalPages ? (
+            <>
+              {endPage < totalPages - 1 ? (
+                <span className="pagination__ellipsis">&hellip;</span>
+              ) : null}
+              <Button
+                className="pagination__page"
+                disabled={loading}
+                onClick={() => onPageChange(totalPages)}
+                size="icon"
+                type="button"
+                variant="ghost"
+              >
+                {totalPages}
+              </Button>
+            </>
+          ) : null}
+
+          <Button
+            aria-label="Pagina siguiente"
+            className="pagination__btn"
+            disabled={page >= totalPages || loading}
+            onClick={() => onPageChange(page + 1)}
+            size="icon"
+            type="button"
+            variant="outline"
+          >
+            <ChevronRight size={16} />
+          </Button>
+        </nav>
+      ) : null}
+    </div>
+  );
 }
 
 function SortIndicator({

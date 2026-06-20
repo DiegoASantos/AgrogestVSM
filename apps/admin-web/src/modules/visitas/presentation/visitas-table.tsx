@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 
-import { DataTable, type DataTableColumn } from "../../../shared/components/data-table";
+import {
+  DataTable,
+  type DataTableColumn,
+  type DataTablePagination
+} from "../../../shared/components/data-table";
 import { formatDateOnly } from "../../../shared/utils/date-only";
 import type { VisitaCampo } from "../types/visitas.types";
 
@@ -13,6 +17,7 @@ type VisitasTableProps = {
   agronomistLabels?: Map<string, string>;
   showParcelaColumn?: boolean;
   getMapHref?: (visita: VisitaCampo) => string;
+  pagination?: DataTablePagination;
 };
 
 export function VisitasTable({
@@ -21,7 +26,8 @@ export function VisitasTable({
   parcelaLabels,
   agronomistLabels,
   showParcelaColumn = true,
-  getMapHref
+  getMapHref,
+  pagination
 }: VisitasTableProps) {
   const columns: DataTableColumn<VisitaCampo>[] = [
     {
@@ -114,6 +120,7 @@ export function VisitasTable({
       caption="Listado administrativo de visitas de campo."
       columns={columns}
       getRowKey={(row) => row.id}
+      pagination={pagination}
       rows={items}
     />
   );

@@ -8,7 +8,6 @@ import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
-import { Pagination } from "../../../shared/components/pagination";
 import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { adminRoutes } from "../../../shared/constants/site";
@@ -84,6 +83,9 @@ export function VisitasOverview() {
 
   const fromItem = (page - 1) * PAGE_SIZE + 1;
   const toItem = Math.min(page * PAGE_SIZE, count);
+  const resultsSummary = `${count} visita${count === 1 ? "" : "s"} encontrada${count === 1 ? "" : "s"}${
+    totalPages > 1 ? ` -- Mostrando ${fromItem} - ${toItem}` : ""
+  }.`;
 
   return (
     <section className="panel-grid">
@@ -121,7 +123,7 @@ export function VisitasOverview() {
           title="Gestion administrativa de visitas"
         />
 
-        <div className="filter-card">
+        <div className="filter-card filter-card--visitas">
           <div className="filter-card__header">
             <Filter size={16} />
             <span>Filtros de busqueda</span>
@@ -282,32 +284,27 @@ export function VisitasOverview() {
         ) : null}
 
         {!listError && !isLoadingList && items.length > 0 ? (
-          <>
-            <p className="body-copy visitas-results-copy">
-              {count} visita{count === 1 ? "" : "s"} encontrada{count === 1 ? "" : "s"}
-              {totalPages > 1 ? ` — Mostrando ${fromItem}–${toItem}` : ""}.
-            </p>
-            <VisitasTable
-              agronomistLabels={agronomistLabels}
-              campaignLabels={campaignLabels}
-              getMapHref={(visita) =>
-                buildAdminMapHref({
-                  visitaId: visita.id,
-                  parcelaId: visita.parcelaId,
-                  campaignId: visita.campaignId,
-                  agronomistUserId: visita.agronomistUserId
-                })
-              }
-              items={items}
-              parcelaLabels={parcelaLabels}
-            />
-            <Pagination
-              loading={isLoadingList}
-              onPageChange={handlePageChange}
-              page={page}
-              totalPages={totalPages}
-            />
-          </>
+          <VisitasTable
+            agronomistLabels={agronomistLabels}
+            campaignLabels={campaignLabels}
+            getMapHref={(visita) =>
+              buildAdminMapHref({
+                visitaId: visita.id,
+                parcelaId: visita.parcelaId,
+                campaignId: visita.campaignId,
+                agronomistUserId: visita.agronomistUserId
+              })
+            }
+            items={items}
+            pagination={{
+              loading: isLoadingList,
+              onPageChange: handlePageChange,
+              page,
+              summary: resultsSummary,
+              totalPages
+            }}
+            parcelaLabels={parcelaLabels}
+          />
         ) : null}
       </article>
     </section>
