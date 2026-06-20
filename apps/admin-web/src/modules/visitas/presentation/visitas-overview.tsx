@@ -1,13 +1,14 @@
 "use client";
 
+import { Calendar, Filter, Map, Search, User } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
-import { FilterBar } from "../../../shared/components/filter-bar";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { Pagination } from "../../../shared/components/pagination";
 import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { adminRoutes } from "../../../shared/constants/site";
@@ -16,14 +17,12 @@ import { buildAdminMapHref } from "../../mapas/utils/map-query";
 import { VisitasTable } from "./visitas-table";
 import { visitasService } from "../services/visitas.service";
 import type {
-  AgronomistFilterOption,
-  CampaignFilterOption,
-  ParcelaFilterOption,
-  ProductorFilterOption,
   VisitaCampo,
   VisitaFilterCatalogs,
   VisitaListFilters
 } from "../types/visitas.types";
+
+const PAGE_SIZE = 30;
 
 const emptyFilters: VisitaListFilters = {
   agronomistUserId: "",
@@ -42,6 +41,8 @@ export function VisitasOverview() {
   const [catalogs, setCatalogs] = useState<VisitaFilterCatalogs | null>(null);
   const [items, setItems] = useState<VisitaCampo[]>([]);
   const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -61,8 +62,8 @@ export function VisitasOverview() {
       return;
     }
 
-    void loadVisitas(appliedFilters);
-  }, [appliedFilters, session]);
+    void loadVisitas(appliedFilters, page);
+  }, [appliedFilters, page, session]);
 
   const campaignLabels = useMemo(
     () => createOptionLabelMap(catalogs?.campanias ?? []),
@@ -77,19 +78,19 @@ export function VisitasOverview() {
     [catalogs?.parcelas]
   );
 
+  const handlePageChange = useCallback((nextPage: number) => {
+    setPage(nextPage);
+  }, []);
+
+  const fromItem = (page - 1) * PAGE_SIZE + 1;
+  const toItem = Math.min(page * PAGE_SIZE, count);
+
   return (
     <section className="panel-grid">
       <article className="panel">
         <ToolbarActions
           actions={
             <>
-              <button
-                className="ui-button ui-button--ghost"
-                onClick={() => void loadVisitas(appliedFilters)}
-                type="button"
-              >
-                Recargar
-              </button>
               <Link
                 className="ui-button ui-button--ghost"
                 href={buildAdminMapHref({
@@ -101,6 +102,7 @@ export function VisitasOverview() {
                   endDate: appliedFilters.endDate
                 })}
               >
+                <Map size={15} />
                 Abrir mapa
               </Link>
               <Link
@@ -114,133 +116,129 @@ export function VisitasOverview() {
               </Link>
             </>
           }
-          description="Listado administrativo de visitas de campo con filtros operativos simples."
+          description="Listado administrativo de visitas de campo con filtros operativos."
           eyebrow="Visitas"
           title="Gestion administrativa de visitas"
         />
 
-        <FilterBar
-          actions={
-            <>
-              <button className="ui-button ui-button--ghost" onClick={handleClearFilters} type="button">
-                Limpiar
-              </button>
-              <button className="ui-button ui-button--primary" onClick={handleApplyFilters} type="button">
-                Aplicar filtros
-              </button>
-            </>
-          }
-        >
-          <label className="field-group">
-            <span>Agronomo</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  agronomistUserId: event.target.value
-                }))
-              }
-              value={draftFilters.agronomistUserId}
-            >
-              <option value="">Todos</option>
-              {(catalogs?.agronomos ?? []).map((agronomo) => (
-                <option key={agronomo.id} value={agronomo.id}>
-                  {agronomo.label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="filter-card">
+          <div className="filter-card__header">
+            <Filter size={16} />
+            <span>Filtros de busqueda</span>
+          </div>
+          <div className="filter-card__body">
+            <label className="field-group">
+              <span className="field-group__label">
+                <User size={13} />
+                Agronomo
+              </span>
+              <select
+                onChange={(event) =>
+                  updateDraft("agronomistUserId", event.target.value)
+                }
+                value={draftFilters.agronomistUserId}
+              >
+                <option value="">Todos</option>
+                {(catalogs?.agronomos ?? []).map((agronomo) => (
+                  <option key={agronomo.id} value={agronomo.id}>
+                    {agronomo.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="field-group">
-            <span>Productor</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  productorId: event.target.value
-                }))
-              }
-              value={draftFilters.productorId}
-            >
-              <option value="">Todos</option>
-              {(catalogs?.productores ?? []).map((productor) => (
-                <option key={productor.id} value={productor.id}>
-                  {productor.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="field-group">
+              <span className="field-group__label">
+                <Search size={13} />
+                Productor
+              </span>
+              <select
+                onChange={(event) =>
+                  updateDraft("productorId", event.target.value)
+                }
+                value={draftFilters.productorId}
+              >
+                <option value="">Todos</option>
+                {(catalogs?.productores ?? []).map((productor) => (
+                  <option key={productor.id} value={productor.id}>
+                    {productor.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="field-group">
-            <span>Campaña</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  campaignId: event.target.value
-                }))
-              }
-              value={draftFilters.campaignId}
-            >
-              <option value="">Todas</option>
-              {(catalogs?.campanias ?? []).map((campania) => (
-                <option key={campania.id} value={campania.id}>
-                  {campania.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="field-group">
+              <span className="field-group__label">Campaña</span>
+              <select
+                onChange={(event) =>
+                  updateDraft("campaignId", event.target.value)
+                }
+                value={draftFilters.campaignId}
+              >
+                <option value="">Todas</option>
+                {(catalogs?.campanias ?? []).map((campania) => (
+                  <option key={campania.id} value={campania.id}>
+                    {campania.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="field-group">
-            <span>Parcela</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  parcelaId: event.target.value
-                }))
-              }
-              value={draftFilters.parcelaId}
-            >
-              <option value="">Todas</option>
-              {(catalogs?.parcelas ?? []).map((parcela) => (
-                <option key={parcela.id} value={parcela.id}>
-                  {parcela.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="field-group">
+              <span className="field-group__label">Parcela</span>
+              <select
+                onChange={(event) =>
+                  updateDraft("parcelaId", event.target.value)
+                }
+                value={draftFilters.parcelaId}
+              >
+                <option value="">Todas</option>
+                {(catalogs?.parcelas ?? []).map((parcela) => (
+                  <option key={parcela.id} value={parcela.id}>
+                    {parcela.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="field-group">
-            <span>Fecha desde</span>
-            <input
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  startDate: event.target.value
-                }))
-              }
-              type="date"
-              value={draftFilters.startDate}
-            />
-          </label>
+            <label className="field-group">
+              <span className="field-group__label">
+                <Calendar size={13} />
+                Fecha desde
+              </span>
+              <input
+                onChange={(event) =>
+                  updateDraft("startDate", event.target.value)
+                }
+                type="date"
+                value={draftFilters.startDate}
+              />
+            </label>
 
-          <label className="field-group">
-            <span>Fecha hasta</span>
-            <input
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  endDate: event.target.value
-                }))
-              }
-              type="date"
-              value={draftFilters.endDate}
-            />
-          </label>
-        </FilterBar>
-
-        {validationError ? <p className="form-error">{validationError}</p> : null}
+            <label className="field-group">
+              <span className="field-group__label">
+                <Calendar size={13} />
+                Fecha hasta
+              </span>
+              <input
+                onChange={(event) =>
+                  updateDraft("endDate", event.target.value)
+                }
+                type="date"
+                value={draftFilters.endDate}
+              />
+            </label>
+          </div>
+          {validationError ? <p className="form-error">{validationError}</p> : null}
+          <div className="filter-card__footer">
+            <button className="ui-button ui-button--ghost ui-button--compact" onClick={handleClearFilters} type="button">
+              Limpiar
+            </button>
+            <button className="ui-button ui-button--primary" onClick={handleApplyFilters} type="button">
+              Aplicar filtros
+            </button>
+          </div>
+        </div>
 
         {catalogError ? (
           <ErrorState
@@ -261,7 +259,7 @@ export function VisitasOverview() {
         {listError ? (
           <ErrorState
             action={
-              <button className="ui-button ui-button--secondary" onClick={() => void loadVisitas(appliedFilters)} type="button">
+              <button className="ui-button ui-button--secondary" onClick={() => void loadVisitas(appliedFilters, page)} type="button">
                 Reintentar listado
               </button>
             }
@@ -286,7 +284,8 @@ export function VisitasOverview() {
         {!listError && !isLoadingList && items.length > 0 ? (
           <>
             <p className="body-copy visitas-results-copy">
-              {count} visita{count === 1 ? "" : "s"} encontrada{count === 1 ? "" : "s"}.
+              {count} visita{count === 1 ? "" : "s"} encontrada{count === 1 ? "" : "s"}
+              {totalPages > 1 ? ` — Mostrando ${fromItem}–${toItem}` : ""}.
             </p>
             <VisitasTable
               agronomistLabels={agronomistLabels}
@@ -302,11 +301,21 @@ export function VisitasOverview() {
               items={items}
               parcelaLabels={parcelaLabels}
             />
+            <Pagination
+              loading={isLoadingList}
+              onPageChange={handlePageChange}
+              page={page}
+              totalPages={totalPages}
+            />
           </>
         ) : null}
       </article>
     </section>
   );
+
+  function updateDraft(key: keyof VisitaListFilters, value: string) {
+    setDraftFilters((current) => ({ ...current, [key]: value }));
+  }
 
   function handleApplyFilters() {
     if (
@@ -319,12 +328,14 @@ export function VisitasOverview() {
     }
 
     setValidationError(null);
+    setPage(1);
     setAppliedFilters(draftFilters);
   }
 
   function handleClearFilters() {
     setValidationError(null);
     setDraftFilters(emptyFilters);
+    setPage(1);
     setAppliedFilters(emptyFilters);
   }
 
@@ -352,7 +363,7 @@ export function VisitasOverview() {
     }
   }
 
-  async function loadVisitas(filters: VisitaListFilters) {
+  async function loadVisitas(filters: VisitaListFilters, currentPage: number) {
     if (!session) {
       return;
     }
@@ -360,9 +371,10 @@ export function VisitasOverview() {
     try {
       setIsLoadingList(true);
       setListError(null);
-      const response = await visitasService.getList(session, filters);
+      const response = await visitasService.getList(session, filters, currentPage, PAGE_SIZE);
       setItems(response.items);
       setCount(response.count);
+      setTotalPages(response.totalPages);
     } catch (error) {
       const apiError = toApiError(error);
 
@@ -379,11 +391,7 @@ export function VisitasOverview() {
 }
 
 function createOptionLabelMap(
-  options:
-    | ProductorFilterOption[]
-    | CampaignFilterOption[]
-    | ParcelaFilterOption[]
-    | AgronomistFilterOption[]
+  options: readonly { id: string; label: string }[]
 ) {
-  return new Map(options.map((option) => [option.id, option.label]));
+  return new globalThis.Map(options.map((option) => [option.id, option.label]));
 }

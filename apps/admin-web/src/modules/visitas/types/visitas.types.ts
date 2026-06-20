@@ -99,6 +99,13 @@ export type VisitaFilterCatalogs = {
 export type VisitaListResponse = {
   items: VisitaCampo[];
   count: number;
+  page: number;
+  totalPages: number;
+};
+
+export type PaginatedResult = {
+  page: number;
+  totalPages: number;
 };
 
 export type ProductorVisitasHistory = {
@@ -118,6 +125,8 @@ export type ProductorVisitasHistory = {
   };
   visitas: VisitaCampo[];
   count: number;
+  page: number;
+  totalPages: number;
 };
 
 export type ParcelaVisitadaPorAgronomo = {
@@ -146,6 +155,8 @@ export type ParcelaVisitasHistory = {
   };
   visitas: VisitaCampo[];
   count: number;
+  page: number;
+  totalPages: number;
   lookups: {
     sector: LookupItem | null;
   };

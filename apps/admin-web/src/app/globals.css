@@ -2287,12 +2287,14 @@ canvas {
   padding: 16px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
   background: var(--surface);
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .stat-card:hover {
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-xs);
 }
 
 .stat-card__label {
@@ -2390,6 +2392,57 @@ canvas {
 /* ============================================================
    Filter bar
    ============================================================ */
+/* ---- Filter bar premium ---- */
+.filter-card {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, var(--primary-bg), var(--surface) 55%);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  margin-bottom: 20px;
+}
+
+.filter-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(22, 101, 52, 0.03);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+[data-theme="dark"] .filter-card__header {
+  background: rgba(74, 222, 128, 0.04);
+}
+
+.filter-card__body {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
+  padding: 14px 16px;
+}
+
+.filter-card__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-strong);
+}
+
+.field-group__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ---- Filter Bar (legacy, keep for other screens) ---- */
 .filter-bar {
   display: flex;
   justify-content: space-between;
@@ -2398,7 +2451,12 @@ canvas {
   padding: 16px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: linear-gradient(
+    180deg,
+    var(--primary-bg),
+    var(--surface) 40%
+  );
+  box-shadow: var(--shadow-xs);
 }
 
 .filter-bar__fields {
@@ -2752,6 +2810,99 @@ canvas {
   margin: 4px 0 0;
 }
 
+/* ---- Pagination ---- */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.pagination__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.pagination__btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.pagination__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pagination__page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.pagination__page:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.pagination__page:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pagination__page--active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(22, 101, 52, 0.22);
+}
+
+.pagination__page--active:hover:not(:disabled) {
+  background: var(--primary-strong);
+  color: #ffffff;
+}
+
+.pagination__ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  user-select: none;
+}
+
 /* ============================================================
    Visit detail
    ============================================================ */
@@ -2768,8 +2919,15 @@ canvas {
   padding: 14px 16px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
+  border-left: 2px solid var(--primary-muted);
   background: var(--surface);
   min-width: 0;
+  transition: border-color var(--transition-fast);
+}
+
+.visit-detail__field:hover,
+.visit-detail__note:hover {
+  border-color: var(--border-strong);
 }
 
 .visit-detail__field span,

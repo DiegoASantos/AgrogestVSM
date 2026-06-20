@@ -1,22 +1,20 @@
 "use client";
 
+import { Map } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
-import { FilterBar } from "../../../shared/components/filter-bar";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { Pagination } from "../../../shared/components/pagination";
 import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
 import { buildAdminMapHref } from "../../mapas/utils/map-query";
 import { visitasService } from "../services/visitas.service";
 import type {
-  AgronomistFilterOption,
-  CampaignFilterOption,
-  ParcelaFilterOption,
   ProductorVisitasHistory,
   VisitaFilterCatalogs,
   VisitaListFilters
@@ -26,6 +24,8 @@ import { VisitasTable } from "./visitas-table";
 type ProductorVisitasHistoryScreenProps = {
   productorId: string;
 };
+
+const PAGE_SIZE = 30;
 
 const emptyFilters = {
   campaignId: "",
@@ -45,6 +45,7 @@ export function ProductorVisitasHistoryScreen({
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
@@ -61,8 +62,8 @@ export function ProductorVisitasHistoryScreen({
       return;
     }
 
-    void loadHistory(appliedFilters);
-  }, [appliedFilters, productorId, session]);
+    void loadHistory(appliedFilters, page);
+  }, [appliedFilters, page, productorId, session]);
 
   const campaignLabels = useMemo(
     () => createOptionLabelMap(catalogs?.campanias ?? []),
@@ -77,19 +78,19 @@ export function ProductorVisitasHistoryScreen({
     [catalogs?.parcelas]
   );
 
+  const handlePageChange = useCallback((nextPage: number) => {
+    setPage(nextPage);
+  }, []);
+
+  const fromItem = (page - 1) * PAGE_SIZE + 1;
+  const toItem = Math.min(page * PAGE_SIZE, history?.count ?? 0);
+
   return (
     <section className="panel-grid">
       <article className="panel">
         <ToolbarActions
           actions={
             <>
-              <button
-                className="ui-button ui-button--ghost"
-                onClick={() => void loadHistory(appliedFilters)}
-                type="button"
-              >
-                Recargar
-              </button>
               <Link
                 className="ui-button ui-button--ghost"
                 href={buildAdminMapHref({
@@ -100,6 +101,7 @@ export function ProductorVisitasHistoryScreen({
                   endDate: appliedFilters.endDate
                 })}
               >
+                <Map size={15} />
                 Abrir mapa
               </Link>
               <Link
@@ -110,7 +112,7 @@ export function ProductorVisitasHistoryScreen({
               </Link>
             </>
           }
-          description="Historial administrativo de visitas del productor con filtros básicos por campaña, agrónomo y fechas."
+          description="Historial administrativo de visitas del productor con filtros basicos por campaña, agronomo y fechas."
           eyebrow="Visitas"
           title={
             history
@@ -119,88 +121,87 @@ export function ProductorVisitasHistoryScreen({
           }
         />
 
-        <FilterBar
-          actions={
-            <>
-              <button className="ui-button ui-button--ghost" onClick={handleClearFilters} type="button">
-                Limpiar
-              </button>
-              <button className="ui-button ui-button--primary" onClick={handleApplyFilters} type="button">
-                Aplicar filtros
-              </button>
-            </>
-          }
-        >
-          <label className="field-group">
-            <span>Campaña</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  campaignId: event.target.value
-                }))
-              }
-              value={draftFilters.campaignId}
-            >
-              <option value="">Todas</option>
-              {(catalogs?.campanias ?? []).map((campania) => (
-                <option key={campania.id} value={campania.id}>
-                  {campania.label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="filter-card">
+          <div className="filter-card__header">Filtros</div>
+          <div className="filter-card__body">
+            <label className="field-group">
+              <span className="field-group__label">Campaña</span>
+              <select
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    campaignId: event.target.value
+                  }))
+                }
+                value={draftFilters.campaignId}
+              >
+                <option value="">Todas</option>
+                {(catalogs?.campanias ?? []).map((campania) => (
+                  <option key={campania.id} value={campania.id}>
+                    {campania.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="field-group">
-            <span>Agronomo</span>
-            <select
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  agronomistUserId: event.target.value
-                }))
-              }
-              value={draftFilters.agronomistUserId}
-            >
-              <option value="">Todos</option>
-              {(catalogs?.agronomos ?? []).map((agronomo) => (
-                <option key={agronomo.id} value={agronomo.id}>
-                  {agronomo.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="field-group">
+              <span className="field-group__label">Agronomo</span>
+              <select
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    agronomistUserId: event.target.value
+                  }))
+                }
+                value={draftFilters.agronomistUserId}
+              >
+                <option value="">Todos</option>
+                {(catalogs?.agronomos ?? []).map((agronomo) => (
+                  <option key={agronomo.id} value={agronomo.id}>
+                    {agronomo.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="field-group">
-            <span>Fecha desde</span>
-            <input
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  startDate: event.target.value
-                }))
-              }
-              type="date"
-              value={draftFilters.startDate}
-            />
-          </label>
+            <label className="field-group">
+              <span className="field-group__label">Fecha desde</span>
+              <input
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    startDate: event.target.value
+                  }))
+                }
+                type="date"
+                value={draftFilters.startDate}
+              />
+            </label>
 
-          <label className="field-group">
-            <span>Fecha hasta</span>
-            <input
-              onChange={(event) =>
-                setDraftFilters((current) => ({
-                  ...current,
-                  endDate: event.target.value
-                }))
-              }
-              type="date"
-              value={draftFilters.endDate}
-            />
-          </label>
-        </FilterBar>
-
-        {validationError ? <p className="form-error">{validationError}</p> : null}
+            <label className="field-group">
+              <span className="field-group__label">Fecha hasta</span>
+              <input
+                onChange={(event) =>
+                  setDraftFilters((current) => ({
+                    ...current,
+                    endDate: event.target.value
+                  }))
+                }
+                type="date"
+                value={draftFilters.endDate}
+              />
+            </label>
+          </div>
+          {validationError ? <p className="form-error" style={{ padding: "0 16px" }}>{validationError}</p> : null}
+          <div className="filter-card__footer">
+            <button className="ui-button ui-button--ghost ui-button--compact" onClick={handleClearFilters} type="button">
+              Limpiar
+            </button>
+            <button className="ui-button ui-button--primary" onClick={handleApplyFilters} type="button">
+              Aplicar filtros
+            </button>
+          </div>
+        </div>
 
         {catalogError ? (
           <ErrorState
@@ -221,7 +222,7 @@ export function ProductorVisitasHistoryScreen({
         {errorMessage ? (
           <ErrorState
             action={
-              <button className="ui-button ui-button--secondary" onClick={() => void loadHistory(appliedFilters)} type="button">
+              <button className="ui-button ui-button--secondary" onClick={() => void loadHistory(appliedFilters, page)} type="button">
                 Reintentar historial
               </button>
             }
@@ -247,7 +248,8 @@ export function ProductorVisitasHistoryScreen({
           <>
             <p className="body-copy visitas-results-copy">
               {history.count} visita{history.count === 1 ? "" : "s"} encontrada
-              {history.count === 1 ? "" : "s"}.
+              {history.count === 1 ? "" : "s"}
+              {history.totalPages > 1 ? ` — Mostrando ${fromItem}–${toItem}` : ""}.
             </p>
             <VisitasTable
               agronomistLabels={agronomistLabels}
@@ -263,6 +265,12 @@ export function ProductorVisitasHistoryScreen({
               }
               items={history.visitas}
               parcelaLabels={parcelaLabels}
+            />
+            <Pagination
+              loading={isLoadingHistory}
+              onPageChange={handlePageChange}
+              page={history.page}
+              totalPages={history.totalPages}
             />
           </>
         ) : null}
@@ -281,12 +289,14 @@ export function ProductorVisitasHistoryScreen({
     }
 
     setValidationError(null);
+    setPage(1);
     setAppliedFilters(draftFilters);
   }
 
   function handleClearFilters() {
     setValidationError(null);
     setDraftFilters(emptyFilters);
+    setPage(1);
     setAppliedFilters(emptyFilters);
   }
 
@@ -318,7 +328,8 @@ export function ProductorVisitasHistoryScreen({
     filters: Pick<
       VisitaListFilters,
       "campaignId" | "agronomistUserId" | "startDate" | "endDate"
-    >
+    >,
+    currentPage: number
   ) {
     if (!session) {
       return;
@@ -330,7 +341,9 @@ export function ProductorVisitasHistoryScreen({
       const nextHistory = await visitasService.getHistoryByProductor(
         session,
         productorId,
-        filters
+        filters,
+        currentPage,
+        PAGE_SIZE
       );
       setHistory(nextHistory);
     } catch (error) {
@@ -349,7 +362,7 @@ export function ProductorVisitasHistoryScreen({
 }
 
 function createOptionLabelMap(
-  options: CampaignFilterOption[] | ParcelaFilterOption[] | AgronomistFilterOption[]
+  options: readonly { id: string; label: string }[]
 ) {
-  return new Map(options.map((option) => [option.id, option.label]));
+  return new globalThis.Map(options.map((option) => [option.id, option.label]));
 }

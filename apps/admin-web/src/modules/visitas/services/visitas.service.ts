@@ -77,16 +77,21 @@ type FullDetailApiResponse = {
 export const visitasService = {
   async getList(
     session: AuthSessionInput,
-    filters: VisitaListFilters
+    filters: VisitaListFilters,
+    page: number = 1,
+    limit: number = 30
   ): Promise<VisitaListResponse> {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
-    const query = buildQueryString(filters);
+    const query = buildQueryString(filters, page, limit);
     const path = query ? `/visitas-campo?${query}` : "/visitas-campo";
     const response = await apiRequestEnvelope<VisitaCampo[]>(path, { headers });
+    const total = readCount(response, response.data.length);
 
     return {
       items: response.data,
-      count: readCount(response, response.data.length)
+      count: total,
+      page,
+      totalPages: Math.max(1, Math.ceil(total / limit))
     };
   },
 
@@ -174,10 +179,12 @@ export const visitasService = {
     filters: Pick<
       VisitaListFilters,
       "campaignId" | "agronomistUserId" | "startDate" | "endDate"
-    >
+    >,
+    page: number = 1,
+    limit: number = 30
   ): Promise<ProductorVisitasHistory> {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
-    const query = buildHistoryQueryString(filters);
+    const query = buildHistoryQueryString(filters, page, limit);
     const path = query
       ? `/productores/${productorId}/historial-visitas?${query}`
       : `/productores/${productorId}/historial-visitas`;
@@ -188,10 +195,13 @@ export const visitasService = {
     }>(path, {
       headers
     });
+    const total = readCount(response, response.data.visitas.length);
 
     return {
       ...response.data,
-      count: readCount(response, response.data.visitas.length)
+      count: total,
+      page,
+      totalPages: Math.max(1, Math.ceil(total / limit))
     };
   },
 
@@ -256,23 +266,29 @@ export const visitasService = {
 
   async getHistoryByParcela(
     session: AuthSessionInput,
-    parcelaId: string
+    parcelaId: string,
+    page: number = 1,
+    limit: number = 30
   ): Promise<ParcelaVisitasHistory> {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
+    const path = `/parcelas/${parcelaId}/historial-visitas?page=${page}&limit=${limit}`;
     const response = await apiRequestEnvelope<{
       parcela: ParcelaVisitasHistory["parcela"];
       visitas: VisitaCampo[];
-    }>(`/parcelas/${parcelaId}/historial-visitas`, {
+    }>(path, {
       headers
     });
     const sector = await safeRequest<SectorApiItem>(
       session,
       `/sectores/${response.data.parcela.sectorId}`
     );
+    const total = readCount(response, response.data.visitas.length);
 
     return {
       ...response.data,
-      count: readCount(response, response.data.visitas.length),
+      count: total,
+      page,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
       lookups: {
         sector: sector ? { id: sector.id, name: sector.name } : null
       }
@@ -280,7 +296,7 @@ export const visitasService = {
   }
 };
 
-function buildQueryString(filters: VisitaListFilters) {
+function buildQueryString(filters: VisitaListFilters, page: number, limit: number) {
   const searchParams = new URLSearchParams();
 
   appendQueryParam(searchParams, "agronomo_usuario_id", filters.agronomistUserId);
@@ -289,6 +305,8 @@ function buildQueryString(filters: VisitaListFilters) {
   appendQueryParam(searchParams, "parcela_id", filters.parcelaId);
   appendQueryParam(searchParams, "fecha_desde", filters.startDate);
   appendQueryParam(searchParams, "fecha_hasta", filters.endDate);
+  searchParams.set("page", String(page));
+  searchParams.set("limit", String(limit));
 
   return searchParams.toString();
 }
@@ -297,7 +315,9 @@ function buildHistoryQueryString(
   filters: Pick<
     VisitaListFilters,
     "campaignId" | "agronomistUserId" | "startDate" | "endDate"
-  >
+  >,
+  page: number,
+  limit: number
 ) {
   const searchParams = new URLSearchParams();
 
@@ -305,6 +325,8 @@ function buildHistoryQueryString(
   appendQueryParam(searchParams, "agronomo_usuario_id", filters.agronomistUserId);
   appendQueryParam(searchParams, "fecha_desde", filters.startDate);
   appendQueryParam(searchParams, "fecha_hasta", filters.endDate);
+  searchParams.set("page", String(page));
+  searchParams.set("limit", String(limit));
 
   return searchParams.toString();
 }

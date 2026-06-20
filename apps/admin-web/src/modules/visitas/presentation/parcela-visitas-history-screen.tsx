@@ -1,20 +1,20 @@
 "use client";
 
+import { Map } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { Pagination } from "../../../shared/components/pagination";
 import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { toApiError } from "../../../shared/services";
 import { buildAdminMapHref } from "../../mapas/utils/map-query";
 import { visitasService } from "../services/visitas.service";
 import type {
-  AgronomistFilterOption,
-  CampaignFilterOption,
   ParcelaVisitasHistory,
   VisitaFilterCatalogs
 } from "../types/visitas.types";
@@ -24,6 +24,8 @@ type ParcelaVisitasHistoryScreenProps = {
   parcelaId: string;
 };
 
+const PAGE_SIZE = 30;
+
 export function ParcelaVisitasHistoryScreen({
   parcelaId
 }: ParcelaVisitasHistoryScreenProps) {
@@ -32,6 +34,7 @@ export function ParcelaVisitasHistoryScreen({
   const [history, setHistory] = useState<ParcelaVisitasHistory | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
@@ -41,8 +44,15 @@ export function ParcelaVisitasHistoryScreen({
     }
 
     void loadCatalogs();
-    void loadHistory();
-  }, [parcelaId, session]);
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    void loadHistory(page);
+  }, [page, parcelaId, session]);
 
   const campaignLabels = useMemo(
     () => createOptionLabelMap(catalogs?.campanias ?? []),
@@ -53,21 +63,26 @@ export function ParcelaVisitasHistoryScreen({
     [catalogs?.agronomos]
   );
 
+  const handlePageChange = useCallback((nextPage: number) => {
+    setPage(nextPage);
+  }, []);
+
+  const fromItem = (page - 1) * PAGE_SIZE + 1;
+  const toItem = Math.min(page * PAGE_SIZE, history?.count ?? 0);
+
   return (
     <section className="panel-grid">
       <article className="panel">
         <ToolbarActions
           actions={
             <>
-              <button className="ui-button ui-button--ghost" onClick={() => void loadHistory()} type="button">
-                Recargar
-              </button>
               <Link
                 className="ui-button ui-button--ghost"
                 href={buildAdminMapHref({
                   parcelaId
                 })}
               >
+                <Map size={15} />
                 Ver en mapa
               </Link>
               <Link className="ui-button ui-button--secondary" href="/mantenimiento/productores">
@@ -131,7 +146,7 @@ export function ParcelaVisitasHistoryScreen({
         {errorMessage ? (
           <ErrorState
             action={
-              <button className="ui-button ui-button--secondary" onClick={() => void loadHistory()} type="button">
+              <button className="ui-button ui-button--secondary" onClick={() => void loadHistory(page)} type="button">
                 Reintentar historial
               </button>
             }
@@ -157,7 +172,8 @@ export function ParcelaVisitasHistoryScreen({
           <>
             <p className="body-copy visitas-results-copy">
               {history.count} visita{history.count === 1 ? "" : "s"} encontrada
-              {history.count === 1 ? "" : "s"}.
+              {history.count === 1 ? "" : "s"}
+              {history.totalPages > 1 ? ` — Mostrando ${fromItem}–${toItem}` : ""}.
             </p>
             <VisitasTable
               agronomistLabels={agronomistLabels}
@@ -172,6 +188,12 @@ export function ParcelaVisitasHistoryScreen({
               }
               items={history.visitas}
               showParcelaColumn={false}
+            />
+            <Pagination
+              loading={isLoadingHistory}
+              onPageChange={handlePageChange}
+              page={history.page}
+              totalPages={history.totalPages}
             />
           </>
         ) : null}
@@ -203,7 +225,7 @@ export function ParcelaVisitasHistoryScreen({
     }
   }
 
-  async function loadHistory() {
+  async function loadHistory(currentPage: number) {
     if (!session) {
       return;
     }
@@ -211,7 +233,12 @@ export function ParcelaVisitasHistoryScreen({
     try {
       setIsLoadingHistory(true);
       setErrorMessage(null);
-      const nextHistory = await visitasService.getHistoryByParcela(session, parcelaId);
+      const nextHistory = await visitasService.getHistoryByParcela(
+        session,
+        parcelaId,
+        currentPage,
+        PAGE_SIZE
+      );
       setHistory(nextHistory);
     } catch (error) {
       const apiError = toApiError(error);
@@ -229,7 +256,7 @@ export function ParcelaVisitasHistoryScreen({
 }
 
 function createOptionLabelMap(
-  options: CampaignFilterOption[] | AgronomistFilterOption[]
+  options: readonly { id: string; label: string }[]
 ) {
-  return new Map(options.map((option) => [option.id, option.label]));
+  return new globalThis.Map(options.map((option) => [option.id, option.label]));
 }

@@ -78,9 +78,6 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
         <ToolbarActions
           actions={
             <>
-              <button className="ui-button ui-button--ghost" onClick={loadDetail} type="button">
-                Recargar detalle
-              </button>
               <Link
                 className="ui-button ui-button--ghost"
                 href={buildAdminMapHref({
