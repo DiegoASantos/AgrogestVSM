@@ -1,8 +1,14 @@
 import { visitaRecetasRepository } from "../repositories/visita-recetas.repository";
 import { visitaRecetasRemote } from "./visita-recetas.remote";
+import { evaluacionesRepository } from "../../evaluaciones/repositories/evaluaciones.repository";
+import { laboresCulturalesVisitaRepository } from "../../labores-culturales-visita/repositories/labores-culturales-visita.repository";
 import { observacionesSanitariasRepository } from "../../observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
+import { HUMEDAD_SUELO_LABELS } from "../../riegos/types";
+import { riegosRepository } from "../../riegos/repositories/riegos.repository";
 import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
 import type { VisitaRecetaCompleta, ConsolidacionHallazgo } from "../types";
+
+const NUTRITION_DESCRIPTION_PREFIX = "Nutricion -";
 
 export type SaveRecetaData = {
   etapaFenologica: string | null;
@@ -68,8 +74,14 @@ export const visitaRecetasService = {
     const pestDiseases = observacionesSanitariasRepository.getPestDiseases();
     const incidenceLevels = observacionesSanitariasRepository.getIncidenceLevels();
     const observaciones = observacionesSanitariasRepository.getByVisitaLocalId(visitaId);
+    const visitaRiego = riegosRepository.getByVisitaLocalId(visitaId);
+    const laboresCatalog = laboresCulturalesVisitaRepository.getLaboresCulturales();
+    const laboresSeleccionadas =
+      laboresCulturalesVisitaRepository.getByVisitaLocalId(visitaId);
+    const evaluaciones = evaluacionesRepository.getByVisitaLocalId(visitaId);
     const pestById = new Map(pestDiseases.map((pest) => [pest.id, pest]));
     const levelById = new Map(incidenceLevels.map((level) => [level.id, level]));
+    const laborById = new Map(laboresCatalog.map((labor) => [labor.id, labor]));
     const plagas: ConsolidacionHallazgo["plagas"] = [];
     const enfermedades: ConsolidacionHallazgo["enfermedades"] = [];
 
@@ -101,6 +113,31 @@ export const visitaRecetasService = {
         plagas.push(item);
       }
     }
+
+    const nutricion = evaluaciones
+      .filter((evaluacion) =>
+        evaluacion.description.startsWith(NUTRITION_DESCRIPTION_PREFIX)
+      )
+      .map((evaluacion) => {
+        const parsed = parseNutritionEvaluationDescription(evaluacion.description);
+
+        return {
+          elemento: parsed.elemento,
+          incidencia: evaluacion.incidencePercentage
+            ? `${evaluacion.incidencePercentage}%`
+            : "No especificada",
+          severidad: parsed.severidad ?? "No especificada"
+        };
+      });
+
+    const labores = laboresSeleccionadas.map((seleccion) => {
+      const labor = laborById.get(seleccion.laborCulturalId);
+
+      return {
+        nombre: labor?.categoryName ?? labor?.name ?? seleccion.laborCulturalId,
+        categoria: labor?.optionLabel ?? labor?.name ?? "No especificado"
+      };
+    });
 
     let etapaFenologica: string | null = null;
 
@@ -134,12 +171,14 @@ export const visitaRecetasService = {
       etapaFenologica,
       plagas,
       enfermedades,
-      nutricion: [],
+      nutricion,
       riego: {
-        humedadSuelo: null,
-        estresHidrico: null
+        humedadSuelo: visitaRiego?.humedadSuelo
+          ? HUMEDAD_SUELO_LABELS[visitaRiego.humedadSuelo]
+          : null,
+        estresHidrico: visitaRiego?.estresHidrico ?? null
       },
-      labores: []
+      labores
     };
   },
 
@@ -184,3 +223,16 @@ export const visitaRecetasService = {
     return visitaRecetasRemote.save(visitaId, remoteData);
   }
 };
+
+function parseNutritionEvaluationDescription(description: string) {
+  const payload = description.startsWith(NUTRITION_DESCRIPTION_PREFIX)
+    ? description.slice(NUTRITION_DESCRIPTION_PREFIX.length).trim()
+    : description;
+  const [elementoRaw, detailsRaw = ""] = payload.split(":");
+  const severityMatch = detailsRaw.match(/Severidad\s+(.+)$/i);
+
+  return {
+    elemento: elementoRaw.trim() || "No especificado",
+    severidad: severityMatch?.[1]?.trim() ?? null
+  };
+}

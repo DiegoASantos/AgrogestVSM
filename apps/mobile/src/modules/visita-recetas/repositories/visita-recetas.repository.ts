@@ -17,6 +17,12 @@ import type {
   VisitaRecetaCompleta
 } from "../types";
 
+const DEFAULT_FERTILIZANTES: FertilizanteCatalogItem[] = [
+  { id: "default-complejo-npk", name: "Complejo N-P-K", type: "solido" },
+  { id: "default-calcio-boro-zinc", name: "Calcio-boro-zinc", type: "liquido" },
+  { id: "default-acidos-fulvicos", name: "ácidos fulvicos", type: "liquido" }
+];
+
 type SyncStatus = "pending" | "synced" | "error";
 
 type VisitaRecetaRow = {
@@ -172,7 +178,7 @@ export const visitaRecetasRepository = {
       name: string;
       type: "solido" | "liquido";
     }>("SELECT id, name, type FROM fertilizantes ORDER BY name ASC");
-    return rows;
+    return rows.length > 0 ? rows : DEFAULT_FERTILIZANTES;
   },
 
   getRecetaByVisitaLocalId(visitaLocalId: string): VisitaRecetaCompleta | null {

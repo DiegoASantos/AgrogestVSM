@@ -63,6 +63,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
   }
 
   const visita = visitasCampoRepository.getById(visitaId);
+  const consolidacion = visitaRecetasService.getConsolidacionLocal(visitaId);
   const iconBase64 = await getReportIconUri();
 
   return `<!DOCTYPE html>
@@ -161,6 +162,36 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     .field-value {
       color: #1a1f1c;
     }
+    .visit-data-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .visit-data-card {
+      background: #fafcfa;
+      border: 1px solid #e8efe9;
+      border-radius: 8px;
+      padding: 9px 10px;
+      break-inside: avoid;
+    }
+    .visit-data-card--wide {
+      grid-column: 1 / -1;
+    }
+    .visit-data-title {
+      color: #1b4332;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .compact-list {
+      margin: 0;
+      padding-left: 14px;
+      font-size: 10.5px;
+    }
+    .compact-list li {
+      margin-bottom: 4px;
+    }
     .calculated {
       background: #ebf5fb;
       font-style: italic;
@@ -214,13 +245,13 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       <p>AgroGest VSM - ${new Date().toLocaleDateString("es-PE")}</p>
     </div>
   </div>
-  ${renderEtapaFenologica(visita, receta)}
+  ${renderDatosVisita(visita, receta, consolidacion)}
   ${renderFitosanidad(receta)}
   ${renderFertilizacion(receta)}
   ${renderRiego(receta)}
   ${renderLabores(receta)}
   <div class="footer">
-    Generado automaticamente por AgroGest VSM &middot; Version ${receta.version}
+    Generado automaticamente por AgroGest VSM
   </div>
 </body>
 </html>`;
@@ -230,12 +261,11 @@ function findById<T extends { id: string }>(items: T[], id: string): T | undefin
   return items.find((item) => item.id === id);
 }
 
-function renderEtapaFenologica(
+function renderDatosVisita(
   visita: ReturnType<typeof visitasCampoRepository.getById>,
-  receta: VisitaRecetaCompleta
+  receta: VisitaRecetaCompleta,
+  consolidacion: ReturnType<typeof visitaRecetasService.getConsolidacionLocal>
 ): string {
-  if (!visita?.phenologicalStageId && !receta.etapaFenologica) return "";
-
   const etapas = visita?.cropId
     ? visitasCampoRepository.getEtapasFenologicasByCultivo(visita.cropId)
     : [];
@@ -256,24 +286,164 @@ function renderEtapaFenologica(
 
   return `
     <h2>Datos de la visita</h2>
-    <div class="field-row">
-      <span class="field-label">Etapa fenologica:</span>
-      <span class="field-value">${escapeHtml(etapaNombre ?? "-")}</span>
-    </div>
-    ${subEtapaNombre ? `
-    <div class="field-row">
-      <span class="field-label">Sub etapa:</span>
-      <span class="field-value">${escapeHtml(subEtapaNombre)}</span>
-    </div>` : ""}
-    ${subEtapaPorcentaje !== null ? `
-    <div class="field-row">
-      <span class="field-label">Avance sub etapa:</span>
-      <span class="field-value">${subEtapaPorcentaje}%</span>
-    </div>` : ""}
-    <div class="field-row">
-      <span class="field-label">Version:</span>
-      <span class="field-value">${receta.version}</span>
+    <div class="visit-data-grid">
+      <div class="visit-data-card">
+        <p class="visit-data-title">Fenologia</p>
+        ${renderFieldRow("Etapa fenologica", etapaNombre ?? receta.etapaFenologica ?? "-")}
+        ${subEtapaNombre ? renderFieldRow("Sub etapa", subEtapaNombre) : ""}
+        ${
+          subEtapaPorcentaje !== null
+            ? renderFieldRow("Avance sub etapa", `${subEtapaPorcentaje}%`)
+            : ""
+        }
+      </div>
+      ${renderSanidadVisitDataCard("Plagas", consolidacion.plagas)}
+      ${renderSanidadVisitDataCard("Enfermedades", consolidacion.enfermedades)}
+      ${renderNutricionVisitDataCard(consolidacion.nutricion)}
+      ${renderRiegoVisitDataCard(consolidacion)}
+      ${renderLaboresVisitDataCard(consolidacion.labores)}
     </div>`;
+}
+
+function renderFieldRow(label: string, value: string) {
+  return `
+    <div class="field-row">
+      <span class="field-label">${escapeHtml(label)}:</span>
+      <span class="field-value">${escapeHtml(value)}</span>
+    </div>`;
+}
+
+function renderSanidadVisitDataCard(
+  title: string,
+  items: Array<{
+    nombre: string;
+    incidencia: string;
+    severidad: string;
+    organos: string[];
+  }>
+) {
+  if (items.length === 0) {
+    return "";
+  }
+
+  return `
+    <div class="visit-data-card">
+      <p class="visit-data-title">${escapeHtml(title)}</p>
+      <ul class="compact-list">
+        ${items
+          .map(
+            (item) => `
+              <li>
+                <strong>${escapeHtml(item.nombre)}</strong><br>
+                Incidencia: ${escapeHtml(item.incidencia)}<br>
+                Severidad: ${escapeHtml(item.severidad)}<br>
+                Organo afectado: ${escapeHtml(formatOrganos(item.organos))}
+              </li>`
+          )
+          .join("")}
+      </ul>
+    </div>`;
+}
+
+function renderNutricionVisitDataCard(
+  items: ReturnType<typeof visitaRecetasService.getConsolidacionLocal>["nutricion"]
+) {
+  if (items.length === 0) {
+    return "";
+  }
+
+  return `
+    <div class="visit-data-card">
+      <p class="visit-data-title">Elementos deficitarios</p>
+      <ul class="compact-list">
+        ${items
+          .map(
+            (item) => `
+              <li>
+                <strong>${escapeHtml(item.elemento)}</strong><br>
+                Arboles afectados: ${escapeHtml(item.incidencia)}<br>
+                Severidad: ${escapeHtml(item.severidad)}
+              </li>`
+          )
+          .join("")}
+      </ul>
+    </div>`;
+}
+
+function renderRiegoVisitDataCard(
+  consolidacion: ReturnType<typeof visitaRecetasService.getConsolidacionLocal>
+) {
+  if (!consolidacion.riego.humedadSuelo && consolidacion.riego.estresHidrico === null) {
+    return "";
+  }
+
+  return `
+    <div class="visit-data-card">
+      <p class="visit-data-title">Riego</p>
+      ${
+        consolidacion.riego.humedadSuelo
+          ? renderFieldRow("Humedad del suelo", consolidacion.riego.humedadSuelo)
+          : ""
+      }
+      ${
+        consolidacion.riego.estresHidrico !== null
+          ? renderFieldRow(
+              "Estres hidrico",
+              consolidacion.riego.estresHidrico ? "Si" : "No"
+            )
+          : ""
+      }
+    </div>`;
+}
+
+function renderLaboresVisitDataCard(
+  items: ReturnType<typeof visitaRecetasService.getConsolidacionLocal>["labores"]
+) {
+  if (items.length === 0) {
+    return "";
+  }
+
+  return `
+    <div class="visit-data-card">
+      <p class="visit-data-title">Labores</p>
+      <ul class="compact-list">
+        ${items
+          .map(
+            (item) => `
+              <li>
+                <strong>${escapeHtml(item.nombre)}</strong><br>
+                Nivel seleccionado: ${escapeHtml(item.categoria)}
+              </li>`
+          )
+          .join("")}
+      </ul>
+    </div>`;
+}
+
+function formatOrganos(organos: string[]) {
+  if (organos.length === 0) {
+    return "No especificado";
+  }
+
+  return organos.map(formatOrgano).join(", ");
+}
+
+function formatOrgano(organo: string) {
+  const labels: Record<string, string> = {
+    tronco_rama: "Tronco/rama",
+    yema_apical: "Yema apical",
+    brote_vegetativo: "Brote vegetativo",
+    hoja_tierna: "Hoja tierna",
+    hoja_madura: "Hoja madura",
+    panicula_floral: "Panicula floral",
+    flor_individual: "Flor individual",
+    fruto_recien_cuajado: "Fruto recien cuajado",
+    fruto_verde: "Fruto verde",
+    fruto_maduro: "Fruto maduro",
+    raices: "Raices"
+  };
+
+  return labels[organo] ?? organo;
 }
 
 function renderFitosanidad(receta: VisitaRecetaCompleta): string {
