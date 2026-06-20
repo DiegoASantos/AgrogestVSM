@@ -19,7 +19,7 @@ export function ChartVisitasPorCampania({
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-foreground">
-        Visitas por campania
+        Visitas por campaña
       </h3>
       <ResponsiveContainer height={200} width="100%">
         <BarChart data={data} layout="vertical" margin={{ left: 16 }}>

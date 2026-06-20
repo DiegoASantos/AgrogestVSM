@@ -75,7 +75,7 @@ export function DashboardOverview() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <LoadingState description="Cargando el panel de control..." />
       </div>
     );
@@ -83,7 +83,7 @@ export function DashboardOverview() {
 
   if (errorMessage) {
     return (
-      <div className="p-6">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <ErrorState
           action={
             <button
@@ -103,23 +103,24 @@ export function DashboardOverview() {
   if (!data) return null;
 
   return (
-    <div className="animate-in fade-in space-y-6 p-6 duration-300">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <div className="animate-in fade-in space-y-8 p-6 duration-300">
+      {/* Header */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Panel de control
           </p>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
             AgroGest VSM
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Resumen operativo de visitas, productores y recetas.
           </p>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2 sm:mt-0">
+        <div className="mt-4 flex flex-wrap gap-2 sm:mt-0">
           {quickActions.map((action) => (
             <a
-              className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
               href={action.href}
               key={action.href}
             >
@@ -129,6 +130,7 @@ export function DashboardOverview() {
         </div>
       </div>
 
+      {/* KPI Cards */}
       <KpiGrid
         recetasEmitidas={data.kpis.recetasEmitidas}
         productoresActivos={data.kpis.productoresActivos}
@@ -136,8 +138,9 @@ export function DashboardOverview() {
         visitasEsteMes={data.kpis.visitasEsteMes}
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
+      {/* Charts Grid */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
           <ChartVisitasPorMes
             availableYears={availableYears}
             data={data.charts.visitasPorMes}
@@ -145,20 +148,20 @@ export function DashboardOverview() {
             onYearChange={setYear}
           />
         </div>
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
           <ChartVisitasPorCampania data={data.charts.visitasPorCampania} />
         </div>
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
           <ChartPlagasFrecuentes data={data.charts.plagasFrecuentes} />
         </div>
-        <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
           <ChartDeficienciasNutrientes data={data.charts.deficienciasNutrientes} />
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-5 shadow-sm">
+      {/* Recent Activity */}
+      <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
         <ActividadReciente
-          ultimasRecetas={data.actividadReciente.ultimasRecetas}
           ultimasVisitas={data.actividadReciente.ultimasVisitas}
         />
       </div>

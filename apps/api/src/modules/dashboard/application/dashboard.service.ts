@@ -198,19 +198,16 @@ export class DashboardService {
   private async getDeficienciasNutrientes(): Promise<DeficienciaNutriente[]> {
     const rows = await this.dataSource
       .createQueryBuilder()
-      .select("ve.descripcion", "nutriente")
+      .select("REPLACE(ve.descripcion, 'Nutricion - ', '')", "nutriente")
       .addSelect("COUNT(*)", "count")
       .from("visita_evaluaciones", "ve")
       .where("ve.descripcion LIKE :prefix", { prefix: "Nutricion - %" })
       .groupBy("ve.descripcion")
       .orderBy("count", "DESC")
-      .limit(10)
+      .limit(3)
       .getRawMany<{ nutriente: string; count: string }>();
 
-    return rows.map((r) => {
-      const parts = r.nutriente.split(" - ");
-      return { nutriente: parts[1] ?? r.nutriente, count: Number(r.count) };
-    });
+    return rows.map((r) => ({ nutriente: r.nutriente ?? "Sin especificar", count: Number(r.count) }));
   }
 
   private async getActividadReciente() {
