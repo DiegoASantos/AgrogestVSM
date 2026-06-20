@@ -1,196 +1,167 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { isAdminSession } from "../../auth/utils/authorization";
 import { dashboardService } from "../services/dashboard.service";
-import type { DashboardSummary } from "../types/dashboard.types";
-import { ActionLink } from "../../../shared/components/action-link";
+import type { DashboardResumen } from "../types/dashboard.types";
 import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
 import { adminRoutes } from "../../../shared/constants/site";
 import { toApiError } from "../../../shared/services";
 
-const baseQuickActions = [
-  {
-    label: "Gestionar visitas",
-    href: adminRoutes.visitas,
-    description: "Entrar al listado operativo y revisar el detalle completo."
-  },
-  {
-    label: "Abrir mapas",
-    href: adminRoutes.mapas,
-    description: "Revisar parcelas y visitas en contexto geografico."
-  },
-  {
-    label: "Abrir mantenimiento",
-    href: adminRoutes.mantenimiento,
-    description: "Ir a catalogos y datos maestros del sistema."
-  },
-  {
-    label: "Abrir seguridad",
-    href: adminRoutes.seguridad,
-    description: "Administrar usuarios, roles y asignaciones."
-  }
-];
+import { KpiGrid } from "./kpi-grid";
+import { ChartVisitasPorMes } from "./chart-visitas-por-mes";
+import { ChartVisitasPorCampania } from "./chart-visitas-por-campania";
+import { ChartPlagasFrecuentes } from "./chart-plagas-frecuentes";
+import { ChartDeficienciasNutrientes } from "./chart-deficiencias-nutrientes";
+import { ActividadReciente } from "./actividad-reciente";
+
+const currentYear = new Date().getFullYear();
 
 export function DashboardOverview() {
-  const { session, logout } = useAuthSession();
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const { session } = useAuthSession();
+  const isAdmin = isAdminSession(session);
+  const [data, setData] = useState<DashboardResumen | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const isAdmin = isAdminSession(session);
-  const quickActions = baseQuickActions.filter(
-    (action) =>
-      isAdmin ||
-      (action.href !== adminRoutes.mantenimiento && action.href !== adminRoutes.seguridad)
+  const [year, setYear] = useState(currentYear);
+
+  const availableYears = useMemo(() => {
+    const years: number[] = [];
+    for (let y = currentYear; y >= currentYear - 3; y--) {
+      years.push(y);
+    }
+    return years;
+  }, []);
+
+  const loadData = useCallback(
+    async (y: number) => {
+      if (!session) return;
+      setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        const resumen = await dashboardService.getResumen(session, y);
+        setData(resumen);
+      } catch (err) {
+        const apiError = toApiError(err);
+        if (apiError.statusCode === 401) return;
+        setErrorMessage(apiError.message || "No se pudo cargar el panel.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [session]
   );
 
   useEffect(() => {
-    if (!session) {
-      return;
-    }
+    void loadData(year);
+  }, [loadData, year]);
 
-    void loadSummary();
-  }, [session]);
+  const quickActions = useMemo(() => {
+    const allActions = [
+      { href: adminRoutes.visitas, label: "Gestionar visitas" },
+      { href: adminRoutes.mapas, label: "Abrir mapas" },
+      ...(isAdmin
+        ? [
+            { href: adminRoutes.mantenimiento, label: "Abrir mantenimiento" },
+            { href: adminRoutes.seguridad, label: "Abrir seguridad" }
+          ]
+        : [])
+    ];
+    return allActions;
+  }, [isAdmin]);
 
   if (isLoading) {
-    return <LoadingState description="Cargando el resumen operativo del panel." />;
+    return (
+      <div className="p-6">
+        <LoadingState description="Cargando el panel de control..." />
+      </div>
+    );
   }
 
   if (errorMessage) {
     return (
-      <ErrorState
-        action={
-          <button className="ui-button ui-button--secondary" onClick={loadSummary} type="button">
-            Reintentar
-          </button>
-        }
-        description={errorMessage}
-      />
+      <div className="p-6">
+        <ErrorState
+          action={
+            <button
+              className="inline-flex h-8 items-center rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              onClick={() => void loadData(year)}
+              type="button"
+            >
+              Reintentar
+            </button>
+          }
+          description={errorMessage}
+        />
+      </div>
     );
   }
 
-  if (!summary) {
-    return null;
-  }
+  if (!data) return null;
 
   return (
-    <section className="panel-grid">
-      <article className="panel">
-        <div className="dashboard-header">
-          <div>
-            <p className="eyebrow">Dashboard</p>
-            <h2 className="title title--section">Vista operativa inicial del panel</h2>
-            <p className="body-copy">
-              Resumen base para entrar rapido a visitas, mantenimiento y seguridad sin
-              agregar analitica compleja todavia.
-            </p>
-          </div>
-
-          <div className="actions">
-            <ActionLink href={adminRoutes.visitas} label="Ir a visitas" variant="primary" />
-            {isAdmin ? (
-              <ActionLink
-                href={adminRoutes.mantenimiento}
-                label="Ir a mantenimiento"
-                variant="ghost"
-              />
-            ) : (
-              <ActionLink href={adminRoutes.mapas} label="Ir a mapas" variant="ghost" />
-            )}
-          </div>
+    <div className="animate-in fade-in space-y-6 p-6 duration-300">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Panel de control
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            AgroGest VSM
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Resumen operativo de visitas, productores y recetas.
+          </p>
         </div>
-
-        <div className="stat-grid">
-          <article className="stat-card">
-            <p className="stat-card__label">Visitas activas</p>
-            <p className="stat-card__value">{summary.activeVisitsCount}</p>
-          </article>
-          <article className="stat-card">
-            <p className="stat-card__label">Productores</p>
-            <p className="stat-card__value">{summary.productoresCount}</p>
-          </article>
-          <article className="stat-card">
-            <p className="stat-card__label">Parcelas activas</p>
-            <p className="stat-card__value">{summary.activeParcelasCount}</p>
-          </article>
-          <article className="stat-card">
-            <p className="stat-card__label">Campañas activas</p>
-            <p className="stat-card__value">{summary.activeCampaniasCount}</p>
-          </article>
+        <div className="mt-3 flex flex-wrap gap-2 sm:mt-0">
+          {quickActions.map((action) => (
+            <a
+              className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              href={action.href}
+              key={action.href}
+            >
+              {action.label}
+            </a>
+          ))}
         </div>
-      </article>
-
-      <div className="panel-grid panel-grid--two">
-        <article className="panel">
-          <p className="eyebrow">Accesos rapidos</p>
-          <h2 className="title title--section">Entradas principales</h2>
-          <ul className="feature-list">
-            {quickActions.map((action) => (
-              <li className="feature-item" key={action.href}>
-                <strong>{action.label}</strong>
-                <span>{action.description}</span>
-                <div className="actions">
-                  <ActionLink href={action.href} label="Abrir" variant="secondary" />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </article>
-
-        <article className="panel panel--accent">
-          <p className="eyebrow">Sesion administrativa</p>
-          <h2 className="title title--section">Contexto actual</h2>
-          <div className="dashboard-session">
-            <div className="dashboard-session__row">
-              <span>Usuario</span>
-              <strong>{session?.user.displayName ?? "Sin sesion"}</strong>
-            </div>
-            <div className="dashboard-session__row">
-              <span>Correo</span>
-              <strong>{session?.user.email ?? "No disponible"}</strong>
-            </div>
-            <div className="dashboard-session__row">
-              <span>Roles</span>
-              <strong>
-                {session?.user.roles.map((role) => role.code).join(", ") || "Sin roles"}
-              </strong>
-            </div>
-          </div>
-
-          <div className="actions">
-            <button className="ui-button ui-button--ghost" onClick={logout} type="button">
-              Cerrar sesion
-            </button>
-          </div>
-        </article>
       </div>
-    </section>
+
+      <KpiGrid
+        recetasEmitidas={data.kpis.recetasEmitidas}
+        productoresActivos={data.kpis.productoresActivos}
+        totalVisitas={data.kpis.totalVisitas}
+        visitasEsteMes={data.kpis.visitasEsteMes}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <ChartVisitasPorMes
+            availableYears={availableYears}
+            data={data.charts.visitasPorMes}
+            year={year}
+            onYearChange={setYear}
+          />
+        </div>
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <ChartVisitasPorCampania data={data.charts.visitasPorCampania} />
+        </div>
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <ChartPlagasFrecuentes data={data.charts.plagasFrecuentes} />
+        </div>
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <ChartDeficienciasNutrientes data={data.charts.deficienciasNutrientes} />
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <ActividadReciente
+          ultimasRecetas={data.actividadReciente.ultimasRecetas}
+          ultimasVisitas={data.actividadReciente.ultimasVisitas}
+        />
+      </div>
+    </div>
   );
-
-  async function loadSummary() {
-    if (!session) {
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setErrorMessage(null);
-      const nextSummary = await dashboardService.getSummary(session);
-      setSummary(nextSummary);
-    } catch (error) {
-      const apiError = toApiError(error);
-
-      if (apiError.statusCode === 401) {
-        logout();
-        return;
-      }
-
-      setErrorMessage(apiError.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }
 }

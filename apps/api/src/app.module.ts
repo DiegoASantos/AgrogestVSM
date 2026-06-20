@@ -5,6 +5,7 @@ import { DatabaseModule } from "./database/database.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CampaniasModule } from "./modules/campanias/campanias.module";
 import { CultivosModule } from "./modules/cultivos/cultivos.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { HealthModule } from "./modules/health/health.module";
 import { GeografiasModule } from "./modules/geografias/geografias.module";
 import { NutricionModule } from "./modules/nutricion/nutricion.module";
@@ -46,7 +47,8 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     VisitaObservacionesSanitariasModule,
     VisitaRiegosModule,
     VisitaLaboresCulturalesModule,
-    VisitaRecetasModule
+    VisitaRecetasModule,
+    DashboardModule
   ]
 })
 export class AppModule {}
