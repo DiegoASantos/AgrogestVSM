@@ -14,3 +14,9 @@ export function getLastSyncTime() {
 }
 
 export function setLastSyncTime() {}
+
+export function getLastSyncAttempt() {
+  return null;
+}
+
+export function setLastSyncAttempt() {}

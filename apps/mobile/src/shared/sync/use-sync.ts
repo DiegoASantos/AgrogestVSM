@@ -5,8 +5,13 @@ import { useAuthSession } from "../../modules/auth/hooks/use-auth-session";
 import { useIsOnline } from "../connectivity/use-is-online";
 import { refreshCatalogsIfStale } from "../database/seed-catalogs";
 import { debugLog } from "../utils/debug-log";
-import { getLastSyncTime, getSyncCounts } from "./sync-status";
+import {
+  getLastSyncTime,
+  getSyncCounts,
+  setLastSyncAttempt
+} from "./sync-status";
 import { processOutbox } from "./sync-engine";
+import { createSyncRunResult, type SyncRunResult } from "./sync-result";
 import { subscribeToSyncRequests, type SyncRequestOptions } from "./sync-requests";
 
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;
@@ -21,7 +26,9 @@ export function useSync() {
   const isAuthenticatedRef = useRef(isAuthenticated);
   const ensureOnlineSessionRef = useRef(ensureOnlineSession);
   const scheduledSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scheduledSyncResolveRef = useRef<(() => void) | null>(null);
+  const scheduledSyncResolveRef = useRef<((result: SyncRunResult | null) => void) | null>(
+    null
+  );
   const reconnectRetryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const rerunAfterCurrentSyncRef = useRef(false);
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
@@ -36,14 +43,36 @@ export function useSync() {
     reconnectRetryTimersRef.current = [];
   }, []);
 
-  const runSync = useCallback(async (forceRefresh = false) => {
+  const finishRun = useCallback((result: SyncRunResult) => {
+    try {
+      setLastSyncAttempt(result);
+    } catch {
+      // El estado visible de sync no debe bloquear el ciclo.
+    }
+
+    return result;
+  }, []);
+
+  const runSync = useCallback(async (forceRefresh = false): Promise<SyncRunResult> => {
     if (isSyncingRef.current) {
       rerunAfterCurrentSyncRef.current = true;
-      return;
+      return finishRun(
+        createSyncRunResult(
+          "already_running",
+          "Ya hay una sincronizacion en curso. Se programo un nuevo intento."
+        )
+      );
     }
 
     if (!isOnlineRef.current || !isAuthenticatedRef.current) {
-      return;
+      return finishRun(
+        createSyncRunResult(
+          !isOnlineRef.current ? "offline" : "unauthenticated",
+          !isOnlineRef.current
+            ? "Sin conexion. Tus datos siguen guardados localmente."
+            : "No hay una sesion activa para sincronizar."
+        )
+      );
     }
 
     isSyncingRef.current = true;
@@ -52,7 +81,12 @@ export function useSync() {
       const hasOnlineSession = await ensureOnlineSessionRef.current(forceRefresh);
 
       if (!hasOnlineSession) {
-        return;
+        return finishRun(
+          createSyncRunResult(
+            "auth_failed",
+            "No se pudo validar la sesion online. Revisa tu conexion o vuelve a iniciar sesion."
+          )
+        );
       }
 
       const result = await processOutbox();
@@ -71,8 +105,27 @@ export function useSync() {
       const lastTime = getLastSyncTime();
       setSyncCounts(counts);
       setLastSyncTime(lastTime);
+      return finishRun(
+        createSyncRunResult(
+          result.errors > 0 ? "failed" : "success",
+          result.errors > 0
+            ? "La sincronizacion termino con errores en algunos registros."
+            : result.processed > 0
+              ? "Datos sincronizados correctamente."
+              : "No habia datos nuevos para sincronizar.",
+          result
+        )
+      );
     } catch (error) {
       console.warn("Sync cycle failed:", error);
+      return finishRun(
+        createSyncRunResult(
+          "failed",
+          error instanceof Error
+            ? error.message
+            : "La sincronizacion fallo por un error inesperado."
+        )
+      );
     } finally {
       isSyncingRef.current = false;
 
@@ -84,23 +137,23 @@ export function useSync() {
         }, 0);
       }
     }
-  }, []);
+  }, [finishRun]);
 
   const scheduleSync = useCallback(
     (options: SyncRequestOptions = {}) => {
       if (scheduledSyncRef.current) {
         clearTimeout(scheduledSyncRef.current);
-        scheduledSyncResolveRef.current?.();
+        scheduledSyncResolveRef.current?.(null);
       }
 
-      return new Promise<void>((resolve) => {
+      return new Promise<SyncRunResult | null>((resolve) => {
         scheduledSyncResolveRef.current = resolve;
         scheduledSyncRef.current = setTimeout(
           async () => {
             scheduledSyncRef.current = null;
             scheduledSyncResolveRef.current = null;
-            await runSync(Boolean(options.forceRefresh));
-            resolve();
+            const result = await runSync(Boolean(options.forceRefresh));
+            resolve(result);
           },
           options.immediate ? 0 : OUTBOX_SYNC_DEBOUNCE_MS
         );
@@ -130,7 +183,7 @@ export function useSync() {
         scheduledSyncRef.current = null;
       }
 
-      scheduledSyncResolveRef.current?.();
+      scheduledSyncResolveRef.current?.(null);
       scheduledSyncResolveRef.current = null;
       clearReconnectRetryTimers();
     };

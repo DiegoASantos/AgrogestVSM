@@ -5,6 +5,7 @@ import {
   SYNC_ENTITY_TYPES,
   type SyncEntityType
 } from "./sync-entities";
+import type { SyncRunResult } from "./sync-result";
 
 type SyncCountsResult = {
   pendingCount: number;
@@ -153,5 +154,34 @@ export function setLastSyncTime(value: string) {
      VALUES (?, ?)`,
     "last_sync_completed_at",
     value
+  );
+}
+
+export function getLastSyncAttempt(): SyncRunResult | null {
+  const row = getDatabase().getFirstSync<{ value: string }>(
+    `SELECT value
+     FROM app_meta
+     WHERE key = ?
+     LIMIT 1`,
+    "last_sync_attempt"
+  );
+
+  if (!row?.value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(row.value) as SyncRunResult;
+  } catch {
+    return null;
+  }
+}
+
+export function setLastSyncAttempt(result: SyncRunResult) {
+  getDatabase().runSync(
+    `INSERT OR REPLACE INTO app_meta (key, value)
+     VALUES (?, ?)`,
+    "last_sync_attempt",
+    JSON.stringify(result)
   );
 }

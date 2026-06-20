@@ -101,6 +101,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
         currentSession.accessToken &&
         !isAccessTokenExpired(currentSession.accessToken)
       ) {
+        setApiToken(currentSession.accessToken);
         return true;
       }
 

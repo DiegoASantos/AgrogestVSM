@@ -21,7 +21,7 @@ import {
 import { AppSelectField } from "../../../../shared/components/app-select-field";
 import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
-import { processOutbox } from "../../../../shared/sync";
+import { requestSync } from "../../../../shared/sync";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import { visitaRecetasService, type SaveRecetaData } from "../../services";
@@ -89,6 +89,11 @@ function calculateTotalProducto(
 
 function formatCompactDecimal(value: number) {
   return value.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function formatCalculatedField(value: string | number | null | undefined) {
+  const parsed = parsePositiveDecimal(value);
+  return parsed ? parsed.toFixed(2) : "";
 }
 
 function toSingleParam(value: string | string[] | undefined): string | null {
@@ -277,10 +282,10 @@ export function VisitaRecetaScreen() {
         ingredienteActivoNombre: f.ingredienteActivoNombre ?? "",
         dosisIa: f.dosisIa?.toString() ?? "",
         volumenAplicacion: f.volumenAplicacion?.toString() ?? "",
-        cantidadTotalIa: f.cantidadTotalIa?.toString() ?? "",
+        cantidadTotalIa: formatCalculatedField(f.cantidadTotalIa),
         marcaProductoNombre: f.marcaProductoNombre ?? "",
         concentracionProducto: f.concentracionProducto?.toString() ?? "",
-        cantidadTotalProducto: f.cantidadTotalProducto?.toString() ?? "",
+        cantidadTotalProducto: formatCalculatedField(f.cantidadTotalProducto),
         coadyuvantesIds: parseJsonArray(f.coadyuvantesIds),
         ordenMezcla: parseJsonArray(f.ordenMezcla)
       }))
@@ -361,7 +366,7 @@ export function VisitaRecetaScreen() {
           current.volumenAplicacion,
           calculationAreaHectares
         );
-        current.cantidadTotalIa = totalIa ? totalIa.toFixed(4) : "";
+        current.cantidadTotalIa = totalIa ? totalIa.toFixed(2) : "";
       }
 
       if (
@@ -374,7 +379,7 @@ export function VisitaRecetaScreen() {
           current.cantidadTotalIa,
           current.concentracionProducto
         );
-        current.cantidadTotalProducto = totalProducto ? totalProducto.toFixed(4) : "";
+        current.cantidadTotalProducto = totalProducto ? totalProducto.toFixed(2) : "";
       }
 
       if (patch.coadyuvantesIds !== undefined) {
@@ -470,7 +475,7 @@ export function VisitaRecetaScreen() {
       visitaRecetasService.save(visitaId, data);
 
       try {
-        await processOutbox();
+        await requestSync({ forceRefresh: true, immediate: true });
       } catch (syncError) {
         console.warn("No se pudo sincronizar la receta despues de guardarla.", syncError);
       }

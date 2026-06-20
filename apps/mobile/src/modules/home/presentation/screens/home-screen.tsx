@@ -19,13 +19,15 @@ import { useIsOnline } from "../../../../shared/connectivity/use-is-online";
 import { useCatalogDownloadStatus } from "../../../../shared/database/catalog-download-state";
 import { forceRefreshAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import {
+  getLastSyncAttempt,
   getLastSyncTime,
   getSyncCounts,
   getSyncErrorDetails,
   getSyncPendingDetails,
   requestSync,
   type SyncErrorDetail,
-  type SyncPendingDetail
+  type SyncPendingDetail,
+  type SyncRunResult
 } from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { visitasCampoService } from "../../../visitas-campo/services";
@@ -53,6 +55,7 @@ export function HomeScreen() {
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [isPendingModalVisible, setIsPendingModalVisible] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [lastSyncAttempt, setLastSyncAttempt] = useState<SyncRunResult | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [isRefreshingCatalogs, setIsRefreshingCatalogs] = useState(false);
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
@@ -64,6 +67,7 @@ export function HomeScreen() {
     setSyncErrors(getSyncErrorDetails());
     setSyncPending(getSyncPendingDetails());
     setLastSyncTime(getLastSyncTime());
+    setLastSyncAttempt(getLastSyncAttempt());
 
     if (!session.accessToken) {
       setRecentVisits([]);
@@ -94,7 +98,7 @@ export function HomeScreen() {
     setIsManualSyncing(true);
 
     try {
-      await requestSync({ immediate: true });
+      await requestSync({ forceRefresh: true, immediate: true });
       loadDashboard();
     } finally {
       setIsManualSyncing(false);
@@ -292,6 +296,24 @@ export function HomeScreen() {
                   : "Refrescar catalogos"}
               </AppText>
             </Pressable>
+            {lastSyncAttempt ? (
+              <View style={styles.syncAttemptBox}>
+                <View
+                  style={[
+                    styles.syncAttemptDot,
+                    statusDotStyles[getSyncAttemptVariant(lastSyncAttempt)]
+                  ]}
+                />
+                <View style={styles.syncAttemptCopy}>
+                  <AppText style={styles.syncAttemptText} variant="caption">
+                    {lastSyncAttempt.message}
+                  </AppText>
+                  <AppText style={styles.syncAttemptMeta} variant="caption">
+                    Ultimo intento: {formatErrorDateTime(lastSyncAttempt.attemptedAt)}
+                  </AppText>
+                </View>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.actionGrid}>
@@ -733,6 +755,22 @@ function getSyncStatus(syncCounts: { pendingCount: number; errorCount: number })
   };
 }
 
+function getSyncAttemptVariant(result: SyncRunResult): StatusVariant {
+  if (result.status === "success") {
+    return "success";
+  }
+
+  if (
+    result.status === "offline" ||
+    result.status === "auth_failed" ||
+    result.status === "already_running"
+  ) {
+    return "warning";
+  }
+
+  return "error";
+}
+
 function getVisitStatus(syncStatus: RecentVisitaCampo["syncStatus"]) {
   if (syncStatus === "error") {
     return {
@@ -1028,6 +1066,35 @@ const styles = StyleSheet.create({
   refreshCatalogsButtonText: {
     color: "#08643f",
     fontSize: 15
+  },
+  syncAttemptBox: {
+    flexDirection: "row",
+    gap: 9,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "#f7faf8",
+    borderColor: "#e1e6e2",
+    borderWidth: 1
+  },
+  syncAttemptDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    marginTop: 4
+  },
+  syncAttemptCopy: {
+    flex: 1,
+    gap: 2
+  },
+  syncAttemptText: {
+    color: "#32443b",
+    lineHeight: 16
+  },
+  syncAttemptMeta: {
+    color: "#7a8580",
+    fontSize: 10
   },
   syncMetric: {
     minWidth: 0,

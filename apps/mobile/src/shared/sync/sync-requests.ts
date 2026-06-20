@@ -1,14 +1,18 @@
+import type { SyncRunResult } from "./sync-result";
+
 export type SyncRequestOptions = {
   forceRefresh?: boolean;
   immediate?: boolean;
 };
 
-type SyncRequestListener = (options?: SyncRequestOptions) => Promise<void> | void;
+type SyncRequestListener = (
+  options?: SyncRequestOptions
+) => Promise<SyncRunResult | null | void> | SyncRunResult | null | void;
 
 const listeners = new Set<SyncRequestListener>();
 let notifyTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingOptions: SyncRequestOptions | null = null;
-let pendingRequest: Promise<void> | null = null;
+let pendingRequest: Promise<SyncRunResult | null> | null = null;
 
 export function requestSync(options: SyncRequestOptions = {}) {
   pendingOptions = {
@@ -20,7 +24,7 @@ export function requestSync(options: SyncRequestOptions = {}) {
     return pendingRequest;
   }
 
-  pendingRequest = new Promise<void>((resolve) => {
+  pendingRequest = new Promise<SyncRunResult | null>((resolve) => {
     notifyTimer = setTimeout(() => {
       const nextOptions = pendingOptions ?? {};
       notifyTimer = null;
@@ -28,9 +32,15 @@ export function requestSync(options: SyncRequestOptions = {}) {
 
       void Promise.allSettled(
         Array.from(listeners).map((listener) => listener(nextOptions))
-      ).finally(() => {
+      ).then((results) => {
+        const syncResult =
+          results.find(
+            (result): result is PromiseFulfilledResult<SyncRunResult> =>
+              result.status === "fulfilled" && Boolean(result.value)
+          )?.value ?? null;
+
         pendingRequest = null;
-        resolve();
+        resolve(syncResult);
       });
     }, 0);
   });
