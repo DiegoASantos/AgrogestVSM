@@ -1,5 +1,7 @@
 "use client";
 
+import { LayoutDashboard, Map, Settings, ShieldCheck, ClipboardList } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
@@ -19,6 +21,8 @@ import { ChartDeficienciasNutrientes } from "./chart-deficiencias-nutrientes";
 import { ActividadReciente } from "./actividad-reciente";
 
 const currentYear = new Date().getFullYear();
+const chartCardClassName =
+  "rounded-lg border border-border/70 bg-card/95 p-4 shadow-sm ring-1 ring-foreground/[0.03] transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:p-5";
 
 export function DashboardOverview() {
   const { session } = useAuthSession();
@@ -61,12 +65,16 @@ export function DashboardOverview() {
 
   const quickActions = useMemo(() => {
     const allActions = [
-      { href: adminRoutes.visitas, label: "Gestionar visitas" },
-      { href: adminRoutes.mapas, label: "Abrir mapas" },
+      { href: adminRoutes.visitas, label: "Gestionar visitas", icon: ClipboardList },
+      { href: adminRoutes.mapas, label: "Abrir mapas", icon: Map },
       ...(isAdmin
         ? [
-            { href: adminRoutes.mantenimiento, label: "Abrir mantenimiento" },
-            { href: adminRoutes.seguridad, label: "Abrir seguridad" }
+            {
+              href: adminRoutes.mantenimiento,
+              label: "Abrir mantenimiento",
+              icon: Settings
+            },
+            { href: adminRoutes.seguridad, label: "Abrir seguridad", icon: ShieldCheck }
           ]
         : [])
     ];
@@ -103,34 +111,41 @@ export function DashboardOverview() {
   if (!data) return null;
 
   return (
-    <div className="animate-in fade-in space-y-8 p-6 duration-300">
-      {/* Header */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Panel de control
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
-            AgroGest VSM
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Resumen operativo de visitas, productores y recetas.
-          </p>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2 sm:mt-0">
-          {quickActions.map((action) => (
-            <a
-              className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-              href={action.href}
-              key={action.href}
-            >
-              {action.label}
-            </a>
-          ))}
-        </div>
-      </div>
+    <div className="animate-in fade-in space-y-6 p-4 duration-300 sm:p-6">
+      <section className="overflow-hidden rounded-lg border border-primary/10 bg-[linear-gradient(135deg,hsl(var(--primary)/0.12),hsl(var(--background))_45%,hsl(var(--chart-2)/0.10))] p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-background/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-primary shadow-sm">
+              <LayoutDashboard className="size-3.5" />
+              Panel de control
+            </div>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              AgroGest VSM
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Resumen operativo para detectar actividad reciente, campanias activas y
+              alertas sanitarias o nutricionales desde un solo tablero.
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[520px]">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
 
-      {/* KPI Cards */}
+              return (
+                <Link
+                  className="group inline-flex h-10 items-center justify-between gap-3 rounded-md border border-border/70 bg-background/80 px-3.5 text-xs font-semibold text-foreground shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:bg-primary hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  href={action.href}
+                  key={action.href}
+                >
+                  <span>{action.label}</span>
+                  <Icon className="size-4 opacity-70 transition group-hover:opacity-100" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       <KpiGrid
         recetasEmitidas={data.kpis.recetasEmitidas}
         productoresActivos={data.kpis.productoresActivos}
@@ -138,9 +153,8 @@ export function DashboardOverview() {
         visitasEsteMes={data.kpis.visitasEsteMes}
       />
 
-      {/* Charts Grid */}
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+        <div className={`${chartCardClassName} md:col-span-2 xl:col-span-1`}>
           <ChartVisitasPorMes
             availableYears={availableYears}
             data={data.charts.visitasPorMes}
@@ -148,22 +162,19 @@ export function DashboardOverview() {
             onYearChange={setYear}
           />
         </div>
-        <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+        <div className={chartCardClassName}>
           <ChartVisitasPorCampania data={data.charts.visitasPorCampania} />
         </div>
-        <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+        <div className={chartCardClassName}>
           <ChartPlagasFrecuentes data={data.charts.plagasFrecuentes} />
         </div>
-        <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+        <div className={chartCardClassName}>
           <ChartDeficienciasNutrientes data={data.charts.deficienciasNutrientes} />
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
-        <ActividadReciente
-          ultimasVisitas={data.actividadReciente.ultimasVisitas}
-        />
+      <div className={chartCardClassName}>
+        <ActividadReciente ultimasVisitas={data.actividadReciente.ultimasVisitas} />
       </div>
     </div>
   );

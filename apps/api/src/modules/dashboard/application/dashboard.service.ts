@@ -2,8 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
 
-import { createSuccessResponse } from "../../../common/http/api-response";
-
 type VisitasPorMes = {
   mes: string;
   count: number;
@@ -23,6 +21,19 @@ type DeficienciaNutriente = {
   nutriente: string;
   count: number;
 };
+
+const NUTRIENT_NAME_EXPRESSION = `
+  NULLIF(
+    BTRIM(
+      regexp_replace(
+        regexp_replace(ve.descripcion, '^Nutricion[[:space:]]*-[[:space:]]*', '', 'i'),
+        '[[:space:]]*(:|-)[[:space:]]*.*$',
+        ''
+      )
+    ),
+    ''
+  )
+`;
 
 type VisitaReciente = {
   id: string;
@@ -77,44 +88,40 @@ export class DashboardService {
   }
 
   private async getKpis() {
-    const [
-      totalVisitas,
-      visitasEsteMes,
-      productoresActivos,
-      recetasEmitidas
-    ] = await Promise.all([
-      this.dataSource
-        .createQueryBuilder()
-        .select("COUNT(*)", "count")
-        .from("visitas_campo", "v")
-        .where("v.activo = true")
-        .getRawOne<{ count: string }>()
-        .then((r) => Number(r?.count ?? 0)),
+    const [totalVisitas, visitasEsteMes, productoresActivos, recetasEmitidas] =
+      await Promise.all([
+        this.dataSource
+          .createQueryBuilder()
+          .select("COUNT(*)", "count")
+          .from("visitas_campo", "v")
+          .where("v.activo = true")
+          .getRawOne<{ count: string }>()
+          .then((r) => Number(r?.count ?? 0)),
 
-      this.dataSource
-        .createQueryBuilder()
-        .select("COUNT(*)", "count")
-        .from("visitas_campo", "v")
-        .where("v.activo = true")
-        .andWhere("v.fecha_visita >= date_trunc('month', CURRENT_DATE)")
-        .getRawOne<{ count: string }>()
-        .then((r) => Number(r?.count ?? 0)),
+        this.dataSource
+          .createQueryBuilder()
+          .select("COUNT(*)", "count")
+          .from("visitas_campo", "v")
+          .where("v.activo = true")
+          .andWhere("v.fecha_visita >= date_trunc('month', CURRENT_DATE)")
+          .getRawOne<{ count: string }>()
+          .then((r) => Number(r?.count ?? 0)),
 
-      this.dataSource
-        .createQueryBuilder()
-        .select("COUNT(*)", "count")
-        .from("productores", "p")
-        .where("p.activo = true")
-        .getRawOne<{ count: string }>()
-        .then((r) => Number(r?.count ?? 0)),
+        this.dataSource
+          .createQueryBuilder()
+          .select("COUNT(*)", "count")
+          .from("productores", "p")
+          .where("p.activo = true")
+          .getRawOne<{ count: string }>()
+          .then((r) => Number(r?.count ?? 0)),
 
-      this.dataSource
-        .createQueryBuilder()
-        .select("COUNT(*)", "count")
-        .from("visita_recetas", "vr")
-        .getRawOne<{ count: string }>()
-        .then((r) => Number(r?.count ?? 0))
-    ]);
+        this.dataSource
+          .createQueryBuilder()
+          .select("COUNT(*)", "count")
+          .from("visita_recetas", "vr")
+          .getRawOne<{ count: string }>()
+          .then((r) => Number(r?.count ?? 0))
+      ]);
 
     return { totalVisitas, visitasEsteMes, productoresActivos, recetasEmitidas };
   }
@@ -128,7 +135,12 @@ export class DashboardService {
         this.getDeficienciasNutrientes()
       ]);
 
-    return { visitasPorMes, visitasPorCampania, plagasFrecuentes, deficienciasNutrientes };
+    return {
+      visitasPorMes,
+      visitasPorCampania,
+      plagasFrecuentes,
+      deficienciasNutrientes
+    };
   }
 
   private async getVisitasPorMes(year: number): Promise<VisitasPorMes[]> {
@@ -198,16 +210,19 @@ export class DashboardService {
   private async getDeficienciasNutrientes(): Promise<DeficienciaNutriente[]> {
     const rows = await this.dataSource
       .createQueryBuilder()
-      .select("REPLACE(ve.descripcion, 'Nutricion - ', '')", "nutriente")
+      .select(NUTRIENT_NAME_EXPRESSION, "nutriente")
       .addSelect("COUNT(*)", "count")
       .from("visita_evaluaciones", "ve")
       .where("ve.descripcion LIKE :prefix", { prefix: "Nutricion - %" })
-      .groupBy("ve.descripcion")
+      .groupBy(NUTRIENT_NAME_EXPRESSION)
       .orderBy("count", "DESC")
       .limit(3)
       .getRawMany<{ nutriente: string; count: string }>();
 
-    return rows.map((r) => ({ nutriente: r.nutriente ?? "Sin especificar", count: Number(r.count) }));
+    return rows.map((r) => ({
+      nutriente: r.nutriente ?? "Sin especificar",
+      count: Number(r.count)
+    }));
   }
 
   private async getActividadReciente() {
