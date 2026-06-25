@@ -1,8 +1,10 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 import { ProvinciaEntity } from "./provincia.entity";
 
 @Entity({ name: "departamentos" })
+@Index("uq_departamentos_codigo", ["code"], { unique: true })
+@Index("uq_departamentos_nombre", ["name"], { unique: true })
 export class DepartamentoEntity {
   @PrimaryGeneratedColumn({ name: "id", type: "bigint" })
   id!: string;

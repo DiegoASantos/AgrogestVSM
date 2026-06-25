@@ -1,0 +1,14 @@
+node_modules/
+.git/
+.pnpm-store/
+dist/
+build/
+.next/
+.expo/
+coverage/
+apps/mobile/assets/
+apps/admin-web/public/
+**/*.webp
+**/*.png
+**/*.jpg
+**/*.jpeg

@@ -4,6 +4,7 @@ export type EnvironmentVariables = {
   NODE_ENV: NodeEnvironment;
   APP_HOST: string;
   APP_PORT: number;
+  APP_TRUST_PROXY: boolean;
   CORS_ALLOWED_ORIGINS: string[];
   DB_HOST: string;
   DB_PORT: number;
@@ -17,6 +18,9 @@ export type EnvironmentVariables = {
   JWT_ACCESS_EXPIRES_IN: string;
   JWT_REFRESH_SECRET: string;
   JWT_REFRESH_EXPIRES_IN: string;
+  LOGIN_RATE_LIMIT_TTL_MS: number;
+  LOGIN_RATE_LIMIT_MAX: number;
+  LOGIN_RATE_LIMIT_BLOCK_MS: number;
 };
 
 export type AppRuntimeConfig = {
@@ -24,7 +28,13 @@ export type AppRuntimeConfig = {
   env: NodeEnvironment;
   host: string;
   port: number;
+  trustProxy: boolean;
   allowedOrigins?: string[];
+  loginRateLimit: {
+    ttlMs: number;
+    max: number;
+    blockDurationMs: number;
+  };
 };
 
 export type DatabaseRuntimeConfig = {

@@ -9,12 +9,16 @@ import { GlobalExceptionFilter } from "./common/filters/global-exception.filter"
 import { RequestLoggingInterceptor } from "./common/interceptors/request-logging.interceptor";
 import { createGlobalValidationPipe } from "./common/pipes/global-validation.pipe";
 import { AppConfigService } from "./config/app-config.service";
+import { readEnvironmentVariables } from "./config/env.validation";
 import { setupSwagger } from "./config/swagger.config";
 
 async function bootstrap() {
+  const environment = readEnvironmentVariables();
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter()
+    new FastifyAdapter({
+      trustProxy: environment.APP_TRUST_PROXY
+    })
   );
 
   app.enableShutdownHooks();
@@ -22,9 +26,7 @@ async function bootstrap() {
   const appConfig = app.get(AppConfigService);
 
   app.enableCors({
-    origin: appConfig.isDevelopment
-      ? true
-      : (appConfig.allowedOrigins ?? []),
+    origin: appConfig.isDevelopment ? true : (appConfig.allowedOrigins ?? []),
     credentials: true
   });
 

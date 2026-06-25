@@ -17,9 +17,15 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "pnpm lint && pnpm typecheck && pnpm test"
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "db:backup": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/database/backup-postgres.ps1",
+    "db:restore": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/database/restore-postgres.ps1",
+    "db:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/database/test-bootstrap-restore.ps1",
+    "ai:agents": "opencode.cmd agent list",
+    "ai:review": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/ai/review-diff.ps1"
   },
   "devDependencies": {
+    "@cubocompany/opengem": "0.7.5",
     "@eslint/js": "^9.17.0",
     "@types/node": "^22.10.2",
     "@vitest/coverage-v8": "^4.1.4",

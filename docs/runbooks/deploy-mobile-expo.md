@@ -1,3 +1,10 @@
+---
+title: Deploy mobile Android con Expo EAS
+status: active
+owner: mantenimiento
+last_reviewed: 2026-06-25
+---
+
 # Deploy mobile Android con Expo EAS
 
 La app mobile esta vinculada al proyecto Expo:

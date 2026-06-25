@@ -35,6 +35,11 @@ function buildEnvironmentVariables(
       source.APP_PORT !== undefined ? "APP_PORT" : "PORT",
       DEFAULT_APP_PORT
     ),
+    APP_TRUST_PROXY: parseBoolean(
+      source.APP_TRUST_PROXY,
+      "APP_TRUST_PROXY",
+      nodeEnv === "production"
+    ),
     CORS_ALLOWED_ORIGINS: parseAllowedOrigins(source.CORS_ALLOWED_ORIGINS),
     DB_HOST: getString(source.DB_HOST, DEFAULT_DB_HOST),
     DB_PORT: parsePort(source.DB_PORT, "DB_PORT", DEFAULT_DB_PORT),
@@ -57,8 +62,41 @@ function buildEnvironmentVariables(
     JWT_REFRESH_EXPIRES_IN: getString(
       source.JWT_REFRESH_EXPIRES_IN,
       DEFAULT_JWT_REFRESH_EXPIRES_IN
+    ),
+    LOGIN_RATE_LIMIT_TTL_MS: parsePositiveInteger(
+      source.LOGIN_RATE_LIMIT_TTL_MS,
+      "LOGIN_RATE_LIMIT_TTL_MS",
+      60_000
+    ),
+    LOGIN_RATE_LIMIT_MAX: parsePositiveInteger(
+      source.LOGIN_RATE_LIMIT_MAX,
+      "LOGIN_RATE_LIMIT_MAX",
+      5
+    ),
+    LOGIN_RATE_LIMIT_BLOCK_MS: parsePositiveInteger(
+      source.LOGIN_RATE_LIMIT_BLOCK_MS,
+      "LOGIN_RATE_LIMIT_BLOCK_MS",
+      300_000
     )
   };
+}
+
+function parsePositiveInteger(
+  value: unknown,
+  variableName: string,
+  defaultValue: number
+): number {
+  if (value === undefined || value === null || value === "") {
+    return defaultValue;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isInteger(parsedValue) || parsedValue < 1) {
+    throw new Error(`${variableName} must be a positive integer.`);
+  }
+
+  return parsedValue;
 }
 
 function parseNodeEnvironment(value: unknown): NodeEnvironment {
@@ -69,11 +107,7 @@ function parseNodeEnvironment(value: unknown): NodeEnvironment {
   return "development";
 }
 
-function parsePort(
-  value: unknown,
-  variableName: string,
-  defaultValue: number
-): number {
+function parsePort(value: unknown, variableName: string, defaultValue: number): number {
   if (value === undefined || value === null || value === "") {
     return defaultValue;
   }
@@ -160,15 +194,11 @@ function normalizeOrigin(origin: string): string {
   try {
     parsedOrigin = new URL(origin);
   } catch {
-    throw new Error(
-      `CORS_ALLOWED_ORIGINS contains an invalid URL origin: ${origin}.`
-    );
+    throw new Error(`CORS_ALLOWED_ORIGINS contains an invalid URL origin: ${origin}.`);
   }
 
   if (parsedOrigin.protocol !== "http:" && parsedOrigin.protocol !== "https:") {
-    throw new Error(
-      `CORS_ALLOWED_ORIGINS only supports http/https origins: ${origin}.`
-    );
+    throw new Error(`CORS_ALLOWED_ORIGINS only supports http/https origins: ${origin}.`);
   }
 
   return parsedOrigin.origin;

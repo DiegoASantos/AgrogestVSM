@@ -5,7 +5,8 @@ import {
   Header,
   HttpCode,
   HttpStatus,
-  Post
+  Post,
+  UseGuards
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -23,6 +24,7 @@ import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { CurrentAuthUser } from "./decorators/current-auth-user.decorator";
 import { Public } from "./decorators/public.decorator";
 import { Roles } from "./decorators/roles.decorator";
+import { LoginThrottlerGuard } from "./guards/login-throttler.guard";
 import type { AccessTokenPayload } from "../types/auth.types";
 
 @ApiTags("Auth")
@@ -32,6 +34,7 @@ export class AuthController {
 
   @Post("login")
   @Public()
+  @UseGuards(LoginThrottlerGuard)
   @ApiOperation({ summary: "Autentica un usuario con email y password." })
   @ApiBody({
     type: LoginDto
@@ -267,9 +270,7 @@ export class AuthController {
     description: "Token ausente, invalido o expirado."
   })
   @Header("Cache-Control", "no-store")
-  getAuthenticatedUser(
-    @CurrentAuthUser() accessTokenPayload: AccessTokenPayload
-  ) {
+  getAuthenticatedUser(@CurrentAuthUser() accessTokenPayload: AccessTokenPayload) {
     return this.authService.getAuthenticatedUser(accessTokenPayload);
   }
 }

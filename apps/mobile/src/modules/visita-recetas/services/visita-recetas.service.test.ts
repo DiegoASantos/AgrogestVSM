@@ -6,7 +6,33 @@ const mocks = vi.hoisted(() => ({
   getById: vi.fn(),
   getPestDiseases: vi.fn(),
   getIncidenceLevels: vi.fn(),
-  getByVisitaLocalId: vi.fn()
+  getByVisitaLocalId: vi.fn(),
+  getEvaluacionesByVisitaLocalId: vi.fn(() => []),
+  getLaboresCatalog: vi.fn(() => []),
+  getLaboresByVisitaLocalId: vi.fn(() => []),
+  getRiegoByVisitaLocalId: vi.fn(() => null)
+}));
+
+vi.mock("../../evaluaciones/repositories/evaluaciones.repository", () => ({
+  evaluacionesRepository: {
+    getByVisitaLocalId: mocks.getEvaluacionesByVisitaLocalId
+  }
+}));
+
+vi.mock(
+  "../../labores-culturales-visita/repositories/labores-culturales-visita.repository",
+  () => ({
+    laboresCulturalesVisitaRepository: {
+      getLaboresCulturales: mocks.getLaboresCatalog,
+      getByVisitaLocalId: mocks.getLaboresByVisitaLocalId
+    }
+  })
+);
+
+vi.mock("../../riegos/repositories/riegos.repository", () => ({
+  riegosRepository: {
+    getByVisitaLocalId: mocks.getRiegoByVisitaLocalId
+  }
 }));
 
 vi.mock("../../visitas-campo/repositories/visitas-campo.repository", () => ({

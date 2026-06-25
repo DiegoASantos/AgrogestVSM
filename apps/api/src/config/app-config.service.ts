@@ -5,6 +5,7 @@ import { appConfig } from "./app.config";
 import { authConfig } from "./auth.config";
 import { databaseConfig } from "./database.config";
 import type {
+  AppRuntimeConfig,
   AuthRuntimeConfig,
   DatabaseRuntimeConfig,
   NodeEnvironment
@@ -37,6 +38,14 @@ export class AppConfigService {
     return this.runtimeAppConfig.port;
   }
 
+  get trustProxy(): boolean {
+    return this.runtimeAppConfig.trustProxy;
+  }
+
+  get loginRateLimit(): AppRuntimeConfig["loginRateLimit"] {
+    return this.runtimeAppConfig.loginRateLimit;
+  }
+
   get database(): DatabaseRuntimeConfig {
     return this.runtimeDatabaseConfig;
   }
@@ -62,7 +71,8 @@ export class AppConfigService {
       appName: this.appName,
       nodeEnv: this.nodeEnv,
       host: this.host,
-      port: this.port
+      port: this.port,
+      trustProxy: this.trustProxy
     };
   }
 }

@@ -14,6 +14,14 @@ coverage
 .DS_Store
 .idea
 .vscode
+docs/.obsidian/
+.opengem/
+opengem-out/
+.opencode-runtime/
+backups/
+.phase1-pg-data/
+.phase1-pg-backups/
+.phase1-api-*.log
 .env
 .env.*
 !.env.example

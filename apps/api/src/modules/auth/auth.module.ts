@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { JwtModule, type JwtModuleOptions } from "@nestjs/jwt";
 import { APP_GUARD } from "@nestjs/core";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { AppConfigService } from "../../config/app-config.service";
@@ -13,6 +14,7 @@ import { RefreshSessionEntity } from "./infrastructure/persistence/entities/refr
 import { UserRoleEntity } from "./infrastructure/persistence/entities/user-role.entity";
 import { AccessTokenGuard } from "./presentation/guards/access-token.guard";
 import { RolesGuard } from "./presentation/guards/roles.guard";
+import { LoginThrottlerGuard } from "./presentation/guards/login-throttler.guard";
 import { AuthController } from "./presentation/auth.controller";
 import { UserRolesController } from "./presentation/user-roles.controller";
 
@@ -21,9 +23,9 @@ import { UserRolesController } from "./presentation/user-roles.controller";
     JwtModule.registerAsync({
       inject: [AppConfigService],
       useFactory: (appConfig: AppConfigService) => {
-        const expiresIn =
-          appConfig.auth
-            .accessExpiresIn as NonNullable<JwtModuleOptions["signOptions"]>["expiresIn"];
+        const expiresIn = appConfig.auth.accessExpiresIn as NonNullable<
+          JwtModuleOptions["signOptions"]
+        >["expiresIn"];
 
         return {
           secret: appConfig.auth.accessSecret,
@@ -34,6 +36,16 @@ import { UserRolesController } from "./presentation/user-roles.controller";
       }
     }),
     TypeOrmModule.forFeature([UserRoleEntity, RefreshSessionEntity]),
+    ThrottlerModule.forRootAsync({
+      inject: [AppConfigService],
+      useFactory: (appConfig: AppConfigService) => [
+        {
+          ttl: appConfig.loginRateLimit.ttlMs,
+          limit: appConfig.loginRateLimit.max,
+          blockDuration: appConfig.loginRateLimit.blockDurationMs
+        }
+      ]
+    }),
     UsersModule,
     RolesModule
   ],
@@ -44,6 +56,7 @@ import { UserRolesController } from "./presentation/user-roles.controller";
     UserRolesService,
     AccessTokenGuard,
     RolesGuard,
+    LoginThrottlerGuard,
     {
       provide: APP_GUARD,
       useExisting: AccessTokenGuard

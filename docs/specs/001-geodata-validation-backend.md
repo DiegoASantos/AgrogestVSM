@@ -1,4 +1,14 @@
-# Fase 3 pendiente: validacion geoespacial backend de parcelas
+---
+title: Validación geoespacial backend de parcelas
+status: draft
+numero: "001"
+area: api-geodata
+created: 2026-06-25
+approved_by:
+implemented_in:
+---
+
+# Validación geoespacial backend de parcelas
 
 ## Estado
 

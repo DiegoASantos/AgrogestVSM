@@ -1,3 +1,10 @@
+---
+title: Deploy API en Render
+status: active
+owner: mantenimiento
+last_reviewed: 2026-06-25
+---
+
 # Deploy API en Render para piloto
 
 Esta guia deja la API `@agrogest/api` lista para publicarse en Render usando la
@@ -9,7 +16,9 @@ base PostgreSQL de Supabase que ya configuraste.
 - carga de `.env` robusta aunque arranques desde la raiz del monorepo
 - compatibilidad con `PORT` de Render
 - health check en `/health`
+- migraciones ejecutadas antes de iniciar cada release
 - hook inicial para ejecutar `seed-auth` una sola vez despues del primer deploy
+- rate limiting de login y soporte de IP real detrás del proxy
 
 ## Antes de desplegar
 
@@ -22,6 +31,10 @@ base PostgreSQL de Supabase que ya configuraste.
    - `DB_PASSWORD` de Supabase
    - `CORS_ALLOWED_ORIGINS` del panel web
    - `SEED_ADMIN_PASSWORD` para el usuario admin inicial
+
+La base debe tener el esquema existente o haber sido preparada previamente con
+[el runbook de bootstrap](database-bootstrap.md). El servicio no ejecuta el
+bootstrap destructivo durante el arranque.
 
 ## Opcion recomendada: usar el Blueprint del repo
 
@@ -42,6 +55,7 @@ base PostgreSQL de Supabase que ya configuraste.
 
 - `NODE_ENV=production`
 - `APP_HOST=0.0.0.0`
+- `APP_TRUST_PROXY=true`
 - `DB_HOST=aws-1-us-east-1.pooler.supabase.com`
 - `DB_PORT=5432`
 - `DB_NAME=postgres`
@@ -50,13 +64,17 @@ base PostgreSQL de Supabase que ya configuraste.
 - `DB_SSL=true`
 - `DB_SSL_REJECT_UNAUTHORIZED=false`
 - `JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` se generan automaticamente
+- límite de login: 5 intentos por minuto y bloqueo de 5 minutos
 
 ## Que pasa en el primer deploy
 
 1. Render instala dependencias del monorepo.
 2. Compila solo `@agrogest/api`.
-3. Arranca con `node apps/api/dist/main.js`.
-4. Ejecuta una sola vez `node apps/api/dist/scripts/seed-auth.js`.
+3. El hook inicial ejecuta una sola vez
+   `node apps/api/dist/scripts/seed-auth.js`.
+4. Cada arranque ejecuta `node apps/api/dist/scripts/migrate-database.js`.
+5. Si las migraciones terminan correctamente, inicia
+   `node apps/api/dist/main.js`.
 
 Ese seed:
 
@@ -89,7 +107,7 @@ corepack enable && pnpm install --frozen-lockfile --prod=false && pnpm --filter 
 - Start command:
 
 ```bash
-node apps/api/dist/main.js
+node apps/api/dist/scripts/migrate-database.js && node apps/api/dist/main.js
 ```
 
 - Health check path:
@@ -103,6 +121,7 @@ Variables requeridas:
 ```env
 NODE_ENV=production
 APP_HOST=0.0.0.0
+APP_TRUST_PROXY=true
 CORS_ALLOWED_ORIGINS=https://tu-admin-web.vercel.app
 DB_HOST=aws-1-us-east-1.pooler.supabase.com
 DB_PORT=5432
@@ -115,7 +134,10 @@ DB_SSL_REJECT_UNAUTHORIZED=false
 JWT_ACCESS_SECRET=<secreto_largo>
 JWT_ACCESS_EXPIRES_IN=1h
 JWT_REFRESH_SECRET=<otro_secreto_largo>
-JWT_REFRESH_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
+LOGIN_RATE_LIMIT_TTL_MS=60000
+LOGIN_RATE_LIMIT_MAX=5
+LOGIN_RATE_LIMIT_BLOCK_MS=300000
 SEED_ADMIN_FIRST_NAME=Admin
 SEED_ADMIN_LAST_NAME=VSM
 SEED_ADMIN_EMAIL=admin@agrogestvsm.local
@@ -127,6 +149,28 @@ SEED_ADMIN_PASSWORD=<password_admin>
 - el servicio se duerme tras inactividad y tarda en volver
 - no tienes shell ni one-off jobs en free
 - por eso se dejo `initialDeployHook` para sembrar auth en el primer deploy
+
+El rate limiting usa memoria local. Si el servicio se escala a varias
+instancias, se debe usar almacenamiento compartido.
+
+## Verificación y rollback
+
+Después de cada deploy:
+
+1. comprobar `/health` y `/health/db`;
+2. probar login válido;
+3. verificar que intentos repetidos produzcan HTTP 429;
+4. revisar catálogos, parcelas y visitas;
+5. confirmar el panel desde el origen permitido.
+
+Si falla, seguir [el runbook de rollback](rollback.md). Si el release cambia
+datos, confirmar primero la compatibilidad de la migración.
+
+## TLS
+
+El Blueprint mantiene cifrado con `DB_SSL=true`, pero actualmente desactiva la
+verificación de CA para el pooler. La configuración objetivo es cargar la CA de
+Supabase y usar `DB_SSL_REJECT_UNAUTHORIZED=true`.
 
 ## Siguiente paso recomendado
 

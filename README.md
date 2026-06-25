@@ -93,6 +93,7 @@ El dominio actual del proyecto cubre, entre otros:
 - pnpm 9 o superior
 - PostgreSQL con extension PostGIS disponible
 - un entorno Expo para pruebas mobile
+- Windows PowerShell para los scripts actuales de base de datos y revisión de IA
 
 ## Variables de entorno
 
@@ -148,6 +149,11 @@ pnpm install
 - `pnpm typecheck`: chequeo de tipos de todos los workspaces
 - `pnpm test`: ejecuta tests disponibles
 - `pnpm check`: lint + typecheck + test
+- `pnpm db:backup`: crea y verifica un backup PostgreSQL
+- `pnpm db:restore -- -BackupFile <archivo>`: restaura con confirmacion explicita
+- `pnpm ai:agents`: muestra los agentes configurados en OpenCode
+- `pnpm ai:review -- -Title <titulo> -Handoff <archivo>`: ejecuta el reviewer
+  DeepSeek de solo lectura
 
 ## Ejecucion por workspace
 
@@ -155,6 +161,7 @@ pnpm install
 
 ```bash
 pnpm --filter @agrogest/api build
+pnpm --filter @agrogest/api bootstrap:database
 pnpm --filter @agrogest/api seed:auth
 pnpm --filter @agrogest/api dev
 ```
@@ -163,11 +170,13 @@ Notas:
 
 - Swagger se expone solo en desarrollo en `/docs`
 - el seed de auth prepara datos base de acceso para el sistema
+- el bootstrap de base solo funciona sobre un esquema vacio y requiere
+  `ALLOW_DATABASE_BOOTSTRAP=true`
 
 ### Deploy piloto de API
 
 Para publicar la API en Render contra Supabase usando la configuracion lista del
-repo, sigue [docs/deploy-api-render.md](C:\Users\USUARIO\Documents\TESIS UNP\VSM_VersionLite\Monorepo_VSM\agrogest-vsm\docs\deploy-api-render.md).
+repo, sigue [docs/runbooks/deploy-api-render.md](docs/runbooks/deploy-api-render.md).
 
 ### Admin web
 

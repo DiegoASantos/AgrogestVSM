@@ -3,10 +3,12 @@ import {
   CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn
 } from "typeorm";
 
 @Entity({ name: "labores_culturales" })
+@Unique("labores_culturales_nombre_key", ["name"])
 export class LaborCulturalEntity {
   @PrimaryGeneratedColumn({
     name: "id",

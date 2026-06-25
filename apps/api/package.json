@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pnpm build && node scripts/dev-runner.cjs",
     "build": "tsc -p tsconfig.build.json",
+    "bootstrap:database": "pnpm build && node dist/scripts/bootstrap-database.js",
     "seed:auth": "pnpm build && node dist/scripts/seed-auth.js",
     "migrate": "pnpm build && node dist/scripts/migrate-database.js",
     "start": "node dist/main.js",
@@ -23,6 +24,7 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-fastify": "^10.4.12",
     "@nestjs/swagger": "^8.1.1",
+    "@nestjs/throttler": "6.5.0",
     "@nestjs/typeorm": "^11.0.1",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",

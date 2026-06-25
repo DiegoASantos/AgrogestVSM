@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -11,6 +12,9 @@ import { ParcelaEntity } from "../../../../parcelas/infrastructure/persistence/e
 import { DistritoEntity } from "../../../../geografias/infrastructure/persistence/entities/distrito.entity";
 
 @Entity({ name: "sectores" })
+@Index("uq_sectores_distrito_nombre", ["distritoId", "name"], {
+  unique: true
+})
 export class SectorEntity {
   @PrimaryGeneratedColumn({
     name: "id",

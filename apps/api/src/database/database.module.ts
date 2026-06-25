@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
@@ -14,6 +16,9 @@ import { DatabaseConfigService } from "./database-config.service";
 
         return {
           ...options,
+          entities: [
+            path.join(__dirname, "../modules/**/*.entity.js").replaceAll("\\", "/")
+          ],
           extra: {
             application_name: applicationName
           },

@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -22,6 +23,9 @@ export type MultiPolygonGeometry = {
 };
 
 @Entity({ name: "parcelas" })
+@Index("uq_parcelas_productor_sector_codigo", ["productorId", "sectorId", "code"], {
+  unique: true
+})
 export class ParcelaEntity {
   @PrimaryGeneratedColumn({
     name: "id",
