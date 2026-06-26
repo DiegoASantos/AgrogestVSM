@@ -40,6 +40,7 @@ function buildEnvironmentVariables(
       "APP_TRUST_PROXY",
       nodeEnv === "production"
     ),
+    LOG_LEVEL: parseLogLevel(source.LOG_LEVEL),
     CORS_ALLOWED_ORIGINS: parseAllowedOrigins(source.CORS_ALLOWED_ORIGINS),
     DB_HOST: getString(source.DB_HOST, DEFAULT_DB_HOST),
     DB_PORT: parsePort(source.DB_PORT, "DB_PORT", DEFAULT_DB_PORT),
@@ -79,6 +80,21 @@ function buildEnvironmentVariables(
       300_000
     )
   };
+}
+
+function parseLogLevel(value: unknown): string {
+  const normalizedValue = String(value ?? "").trim().toLowerCase();
+  const allowedLevels = new Set(["trace", "debug", "info", "warn", "error", "fatal"]);
+
+  if (!normalizedValue) {
+    return "info";
+  }
+
+  if (!allowedLevels.has(normalizedValue)) {
+    throw new Error("LOG_LEVEL must be one of trace, debug, info, warn, error or fatal.");
+  }
+
+  return normalizedValue;
 }
 
 function parsePositiveInteger(

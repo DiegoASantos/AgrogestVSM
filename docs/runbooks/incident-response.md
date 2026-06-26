@@ -2,7 +2,7 @@
 title: Respuesta a incidentes y soporte
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-06-26
 ---
 
 # Respuesta a incidentes y soporte
@@ -39,16 +39,21 @@ empresa.
 1. Recibir y registrar.
 2. Clasificar severidad y alcance.
 3. Preservar evidencia.
-4. Mitigar sin destruir datos.
-5. Comunicar estado y siguiente actualización.
-6. Corregir y validar.
-7. Documentar causa, impacto y prevención.
+4. Buscar `requestId`, ruta, `statusCode`, `errorCode` y versión desplegada en
+   los logs estructurados.
+5. Mitigar sin destruir datos.
+6. Comunicar estado y siguiente actualización.
+7. Corregir y validar.
+8. Documentar causa, impacto y prevención.
+
+Guía de logs: `docs/runbooks/observability-logs.md`.
 
 ## Incidentes de seguridad
 
 - no compartir tokens, contraseñas o backups en el reporte;
 - rotar credenciales comprometidas;
 - conservar logs relevantes;
+- compartir con IA solo extractos anonimizados de logs;
 - limitar accesos;
 - notificar al responsable empresarial;
 - no ocultar ni alterar evidencia.

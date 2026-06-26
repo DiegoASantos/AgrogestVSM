@@ -1,7 +1,7 @@
 ---
 description: Revisor independiente del diff. Evalúa calidad, seguridad y riesgos sin modificar archivos.
 mode: subagent
-model: deepseek/deepseek-chat
+model: deepseek/deepseek-v4-pro
 temperature: 0.1
 permission:
   edit: deny

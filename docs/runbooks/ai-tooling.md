@@ -2,7 +2,7 @@
 title: Herramientas de IA, OpenCode y OpenGem
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-06-26
 ---
 
 # Herramientas de IA, OpenCode y OpenGem
@@ -77,13 +77,34 @@ La configuración del proyecto fue analizada correctamente y reconoce:
 
 - el plugin `@cubocompany/opengem`;
 - `defaultVault: "docs"`;
-- el subagente `explorador`;
-- el agente primario `deepseek-reviewer`;
-- el proveedor DeepSeek y los modelos `deepseek-v4-flash` y
-  `deepseek-v4-pro`.
+- el subagente `explorador` con `deepseek/deepseek-v4-flash`;
+- el reviewer `deepseek-reviewer` con `deepseek/deepseek-v4-pro`;
+- el proveedor DeepSeek y los modelos disponibles para el proyecto.
 
 En entornos aislados puede ser necesario redirigir temporalmente los
 directorios XDG para permitir que OpenCode escriba logs y datos de diagnóstico.
+
+Perfiles:
+
+| Perfil | Herramienta | Modelo | Permisos |
+|---|---|---|---|
+| Orquestador e implementador | Codex | Sesión actual | Escritura dentro del alcance aprobado |
+| Explorador | OpenCode | `deepseek/deepseek-v4-flash` | Solo lectura |
+| Reviewer independiente | OpenCode | `deepseek/deepseek-v4-pro` | Solo lectura |
+| Claude futuro | Pendiente | No configurado | Se definirá si aporta valor medido |
+
+Comandos portables:
+
+```powershell
+pnpm ai:doctor
+pnpm ai:agents
+pnpm ai:models
+pnpm ai:skills
+pnpm docs:graph
+```
+
+Recuperación del entorno:
+`docs/runbooks/ai-environment-recovery.md`.
 
 ## Explorador
 
@@ -98,6 +119,12 @@ opencode agent list
 ```
 
 Debe aparecer `explorador (subagent)`.
+
+También puede invocarse desde OpenCode con el comando de proyecto:
+
+```text
+/explorar <consulta>
+```
 
 ## DeepSeek Reviewer
 
@@ -114,6 +141,12 @@ Uso:
 pnpm ai:review -- -Title "Spec NNN" -Handoff "docs/notes/handoff-NNN.md"
 ```
 
+Para una revisión rápida desde OpenCode:
+
+```text
+/revisar-diff <contexto opcional>
+```
+
 Proceso completo:
 `docs/runbooks/ai-assisted-development.md`.
 
@@ -126,6 +159,16 @@ verdad del proyecto y no sustituye las skills AgroGest.
 Catálogo, reglas y validación:
 `docs/runbooks/project-skills.md`.
 
+## MCP
+
+MCP se activa únicamente por tarea. PostgreSQL MCP se permite inicialmente solo
+en lectura, contra local o staging, y nunca contra producción. GitHub MCP se
+evalúa por coste de contexto y se evita cuando `git`, GitHub CLI o los runbooks
+entregan el mismo resultado con menos ruido.
+
+Política completa:
+`docs/runbooks/mcp-usage.md`.
+
 ## Skills portables (claude-code-templates)
 
 ### CLI global
@@ -136,7 +179,7 @@ npm install -g claude-code-templates
 
 ### Skills instaladas en el proyecto
 
-40 skills del repositorio
+48 skills del repositorio
 [claude-code-templates](https://github.com/davila7/claude-code-templates)
 están disponibles en `.opencode/skills/claude-code-templates/`. Cada skill es
 un directorio con `SKILL.md` compatible con OpenCode, Claude Code y Codex.
@@ -147,13 +190,13 @@ Categorías:
 
 | Categoría | Cantidad | Destacadas |
 |---|---|---|
+| `creative-design/` | 3 | frontend-design, ui-ux-pro-max, mobile-design |
 | `database/` | 6 | database-migration, postgresql, postgresql-optimization |
-| `development/` | 17 | nestjs-expert, typescript-pro, monorepo-architect, react-best-practices |
-| `security/` | 4 | api-security-best-practices, security-audit |
-| `testing/` | 4 | testing-patterns, e2e-testing-patterns, code-reviewer |
+| `development/` | 28 | nestjs-expert, typescript-pro, monorepo-architect, react-best-practices, senior-backend, senior-architect, senior-security, senior-qa |
 | `git/` | 2 | commit-smart, git-context-controller |
-| `web-development/` | 4 | shadcn, tailwind-design-system, expo-deployment |
+| `security/` | 4 | api-security-best-practices, security-audit |
 | `productivity/` | 3 | skill-creator, debugger, code-review-excellence |
+| `web-development/` | 2 | shadcn, tailwind-design-system |
 
 ### Instalar más skills bajo demanda
 

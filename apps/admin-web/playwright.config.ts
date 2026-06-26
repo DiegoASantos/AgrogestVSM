@@ -15,6 +15,14 @@ export default defineConfig({
   timeout: 30_000,
   retries: process.env.CI ? 2 : 0,
   reporter: [["list"]],
+  webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
+    ? undefined
+    : {
+        command: "pnpm start",
+        url: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000
+      },
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",

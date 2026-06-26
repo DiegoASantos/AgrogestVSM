@@ -42,6 +42,10 @@ export class AppConfigService {
     return this.runtimeAppConfig.trustProxy;
   }
 
+  get logLevel(): string {
+    return this.runtimeAppConfig.logLevel;
+  }
+
   get loginRateLimit(): AppRuntimeConfig["loginRateLimit"] {
     return this.runtimeAppConfig.loginRateLimit;
   }
@@ -72,7 +76,8 @@ export class AppConfigService {
       nodeEnv: this.nodeEnv,
       host: this.host,
       port: this.port,
-      trustProxy: this.trustProxy
+      trustProxy: this.trustProxy,
+      logLevel: this.logLevel
     };
   }
 }

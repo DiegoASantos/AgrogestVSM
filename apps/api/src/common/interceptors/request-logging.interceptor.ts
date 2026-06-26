@@ -4,15 +4,17 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  Logger,
   NestInterceptor
 } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { Observable, catchError, tap, throwError } from "rxjs";
 
+import { createApiLogger, type ApiLogger } from "../logging/api-logger";
+import { getOrCreateRequestLogContext } from "../logging/request-log-context";
+
 @Injectable()
 export class RequestLoggingInterceptor implements NestInterceptor {
-  private readonly logger = new Logger(RequestLoggingInterceptor.name);
+  constructor(private readonly logger: ApiLogger = createApiLogger()) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     if (context.getType() !== "http") {
@@ -21,11 +23,12 @@ export class RequestLoggingInterceptor implements NestInterceptor {
 
     const request = context.switchToHttp().getRequest<FastifyRequest>();
     const reply = context.switchToHttp().getResponse<FastifyReply>();
+    const requestContext = getOrCreateRequestLogContext(request, reply);
     const startedAt = Date.now();
 
     return next.handle().pipe(
       tap(() => {
-        this.logRequest(request, reply.statusCode, startedAt);
+        this.logRequest(request, reply.statusCode, startedAt, requestContext.requestId);
       }),
       catchError((error: unknown) => {
         const statusCode =
@@ -33,7 +36,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
             ? error.getStatus()
             : HttpStatus.INTERNAL_SERVER_ERROR;
 
-        this.logRequest(request, statusCode, startedAt);
+        this.logRequest(request, statusCode, startedAt, requestContext.requestId);
 
         return throwError(() => error);
       })
@@ -43,21 +46,34 @@ export class RequestLoggingInterceptor implements NestInterceptor {
   private logRequest(
     request: FastifyRequest,
     statusCode: number,
-    startedAt: number
+    startedAt: number,
+    requestId: string
   ): void {
     const durationInMs = Date.now() - startedAt;
-    const message = `${request.method} ${request.url} ${statusCode} - ${durationInMs}ms`;
+    const logPayload = {
+      event: "http.request.completed",
+      requestId,
+      method: request.method,
+      path: getPathWithoutQuery(request.url),
+      statusCode,
+      durationMs: durationInMs,
+      remoteAddress: request.ip
+    };
 
     if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
-      this.logger.error(message);
+      this.logger.error(logPayload, "HTTP request failed");
       return;
     }
 
     if (statusCode >= HttpStatus.BAD_REQUEST) {
-      this.logger.warn(message);
+      this.logger.warn(logPayload, "HTTP request rejected");
       return;
     }
 
-    this.logger.log(message);
+    this.logger.info(logPayload, "HTTP request completed");
   }
+}
+
+function getPathWithoutQuery(url: string): string {
+  return url.split("?")[0] || "/";
 }

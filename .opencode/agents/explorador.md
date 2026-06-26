@@ -1,6 +1,7 @@
 ---
 description: Exploración de solo lectura del código y la documentación
 mode: subagent
+model: deepseek/deepseek-v4-flash
 temperature: 0.1
 permission:
   edit: deny

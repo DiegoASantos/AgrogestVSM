@@ -27,12 +27,14 @@ describe("validateEnvironment", () => {
     const result = validateEnvironment({
       ...REQUIRED_ENV,
       APP_TRUST_PROXY: "false",
+      LOG_LEVEL: "debug",
       LOGIN_RATE_LIMIT_TTL_MS: "30000",
       LOGIN_RATE_LIMIT_MAX: "8",
       LOGIN_RATE_LIMIT_BLOCK_MS: "120000"
     });
 
     expect(result.APP_TRUST_PROXY).toBe(false);
+    expect(result.LOG_LEVEL).toBe("debug");
     expect(result.LOGIN_RATE_LIMIT_TTL_MS).toBe(30_000);
     expect(result.LOGIN_RATE_LIMIT_MAX).toBe(8);
     expect(result.LOGIN_RATE_LIMIT_BLOCK_MS).toBe(120_000);
@@ -45,5 +47,14 @@ describe("validateEnvironment", () => {
         LOGIN_RATE_LIMIT_MAX: "0"
       })
     ).toThrow("LOGIN_RATE_LIMIT_MAX must be a positive integer.");
+  });
+
+  it("rejects invalid log levels", () => {
+    expect(() =>
+      validateEnvironment({
+        ...REQUIRED_ENV,
+        LOG_LEVEL: "verbose"
+      })
+    ).toThrow("LOG_LEVEL must be one of trace, debug, info, warn, error or fatal.");
   });
 });

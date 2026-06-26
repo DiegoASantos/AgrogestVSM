@@ -8,6 +8,8 @@ dist
 .qodo
 .claude
 coverage
+test-results
+playwright-report
 *.tsbuildinfo
 *.log
 *.tmp

@@ -2,15 +2,26 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [master, main, develop]
+  workflow_dispatch:
+    inputs:
+      run_admin_e2e:
+        description: Run full-stack admin E2E against PLAYWRIGHT_BASE_URL
+        required: false
+        default: false
+        type: boolean
+      playwright_base_url:
+        description: Admin web URL for full-stack E2E
+        required: false
+        type: string
 
 jobs:
   check:
-    name: Lint + Typecheck + Test
+    name: Quality gate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -30,11 +41,57 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint
+      - name: Documentation check
+        run: pnpm docs:check
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Lint + typecheck + unit/integration tests
+        run: pnpm check
 
-      - name: Test
-        run: pnpm test
+      - name: Coverage
+        run: pnpm test:coverage
+
+      - name: Build applications and packages
+        run: pnpm build
+
+      - name: Install Playwright browser
+        run: pnpm --filter @agrogest/admin-web exec playwright install --with-deps chromium
+
+      - name: Admin E2E auth guard
+        run: pnpm --filter @agrogest/admin-web e2e:ci
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:3001
+
+  admin-e2e-full-stack:
+    name: Admin full-stack E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'workflow_dispatch' && inputs.run_admin_e2e == true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm --filter @agrogest/admin-web exec playwright install --with-deps chromium
+
+      - name: Run full-stack admin E2E
+        run: pnpm --filter @agrogest/admin-web e2e:full
+        env:
+          PLAYWRIGHT_SKIP_WEBSERVER: "true"
+          PLAYWRIGHT_BASE_URL: ${{ inputs.playwright_base_url }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}

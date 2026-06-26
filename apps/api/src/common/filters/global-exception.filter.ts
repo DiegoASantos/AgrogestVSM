@@ -3,12 +3,13 @@ import {
   Catch,
   ExceptionFilter,
   HttpException,
-  HttpStatus,
-  Logger
+  HttpStatus
 } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 import { createErrorResponse } from "../http/api-response";
+import { createApiLogger, type ApiLogger } from "../logging/api-logger";
+import { getOrCreateRequestLogContext } from "../logging/request-log-context";
 
 type NormalizedException = {
   statusCode: number;
@@ -19,20 +20,33 @@ type NormalizedException = {
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(GlobalExceptionFilter.name);
-
-  constructor(private readonly isDevelopment: boolean) {}
+  constructor(
+    private readonly isDevelopment: boolean,
+    private readonly logger: ApiLogger = createApiLogger()
+  ) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const context = host.switchToHttp();
     const request = context.getRequest<FastifyRequest>();
     const reply = context.getResponse<FastifyReply>();
     const normalizedException = this.normalizeException(exception);
+    const requestContext = getOrCreateRequestLogContext(request, reply);
 
     if (normalizedException.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
-        `${request.method} ${request.url} ${normalizedException.statusCode} - ${normalizedException.message}`,
-        exception instanceof Error ? exception.stack : undefined
+        {
+          event: "http.request.exception",
+          requestId: requestContext.requestId,
+          method: request.method,
+          path: getPathWithoutQuery(request.url),
+          statusCode: normalizedException.statusCode,
+          errorCode: normalizedException.code,
+          error:
+            exception instanceof Error
+              ? exception
+              : new Error(normalizedException.message)
+        },
+        "Unhandled HTTP exception"
       );
     }
 
@@ -131,4 +145,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function getPathWithoutQuery(url: string): string {
+  return url.split("?")[0] || "/";
 }

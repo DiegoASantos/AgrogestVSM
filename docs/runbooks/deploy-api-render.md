@@ -2,7 +2,7 @@
 title: Deploy API en Render
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-06-26
 ---
 
 # Deploy API en Render para piloto
@@ -16,6 +16,7 @@ base PostgreSQL de Supabase que ya configuraste.
 - carga de `.env` robusta aunque arranques desde la raiz del monorepo
 - compatibilidad con `PORT` de Render
 - health check en `/health`
+- logs JSON estructurados con `pino`
 - migraciones ejecutadas antes de iniciar cada release
 - hook inicial para ejecutar `seed-auth` una sola vez despues del primer deploy
 - rate limiting de login y soporte de IP real detrás del proxy
@@ -56,6 +57,7 @@ bootstrap destructivo durante el arranque.
 - `NODE_ENV=production`
 - `APP_HOST=0.0.0.0`
 - `APP_TRUST_PROXY=true`
+- `LOG_LEVEL=info`
 - `DB_HOST=aws-1-us-east-1.pooler.supabase.com`
 - `DB_PORT=5432`
 - `DB_NAME=postgres`
@@ -122,6 +124,7 @@ Variables requeridas:
 NODE_ENV=production
 APP_HOST=0.0.0.0
 APP_TRUST_PROXY=true
+LOG_LEVEL=info
 CORS_ALLOWED_ORIGINS=https://tu-admin-web.vercel.app
 DB_HOST=aws-1-us-east-1.pooler.supabase.com
 DB_PORT=5432

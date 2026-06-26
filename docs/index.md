@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-06-26
 ---
 
 # Documentación de AgroGest VSM
@@ -47,10 +47,16 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 
 ## Runbooks
 
+- [Flujo diario de mantenimiento con IA](runbooks/daily-workflow.md)
 - [Desarrollo local](runbooks/local-development.md)
 - [Herramientas de IA, OpenCode y OpenGem](runbooks/ai-tooling.md)
 - [Desarrollo asistido por IA](runbooks/ai-assisted-development.md)
 - [Skills del proyecto](runbooks/project-skills.md)
+- [Gates de calidad y CI](runbooks/quality-gates.md)
+- [Checklist de release](runbooks/release-checklist.md)
+- [Observabilidad con logs estructurados](runbooks/observability-logs.md)
+- [Uso controlado de MCP](runbooks/mcp-usage.md)
+- [Instalación y recuperación del entorno de IA](runbooks/ai-environment-recovery.md)
 - [Bootstrap de base de datos](runbooks/database-bootstrap.md)
 - [Backup y restauración](runbooks/database-backup-restore.md)
 - [Rollback](runbooks/rollback.md)

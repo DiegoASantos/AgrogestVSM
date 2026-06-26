@@ -13,6 +13,7 @@ export const appConfig = registerAs("app", (): AppRuntimeConfig => {
     host: environment.APP_HOST,
     port: environment.APP_PORT,
     trustProxy: environment.APP_TRUST_PROXY,
+    logLevel: environment.LOG_LEVEL,
     allowedOrigins: environment.CORS_ALLOWED_ORIGINS,
     loginRateLimit: {
       ttlMs: environment.LOGIN_RATE_LIMIT_TTL_MS,

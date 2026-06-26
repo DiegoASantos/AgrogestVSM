@@ -2,7 +2,7 @@
 title: Plan de implementación del entorno de mantenimiento
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-06-26
 ---
 
 # Plan de implementación del entorno de mantenimiento de AgroGest VSM
@@ -295,18 +295,29 @@ Hacer que la calidad sea verificable y no dependa solo de revisión manual.
 
 ### Trabajo
 
-- [ ] estabilizar `pnpm check`;
-- [ ] ejecutar build de aplicaciones en CI;
-- [ ] agregar cobertura con umbrales graduales;
-- [ ] ejecutar E2E críticos del panel;
-- [ ] agregar pruebas de integración de API;
-- [ ] validar enlaces y metadatos documentales;
-- [ ] comprobar que specs implementadas actualizaron documentación vigente;
-- [ ] proteger ramas utilizadas realmente por el repositorio;
-- [ ] definir checklist de release.
+- [x] estabilizar `pnpm check`;
+- [x] ejecutar build de aplicaciones en CI;
+- [x] agregar cobertura con umbrales graduales;
+- [x] ejecutar E2E críticos del panel;
+- [x] agregar pruebas de integración de API en auth, geodatos, sync y reglas;
+- [x] validar enlaces y metadatos documentales;
+- [x] comprobar que specs implementadas actualizaron documentación vigente;
+- [x] preparar status check y auditoría de protección para la rama real;
+- [x] definir checklist de release.
 
 No se aplicará cobertura alta indiscriminada. Se priorizarán auth, sync,
 migraciones, geodatos y reglas de negocio.
+
+### Criterio de salida
+
+La calidad queda automatizada mediante `pnpm check`, `pnpm test:coverage`,
+`pnpm build`, validación documental y CI sobre la rama real `master`. La API
+tiene integración HTTP crítica para auth, geodatos, sync/idempotencia y reglas
+de recetas sin depender de Docker. El panel admin tiene un E2E automático de
+guard de autenticación y conserva E2E full-stack manuales para staging/local.
+La protección de rama queda preparada como status check y auditoría con
+`pnpm quality:branch-protection`; la activación real sigue siendo una
+configuración humana en GitHub.
 
 ## 10. Fase 5: Observabilidad
 
@@ -316,15 +327,25 @@ Detectar, diagnosticar y comunicar fallos del sistema en uso real.
 
 ### Trabajo
 
-- [ ] integrar seguimiento de errores en API, web y mobile;
-- [ ] estructurar logs de la API;
-- [ ] evitar datos sensibles en logs;
-- [ ] registrar versión desplegada;
-- [ ] mejorar health checks;
-- [ ] observar errores y tiempos de sincronización;
-- [ ] definir alertas mínimas;
-- [ ] crear runbook de incidentes;
-- [ ] establecer retención y acceso a telemetría.
+- [x] integrar seguimiento de errores en API mediante logs Pino;
+- [x] estructurar logs de la API;
+- [x] evitar datos sensibles en logs;
+- [x] registrar versión desplegada;
+- [x] mejorar health checks;
+- [x] observar errores y tiempos de sincronización;
+- [x] definir alertas mínimas;
+- [x] crear runbook de incidentes;
+- [x] establecer retención y acceso a telemetría.
+
+### Criterio de salida
+
+La API emite logs JSON con `pino`, `requestId`, evento, ruta sin querystring,
+estado HTTP, duración, versión, commit y branch. No se registra body,
+`Authorization`, cookies ni tokens. Los errores 5xx generan eventos
+`http.request.exception`, y las peticiones de sync/visitas pueden revisarse por
+`path`, `statusCode`, `durationMs` y `requestId`. La guía operativa vive en
+`docs/runbooks/observability-logs.md`. No se integra Sentry ni otro proveedor
+externo en esta fase.
 
 ## 11. Fase 6: Integraciones y experiencia de desarrollo
 
@@ -338,13 +359,23 @@ fuentes de verdad.
 - [x] registrar `docs/` como vault y activar Obsidian CLI;
 - [x] instalar y configurar OpenGem para operar sobre `docs/`;
 - [x] generar el grafo inicial respetando `.opengemignore`;
-- [ ] configurar OpenCode con proveedores por perfiles;
-- [ ] activar MCP únicamente por tarea;
-- [ ] usar PostgreSQL MCP inicialmente en modo lectura y nunca contra producción;
-- [ ] evaluar GitHub MCP por su coste de contexto;
-- [ ] añadir comandos portables a `package.json`;
-- [ ] añadir scripts PowerShell solo donde aporten valor en Windows;
-- [ ] documentar instalación y recuperación del entorno de IA.
+- [x] configurar OpenCode con proveedores por perfiles;
+- [x] activar MCP únicamente por tarea;
+- [x] usar PostgreSQL MCP inicialmente en modo lectura y nunca contra producción;
+- [x] evaluar GitHub MCP por su coste de contexto;
+- [x] añadir comandos portables a `package.json`;
+- [x] añadir scripts PowerShell solo donde aporten valor en Windows;
+- [x] documentar instalación y recuperación del entorno de IA.
+
+### Criterio de salida
+
+OpenCode tiene perfiles versionados para exploración y revisión independiente,
+con modelos DeepSeek separados y permisos de solo lectura. Existen comandos
+portables para diagnosticar agentes, modelos, skills y grafo documental. MCP
+queda documentado como herramienta por tarea: PostgreSQL solo lectura contra
+local/staging y nunca producción; GitHub MCP solo cuando el coste de contexto lo
+justifique. El entorno de IA puede verificarse y recuperarse con
+`pnpm ai:doctor` y `docs/runbooks/ai-environment-recovery.md`.
 
 ## 12. Gobierno de agentes
 
@@ -381,7 +412,7 @@ Reglas:
 El porcentaje se calcula por fases terminadas según su peso, no por cantidad de
 archivos creados. Una fase solo cuenta cuando cumple sus criterios de salida.
 
-Estado al 25 de junio de 2026:
+Estado al 26 de junio de 2026:
 
 | Fase                     | Estado     | Avance aportado |
 | ------------------------ | ---------- | --------------: |
@@ -389,13 +420,13 @@ Estado al 25 de junio de 2026:
 | 1. Seguridad operativa   | completada |             20% |
 | 2. Flujo asistido por IA | completada |             15% |
 | 3. Skills                | completada |             10% |
-| 4. Calidad y CI/CD       | pendiente  |              0% |
-| 5. Observabilidad        | pendiente  |              0% |
-| 6. Integraciones y DX    | pendiente  |              0% |
-| **Avance total**         |            |         **60%** |
+| 4. Calidad y CI/CD       | completada |             15% |
+| 5. Observabilidad        | completada |             15% |
+| 6. Integraciones y DX    | completada |             10% |
+| **Avance total**         |            |        **100%** |
 
-Hay trabajo adelantado en la Fase 6, pero todavía no cumple sus criterios de
-salida. Las fases 0, 1, 2 y 3 aportan un avance consolidado de 60%.
+Las fases 0, 1, 2, 3, 4, 5 y 6 cumplen sus criterios de salida. El avance
+consolidado del plan de implementación es 100%.
 
 ## 15. Principios finales
 
