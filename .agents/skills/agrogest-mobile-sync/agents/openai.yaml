@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgroGest Mobile Sync"
+  short_description: "Protege el flujo offline y la sincronización"
+  default_prompt: "Use $agrogest-mobile-sync para cambiar este flujo offline o de sincronización mobile."

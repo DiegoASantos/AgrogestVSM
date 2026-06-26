@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgroGest Release Check"
+  short_description: "Verifica preparación y rollback de releases"
+  default_prompt: "Use $agrogest-release-check para evaluar si este cambio está listo para una entrega controlada."

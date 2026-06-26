@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgroGest Security Review"
+  short_description: "Revisa autenticación, permisos y exposición"
+  default_prompt: "Use $agrogest-security-review para revisar los riesgos de seguridad de este cambio."

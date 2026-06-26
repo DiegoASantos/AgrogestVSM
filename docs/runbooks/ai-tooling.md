@@ -10,6 +10,7 @@ last_reviewed: 2026-06-25
 ## Configuración versionada
 
 - `AGENTS.md`: instrucciones portables;
+- `.agents/skills/`: skills canónicas compartidas;
 - `opencode.json`: plugins del proyecto;
 - `.opencode/agents/`: subagentes del proyecto;
 - `.opengemignore`: exclusiones del grafo;
@@ -115,6 +116,15 @@ pnpm ai:review -- -Title "Spec NNN" -Handoff "docs/notes/handoff-NNN.md"
 
 Proceso completo:
 `docs/runbooks/ai-assisted-development.md`.
+
+## Skills del proyecto
+
+Codex y OpenCode descubren las skills canónicas desde `.agents/skills/`.
+La colección local `.opencode/skills/claude-code-templates/` no es fuente de
+verdad del proyecto y no sustituye las skills AgroGest.
+
+Catálogo, reglas y validación:
+`docs/runbooks/project-skills.md`.
 
 ## Skills portables (claude-code-templates)
 

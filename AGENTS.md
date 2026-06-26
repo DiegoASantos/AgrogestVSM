@@ -44,7 +44,9 @@ El estado y los riesgos de estos comandos se registran en
 
 ## Reglas de trabajo
 
-1. Leer `docs/index.md` antes de cambios amplios.
+1. Leer `docs/index.md`, `docs/architecture/coding-standards.md` y este mismo
+   archivo antes de cambios amplios. Los coding standards anulan cualquier
+   patrón por defecto del modelo.
 2. No modificar archivos fuera del alcance solicitado.
 3. Preservar cambios locales y trabajo no relacionado.
 4. No ejecutar operaciones destructivas sin autorización.
@@ -109,6 +111,23 @@ Política completa: `docs/governance/documentation-policy.md`.
 - Las skills encapsulan procedimientos; no reemplazan la revisión humana.
 
 Flujo completo: `docs/runbooks/ai-assisted-development.md`.
+
+## Skills del proyecto
+
+Las skills canónicas viven en `.agents/skills/`, ruta reconocida por Codex y
+OpenCode. No duplicar sus instrucciones en `.opencode/skills/`.
+
+- `agrogest-documentation`;
+- `agrogest-api-module`;
+- `agrogest-mobile-sync`;
+- `agrogest-database-change`;
+- `agrogest-security-review`;
+- `agrogest-release-check`.
+
+Usar únicamente las skills pertinentes al alcance. Las reglas de `AGENTS.md`,
+specs aprobadas y documentación oficial prevalecen sobre cualquier skill.
+
+Catálogo y validación: `docs/runbooks/project-skills.md`.
 
 ## Definición de terminado
 

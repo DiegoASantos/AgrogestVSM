@@ -269,15 +269,23 @@ Encapsular procedimientos repetibles sin crear agentes permanentes innecesarios.
 
 ### Skills previstas
 
-- [ ] `agrogest-documentation`: impacto documental y actualización del vault;
-- [ ] `agrogest-api-module`: módulos, DTO, Swagger, permisos y pruebas;
-- [ ] `agrogest-mobile-sync`: SQLite, outbox, dependencias y reconciliación;
-- [ ] `agrogest-database-change`: migración, rollback y compatibilidad;
-- [ ] `agrogest-security-review`: auth, roles, secretos y exposición;
-- [ ] `agrogest-release-check`: validación y preparación de despliegue.
+- [x] `agrogest-documentation`: impacto documental y actualización del vault;
+- [x] `agrogest-api-module`: módulos, DTO, Swagger, permisos y pruebas;
+- [x] `agrogest-mobile-sync`: SQLite, outbox, dependencias y reconciliación;
+- [x] `agrogest-database-change`: migración, rollback y compatibilidad;
+- [x] `agrogest-security-review`: auth, roles, secretos y exposición;
+- [x] `agrogest-release-check`: validación y preparación de despliegue.
 
 Las skills deben usar rutas y comandos canónicos del repositorio. No deben
 depender de un modelo específico.
+
+### Criterio de salida
+
+Las seis skills viven en `.agents/skills/`, tienen disparadores diferenciados,
+metadatos de interfaz, checklist bajo demanda y validación automática. Codex y
+OpenCode pueden descubrirlas sin duplicar conocimiento oficial ni depender de
+un proveedor. Las skills críticas fueron probadas con casos prospectivos de
+sync, migración y release.
 
 ## 9. Fase 4: Calidad y CI/CD
 
@@ -380,14 +388,14 @@ Estado al 25 de junio de 2026:
 | 0. Fundación portable    | completada |             15% |
 | 1. Seguridad operativa   | completada |             20% |
 | 2. Flujo asistido por IA | completada |             15% |
-| 3. Skills                | pendiente  |              0% |
+| 3. Skills                | completada |             10% |
 | 4. Calidad y CI/CD       | pendiente  |              0% |
 | 5. Observabilidad        | pendiente  |              0% |
 | 6. Integraciones y DX    | pendiente  |              0% |
-| **Avance total**         |            |         **50%** |
+| **Avance total**         |            |         **60%** |
 
 Hay trabajo adelantado en la Fase 6, pero todavía no cumple sus criterios de
-salida. Las fases 0, 1 y 2 aportan un avance consolidado de 50%.
+salida. Las fases 0, 1, 2 y 3 aportan un avance consolidado de 60%.
 
 ## 15. Principios finales
 

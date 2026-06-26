@@ -22,6 +22,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 ## Arquitectura
 
 - [Vista general](architecture/overview.md)
+- [Coding Standards](architecture/coding-standards.md) (vinculante para toda IA)
 - [Sincronización mobile offline](architecture/mobile-offline-sync.md)
 
 ## Dominio
@@ -49,6 +50,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Desarrollo local](runbooks/local-development.md)
 - [Herramientas de IA, OpenCode y OpenGem](runbooks/ai-tooling.md)
 - [Desarrollo asistido por IA](runbooks/ai-assisted-development.md)
+- [Skills del proyecto](runbooks/project-skills.md)
 - [Bootstrap de base de datos](runbooks/database-bootstrap.md)
 - [Backup y restauración](runbooks/database-backup-restore.md)
 - [Rollback](runbooks/rollback.md)

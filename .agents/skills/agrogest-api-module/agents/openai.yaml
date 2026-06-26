@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgroGest API Module"
+  short_description: "Implementa módulos NestJS coherentes y seguros"
+  default_prompt: "Use $agrogest-api-module para implementar o modificar este módulo de la API de AgroGest."

@@ -18,6 +18,7 @@ docs/.obsidian/
 .opengem/
 opengem-out/
 .opencode-runtime/
+.opencode/skills/claude-code-templates/
 backups/
 .phase1-pg-data/
 .phase1-pg-backups/

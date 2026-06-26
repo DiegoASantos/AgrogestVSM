@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgroGest Documentation"
+  short_description: "Mantiene documentación canónica de AgroGest"
+  default_prompt: "Use $agrogest-documentation para evaluar y actualizar la documentación afectada por este cambio."

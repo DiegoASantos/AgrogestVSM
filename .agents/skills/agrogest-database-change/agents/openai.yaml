@@ -1,0 +1,4 @@
+interface:
+  display_name: "AgroGest Database Change"
+  short_description: "Diseña migraciones compatibles y reversibles"
+  default_prompt: "Use $agrogest-database-change para planificar e implementar este cambio de PostgreSQL o SQLite."
