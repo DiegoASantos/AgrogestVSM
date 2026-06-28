@@ -97,7 +97,7 @@ export function NutrientesManagementScreen() {
       Object.fromEntries(
         cultivos.map((cultivo) => [
           cultivo.id,
-          cultivo.code ? `${cultivo.code} - ${cultivo.name}` : cultivo.name
+          `${cultivo.code} - ${cultivo.name}`
         ])
       ),
     [cultivos]

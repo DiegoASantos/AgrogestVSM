@@ -35,7 +35,7 @@ type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 
 type CultivoApiItem = {
   id: string;
-  code: string | null;
+  code: string;
   name: string;
   isActive: boolean;
 };
@@ -755,7 +755,7 @@ export const agriculturalCatalogsService = {
 
     return cultivos.map((cultivo) => ({
       id: cultivo.id,
-      label: cultivo.code ? `${cultivo.code} - ${cultivo.name}` : cultivo.name
+      label: `${cultivo.code} - ${cultivo.name}`
     }));
   },
 

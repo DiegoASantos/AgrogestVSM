@@ -5,13 +5,13 @@ export type CatalogOption = {
 
 export type CultivoCatalogItem = {
   id: string;
-  code: string | null;
+  code: string;
   name: string;
   isActive: boolean;
 };
 
 export type CultivoCatalogPayload = {
-  code?: string | null;
+  code: string;
   name: string;
   isActive?: boolean;
 };

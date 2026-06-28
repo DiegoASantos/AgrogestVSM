@@ -8,21 +8,18 @@ import {
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
-import {
-  trimOptionalUppercaseString,
-  trimRequiredString
-} from "../../../../common/utils/string-normalizers.util";
+import { trimRequiredString } from "../../../../common/utils/string-normalizers.util";
 
 export class CreateCultivoDto {
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: "ARROZ",
     description: "Codigo corto del cultivo."
   })
-  @Transform(({ value }) => trimOptionalUppercaseString(value))
-  @IsOptional()
+  @Transform(({ value }) => trimRequiredString(value).toUpperCase())
   @IsString()
+  @IsNotEmpty()
   @MaxLength(20)
-  code?: string | null;
+  code!: string;
 
   @ApiProperty({
     example: "Arroz",

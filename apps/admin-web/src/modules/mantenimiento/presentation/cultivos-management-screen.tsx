@@ -67,7 +67,7 @@ export function CultivosManagementScreen() {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         item.name.toLowerCase().includes(normalizedSearch) ||
-        (item.code ?? "").toLowerCase().includes(normalizedSearch);
+        item.code.toLowerCase().includes(normalizedSearch);
 
       return matchesSearch && matchesStatusFilter(item.isActive, statusFilter);
     });
@@ -80,7 +80,7 @@ export function CultivosManagementScreen() {
       cell: (item) => (
         <div className="table-copy">
           <strong>{item.name}</strong>
-          <span>{item.code ?? "Sin codigo"}</span>
+          <span>{item.code}</span>
         </div>
       )
     },
@@ -137,7 +137,7 @@ export function CultivosManagementScreen() {
     setSuccessMessage(null);
     setFormState({
       id: item.id,
-      code: item.code ?? "",
+      code: item.code,
       name: item.name,
       status: item.isActive ? "active" : "inactive"
     });
@@ -165,13 +165,18 @@ export function CultivosManagementScreen() {
       return;
     }
 
+    if (!code) {
+      setFormError("El codigo del cultivo es obligatorio.");
+      return;
+    }
+
     setIsSaving(true);
     setFormError(null);
     setSuccessMessage(null);
 
     try {
       const payload = {
-        code: code || null,
+        code,
         name,
         isActive: formState.status === "active"
       };
@@ -353,6 +358,7 @@ export function CultivosManagementScreen() {
                 }))
               }
               placeholder="ARROZ"
+              required
               value={formState.code}
             />
           </label>
@@ -367,6 +373,7 @@ export function CultivosManagementScreen() {
                 }))
               }
               placeholder="Nombre del cultivo"
+              required
               value={formState.name}
             />
           </label>

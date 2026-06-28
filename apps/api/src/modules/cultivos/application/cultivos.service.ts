@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException
@@ -24,7 +25,7 @@ export class CultivosService {
 
   async create(createCultivoDto: CreateCultivoDto) {
     const cultivo = this.cultivosRepository.create({
-      code: createCultivoDto.code ?? null,
+      code: createCultivoDto.code,
       name: createCultivoDto.name,
       isActive: createCultivoDto.isActive ?? true
     });
@@ -113,9 +114,24 @@ export class CultivosService {
       const databaseError = error.driverError as
         | {
             code?: string;
+            column?: string;
             constraint?: string;
           }
         | undefined;
+
+      if (
+        databaseError?.code === "23502" &&
+        databaseError.column === "codigo"
+      ) {
+        throw new BadRequestException("El codigo del cultivo es obligatorio.");
+      }
+
+      if (
+        databaseError?.code === "23514" &&
+        databaseError.constraint === "cultivos_codigo_not_blank_check"
+      ) {
+        throw new BadRequestException("El codigo del cultivo es obligatorio.");
+      }
 
       if (
         databaseError?.code === "23505" &&

@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException
+} from "@nestjs/common";
 import type { Repository } from "typeorm";
 import { QueryFailedError } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -65,6 +69,16 @@ function makeUniqueViolation(constraint: string) {
   return new QueryFailedError("insert", [], driverError as unknown as Error);
 }
 
+function makeNotNullViolation(column: string) {
+  const driverError = { code: "23502", column };
+  return new QueryFailedError("insert", [], driverError as unknown as Error);
+}
+
+function makeCheckViolation(constraint: string) {
+  const driverError = { code: "23514", constraint };
+  return new QueryFailedError("insert", [], driverError as unknown as Error);
+}
+
 describe("CultivosService", () => {
   let repo: RepoMock;
   let service: CultivosService;
@@ -101,10 +115,10 @@ describe("CultivosService", () => {
       repo.create.mockReturnValue(makeCultivo());
       repo.save.mockResolvedValue(makeCultivo());
 
-      await service.create({ name: "Banano" });
+      await service.create({ code: "BAN", name: "Banano" });
 
       expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ isActive: true, code: null })
+        expect.objectContaining({ isActive: true, code: "BAN" })
       );
     });
 
@@ -112,7 +126,7 @@ describe("CultivosService", () => {
       repo.create.mockReturnValue(makeCultivo());
       repo.save.mockRejectedValue(makeUniqueViolation("cultivos_codigo_key"));
 
-      await expect(service.create({ name: "x" })).rejects.toThrow(
+      await expect(service.create({ code: "DUP", name: "x" })).rejects.toThrow(
         ConflictException
       );
     });
@@ -121,16 +135,38 @@ describe("CultivosService", () => {
       repo.create.mockReturnValue(makeCultivo());
       repo.save.mockRejectedValue(makeUniqueViolation("cultivos_nombre_key"));
 
-      await expect(service.create({ name: "x" })).rejects.toThrow(
+      await expect(service.create({ code: "CULT", name: "x" })).rejects.toThrow(
         ConflictException
       );
+    });
+
+    it("translates 23502 on codigo into BadRequestException", async () => {
+      repo.create.mockReturnValue(makeCultivo());
+      repo.save.mockRejectedValue(makeNotNullViolation("codigo"));
+
+      await expect(
+        service.create({ code: "CULT", name: "x" })
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("translates blank code check violations into BadRequestException", async () => {
+      repo.create.mockReturnValue(makeCultivo());
+      repo.save.mockRejectedValue(
+        makeCheckViolation("cultivos_codigo_not_blank_check")
+      );
+
+      await expect(
+        service.create({ code: "CULT", name: "x" })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it("re-throws unexpected errors untouched", async () => {
       repo.create.mockReturnValue(makeCultivo());
       repo.save.mockRejectedValue(new Error("disk full"));
 
-      await expect(service.create({ name: "x" })).rejects.toThrow("disk full");
+      await expect(service.create({ code: "CULT", name: "x" })).rejects.toThrow(
+        "disk full"
+      );
     });
   });
 

@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-06-26
 ---
 
 # Modelo del dominio
@@ -30,13 +30,15 @@ Restricciones territoriales relevantes:
 
 ## Producción agrícola
 
-- cultivo;
+- [cultivo](cultivos.md);
 - variedad asociada al cultivo;
 - campaña;
 - etapa fenológica;
 - subetapa.
 
-Estos catálogos contextualizan la parcela y cada visita.
+Estos catálogos contextualizan la parcela y cada visita. El cultivo es el
+catálogo base de producción agrícola: desde él se resuelven variedades,
+campañas, etapas fenológicas y nutrientes aplicables a una visita.
 
 ## Visita de campo
 

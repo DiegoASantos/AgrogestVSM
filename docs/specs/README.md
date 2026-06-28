@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-06-28
 ---
 
 # Especificaciones
@@ -47,4 +47,5 @@ en la raíz.
 - [Spec 001: Validación geoespacial backend pendiente](001-geodata-validation-backend.md)
 - [Spec 002: Restaurar ejecución de la prueba mobile de recetas](002-fix-mobile-recipe-test-runner.md)
 - [Spec 003: Fundación de seguridad operativa](003-operational-security-foundation.md)
+- [Spec 004: Codigo obligatorio de cultivos](004-cultivo-code-obligatorio.md)
 - [Plantilla](TEMPLATE.md)

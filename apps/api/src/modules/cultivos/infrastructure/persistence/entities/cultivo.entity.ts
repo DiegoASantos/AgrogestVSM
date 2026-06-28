@@ -17,10 +17,9 @@ export class CultivoEntity {
   @Column({
     name: "codigo",
     type: "varchar",
-    length: 20,
-    nullable: true
+    length: 20
   })
-  code!: string | null;
+  code!: string;
 
   @Column({
     name: "nombre",
