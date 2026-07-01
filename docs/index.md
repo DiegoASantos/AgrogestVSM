@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-28
+last_reviewed: 2026-07-01
 ---
 
 # Documentación de AgroGest VSM
@@ -47,6 +47,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 003: Fundación de seguridad operativa](specs/003-operational-security-foundation.md)
 - [Spec 004: Codigo obligatorio de cultivos](specs/004-cultivo-code-obligatorio.md)
 - [Spec 005: Entidad de productores](specs/005-productores-entidad.md)
+- [Spec 006: Codigo autogenerado de parcelas](specs/006-parcela-codigo-autogenerado.md)
 
 ## Runbooks
 

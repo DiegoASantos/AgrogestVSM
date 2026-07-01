@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-28
+last_reviewed: 2026-07-01
 ---
 
 # Especificaciones
@@ -49,4 +49,5 @@ en la raíz.
 - [Spec 003: Fundación de seguridad operativa](003-operational-security-foundation.md)
 - [Spec 004: Codigo obligatorio de cultivos](004-cultivo-code-obligatorio.md)
 - [Spec 005: Entidad de productores](005-productores-entidad.md)
+- [Spec 006: Codigo autogenerado de parcelas](006-parcela-codigo-autogenerado.md)
 - [Plantilla](TEMPLATE.md)

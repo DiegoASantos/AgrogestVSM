@@ -32,7 +32,7 @@ export type ParcelaListItem = {
 export type ParcelaPayload = {
   productorId: string;
   sectorId: string;
-  code: string;
+  code?: string | null;
   name?: string | null;
   areaHectares?: string | null;
   description?: string | null;

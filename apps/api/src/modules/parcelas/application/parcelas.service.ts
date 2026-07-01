@@ -45,11 +45,7 @@ export class ParcelasService {
   async create(createParcelaDto: CreateParcelaDto) {
     await this.ensureSectorExists(createParcelaDto.sectorId);
     await this.ensureProductorExists(createParcelaDto.productorId);
-    await this.ensureUniqueCode(
-      createParcelaDto.productorId,
-      createParcelaDto.sectorId,
-      createParcelaDto.code
-    );
+    const code = await this.generateNextCode();
 
     const referencePoint = validatePointGeometry(createParcelaDto.referencePoint);
     const geometry = validateMultiPolygonGeometry(createParcelaDto.geometry);
@@ -62,7 +58,7 @@ export class ParcelasService {
     const parcela = this.parcelasRepository.create({
       sectorId: createParcelaDto.sectorId,
       productorId: createParcelaDto.productorId,
-      code: createParcelaDto.code,
+      code,
       name: createParcelaDto.name ?? null,
       areaHectares,
       description: createParcelaDto.description ?? null,
@@ -150,7 +146,9 @@ export class ParcelasService {
       ...(updateParcelaDto.productorId !== undefined
         ? { productorId: updateParcelaDto.productorId }
         : {}),
-      ...(updateParcelaDto.code !== undefined ? { code: updateParcelaDto.code } : {}),
+      ...(updateParcelaDto.code !== undefined && updateParcelaDto.code !== null
+        ? { code: updateParcelaDto.code }
+        : {}),
       ...(updateParcelaDto.name !== undefined ? { name: updateParcelaDto.name } : {}),
       ...(updateParcelaDto.areaHectares !== undefined
         ? {
@@ -369,6 +367,19 @@ export class ParcelasService {
         "A parcela with the same code already exists for this sector."
       );
     }
+  }
+
+  private async generateNextCode(): Promise<string> {
+    const [result] = (await this.parcelasRepository.query(
+      "SELECT nextval('parcelas_codigo_seq')::bigint AS value"
+    )) as { value: string | number }[];
+    const sequenceValue = Number(result?.value);
+
+    if (!Number.isSafeInteger(sequenceValue) || sequenceValue < 1) {
+      throw new BadRequestException("No se pudo generar el codigo de parcela.");
+    }
+
+    return `PAR-${String(sequenceValue).padStart(3, "0")}`;
   }
 
   private async assertGeodataRules({

@@ -30,7 +30,8 @@ Restricciones territoriales relevantes:
 - código de provincia único y nombre único dentro del departamento;
 - ubigeo de distrito único y nombre único dentro de la provincia;
 - nombre de sector único dentro del distrito;
-- código de parcela único para productor y sector.
+- código de parcela autogenerado por la API con formato `PAR-###`; el
+  correlativo es global y no se ingresa desde el flujo normal del admin web;
 
 ## Producción agrícola
 

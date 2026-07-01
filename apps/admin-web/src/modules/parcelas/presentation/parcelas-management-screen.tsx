@@ -32,7 +32,6 @@ type ParcelaFormState = {
   id: string | null;
   sectorId: string;
   productorId: string;
-  code: string;
   name: string;
   areaHectares: string;
   description: string;
@@ -43,7 +42,6 @@ const emptyForm: ParcelaFormState = {
   id: null,
   sectorId: "",
   productorId: "",
-  code: "",
   name: "",
   areaHectares: "",
   description: "",
@@ -226,7 +224,6 @@ export function ParcelasManagementScreen() {
       id: item.id,
       sectorId: item.sectorId,
       productorId: item.productorId,
-      code: item.code,
       name: item.name ?? "",
       areaHectares: item.areaHectares ?? "",
       description: item.description ?? "",
@@ -244,13 +241,12 @@ export function ParcelasManagementScreen() {
 
     const sectorId = formState.sectorId.trim();
     const productorId = formState.productorId.trim();
-    const code = formState.code.trim();
     const name = formState.name.trim();
     const areaHectares = formState.areaHectares.trim();
     const description = formState.description.trim();
 
-    if (!sectorId || !productorId || !code) {
-      setFormError("Sector y código de parcela son obligatorios.");
+    if (!sectorId || !productorId) {
+      setFormError("Productor y sector son obligatorios.");
       return;
     }
 
@@ -267,7 +263,6 @@ export function ParcelasManagementScreen() {
       const payload = {
         sectorId,
         productorId,
-        code,
         name: name || null,
         areaHectares: areaHectares || null,
         description: description || null,
@@ -474,7 +469,7 @@ export function ParcelasManagementScreen() {
           setModalOpen(false);
         }}
         title={formState.id ? "Editar parcela" : "Nueva parcela"}
-        description="Crea o edita parcelas relacionándolas con un sector."
+        description="Crea o edita parcelas asociadas a un productor y sector."
         footer={
           <>
             <button
@@ -541,21 +536,6 @@ export function ParcelasManagementScreen() {
                 </option>
               ))}
             </select>
-          </label>
-
-          <label className="field-group">
-            <span>Código</span>
-            <input
-              maxLength={30}
-              onChange={(event) =>
-                setFormState((currentState) => ({
-                  ...currentState,
-                  code: event.target.value
-                }))
-              }
-              placeholder="PAR-001"
-              value={formState.code}
-            />
           </label>
 
           <label className="field-group">

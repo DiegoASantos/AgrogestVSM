@@ -30,15 +30,19 @@ export class CreateParcelaDto {
   })
   sectorId!: string;
 
-  @ApiProperty({
-    example: "PAR-001"
+  @ApiPropertyOptional({
+    example: "PAR-001",
+    description:
+      "Codigo de parcela. La API lo genera automaticamente al crear una parcela."
   })
-  @Transform(({ value }) => trimRequiredString(value))
+  @Transform(({ value }) => trimOptionalString(value))
+  @IsOptional()
+  @IsString()
   @Matches(/\S/, {
     message: "code should not be empty."
   })
   @MaxLength(30)
-  code!: string;
+  code?: string | null;
 
   @ApiPropertyOptional({
     example: "Parcela Norte"
