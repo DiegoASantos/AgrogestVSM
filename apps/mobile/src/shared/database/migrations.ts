@@ -880,8 +880,88 @@ const MIGRATIONS: Migration[] = [
         "TEXT NOT NULL DEFAULT 'persona'"
       );
     }
+  },
+  {
+    version: 34,
+    run(db: SQLiteDatabase) {
+      relaxProductoresDocumentColumns(db);
+    }
   }
 ];
+
+function relaxProductoresDocumentColumns(db: SQLiteDatabase) {
+  const columns = db.getAllSync<{ name: string; notnull?: number }>(
+    "PRAGMA table_info(productores)"
+  );
+  const documentTypeColumn = columns.find(
+    (column) => column.name === "document_type_id"
+  );
+  const documentNumberColumn = columns.find(
+    (column) => column.name === "document_number"
+  );
+
+  if (
+    documentTypeColumn?.notnull !== 1 &&
+    documentNumberColumn?.notnull !== 1
+  ) {
+    return;
+  }
+
+  db.execSync("PRAGMA defer_foreign_keys = ON");
+  db.execSync("DROP TABLE IF EXISTS productores_next");
+  db.execSync(`
+    CREATE TABLE productores_next (
+      id TEXT PRIMARY KEY NOT NULL,
+      public_id TEXT NOT NULL,
+      entity_type TEXT NOT NULL DEFAULT 'persona',
+      document_type_id INTEGER,
+      document_number TEXT,
+      first_name TEXT,
+      last_name TEXT,
+      phone TEXT,
+      email TEXT,
+      address TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  db.execSync(`
+    INSERT OR REPLACE INTO productores_next (
+      id,
+      public_id,
+      entity_type,
+      document_type_id,
+      document_number,
+      first_name,
+      last_name,
+      phone,
+      email,
+      address,
+      is_active,
+      created_at,
+      updated_at
+    )
+    SELECT
+      id,
+      public_id,
+      COALESCE(entity_type, 'persona'),
+      document_type_id,
+      document_number,
+      first_name,
+      last_name,
+      phone,
+      email,
+      address,
+      is_active,
+      created_at,
+      updated_at
+    FROM productores
+  `);
+  db.execSync("DROP TABLE productores");
+  db.execSync("ALTER TABLE productores_next RENAME TO productores");
+  db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+}
 
 function addColumnIfMissing(
   db: SQLiteDatabase,

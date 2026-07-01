@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 33;
+const LATEST_MIGRATION_VERSION = 34;
 
 type FakeDatabase = {
   currentVersion: number;
   executedStatements: string[];
   productorColumns: Set<string>;
+  productorNotNullColumns: Set<string>;
+  productorNextColumns: Set<string>;
+  productorNextNotNullColumns: Set<string>;
   pestDiseaseColumns: Set<string>;
   incidenceLevelColumns: Set<string>;
   visitaRiegosColumns: Set<string>;
@@ -42,6 +45,9 @@ function createFakeDatabase(
     currentVersion,
     executedStatements: [],
     productorColumns: new Set(productorColumns),
+    productorNotNullColumns: new Set(["id", "public_id", "is_active", "created_at", "updated_at"]),
+    productorNextColumns: new Set(),
+    productorNextNotNullColumns: new Set(),
     pestDiseaseColumns: new Set(pestDiseaseColumns),
     incidenceLevelColumns: new Set(incidenceLevelColumns),
     visitaRiegosColumns: new Set(visitaRiegosColumns),
@@ -76,6 +82,41 @@ function createFakeDatabase(
           "phone",
           "email",
           "address",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ]);
+        this.productorNotNullColumns = new Set([
+          "id",
+          "public_id",
+          "entity_type",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ]);
+        return;
+      }
+
+      if (normalizedStatement.startsWith("CREATE TABLE productores_next")) {
+        this.productorNextColumns = new Set([
+          "id",
+          "public_id",
+          "entity_type",
+          "document_type_id",
+          "document_number",
+          "first_name",
+          "last_name",
+          "phone",
+          "email",
+          "address",
+          "is_active",
+          "created_at",
+          "updated_at"
+        ]);
+        this.productorNextNotNullColumns = new Set([
+          "id",
+          "public_id",
+          "entity_type",
           "is_active",
           "created_at",
           "updated_at"
@@ -187,6 +228,10 @@ function createFakeDatabase(
         }
 
         this.productorColumns.add(columnName);
+
+        if (statement.includes(" NOT NULL")) {
+          this.productorNotNullColumns.add(columnName);
+        }
       }
 
       if (statement.startsWith("ALTER TABLE pest_diseases ADD COLUMN ")) {
@@ -372,6 +417,20 @@ function createFakeDatabase(
         return;
       }
 
+      if (statement === "DROP TABLE productores") {
+        this.productorColumns = new Set();
+        this.productorNotNullColumns = new Set();
+        return;
+      }
+
+      if (statement === "ALTER TABLE productores_next RENAME TO productores") {
+        this.productorColumns = this.productorNextColumns;
+        this.productorNotNullColumns = this.productorNextNotNullColumns;
+        this.productorNextColumns = new Set();
+        this.productorNextNotNullColumns = new Set();
+        return;
+      }
+
       if (
         statement ===
         "ALTER TABLE visita_observacion_sanitaria_organos_next RENAME TO visita_observacion_sanitaria_organos"
@@ -383,7 +442,10 @@ function createFakeDatabase(
     },
     getAllSync<T>(statement: string) {
       if (statement === "PRAGMA table_info(productores)") {
-        return Array.from(this.productorColumns, (name) => ({ name })) as T[];
+        return Array.from(this.productorColumns, (name) => ({
+          name,
+          notnull: this.productorNotNullColumns.has(name) ? 1 : 0
+        })) as T[];
       }
 
       if (statement === "PRAGMA table_info(pest_diseases)") {
@@ -928,6 +990,47 @@ describe("runMigrations", () => {
     expect(db.productorColumns.has("entity_type")).toBe(true);
     expect(db.executedStatements).toContain(
       "ALTER TABLE productores ADD COLUMN entity_type TEXT NOT NULL DEFAULT 'persona'"
+    );
+  });
+
+  it("relaxes old productor document columns before catalog refreshes", () => {
+    const db = createFakeDatabase(33, [
+      "id",
+      "public_id",
+      "entity_type",
+      "document_type_id",
+      "document_number",
+      "first_name",
+      "last_name",
+      "phone",
+      "email",
+      "address",
+      "is_active",
+      "created_at",
+      "updated_at"
+    ]);
+    db.productorNotNullColumns.add("entity_type");
+    db.productorNotNullColumns.add("document_type_id");
+    db.productorNotNullColumns.add("document_number");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.productorColumns.has("document_type_id")).toBe(true);
+    expect(db.productorColumns.has("document_number")).toBe(true);
+    expect(db.productorNotNullColumns.has("document_type_id")).toBe(false);
+    expect(db.productorNotNullColumns.has("document_number")).toBe(false);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("CREATE TABLE productores_next")
+      )
+    ).toBe(true);
+    expect(db.executedStatements).toContain("DROP TABLE productores");
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE productores_next RENAME TO productores"
+    );
+    expect(db.executedStatements).toContain(
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
     );
   });
 });
