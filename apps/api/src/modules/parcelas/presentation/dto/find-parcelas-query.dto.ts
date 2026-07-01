@@ -28,6 +28,17 @@ export class FindParcelasQueryDto extends PaginationQueryDto {
   sector_id?: string;
 
   @ApiPropertyOptional({
+    name: "subsector_id",
+    example: "1",
+    description: "Filtra parcelas por subsector."
+  })
+  @IsOptional()
+  @Matches(/^[1-9]\d*$/, {
+    message: "subsector_id must be a positive integer."
+  })
+  subsector_id?: string;
+
+  @ApiPropertyOptional({
     example: true,
     description: "Filtra parcelas activas o inactivas."
   })

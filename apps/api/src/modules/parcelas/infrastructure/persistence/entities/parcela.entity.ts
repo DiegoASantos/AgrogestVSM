@@ -8,8 +8,8 @@ import {
   PrimaryGeneratedColumn
 } from "typeorm";
 
-import { SectorEntity } from "../../../../sectores/infrastructure/persistence/entities/sector.entity";
 import { ProductorEntity } from "../../../../productores/infrastructure/persistence/entities/productor.entity";
+import { SubsectorEntity } from "../../../../subsectores/infrastructure/persistence/entities/subsector.entity";
 import { VisitaCampoEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 
 export type PointGeometry = {
@@ -23,7 +23,7 @@ export type MultiPolygonGeometry = {
 };
 
 @Entity({ name: "parcelas" })
-@Index("uq_parcelas_productor_sector_codigo", ["productorId", "sectorId", "code"], {
+@Index("uq_parcelas_productor_subsector_codigo", ["productorId", "subsectorId", "code"], {
   unique: true
 })
 export class ParcelaEntity {
@@ -41,10 +41,10 @@ export class ParcelaEntity {
   publicId!: string;
 
   @Column({
-    name: "sector_id",
+    name: "subsector_id",
     type: "bigint"
   })
-  sectorId!: string;
+  subsectorId!: string;
 
   @Column({
     name: "productor_id",
@@ -122,15 +122,15 @@ export class ParcelaEntity {
   })
   updatedAt!: Date;
 
-  @ManyToOne(() => SectorEntity, (sector) => sector.parcelas, {
+  @ManyToOne(() => SubsectorEntity, (subsector) => subsector.parcelas, {
     onDelete: "RESTRICT",
     onUpdate: "NO ACTION"
   })
   @JoinColumn({
-    name: "sector_id",
+    name: "subsector_id",
     referencedColumnName: "id"
   })
-  sector!: SectorEntity;
+  subsector!: SubsectorEntity;
 
   @ManyToOne(() => ProductorEntity, (productor) => productor.parcelas, {
     onDelete: "RESTRICT",

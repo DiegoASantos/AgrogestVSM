@@ -33,8 +33,22 @@ export interface Productor {
 export interface Sector {
   id: EntityId;
   distritoId: EntityId;
-  nombre: string;
-  descripcion?: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+}
+
+export interface Subsector {
+  id: EntityId;
+  publicId: string;
+  sectorId: EntityId;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
 }
 
 export interface Departamento {
@@ -59,10 +73,20 @@ export interface Distrito {
 
 export interface Parcela {
   id: EntityId;
+  publicId: string;
   productorId: EntityId;
+  subsectorId: EntityId;
+  /** Temporal: derivado de subsectorId para compatibilidad con mapas, visitas e historial. */
   sectorId: EntityId;
-  nombre: string;
-  areaHectareas?: number;
+  code: string;
+  name: string | null;
+  areaHectares: string | null;
+  description: string | null;
+  referencePoint?: unknown;
+  geometry?: unknown;
+  isActive: boolean;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
 }
 
 export interface VisitaCampo {

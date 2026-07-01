@@ -75,6 +75,7 @@ const MIGRATIONS: Migration[] = [
       "DELETE FROM visita_observaciones_sanitarias",
       "DELETE FROM visitas_campo",
       "DROP TABLE IF EXISTS parcelas",
+      "DROP TABLE IF EXISTS subsectores",
       "DROP TABLE IF EXISTS sectores",
       ...SQL_SCHEMA.filter((statement) =>
         [
@@ -82,11 +83,13 @@ const MIGRATIONS: Migration[] = [
           "CREATE TABLE IF NOT EXISTS provincias",
           "CREATE TABLE IF NOT EXISTS distritos",
           "CREATE TABLE IF NOT EXISTS sectores",
+          "CREATE TABLE IF NOT EXISTS subsectores",
           "CREATE TABLE IF NOT EXISTS parcelas"
         ].some((prefix) => statement.startsWith(prefix))
       ),
       "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_id ON parcelas(productor_id)",
-      "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_sector ON parcelas(productor_id, sector_id)"
+      "CREATE INDEX IF NOT EXISTS idx_subsectores_sector_id ON subsectores(sector_id)",
+      "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_subsector ON parcelas(productor_id, subsector_id)"
     ]
   },
   {
@@ -886,8 +889,56 @@ const MIGRATIONS: Migration[] = [
     run(db: SQLiteDatabase) {
       relaxProductoresDocumentColumns(db);
     }
+  },
+  {
+    version: 35,
+    run(db: SQLiteDatabase) {
+      recreateSubsectoresAndParcelas(db);
+    }
   }
 ];
+
+function recreateSubsectoresAndParcelas(db: SQLiteDatabase) {
+  db.execSync("DELETE FROM sync_outbox");
+  db.execSync("DELETE FROM visita_receta_labores");
+  db.execSync("DELETE FROM visita_receta_riego");
+  db.execSync("DELETE FROM visita_receta_fertilizacion");
+  db.execSync("DELETE FROM visita_receta_fitosanidad");
+  db.execSync("DELETE FROM visita_recetas");
+  db.execSync("DELETE FROM visita_labores_culturales");
+  db.execSync("DELETE FROM visita_riegos");
+  db.execSync("DELETE FROM visita_paso_observaciones");
+  db.execSync("DELETE FROM visita_observacion_sanitaria_organos");
+  db.execSync("DELETE FROM visita_observaciones_sanitarias");
+  db.execSync("DELETE FROM visita_evaluaciones");
+  db.execSync("DELETE FROM visitas_campo");
+  db.execSync("DROP TABLE IF EXISTS parcelas");
+  db.execSync("DROP TABLE IF EXISTS subsectores");
+  db.execSync(findSchemaStatement("CREATE TABLE IF NOT EXISTS subsectores"));
+  db.execSync(findSchemaStatement("CREATE TABLE IF NOT EXISTS parcelas"));
+  db.execSync(
+    "CREATE INDEX IF NOT EXISTS idx_subsectores_sector_id ON subsectores(sector_id)"
+  );
+  db.execSync(
+    "CREATE INDEX IF NOT EXISTS idx_parcelas_subsector_id ON parcelas(subsector_id)"
+  );
+  db.execSync(
+    "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_subsector ON parcelas(productor_id, subsector_id)"
+  );
+  db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+}
+
+function findSchemaStatement(prefix: string) {
+  const statement = SQL_SCHEMA.find((schemaStatement) =>
+    schemaStatement.startsWith(prefix)
+  );
+
+  if (!statement) {
+    throw new Error(`Missing schema statement for ${prefix}.`);
+  }
+
+  return statement;
+}
 
 function relaxProductoresDocumentColumns(db: SQLiteDatabase) {
   const columns = db.getAllSync<{ name: string; notnull?: number }>(

@@ -12,6 +12,7 @@ export type ParcelaListItem = {
   id: string;
   publicId: string;
   productorId: string;
+  subsectorId: string;
   sectorId: string;
   code: string;
   name: string | null;
@@ -31,7 +32,7 @@ export type ParcelaListItem = {
 
 export type ParcelaPayload = {
   productorId: string;
-  sectorId: string;
+  subsectorId: string;
   code?: string | null;
   name?: string | null;
   areaHectares?: string | null;

@@ -9,8 +9,12 @@ export const parcelasService = {
     return parcelasRepository.getBySectorId(sectorId);
   },
 
-  async getByProductorAndSector(productorId: string, sectorId: string) {
-    return parcelasRepository.getByProductorAndSector(productorId, sectorId);
+  async getBySubsectorId(subsectorId: string) {
+    return parcelasRepository.getBySubsectorId(subsectorId);
+  },
+
+  async getByProductorAndSubsector(productorId: string, subsectorId: string) {
+    return parcelasRepository.getByProductorAndSubsector(productorId, subsectorId);
   },
 
   async getById(id: string) {

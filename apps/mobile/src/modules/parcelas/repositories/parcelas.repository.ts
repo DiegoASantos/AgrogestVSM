@@ -13,6 +13,7 @@ type ParcelaRow = {
   id: string;
   public_id: string;
   productor_id: string;
+  subsector_id: string;
   sector_id: string;
   code: string;
   name: string;
@@ -26,19 +27,20 @@ type ParcelaRow = {
 };
 
 const PARCELA_COLUMNS = `
-  id,
-  public_id,
-  productor_id,
-  sector_id,
-  code,
-  name,
-  area_hectares,
-  description,
-  reference_point,
-  geometry,
-  is_active,
-  created_at,
-  updated_at
+  parcelas.id AS id,
+  parcelas.public_id AS public_id,
+  parcelas.productor_id AS productor_id,
+  parcelas.subsector_id AS subsector_id,
+  subsectores.sector_id AS sector_id,
+  parcelas.code AS code,
+  parcelas.name AS name,
+  parcelas.area_hectares AS area_hectares,
+  parcelas.description AS description,
+  parcelas.reference_point AS reference_point,
+  parcelas.geometry AS geometry,
+  parcelas.is_active AS is_active,
+  parcelas.created_at AS created_at,
+  parcelas.updated_at AS updated_at
 `;
 
 export const parcelasRepository = {
@@ -47,7 +49,8 @@ export const parcelasRepository = {
     const rows = db.getAllSync<ParcelaRow>(
       `SELECT ${PARCELA_COLUMNS}
        FROM parcelas
-       ORDER BY name ASC, id ASC`
+       INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
+       ORDER BY parcelas.name ASC, parcelas.id ASC`
     );
 
     return rows.map(mapParcelaRow);
@@ -58,7 +61,8 @@ export const parcelasRepository = {
     const row = db.getFirstSync<ParcelaRow>(
       `SELECT ${PARCELA_COLUMNS}
        FROM parcelas
-       WHERE id = ?
+       INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
+       WHERE parcelas.id = ?
        LIMIT 1`,
       id
     );
@@ -71,24 +75,40 @@ export const parcelasRepository = {
     const rows = db.getAllSync<ParcelaRow>(
       `SELECT ${PARCELA_COLUMNS}
        FROM parcelas
-       WHERE sector_id = ?
-       ORDER BY name ASC, id ASC`,
+       INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
+       WHERE subsectores.sector_id = ?
+       ORDER BY parcelas.name ASC, parcelas.id ASC`,
       sectorId
     );
 
     return rows.map(mapParcelaRow);
   },
 
-  getByProductorAndSector(productorId: string, sectorId: string) {
+  getBySubsectorId(subsectorId: string) {
     const db = getDatabase();
     const rows = db.getAllSync<ParcelaRow>(
       `SELECT ${PARCELA_COLUMNS}
        FROM parcelas
-       WHERE productor_id = ?
-         AND sector_id = ?
-       ORDER BY name ASC, id ASC`,
+       INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
+       WHERE parcelas.subsector_id = ?
+       ORDER BY parcelas.name ASC, parcelas.id ASC`,
+      subsectorId
+    );
+
+    return rows.map(mapParcelaRow);
+  },
+
+  getByProductorAndSubsector(productorId: string, subsectorId: string) {
+    const db = getDatabase();
+    const rows = db.getAllSync<ParcelaRow>(
+      `SELECT ${PARCELA_COLUMNS}
+       FROM parcelas
+       INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
+       WHERE parcelas.productor_id = ?
+         AND parcelas.subsector_id = ?
+       ORDER BY parcelas.name ASC, parcelas.id ASC`,
       productorId,
-      sectorId
+      subsectorId
     );
 
     return rows.map(mapParcelaRow);
@@ -100,6 +120,7 @@ function mapParcelaRow(row: ParcelaRow): Parcela {
     id: row.id,
     publicId: row.public_id,
     productorId: row.productor_id,
+    subsectorId: row.subsector_id,
     sectorId: row.sector_id,
     code: row.code,
     name: row.name,

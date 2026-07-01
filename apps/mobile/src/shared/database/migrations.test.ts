@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 34;
+const LATEST_MIGRATION_VERSION = 35;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1031,6 +1031,33 @@ describe("runMigrations", () => {
     );
     expect(db.executedStatements).toContain(
       "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    );
+  });
+
+  it("recreates subsectores and parcelas for the new catalog hierarchy", () => {
+    const db = createFakeDatabase(34);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.executedStatements).toContain("DELETE FROM sync_outbox");
+    expect(db.executedStatements).toContain("DELETE FROM visitas_campo");
+    expect(db.executedStatements).toContain("DROP TABLE IF EXISTS parcelas");
+    expect(db.executedStatements).toContain("DROP TABLE IF EXISTS subsectores");
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.startsWith("CREATE TABLE IF NOT EXISTS subsectores")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.startsWith("CREATE TABLE IF NOT EXISTS parcelas") &&
+          statement.includes("subsector_id TEXT NOT NULL")
+      )
+    ).toBe(true);
+    expect(db.executedStatements).toContain(
+      "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_subsector ON parcelas(productor_id, subsector_id)"
     );
   });
 });

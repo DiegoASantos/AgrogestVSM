@@ -19,27 +19,32 @@ import { productoresService } from "../../../productores/services";
 import type { Productor } from "../../../productores/types";
 import { sectoresService } from "../../../sectores/services";
 import type { Sector } from "../../../sectores/types";
+import { subsectoresService } from "../../../subsectores/services";
+import type { Subsector } from "../../../subsectores/types";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PARCELAS_BACKGROUND = require("../../../../../assets/images/parcelas.webp");
 
-type OpenCatalog = "sector" | "productor" | "parcela" | null;
+type OpenCatalog = "productor" | "sector" | "subsector" | "parcela" | null;
 type LoadingCatalog = Exclude<OpenCatalog, null>;
 
 export function NewVisitaSelectorScreen() {
   const router = useRouter();
   const [openCatalog, setOpenCatalog] = useState<OpenCatalog>(null);
-  const [loadingCatalog, setLoadingCatalog] = useState<LoadingCatalog | null>("sector");
+  const [loadingCatalog, setLoadingCatalog] =
+    useState<LoadingCatalog | null>("productor");
   const [error, setError] = useState<string | null>(null);
-  const [sectorId, setSectorId] = useState("");
   const [productorId, setProductorId] = useState("");
+  const [sectorId, setSectorId] = useState("");
+  const [subsectorId, setSubsectorId] = useState("");
   const [parcelaId, setParcelaId] = useState("");
-  const [sectores, setSectores] = useState<Sector[]>([]);
   const [productores, setProductores] = useState<Productor[]>([]);
+  const [sectores, setSectores] = useState<Sector[]>([]);
+  const [subsectores, setSubsectores] = useState<Subsector[]>([]);
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
 
   useEffect(() => {
-    void loadSectores();
+    void loadProductores();
   }, []);
 
   const sectorOptions = sectores.map((sector) => ({
@@ -50,6 +55,10 @@ export function NewVisitaSelectorScreen() {
     value: productor.id,
     label: buildProductorLabel(productor),
     helper: productor.documentNumber ?? productor.publicId
+  }));
+  const subsectorOptions = subsectores.map((subsector) => ({
+    value: subsector.id,
+    label: subsector.name
   }));
   const parcelaOptions = parcelas.map((parcela) => ({
     value: parcela.id,
@@ -78,31 +87,14 @@ export function NewVisitaSelectorScreen() {
             Selecciona la parcela
           </AppText>
           <AppText style={styles.subtitle} variant="body">
-            Elige primero el sector territorial, luego el productor y finalmente la
-            parcela.
+            Elige productor, sector, subsector y finalmente la parcela.
           </AppText>
         </ImageBackground>
 
         <View style={styles.body}>
           <AppCard style={styles.fieldsCard}>
             <AppSelectField
-              emptyMessage="No hay sectores descargados. Sincroniza los catalogos cuando tengas internet."
-              icon="leaf-outline"
-              isLoading={loadingCatalog === "sector"}
-              isOpen={openCatalog === "sector"}
-              label="Sector"
-              onSelect={(value) => {
-                void handleSectorSelection(value);
-              }}
-              onToggle={() => toggleCatalog("sector")}
-              options={sectorOptions}
-              placeholder="Selecciona un sector"
-              selectedLabel={findSelectedLabel(sectorOptions, sectorId)}
-            />
-            <View style={styles.divider} />
-            <AppSelectField
-              disabled={!sectorId}
-              emptyMessage="Este sector no tiene productores con parcelas registradas."
+              emptyMessage="No hay productores descargados. Sincroniza los catalogos cuando tengas internet."
               icon="person-outline"
               isLoading={loadingCatalog === "productor"}
               isOpen={openCatalog === "productor"}
@@ -112,13 +104,45 @@ export function NewVisitaSelectorScreen() {
               }}
               onToggle={() => toggleCatalog("productor")}
               options={productorOptions}
-              placeholder="Selecciona primero un sector"
+              placeholder="Selecciona un productor"
               selectedLabel={findSelectedLabel(productorOptions, productorId)}
             />
             <View style={styles.divider} />
             <AppSelectField
               disabled={!productorId}
-              emptyMessage="El productor no tiene parcelas en el sector seleccionado."
+              emptyMessage="Este productor no tiene sectores con parcelas registradas."
+              icon="leaf-outline"
+              isLoading={loadingCatalog === "sector"}
+              isOpen={openCatalog === "sector"}
+              label="Sector"
+              onSelect={(value) => {
+                void handleSectorSelection(value);
+              }}
+              onToggle={() => toggleCatalog("sector")}
+              options={sectorOptions}
+              placeholder="Selecciona primero un productor"
+              selectedLabel={findSelectedLabel(sectorOptions, sectorId)}
+            />
+            <View style={styles.divider} />
+            <AppSelectField
+              disabled={!sectorId}
+              emptyMessage="Este sector no tiene subsectores para el productor seleccionado."
+              icon="layers-outline"
+              isLoading={loadingCatalog === "subsector"}
+              isOpen={openCatalog === "subsector"}
+              label="Subsector"
+              onSelect={(value) => {
+                void handleSubsectorSelection(value);
+              }}
+              onToggle={() => toggleCatalog("subsector")}
+              options={subsectorOptions}
+              placeholder="Selecciona primero un sector"
+              selectedLabel={findSelectedLabel(subsectorOptions, subsectorId)}
+            />
+            <View style={styles.divider} />
+            <AppSelectField
+              disabled={!subsectorId}
+              emptyMessage="El productor no tiene parcelas en el subsector seleccionado."
               icon="location-outline"
               isLoading={loadingCatalog === "parcela"}
               isOpen={openCatalog === "parcela"}
@@ -129,7 +153,7 @@ export function NewVisitaSelectorScreen() {
               }}
               onToggle={() => toggleCatalog("parcela")}
               options={parcelaOptions}
-              placeholder="Selecciona primero un productor"
+              placeholder="Selecciona primero un subsector"
               selectedLabel={findSelectedLabel(parcelaOptions, parcelaId)}
             />
           </AppCard>
@@ -181,38 +205,23 @@ export function NewVisitaSelectorScreen() {
     setOpenCatalog((current) => (current === catalog ? null : catalog));
   }
 
-  async function loadSectores() {
-    setLoadingCatalog("sector");
-    setError(null);
-
-    try {
-      let nextSectores = await sectoresService.getAll();
-
-      if (nextSectores.length === 0) {
-        await downloadAllCatalogs();
-        nextSectores = await sectoresService.getAll();
-      }
-
-      setSectores(nextSectores);
-    } catch (nextError) {
-      setError(toApiError(nextError).message || "No se pudieron cargar los sectores.");
-    } finally {
-      setLoadingCatalog(null);
-    }
-  }
-
-  async function handleSectorSelection(value: string) {
-    setSectorId(value);
-    setProductorId("");
-    setParcelaId("");
-    setProductores([]);
-    setParcelas([]);
-    setOpenCatalog(null);
+  async function loadProductores() {
     setLoadingCatalog("productor");
     setError(null);
 
     try {
-      setProductores(await productoresService.getBySectorId(value));
+      let nextProductores = await productoresService.getAll();
+
+      if (nextProductores.length === 0) {
+        await downloadAllCatalogs();
+        nextProductores = await productoresService.getAll();
+      }
+
+      setProductores(nextProductores);
+
+      if (nextProductores.length === 1) {
+        await handleProductorSelection(nextProductores[0].id);
+      }
     } catch (nextError) {
       setError(toApiError(nextError).message || "No se pudieron cargar los productores.");
     } finally {
@@ -222,6 +231,64 @@ export function NewVisitaSelectorScreen() {
 
   async function handleProductorSelection(value: string) {
     setProductorId(value);
+    setSectorId("");
+    setSubsectorId("");
+    setParcelaId("");
+    setSectores([]);
+    setSubsectores([]);
+    setParcelas([]);
+    setOpenCatalog(null);
+    setLoadingCatalog("sector");
+    setError(null);
+
+    try {
+      const nextSectores = await sectoresService.getByProductorId(value);
+
+      setSectores(nextSectores);
+
+      if (nextSectores.length === 1) {
+        await handleSectorSelection(nextSectores[0].id, value);
+      }
+    } catch (nextError) {
+      setError(toApiError(nextError).message || "No se pudieron cargar los sectores.");
+    } finally {
+      setLoadingCatalog(null);
+    }
+  }
+
+  async function handleSectorSelection(value: string, selectedProductorId = productorId) {
+    setSectorId(value);
+    setSubsectorId("");
+    setParcelaId("");
+    setSubsectores([]);
+    setParcelas([]);
+    setOpenCatalog(null);
+    setLoadingCatalog("subsector");
+    setError(null);
+
+    try {
+      const nextSubsectores = await subsectoresService.getByProductorAndSector(
+        selectedProductorId,
+        value
+      );
+
+      setSubsectores(nextSubsectores);
+
+      if (nextSubsectores.length === 1) {
+        await handleSubsectorSelection(nextSubsectores[0].id, selectedProductorId);
+      }
+    } catch (nextError) {
+      setError(toApiError(nextError).message || "No se pudieron cargar los subsectores.");
+    } finally {
+      setLoadingCatalog(null);
+    }
+  }
+
+  async function handleSubsectorSelection(
+    value: string,
+    selectedProductorId = productorId
+  ) {
+    setSubsectorId(value);
     setParcelaId("");
     setParcelas([]);
     setOpenCatalog(null);
@@ -229,7 +296,16 @@ export function NewVisitaSelectorScreen() {
     setError(null);
 
     try {
-      setParcelas(await parcelasService.getByProductorAndSector(value, sectorId));
+      const nextParcelas = await parcelasService.getByProductorAndSubsector(
+        selectedProductorId,
+        value
+      );
+
+      setParcelas(nextParcelas);
+
+      if (nextParcelas.length === 1) {
+        setParcelaId(nextParcelas[0].id);
+      }
     } catch (nextError) {
       setError(toApiError(nextError).message || "No se pudieron cargar las parcelas.");
     } finally {

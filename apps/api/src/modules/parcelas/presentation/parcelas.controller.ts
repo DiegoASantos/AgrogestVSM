@@ -39,10 +39,10 @@ export class ParcelasController {
     description: "Parcela creada."
   })
   @ApiBadRequestResponse({
-    description: "Datos invalidos o sector inexistente."
+    description: "Datos invalidos o subsector inexistente."
   })
   @ApiConflictResponse({
-    description: "Ya existe una parcela con el mismo codigo para el sector."
+    description: "Ya existe una parcela con el mismo codigo para el subsector."
   })
   createParcela(@Body() createParcelaDto: CreateParcelaDto) {
     return this.parcelasService.create(createParcelaDto);
@@ -50,10 +50,15 @@ export class ParcelasController {
 
   @Get()
   @ApiOperation({
-    summary: "Lista parcelas con filtros opcionales por sector y estado."
+    summary: "Lista parcelas con filtros opcionales por sector, subsector y estado."
   })
   @ApiQuery({
     name: "sector_id",
+    required: false,
+    type: String
+  })
+  @ApiQuery({
+    name: "subsector_id",
     required: false,
     type: String
   })
@@ -76,6 +81,11 @@ export class ParcelasController {
   })
   @ApiQuery({
     name: "sector_id",
+    required: false,
+    type: String
+  })
+  @ApiQuery({
+    name: "subsector_id",
     required: false,
     type: String
   })
@@ -103,6 +113,11 @@ export class ParcelasController {
   })
   @ApiQuery({
     name: "sector_id",
+    required: false,
+    type: String
+  })
+  @ApiQuery({
+    name: "subsector_id",
     required: false,
     type: String
   })
@@ -173,10 +188,10 @@ export class ParcelasController {
     description: "Parcela actualizada."
   })
   @ApiBadRequestResponse({
-    description: "Datos invalidos o sector inexistente."
+    description: "Datos invalidos o subsector inexistente."
   })
   @ApiConflictResponse({
-    description: "Ya existe una parcela con el mismo codigo para el sector."
+    description: "Ya existe una parcela con el mismo codigo para el subsector."
   })
   @ApiNotFoundResponse({
     description: "La parcela no existe."

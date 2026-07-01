@@ -226,7 +226,7 @@ describe("API critical HTTP integration contract", () => {
       url: "/parcelas",
       payload: {
         productorId: "1",
-        sectorId: "2",
+        subsectorId: "2",
         code: "PAR-001",
         geometry: {
           type: "MultiPolygon",

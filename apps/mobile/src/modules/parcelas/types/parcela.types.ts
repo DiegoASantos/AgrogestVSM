@@ -7,6 +7,7 @@ export type Parcela = {
   id: string;
   publicId: string;
   productorId: string;
+  subsectorId: string;
   sectorId: string;
   code: string;
   name: string;

@@ -115,7 +115,7 @@ describe("admin critical CRUD services", () => {
     const payload = {
       publicId: "parcela-public-1",
       productorId: "prod-1",
-      sectorId: "sector-1",
+      subsectorId: "subsector-1",
       name: "Parcela Norte",
       areaHectares: "1.50",
       description: "Mango Kent",
@@ -126,7 +126,12 @@ describe("admin critical CRUD services", () => {
       geometry: null,
       isActive: true
     };
-    const response = { id: "parcela-1", code: "PAR-001", ...payload };
+    const response = {
+      id: "parcela-1",
+      code: "PAR-001",
+      sectorId: "sector-1",
+      ...payload
+    };
 
     fetchMock.mockResolvedValue(apiResponse(response));
 

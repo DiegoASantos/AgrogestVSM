@@ -14,6 +14,7 @@ import { ParcelasModule } from "./modules/parcelas/parcelas.module";
 import { ProductoresModule } from "./modules/productores/productores.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { SectoresModule } from "./modules/sectores/sectores.module";
+import { SubsectoresModule } from "./modules/subsectores/subsectores.module";
 import { TiposDocumentoModule } from "./modules/tipos-documento/tipos-documento.module";
 import { UsersModule } from "./modules/users/users.module";
 import { VariedadesModule } from "./modules/variedades/variedades.module";
@@ -39,6 +40,7 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     TiposDocumentoModule,
     ProductoresModule,
     SectoresModule,
+    SubsectoresModule,
     ParcelasModule,
     VisitasCampoModule,
     NutricionModule,

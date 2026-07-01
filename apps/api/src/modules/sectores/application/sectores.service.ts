@@ -12,6 +12,7 @@ import { createPaginatedMeta, createSuccessResponse } from "../../../common/http
 import { DistritoEntity } from "../../geografias/infrastructure/persistence/entities/distrito.entity";
 import { ParcelaEntity } from "../../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { ProductorEntity } from "../../productores/infrastructure/persistence/entities/productor.entity";
+import { SubsectorEntity } from "../../subsectores/infrastructure/persistence/entities/subsector.entity";
 import { CreateSectorDto } from "../presentation/dto/create-sector.dto";
 import { FindSectoresQueryDto } from "../presentation/dto/find-sectores-query.dto";
 import { UpdateSectorDto } from "../presentation/dto/update-sector.dto";
@@ -146,7 +147,8 @@ export class SectoresService {
   findEntitiesByProductorId(productorId: string): Promise<SectorEntity[]> {
     return this.sectoresRepository
       .createQueryBuilder("sector")
-      .innerJoin(ParcelaEntity, "parcela", "parcela.sector_id = sector.id")
+      .innerJoin(SubsectorEntity, "subsector", "subsector.sector_id = sector.id")
+      .innerJoin(ParcelaEntity, "parcela", "parcela.subsector_id = subsector.id")
       .where("parcela.productor_id = :productorId", { productorId })
       .distinct(true)
       .orderBy("sector.nombre", "ASC")

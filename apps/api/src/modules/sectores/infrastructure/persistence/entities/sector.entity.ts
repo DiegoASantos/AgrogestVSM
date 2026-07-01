@@ -8,8 +8,8 @@ import {
   PrimaryGeneratedColumn
 } from "typeorm";
 
-import { ParcelaEntity } from "../../../../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { DistritoEntity } from "../../../../geografias/infrastructure/persistence/entities/distrito.entity";
+import { SubsectorEntity } from "../../../../subsectores/infrastructure/persistence/entities/subsector.entity";
 
 @Entity({ name: "sectores" })
 @Index("uq_sectores_distrito_nombre", ["distritoId", "name"], {
@@ -73,6 +73,6 @@ export class SectorEntity {
   })
   distrito!: DistritoEntity;
 
-  @OneToMany(() => ParcelaEntity, (parcela) => parcela.sector)
-  parcelas!: ParcelaEntity[];
+  @OneToMany(() => SubsectorEntity, (subsector) => subsector.sector)
+  subsectores!: SubsectorEntity[];
 }

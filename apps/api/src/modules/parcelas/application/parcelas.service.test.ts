@@ -9,7 +9,7 @@ function buildParcela(overrides: Partial<ParcelaEntity> = {}): ParcelaEntity {
   return {
     id: "1",
     publicId: "parcela-public-1",
-    sectorId: "1",
+    subsectorId: "10",
     productorId: "1",
     code: "PAR-001",
     name: "Parcela Norte",
@@ -20,7 +20,7 @@ function buildParcela(overrides: Partial<ParcelaEntity> = {}): ParcelaEntity {
     isActive: true,
     createdAt: now,
     updatedAt: now,
-    sector: {} as never,
+    subsector: { id: "10", sectorId: "1" } as never,
     productor: {} as never,
     visitasCampo: [],
     ...overrides
@@ -38,6 +38,9 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
   const sectoresRepository = {
     findOne: vi.fn(async () => ({ id: "1" }))
   };
+  const subsectoresRepository = {
+    findOne: vi.fn(async () => ({ id: "10", sectorId: "1" }))
+  };
   const productoresRepository = {
     findOne: vi.fn(async () => ({ id: "1" }))
   };
@@ -45,11 +48,18 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
   const service = new ParcelasService(
     parcelasRepository as never,
     sectoresRepository as never,
+    subsectoresRepository as never,
     productoresRepository as never,
     {} as never
   );
 
-  return { parcelasRepository, productoresRepository, sectoresRepository, service };
+  return {
+    parcelasRepository,
+    productoresRepository,
+    sectoresRepository,
+    subsectoresRepository,
+    service
+  };
 }
 
 describe("ParcelasService", () => {
@@ -59,7 +69,7 @@ describe("ParcelasService", () => {
 
       const result = await service.create({
         productorId: "1",
-        sectorId: "1",
+        subsectorId: "10",
         name: "Parcela Norte"
       });
 
@@ -70,10 +80,14 @@ describe("ParcelasService", () => {
         expect.objectContaining({
           code: "PAR-001",
           productorId: "1",
-          sectorId: "1"
+          subsectorId: "10"
         })
       );
-      expect(result.data).toMatchObject({ code: "PAR-001" });
+      expect(result.data).toMatchObject({
+        code: "PAR-001",
+        subsectorId: "10",
+        sectorId: "1"
+      });
     });
 
     it("pads codes to three digits and grows beyond PAR-999", async () => {
@@ -81,11 +95,11 @@ describe("ParcelasService", () => {
 
       const firstResult = await service.create({
         productorId: "1",
-        sectorId: "1"
+        subsectorId: "10"
       });
       const secondResult = await service.create({
         productorId: "1",
-        sectorId: "1"
+        subsectorId: "10"
       });
 
       expect(firstResult.data).toMatchObject({ code: "PAR-004" });
@@ -98,7 +112,7 @@ describe("ParcelasService", () => {
 
       const result = await service.create({
         productorId: "1",
-        sectorId: "1",
+        subsectorId: "10",
         code: "LOTE-A"
       });
 
@@ -112,8 +126,8 @@ describe("ParcelasService", () => {
       const { service } = buildService([1, 2]);
 
       const [firstResult, secondResult] = await Promise.all([
-        service.create({ productorId: "1", sectorId: "1" }),
-        service.create({ productorId: "1", sectorId: "1" })
+        service.create({ productorId: "1", subsectorId: "10" }),
+        service.create({ productorId: "1", subsectorId: "10" })
       ]);
 
       expect([firstResult.data.code, secondResult.data.code]).toEqual([

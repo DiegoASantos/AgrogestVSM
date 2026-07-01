@@ -53,9 +53,10 @@ export const sectoresRepository = {
       `SELECT ${SECTOR_COLUMNS}
        FROM sectores
        WHERE id IN (
-         SELECT DISTINCT sector_id
+         SELECT DISTINCT subsectores.sector_id
          FROM parcelas
-         WHERE productor_id = ?
+         INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
+         WHERE parcelas.productor_id = ?
        )
        ORDER BY name ASC, id ASC`,
       productorId

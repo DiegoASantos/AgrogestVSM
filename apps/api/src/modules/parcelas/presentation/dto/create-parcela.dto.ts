@@ -22,13 +22,13 @@ export class CreateParcelaDto {
 
   @ApiProperty({
     example: "1",
-    description: "Id del sector asociado."
+    description: "Id del subsector asociado."
   })
   @Transform(({ value }) => trimRequiredString(value))
   @Matches(/^[1-9]\d*$/, {
-    message: "sectorId must be a positive integer."
+    message: "subsectorId must be a positive integer."
   })
-  sectorId!: string;
+  subsectorId!: string;
 
   @ApiPropertyOptional({
     example: "PAR-001",

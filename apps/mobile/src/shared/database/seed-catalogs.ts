@@ -4,6 +4,7 @@ import { productoresRemote } from "../../modules/productores/services/productore
 import { laboresCulturalesVisitaRemote } from "../../modules/labores-culturales-visita/services/labores-culturales-visita.remote";
 import { riegosRemote } from "../../modules/riegos/services/riegos.remote";
 import { sectoresRemote } from "../../modules/sectores/services/sectores.remote";
+import { subsectoresRemote } from "../../modules/subsectores/services/subsectores.remote";
 import { nutricionRemote } from "../../modules/nutricion/services/nutricion.remote";
 import { nutricionRepository } from "../../modules/nutricion/repositories";
 import { observacionesSanitariasRemote } from "../../modules/observaciones-sanitarias/services/observaciones-sanitarias.remote";
@@ -43,6 +44,7 @@ export async function downloadAllCatalogs() {
       productores,
       distritos,
       sectores,
+      subsectores,
       parcelas
     ] = await Promise.all([
       Promise.all(
@@ -77,6 +79,7 @@ export async function downloadAllCatalogs() {
       productoresRemote.getAll(),
       geografiasRemote.getDistritos(),
       sectoresRemote.getAll(),
+      subsectoresRemote.getAll(),
       parcelasRemote.getAll()
     ]);
 
@@ -420,13 +423,34 @@ export async function downloadAllCatalogs() {
           );
         }
 
+        for (const subsector of subsectores) {
+          db.runSync(
+            `INSERT OR REPLACE INTO subsectores (
+          id,
+          sector_id,
+          name,
+          description,
+          is_active,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            subsector.id,
+            subsector.sectorId,
+            subsector.name,
+            subsector.description,
+            toSqliteBoolean(subsector.isActive),
+            subsector.createdAt,
+            subsector.updatedAt
+          );
+        }
+
         for (const parcela of parcelas) {
           db.runSync(
             `INSERT OR REPLACE INTO parcelas (
           id,
           public_id,
           productor_id,
-          sector_id,
+          subsector_id,
           code,
           name,
           area_hectares,
@@ -440,7 +464,7 @@ export async function downloadAllCatalogs() {
             parcela.id,
             parcela.publicId,
             parcela.productorId,
-            parcela.sectorId,
+            parcela.subsectorId,
             parcela.code,
             parcela.name,
             parcela.areaHectares,

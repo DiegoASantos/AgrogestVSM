@@ -11,12 +11,21 @@ type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 export const parcelasService = {
   getAll(
     session: AuthSessionInput,
-    filters?: { sectorId?: string; productorId?: string; isActive?: boolean }
+    filters?: {
+      sectorId?: string;
+      subsectorId?: string;
+      productorId?: string;
+      isActive?: boolean;
+    }
   ) {
     const searchParams = new URLSearchParams();
 
     if (filters?.sectorId) {
       searchParams.set("sector_id", filters.sectorId);
+    }
+
+    if (filters?.subsectorId) {
+      searchParams.set("subsector_id", filters.subsectorId);
     }
 
     if (filters?.productorId) {
@@ -36,7 +45,7 @@ export const parcelasService = {
 
   getValidationContext(session: AuthSessionInput, parcela: ParcelaListItem) {
     return this.getAll(session, {
-      sectorId: parcela.sectorId,
+      subsectorId: parcela.subsectorId,
       isActive: true
     }).then((items) => items.filter((item) => item.id !== parcela.id));
   },

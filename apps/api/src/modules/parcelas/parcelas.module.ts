@@ -6,12 +6,18 @@ import { ParcelasService } from "./application/parcelas.service";
 import { ParcelaEntity } from "./infrastructure/persistence/entities/parcela.entity";
 import { SectorEntity } from "../sectores/infrastructure/persistence/entities/sector.entity";
 import { ProductorEntity } from "../productores/infrastructure/persistence/entities/productor.entity";
+import { SubsectorEntity } from "../subsectores/infrastructure/persistence/entities/subsector.entity";
 import { ParcelasController } from "./presentation/parcelas.controller";
 import { SectorParcelasController } from "./presentation/sector-parcelas.controller";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ParcelaEntity, SectorEntity, ProductorEntity]),
+    TypeOrmModule.forFeature([
+      ParcelaEntity,
+      SectorEntity,
+      SubsectorEntity,
+      ProductorEntity
+    ]),
     VisitasCampoModule
   ],
   controllers: [ParcelasController, SectorParcelasController],

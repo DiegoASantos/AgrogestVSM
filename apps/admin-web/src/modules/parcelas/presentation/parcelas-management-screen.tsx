@@ -12,6 +12,8 @@ import {
 } from "../../mantenimiento/presentation/catalog-screen.helpers";
 import { sectoresService } from "../../sectores/services/sectores.service";
 import type { SectorListItem } from "../../sectores/types/sectores.types";
+import { subsectoresService } from "../../subsectores/services/subsectores.service";
+import type { SubsectorListItem } from "../../subsectores/types/subsectores.types";
 import { productoresService } from "../../productores/services/productores.service";
 import type { ProductorListItem } from "../../productores/types/productores.types";
 import { parcelasService } from "../services/parcelas.service";
@@ -31,6 +33,7 @@ import { toApiError } from "../../../shared/services";
 type ParcelaFormState = {
   id: string | null;
   sectorId: string;
+  subsectorId: string;
   productorId: string;
   name: string;
   areaHectares: string;
@@ -41,6 +44,7 @@ type ParcelaFormState = {
 const emptyForm: ParcelaFormState = {
   id: null,
   sectorId: "",
+  subsectorId: "",
   productorId: "",
   name: "",
   areaHectares: "",
@@ -52,6 +56,7 @@ export function ParcelasManagementScreen() {
   const { session, logout } = useAuthSession();
   const [items, setItems] = useState<ParcelaListItem[]>([]);
   const [sectores, setSectores] = useState<SectorListItem[]>([]);
+  const [subsectores, setSubsectores] = useState<SubsectorListItem[]>([]);
   const [productores, setProductores] = useState<ProductorListItem[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -85,16 +90,31 @@ export function ParcelasManagementScreen() {
     [sectores]
   );
 
+  const subsectoresLookup = useMemo(
+    () =>
+      subsectores.reduce<Record<string, SubsectorListItem>>(
+        (accumulator, subsector) => {
+          accumulator[subsector.id] = subsector;
+          return accumulator;
+        },
+        {}
+      ),
+    [subsectores]
+  );
+
   const filteredItems = useMemo(() => {
     const normalizedSearch = normalizeSearch(search);
 
     return items.filter((item) => {
       const sectorLabel = sectoresLookup[item.sectorId] ?? item.sectorId;
+      const subsectorLabel =
+        subsectoresLookup[item.subsectorId]?.name ?? item.subsectorId;
       const matchesSearch =
         normalizedSearch.length === 0 ||
         item.code.toLowerCase().includes(normalizedSearch) ||
         (item.name ?? "").toLowerCase().includes(normalizedSearch) ||
         (item.description ?? "").toLowerCase().includes(normalizedSearch) ||
+        subsectorLabel.toLowerCase().includes(normalizedSearch) ||
         sectorLabel.toLowerCase().includes(normalizedSearch);
 
       const matchesSector =
@@ -106,7 +126,14 @@ export function ParcelasManagementScreen() {
         matchesStatusFilter(item.isActive, statusFilter)
       );
     });
-  }, [items, search, sectorFilter, sectoresLookup, statusFilter]);
+  }, [
+    items,
+    search,
+    sectorFilter,
+    sectoresLookup,
+    statusFilter,
+    subsectoresLookup
+  ]);
 
   const columns: DataTableColumn<ParcelaListItem>[] = [
     {
@@ -126,6 +153,18 @@ export function ParcelasManagementScreen() {
         <div className="table-copy">
           <strong>{sectoresLookup[item.sectorId] ?? `ID ${item.sectorId}`}</strong>
           <span>{item.sectorId}</span>
+        </div>
+      )
+    },
+    {
+      key: "subsector",
+      header: "Subsector",
+      cell: (item) => (
+        <div className="table-copy">
+          <strong>
+            {subsectoresLookup[item.subsectorId]?.name ?? `ID ${item.subsectorId}`}
+          </strong>
+          <span>{item.subsectorId}</span>
         </div>
       )
     },
@@ -189,13 +228,16 @@ export function ParcelasManagementScreen() {
     try {
       setIsLoading(true);
       setListError(null);
-      const [nextItems, nextSectores, nextProductores] = await Promise.all([
-        parcelasService.getAll(session),
-        sectoresService.getAll(session),
-        productoresService.getAll(session)
-      ]);
+      const [nextItems, nextSectores, nextSubsectores, nextProductores] =
+        await Promise.all([
+          parcelasService.getAll(session),
+          sectoresService.getAll(session),
+          subsectoresService.getAll(session),
+          productoresService.getAll(session)
+        ]);
       setItems(nextItems);
       setSectores(nextSectores);
+      setSubsectores(nextSubsectores);
       setProductores(nextProductores);
     } catch (error) {
       const apiError = toApiError(error);
@@ -223,6 +265,7 @@ export function ParcelasManagementScreen() {
     setFormState({
       id: item.id,
       sectorId: item.sectorId,
+      subsectorId: item.subsectorId,
       productorId: item.productorId,
       name: item.name ?? "",
       areaHectares: item.areaHectares ?? "",
@@ -240,13 +283,14 @@ export function ParcelasManagementScreen() {
     }
 
     const sectorId = formState.sectorId.trim();
+    const subsectorId = formState.subsectorId.trim();
     const productorId = formState.productorId.trim();
     const name = formState.name.trim();
     const areaHectares = formState.areaHectares.trim();
     const description = formState.description.trim();
 
-    if (!sectorId || !productorId) {
-      setFormError("Productor y sector son obligatorios.");
+    if (!sectorId || !subsectorId || !productorId) {
+      setFormError("Productor, sector y subsector son obligatorios.");
       return;
     }
 
@@ -261,7 +305,7 @@ export function ParcelasManagementScreen() {
 
     try {
       const payload = {
-        sectorId,
+        subsectorId,
         productorId,
         name: name || null,
         areaHectares: areaHectares || null,
@@ -338,9 +382,9 @@ export function ParcelasManagementScreen() {
             </button>
             <Link
               className="ui-button ui-button--secondary"
-              href={adminRoutes.mantenimientoItems.sectores}
+              href={adminRoutes.mantenimientoItems.subsectores}
             >
-              Ver sectores
+              Ver subsectores
             </Link>
             <button
               className="ui-button ui-button--primary"
@@ -354,7 +398,7 @@ export function ParcelasManagementScreen() {
             </button>
           </>
         }
-        description="Gestión administrativa de parcelas asociadas a sectores."
+        description="Gestion administrativa de parcelas asociadas a subsectores."
         eyebrow="Mantenimiento"
         title="Parcelas"
       />
@@ -378,7 +422,7 @@ export function ParcelasManagementScreen() {
           <span>Buscar</span>
           <input
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Código, nombre, descripción o sector"
+            placeholder="Codigo, nombre, descripcion, sector o subsector"
             value={search}
           />
         </label>
@@ -436,16 +480,16 @@ export function ParcelasManagementScreen() {
         <LoadingState description="Cargando parcelas..." />
       ) : null}
 
-      {!listError && !isLoading && sectores.length === 0 ? (
+      {!listError && !isLoading && subsectores.length === 0 ? (
         <EmptyState
-          description="Primero debes registrar al menos un sector para poder crear parcelas."
-          title="Sin sectores disponibles"
+          description="Primero debes registrar al menos un subsector para poder crear parcelas."
+          title="Sin subsectores disponibles"
         />
       ) : null}
 
       {!listError &&
       !isLoading &&
-      sectores.length > 0 &&
+      subsectores.length > 0 &&
       filteredItems.length === 0 ? (
         <EmptyState
           description="No hay parcelas cargadas o los filtros no devolvieron coincidencias."
@@ -469,7 +513,7 @@ export function ParcelasManagementScreen() {
           setModalOpen(false);
         }}
         title={formState.id ? "Editar parcela" : "Nueva parcela"}
-        description="Crea o edita parcelas asociadas a un productor y sector."
+        description="Crea o edita parcelas asociadas a un productor y subsector."
         footer={
           <>
             <button
@@ -524,7 +568,8 @@ export function ParcelasManagementScreen() {
               onChange={(event) =>
                 setFormState((currentState) => ({
                   ...currentState,
-                  sectorId: event.target.value
+                  sectorId: event.target.value,
+                  subsectorId: ""
                 }))
               }
               value={formState.sectorId}
@@ -535,6 +580,29 @@ export function ParcelasManagementScreen() {
                   {buildSectorLabel(sector)}
                 </option>
               ))}
+            </select>
+          </label>
+
+          <label className="field-group">
+            <span>Subsector</span>
+            <select
+              disabled={!formState.sectorId}
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  subsectorId: event.target.value
+                }))
+              }
+              value={formState.subsectorId}
+            >
+              <option value="">Selecciona un subsector</option>
+              {subsectores
+                .filter((subsector) => subsector.sectorId === formState.sectorId)
+                .map((subsector) => (
+                  <option key={subsector.id} value={subsector.id}>
+                    {subsector.name}
+                  </option>
+                ))}
             </select>
           </label>
 

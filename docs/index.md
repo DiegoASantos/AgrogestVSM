@@ -48,6 +48,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 004: Codigo obligatorio de cultivos](specs/004-cultivo-code-obligatorio.md)
 - [Spec 005: Entidad de productores](specs/005-productores-entidad.md)
 - [Spec 006: Codigo autogenerado de parcelas](specs/006-parcela-codigo-autogenerado.md)
+- [Spec 007: Subsectores como hijo de sectores](specs/007-subsectores.md)
 
 ## Runbooks
 

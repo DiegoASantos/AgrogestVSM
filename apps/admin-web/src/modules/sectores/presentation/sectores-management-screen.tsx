@@ -139,6 +139,12 @@ export function SectoresManagementScreen() {
           >
             Editar
           </button>
+          <Link
+            className="ui-button ui-button--secondary ui-button--compact"
+            href={adminRoutes.mantenimientoItems.subsectores}
+          >
+            Subsectores
+          </Link>
           <button
             className="ui-button ui-button--ghost ui-button--compact"
             onClick={() => setItemToDeactivate(item)}

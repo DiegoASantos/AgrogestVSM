@@ -10,6 +10,10 @@ export const parcelasRemote = {
     return apiRequest<Parcela[]>(`/sectores/${sectorId}/parcelas`);
   },
 
+  getBySubsectorId(subsectorId: string) {
+    return apiRequestAllPages<Parcela>(`/parcelas?subsector_id=${subsectorId}`);
+  },
+
   getById(id: string) {
     return apiRequest<Parcela>(`/parcelas/${id}`);
   }

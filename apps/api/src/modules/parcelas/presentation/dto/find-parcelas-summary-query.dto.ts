@@ -15,6 +15,17 @@ export class FindParcelasSummaryQueryDto {
   sector_id?: string;
 
   @ApiPropertyOptional({
+    name: "subsector_id",
+    example: "1",
+    description: "Filtra el resumen por subsector."
+  })
+  @IsOptional()
+  @Matches(/^[1-9]\d*$/, {
+    message: "subsector_id must be a positive integer."
+  })
+  subsector_id?: string;
+
+  @ApiPropertyOptional({
     name: "productor_id",
     example: "1",
     description: "Filtra el resumen por productor."

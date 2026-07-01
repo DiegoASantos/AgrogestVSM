@@ -13,6 +13,7 @@ import { ParcelasService } from "../../parcelas/application/parcelas.service";
 import { ParcelaEntity } from "../../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { SectoresService } from "../../sectores/application/sectores.service";
 import { SectorEntity } from "../../sectores/infrastructure/persistence/entities/sector.entity";
+import { SubsectorEntity } from "../../subsectores/infrastructure/persistence/entities/subsector.entity";
 import { VisitasCampoService } from "../../visitas-campo/application/visitas-campo.service";
 import { FindHistorialVisitasProductorQueryDto } from "../../visitas-campo/presentation/dto/find-historial-visitas-productor-query.dto";
 import { CreateProductorDto } from "../presentation/dto/create-productor.dto";
@@ -111,12 +112,34 @@ export class ProductoresService {
     const sectores = await this.sectoresService.findEntitiesByProductorId(id);
     const parcelas = await this.parcelasService.findEntitiesByProductorId(id);
 
-    const parcelasBySectorId = parcelas.reduce<Record<string, ParcelaEntity[]>>(
+    const parcelasBySubsectorId = parcelas.reduce<Record<string, ParcelaEntity[]>>(
       (accumulator, parcela) => {
-        const currentSectorParcelas = accumulator[parcela.sectorId] ?? [];
+        const currentSubsectorParcelas = accumulator[parcela.subsectorId] ?? [];
 
-        currentSectorParcelas.push(parcela);
-        accumulator[parcela.sectorId] = currentSectorParcelas;
+        currentSubsectorParcelas.push(parcela);
+        accumulator[parcela.subsectorId] = currentSubsectorParcelas;
+
+        return accumulator;
+      },
+      {}
+    );
+    const subsectoresBySectorId = parcelas.reduce<Record<string, SubsectorEntity[]>>(
+      (accumulator, parcela) => {
+        if (!parcela.subsector) {
+          return accumulator;
+        }
+
+        const currentSubsectores = accumulator[parcela.subsector.sectorId] ?? [];
+
+        if (
+          !currentSubsectores.some(
+            (subsector) => subsector.id === parcela.subsectorId
+          )
+        ) {
+          currentSubsectores.push(parcela.subsector);
+        }
+
+        accumulator[parcela.subsector.sectorId] = currentSubsectores;
 
         return accumulator;
       },
@@ -128,7 +151,8 @@ export class ProductoresService {
       sectores: sectores.map((sector) =>
         this.toStructureSectorResponse(
           sector,
-          parcelasBySectorId[sector.id] ?? []
+          subsectoresBySectorId[sector.id] ?? [],
+          parcelasBySubsectorId
         )
       )
     });
@@ -361,7 +385,8 @@ export class ProductoresService {
 
   private toStructureSectorResponse(
     sector: SectorEntity,
-    parcelas: ParcelaEntity[]
+    subsectores: SubsectorEntity[],
+    parcelasBySubsectorId: Record<string, ParcelaEntity[]>
   ) {
     return {
       id: sector.id,
@@ -371,21 +396,37 @@ export class ProductoresService {
       isActive: sector.isActive,
       createdAt: sector.createdAt,
       updatedAt: sector.updatedAt,
-      parcelasCount: parcelas.length,
-      parcelas: parcelas.map((parcela) => ({
-        id: parcela.id,
-        publicId: parcela.publicId,
-        productorId: parcela.productorId,
-        sectorId: parcela.sectorId,
-        code: parcela.code,
-        name: parcela.name,
-        areaHectares: parcela.areaHectares,
-        description: parcela.description,
-        referencePoint: parcela.referencePoint,
-        geometry: parcela.geometry,
-        isActive: parcela.isActive,
-        createdAt: parcela.createdAt,
-        updatedAt: parcela.updatedAt
+      parcelasCount: subsectores.reduce(
+        (total, subsector) =>
+          total + (parcelasBySubsectorId[subsector.id]?.length ?? 0),
+        0
+      ),
+      subsectores: subsectores.map((subsector) => ({
+        id: subsector.id,
+        publicId: subsector.publicId,
+        sectorId: subsector.sectorId,
+        name: subsector.name,
+        description: subsector.description,
+        isActive: subsector.isActive,
+        createdAt: subsector.createdAt,
+        updatedAt: subsector.updatedAt,
+        parcelasCount: parcelasBySubsectorId[subsector.id]?.length ?? 0,
+        parcelas: (parcelasBySubsectorId[subsector.id] ?? []).map((parcela) => ({
+          id: parcela.id,
+          publicId: parcela.publicId,
+          productorId: parcela.productorId,
+          subsectorId: parcela.subsectorId,
+          sectorId: subsector.sectorId,
+          code: parcela.code,
+          name: parcela.name,
+          areaHectares: parcela.areaHectares,
+          description: parcela.description,
+          referencePoint: parcela.referencePoint,
+          geometry: parcela.geometry,
+          isActive: parcela.isActive,
+          createdAt: parcela.createdAt,
+          updatedAt: parcela.updatedAt
+        }))
       }))
     };
   }

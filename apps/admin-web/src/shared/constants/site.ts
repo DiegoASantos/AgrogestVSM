@@ -27,6 +27,7 @@ export const adminRoutes = {
     tiposRiego: "/mantenimiento/tipos-riego",
     laboresCulturales: "/mantenimiento/labores-culturales",
     sectores: "/mantenimiento/sectores",
+    subsectores: "/mantenimiento/subsectores",
     tiposDocumento: "/mantenimiento/tipos-documento"
   },
   seguridadItems: {

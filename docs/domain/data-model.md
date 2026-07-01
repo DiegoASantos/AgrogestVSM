@@ -24,7 +24,14 @@ persona, un fundo o una cooperativa. Las personas requieren `nombres` y
 juntos cuando se informan. Fundos y cooperativas usan `nombres` como nombre de
 la entidad y no requieren documento.
 
+Desde la spec 007, la relacion vigente es `Sector -> Subsector -> Parcela`.
+`Parcela.sectorId` se conserva en respuestas de API como valor derivado para
+compatibilidad temporal de mapas, visitas, historial, geodatos y reportes
+mobile; la FK real es `subsectorId`.
+
 Restricciones territoriales relevantes:
+
+- nombre de subsector unico dentro del sector;
 
 - código y nombre de departamento únicos;
 - código de provincia único y nombre único dentro del departamento;

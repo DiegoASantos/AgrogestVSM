@@ -91,6 +91,11 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     description: "Base territorial"
   },
   {
+    label: "Subsectores",
+    href: adminRoutes.mantenimientoItems.subsectores,
+    description: "Subdivision territorial de sectores"
+  },
+  {
     label: "Tipos de documento",
     href: adminRoutes.mantenimientoItems.tiposDocumento,
     description: "Catalogo documental"

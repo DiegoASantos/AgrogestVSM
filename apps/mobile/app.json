@@ -8,7 +8,7 @@
     "icon": "./assets/images/icon_vsm.png",
     "orientation": "portrait",
     "splash": {
-      "image": "./assets/images/logo_vsm_transparente_4k.webp",
+      "image": "./assets/images/adaptive_icon_vsm.png",
       "resizeMode": "contain",
       "backgroundColor": "#064b31"
     },

@@ -5,7 +5,6 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In } from "typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
 import { createPaginatedMeta, createSuccessResponse } from "../../../common/http/api-response";
@@ -17,6 +16,7 @@ import {
 } from "../../../common/utils/geo-json.util";
 import { SectorEntity } from "../../sectores/infrastructure/persistence/entities/sector.entity";
 import { ProductorEntity } from "../../productores/infrastructure/persistence/entities/productor.entity";
+import { SubsectorEntity } from "../../subsectores/infrastructure/persistence/entities/subsector.entity";
 import type { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { VisitasCampoService } from "../../visitas-campo/application/visitas-campo.service";
 import { CreateParcelaDto } from "../presentation/dto/create-parcela.dto";
@@ -37,13 +37,15 @@ export class ParcelasService {
     private readonly parcelasRepository: Repository<ParcelaEntity>,
     @InjectRepository(SectorEntity)
     private readonly sectoresRepository: Repository<SectorEntity>,
+    @InjectRepository(SubsectorEntity)
+    private readonly subsectoresRepository: Repository<SubsectorEntity>,
     @InjectRepository(ProductorEntity)
     private readonly productoresRepository: Repository<ProductorEntity>,
     private readonly visitasCampoService: VisitasCampoService
   ) {}
 
   async create(createParcelaDto: CreateParcelaDto) {
-    await this.ensureSectorExists(createParcelaDto.sectorId);
+    const subsector = await this.ensureSubsectorExists(createParcelaDto.subsectorId);
     await this.ensureProductorExists(createParcelaDto.productorId);
     const code = await this.generateNextCode();
 
@@ -51,12 +53,12 @@ export class ParcelasService {
     const geometry = validateMultiPolygonGeometry(createParcelaDto.geometry);
     const areaHectares = normalizeAreaHectares(createParcelaDto.areaHectares);
     await this.assertGeodataRules({
-      sectorId: createParcelaDto.sectorId,
+      subsectorId: createParcelaDto.subsectorId,
       geometry
     });
 
     const parcela = this.parcelasRepository.create({
-      sectorId: createParcelaDto.sectorId,
+      subsectorId: createParcelaDto.subsectorId,
       productorId: createParcelaDto.productorId,
       code,
       name: createParcelaDto.name ?? null,
@@ -69,6 +71,7 @@ export class ParcelasService {
 
     try {
       const savedParcela = await this.parcelasRepository.save(parcela);
+      savedParcela.subsector = subsector;
 
       return createSuccessResponse(this.toResponse(savedParcela));
     } catch (error) {
@@ -121,7 +124,7 @@ export class ParcelasService {
 
   async update(id: string, updateParcelaDto: UpdateParcelaDto) {
     const parcela = await this.findEntityById(id);
-    const nextSectorId = updateParcelaDto.sectorId ?? parcela.sectorId;
+    const nextSubsectorId = updateParcelaDto.subsectorId ?? parcela.subsectorId;
     const nextProductorId = updateParcelaDto.productorId ?? parcela.productorId;
     const nextCode = updateParcelaDto.code ?? parcela.code;
     const nextGeometry =
@@ -129,19 +132,21 @@ export class ParcelasService {
         ? validateMultiPolygonGeometry(updateParcelaDto.geometry)
         : normalizeGeoJsonMultiPolygon(parcela.geometry);
 
-    if (updateParcelaDto.sectorId !== undefined) {
-      await this.ensureSectorExists(updateParcelaDto.sectorId);
+    let nextSubsector = parcela.subsector;
+
+    if (updateParcelaDto.subsectorId !== undefined) {
+      nextSubsector = await this.ensureSubsectorExists(updateParcelaDto.subsectorId);
     }
 
     if (updateParcelaDto.productorId !== undefined) {
       await this.ensureProductorExists(updateParcelaDto.productorId);
     }
 
-    await this.ensureUniqueCode(nextProductorId, nextSectorId, nextCode, parcela.id);
+    await this.ensureUniqueCode(nextProductorId, nextSubsectorId, nextCode, parcela.id);
 
     const updatedParcela = this.parcelasRepository.merge(parcela, {
-      ...(updateParcelaDto.sectorId !== undefined
-        ? { sectorId: updateParcelaDto.sectorId }
+      ...(updateParcelaDto.subsectorId !== undefined
+        ? { subsectorId: updateParcelaDto.subsectorId }
         : {}),
       ...(updateParcelaDto.productorId !== undefined
         ? { productorId: updateParcelaDto.productorId }
@@ -171,15 +176,17 @@ export class ParcelasService {
         : {}),
       updatedAt: new Date()
     });
+    updatedParcela.subsector = nextSubsector;
 
     await this.assertGeodataRules({
-      sectorId: updatedParcela.sectorId,
+      subsectorId: updatedParcela.subsectorId,
       geometry: normalizeGeoJsonMultiPolygon(updatedParcela.geometry),
       excludedId: updatedParcela.id
     });
 
     try {
       const savedParcela = await this.parcelasRepository.save(updatedParcela);
+      savedParcela.subsector = nextSubsector;
 
       return createSuccessResponse(this.toResponse(savedParcela));
     } catch (error) {
@@ -203,7 +210,9 @@ export class ParcelasService {
   }
 
   async getSummary(query: FindParcelasSummaryQueryDto) {
-    const queryBuilder = this.parcelasRepository.createQueryBuilder("parcela");
+    const queryBuilder = this.parcelasRepository
+      .createQueryBuilder("parcela")
+      .innerJoin("parcela.subsector", "subsector");
 
     if (query.productor_id !== undefined) {
       queryBuilder.andWhere("parcela.productor_id = :productorId", {
@@ -212,8 +221,14 @@ export class ParcelasService {
     }
 
     if (query.sector_id !== undefined) {
-      queryBuilder.andWhere("parcela.sector_id = :sectorId", {
+      queryBuilder.andWhere("subsector.sector_id = :sectorId", {
         sectorId: query.sector_id
+      });
+    }
+
+    if (query.subsector_id !== undefined) {
+      queryBuilder.andWhere("parcela.subsector_id = :subsectorId", {
+        subsectorId: query.subsector_id
       });
     }
 
@@ -234,6 +249,7 @@ export class ParcelasService {
     return createSuccessResponse({
       filters: {
         sectorId: query.sector_id ?? null,
+        subsectorId: query.subsector_id ?? null,
         productorId: query.productor_id ?? null,
         isActive: query.activo ?? null
       },
@@ -264,30 +280,32 @@ export class ParcelasService {
       return [];
     }
 
-    return this.parcelasRepository.find({
-      where: {
-        sectorId: In(sectorIds)
-      },
-      order: {
-        sectorId: "ASC",
-        code: "ASC"
-      }
-    });
+    return this.parcelasRepository
+      .createQueryBuilder("parcela")
+      .innerJoinAndSelect("parcela.subsector", "subsector")
+      .where("subsector.sector_id IN (:...sectorIds)", { sectorIds })
+      .orderBy("subsector.sector_id", "ASC")
+      .addOrderBy("parcela.codigo", "ASC")
+      .getMany();
   }
 
   async findEntitiesByProductorId(productorId: string): Promise<ParcelaEntity[]> {
     return this.parcelasRepository.find({
       where: { productorId },
-      order: { sectorId: "ASC", code: "ASC" }
+      relations: { subsector: true },
+      order: { subsectorId: "ASC", code: "ASC" }
     });
   }
 
   private createFindEntitiesQueryBuilder(query: {
     sector_id?: string;
+    subsector_id?: string;
     productor_id?: string;
     activo?: boolean;
   }) {
-    const queryBuilder = this.parcelasRepository.createQueryBuilder("parcela");
+    const queryBuilder = this.parcelasRepository
+      .createQueryBuilder("parcela")
+      .innerJoinAndSelect("parcela.subsector", "subsector");
 
     if (query.productor_id !== undefined) {
       queryBuilder.andWhere("parcela.productor_id = :productorId", {
@@ -296,8 +314,14 @@ export class ParcelasService {
     }
 
     if (query.sector_id !== undefined) {
-      queryBuilder.andWhere("parcela.sector_id = :sectorId", {
+      queryBuilder.andWhere("subsector.sector_id = :sectorId", {
         sectorId: query.sector_id
+      });
+    }
+
+    if (query.subsector_id !== undefined) {
+      queryBuilder.andWhere("parcela.subsector_id = :subsectorId", {
+        subsectorId: query.subsector_id
       });
     }
 
@@ -308,13 +332,15 @@ export class ParcelasService {
     }
 
     return queryBuilder
-      .orderBy("parcela.sector_id", "ASC")
+      .orderBy("subsector.sector_id", "ASC")
+      .addOrderBy("parcela.subsector_id", "ASC")
       .addOrderBy("parcela.codigo", "ASC");
   }
 
   private async findEntityById(id: string) {
     const parcela = await this.parcelasRepository.findOne({
-      where: { id }
+      where: { id },
+      relations: { subsector: true }
     });
 
     if (!parcela) {
@@ -322,6 +348,25 @@ export class ParcelasService {
     }
 
     return parcela;
+  }
+
+  private async ensureSubsectorExists(
+    subsectorId: string,
+    useNotFoundException = false
+  ) {
+    const subsector = await this.subsectoresRepository.findOne({
+      where: { id: subsectorId }
+    });
+
+    if (!subsector) {
+      if (useNotFoundException) {
+        throw new NotFoundException("Subsector not found.");
+      }
+
+      throw new BadRequestException("Subsector not found.");
+    }
+
+    return subsector;
   }
 
   private async ensureSectorExists(sectorId: string, useNotFoundException = false) {
@@ -350,21 +395,21 @@ export class ParcelasService {
 
   private async ensureUniqueCode(
     productorId: string,
-    sectorId: string,
+    subsectorId: string,
     code: string,
     excludedId?: string
   ) {
     const existingParcela = await this.parcelasRepository.findOne({
       where: {
         productorId,
-        sectorId,
+        subsectorId,
         code
       }
     });
 
     if (existingParcela && existingParcela.id !== excludedId) {
       throw new ConflictException(
-        "A parcela with the same code already exists for this sector."
+        "A parcela with the same code already exists for this subsector."
       );
     }
   }
@@ -383,11 +428,11 @@ export class ParcelasService {
   }
 
   private async assertGeodataRules({
-    sectorId,
+    subsectorId,
     geometry,
     excludedId
   }: {
-    sectorId: string;
+    subsectorId: string;
     geometry: MultiPolygonGeometry | null;
     excludedId?: string;
   }) {
@@ -397,7 +442,7 @@ export class ParcelasService {
 
     const neighborParcelas = await this.parcelasRepository.find({
       where: {
-        sectorId,
+        subsectorId,
         isActive: true
       }
     });
@@ -421,18 +466,20 @@ export class ParcelasService {
 
       if (
         databaseError?.code === "23505" &&
-        databaseError.constraint === "parcelas_productor_id_sector_id_codigo_key"
+        (databaseError.constraint ===
+          "parcelas_productor_id_subsector_id_codigo_key" ||
+          databaseError.constraint === "uq_parcelas_productor_subsector_codigo")
       ) {
         throw new ConflictException(
-          "A parcela with the same code already exists for this productor and sector."
+          "A parcela with the same code already exists for this productor and subsector."
         );
       }
 
       if (
         databaseError?.code === "23503" &&
-        databaseError.constraint === "parcelas_sector_id_fkey"
+        databaseError.constraint === "parcelas_subsector_id_fkey"
       ) {
-        throw new BadRequestException("Sector not found.");
+        throw new BadRequestException("Subsector not found.");
       }
 
       if (
@@ -456,12 +503,14 @@ export class ParcelasService {
   private toResponse(parcela: ParcelaEntity) {
     const referencePoint = normalizeGeoJsonPoint(parcela.referencePoint);
     const geometry = normalizeGeoJsonMultiPolygon(parcela.geometry);
+    const sectorId = this.getDerivedSectorId(parcela);
 
     return {
       id: parcela.id,
       publicId: parcela.publicId,
       productorId: parcela.productorId,
-      sectorId: parcela.sectorId,
+      subsectorId: parcela.subsectorId,
+      sectorId,
       code: parcela.code,
       name: parcela.name,
       areaHectares: parcela.areaHectares,
@@ -482,12 +531,14 @@ export class ParcelasService {
   private toMapFeatures(parcela: ParcelaEntity) {
     const referencePoint = normalizeGeoJsonPoint(parcela.referencePoint);
     const geometry = normalizeGeoJsonMultiPolygon(parcela.geometry);
+    const sectorId = this.getDerivedSectorId(parcela);
     const baseProperties = {
       entityType: "parcela",
       entityId: parcela.id,
       publicId: parcela.publicId,
       productorId: parcela.productorId,
-      sectorId: parcela.sectorId,
+      subsectorId: parcela.subsectorId,
+      sectorId,
       code: parcela.code,
       name: parcela.name,
       isActive: parcela.isActive
@@ -511,6 +562,16 @@ export class ParcelasService {
         `parcela-${parcela.id}-reference-point`
       )
     ];
+  }
+
+  private getDerivedSectorId(parcela: ParcelaEntity) {
+    if (!parcela.subsector?.sectorId) {
+      throw new BadRequestException(
+        "No se pudo derivar el sector de la parcela desde su subsector."
+      );
+    }
+
+    return parcela.subsector.sectorId;
   }
 }
 

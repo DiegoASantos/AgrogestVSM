@@ -260,12 +260,14 @@ export class VisitasCampoService {
     parcelaId: string,
     pagination: { skip: number; take: number; page: number; limit: number }
   ) {
-    const parcela = await this.findRequiredEntity(
-      this.parcelasRepository,
-      parcelaId,
-      "Parcela not found.",
-      true
-    );
+    const parcela = await this.parcelasRepository.findOne({
+      where: { id: parcelaId },
+      relations: { subsector: true }
+    });
+
+    if (!parcela) {
+      throw new NotFoundException("Parcela not found.");
+    }
 
     const [visitasCampo, total] = await this.visitasCampoRepository.findAndCount({
       where: {
@@ -875,11 +877,18 @@ export class VisitasCampoService {
   }
 
   private toParcelaSummaryResponse(parcela: ParcelaEntity) {
+    if (!parcela.subsector?.sectorId) {
+      throw new BadRequestException(
+        "No se pudo derivar el sector de la parcela desde su subsector."
+      );
+    }
+
     return {
       id: parcela.id,
       publicId: parcela.publicId,
       productorId: parcela.productorId,
-      sectorId: parcela.sectorId,
+      subsectorId: parcela.subsectorId,
+      sectorId: parcela.subsector.sectorId,
       code: parcela.code,
       name: parcela.name,
       isActive: parcela.isActive

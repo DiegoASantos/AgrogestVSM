@@ -306,6 +306,7 @@ function buildParcela(overrides: Partial<Parcela> = {}): Parcela {
     id: "parcela-1",
     publicId: "PAR-001",
     productorId: "productor-1",
+    subsectorId: "subsector-1",
     sectorId: "sector-1",
     code: "P-001",
     name: "Parcela Norte",
