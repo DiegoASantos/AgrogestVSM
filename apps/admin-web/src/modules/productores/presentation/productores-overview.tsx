@@ -25,10 +25,14 @@ import {
   type StatusFilter
 } from "../../mantenimiento/presentation/catalog-screen.helpers";
 import { productoresService } from "../services/productores.service";
-import type { ProductorListItem } from "../types/productores.types";
+import type {
+  ProductorEntityType,
+  ProductorListItem
+} from "../types/productores.types";
 
 type ProductorFormState = {
   id: string | null;
+  entityType: ProductorEntityType;
   documentTypeId: string;
   documentNumber: string;
   firstName: string;
@@ -41,6 +45,7 @@ type ProductorFormState = {
 
 const emptyForm: ProductorFormState = {
   id: null,
+  entityType: "persona",
   documentTypeId: "",
   documentNumber: "",
   firstName: "",
@@ -49,6 +54,12 @@ const emptyForm: ProductorFormState = {
   email: "",
   address: "",
   status: "active"
+};
+
+const PRODUCTOR_ENTITY_LABELS: Record<ProductorEntityType, string> = {
+  persona: "Persona",
+  fundo: "Fundo",
+  cooperativa: "Cooperativa"
 };
 
 export function ProductoresOverview() {
@@ -88,11 +99,18 @@ export function ProductoresOverview() {
 
     return items.filter((item) => {
       const documentTypeLabel =
-        documentTypeLookup[String(item.documentTypeId)] ?? String(item.documentTypeId);
+        item.documentTypeId === null
+          ? ""
+          : documentTypeLookup[String(item.documentTypeId)] ??
+            String(item.documentTypeId);
+      const entityLabel = PRODUCTOR_ENTITY_LABELS[item.entityType];
+      const producerLabel = buildProductorDisplayName(item);
 
       const matchesSearch =
         normalizedSearch.length === 0 ||
-        item.documentNumber.toLowerCase().includes(normalizedSearch) ||
+        (item.documentNumber ?? "").toLowerCase().includes(normalizedSearch) ||
+        producerLabel.toLowerCase().includes(normalizedSearch) ||
+        entityLabel.toLowerCase().includes(normalizedSearch) ||
         (item.firstName ?? "").toLowerCase().includes(normalizedSearch) ||
         (item.lastName ?? "").toLowerCase().includes(normalizedSearch) ||
         (item.email ?? "").toLowerCase().includes(normalizedSearch) ||
@@ -109,16 +127,15 @@ export function ProductoresOverview() {
       header: "Productor",
       cell: (item) => (
         <div className="table-copy">
-          <strong>
-            {buildFullName(item.firstName, item.lastName) || item.documentNumber}
-          </strong>
-          <span>
-            {documentTypeLookup[String(item.documentTypeId)] ??
-              `Tipo ${item.documentTypeId}`}
-            {` - ${item.documentNumber}`}
-          </span>
+          <strong>{buildProductorDisplayName(item)}</strong>
+          <span>{buildProductorDocumentLabel(item, documentTypeLookup)}</span>
         </div>
       )
+    },
+    {
+      key: "entityType",
+      header: "Entidad",
+      cell: (item) => PRODUCTOR_ENTITY_LABELS[item.entityType]
     },
     {
       key: "contact",
@@ -210,8 +227,9 @@ export function ProductoresOverview() {
     setSuccessMessage(null);
     setFormState({
       id: item.id,
-      documentTypeId: String(item.documentTypeId),
-      documentNumber: item.documentNumber,
+      entityType: item.entityType,
+      documentTypeId: item.documentTypeId === null ? "" : String(item.documentTypeId),
+      documentNumber: item.documentNumber ?? "",
       firstName: item.firstName ?? "",
       lastName: item.lastName ?? "",
       phone: item.phone ?? "",
@@ -243,8 +261,16 @@ export function ProductoresOverview() {
     const email = formState.email.trim().toLowerCase();
     const address = formState.address.trim();
 
-    if (!Number.isInteger(documentTypeId) || documentTypeId < 1 || !documentNumber) {
+    if (
+      formState.entityType === "persona" &&
+      (!Number.isInteger(documentTypeId) || documentTypeId < 1 || !documentNumber)
+    ) {
       setFormError("Tipo de documento y numero de documento son obligatorios.");
+      return;
+    }
+
+    if (formState.entityType !== "persona" && !firstName) {
+      setFormError("El nombre es obligatorio para fundos y cooperativas.");
       return;
     }
 
@@ -254,10 +280,11 @@ export function ProductoresOverview() {
 
     try {
       const payload = {
-        documentTypeId,
-        documentNumber,
+        entityType: formState.entityType,
+        documentTypeId: formState.entityType === "persona" ? documentTypeId : null,
+        documentNumber: formState.entityType === "persona" ? documentNumber : null,
         firstName: firstName || null,
-        lastName: lastName || null,
+        lastName: formState.entityType === "persona" ? lastName || null : null,
         phone: phone || null,
         email: email || null,
         address: address || null,
@@ -441,42 +468,73 @@ export function ProductoresOverview() {
         >
           <form className="form-layout" id="productores-form" onSubmit={handleSubmit}>
             <label className="field-group">
-              <span>Tipo de documento</span>
+              <span>Entidad</span>
               <select
                 onChange={(event) =>
                   setFormState((currentState) => ({
                     ...currentState,
-                    documentTypeId: event.target.value
+                    entityType: event.target.value as ProductorEntityType,
+                    documentTypeId:
+                      event.target.value === "persona"
+                        ? currentState.documentTypeId
+                        : "",
+                    documentNumber:
+                      event.target.value === "persona"
+                        ? currentState.documentNumber
+                        : "",
+                    lastName:
+                      event.target.value === "persona" ? currentState.lastName : ""
                   }))
                 }
-                value={formState.documentTypeId}
+                value={formState.entityType}
               >
-                <option value="">Selecciona un tipo</option>
-                {documentTypeOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
+                <option value="persona">Persona</option>
+                <option value="fundo">Fundo</option>
+                <option value="cooperativa">Cooperativa</option>
               </select>
             </label>
 
-            <label className="field-group">
-              <span>Numero de documento</span>
-              <input
-                onChange={(event) =>
-                  setFormState((currentState) => ({
-                    ...currentState,
-                    documentNumber: event.target.value
-                  }))
-                }
-                placeholder="12345678"
-                value={formState.documentNumber}
-              />
-            </label>
+            {formState.entityType === "persona" ? (
+              <>
+                <label className="field-group">
+                  <span>Tipo de documento</span>
+                  <select
+                    onChange={(event) =>
+                      setFormState((currentState) => ({
+                        ...currentState,
+                        documentTypeId: event.target.value
+                      }))
+                    }
+                    value={formState.documentTypeId}
+                  >
+                    <option value="">Selecciona un tipo</option>
+                    {documentTypeOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field-group">
+                  <span>Numero de documento</span>
+                  <input
+                    onChange={(event) =>
+                      setFormState((currentState) => ({
+                        ...currentState,
+                        documentNumber: event.target.value
+                      }))
+                    }
+                    placeholder="12345678"
+                    value={formState.documentNumber}
+                  />
+                </label>
+              </>
+            ) : null}
 
             <div className="field-grid">
               <label className="field-group">
-                <span>Nombres</span>
+                <span>{formState.entityType === "persona" ? "Nombres" : "Nombre"}</span>
                 <input
                   onChange={(event) =>
                     setFormState((currentState) => ({
@@ -484,24 +542,28 @@ export function ProductoresOverview() {
                       firstName: event.target.value
                     }))
                   }
-                  placeholder="Juan"
+                  placeholder={
+                    formState.entityType === "persona" ? "Juan" : "Fundo La Esperanza"
+                  }
                   value={formState.firstName}
                 />
               </label>
 
-              <label className="field-group">
-                <span>Apellidos</span>
-                <input
-                  onChange={(event) =>
-                    setFormState((currentState) => ({
-                      ...currentState,
-                      lastName: event.target.value
-                    }))
-                  }
-                  placeholder="Perez"
-                  value={formState.lastName}
-                />
-              </label>
+              {formState.entityType === "persona" ? (
+                <label className="field-group">
+                  <span>Apellidos</span>
+                  <input
+                    onChange={(event) =>
+                      setFormState((currentState) => ({
+                        ...currentState,
+                        lastName: event.target.value
+                      }))
+                    }
+                    placeholder="Perez"
+                    value={formState.lastName}
+                  />
+                </label>
+              ) : null}
             </div>
 
             <div className="field-grid">
@@ -573,7 +635,7 @@ export function ProductoresOverview() {
         confirmLabel="Desactivar"
         description={
           itemToDeactivate
-            ? `Se desactivara el productor ${itemToDeactivate.documentNumber}. Podra reactivarse mas adelante.`
+            ? `Se desactivara el productor ${buildProductorDisplayName(itemToDeactivate)}. Podra reactivarse mas adelante.`
             : ""
         }
         isLoading={isDeleting}
@@ -593,4 +655,29 @@ export function ProductoresOverview() {
 
 function buildFullName(firstName: string | null, lastName: string | null) {
   return [firstName, lastName].filter(Boolean).join(" ").trim();
+}
+
+function buildProductorDisplayName(productor: ProductorListItem) {
+  return (
+    buildFullName(productor.firstName, productor.lastName) ||
+    productor.documentNumber ||
+    productor.publicId
+  );
+}
+
+function buildProductorDocumentLabel(
+  productor: ProductorListItem,
+  documentTypeLookup: Record<string, string>
+) {
+  if (productor.entityType !== "persona") {
+    return PRODUCTOR_ENTITY_LABELS[productor.entityType];
+  }
+
+  const documentTypeLabel =
+    productor.documentTypeId === null
+      ? "Tipo no registrado"
+      : documentTypeLookup[String(productor.documentTypeId)] ??
+        `Tipo ${productor.documentTypeId}`;
+
+  return `${documentTypeLabel} - ${productor.documentNumber ?? "Sin documento"}`;
 }

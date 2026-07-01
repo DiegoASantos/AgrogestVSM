@@ -46,6 +46,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 002: Restaurar prueba mobile de recetas](specs/002-fix-mobile-recipe-test-runner.md)
 - [Spec 003: Fundación de seguridad operativa](specs/003-operational-security-foundation.md)
 - [Spec 004: Codigo obligatorio de cultivos](specs/004-cultivo-code-obligatorio.md)
+- [Spec 005: Entidad de productores](specs/005-productores-entidad.md)
 
 ## Runbooks
 

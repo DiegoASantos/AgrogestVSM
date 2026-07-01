@@ -649,5 +649,11 @@ function buildSectorLabel(sector: SectorListItem) {
 }
 
 function buildProductorLabel(productor: ProductorListItem) {
-  return `${productor.documentNumber} - ${productor.firstName ?? ""} ${productor.lastName ?? ""}`.trim();
+  const name = [productor.firstName, productor.lastName].filter(Boolean).join(" ").trim();
+
+  if (productor.documentNumber && name) {
+    return `${productor.documentNumber} - ${name}`;
+  }
+
+  return name || productor.documentNumber || productor.publicId;
 }

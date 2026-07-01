@@ -112,8 +112,11 @@ export type ProductorVisitasHistory = {
   productor: {
     id: string;
     publicId: string;
-    documentTypeId: number;
-    documentNumber: string;
+    entityType: "persona" | "fundo" | "cooperativa";
+    documentTypeId: number | null;
+    documentNumber: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     isActive: boolean;
   };

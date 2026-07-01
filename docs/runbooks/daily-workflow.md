@@ -2,7 +2,7 @@
 title: Flujo diario de mantenimiento con IA
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-01
 ---
 
 # Flujo diario de mantenimiento con IA
@@ -237,13 +237,13 @@ el cambio que querés.
 
 ## Referencias
 
-- [AGENTS.md](../AGENTS.md) — reglas del repositorio
-- [Coding Standards](architecture/coding-standards.md) — patrones vinculantes
-- [Desarrollo asistido por IA](runbooks/ai-assisted-development.md) — flujo completo
-- [Herramientas de IA](runbooks/ai-tooling.md) — OpenCode, OpenGem, Obsidian
-- [Skills del proyecto](runbooks/project-skills.md) — catálogo y validación
-- [Gates de calidad](runbooks/quality-gates.md) — CI, cobertura, E2E
-- [Observabilidad](runbooks/observability-logs.md) — logs, health, incidentes
-- [Checklist de release](runbooks/release-checklist.md) — antes de desplegar
-- [Recuperación del entorno](runbooks/ai-environment-recovery.md) — si algo falla
-- [MCP bajo demanda](runbooks/mcp-usage.md) — PostgreSQL, GitHub
+- [AGENTS.md](../../AGENTS.md) — reglas del repositorio
+- [Coding Standards](../architecture/coding-standards.md) — patrones vinculantes
+- [Desarrollo asistido por IA](ai-assisted-development.md) — flujo completo
+- [Herramientas de IA](ai-tooling.md) — OpenCode, OpenGem, Obsidian
+- [Skills del proyecto](project-skills.md) — catálogo y validación
+- [Gates de calidad](quality-gates.md) — CI, cobertura, E2E
+- [Observabilidad](observability-logs.md) — logs, health, incidentes
+- [Checklist de release](release-checklist.md) — antes de desplegar
+- [Recuperación del entorno](ai-environment-recovery.md) — si algo falla
+- [MCP bajo demanda](mcp-usage.md) — PostgreSQL, GitHub

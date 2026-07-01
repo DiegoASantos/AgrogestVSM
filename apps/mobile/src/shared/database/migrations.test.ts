@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 32;
+const LATEST_MIGRATION_VERSION = 33;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -68,6 +68,7 @@ function createFakeDatabase(
         this.productorColumns = new Set([
           "id",
           "public_id",
+          "entity_type",
           "document_type_id",
           "document_number",
           "first_name",
@@ -471,6 +472,9 @@ describe("runMigrations", () => {
     expect(db.executedStatements).not.toContain(
       "ALTER TABLE productores ADD COLUMN last_name TEXT"
     );
+    expect(db.executedStatements).not.toContain(
+      "ALTER TABLE productores ADD COLUMN entity_type TEXT NOT NULL DEFAULT 'persona'"
+    );
     expect(db.executedStatements).toContain(
       "CREATE INDEX IF NOT EXISTS idx_visitas_campo_agronomist_recent ON visitas_campo(agronomist_user_id, created_at DESC)"
     );
@@ -511,6 +515,10 @@ describe("runMigrations", () => {
     );
     expect(db.executedStatements).toContain(
       "ALTER TABLE productores ADD COLUMN last_name TEXT"
+    );
+    expect(db.productorColumns.has("entity_type")).toBe(true);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE productores ADD COLUMN entity_type TEXT NOT NULL DEFAULT 'persona'"
     );
     expect(db.executedStatements).toContain(
       "CREATE INDEX IF NOT EXISTS idx_visitas_campo_agronomist_recent ON visitas_campo(agronomist_user_id, created_at DESC)"
@@ -896,5 +904,30 @@ describe("runMigrations", () => {
           statement.includes("sync_status = 'pending'")
       )
     ).toBe(true);
+  });
+
+  it("adds entity_type to existing productor catalog tables", () => {
+    const db = createFakeDatabase(32, [
+      "id",
+      "public_id",
+      "document_type_id",
+      "document_number",
+      "first_name",
+      "last_name",
+      "phone",
+      "email",
+      "address",
+      "is_active",
+      "created_at",
+      "updated_at"
+    ]);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.productorColumns.has("entity_type")).toBe(true);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE productores ADD COLUMN entity_type TEXT NOT NULL DEFAULT 'persona'"
+    );
   });
 });

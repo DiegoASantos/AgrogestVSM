@@ -105,8 +105,9 @@ export const SQL_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS productores (
     id TEXT PRIMARY KEY NOT NULL,
     public_id TEXT NOT NULL,
-    document_type_id INTEGER NOT NULL,
-    document_number TEXT NOT NULL,
+    entity_type TEXT NOT NULL DEFAULT 'persona',
+    document_type_id INTEGER,
+    document_number TEXT,
     first_name TEXT,
     last_name TEXT,
     phone TEXT,

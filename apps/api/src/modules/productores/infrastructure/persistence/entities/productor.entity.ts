@@ -2,6 +2,9 @@ import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 import { ParcelaEntity } from "../../../../parcelas/infrastructure/persistence/entities/parcela.entity";
 
+export const PRODUCTOR_ENTITY_TYPES = ["persona", "fundo", "cooperativa"] as const;
+export type ProductorEntityType = (typeof PRODUCTOR_ENTITY_TYPES)[number];
+
 @Entity({ name: "productores" })
 export class ProductorEntity {
   @PrimaryGeneratedColumn({
@@ -18,17 +21,27 @@ export class ProductorEntity {
   publicId!: string;
 
   @Column({
-    name: "tipo_documento_id",
-    type: "smallint"
+    name: "entidad",
+    type: "varchar",
+    length: 20,
+    default: () => "'persona'"
   })
-  documentTypeId!: number;
+  entityType!: ProductorEntityType;
+
+  @Column({
+    name: "tipo_documento_id",
+    type: "smallint",
+    nullable: true
+  })
+  documentTypeId!: number | null;
 
   @Column({
     name: "nro_documento",
     type: "varchar",
-    length: 20
+    length: 20,
+    nullable: true
   })
-  documentNumber!: string;
+  documentNumber!: string | null;
 
   @Column({
     name: "nombres",

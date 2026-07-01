@@ -324,6 +324,7 @@ function buildProductor(overrides: Partial<Productor> = {}): Productor {
   return {
     id: "productor-1",
     publicId: "PROD-001",
+    entityType: "persona",
     documentTypeId: 1,
     documentNumber: "12345678",
     firstName: "Rosa",

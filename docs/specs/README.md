@@ -48,4 +48,5 @@ en la raíz.
 - [Spec 002: Restaurar ejecución de la prueba mobile de recetas](002-fix-mobile-recipe-test-runner.md)
 - [Spec 003: Fundación de seguridad operativa](003-operational-security-foundation.md)
 - [Spec 004: Codigo obligatorio de cultivos](004-cultivo-code-obligatorio.md)
+- [Spec 005: Entidad de productores](005-productores-entidad.md)
 - [Plantilla](TEMPLATE.md)

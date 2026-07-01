@@ -70,6 +70,7 @@ describe("admin critical CRUD services", () => {
   it("uses correct create/update/delete requests for productores", async () => {
     const payload = {
       publicId: "prod-public-1",
+      entityType: "persona" as const,
       documentTypeId: 1,
       documentNumber: "12345678",
       firstName: "Juan",

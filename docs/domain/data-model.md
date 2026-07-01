@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-01
 ---
 
 # Modelo del dominio
@@ -18,7 +18,10 @@ Productor ───────────────────────�
 ```
 
 Una parcela pertenece a un productor y a un sector. Puede tener punto de
-referencia y geometría MultiPolygon.
+referencia y geometría MultiPolygon. Un productor puede representar una
+persona, un fundo o una cooperativa. Las personas conservan tipo y numero de
+documento obligatorios; fundos y cooperativas usan `nombres` como nombre de la
+entidad y no requieren documento.
 
 Restricciones territoriales relevantes:
 

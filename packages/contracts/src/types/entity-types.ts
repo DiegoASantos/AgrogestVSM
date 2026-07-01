@@ -16,12 +16,18 @@ export interface Usuario {
 
 export interface Productor {
   id: EntityId;
-  codigo: string;
-  nombres: string;
-  apellidos: string;
-  documento?: string;
-  telefono?: string;
-  activo: boolean;
+  publicId: string;
+  entityType: "persona" | "fundo" | "cooperativa";
+  documentTypeId: number | null;
+  documentNumber: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  isActive: boolean;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
 }
 
 export interface Sector {

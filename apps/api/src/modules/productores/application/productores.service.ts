@@ -17,7 +17,10 @@ import { VisitasCampoService } from "../../visitas-campo/application/visitas-cam
 import { FindHistorialVisitasProductorQueryDto } from "../../visitas-campo/presentation/dto/find-historial-visitas-productor-query.dto";
 import { CreateProductorDto } from "../presentation/dto/create-productor.dto";
 import { UpdateProductorDto } from "../presentation/dto/update-productor.dto";
-import { ProductorEntity } from "../infrastructure/persistence/entities/productor.entity";
+import {
+  ProductorEntity,
+  type ProductorEntityType
+} from "../infrastructure/persistence/entities/productor.entity";
 
 @Injectable()
 export class ProductoresService {
@@ -30,16 +33,25 @@ export class ProductoresService {
   ) {}
 
   async create(createProductorDto: CreateProductorDto) {
-    await this.ensureUniqueDocument(
-      createProductorDto.documentTypeId,
-      createProductorDto.documentNumber
-    );
+    const entityType = createProductorDto.entityType ?? "persona";
+
+    this.validateProducerInput(entityType, createProductorDto);
+
+    if (entityType === "persona") {
+      await this.ensureUniqueDocument(
+        createProductorDto.documentTypeId,
+        createProductorDto.documentNumber
+      );
+    }
 
     const productor = this.productoresRepository.create({
-      documentTypeId: createProductorDto.documentTypeId,
-      documentNumber: createProductorDto.documentNumber,
+      entityType,
+      documentTypeId:
+        entityType === "persona" ? createProductorDto.documentTypeId : null,
+      documentNumber:
+        entityType === "persona" ? createProductorDto.documentNumber : null,
       firstName: createProductorDto.firstName ?? null,
-      lastName: createProductorDto.lastName ?? null,
+      lastName: entityType === "persona" ? createProductorDto.lastName ?? null : null,
       phone: createProductorDto.phone ?? null,
       email: createProductorDto.email ?? null,
       address: createProductorDto.address ?? null,
@@ -127,29 +139,51 @@ export class ProductoresService {
 
   async update(id: string, updateProductorDto: UpdateProductorDto) {
     const productor = await this.findEntityById(id);
+    const nextEntityType = updateProductorDto.entityType ?? productor.entityType;
     const nextDocumentTypeId =
       updateProductorDto.documentTypeId ?? productor.documentTypeId;
     const nextDocumentNumber =
       updateProductorDto.documentNumber ?? productor.documentNumber;
 
-    await this.ensureUniqueDocument(
-      nextDocumentTypeId,
-      nextDocumentNumber,
-      productor.id
-    );
+    this.validateProducerInput(nextEntityType, {
+      ...updateProductorDto,
+      documentTypeId: nextDocumentTypeId,
+      documentNumber: nextDocumentNumber,
+      firstName: updateProductorDto.firstName ?? productor.firstName
+    });
+
+    if (nextEntityType === "persona") {
+      await this.ensureUniqueDocument(
+        nextDocumentTypeId,
+        nextDocumentNumber,
+        productor.id
+      );
+    }
 
     const updatedProductor = this.productoresRepository.merge(productor, {
+      ...(updateProductorDto.entityType !== undefined
+        ? { entityType: updateProductorDto.entityType }
+        : {}),
       ...(updateProductorDto.documentTypeId !== undefined
-        ? { documentTypeId: updateProductorDto.documentTypeId }
+        ? {
+            documentTypeId:
+              nextEntityType === "persona" ? updateProductorDto.documentTypeId : null
+          }
         : {}),
       ...(updateProductorDto.documentNumber !== undefined
-        ? { documentNumber: updateProductorDto.documentNumber }
+        ? {
+            documentNumber:
+              nextEntityType === "persona" ? updateProductorDto.documentNumber : null
+          }
         : {}),
       ...(updateProductorDto.firstName !== undefined
         ? { firstName: updateProductorDto.firstName }
         : {}),
-      ...(updateProductorDto.lastName !== undefined
+      ...(updateProductorDto.lastName !== undefined && nextEntityType === "persona"
         ? { lastName: updateProductorDto.lastName }
+        : {}),
+      ...(nextEntityType !== "persona"
+        ? { documentTypeId: null, documentNumber: null, lastName: null }
         : {}),
       ...(updateProductorDto.phone !== undefined
         ? { phone: updateProductorDto.phone }
@@ -204,10 +238,16 @@ export class ProductoresService {
   }
 
   private async ensureUniqueDocument(
-    documentTypeId: number,
-    documentNumber: string,
+    documentTypeId: number | null | undefined,
+    documentNumber: string | null | undefined,
     excludedId?: string
   ) {
+    if (!documentTypeId || !documentNumber) {
+      throw new BadRequestException(
+        "Tipo y numero de documento son obligatorios para personas."
+      );
+    }
+
     const existingProductor = await this.productoresRepository.findOne({
       where: {
         documentTypeId,
@@ -247,15 +287,47 @@ export class ProductoresService {
       ) {
         throw new BadRequestException("Invalid document type.");
       }
+
+      if (
+        databaseError?.code === "23514" &&
+        databaseError.constraint === "chk_productores_entidad"
+      ) {
+        throw new BadRequestException("Invalid productor entity type.");
+      }
     }
 
     throw error;
+  }
+
+  private validateProducerInput(
+    entityType: ProductorEntityType,
+    input: Pick<
+      CreateProductorDto,
+      "documentTypeId" | "documentNumber" | "firstName"
+    >
+  ) {
+    if (entityType === "persona") {
+      if (!input.documentTypeId || !input.documentNumber) {
+        throw new BadRequestException(
+          "Tipo y numero de documento son obligatorios para personas."
+        );
+      }
+
+      return;
+    }
+
+    if (!input.firstName) {
+      throw new BadRequestException(
+        "El nombre es obligatorio para fundos y cooperativas."
+      );
+    }
   }
 
   private toResponse(productor: ProductorEntity) {
     return {
       id: productor.id,
       publicId: productor.publicId,
+      entityType: productor.entityType,
       documentTypeId: productor.documentTypeId,
       documentNumber: productor.documentNumber,
       firstName: productor.firstName,

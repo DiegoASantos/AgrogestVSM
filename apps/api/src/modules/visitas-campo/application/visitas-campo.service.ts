@@ -864,6 +864,7 @@ export class VisitasCampoService {
     return {
       id: productor.id,
       publicId: productor.publicId,
+      entityType: productor.entityType,
       documentTypeId: productor.documentTypeId,
       documentNumber: productor.documentNumber,
       firstName: productor.firstName,

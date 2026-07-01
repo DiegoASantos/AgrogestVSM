@@ -330,20 +330,20 @@ export function ProductorSectoresManagementScreen({
           }
           description="Consulta los sectores donde este productor tiene parcelas."
           eyebrow="Mantenimiento"
-          title={`Sectores de ${productor.documentNumber}`}
+          title={`Sectores de ${buildProductorLabel(productor)}`}
         />
 
         <div className="stat-grid">
           <article className="stat-card">
             <p className="stat-card__label">Tipo documento</p>
             <p className="stat-card__value stat-card__value--small">
-              {productor.documentTypeId}
+              {productor.documentTypeId ?? "No aplica"}
             </p>
           </article>
           <article className="stat-card">
             <p className="stat-card__label">Numero</p>
             <p className="stat-card__value stat-card__value--small">
-              {productor.documentNumber}
+              {productor.documentNumber ?? "No aplica"}
             </p>
           </article>
           <article className="stat-card">
@@ -538,5 +538,13 @@ export function ProductorSectoresManagementScreen({
         variant="warning"
       />
     </section>
+  );
+}
+
+function buildProductorLabel(productor: ProductorListItem) {
+  return (
+    [productor.firstName, productor.lastName].filter(Boolean).join(" ").trim() ||
+    productor.documentNumber ||
+    productor.publicId
   );
 }

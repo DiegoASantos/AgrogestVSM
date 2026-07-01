@@ -1,8 +1,11 @@
+export type ProductorEntityType = "persona" | "fundo" | "cooperativa";
+
 export type ProductorListItem = {
   id: string;
   publicId: string;
-  documentTypeId: number;
-  documentNumber: string;
+  entityType: ProductorEntityType;
+  documentTypeId: number | null;
+  documentNumber: string | null;
   firstName: string | null;
   lastName: string | null;
   phone: string | null;
@@ -14,8 +17,9 @@ export type ProductorListItem = {
 };
 
 export type ProductorPayload = {
-  documentTypeId: number;
-  documentNumber: string;
+  entityType?: ProductorEntityType;
+  documentTypeId?: number | null;
+  documentNumber?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   phone?: string | null;

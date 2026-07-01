@@ -343,6 +343,7 @@ export async function downloadAllCatalogs() {
             `INSERT OR REPLACE INTO productores (
           id,
           public_id,
+          entity_type,
           document_type_id,
           document_number,
           first_name,
@@ -353,9 +354,10 @@ export async function downloadAllCatalogs() {
           is_active,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             productor.id,
             productor.publicId,
+            productor.entityType ?? "persona",
             productor.documentTypeId,
             productor.documentNumber,
             productor.firstName,

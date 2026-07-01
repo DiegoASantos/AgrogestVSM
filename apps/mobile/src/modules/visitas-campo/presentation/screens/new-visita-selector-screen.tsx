@@ -49,7 +49,7 @@ export function NewVisitaSelectorScreen() {
   const productorOptions = productores.map((productor) => ({
     value: productor.id,
     label: buildProductorLabel(productor),
-    helper: productor.documentNumber
+    helper: productor.documentNumber ?? productor.publicId
   }));
   const parcelaOptions = parcelas.map((parcela) => ({
     value: parcela.id,
@@ -244,7 +244,7 @@ function buildProductorLabel(productor: Productor) {
     .join(" ")
     .trim();
 
-  return fullName || productor.documentNumber;
+  return fullName || productor.documentNumber || productor.publicId;
 }
 
 function findSelectedLabel(

@@ -5,8 +5,9 @@ import type { Productor } from "../types";
 type ProductorRow = {
   id: string;
   public_id: string;
-  document_type_id: number;
-  document_number: string;
+  entity_type: Productor["entityType"];
+  document_type_id: number | null;
+  document_number: string | null;
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
@@ -20,6 +21,7 @@ type ProductorRow = {
 const PRODUCTOR_COLUMNS = `
   id,
   public_id,
+  entity_type,
   document_type_id,
   document_number,
   first_name,
@@ -38,7 +40,7 @@ export const productoresRepository = {
     const rows = db.getAllSync<ProductorRow>(
       `SELECT ${PRODUCTOR_COLUMNS}
        FROM productores
-       ORDER BY document_number ASC, id ASC`
+       ORDER BY COALESCE(first_name, document_number, public_id) ASC, id ASC`
     );
 
     return rows.map(mapProductorRow);
@@ -67,7 +69,7 @@ export const productoresRepository = {
          FROM parcelas
          WHERE sector_id = ?
        )
-       ORDER BY document_number ASC, id ASC`,
+       ORDER BY COALESCE(first_name, document_number, public_id) ASC, id ASC`,
       sectorId
     );
 
@@ -79,6 +81,7 @@ function mapProductorRow(row: ProductorRow): Productor {
   return {
     id: row.id,
     publicId: row.public_id,
+    entityType: row.entity_type,
     documentTypeId: row.document_type_id,
     documentNumber: row.document_number,
     firstName: row.first_name,

@@ -34,7 +34,9 @@ type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 
 type ProductorApiItem = {
   id: string;
-  documentNumber: string;
+  documentNumber: string | null;
+  firstName: string | null;
+  lastName: string | null;
   email: string | null;
   publicId: string;
 };
@@ -363,11 +365,14 @@ function readCount<T>(response: ApiSuccessResponse<T>, fallback: number) {
 }
 
 function buildProductorLabel(productor: ProductorApiItem): string {
+  const name = [productor.firstName, productor.lastName].filter(Boolean).join(" ").trim();
+  const label = name || productor.documentNumber || productor.publicId;
+
   if (productor.email) {
-    return `${productor.documentNumber} - ${productor.email}`;
+    return `${label} - ${productor.email}`;
   }
 
-  return `${productor.documentNumber} - ${productor.publicId}`;
+  return label;
 }
 
 function buildParcelaLabel(parcela: ParcelaApiItem): string {

@@ -114,11 +114,11 @@ export function ProductorVisitasHistoryScreen({
           }
           description="Historial administrativo de visitas del productor con filtros basicos por campaña, agronomo y fechas."
           eyebrow="Visitas"
-          title={
-            history
-              ? `Historial del productor ${history.productor.documentNumber}`
+            title={
+              history
+              ? `Historial del productor ${buildProductorLabel(history.productor)}`
               : "Historial del productor"
-          }
+            }
         />
 
         <div className="filter-card">
@@ -359,6 +359,14 @@ export function ProductorVisitasHistoryScreen({
       setIsLoadingHistory(false);
     }
   }
+}
+
+function buildProductorLabel(productor: ProductorVisitasHistory["productor"]) {
+  return (
+    [productor.firstName, productor.lastName].filter(Boolean).join(" ").trim() ||
+    productor.documentNumber ||
+    productor.publicId
+  );
 }
 
 function createOptionLabelMap(

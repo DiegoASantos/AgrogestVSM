@@ -64,6 +64,14 @@ El estado y los riesgos de estos comandos se registran en
 Las specs viven exclusivamente en `docs/specs/`. No existe ni debe crearse un
 directorio `specs/` en la raíz.
 
+- Antes de crear una spec, evaluar si la petición del usuario está alineada,
+  completa y libre de ambigüedades relevantes. Si faltan detalles que puedan
+  cambiar alcance, datos, contrato, reglas de negocio, seguridad, UX o
+  validación, la IA debe hacer preguntas aclaratorias primero.
+- Las preguntas se realizan en la interfaz CLI activa que esté usando el
+  usuario o agente: Codex, OpenCode, Claude Code u otra equivalente. No se debe
+  redactar una spec crítica usando supuestos débiles cuando una pregunta breve
+  pueda alinear mejor el trabajo con los requerimientos reales del usuario.
 - Usar `docs/specs/TEMPLATE.md`.
 - Asignar el siguiente número incremental disponible.
 - Nombrar el archivo `NNN-titulo-breve.md`.

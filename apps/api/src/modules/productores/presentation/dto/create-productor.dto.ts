@@ -2,33 +2,52 @@ import { Transform } from "class-transformer";
 import {
   IsBoolean,
   IsEmail,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
-  Min
+  Min,
+  ValidateIf
 } from "class-validator";
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+
+import {
+  PRODUCTOR_ENTITY_TYPES,
+  type ProductorEntityType
+} from "../../infrastructure/persistence/entities/productor.entity";
 
 export class CreateProductorDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
+    example: "persona",
+    default: "persona",
+    enum: PRODUCTOR_ENTITY_TYPES,
+    description: "Tipo de entidad del productor."
+  })
+  @IsOptional()
+  @IsIn(PRODUCTOR_ENTITY_TYPES)
+  entityType?: ProductorEntityType;
+
+  @ApiPropertyOptional({
     example: 1,
     description: "Id del tipo de documento existente."
   })
+  @ValidateIf(isPersonEntity)
   @IsInt()
   @Min(1)
-  documentTypeId!: number;
+  documentTypeId?: number | null;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: "12345678",
     description: "Numero de documento del productor."
   })
   @Transform(({ value }) => trimRequiredString(value))
+  @ValidateIf(isPersonEntity)
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)
-  documentNumber!: string;
+  documentNumber?: string | null;
 
   @ApiPropertyOptional({
     example: "Juan"
@@ -85,6 +104,10 @@ export class CreateProductorDto {
 
 function trimRequiredString(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function isPersonEntity(value: CreateProductorDto): boolean {
+  return value.entityType === undefined || value.entityType === "persona";
 }
 
 function trimOptionalString(value: unknown): string | null | undefined {

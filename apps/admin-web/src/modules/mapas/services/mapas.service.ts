@@ -160,7 +160,11 @@ function normalizeVisitaMapItem(
 }
 
 function buildProductorLabel(productor: ProductorListItem) {
-  return productor.documentNumber || productor.publicId;
+  return (
+    [productor.firstName, productor.lastName].filter(Boolean).join(" ").trim() ||
+    productor.documentNumber ||
+    productor.publicId
+  );
 }
 
 function buildParcelaTitle(parcela: ParcelaMapItem) {
