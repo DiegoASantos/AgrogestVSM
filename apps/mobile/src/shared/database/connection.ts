@@ -21,7 +21,14 @@ export function initDatabase() {
   }
 
   const db = getDatabase();
-  runMigrations(db);
-  isInitialized = true;
+  db.execSync("PRAGMA foreign_keys = OFF");
+
+  try {
+    runMigrations(db);
+    isInitialized = true;
+  } finally {
+    db.execSync("PRAGMA foreign_keys = ON");
+  }
+
   return db;
 }
