@@ -28,12 +28,22 @@ function buildParcela(overrides: Partial<ParcelaEntity> = {}): ParcelaEntity {
 }
 
 function buildService(sequenceValues: Array<string | number> = [1]) {
+  const queryBuilder = {
+    innerJoinAndSelect: vi.fn(() => queryBuilder),
+    andWhere: vi.fn(() => queryBuilder),
+    orderBy: vi.fn(() => queryBuilder),
+    addOrderBy: vi.fn(() => queryBuilder),
+    skip: vi.fn(() => queryBuilder),
+    take: vi.fn(() => queryBuilder),
+    getManyAndCount: vi.fn(async () => [[buildParcela()], 1])
+  };
   const parcelasRepository = {
     query: vi.fn(async () => [{ value: sequenceValues.shift() ?? 1 }]),
     create: vi.fn((value: Partial<ParcelaEntity>) => buildParcela(value)),
     save: vi.fn(async (value: ParcelaEntity) => value),
     findOne: vi.fn(),
-    find: vi.fn()
+    find: vi.fn(),
+    createQueryBuilder: vi.fn(() => queryBuilder)
   };
   const sectoresRepository = {
     findOne: vi.fn(async () => ({ id: "1" }))
@@ -56,6 +66,7 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
   return {
     parcelasRepository,
     productoresRepository,
+    queryBuilder,
     sectoresRepository,
     subsectoresRepository,
     service
@@ -134,6 +145,29 @@ describe("ParcelasService", () => {
         "PAR-001",
         "PAR-002"
       ]);
+    });
+  });
+
+  describe("findAll", () => {
+    it("orders joined parcelas by entity property paths for TypeORM pagination", async () => {
+      const { queryBuilder, service } = buildService();
+
+      await service.findAll({
+        page: 1,
+        limit: 20,
+        skip: 0,
+        take: 20
+      } as never);
+
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+        "subsector.sectorId",
+        "ASC"
+      );
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
+        "parcela.subsectorId",
+        "ASC"
+      );
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith("parcela.code", "ASC");
     });
   });
 });

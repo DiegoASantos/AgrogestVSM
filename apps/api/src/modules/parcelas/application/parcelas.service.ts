@@ -284,8 +284,8 @@ export class ParcelasService {
       .createQueryBuilder("parcela")
       .innerJoinAndSelect("parcela.subsector", "subsector")
       .where("subsector.sector_id IN (:...sectorIds)", { sectorIds })
-      .orderBy("subsector.sector_id", "ASC")
-      .addOrderBy("parcela.codigo", "ASC")
+      .orderBy("subsector.sectorId", "ASC")
+      .addOrderBy("parcela.code", "ASC")
       .getMany();
   }
 
@@ -332,9 +332,9 @@ export class ParcelasService {
     }
 
     return queryBuilder
-      .orderBy("subsector.sector_id", "ASC")
-      .addOrderBy("parcela.subsector_id", "ASC")
-      .addOrderBy("parcela.codigo", "ASC");
+      .orderBy("subsector.sectorId", "ASC")
+      .addOrderBy("parcela.subsectorId", "ASC")
+      .addOrderBy("parcela.code", "ASC");
   }
 
   private async findEntityById(id: string) {

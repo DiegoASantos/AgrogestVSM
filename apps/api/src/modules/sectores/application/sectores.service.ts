@@ -151,7 +151,7 @@ export class SectoresService {
       .innerJoin(ParcelaEntity, "parcela", "parcela.subsector_id = subsector.id")
       .where("parcela.productor_id = :productorId", { productorId })
       .distinct(true)
-      .orderBy("sector.nombre", "ASC")
+      .orderBy("sector.name", "ASC")
       .getMany();
   }
 

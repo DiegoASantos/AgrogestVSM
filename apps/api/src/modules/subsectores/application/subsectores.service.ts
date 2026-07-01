@@ -102,7 +102,7 @@ export class SubsectoresService {
       .where("parcela.productor_id = :productorId", { productorId })
       .andWhere("subsector.sector_id = :sectorId", { sectorId })
       .distinct(true)
-      .orderBy("subsector.nombre", "ASC")
+      .orderBy("subsector.name", "ASC")
       .getMany();
 
     return createSuccessResponse(
