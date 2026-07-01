@@ -30,9 +30,9 @@ compartidos, admin web y la tabla SQLite usada por mobile para catalogos.
   `cooperativa`.
 - Mantener `persona` como valor por defecto y valor de migracion para registros
   existentes.
-- Permitir `tipo_documento_id` y `nro_documento` nulos cuando la entidad no sea
-  `persona`.
-- Exigir documento solo para productores de tipo `persona`.
+- Permitir `tipo_documento_id` y `nro_documento` nulos para cualquier tipo de
+  entidad.
+- Exigir `nombres` y `apellidos` para productores de tipo `persona`.
 - Exigir `nombres` como nombre de entidad para `fundo` y `cooperativa`.
 - Mantener `telefono`, `email`, `direccion` y `activo` como campos opcionales o
   por defecto segun el comportamiento vigente.
@@ -56,10 +56,12 @@ compartidos, admin web y la tabla SQLite usada por mobile para catalogos.
 - RF-002: `entityType` debe aceptar solo `persona`, `fundo` o `cooperativa`.
 - RF-003: Si `entityType` no se envia al crear un productor, la API debe asumir
   `persona`.
-- RF-004: Para `persona`, `documentTypeId` y `documentNumber` son obligatorios y
-  mantienen la regla de unicidad vigente por tipo y numero de documento.
+- RF-004: Para `persona`, `firstName` y `lastName` son obligatorios.
 - RF-005: Para `fundo` y `cooperativa`, `documentTypeId` y `documentNumber` no
   son obligatorios y la unicidad documental no se debe ejecutar ademas de que ni siquiera se debe mostrar en el formulario esos campos para `fundo` y `cooperativa`.
+- RF-005A: Para `persona`, `documentTypeId` y `documentNumber` son opcionales.
+  Si uno se informa, ambos deben informarse juntos y mantienen la regla de
+  unicidad vigente por tipo y numero de documento.
 - RF-006: Para `fundo` y `cooperativa`, `firstName` debe ser obligatorio y se
   persistira en la columna `nombres`.
 - RF-007: Para `fundo` y `cooperativa`, `lastName` su valo debe ser `null`.
@@ -171,8 +173,9 @@ compartidos, admin web y la tabla SQLite usada por mobile para catalogos.
 
 - [x] CA-001: Un productor existente queda con `entityType = 'persona'` tras la
   migracion PostgreSQL.
-- [x] CA-002: La API crea una `persona` con documento obligatorio y rechaza
-  documentos duplicados.
+- [x] CA-002: La API crea una `persona` con `firstName` y `lastName`
+  obligatorios, documento opcional y rechazo de documentos duplicados cuando se
+  informa documento.
 - [x] CA-003: La API crea un `fundo` con `firstName` obligatorio, sin
   `documentTypeId` ni `documentNumber`.
 - [x] CA-004: La API crea una `cooperativa` con `firstName` obligatorio, sin
@@ -194,7 +197,8 @@ compartidos, admin web y la tabla SQLite usada por mobile para catalogos.
 
 - API:
   - test de migracion PostgreSQL forward/rollback;
-  - tests de servicio o DTO para documento obligatorio solo en `persona`;
+  - tests de servicio o DTO para nombres obligatorios y documento opcional en
+    `persona`;
   - tests de creacion de `fundo` y `cooperativa` sin documento;
   - test de unicidad documental solo para `persona`.
 - Admin web:

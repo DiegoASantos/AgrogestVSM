@@ -33,7 +33,7 @@ export class CreateProductorDto {
     example: 1,
     description: "Id del tipo de documento existente."
   })
-  @ValidateIf(isPersonEntity)
+  @IsOptional()
   @IsInt()
   @Min(1)
   documentTypeId?: number | null;
@@ -42,28 +42,28 @@ export class CreateProductorDto {
     example: "12345678",
     description: "Numero de documento del productor."
   })
-  @Transform(({ value }) => trimRequiredString(value))
-  @ValidateIf(isPersonEntity)
+  @Transform(({ value }) => trimOptionalString(value))
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(20)
   documentNumber?: string | null;
 
   @ApiPropertyOptional({
     example: "Juan"
   })
-  @Transform(({ value }) => trimOptionalString(value))
-  @IsOptional()
+  @Transform(({ value }) => trimRequiredString(value))
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   firstName?: string | null;
 
   @ApiPropertyOptional({
     example: "Perez"
   })
-  @Transform(({ value }) => trimOptionalString(value))
-  @IsOptional()
+  @Transform(({ value }) => trimRequiredString(value))
+  @ValidateIf(isPersonEntity)
   @IsString()
+  @IsNotEmpty()
   @MaxLength(100)
   lastName?: string | null;
 

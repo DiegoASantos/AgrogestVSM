@@ -261,11 +261,17 @@ export function ProductoresOverview() {
     const email = formState.email.trim().toLowerCase();
     const address = formState.address.trim();
 
+    if (formState.entityType === "persona" && (!firstName || !lastName)) {
+      setFormError("Nombres y apellidos son obligatorios para personas.");
+      return;
+    }
+
     if (
       formState.entityType === "persona" &&
-      (!Number.isInteger(documentTypeId) || documentTypeId < 1 || !documentNumber)
+      ((formState.documentTypeId && !documentNumber) ||
+        (!formState.documentTypeId && documentNumber))
     ) {
-      setFormError("Tipo de documento y numero de documento son obligatorios.");
+      setFormError("Tipo y numero de documento deben registrarse juntos.");
       return;
     }
 
@@ -281,8 +287,12 @@ export function ProductoresOverview() {
     try {
       const payload = {
         entityType: formState.entityType,
-        documentTypeId: formState.entityType === "persona" ? documentTypeId : null,
-        documentNumber: formState.entityType === "persona" ? documentNumber : null,
+        documentTypeId:
+          formState.entityType === "persona" && formState.documentTypeId
+            ? documentTypeId
+            : null,
+        documentNumber:
+          formState.entityType === "persona" && documentNumber ? documentNumber : null,
         firstName: firstName || null,
         lastName: formState.entityType === "persona" ? lastName || null : null,
         phone: phone || null,

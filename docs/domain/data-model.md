@@ -19,9 +19,10 @@ Productor ───────────────────────�
 
 Una parcela pertenece a un productor y a un sector. Puede tener punto de
 referencia y geometría MultiPolygon. Un productor puede representar una
-persona, un fundo o una cooperativa. Las personas conservan tipo y numero de
-documento obligatorios; fundos y cooperativas usan `nombres` como nombre de la
-entidad y no requieren documento.
+persona, un fundo o una cooperativa. Las personas requieren `nombres` y
+`apellidos`; el tipo y numero de documento son opcionales y deben registrarse
+juntos cuando se informan. Fundos y cooperativas usan `nombres` como nombre de
+la entidad y no requieren documento.
 
 Restricciones territoriales relevantes:
 

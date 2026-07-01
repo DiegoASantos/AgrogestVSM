@@ -37,7 +37,11 @@ export class ProductoresService {
 
     this.validateProducerInput(entityType, createProductorDto);
 
-    if (entityType === "persona") {
+    if (
+      entityType === "persona" &&
+      createProductorDto.documentTypeId &&
+      createProductorDto.documentNumber
+    ) {
       await this.ensureUniqueDocument(
         createProductorDto.documentTypeId,
         createProductorDto.documentNumber
@@ -47,9 +51,9 @@ export class ProductoresService {
     const productor = this.productoresRepository.create({
       entityType,
       documentTypeId:
-        entityType === "persona" ? createProductorDto.documentTypeId : null,
+        entityType === "persona" ? createProductorDto.documentTypeId ?? null : null,
       documentNumber:
-        entityType === "persona" ? createProductorDto.documentNumber : null,
+        entityType === "persona" ? createProductorDto.documentNumber ?? null : null,
       firstName: createProductorDto.firstName ?? null,
       lastName: entityType === "persona" ? createProductorDto.lastName ?? null : null,
       phone: createProductorDto.phone ?? null,
@@ -141,18 +145,31 @@ export class ProductoresService {
     const productor = await this.findEntityById(id);
     const nextEntityType = updateProductorDto.entityType ?? productor.entityType;
     const nextDocumentTypeId =
-      updateProductorDto.documentTypeId ?? productor.documentTypeId;
+      updateProductorDto.documentTypeId !== undefined
+        ? updateProductorDto.documentTypeId
+        : productor.documentTypeId;
     const nextDocumentNumber =
-      updateProductorDto.documentNumber ?? productor.documentNumber;
+      updateProductorDto.documentNumber !== undefined
+        ? updateProductorDto.documentNumber
+        : productor.documentNumber;
+    const nextFirstName =
+      updateProductorDto.firstName !== undefined
+        ? updateProductorDto.firstName
+        : productor.firstName;
+    const nextLastName =
+      updateProductorDto.lastName !== undefined
+        ? updateProductorDto.lastName
+        : productor.lastName;
 
     this.validateProducerInput(nextEntityType, {
       ...updateProductorDto,
       documentTypeId: nextDocumentTypeId,
       documentNumber: nextDocumentNumber,
-      firstName: updateProductorDto.firstName ?? productor.firstName
+      firstName: nextFirstName,
+      lastName: nextLastName
     });
 
-    if (nextEntityType === "persona") {
+    if (nextEntityType === "persona" && nextDocumentTypeId && nextDocumentNumber) {
       await this.ensureUniqueDocument(
         nextDocumentTypeId,
         nextDocumentNumber,
@@ -238,16 +255,10 @@ export class ProductoresService {
   }
 
   private async ensureUniqueDocument(
-    documentTypeId: number | null | undefined,
-    documentNumber: string | null | undefined,
+    documentTypeId: number,
+    documentNumber: string,
     excludedId?: string
   ) {
-    if (!documentTypeId || !documentNumber) {
-      throw new BadRequestException(
-        "Tipo y numero de documento son obligatorios para personas."
-      );
-    }
-
     const existingProductor = await this.productoresRepository.findOne({
       where: {
         documentTypeId,
@@ -303,23 +314,30 @@ export class ProductoresService {
     entityType: ProductorEntityType,
     input: Pick<
       CreateProductorDto,
-      "documentTypeId" | "documentNumber" | "firstName"
+      "documentTypeId" | "documentNumber" | "firstName" | "lastName"
     >
   ) {
+    if (!input.firstName) {
+      throw new BadRequestException("El nombre del productor es obligatorio.");
+    }
+
     if (entityType === "persona") {
-      if (!input.documentTypeId || !input.documentNumber) {
+      if (!input.lastName) {
         throw new BadRequestException(
-          "Tipo y numero de documento son obligatorios para personas."
+          "Los apellidos son obligatorios para personas."
+        );
+      }
+
+      if (
+        (input.documentTypeId && !input.documentNumber) ||
+        (!input.documentTypeId && input.documentNumber)
+      ) {
+        throw new BadRequestException(
+          "Tipo y numero de documento deben registrarse juntos."
         );
       }
 
       return;
-    }
-
-    if (!input.firstName) {
-      throw new BadRequestException(
-        "El nombre es obligatorio para fundos y cooperativas."
-      );
     }
   }
 

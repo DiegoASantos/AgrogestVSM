@@ -46,7 +46,35 @@ function buildService(options: { existingProductor?: ProductorEntity | null } = 
 
 describe("ProductoresService", () => {
   describe("create", () => {
-    it("creates a persona with required document data and checks uniqueness", async () => {
+    it("creates a persona without document data when names are complete", async () => {
+      const { repository, service } = buildService();
+
+      const result = await service.create({
+        entityType: "persona",
+        firstName: "Juan",
+        lastName: "Perez"
+      });
+
+      expect(repository.findOne).not.toHaveBeenCalled();
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entityType: "persona",
+          documentTypeId: null,
+          documentNumber: null,
+          firstName: "Juan",
+          lastName: "Perez"
+        })
+      );
+      expect(result.data).toMatchObject({
+        entityType: "persona",
+        documentTypeId: null,
+        documentNumber: null,
+        firstName: "Juan",
+        lastName: "Perez"
+      });
+    });
+
+    it("checks document uniqueness when a persona document is provided", async () => {
       const { repository, service } = buildService();
 
       const result = await service.create({
@@ -78,13 +106,15 @@ describe("ProductoresService", () => {
       });
     });
 
-    it("rejects a persona without document data", async () => {
+    it("rejects a persona without required names", async () => {
       const { repository, service } = buildService();
 
       await expect(
         service.create({
           entityType: "persona",
-          firstName: "Juan"
+          firstName: "Juan",
+          documentTypeId: 1,
+          documentNumber: "12345678"
         })
       ).rejects.toBeInstanceOf(BadRequestException);
 
@@ -101,9 +131,27 @@ describe("ProductoresService", () => {
         service.create({
           entityType: "persona",
           documentTypeId: 1,
-          documentNumber: "12345678"
+          documentNumber: "12345678",
+          firstName: "Juan",
+          lastName: "Perez"
         })
       ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("rejects partial persona document data", async () => {
+      const { repository, service } = buildService();
+
+      await expect(
+        service.create({
+          entityType: "persona",
+          documentTypeId: 1,
+          firstName: "Juan",
+          lastName: "Perez"
+        })
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(repository.findOne).not.toHaveBeenCalled();
+      expect(repository.save).not.toHaveBeenCalled();
     });
 
     it("creates a fundo without document data and clears lastName", async () => {
