@@ -20,6 +20,15 @@ describe("subsectores migration", () => {
     );
   });
 
+  it("drops disposable parcela and subsector data before adding the new FK", () => {
+    expect(sql.indexOf("DELETE FROM parcelas")).toBeLessThan(
+      sql.indexOf("DELETE FROM subsectores")
+    );
+    expect(sql.indexOf("DELETE FROM subsectores")).toBeLessThan(
+      sql.indexOf("ADD CONSTRAINT parcelas_subsector_id_fkey")
+    );
+  });
+
   it("keeps the global PAR code sequence untouched", () => {
     expect(sql).not.toContain("DROP SEQUENCE");
     expect(sql).toContain("Mantener parcelas_codigo_seq");

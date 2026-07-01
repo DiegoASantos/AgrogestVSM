@@ -66,6 +66,7 @@ export const SUBSECTORES_MIGRATION: DatabaseMigration = {
     END $$;
 
     DELETE FROM parcelas;
+    DELETE FROM subsectores;
 
     ALTER TABLE parcelas
       ADD COLUMN IF NOT EXISTS subsector_id bigint;

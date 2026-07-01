@@ -29,6 +29,7 @@ import {
   Sun,
   Moon,
   ListTree,
+  Layers,
   Droplets,
   Workflow,
   type LucideIcon
@@ -75,6 +76,7 @@ const maintenanceNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.mantenimientoItems.tiposRiego]: Droplets,
   [adminRoutes.mantenimientoItems.laboresCulturales]: Workflow,
   [adminRoutes.mantenimientoItems.sectores]: MapPin,
+  [adminRoutes.mantenimientoItems.subsectores]: Layers,
   [adminRoutes.mantenimientoItems.tiposDocumento]: FileText
 };
 
