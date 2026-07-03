@@ -30,12 +30,14 @@ function buildParcela(overrides: Partial<ParcelaEntity> = {}): ParcelaEntity {
 function buildService(sequenceValues: Array<string | number> = [1]) {
   const queryBuilder = {
     innerJoinAndSelect: vi.fn(() => queryBuilder),
+    where: vi.fn(() => queryBuilder),
     andWhere: vi.fn(() => queryBuilder),
     orderBy: vi.fn(() => queryBuilder),
     addOrderBy: vi.fn(() => queryBuilder),
     skip: vi.fn(() => queryBuilder),
     take: vi.fn(() => queryBuilder),
-    getManyAndCount: vi.fn(async () => [[buildParcela()], 1])
+    getManyAndCount: vi.fn(async () => [[buildParcela()], 1]),
+    getOne: vi.fn(async (): Promise<ParcelaEntity | null> => null)
   };
   const parcelasRepository = {
     query: vi.fn(async () => [{ value: sequenceValues.shift() ?? 1 }]),
@@ -145,6 +147,47 @@ describe("ParcelasService", () => {
         "PAR-001",
         "PAR-002"
       ]);
+    });
+
+    it("rejects a duplicated name for the same productor and subsector", async () => {
+      const { parcelasRepository, queryBuilder, service } = buildService([1]);
+      queryBuilder.getOne.mockResolvedValueOnce(
+        buildParcela({ id: "2", code: "PAR-002", name: "Parcela Norte" })
+      );
+
+      await expect(
+        service.create({
+          productorId: "1",
+          subsectorId: "10",
+          name: "  parcela   norte  "
+        })
+      ).rejects.toThrow(
+        "A parcela with the same name already exists for this productor and subsector."
+      );
+      expect(parcelasRepository.query).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("update", () => {
+    it("rejects a duplicated name when updating productor, subsector or name", async () => {
+      const { parcelasRepository, queryBuilder, service } = buildService();
+      parcelasRepository.findOne
+        .mockResolvedValueOnce(buildParcela({ id: "1", name: "Parcela Sur" }))
+        .mockResolvedValueOnce(null);
+      queryBuilder.getOne.mockResolvedValueOnce(
+        buildParcela({ id: "2", code: "PAR-002", name: "Parcela Norte" })
+      );
+
+      await expect(
+        service.update("1", {
+          productorId: "1",
+          subsectorId: "10",
+          name: "parcela norte"
+        })
+      ).rejects.toThrow(
+        "A parcela with the same name already exists for this productor and subsector."
+      );
+      expect(parcelasRepository.save).not.toHaveBeenCalled();
     });
   });
 

@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-01
+last_reviewed: 2026-07-03
 ---
 
 # Modelo del dominio
@@ -39,6 +39,8 @@ Restricciones territoriales relevantes:
 - nombre de sector único dentro del distrito;
 - código de parcela autogenerado por la API con formato `PAR-###`; el
   correlativo es global y no se ingresa desde el flujo normal del admin web;
+- nombre de parcela único por productor y subsector, validado por la API. La
+  base de datos todavía no define constraint para esta regla;
 
 ## Producción agrícola
 

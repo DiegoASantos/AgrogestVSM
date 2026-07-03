@@ -297,6 +297,22 @@ export function ParcelasManagementScreen() {
       return;
     }
 
+    const duplicateParcela = findDuplicateParcela(items, {
+      id: formState.id,
+      productorId,
+      sectorId,
+      subsectorId,
+      name
+    });
+
+    if (duplicateParcela) {
+      const message = `Ya existe una parcela con el mismo productor, sector, subsector y nombre. Registro duplicado: ${duplicateParcela.code}.`;
+
+      setFormError(message);
+      setToast({ kind: "error", message });
+      return;
+    }
+
     if (areaHectares && (!Number.isFinite(Number(areaHectares)) || Number(areaHectares) <= 0)) {
       const message = "El área debe ser un número mayor que cero.";
 
@@ -713,4 +729,29 @@ function buildProductorLabel(productor: ProductorListItem) {
   }
 
   return name || productor.documentNumber || productor.publicId;
+}
+
+function findDuplicateParcela(
+  items: ParcelaListItem[],
+  candidate: Pick<
+    ParcelaFormState,
+    "id" | "productorId" | "sectorId" | "subsectorId" | "name"
+  >
+) {
+  const normalizedName = normalizeParcelaName(candidate.name);
+
+  return (
+    items.find(
+      (item) =>
+        item.id !== candidate.id &&
+        item.productorId === candidate.productorId &&
+        item.sectorId === candidate.sectorId &&
+        item.subsectorId === candidate.subsectorId &&
+        normalizeParcelaName(item.name ?? "") === normalizedName
+    ) ?? null
+  );
+}
+
+function normalizeParcelaName(name: string) {
+  return name.trim().replace(/\s+/g, " ").toLocaleLowerCase("es-PE");
 }

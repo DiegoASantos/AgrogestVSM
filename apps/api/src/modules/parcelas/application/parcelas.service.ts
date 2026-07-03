@@ -47,6 +47,11 @@ export class ParcelasService {
   async create(createParcelaDto: CreateParcelaDto) {
     const subsector = await this.ensureSubsectorExists(createParcelaDto.subsectorId);
     await this.ensureProductorExists(createParcelaDto.productorId);
+    await this.ensureUniqueName(
+      createParcelaDto.productorId,
+      createParcelaDto.subsectorId,
+      createParcelaDto.name ?? null
+    );
     const code = await this.generateNextCode();
 
     const referencePoint = validatePointGeometry(createParcelaDto.referencePoint);
@@ -127,6 +132,8 @@ export class ParcelasService {
     const nextSubsectorId = updateParcelaDto.subsectorId ?? parcela.subsectorId;
     const nextProductorId = updateParcelaDto.productorId ?? parcela.productorId;
     const nextCode = updateParcelaDto.code ?? parcela.code;
+    const nextName =
+      updateParcelaDto.name !== undefined ? updateParcelaDto.name : parcela.name;
     const nextGeometry =
       updateParcelaDto.geometry !== undefined
         ? validateMultiPolygonGeometry(updateParcelaDto.geometry)
@@ -143,6 +150,7 @@ export class ParcelasService {
     }
 
     await this.ensureUniqueCode(nextProductorId, nextSubsectorId, nextCode, parcela.id);
+    await this.ensureUniqueName(nextProductorId, nextSubsectorId, nextName, parcela.id);
 
     const updatedParcela = this.parcelasRepository.merge(parcela, {
       ...(updateParcelaDto.subsectorId !== undefined
@@ -414,6 +422,30 @@ export class ParcelasService {
     }
   }
 
+  private async ensureUniqueName(
+    productorId: string,
+    subsectorId: string,
+    name: string | null | undefined,
+    excludedId?: string
+  ) {
+    const normalizedName = normalizeParcelaName(name);
+    const existingParcela = await this.parcelasRepository
+      .createQueryBuilder("parcela")
+      .where("parcela.productor_id = :productorId", { productorId })
+      .andWhere("parcela.subsector_id = :subsectorId", { subsectorId })
+      .andWhere(
+        "LOWER(regexp_replace(BTRIM(COALESCE(parcela.nombre, '')), '\\s+', ' ', 'g')) = :name",
+        { name: normalizedName }
+      )
+      .getOne();
+
+    if (existingParcela && existingParcela.id !== excludedId) {
+      throw new ConflictException(
+        "A parcela with the same name already exists for this productor and subsector."
+      );
+    }
+  }
+
   private async generateNextCode(): Promise<string> {
     const [result] = (await this.parcelasRepository.query(
       "SELECT nextval('parcelas_codigo_seq')::bigint AS value"
@@ -588,6 +620,13 @@ function normalizeAreaHectares(value: unknown): string | null {
   }
 
   return normalizedValue;
+}
+
+function normalizeParcelaName(value: string | null | undefined): string {
+  return String(value ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
 function validatePointGeometry(value: unknown): PointGeometry | null {

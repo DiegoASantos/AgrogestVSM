@@ -42,7 +42,8 @@ export class ParcelasController {
     description: "Datos invalidos o subsector inexistente."
   })
   @ApiConflictResponse({
-    description: "Ya existe una parcela con el mismo codigo para el subsector."
+    description:
+      "Ya existe una parcela con el mismo codigo o nombre para el productor y subsector."
   })
   createParcela(@Body() createParcelaDto: CreateParcelaDto) {
     return this.parcelasService.create(createParcelaDto);
@@ -191,7 +192,8 @@ export class ParcelasController {
     description: "Datos invalidos o subsector inexistente."
   })
   @ApiConflictResponse({
-    description: "Ya existe una parcela con el mismo codigo para el subsector."
+    description:
+      "Ya existe una parcela con el mismo codigo o nombre para el productor y subsector."
   })
   @ApiNotFoundResponse({
     description: "La parcela no existe."
