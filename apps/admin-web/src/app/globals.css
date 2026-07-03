@@ -2569,13 +2569,14 @@ canvas {
 
 .searchable-select__list {
   position: absolute;
+  top: calc(100% + 4px);
   right: 0;
   left: 0;
   z-index: 10;
   display: grid;
   gap: 4px;
   max-height: 220px;
-  margin-top: 4px;
+  margin-top: 0;
   padding: 6px;
   overflow-y: auto;
   border: 1px solid var(--border);
