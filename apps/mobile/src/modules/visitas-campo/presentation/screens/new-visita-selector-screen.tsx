@@ -105,6 +105,8 @@ export function NewVisitaSelectorScreen() {
               onToggle={() => toggleCatalog("productor")}
               options={productorOptions}
               placeholder="Selecciona un productor"
+              searchable
+              searchPlaceholder="Buscar por nombre o documento"
               selectedLabel={findSelectedLabel(productorOptions, productorId)}
             />
             <View style={styles.divider} />
@@ -154,6 +156,8 @@ export function NewVisitaSelectorScreen() {
               onToggle={() => toggleCatalog("parcela")}
               options={parcelaOptions}
               placeholder="Selecciona primero un subsector"
+              searchable
+              searchPlaceholder="Buscar por codigo o nombre"
               selectedLabel={findSelectedLabel(parcelaOptions, parcelaId)}
             />
           </AppCard>

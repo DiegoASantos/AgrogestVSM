@@ -1,5 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import { theme } from "../constants/theme";
 import { AppText } from "./app-text";
@@ -21,6 +22,8 @@ type AppSelectFieldProps = {
   error?: string | null;
   emptyMessage?: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  searchable?: boolean;
+  searchPlaceholder?: string;
   onToggle: () => void;
   onSelect: (value: string) => void;
 };
@@ -36,9 +39,35 @@ export function AppSelectField({
   error,
   emptyMessage = "No hay opciones disponibles.",
   icon,
+  searchable = false,
+  searchPlaceholder = "Buscar",
   onToggle,
   onSelect
 }: AppSelectFieldProps) {
+  const [searchText, setSearchText] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchText("");
+    }
+  }, [isOpen]);
+
+  const filteredOptions = useMemo(() => {
+    const normalizedSearch = normalizeSearchableText(searchText);
+
+    if (!searchable || !normalizedSearch) {
+      return options;
+    }
+
+    return options.filter((option) => {
+      const searchableText = normalizeSearchableText(
+        `${option.label} ${option.helper ?? ""}`
+      );
+
+      return searchableText.includes(normalizedSearch);
+    });
+  }, [options, searchText, searchable]);
+
   return (
     <View style={styles.wrapper}>
       <AppText variant="label">{label}</AppText>
@@ -82,6 +111,19 @@ export function AppSelectField({
 
       {isOpen ? (
         <View style={styles.optionsContainer}>
+          {searchable && !isLoading && !error && options.length > 0 ? (
+            <TextInput
+              accessibilityLabel={`Buscar ${label.toLowerCase()}`}
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={setSearchText}
+              placeholder={searchPlaceholder}
+              placeholderTextColor={theme.colors.textMuted}
+              style={styles.searchInput}
+              value={searchText}
+            />
+          ) : null}
+
           {isLoading ? (
             <AppText variant="muted" style={styles.optionMessage}>
               Cargando opciones...
@@ -94,12 +136,21 @@ export function AppSelectField({
             </AppText>
           ) : null}
 
-          {!isLoading && !error && options.length > 0
-            ? options.map((option) => (
+          {!isLoading && !error && options.length > 0 && filteredOptions.length === 0 ? (
+            <AppText variant="muted" style={styles.optionMessage}>
+              No hay coincidencias para la busqueda.
+            </AppText>
+          ) : null}
+
+          {!isLoading && !error && filteredOptions.length > 0
+            ? filteredOptions.map((option) => (
                 <Pressable
                   key={option.value}
                   accessibilityRole="button"
-                  onPress={() => onSelect(option.value)}
+                  onPress={() => {
+                    setSearchText("");
+                    onSelect(option.value);
+                  }}
                   style={({ pressed }) => [
                     styles.optionRow,
                     pressed && styles.pressedOption
@@ -178,6 +229,17 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     ...theme.shadow.md
   },
+  searchInput: {
+    minHeight: 44,
+    marginBottom: 4,
+    borderWidth: 1.5,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surfaceElevated
+  },
   optionMessage: {
     padding: 10
   },
@@ -195,3 +257,11 @@ const styles = StyleSheet.create({
     color: theme.colors.error
   }
 });
+
+function normalizeSearchableText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}

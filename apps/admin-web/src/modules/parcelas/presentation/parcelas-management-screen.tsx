@@ -26,6 +26,7 @@ import { FeedbackBanner } from "../../../shared/components/feedback-banner";
 import { FilterBar } from "../../../shared/components/filter-bar";
 import { FormModal } from "../../../shared/components/form-modal";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { SearchableSelect } from "../../../shared/components/searchable-select";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { adminRoutes } from "../../../shared/constants/site";
 import { toApiError } from "../../../shared/services";
@@ -542,25 +543,23 @@ export function ParcelasManagementScreen() {
         }
       >
         <form className="form-layout" id="parcelas-form" onSubmit={handleSubmit}>
-          <label className="field-group">
-            <span>Productor</span>
-            <select
-              onChange={(event) =>
-                setFormState((currentState) => ({
-                  ...currentState,
-                  productorId: event.target.value
-                }))
-              }
-              value={formState.productorId}
-            >
-              <option value="">Selecciona un productor</option>
-              {productores.map((productor) => (
-                <option key={productor.id} value={productor.id}>
-                  {buildProductorLabel(productor)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SearchableSelect
+            emptyMessage="No hay productores disponibles."
+            label="Productor"
+            onChange={(value) =>
+              setFormState((currentState) => ({
+                ...currentState,
+                productorId: value
+              }))
+            }
+            options={productores.map((productor) => ({
+              value: productor.id,
+              label: buildProductorLabel(productor),
+              helper: productor.documentNumber ?? productor.publicId
+            }))}
+            placeholder="Escribe para buscar un productor"
+            value={formState.productorId}
+          />
 
           <label className="field-group">
             <span>Sector</span>

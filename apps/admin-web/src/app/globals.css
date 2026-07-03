@@ -2559,6 +2559,72 @@ canvas {
   resize: vertical;
 }
 
+.searchable-select {
+  position: relative;
+}
+
+.searchable-select__control {
+  position: relative;
+}
+
+.searchable-select__list {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 10;
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  margin-top: 4px;
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.searchable-select__option {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+}
+
+.searchable-select__option:hover,
+.searchable-select__option:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+}
+
+.searchable-select__option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.searchable-select__option small {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.searchable-select__empty {
+  margin: 0;
+  padding: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* ============================================================
    State cards (loading, error, empty)
    ============================================================ */
