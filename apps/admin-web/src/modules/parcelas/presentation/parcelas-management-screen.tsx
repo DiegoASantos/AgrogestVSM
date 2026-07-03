@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import {
@@ -22,11 +22,11 @@ import { ConfirmDialog } from "../../../shared/components/confirm-dialog";
 import { DataTable, type DataTableColumn } from "../../../shared/components/data-table";
 import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
-import { FeedbackBanner } from "../../../shared/components/feedback-banner";
 import { FilterBar } from "../../../shared/components/filter-bar";
 import { FormModal } from "../../../shared/components/form-modal";
 import { LoadingState } from "../../../shared/components/loading-state";
 import { SearchableSelect } from "../../../shared/components/searchable-select";
+import { Toast, type ToastState } from "../../../shared/components/toast";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { adminRoutes } from "../../../shared/constants/site";
 import { toApiError } from "../../../shared/services";
@@ -65,7 +65,7 @@ export function ParcelasManagementScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [formState, setFormState] = useState<ParcelaFormState>(emptyForm);
   const [itemToDeactivate, setItemToDeactivate] = useState<ParcelaListItem | null>(
     null
@@ -73,6 +73,7 @@ export function ParcelasManagementScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const dismissToast = useCallback(() => setToast(null), []);
 
   useEffect(() => {
     if (!session) {
@@ -256,13 +257,11 @@ export function ParcelasManagementScreen() {
 
   function resetForm() {
     setFormError(null);
-    setSuccessMessage(null);
     setFormState(emptyForm);
   }
 
   function handleEdit(item: ParcelaListItem) {
     setFormError(null);
-    setSuccessMessage(null);
     setFormState({
       id: item.id,
       sectorId: item.sectorId,
@@ -291,18 +290,24 @@ export function ParcelasManagementScreen() {
     const description = formState.description.trim();
 
     if (!sectorId || !subsectorId || !productorId) {
-      setFormError("Productor, sector y subsector son obligatorios.");
+      const message = "Productor, sector y subsector son obligatorios.";
+
+      setFormError(message);
+      setToast({ kind: "error", message });
       return;
     }
 
     if (areaHectares && (!Number.isFinite(Number(areaHectares)) || Number(areaHectares) <= 0)) {
-      setFormError("El área debe ser un número mayor que cero.");
+      const message = "El área debe ser un número mayor que cero.";
+
+      setFormError(message);
+      setToast({ kind: "error", message });
       return;
     }
 
     setIsSaving(true);
     setFormError(null);
-    setSuccessMessage(null);
+    setToast(null);
 
     try {
       const payload = {
@@ -316,10 +321,10 @@ export function ParcelasManagementScreen() {
 
       if (formState.id) {
         await parcelasService.update(session, formState.id, payload);
-        setSuccessMessage("Parcela actualizada correctamente.");
+        setToast({ kind: "success", message: "Parcela actualizada correctamente." });
       } else {
         await parcelasService.create(session, payload);
-        setSuccessMessage("Parcela creada correctamente.");
+        setToast({ kind: "success", message: "Parcela creada correctamente." });
       }
 
       await loadData();
@@ -334,6 +339,10 @@ export function ParcelasManagementScreen() {
       }
 
       setFormError(apiError.message);
+      setToast({
+        kind: "error",
+        message: `No se pudo guardar la parcela. ${apiError.message}`
+      });
     } finally {
       setIsSaving(false);
     }
@@ -347,7 +356,7 @@ export function ParcelasManagementScreen() {
     try {
       setIsDeleting(true);
       await parcelasService.remove(session, itemToDeactivate.id);
-      setSuccessMessage("Parcela desactivada correctamente.");
+      setToast({ kind: "success", message: "Parcela desactivada correctamente." });
 
       if (formState.id === itemToDeactivate.id) {
         setFormState(emptyForm);
@@ -363,7 +372,10 @@ export function ParcelasManagementScreen() {
         return;
       }
 
-      setListError(apiError.message);
+      setToast({
+        kind: "error",
+        message: `No se pudo desactivar la parcela. ${apiError.message}`
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -371,6 +383,8 @@ export function ParcelasManagementScreen() {
 
   return (
     <article className="panel">
+      <Toast onDismiss={dismissToast} toast={toast} />
+
       <ToolbarActions
         actions={
           <>
@@ -457,10 +471,6 @@ export function ParcelasManagementScreen() {
           </select>
         </label>
       </FilterBar>
-
-      {successMessage ? (
-        <FeedbackBanner kind="success" message={successMessage} />
-      ) : null}
 
       {listError ? (
         <ErrorState

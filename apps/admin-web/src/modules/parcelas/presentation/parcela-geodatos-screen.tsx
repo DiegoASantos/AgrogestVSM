@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { sectoresService } from "../../sectores/services/sectores.service";
@@ -11,6 +11,7 @@ import { FeedbackBanner } from "../../../shared/components/feedback-banner";
 import { LoadingState } from "../../../shared/components/loading-state";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { ConfirmDialog } from "../../../shared/components/confirm-dialog";
+import { Toast, type ToastState } from "../../../shared/components/toast";
 import { adminRoutes } from "../../../shared/constants/site";
 import { toApiError } from "../../../shared/services";
 import { parcelasService } from "../services/parcelas.service";
@@ -78,9 +79,10 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [drawingAreaPreview, setDrawingAreaPreview] =
     useState<DrawingAreaPreview | null>(null);
+  const dismissToast = useCallback(() => setToast(null), []);
 
   useEffect(() => {
     if (!session) {
@@ -142,6 +144,8 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
 
   return (
     <section className="geo-editor-layout">
+      <Toast onDismiss={dismissToast} toast={toast} />
+
       <aside className="panel geo-editor-panel">
         <ToolbarActions
           actions={
@@ -309,10 +313,6 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
           />
         )}
 
-        {successMessage ? (
-          <FeedbackBanner kind="success" message={successMessage} />
-        ) : null}
-
         <div className="geo-editor-savebar">
           <button
             className="ui-button ui-button--ghost"
@@ -368,7 +368,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
     try {
       setIsLoading(true);
       setErrorMessage(null);
-      setSuccessMessage(null);
+      setToast(null);
 
       const nextParcela = await parcelasService.getById(session, parcelaId);
       const [nextNeighbors, nextSector] = await Promise.all([
@@ -434,7 +434,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
   }
 
   function updateEditorState(nextState: EditorState) {
-    setSuccessMessage(null);
+    setToast(null);
     setEditorState((currentState) => {
       if (sameEditorState(currentState, nextState)) {
         return currentState;
@@ -504,7 +504,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
   }
 
   function handleCancelChanges() {
-    setSuccessMessage(null);
+    setToast(null);
     setEditorState(cloneEditorState(originalState));
     setHistory({ past: [], future: [] });
     setEditorMode("idle");
@@ -520,7 +520,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
     try {
       setIsSaving(true);
       setErrorMessage(null);
-      setSuccessMessage(null);
+      setToast(null);
 
       const updatedParcela = await parcelasService.update(session, parcela.id, {
         referencePoint: editorState.referencePoint,
@@ -538,7 +538,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
       setEditorMode("idle");
       setDrawingAreaPreview(null);
       setResetKey((currentKey) => currentKey + 1);
-      setSuccessMessage("Geodatos guardados correctamente.");
+      setToast({ kind: "success", message: "Geodatos guardados correctamente." });
     } catch (error) {
       const apiError = toApiError(error);
 
@@ -547,7 +547,10 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
         return;
       }
 
-      setErrorMessage(apiError.message);
+      setToast({
+        kind: "error",
+        message: `No se pudieron guardar los geodatos. ${apiError.message}`
+      });
     } finally {
       setIsSaving(false);
     }
