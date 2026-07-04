@@ -9,7 +9,8 @@ export const SYNC_ENTITY_TABLES = {
   visita_receta_fitosanidad: "visita_receta_fitosanidad",
   visita_receta_fertilizacion: "visita_receta_fertilizacion",
   visita_receta_riego: "visita_receta_riego",
-  visita_receta_labores: "visita_receta_labores"
+  visita_receta_labores: "visita_receta_labores",
+  visita_calificaciones: "visita_calificaciones"
 } as const;
 
 export type SyncEntityType = keyof typeof SYNC_ENTITY_TABLES;

@@ -11,6 +11,7 @@ import type {
   CampaignLookupItem,
   CropLookupItem,
   IncidenceLevelLookupItem,
+  VisitaCalificacion,
   VisitaLaborCultural,
   ParcelaLookupItem,
   ParcelasVisitadasPorAgronomoResponse,
@@ -18,6 +19,7 @@ import type {
   ParcelaVisitasHistory,
   PestDiseaseLookupItem,
   PhenologicalStageLookupItem,
+  ProductorCalificacion,
   ProductorVisitasHistory,
   VarietyLookupItem,
   VisitaCampo,
@@ -74,6 +76,7 @@ type FullDetailApiResponse = {
   observacionesSanitarias: VisitaObservacionSanitaria[];
   riego: VisitaRiego | null;
   laboresCulturales: VisitaLaborCultural[];
+  calificaciones: VisitaCalificacion[];
 };
 
 export const visitasService = {
@@ -205,6 +208,22 @@ export const visitasService = {
       page,
       totalPages: Math.max(1, Math.ceil(total / limit))
     };
+  },
+
+  async getProductorCalificacion(
+    session: AuthSessionInput,
+    productorId: string,
+    campaignId?: string
+  ): Promise<ProductorCalificacion> {
+    const headers = createAuthHeaders(session.accessToken, session.tokenType);
+    const params = campaignId
+      ? `?campania_id=${encodeURIComponent(campaignId)}`
+      : "";
+
+    return apiRequest<ProductorCalificacion>(
+      `/productores/${productorId}/calificacion${params}`,
+      { headers }
+    );
   },
 
   async getParcelasVisitadasByAgronomo(

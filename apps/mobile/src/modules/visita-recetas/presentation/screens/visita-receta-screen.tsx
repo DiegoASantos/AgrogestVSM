@@ -415,6 +415,18 @@ export function VisitaRecetaScreen() {
 
   async function handleSave() {
     if (!visitaId) return;
+    const recetaValidation = validateRequiredRecipe(
+      fitosanidadApps,
+      fertilizacion,
+      riegoSelection,
+      laborSelections
+    );
+
+    if (recetaValidation) {
+      setSubmitError(recetaValidation);
+      return;
+    }
+
     setIsSaving(true);
     setSubmitError(null);
 
@@ -970,6 +982,43 @@ function FitosanidadCard({
       ) : null}
     </View>
   );
+}
+
+function validateRequiredRecipe(
+  fitosanidadApps: AppFitosanidad[],
+  fertilizacion: AppFertilizacion,
+  riegoSelection: string | null,
+  laborSelections: Set<string>
+) {
+  const hasFitosanidad = fitosanidadApps.some((app) =>
+    Boolean(
+      app.tipoControlId ||
+      app.tipoProductoId ||
+      app.modoAccionId ||
+      app.ingredienteActivoNombre.trim() ||
+      app.dosisIa.trim() ||
+      app.volumenAplicacion.trim() ||
+      app.marcaProductoNombre.trim() ||
+      app.concentracionProducto.trim() ||
+      app.coadyuvantesIds.length ||
+      app.ordenMezcla.length
+    )
+  );
+  const hasFertilizacion = Boolean(
+    fertilizacion.fertilizanteNombre.trim() ||
+      fertilizacion.dosis.trim() ||
+      fertilizacion.cantidadTotalPlantas.trim() ||
+      fertilizacion.volumenAplicacion.trim() ||
+      fertilizacion.cantidadTotalFertilizante.trim()
+  );
+  const hasRiego = Boolean(riegoSelection);
+  const hasLabores = laborSelections.size > 0;
+
+  if (!hasFitosanidad && !hasFertilizacion && !hasRiego && !hasLabores) {
+    return "La receta es obligatoria. Registra al menos una recomendacion tecnica antes de finalizar.";
+  }
+
+  return null;
 }
 
 type AppFertilizacion = {

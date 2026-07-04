@@ -42,6 +42,12 @@ import type {
   NutrientDetailCatalogItem
 } from "../../../nutricion/types";
 import type { OrganoAfectado } from "../../../observaciones-sanitarias/types";
+import {
+  ComplianceScoreCard,
+  PreviousRecipeSummaryCard
+} from "../../../visita-calificaciones/presentation/components";
+import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
+import type { RecetaAnterior } from "../../../visita-calificaciones/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import { evaluacionesService } from "../../services";
 import type { VisitaEvaluacion } from "../../types";
@@ -63,7 +69,7 @@ const POTASIO_IMAGE = require("../../../../../assets/images/potasio.webp");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const ZINC_IMAGE = require("../../../../../assets/images/zinc.webp");
 
-const STEP_NUMBER = 3;
+const STEP_NUMBER = 4;
 const NUTRITION_ORDER_OFFSET = 3000;
 const NUTRITION_DESCRIPTION_PREFIX = "Nutricion -";
 const NUTRIENT_DISPLAY_ORDER = [
@@ -77,10 +83,11 @@ const NUTRIENT_DISPLAY_ORDER = [
 
 const WIZARD_STEPS = [
   { index: 1, title: "Datos" },
-  { index: 2, title: "Sanidad" },
-  { index: 3, title: "Nutricion" },
-  { index: 4, title: "Riego" },
-  { index: 5, title: "Labores" }
+  { index: 2, title: "Plagas" },
+  { index: 3, title: "Enfermedades" },
+  { index: 4, title: "Nutricion" },
+  { index: 5, title: "Riego" },
+  { index: 6, title: "Labores" }
 ] as const;
 
 const NUTRIENT_IMAGES: Array<{
@@ -133,6 +140,8 @@ export function VisitaNutricionScreen() {
   const [nutrients, setNutrients] = useState<NutrientCatalogItem[]>([]);
   const [evaluaciones, setEvaluaciones] = useState<VisitaEvaluacion[]>([]);
   const [selections, setSelections] = useState<Record<string, NutritionSelection>>({});
+  const [scoreValue, setScoreValue] = useState<number | null>(null);
+  const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
   const [imagePreview, setImagePreview] = useState<NutrientCatalogItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -199,7 +208,7 @@ export function VisitaNutricionScreen() {
 
           {!isLoading && error ? (
             <AppCard>
-              <AppText variant="heading">No se pudo cargar el paso 3</AppText>
+              <AppText variant="heading">No se pudo cargar el paso 4</AppText>
               <AppText variant="muted">{error}</AppText>
               <AppButton
                 label="Reintentar"
@@ -229,6 +238,21 @@ export function VisitaNutricionScreen() {
               onToggleOrgano={handleToggleOrgano}
               selections={selections}
             />
+          ) : null}
+
+          {!isLoading && !error ? (
+            <>
+              <PreviousRecipeSummaryCard modulo="nutricion" receta={recetaAnterior} />
+              {recetaAnterior?.existe ? (
+                <ComplianceScoreCard
+                  value={scoreValue}
+                  onChange={(value) => {
+                    setSubmitError(null);
+                    setScoreValue(value);
+                  }}
+                />
+              ) : null}
+            </>
           ) : null}
 
           {submitError ? (
@@ -309,6 +333,14 @@ export function VisitaNutricionScreen() {
       setNutrients(sortedNutrients);
       setEvaluaciones(nextEvaluaciones);
       setSelections(buildSelectionMap(nextEvaluaciones, sortedNutrients));
+      setScoreValue(
+        visitaCalificacionesService.getByModulo(id, "nutricion")?.puntaje ?? null
+      );
+      try {
+        setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
+      } catch {
+        setRecetaAnterior({ existe: false });
+      }
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setError(apiError.message || "No se pudo cargar nutricion.");
@@ -324,7 +356,7 @@ export function VisitaNutricionScreen() {
     }
 
     router.replace({
-      pathname: "/visitas-campo/[id]/observaciones-sanitarias",
+      pathname: "/visitas-campo/[id]/enfermedades",
       params: { id: visitaId }
     });
   }
@@ -392,10 +424,19 @@ export function VisitaNutricionScreen() {
       return;
     }
 
-    const validationMessage = validateNutritionSelections(selections, nutrients);
+    const hasRegisteredData = hasAnyNutritionSelection(selections, nutrients);
+    const shouldScore = recetaAnterior?.existe === true;
+    const validationMessage = hasRegisteredData
+      ? validateNutritionSelections(selections, nutrients)
+      : null;
 
     if (validationMessage) {
       setSubmitError(validationMessage);
+      return;
+    }
+
+    if (shouldScore && hasRegisteredData && scoreValue === null) {
+      setSubmitError("Selecciona un puntaje de cumplimiento para nutricion.");
       return;
     }
 
@@ -436,13 +477,21 @@ export function VisitaNutricionScreen() {
         }
       }
 
+      if (shouldScore) {
+        await visitaCalificacionesService.upsert(visitaId, {
+          modulo: "nutricion",
+          puntaje: scoreValue ?? 3,
+          observacion: null
+        });
+      }
+
       router.replace({
         pathname: "/visitas-campo/[id]/riego",
         params: { id: visitaId }
       });
     } catch (nextError) {
       const apiError = toApiError(nextError);
-      setSubmitError(apiError.message || "No se pudo guardar el paso 3.");
+      setSubmitError(apiError.message || "No se pudo guardar el paso 4.");
     } finally {
       setIsSaving(false);
     }
@@ -1052,11 +1101,11 @@ function buildSelectionMap(
   return Object.fromEntries(selectionEntries);
 }
 
-function validateNutritionSelections(
+function hasAnyNutritionSelection(
   selections: Record<string, NutritionSelection>,
   nutrients: NutrientCatalogItem[]
 ) {
-  const hasAnySelection = nutrients.some((nutrient) => {
+  return nutrients.some((nutrient) => {
     const selection = selections[nutrient.id];
 
     return Boolean(
@@ -1065,6 +1114,13 @@ function validateNutritionSelections(
       selection?.organosAfectados.length
     );
   });
+}
+
+function validateNutritionSelections(
+  selections: Record<string, NutritionSelection>,
+  nutrients: NutrientCatalogItem[]
+) {
+  const hasAnySelection = hasAnyNutritionSelection(selections, nutrients);
 
   if (nutrients.length > 0 && !hasAnySelection) {
     return "Indica al menos una incidencia nutricional.";

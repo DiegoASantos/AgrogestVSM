@@ -23,6 +23,7 @@ import { ParcelaEntity } from "../../parcelas/infrastructure/persistence/entitie
 import { ProductorEntity } from "../../productores/infrastructure/persistence/entities/productor.entity";
 import { UserEntity } from "../../users/infrastructure/persistence/entities/user.entity";
 import { VariedadEntity } from "../../variedades/infrastructure/persistence/entities/variedad.entity";
+import { VisitaCalificacionEntity } from "../../visita-calificaciones/infrastructure/persistence/entities/visita-calificacion.entity";
 import { VisitaEvaluacionEntity } from "../../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
 import { VisitaLaborCulturalEntity } from "../../visita-labores-culturales/infrastructure/persistence/entities/visita-labor-cultural.entity";
 import { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
@@ -66,7 +67,9 @@ export class VisitasCampoService {
     @InjectRepository(VisitaRiegoEntity)
     private readonly visitaRiegosRepository: Repository<VisitaRiegoEntity>,
     @InjectRepository(VisitaLaborCulturalEntity)
-    private readonly visitaLaboresRepository: Repository<VisitaLaborCulturalEntity>
+    private readonly visitaLaboresRepository: Repository<VisitaLaborCulturalEntity>,
+    @InjectRepository(VisitaCalificacionEntity)
+    private readonly visitaCalificacionesRepository: Repository<VisitaCalificacionEntity>
   ) {}
 
   async create(createVisitaCampoDto: CreateVisitaCampoDto) {
@@ -166,7 +169,14 @@ export class VisitasCampoService {
 
   async getFullDetail(id: string) {
     const visitaCampo = await this.findEntityById(id);
-    const [evaluaciones, observacionesSanitarias, riego, laboresCulturales] =
+    const [
+      evaluaciones,
+      observacionesSanitarias,
+      riego,
+      laboresCulturales,
+      calificaciones,
+      etapaFenologica
+    ] =
       await Promise.all([
         this.visitaEvaluacionesRepository.find({
           where: {
@@ -203,11 +213,28 @@ export class VisitasCampoService {
           order: {
             id: "ASC"
           }
-        })
+        }),
+        this.visitaCalificacionesRepository.find({
+          where: {
+            visitaId: id
+          },
+          order: {
+            modulo: "ASC",
+            id: "ASC"
+          }
+        }),
+        visitaCampo.etapaFenologicaId
+          ? this.etapasFenologicasRepository.findOne({
+              where: { id: visitaCampo.etapaFenologicaId }
+            })
+          : Promise.resolve(null)
       ]);
 
     return createSuccessResponse({
-      visita: this.toResponse(visitaCampo),
+      visita: {
+        ...this.toResponse(visitaCampo),
+        etapaFenologicaNombre: etapaFenologica?.name ?? null
+      },
       evaluaciones: evaluaciones.map((evaluacion) =>
         this.toEvaluacionResponse(evaluacion)
       ),
@@ -217,6 +244,9 @@ export class VisitasCampoService {
       riego: riego ? this.toRiegoResponse(riego) : null,
       laboresCulturales: laboresCulturales.map((labor) =>
         this.toLaborCulturalResponse(labor)
+      ),
+      calificaciones: calificaciones.map((calificacion) =>
+        this.toCalificacionResponse(calificacion)
       )
     });
   }
@@ -859,6 +889,19 @@ export class VisitasCampoService {
             isActive: labor.laborCultural.isActive
           }
         : null
+    };
+  }
+
+  private toCalificacionResponse(calificacion: VisitaCalificacionEntity) {
+    return {
+      id: calificacion.id,
+      publicId: calificacion.publicId,
+      visitaId: calificacion.visitaId,
+      modulo: calificacion.modulo,
+      puntaje: calificacion.puntaje,
+      observacion: calificacion.observacion,
+      createdAt: calificacion.createdAt,
+      updatedAt: calificacion.updatedAt
     };
   }
 

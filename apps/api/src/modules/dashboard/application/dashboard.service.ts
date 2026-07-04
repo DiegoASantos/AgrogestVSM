@@ -55,6 +55,7 @@ export type DashboardResumenData = {
     visitasEsteMes: number;
     productoresActivos: number;
     recetasEmitidas: number;
+    cumplimientoPromedio: number | null;
   };
   charts: {
     visitasPorMes: VisitasPorMes[];
@@ -88,8 +89,13 @@ export class DashboardService {
   }
 
   private async getKpis() {
-    const [totalVisitas, visitasEsteMes, productoresActivos, recetasEmitidas] =
-      await Promise.all([
+    const [
+      totalVisitas,
+      visitasEsteMes,
+      productoresActivos,
+      recetasEmitidas,
+      cumplimientoPromedio
+    ] = await Promise.all([
         this.dataSource
           .createQueryBuilder()
           .select("COUNT(*)", "count")
@@ -120,10 +126,23 @@ export class DashboardService {
           .select("COUNT(*)", "count")
           .from("visita_recetas", "vr")
           .getRawOne<{ count: string }>()
-          .then((r) => Number(r?.count ?? 0))
+          .then((r) => Number(r?.count ?? 0)),
+
+        this.dataSource
+          .createQueryBuilder()
+          .select("ROUND(AVG(vc.puntaje::numeric / 3 * 100), 0)", "score")
+          .from("visita_calificaciones", "vc")
+          .getRawOne<{ score: string | null }>()
+          .then((r) => (r?.score === null || r?.score === undefined ? null : Number(r.score)))
       ]);
 
-    return { totalVisitas, visitasEsteMes, productoresActivos, recetasEmitidas };
+    return {
+      totalVisitas,
+      visitasEsteMes,
+      productoresActivos,
+      recetasEmitidas,
+      cumplimientoPromedio
+    };
   }
 
   private async getCharts(year: number) {

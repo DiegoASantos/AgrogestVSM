@@ -895,6 +895,34 @@ const MIGRATIONS: Migration[] = [
     run(db: SQLiteDatabase) {
       recreateSubsectoresAndParcelas(db);
     }
+  },
+  {
+    version: 36,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "visitas_campo", "receta_anterior_json", "TEXT");
+      db.execSync(`
+        CREATE TABLE IF NOT EXISTS visita_calificaciones (
+          local_id TEXT PRIMARY KEY NOT NULL,
+          server_id TEXT,
+          visita_local_id TEXT NOT NULL,
+          modulo TEXT NOT NULL CHECK(modulo IN ('plagas','enfermedades','nutricion','riego','labores')),
+          puntaje INTEGER NOT NULL CHECK(puntaje >= 0 AND puntaje <= 3),
+          observacion TEXT,
+          sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+          sync_error_message TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+          UNIQUE (visita_local_id, modulo)
+        )
+      `);
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_visita_calificaciones_visita ON visita_calificaciones(visita_local_id)"
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_visita_calificaciones_sync ON visita_calificaciones(sync_status)"
+      );
+    }
   }
 ];
 

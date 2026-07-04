@@ -38,6 +38,7 @@ export type DashboardResumen = {
     visitasEsteMes: number;
     productoresActivos: number;
     recetasEmitidas: number;
+    cumplimientoPromedio: number | null;
   };
   charts: {
     visitasPorMes: VisitasPorMes[];

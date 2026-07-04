@@ -50,4 +50,6 @@ en la raíz.
 - [Spec 004: Codigo obligatorio de cultivos](004-cultivo-code-obligatorio.md)
 - [Spec 005: Entidad de productores](005-productores-entidad.md)
 - [Spec 006: Codigo autogenerado de parcelas](006-parcela-codigo-autogenerado.md)
+- [Spec 007: Subsectores como hijo de sectores](007-subsectores.md)
+- [Spec 008: Sistema de Calificación de Cumplimiento por Módulo en Visitas](008-calificacion-cumplimiento-modulos.md)
 - [Plantilla](TEMPLATE.md)

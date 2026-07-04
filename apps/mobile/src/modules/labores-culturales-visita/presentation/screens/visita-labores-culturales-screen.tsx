@@ -23,14 +23,20 @@ import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
 import { requestSync } from "../../../../shared/sync";
+import {
+  ComplianceScoreCard,
+  PreviousRecipeSummaryCard
+} from "../../../visita-calificaciones/presentation/components";
+import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
+import type { RecetaAnterior } from "../../../visita-calificaciones/types";
 import { laboresCulturalesVisitaService } from "../../services";
 import type { LaborCulturalCatalogItem } from "../../types";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
-const STEP_NUMBER = 5;
-const WIZARD_STEPS = [1, 2, 3, 4, 5] as const;
+const STEP_NUMBER = 6;
+const WIZARD_STEPS = [1, 2, 3, 4, 5, 6] as const;
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 type LaborGroup = {
@@ -46,6 +52,8 @@ export function VisitaLaboresCulturalesScreen() {
 
   const [labores, setLabores] = useState<LaborCulturalCatalogItem[]>([]);
   const [selectedLaborIds, setSelectedLaborIds] = useState<Set<string>>(() => new Set());
+  const [scoreValue, setScoreValue] = useState<number | null>(null);
+  const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
   const [helpItem, setHelpItem] = useState<LaborCulturalCatalogItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -109,7 +117,7 @@ export function VisitaLaboresCulturalesScreen() {
               Condiciones de manejo
             </AppText>
             <AppText style={styles.heroSubtitle} variant="body">
-              Registra una opcion por cada categoria del paso 5.
+              Registra una opcion por cada categoria del paso 6.
             </AppText>
           </View>
         </ImageBackground>
@@ -125,7 +133,7 @@ export function VisitaLaboresCulturalesScreen() {
 
           {!isLoading && error ? (
             <AppCard>
-              <AppText variant="heading">No se pudo cargar el paso 5</AppText>
+              <AppText variant="heading">No se pudo cargar el paso 6</AppText>
               <AppText variant="muted">{error}</AppText>
               <AppButton
                 label="Reintentar"
@@ -180,6 +188,17 @@ export function VisitaLaboresCulturalesScreen() {
                   selectedLaborIds={selectedLaborIds}
                 />
               ))}
+
+              <PreviousRecipeSummaryCard modulo="labores" receta={recetaAnterior} />
+              {recetaAnterior?.existe ? (
+                <ComplianceScoreCard
+                  value={scoreValue}
+                  onChange={(value) => {
+                    setSubmitError(null);
+                    setScoreValue(value);
+                  }}
+                />
+              ) : null}
 
               {submitError ? (
                 <View style={styles.errorBanner}>
@@ -252,7 +271,7 @@ export function VisitaLaboresCulturalesScreen() {
 
       if (!hasStructuredLabors(nextLabores)) {
         throw new Error(
-          "El catalogo local del paso 5 esta desactualizado. Sincroniza catalogos para continuar."
+          "El catalogo local del paso 6 esta desactualizado. Sincroniza catalogos para continuar."
         );
       }
 
@@ -260,6 +279,14 @@ export function VisitaLaboresCulturalesScreen() {
 
       setLabores(nextLabores.filter((labor) => labor.isActive && labor.categoryCode));
       setSelectedLaborIds(new Set(existingLabores.map((labor) => labor.laborCulturalId)));
+      setScoreValue(
+        visitaCalificacionesService.getByModulo(id, "labores")?.puntaje ?? null
+      );
+      try {
+        setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
+      } catch {
+        setRecetaAnterior({ existe: false });
+      }
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setError(apiError.message || "No se pudo cargar labores culturales.");
@@ -313,7 +340,14 @@ export function VisitaLaboresCulturalesScreen() {
       .map((labor) => labor.id);
 
     if (selectedCategoryCodes.size < laborGroups.length) {
-      setSubmitError("Selecciona una opcion en cada categoria del paso 5.");
+      setSubmitError("Selecciona una opcion en cada categoria del paso 6.");
+      return;
+    }
+
+    const shouldScore = recetaAnterior?.existe === true;
+
+    if (shouldScore && scoreValue === null) {
+      setSubmitError("Selecciona un puntaje de cumplimiento para labores.");
       return;
     }
 
@@ -322,6 +356,13 @@ export function VisitaLaboresCulturalesScreen() {
 
     try {
       await laboresCulturalesVisitaService.saveSelections(visitaId, selectedIds);
+      if (shouldScore) {
+        await visitaCalificacionesService.upsert(visitaId, {
+          modulo: "labores",
+          puntaje: scoreValue ?? 3,
+          observacion: null
+        });
+      }
       void requestSync({ immediate: true });
       router.replace({
         pathname: "/visitas-campo/[id]/receta",
@@ -329,7 +370,7 @@ export function VisitaLaboresCulturalesScreen() {
       });
     } catch (nextError) {
       const apiError = toApiError(nextError);
-      setSubmitError(apiError.message || "No se pudo guardar el paso 5.");
+      setSubmitError(apiError.message || "No se pudo guardar el paso 6.");
     } finally {
       setIsSaving(false);
     }
@@ -350,7 +391,7 @@ function SelectionProgressSummary({
     <View style={styles.completionPanel}>
       <View style={styles.completionHeader}>
         <AppText style={styles.completionTitle} variant="label">
-          Avance del paso 5
+          Avance del paso 6
         </AppText>
         <AppText style={styles.completionCount} variant="label">
           {completedCount}/{totalCount}

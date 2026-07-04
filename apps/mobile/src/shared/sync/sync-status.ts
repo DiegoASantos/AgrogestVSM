@@ -38,7 +38,8 @@ const SYNC_ENTITY_LABELS: Record<SyncEntityType, string> = {
   visita_receta_fitosanidad: "Receta - fitosanidad",
   visita_receta_fertilizacion: "Receta - fertilizacion",
   visita_receta_riego: "Receta - riego",
-  visita_receta_labores: "Receta - labores"
+  visita_receta_labores: "Receta - labores",
+  visita_calificaciones: "Calificacion de cumplimiento"
 };
 
 export function getSyncCounts(): SyncCountsResult {

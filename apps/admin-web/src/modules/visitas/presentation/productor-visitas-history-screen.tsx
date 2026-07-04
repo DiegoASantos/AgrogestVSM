@@ -15,6 +15,7 @@ import { toApiError } from "../../../shared/services";
 import { buildAdminMapHref } from "../../mapas/utils/map-query";
 import { visitasService } from "../services/visitas.service";
 import type {
+  ProductorCalificacion,
   ProductorVisitasHistory,
   VisitaFilterCatalogs,
   VisitaListFilters
@@ -42,6 +43,7 @@ export function ProductorVisitasHistoryScreen({
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [catalogs, setCatalogs] = useState<VisitaFilterCatalogs | null>(null);
   const [history, setHistory] = useState<ProductorVisitasHistory | null>(null);
+  const [calificacion, setCalificacion] = useState<ProductorCalificacion | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -120,6 +122,13 @@ export function ProductorVisitasHistoryScreen({
               : "Historial del productor"
             }
         />
+
+        {calificacion ? (
+          <ProductorScoreSummary
+            calificacion={calificacion}
+            campaignLabels={campaignLabels}
+          />
+        ) : null}
 
         <div className="filter-card">
           <div className="filter-card__header">Filtros</div>
@@ -338,14 +347,22 @@ export function ProductorVisitasHistoryScreen({
     try {
       setIsLoadingHistory(true);
       setErrorMessage(null);
-      const nextHistory = await visitasService.getHistoryByProductor(
-        session,
-        productorId,
-        filters,
-        currentPage,
-        PAGE_SIZE
-      );
+      const [nextHistory, nextCalificacion] = await Promise.all([
+        visitasService.getHistoryByProductor(
+          session,
+          productorId,
+          filters,
+          currentPage,
+          PAGE_SIZE
+        ),
+        visitasService.getProductorCalificacion(
+          session,
+          productorId,
+          filters.campaignId || undefined
+        )
+      ]);
       setHistory(nextHistory);
+      setCalificacion(nextCalificacion);
     } catch (error) {
       const apiError = toApiError(error);
 
@@ -359,6 +376,48 @@ export function ProductorVisitasHistoryScreen({
       setIsLoadingHistory(false);
     }
   }
+}
+
+function ProductorScoreSummary({
+  calificacion,
+  campaignLabels
+}: {
+  calificacion: ProductorCalificacion;
+  campaignLabels: globalThis.Map<string, string>;
+}) {
+  const campaigns = Object.entries(calificacion.scorePorCampania);
+
+  return (
+    <div className="visit-detail__notes">
+      <div className="visit-detail__note">
+        <span>Score general</span>
+        <strong>{formatScore(calificacion.scoreGeneral)}</strong>
+      </div>
+      <div className="visit-detail__note">
+        <span>Visitas calificadas</span>
+        <strong>
+          {calificacion.totalVisitasCalificadas}/{calificacion.totalVisitas}
+        </strong>
+      </div>
+      <div className="visit-detail__note">
+        <span>Score por campania</span>
+        <strong>
+          {campaigns.length === 0
+            ? "Sin campanias calificadas"
+            : campaigns
+                .map(
+                  ([campaignId, score]) =>
+                    `${campaignLabels.get(campaignId) ?? `Campania #${campaignId}`}: ${formatScore(score.scoreGeneral)}`
+                )
+                .join(" | ")}
+        </strong>
+      </div>
+    </div>
+  );
+}
+
+function formatScore(value: number | null) {
+  return value === null ? "Sin score" : `${value}%`;
 }
 
 function buildProductorLabel(productor: ProductorVisitasHistory["productor"]) {

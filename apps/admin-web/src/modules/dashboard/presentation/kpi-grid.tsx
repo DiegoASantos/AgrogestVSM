@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowUp, ClipboardList, FileText, Users } from "lucide-react";
+import { ArrowUp, ClipboardList, FileText, Gauge, Users } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 
 type KpiItem = {
   label: string;
   value: number;
+  suffix?: string;
   icon: React.ReactNode;
   variant: "default" | "success" | "warning" | "info";
 };
@@ -69,12 +70,14 @@ export function KpiGrid({
   totalVisitas,
   visitasEsteMes,
   productoresActivos,
-  recetasEmitidas
+  recetasEmitidas,
+  cumplimientoPromedio
 }: {
   totalVisitas: number;
   visitasEsteMes: number;
   productoresActivos: number;
   recetasEmitidas: number;
+  cumplimientoPromedio: number | null;
 }) {
   const items: KpiItem[] = [
     {
@@ -100,11 +103,18 @@ export function KpiGrid({
       value: recetasEmitidas,
       icon: <FileText className="size-5" />,
       variant: "warning"
+    },
+    {
+      label: "Cumplimiento prom.",
+      value: cumplimientoPromedio ?? 0,
+      suffix: cumplimientoPromedio === null ? "" : "%",
+      icon: <Gauge className="size-5" />,
+      variant: "info"
     }
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
       {items.map((item) => {
         const s = variantStyles[item.variant];
         return (
@@ -127,6 +137,7 @@ export function KpiGrid({
                   className={`text-2xl font-bold leading-none tracking-tight ${s.valueColor}`}
                 >
                   {formatNumber(item.value)}
+                  {item.suffix ?? ""}
                 </p>
                 <p className={`mt-1 text-xs font-medium ${s.labelColor}`}>{item.label}</p>
               </div>

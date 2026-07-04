@@ -58,10 +58,11 @@ type WizardStep = {
 
 const WIZARD_STEPS: WizardStep[] = [
   { index: 1, title: "Datos basicos y etapas fenologicas", routeLabel: "Datos" },
-  { index: 2, title: "Plagas y enfermedades", routeLabel: "Sanidad" },
-  { index: 3, title: "Nutricion", routeLabel: "Nutricion" },
-  { index: 4, title: "Riego", routeLabel: "Riego" },
-  { index: 5, title: "Labores culturales", routeLabel: "Labores" }
+  { index: 2, title: "Plagas", routeLabel: "Plagas" },
+  { index: 3, title: "Enfermedades", routeLabel: "Enfermedades" },
+  { index: 4, title: "Nutricion", routeLabel: "Nutricion" },
+  { index: 5, title: "Riego", routeLabel: "Riego" },
+  { index: 6, title: "Labores culturales", routeLabel: "Labores" }
 ];
 
 const CURRENT_STEP = 1;

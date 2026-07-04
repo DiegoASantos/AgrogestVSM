@@ -3,6 +3,7 @@ import { laboresCulturalesVisitaRepository } from "../../modules/labores-cultura
 import { observacionesSanitariasRepository } from "../../modules/observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
 import { visitaStepNotesRepository } from "../../modules/observaciones-sanitarias/repositories/visita-step-notes.repository";
 import { riegosRepository } from "../../modules/riegos/repositories/riegos.repository";
+import { visitaCalificacionesRepository } from "../../modules/visita-calificaciones/repositories/visita-calificaciones.repository";
 import { visitaRecetasRepository } from "../../modules/visita-recetas/repositories/visita-recetas.repository";
 import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
 import {
@@ -35,7 +36,8 @@ const RECONCILABLE_SYNC_ENTITIES: Array<{
   { entityType: "visita_paso_observaciones", table: "visita_paso_observaciones" },
   { entityType: "visita_riegos", table: "visita_riegos" },
   { entityType: "visita_labores_culturales", table: "visita_labores_culturales" },
-  { entityType: "visita_recetas", table: "visita_recetas" }
+  { entityType: "visita_recetas", table: "visita_recetas" },
+  { entityType: "visita_calificaciones", table: "visita_calificaciones" }
 ];
 
 export async function processOutbox(): Promise<{
@@ -201,6 +203,12 @@ function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {
         serverId: data.id,
         syncStatus: "synced"
       });
+    } else if (entry.entityType === "visita_calificaciones") {
+      visitaCalificacionesRepository.update(entry.entityLocalId, {
+        serverId: data.id,
+        syncStatus: "synced",
+        syncErrorMessage: null
+      });
     }
   } catch {
     // Entity may not exist (was deleted locally)
@@ -230,6 +238,8 @@ function getChildVisitaLocalId(entry: SyncOutboxItem): string | null {
           ?.visitaLocalId ??
         null
       );
+    case "visita_calificaciones":
+      return visitaCalificacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
     default:
       return null;
   }
@@ -282,6 +292,12 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
           entry.entityLocalId,
           entry.entityLocalId
         );
+        break;
+      case "visita_calificaciones":
+        visitaCalificacionesRepository.update(entry.entityLocalId, {
+          syncStatus: "error",
+          syncErrorMessage: message
+        });
         break;
       default:
         return;

@@ -24,6 +24,12 @@ import { getDatabase } from "../../../../shared/database/connection";
 import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
+import {
+  ComplianceScoreCard,
+  PreviousRecipeSummaryCard
+} from "../../../visita-calificaciones/presentation/components";
+import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
+import type { RecetaAnterior } from "../../../visita-calificaciones/types";
 import { riegosService } from "../../services";
 import type { TipoRiegoCatalogItem } from "../../types";
 import {
@@ -43,8 +49,8 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
-const STEP_NUMBER = 4;
-const WIZARD_STEPS = [1, 2, 3, 4, 5] as const;
+const STEP_NUMBER = 5;
+const WIZARD_STEPS = [1, 2, 3, 4, 5, 6] as const;
 
 const META_KEYS = {
   fuenteAgua: "riego_fuente_agua_default",
@@ -62,6 +68,8 @@ export function VisitaRiegoScreen() {
   const [tipoSuelo, setTipoSuelo] = useState<TipoSuelo | null>(null);
   const [humedadSuelo, setHumedadSuelo] = useState<HumedadSuelo | null>(null);
   const [estresHidrico, setEstresHidrico] = useState(false);
+  const [scoreValue, setScoreValue] = useState<number | null>(null);
+  const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
 
   const [legendSuelo, setLegendSuelo] = useState(false);
   const [legendHumedad, setLegendHumedad] = useState(false);
@@ -130,7 +138,7 @@ export function VisitaRiegoScreen() {
 
           {!isLoading && error ? (
             <AppCard>
-              <AppText variant="heading">No se pudo cargar el paso 4</AppText>
+              <AppText variant="heading">No se pudo cargar el paso 5</AppText>
               <AppText variant="muted">{error}</AppText>
               <AppButton
                 label="Reintentar"
@@ -351,6 +359,17 @@ export function VisitaRiegoScreen() {
               </View>
               ) : null}
 
+              <PreviousRecipeSummaryCard modulo="riego" receta={recetaAnterior} />
+              {recetaAnterior?.existe ? (
+                <ComplianceScoreCard
+                  value={scoreValue}
+                  onChange={(value) => {
+                    setSubmitError(null);
+                    setScoreValue(value);
+                  }}
+                />
+              ) : null}
+
               {submitError ? (
                 <View style={styles.errorBanner}>
                   <AppText style={styles.submitErrorText} variant="label">
@@ -438,6 +457,15 @@ export function VisitaRiegoScreen() {
         );
       } else {
         loadDefaults();
+      }
+
+      setScoreValue(
+        visitaCalificacionesService.getByModulo(id, "riego")?.puntaje ?? null
+      );
+      try {
+        setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
+      } catch {
+        setRecetaAnterior({ existe: false });
       }
     } catch (nextError) {
       const apiError = toApiError(nextError);
@@ -530,6 +558,13 @@ export function VisitaRiegoScreen() {
       return;
     }
 
+    const shouldScore = recetaAnterior?.existe === true;
+
+    if (shouldScore && scoreValue === null) {
+      setSubmitError("Selecciona un puntaje de cumplimiento para riego.");
+      return;
+    }
+
     setIsSaving(true);
     setSubmitError(null);
 
@@ -542,13 +577,20 @@ export function VisitaRiegoScreen() {
         humedadSuelo,
         estresHidrico: humedadSuelo === "seco" ? estresHidrico : false
       });
+      if (shouldScore) {
+        await visitaCalificacionesService.upsert(visitaId, {
+          modulo: "riego",
+          puntaje: scoreValue ?? 3,
+          observacion: null
+        });
+      }
       router.replace({
         pathname: "/visitas-campo/[id]/labores-culturales",
         params: { id: visitaId }
       });
     } catch (nextError) {
       const apiError = toApiError(nextError);
-      setSubmitError(apiError.message || "No se pudo guardar el paso 4.");
+      setSubmitError(apiError.message || "No se pudo guardar el paso 5.");
     } finally {
       setIsSaving(false);
     }

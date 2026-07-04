@@ -99,6 +99,7 @@ export function DashboardOverview() {
       </section>
 
       <KpiGrid
+        cumplimientoPromedio={data.kpis.cumplimientoPromedio}
         recetasEmitidas={data.kpis.recetasEmitidas}
         productoresActivos={data.kpis.productoresActivos}
         totalVisitas={data.kpis.totalVisitas}

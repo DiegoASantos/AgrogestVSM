@@ -14,6 +14,7 @@ import { visitasService } from "../services/visitas.service";
 import type {
   IncidenceLevelLookupItem,
   PestDiseaseLookupItem,
+  VisitaCalificacion,
   VisitaDetailData,
   VisitaLaborCultural
 } from "../types/visitas.types";
@@ -251,7 +252,29 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
       </div>
 
       <article className="panel">
-        <p className="eyebrow">Paso 5</p>
+        <p className="eyebrow">Cumplimiento tecnico</p>
+        <h2 className="title title--section">Calificacion por modulo</h2>
+        {detail.calificaciones.length === 0 ? (
+          <p className="body-copy">La visita no tiene calificaciones registradas.</p>
+        ) : (
+          <ul className="feature-list">
+            {sortCalificaciones(detail.calificaciones).map((calificacion) => (
+              <li className="feature-item" key={calificacion.id}>
+                <strong>
+                  {getModuloLabel(calificacion.modulo)} - {calificacion.puntaje}/3
+                </strong>
+                <span>
+                  {getScoreDescription(calificacion.puntaje)}
+                  {calificacion.observacion ? ` - ${calificacion.observacion}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </article>
+
+      <article className="panel">
+        <p className="eyebrow">Paso 6</p>
         <h2 className="title title--section">Labores culturales</h2>
         {laboresCulturales.length === 0 ? (
           <p className="body-copy">La visita no tiene labores culturales registradas.</p>
@@ -338,4 +361,32 @@ function groupLaboresCulturales(labores: VisitaLaborCultural[]) {
       (left, right) =>
         left.sortOrder - right.sortOrder || left.category.localeCompare(right.category)
     );
+}
+
+const MODULO_ORDER = ["plagas", "enfermedades", "nutricion", "riego", "labores"];
+
+function sortCalificaciones(calificaciones: VisitaCalificacion[]) {
+  return [...calificaciones].sort(
+    (left, right) =>
+      MODULO_ORDER.indexOf(left.modulo) - MODULO_ORDER.indexOf(right.modulo)
+  );
+}
+
+function getModuloLabel(modulo: VisitaCalificacion["modulo"]) {
+  const labels: Record<VisitaCalificacion["modulo"], string> = {
+    plagas: "Plagas",
+    enfermedades: "Enfermedades",
+    nutricion: "Nutricion",
+    riego: "Riego",
+    labores: "Labores"
+  };
+
+  return labels[modulo];
+}
+
+function getScoreDescription(puntaje: number) {
+  if (puntaje === 0) return "Incumplimiento critico";
+  if (puntaje === 1) return "Cumplimiento deficiente";
+  if (puntaje === 2) return "Cumplimiento parcial";
+  return "Cumplimiento optimo";
 }

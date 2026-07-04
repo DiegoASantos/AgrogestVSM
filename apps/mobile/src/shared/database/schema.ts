@@ -196,6 +196,7 @@ export const SQL_SCHEMA = [
     agronomist_signature_name TEXT,
     producer_signature_name TEXT,
     visit_location TEXT,
+    receta_anterior_json TEXT,
     synchronized_at TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
@@ -401,6 +402,20 @@ export const SQL_SCHEMA = [
     updated_at TEXT NOT NULL,
     FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE,
     UNIQUE (receta_local_id, labor)
+  )`,
+  `CREATE TABLE IF NOT EXISTS visita_calificaciones (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    server_id TEXT,
+    visita_local_id TEXT NOT NULL,
+    modulo TEXT NOT NULL CHECK(modulo IN ('plagas','enfermedades','nutricion','riego','labores')),
+    puntaje INTEGER NOT NULL CHECK(puntaje >= 0 AND puntaje <= 3),
+    observacion TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    sync_error_message TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+    UNIQUE (visita_local_id, modulo)
   )`,
   `CREATE TABLE IF NOT EXISTS app_meta (
     key TEXT PRIMARY KEY NOT NULL,

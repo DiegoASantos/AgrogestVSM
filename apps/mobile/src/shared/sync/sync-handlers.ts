@@ -29,6 +29,8 @@ import { generatePublicId, isUuid } from "../utils/local-id";
 
 import { visitaRecetasRepository } from "../../modules/visita-recetas/repositories/visita-recetas.repository";
 import { visitaRecetasRemote } from "../../modules/visita-recetas/services/visita-recetas.remote";
+import { visitaCalificacionesRepository } from "../../modules/visita-calificaciones/repositories/visita-calificaciones.repository";
+import { visitaCalificacionesRemote } from "../../modules/visita-calificaciones/services";
 
 export type SyncHandlerResult =
   | { status: "synced"; serverId: string }
@@ -408,7 +410,8 @@ export const entityHandlerMap: Record<
   visita_receta_fitosanidad: skipSyncHandler(),
   visita_receta_fertilizacion: skipSyncHandler(),
   visita_receta_riego: skipSyncHandler(),
-  visita_receta_labores: skipSyncHandler()
+  visita_receta_labores: skipSyncHandler(),
+  visita_calificaciones: handleCalificacion
 };
 
 function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft {
@@ -623,6 +626,48 @@ async function handleReceta(entry: SyncOutboxItem): Promise<SyncHandlerResult> {
   });
 
   visitaRecetasRepository.markSynced(receta.id, response.id);
+
+  return { status: "synced", serverId: response.id };
+}
+
+async function handleCalificacion(
+  entry: SyncOutboxItem
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    return { status: "deleted_local" };
+  }
+
+  const calificacion = visitaCalificacionesRepository.getById(entry.entityLocalId);
+
+  if (!calificacion) {
+    return { status: "deleted_local" };
+  }
+
+  const visitaPadre = visitasCampoRepository.getById(calificacion.visitaId);
+
+  if (!visitaPadre) {
+    return { status: "deleted_local" };
+  }
+
+  if (visitaPadre.syncStatus === "error") {
+    throw new Error("La visita padre no pudo sincronizarse.");
+  }
+
+  if (!visitaPadre.serverId) {
+    return { status: "skipped" };
+  }
+
+  const response = await visitaCalificacionesRemote.upsert(visitaPadre.serverId, {
+    modulo: calificacion.modulo,
+    puntaje: calificacion.puntaje,
+    observacion: calificacion.observacion
+  });
+
+  visitaCalificacionesRepository.update(calificacion.id, {
+    serverId: response.id,
+    syncStatus: "synced",
+    syncErrorMessage: null
+  });
 
   return { status: "synced", serverId: response.id };
 }

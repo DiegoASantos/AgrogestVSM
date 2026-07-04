@@ -36,6 +36,12 @@ import {
 import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
+import {
+  ComplianceScoreCard,
+  PreviousRecipeSummaryCard
+} from "../../../visita-calificaciones/presentation/components";
+import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
+import type { RecetaAnterior } from "../../../visita-calificaciones/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import { observacionesSanitariasService } from "../../services";
 import type {
@@ -98,14 +104,13 @@ type StepNoteState = {
   recommendation: string;
 };
 
-const STEP_NUMBER = 2;
-
 const WIZARD_STEPS = [
   { index: 1, title: "Datos" },
-  { index: 2, title: "Sanidad" },
-  { index: 3, title: "Nutricion" },
-  { index: 4, title: "Riego" },
-  { index: 5, title: "Labores" }
+  { index: 2, title: "Plagas" },
+  { index: 3, title: "Enfermedades" },
+  { index: 4, title: "Nutricion" },
+  { index: 5, title: "Riego" },
+  { index: 6, title: "Labores" }
 ] as const;
 
 const ORGANO_OPTIONS: Array<{
@@ -130,12 +135,19 @@ const ORGANO_OPTIONS: Array<{
   { value: "raices", label: "Raíces", icon: "nutrition-outline" }
 ];
 
-export function VisitaObservacionesSanitariasScreen() {
+type SanitaryStepMode = "plagas" | "enfermedades";
+
+export function VisitaObservacionesSanitariasScreen({
+  mode = "plagas"
+}: {
+  mode?: SanitaryStepMode;
+}) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
   const isCompactLayout = width < 460;
+  const stepNumber = mode === "plagas" ? 2 : 3;
 
   const [pestDiseases, setPestDiseases] = useState<PestDiseaseByStageItem[]>([]);
   const [incidenceLevels, setIncidenceLevels] = useState<IncidenceLevelCatalogItem[]>([]);
@@ -145,6 +157,8 @@ export function VisitaObservacionesSanitariasScreen() {
     observation: "",
     recommendation: ""
   });
+  const [scoreValue, setScoreValue] = useState<number | null>(null);
+  const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
   const [imagePreview, setImagePreview] = useState<PestDiseaseByStageItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -159,7 +173,7 @@ export function VisitaObservacionesSanitariasScreen() {
     }
 
     void loadStep(visitaId);
-  }, [visitaId]);
+  }, [visitaId, mode]);
 
   const plagas = useMemo(
     () => pestDiseases.filter((item) => item.type === "plaga"),
@@ -202,7 +216,7 @@ export function VisitaObservacionesSanitariasScreen() {
 
           <View style={styles.heroContent}>
             <AppText style={styles.heroTitle} variant="title">
-              Plagas y enfermedades
+              {mode === "plagas" ? "Plagas" : "Enfermedades"}
             </AppText>
             <AppText style={styles.heroSubtitle} variant="body">
               Evalua incidencia y severidad segun la etapa fenologica registrada.
@@ -211,7 +225,7 @@ export function VisitaObservacionesSanitariasScreen() {
         </ImageBackground>
 
         <View style={styles.body}>
-          <WizardProgress />
+          <WizardProgress stepNumber={stepNumber} />
 
           {isLoading ? (
             <AppCard>
@@ -221,7 +235,9 @@ export function VisitaObservacionesSanitariasScreen() {
 
           {!isLoading && error ? (
             <AppCard>
-              <AppText variant="heading">No se pudo cargar el paso 2</AppText>
+              <AppText variant="heading">
+                No se pudo cargar el paso {stepNumber}
+              </AppText>
               <AppText variant="muted">{error}</AppText>
               <AppButton
                 label="Reintentar"
@@ -241,7 +257,7 @@ export function VisitaObservacionesSanitariasScreen() {
             />
           ) : null}
 
-          {!isLoading && !error && plagas.length > 0 ? (
+          {!isLoading && !error && mode === "plagas" && plagas.length > 0 ? (
             <SanitarySection
               icon="bug-outline"
               incidenceLevels={incidenceLevels}
@@ -256,7 +272,7 @@ export function VisitaObservacionesSanitariasScreen() {
             />
           ) : null}
 
-          {!isLoading && !error && enfermedades.length > 0 ? (
+          {!isLoading && !error && mode === "enfermedades" && enfermedades.length > 0 ? (
             <SanitarySection
               icon="leaf-outline"
               incidenceLevels={incidenceLevels}
@@ -272,13 +288,28 @@ export function VisitaObservacionesSanitariasScreen() {
           ) : null}
 
           {!isLoading && !error ? (
+            <>
+              <PreviousRecipeSummaryCard modulo={mode} receta={recetaAnterior} />
+              {recetaAnterior?.existe ? (
+                <ComplianceScoreCard
+                  value={scoreValue}
+                  onChange={(value) => {
+                    setSubmitError(null);
+                    setScoreValue(value);
+                  }}
+                />
+              ) : null}
+            </>
+          ) : null}
+
+          {!isLoading && !error ? (
             <View style={styles.noteCard}>
               <View style={styles.sectionHeader}>
                 <AppText style={styles.sectionTitle} variant="heading">
                   Observacion y recomendacion
                 </AppText>
                 <AppText style={styles.sectionSubtitle} variant="caption">
-                  Esta informacion pertenece solo al paso 2.
+                  Esta informacion pertenece solo al paso {stepNumber}.
                 </AppText>
               </View>
 
@@ -388,7 +419,7 @@ export function VisitaObservacionesSanitariasScreen() {
           ),
           observacionesSanitariasService.getIncidenceLevels(),
           observacionesSanitariasService.getByVisitaId(id),
-          observacionesSanitariasService.getStepNote(id, STEP_NUMBER)
+          observacionesSanitariasService.getStepNote(id, stepNumber)
         ]);
 
       let resolvedPestDiseases = nextPestDiseases;
@@ -409,13 +440,21 @@ export function VisitaObservacionesSanitariasScreen() {
       setIncidenceLevels(nextIncidenceLevels.map(normalizeIncidenceLevel));
       setObservaciones(nextObservaciones);
       setSelections(buildSelectionMap(nextObservaciones));
+      setScoreValue(
+        visitaCalificacionesService.getByModulo(id, mode)?.puntaje ?? null
+      );
+      try {
+        setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
+      } catch {
+        setRecetaAnterior({ existe: false });
+      }
       setStepNote({
         observation: nextStepNote?.observation ?? "",
         recommendation: nextStepNote?.recommendation ?? ""
       });
     } catch (nextError) {
       const apiError = toApiError(nextError);
-      setError(apiError.message || "No se pudo cargar el paso 2.");
+      setError(apiError.message || `No se pudo cargar el paso ${stepNumber}.`);
     } finally {
       setIsLoading(false);
     }
@@ -428,8 +467,11 @@ export function VisitaObservacionesSanitariasScreen() {
     }
 
     router.replace({
-      pathname: "/visitas-campo/registrar",
-      params: { visitaId }
+      pathname:
+        mode === "plagas"
+          ? "/visitas-campo/registrar"
+          : "/visitas-campo/[id]/observaciones-sanitarias",
+      params: mode === "plagas" ? { visitaId } : { id: visitaId }
     });
   }
 
@@ -533,14 +575,28 @@ export function VisitaObservacionesSanitariasScreen() {
       return;
     }
 
-    const validationMessage = validateSelections(
-      selections,
-      pestDiseases,
-      incidenceLevels
-    );
+    const activeItems = mode === "plagas" ? plagas : enfermedades;
+    const activeItemIds = new Set(activeItems.map((item) => item.id));
+    const shouldScore = recetaAnterior?.existe === true;
+    const validationMessage = validateSelections(selections, activeItems, incidenceLevels);
+    const hasRegisteredData = activeItems.some((item) => {
+      const selection = selections[item.id];
+
+      return Boolean(
+        selection?.incidenceLevelId ||
+        selection?.incidencePercentage !== "" ||
+        selection?.severityLevelId ||
+        selection?.organosAfectados.length
+      );
+    });
 
     if (validationMessage) {
       setSubmitError(validationMessage);
+      return;
+    }
+
+    if (shouldScore && hasRegisteredData && scoreValue === null) {
+      setSubmitError("Selecciona un puntaje de cumplimiento para este modulo.");
       return;
     }
 
@@ -548,13 +604,16 @@ export function VisitaObservacionesSanitariasScreen() {
     setSubmitError(null);
 
     try {
-      const selectedEntries = Object.entries(selections).filter(([, selection]) =>
-        Boolean(
+      const scoreToSave = scoreValue ?? 3;
+      const selectedEntries = Object.entries(selections).filter(
+        ([pestDiseaseId, selection]) =>
+          activeItemIds.has(pestDiseaseId) &&
+          Boolean(
           selection.incidenceLevelId ||
           selection.incidencePercentage !== "" ||
           selection.severityLevelId ||
           selection.organosAfectados.length > 0
-        )
+          )
       );
 
       for (const [pestDiseaseId, selection] of selectedEntries) {
@@ -579,20 +638,31 @@ export function VisitaObservacionesSanitariasScreen() {
         }
       }
 
+      if (shouldScore) {
+        await visitaCalificacionesService.upsert(visitaId, {
+          modulo: mode,
+          puntaje: scoreToSave,
+          observacion: stepNote.observation.trim() || null
+        });
+      }
+
       if (stepNote.observation.trim() || stepNote.recommendation.trim()) {
-        await observacionesSanitariasService.upsertStepNote(visitaId, STEP_NUMBER, {
+        await observacionesSanitariasService.upsertStepNote(visitaId, stepNumber, {
           observation: stepNote.observation.trim() || null,
           recommendation: stepNote.recommendation.trim() || null
         });
       }
 
       router.replace({
-        pathname: "/visitas-campo/[id]/nutricion",
+        pathname:
+          mode === "plagas"
+            ? "/visitas-campo/[id]/enfermedades"
+            : "/visitas-campo/[id]/nutricion",
         params: { id: visitaId }
       });
     } catch (nextError) {
       const apiError = toApiError(nextError);
-      setSubmitError(apiError.message || "No se pudo guardar el paso 2.");
+      setSubmitError(apiError.message || `No se pudo guardar el paso ${stepNumber}.`);
     } finally {
       setIsSaving(false);
     }
@@ -1057,16 +1127,16 @@ function LevelSelectorRow({
   );
 }
 
-function WizardProgress() {
+function WizardProgress({ stepNumber }: { stepNumber: number }) {
   return (
     <View style={styles.progressCard}>
       <AppText style={styles.progressLabel} variant="label">
-        Paso {STEP_NUMBER} de {WIZARD_STEPS.length}
+        Paso {stepNumber} de {WIZARD_STEPS.length}
       </AppText>
       <View style={styles.progressSteps}>
         {WIZARD_STEPS.map((step) => {
-          const isActive = step.index === STEP_NUMBER;
-          const isComplete = step.index < STEP_NUMBER;
+          const isActive = step.index === stepNumber;
+          const isComplete = step.index < stepNumber;
 
           return (
             <View key={step.index} style={styles.progressStepItem}>

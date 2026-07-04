@@ -74,6 +74,23 @@ Entidades hijas:
 - diagnóstico de riego;
 - labores culturales;
 - receta agronómica y sus secciones.
+- calificaciones de cumplimiento técnico por módulo.
+
+Las calificaciones de cumplimiento viven en `visita_calificaciones` y son hijas
+de una visita. Cada visita puede tener una calificación por módulo:
+`plagas`, `enfermedades`, `nutricion`, `riego` y `labores`. El puntaje técnico
+usa escala 0-3 y se sincroniza desde mobile mediante outbox después de que la
+visita padre tenga identificador de servidor.
+
+La calificación solo es clasificable cuando existe una receta anterior para la
+misma parcela. Por eso mobile exige registrar al menos una recomendación antes
+de finalizar una receta nueva. Si una visita previa no tiene receta, la visita
+siguiente muestra la referencia como no clasificable y no solicita score.
+
+La API calcula el score de cumplimiento en escala 0-100. El score por módulo se
+deriva de `puntaje / 3 * 100`; el score general de una visita usa la matriz de
+pesos hardcodeada por nombre normalizado de etapa fenológica. Los agregados por
+productor y por campaña se resuelven desde `campaniaId`.
 
 ## Seguridad
 

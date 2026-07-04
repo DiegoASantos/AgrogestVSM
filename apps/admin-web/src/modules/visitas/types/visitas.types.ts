@@ -69,6 +69,37 @@ export type VisitaLaborCultural = {
   laborCultural: LaborCulturalLookupItem | null;
 };
 
+export type CalificacionModulo =
+  | "plagas"
+  | "enfermedades"
+  | "nutricion"
+  | "riego"
+  | "labores";
+
+export type VisitaCalificacion = {
+  id: string;
+  visitaId: string;
+  modulo: CalificacionModulo;
+  puntaje: number;
+  observacion: string | null;
+};
+
+export type ScorePorModulo = Record<CalificacionModulo, number | null>;
+
+export type ProductorCalificacion = {
+  productorId: string;
+  scoreGeneral: number | null;
+  scorePorCampania: Record<
+    string,
+    {
+      scoreGeneral: number | null;
+      scorePorModulo: ScorePorModulo;
+    }
+  >;
+  totalVisitas: number;
+  totalVisitasCalificadas: number;
+};
+
 export type ProductorFilterOption = {
   id: string;
   label: string;
@@ -211,6 +242,7 @@ export type VisitaDetailData = {
   observacionesSanitarias: VisitaObservacionSanitaria[];
   riego: VisitaRiego | null;
   laboresCulturales: VisitaLaborCultural[];
+  calificaciones: VisitaCalificacion[];
   lookups: {
     agronomist: LookupItem | null;
     crop: CropLookupItem | null;
