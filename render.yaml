@@ -1,6 +1,7 @@
 services:
   - type: web
     name: agrogest-vsm-api
+    # Redeploy trigger for compliance scoring release.
     runtime: node
     region: virginia
     plan: free
