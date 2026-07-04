@@ -36,6 +36,7 @@ export type VisitaCampo = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  recetaAnteriorJson: string | null;
 };
 
 export type RecentVisitaCampo = {

@@ -54,7 +54,8 @@ const visitasCampoInsert = vi.fn(
       syncErrorMessage: null,
       isActive: true,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      recetaAnteriorJson: null
     };
 
     return visitaState;

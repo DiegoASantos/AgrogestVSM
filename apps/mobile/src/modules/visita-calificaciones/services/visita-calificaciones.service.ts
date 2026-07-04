@@ -49,15 +49,30 @@ export const visitaCalificacionesService = {
       return { existe: false };
     }
 
-    if (!visita.serverId) {
+    try {
+      const receta = await visitaCalificacionesRemote.getRecetaAnterior(
+        visita.parcelaId,
+        visita.serverId
+      );
+
+      visitasCampoRepository.updateRecetaAnterior(
+        visitaLocalId,
+        receta?.existe ? JSON.stringify(receta) : null
+      );
+
+      return receta;
+    } catch {
+      const current = visitasCampoRepository.getById(visitaLocalId);
+
+      if (current?.recetaAnteriorJson) {
+        try {
+          return JSON.parse(current.recetaAnteriorJson) as RecetaAnterior;
+        } catch {
+          return { existe: false };
+        }
+      }
+
       return { existe: false };
     }
-
-    const receta = await visitaCalificacionesRemote.getRecetaAnterior(
-      visita.parcelaId,
-      visita.serverId
-    );
-
-    return receta;
   }
 };

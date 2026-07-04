@@ -48,6 +48,7 @@ type VisitaCampoRow = {
   agronomist_signature_name: string | null;
   producer_signature_name: string | null;
   visit_location: string | null;
+  receta_anterior_json: string | null;
   synchronized_at: string | null;
   sync_error_message: string | null;
   is_active: number;
@@ -171,6 +172,7 @@ const VISITA_COLUMNS = `
   agronomist_signature_name,
   producer_signature_name,
   visit_location,
+  receta_anterior_json,
   synchronized_at,
   sync_error_message,
   is_active,
@@ -259,6 +261,17 @@ export const visitasCampoRepository = {
     );
 
     return row ? mapVisitaCampoRow(row) : null;
+  },
+
+  updateRecetaAnterior(localId: string, recetaAnteriorJson: string | null) {
+    const db = getDatabase();
+    db.runSync(
+      `UPDATE visitas_campo
+       SET receta_anterior_json = ?,
+           updated_at = ?
+       WHERE local_id = ?`,
+      [recetaAnteriorJson, getNowIsoString(), localId]
+    );
   },
 
   getLastVisitDefaultsByParcelaId(parcelaId: string) {
@@ -695,6 +708,7 @@ function mapVisitaCampoRow(row: VisitaCampoRow): VisitaCampo {
     agronomistSignatureName: row.agronomist_signature_name,
     producerSignatureName: row.producer_signature_name,
     visitLocation: normalizeGeoJsonPoint(parseNullableJson(row.visit_location)),
+    recetaAnteriorJson: row.receta_anterior_json,
     synchronizedAt: row.synchronized_at,
     syncErrorMessage: row.sync_error_message,
     isActive: fromSqliteBoolean(row.is_active),

@@ -152,6 +152,7 @@ function buildVisit(overrides: Partial<VisitaCampo> = {}): VisitaCampo {
     isActive: true,
     createdAt: now,
     updatedAt: now,
+    recetaAnteriorJson: null,
     ...overrides
   };
 }

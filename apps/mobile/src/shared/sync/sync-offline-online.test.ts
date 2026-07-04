@@ -356,7 +356,8 @@ function seedOfflineCompleteVisit() {
     syncErrorMessage: null,
     isActive: true,
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
+    recetaAnteriorJson: null
   };
   evaluacion = {
     id: "evaluacion-local-1",
