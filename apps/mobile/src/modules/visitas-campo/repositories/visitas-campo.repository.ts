@@ -112,6 +112,9 @@ type RecentVisitaCampoRow = {
   local_id: string;
   parcela_id: string;
   parcela_name: string | null;
+  productor_id: string | null;
+  first_name: string | null;
+  last_name: string | null;
   visit_date: string;
   start_visit_time: string;
   sync_status: SyncStatus;
@@ -213,12 +216,16 @@ export const visitasCampoRepository = {
          visita.local_id,
          visita.parcela_id,
          parcela.name AS parcela_name,
+         parcela.productor_id,
+         productor.first_name,
+         productor.last_name,
          visita.visit_date,
          visita.start_visit_time,
          visita.sync_status,
          visita.created_at
        FROM visitas_campo visita
        LEFT JOIN parcelas parcela ON parcela.id = visita.parcela_id
+       LEFT JOIN productores productor ON productor.id = parcela.productor_id
        WHERE visita.agronomist_user_id = ? AND visita.is_active = 1
        ORDER BY visita.created_at DESC
        LIMIT ?`,
@@ -236,12 +243,16 @@ export const visitasCampoRepository = {
          visita.local_id,
          visita.parcela_id,
          parcela.name AS parcela_name,
+         parcela.productor_id,
+         productor.first_name,
+         productor.last_name,
          visita.visit_date,
          visita.start_visit_time,
          visita.sync_status,
          visita.created_at
        FROM visitas_campo visita
        LEFT JOIN parcelas parcela ON parcela.id = visita.parcela_id
+       LEFT JOIN productores productor ON productor.id = parcela.productor_id
        WHERE visita.agronomist_user_id = ? AND visita.is_active = 1
        ORDER BY visita.visit_date DESC, visita.start_visit_time DESC, visita.created_at DESC`,
       agronomistUserId
@@ -764,10 +775,17 @@ function normalizeCatalogName(value: string) {
 }
 
 function mapRecentVisitaCampoRow(row: RecentVisitaCampoRow): RecentVisitaCampo {
+  const productorName = [row.first_name, row.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || null;
+
   return {
     id: row.local_id,
     parcelaId: row.parcela_id,
     parcelaName: row.parcela_name,
+    productorId: row.productor_id || null,
+    productorName,
     visitDate: row.visit_date,
     startVisitTime: row.start_visit_time,
     syncStatus: row.sync_status,

@@ -1,8 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 
 import {
   AppButton,
@@ -32,10 +32,16 @@ export function VisitasHistoryScreen() {
     visitaId: string;
     action: PdfAction;
   } | null>(null);
+  const [filterSearchText, setFilterSearchText] = useState("");
+  const [selectedProductorId, setSelectedProductorId] = useState<string | null>(null);
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
   const loadVisitas = useCallback(() => {
     setIsLoading(true);
     setError(null);
+    setFilterSearchText("");
+    setSelectedProductorId(null);
+    setIsFilterDropdownOpen(false);
 
     if (!session.accessToken) {
       setVisitas([]);
@@ -56,11 +62,38 @@ export function VisitasHistoryScreen() {
 
   useFocusEffect(loadVisitas);
 
+  const productorOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const v of visitas) {
+      if (v.productorId && v.productorName) {
+        map.set(v.productorId, v.productorName);
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [visitas]);
+
+  const filteredProductorOptions = useMemo(() => {
+    const normalized = normalizeSearchText(filterSearchText);
+    if (!normalized) return productorOptions.slice(0, 10);
+    return productorOptions
+      .filter((p) => normalizeSearchText(p.name).includes(normalized))
+      .slice(0, 10);
+  }, [productorOptions, filterSearchText]);
+
+  const filteredVisitas = selectedProductorId
+    ? visitas.filter((v) => v.productorId === selectedProductorId)
+    : visitas;
+
+  const selectedProductorName = selectedProductorId
+    ? productorOptions.find((p) => p.id === selectedProductorId)?.name ?? null
+    : null;
+
   return (
     <ScreenContainer contentStyle={styles.container}>
       <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <AppHeader
@@ -68,6 +101,96 @@ export function VisitasHistoryScreen() {
           title="Historial"
           subtitle="Consulta las visitas que registraste desde este dispositivo."
         />
+
+        {!isLoading && !error && productorOptions.length > 0 ? (
+          <View style={styles.filterContainer}>
+            <View style={styles.filterInputRow}>
+              <Ionicons
+                color={theme.colors.textMuted}
+                name="search-outline"
+                size={18}
+                style={styles.filterSearchIcon}
+              />
+              <TextInput
+                accessibilityLabel="Buscar productor"
+                autoCapitalize="none"
+                autoCorrect={false}
+                onBlur={() => {
+                  setTimeout(() => setIsFilterDropdownOpen(false), 200);
+                }}
+                onChangeText={(text) => {
+                  setFilterSearchText(text);
+                  setIsFilterDropdownOpen(true);
+                }}
+                onFocus={() => setIsFilterDropdownOpen(true)}
+                placeholder="Filtrar por productor..."
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.filterSearchInput}
+                value={filterSearchText}
+              />
+              {selectedProductorId ? (
+                <Pressable
+                  accessibilityLabel="Limpiar filtro de productor"
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setSelectedProductorId(null);
+                    setFilterSearchText("");
+                  }}
+                  style={({ pressed }) => [
+                    styles.filterClearButton,
+                    pressed && styles.pressedFilterButton
+                  ]}
+                >
+                  <Ionicons color={theme.colors.textMuted} name="close-circle" size={20} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            {isFilterDropdownOpen &&
+            !selectedProductorId &&
+            filteredProductorOptions.length > 0 ? (
+              <View style={styles.filterDropdown}>
+                {filteredProductorOptions.map((option) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={option.id}
+                    onPress={() => {
+                      setSelectedProductorId(option.id);
+                      setFilterSearchText(option.name);
+                      setIsFilterDropdownOpen(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.filterOptionRow,
+                      pressed && styles.filterOptionPressed
+                    ]}
+                  >
+                    <AppText variant="label">{option.name}</AppText>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            {isFilterDropdownOpen &&
+            !selectedProductorId &&
+            filteredProductorOptions.length === 0 &&
+            filterSearchText.length > 0 ? (
+              <View style={styles.filterDropdown}>
+                <AppText variant="muted" style={styles.filterNoResults}>
+                  No hay coincidencias.
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {selectedProductorId && selectedProductorName ? (
+          <View style={styles.filterActiveChip}>
+            <Ionicons color={theme.colors.primary} name="person-outline" size={14} />
+            <AppText style={styles.filterActiveChipText} variant="caption">
+              {selectedProductorName}
+            </AppText>
+          </View>
+        ) : null}
 
         {isLoading ? (
           <AppCard>
@@ -82,17 +205,21 @@ export function VisitasHistoryScreen() {
           </AppCard>
         ) : null}
 
-        {!isLoading && !error && visitas.length === 0 ? (
+        {!isLoading && !error && filteredVisitas.length === 0 ? (
           <AppCard>
             <AppEmptyState
-              title="Todavia no registraste visitas"
-              message="Cuando guardes una visita desde la app aparecera aqui."
+              title="Sin resultados"
+              message={
+                selectedProductorId
+                  ? "No hay visitas registradas para este productor."
+                  : "Todavia no registraste visitas."
+              }
             />
           </AppCard>
         ) : null}
 
-        {!isLoading && !error
-          ? visitas.map((visita) => (
+        {!isLoading && !error && filteredVisitas.length > 0
+          ? filteredVisitas.map((visita) => (
               <HistoryItem
                 key={visita.id}
                 onPress={() =>
@@ -168,7 +295,11 @@ function HistoryItem({
           </View>
           <View style={styles.visitCopy}>
             <AppText variant="label">
-              {visita.parcelaName ? `Visita a ${visita.parcelaName}` : "Visita de campo"}
+              {visita.productorName && visita.parcelaName
+                ? `${visita.productorName} - ${visita.parcelaName}`
+                : visita.parcelaName
+                  ? `Visita a ${visita.parcelaName}`
+                  : "Visita de campo"}
             </AppText>
             <AppText style={styles.visitDate} variant="caption">
               {formatVisitDateTime(visita.visitDate, visita.startVisitTime)}
@@ -206,6 +337,14 @@ function HistoryItem({
       </View>
     </AppCard>
   );
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function formatVisitDateTime(visitDate: string, startVisitTime: string) {
@@ -260,6 +399,74 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingHorizontal: 18,
     paddingVertical: 18
+  },
+  filterContainer: {
+    position: "relative",
+    zIndex: 10
+  },
+  filterInputRow: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 12
+  },
+  filterSearchIcon: {
+    marginRight: 2
+  },
+  filterSearchInput: {
+    color: theme.colors.text,
+    flex: 1,
+    fontSize: 15,
+    minHeight: 44,
+    paddingVertical: 0
+  },
+  filterClearButton: {
+    padding: 4
+  },
+  pressedFilterButton: {
+    opacity: 0.7
+  },
+  filterDropdown: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.5,
+    gap: 2,
+    marginTop: 4,
+    padding: 6,
+    ...theme.shadow.md
+  },
+  filterOptionRow: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  filterOptionPressed: {
+    backgroundColor: theme.colors.primaryMuted
+  },
+  filterNoResults: {
+    padding: 8
+  },
+  filterActiveChip: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6
+  },
+  filterActiveChipText: {
+    color: theme.colors.primary,
+    fontWeight: "600"
   },
   visitCard: {
     paddingHorizontal: 13,

@@ -34,20 +34,16 @@ import type {
   FertilizanteCatalogItem,
   VisitaRecetaCompleta
 } from "../../types";
+import {
+  generateOrdenMezcla,
+  isOrdenMezclaFixedItem,
+  swapOrdenMezclaItems
+} from "./visita-receta-order";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
-
-const COADYUVANTE_ORDER: Record<string, number> = {
-  "Corrector de pH": 2,
-  Adherente: 4,
-  Tensoactivo: 3,
-  Antideriva: 5,
-  "Aceite penetrante": 5,
-  Antiespumante: 6
-};
 
 function parsePositiveDecimal(value: string | number | null | undefined): number | null {
   if (value === null || value === undefined) return null;
@@ -101,22 +97,6 @@ function toSingleParam(value: string | string[] | undefined): string | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
-function generateOrdenMezcla(coadyuvanteNombres: string[]): string[] {
-  const orden: string[] = ["Agua"];
-  const sortedAdyuvantes = [...coadyuvanteNombres].sort(
-    (a, b) => (COADYUVANTE_ORDER[a] ?? 99) - (COADYUVANTE_ORDER[b] ?? 99)
-  );
-  const pHItem = sortedAdyuvantes.find((n) => n === "Corrector de pH");
-  if (pHItem) orden.push(pHItem);
-  orden.push("Producto agroquimico");
-  for (const name of sortedAdyuvantes) {
-    if (name !== "Corrector de pH") {
-      orden.push(name);
-    }
-  }
-  return orden;
-}
-
 export function VisitaRecetaScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
@@ -154,6 +134,7 @@ export function VisitaRecetaScreen() {
   const [laborSelections, setLaborSelections] = useState<Set<string>>(() => new Set());
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [ordenExchangeResetToken, setOrdenExchangeResetToken] = useState(0);
   const loadRequestRef = useRef(0);
 
   useEffect(() => {
@@ -415,6 +396,7 @@ export function VisitaRecetaScreen() {
 
   async function handleSave() {
     if (!visitaId) return;
+    resetOrdenExchangeState();
     const recetaValidation = validateRequiredRecipe(
       fitosanidadApps,
       fertilizacion,
@@ -513,6 +495,7 @@ export function VisitaRecetaScreen() {
   }
 
   function goBackToSteps() {
+    resetOrdenExchangeState();
     if (!visitaId) {
       router.back();
       return;
@@ -524,7 +507,12 @@ export function VisitaRecetaScreen() {
   }
 
   function toggleDropdown(key: string) {
+    resetOrdenExchangeState();
     setOpenDropdown((prev) => (prev === key ? null : key));
+  }
+
+  function resetOrdenExchangeState() {
+    setOrdenExchangeResetToken((value) => value + 1);
   }
 
   if (isLoading) {
@@ -613,6 +601,7 @@ export function VisitaRecetaScreen() {
                 modosAccion={modosAccion}
                 onChange={(patch) => updateFitosanidadApp(index, patch)}
                 openDropdown={openDropdown}
+                resetToken={ordenExchangeResetToken}
                 tiposControl={tiposControl}
                 tiposProducto={tiposProducto}
                 toggleDropdown={toggleDropdown}
@@ -823,6 +812,7 @@ function FitosanidadCard({
   tiposProducto,
   modosAccion,
   openDropdown,
+  resetToken,
   onChange,
   toggleDropdown
 }: {
@@ -834,10 +824,69 @@ function FitosanidadCard({
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
   openDropdown: string | null;
+  resetToken: number;
   onChange: (patch: Partial<AppFitosanidad>) => void;
   toggleDropdown: (key: string) => void;
 }) {
   const prefix = `fito_${index}`;
+  const [isExchangeMode, setIsExchangeMode] = useState(false);
+  const [selectedOrdenIndex, setSelectedOrdenIndex] = useState<number | null>(null);
+  const selectedCoadyuvanteNames = new Set(
+    value.coadyuvantesIds
+      .map((id) => coadyuvantes.find((c) => c.id === id)?.name ?? "")
+      .filter(Boolean)
+  );
+  const selectableOrdenCount = value.ordenMezcla.filter((item) =>
+    isSelectableOrdenItem(item)
+  ).length;
+  const canExchangeOrden = selectableOrdenCount >= 2;
+
+  useEffect(() => {
+    setIsExchangeMode(false);
+    setSelectedOrdenIndex(null);
+  }, [resetToken, value.coadyuvantesIds]);
+
+  useEffect(() => {
+    if (!canExchangeOrden) {
+      setIsExchangeMode(false);
+    }
+    setSelectedOrdenIndex(null);
+  }, [canExchangeOrden, value.ordenMezcla]);
+
+  function isSelectableOrdenItem(item: string) {
+    return selectedCoadyuvanteNames.has(item) && !isOrdenMezclaFixedItem(item);
+  }
+
+  function toggleExchangeMode() {
+    setIsExchangeMode((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSelectedOrdenIndex(null);
+      }
+      return next;
+    });
+  }
+
+  function handleOrdenItemPress(item: string, itemIndex: number) {
+    if (!isExchangeMode || !isSelectableOrdenItem(item)) {
+      return;
+    }
+
+    if (selectedOrdenIndex === null) {
+      setSelectedOrdenIndex(itemIndex);
+      return;
+    }
+
+    if (selectedOrdenIndex === itemIndex) {
+      setSelectedOrdenIndex(null);
+      return;
+    }
+
+    onChange({
+      ordenMezcla: swapOrdenMezclaItems(value.ordenMezcla, selectedOrdenIndex, itemIndex)
+    });
+    setSelectedOrdenIndex(null);
+  }
 
   return (
     <View style={styles.fitosanidadCard}>
@@ -972,12 +1021,93 @@ function FitosanidadCard({
 
       {value.ordenMezcla.length > 0 ? (
         <View style={styles.ordenContainer}>
-          <AppText variant="label">Orden de mezcla</AppText>
-          {value.ordenMezcla.map((item, i) => (
-            <AppText key={i} variant="muted">
-              {i + 1}°: {item}
-            </AppText>
-          ))}
+          <View style={styles.ordenHeader}>
+            <AppText variant="label">Orden de mezcla</AppText>
+            {canExchangeOrden ? (
+              <Pressable
+                accessibilityLabel={
+                  isExchangeMode ? "Finalizar intercambio" : "Intercambiar orden"
+                }
+                accessibilityRole="button"
+                onPress={toggleExchangeMode}
+                style={({ pressed }) => [
+                  styles.ordenExchangeButton,
+                  isExchangeMode && styles.ordenExchangeButtonActive,
+                  pressed && styles.pressedButton
+                ]}
+              >
+                <Ionicons
+                  color={
+                    isExchangeMode ? theme.colors.textInverse : theme.colors.primary
+                  }
+                  name={isExchangeMode ? "checkmark" : "swap-horizontal"}
+                  size={16}
+                />
+                <AppText
+                  style={[
+                    styles.ordenExchangeButtonText,
+                    isExchangeMode && styles.ordenExchangeButtonTextActive
+                  ]}
+                  variant="caption"
+                >
+                  {isExchangeMode ? "Listo" : "Intercambiar"}
+                </AppText>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {value.ordenMezcla.map((item, i) => {
+            const selectable = isSelectableOrdenItem(item);
+            const selected = selectedOrdenIndex === i;
+            const content = (
+              <>
+                <AppText
+                  style={[styles.ordenItemText, selected && styles.ordenItemTextSelected]}
+                  variant="muted"
+                >
+                  {i + 1}°: {item}
+                </AppText>
+                {isExchangeMode && selectable ? (
+                  <Ionicons
+                    color={selected ? theme.colors.primary : theme.colors.textMuted}
+                    name={selected ? "radio-button-on" : "ellipse-outline"}
+                    size={18}
+                  />
+                ) : null}
+              </>
+            );
+
+            if (!isExchangeMode || !selectable) {
+              return (
+                <View
+                  key={`${item}_${i}`}
+                  style={[
+                    styles.ordenItem,
+                    isExchangeMode && !selectable && styles.ordenItemFixed
+                  ]}
+                >
+                  {content}
+                </View>
+              );
+            }
+
+            return (
+              <Pressable
+                accessibilityLabel={`Seleccionar ${item} para intercambio`}
+                accessibilityRole="button"
+                key={`${item}_${i}`}
+                onPress={() => handleOrdenItemPress(item, i)}
+                style={({ pressed }) => [
+                  styles.ordenItem,
+                  styles.ordenItemSelectable,
+                  selected && styles.ordenItemSelected,
+                  pressed && styles.pressedButton
+                ]}
+              >
+                {content}
+              </Pressable>
+            );
+          })}
         </View>
       ) : null}
     </View>
@@ -1570,8 +1700,66 @@ const styles = StyleSheet.create({
   ordenContainer: {
     backgroundColor: theme.colors.warningMuted,
     borderRadius: theme.radius.sm,
-    gap: 4,
+    gap: 8,
     padding: 12
+  },
+  ordenHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "space-between"
+  },
+  ordenExchangeButton: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    minHeight: 32,
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  ordenExchangeButtonActive: {
+    backgroundColor: theme.colors.primary
+  },
+  ordenExchangeButtonText: {
+    color: theme.colors.primary,
+    fontWeight: "600"
+  },
+  ordenExchangeButtonTextActive: {
+    color: theme.colors.textInverse
+  },
+  ordenItem: {
+    alignItems: "center",
+    borderColor: "transparent",
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    minHeight: 36,
+    paddingHorizontal: 8,
+    paddingVertical: 6
+  },
+  ordenItemSelectable: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.primary,
+    borderStyle: "dashed"
+  },
+  ordenItemSelected: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderStyle: "solid"
+  },
+  ordenItemFixed: {
+    opacity: 0.72
+  },
+  ordenItemText: {
+    flex: 1
+  },
+  ordenItemTextSelected: {
+    color: theme.colors.primary,
+    fontWeight: "600"
   },
   fertilizacionCard: {
     backgroundColor: theme.colors.surface,

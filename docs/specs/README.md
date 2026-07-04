@@ -52,4 +52,6 @@ en la raíz.
 - [Spec 006: Codigo autogenerado de parcelas](006-parcela-codigo-autogenerado.md)
 - [Spec 007: Subsectores como hijo de sectores](007-subsectores.md)
 - [Spec 008: Sistema de Calificación de Cumplimiento por Módulo en Visitas](008-calificacion-cumplimiento-modulos.md)
+- [Spec 009: Intercambio manual de posiciones en el orden de mezcla de coadyuvantes](009-intercambio-orden-mezcla-coadyuvantes.md)
+- [Spec 010: Gestor de sincronización adaptativo con tasa de éxito para redes inestables](010-gestor-sync-adaptativo-tasa-exito.md)
 - [Plantilla](TEMPLATE.md)

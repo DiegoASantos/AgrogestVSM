@@ -43,6 +43,8 @@ export type RecentVisitaCampo = {
   id: string;
   parcelaId: string;
   parcelaName: string | null;
+  productorId: string | null;
+  productorName: string | null;
   visitDate: string;
   startVisitTime: string;
   syncStatus: VisitaCampo["syncStatus"];

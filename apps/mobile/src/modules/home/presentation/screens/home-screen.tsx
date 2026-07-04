@@ -708,7 +708,11 @@ function RecentActivityItem({
       </View>
       <View style={styles.activityCopy}>
         <AppText style={styles.activityTitle} variant="label">
-          {visit.parcelaName ? `Visita a ${visit.parcelaName}` : "Visita de campo"}
+          {visit.productorName && visit.parcelaName
+            ? `${visit.productorName} - ${visit.parcelaName}`
+            : visit.parcelaName
+              ? `Visita a ${visit.parcelaName}`
+              : "Visita de campo"}
         </AppText>
         <View style={styles.activityMeta}>
           <AppText style={styles.activityDescription} variant="caption">
