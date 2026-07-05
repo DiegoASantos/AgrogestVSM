@@ -15,6 +15,9 @@ export type VisitaCalificacion = {
   modulo: CalificacionModulo;
   puntaje: number;
   observacion: string | null;
+  justificado: boolean | null;
+  categoriaJustificacion: string | null;
+  motivoJustificacion: string | null;
   syncStatus: "pending" | "synced" | "error";
   syncErrorMessage: string | null;
   createdAt: string;
@@ -25,6 +28,9 @@ export type UpsertCalificacionInput = {
   modulo: CalificacionModulo;
   puntaje: number;
   observacion?: string | null;
+  justificado?: boolean | null;
+  categoriaJustificacion?: string | null;
+  motivoJustificacion?: string | null;
 };
 
 export type RecetaAnterior = {

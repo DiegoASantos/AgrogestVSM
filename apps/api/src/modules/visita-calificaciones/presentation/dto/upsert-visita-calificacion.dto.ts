@@ -1,6 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from "class-validator";
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min
+} from "class-validator";
 
 import { CALIFICACION_MODULOS, type CalificacionModulo } from "../../domain/weight-matrix";
 
@@ -33,4 +42,36 @@ export class UpsertVisitaCalificacionDto {
   @MaxLength(1000)
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   observacion?: string | null;
+
+  @ApiPropertyOptional({
+    example: true,
+    nullable: true,
+    description:
+      "Indica si un puntaje menor a 3 esta justificado por una causa externa."
+  })
+  @IsOptional()
+  @IsBoolean()
+  justificado?: boolean | null;
+
+  @ApiPropertyOptional({
+    example: "recursos",
+    nullable: true,
+    description: "Categoria de justificacion para incumplimientos justificados."
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  categoriaJustificacion?: string | null;
+
+  @ApiPropertyOptional({
+    example: "problemas_agua",
+    nullable: true,
+    description: "Motivo especifico de justificacion para el incumplimiento."
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  motivoJustificacion?: string | null;
 }

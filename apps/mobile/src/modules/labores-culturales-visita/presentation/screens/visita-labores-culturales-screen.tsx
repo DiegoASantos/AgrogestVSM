@@ -25,10 +25,12 @@ import { toApiError } from "../../../../shared/services";
 import { scheduleSync } from "../../../../shared/sync";
 import {
   ComplianceScoreCard,
-  PreviousRecipeSummaryCard
+  PreviousRecipeSummaryCard,
+  StepObservationCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
 import type { RecetaAnterior } from "../../../visita-calificaciones/types";
+import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import { laboresCulturalesVisitaService } from "../../services";
 import type { LaborCulturalCatalogItem } from "../../types";
 
@@ -53,6 +55,10 @@ export function VisitaLaboresCulturalesScreen() {
   const [labores, setLabores] = useState<LaborCulturalCatalogItem[]>([]);
   const [selectedLaborIds, setSelectedLaborIds] = useState<Set<string>>(() => new Set());
   const [scoreValue, setScoreValue] = useState<number | null>(null);
+  const [scoreJustificado, setScoreJustificado] = useState<boolean | null>(null);
+  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(null);
+  const [motivoJustificacion, setMotivoJustificacion] = useState<string | null>(null);
+  const [stepObservation, setStepObservation] = useState("");
   const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
   const [helpItem, setHelpItem] = useState<LaborCulturalCatalogItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -193,12 +199,22 @@ export function VisitaLaboresCulturalesScreen() {
               {recetaAnterior?.existe ? (
                 <ComplianceScoreCard
                   value={scoreValue}
-                  onChange={(value) => {
-                    setSubmitError(null);
-                    setScoreValue(value);
-                  }}
+                  onChange={handleScoreChange}
+                  justificado={scoreJustificado}
+                  onJustificadoChange={handleJustificadoChange}
+                  categoriaJustificacion={categoriaJustificacion}
+                  onCategoriaJustificacionChange={setCategoriaJustificacion}
+                  motivoJustificacion={motivoJustificacion}
+                  onMotivoJustificacionChange={setMotivoJustificacion}
+                  observacion={stepObservation}
+                  onObservacionChange={setStepObservation}
                 />
-              ) : null}
+              ) : (
+                <StepObservationCard
+                  value={stepObservation}
+                  onChange={setStepObservation}
+                />
+              )}
 
               {submitError ? (
                 <View style={styles.errorBanner}>
@@ -276,12 +292,26 @@ export function VisitaLaboresCulturalesScreen() {
       }
 
       const existingLabores = await laboresCulturalesVisitaService.getByVisitaId(id);
+      const nextStepNote = await observacionesSanitariasService.getStepNote(
+        id,
+        STEP_NUMBER
+      );
+      const currentCalificacion = visitaCalificacionesService.getByModulo(
+        id,
+        "labores"
+      );
 
       setLabores(nextLabores.filter((labor) => labor.isActive && labor.categoryCode));
       setSelectedLaborIds(new Set(existingLabores.map((labor) => labor.laborCulturalId)));
-      setScoreValue(
-        visitaCalificacionesService.getByModulo(id, "labores")?.puntaje ?? null
+      setScoreValue(currentCalificacion?.puntaje ?? null);
+      setScoreJustificado(
+        currentCalificacion && currentCalificacion.puntaje < 3
+          ? (currentCalificacion.justificado ?? false)
+          : null
       );
+      setCategoriaJustificacion(currentCalificacion?.categoriaJustificacion ?? null);
+      setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
+      setStepObservation(nextStepNote?.observation ?? "");
       try {
         setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
       } catch {
@@ -329,6 +359,30 @@ export function VisitaLaboresCulturalesScreen() {
     });
   }
 
+  function handleScoreChange(value: number) {
+    setSubmitError(null);
+    setScoreValue(value);
+
+    if (value === 3) {
+      setScoreJustificado(null);
+      setCategoriaJustificacion(null);
+      setMotivoJustificacion(null);
+      return;
+    }
+
+    setScoreJustificado((currentValue) => currentValue ?? false);
+  }
+
+  function handleJustificadoChange(value: boolean) {
+    setSubmitError(null);
+    setScoreJustificado(value);
+
+    if (!value) {
+      setCategoriaJustificacion(null);
+      setMotivoJustificacion(null);
+    }
+  }
+
   async function handleSave() {
     if (!visitaId) {
       setSubmitError("No se encontro una visita valida.");
@@ -351,6 +405,17 @@ export function VisitaLaboresCulturalesScreen() {
       return;
     }
 
+    if (
+      shouldScore &&
+      scoreValue !== null &&
+      scoreValue < 3 &&
+      scoreJustificado === true &&
+      (!categoriaJustificacion || !motivoJustificacion)
+    ) {
+      setSubmitError("Selecciona categoria y motivo de justificacion.");
+      return;
+    }
+
     setIsSaving(true);
     setSubmitError(null);
 
@@ -360,9 +425,16 @@ export function VisitaLaboresCulturalesScreen() {
         await visitaCalificacionesService.upsert(visitaId, {
           modulo: "labores",
           puntaje: scoreValue ?? 3,
-          observacion: null
+          observacion: stepObservation.trim() || null,
+          justificado: resolveJustificado(scoreValue ?? 3, scoreJustificado),
+          categoriaJustificacion:
+            scoreJustificado === true ? categoriaJustificacion : null,
+          motivoJustificacion: scoreJustificado === true ? motivoJustificacion : null
         });
       }
+      await observacionesSanitariasService.upsertStepNote(visitaId, STEP_NUMBER, {
+        observation: stepObservation.trim() || null
+      });
       void scheduleSync();
       router.replace({
         pathname: "/visitas-campo/[id]/receta",
@@ -703,6 +775,10 @@ function toSingleParam(value?: string | string[]) {
   }
 
   return value ?? null;
+}
+
+function resolveJustificado(score: number, justificado: boolean | null) {
+  return score === 3 ? null : (justificado ?? false);
 }
 
 const styles = StyleSheet.create({

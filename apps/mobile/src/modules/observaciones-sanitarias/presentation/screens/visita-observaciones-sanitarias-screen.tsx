@@ -158,6 +158,9 @@ export function VisitaObservacionesSanitariasScreen({
     recommendation: ""
   });
   const [scoreValue, setScoreValue] = useState<number | null>(null);
+  const [scoreJustificado, setScoreJustificado] = useState<boolean | null>(null);
+  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(null);
+  const [motivoJustificacion, setMotivoJustificacion] = useState<string | null>(null);
   const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
   const [imagePreview, setImagePreview] = useState<PestDiseaseByStageItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -293,10 +296,20 @@ export function VisitaObservacionesSanitariasScreen({
               {recetaAnterior?.existe ? (
                 <ComplianceScoreCard
                   value={scoreValue}
-                  onChange={(value) => {
-                    setSubmitError(null);
-                    setScoreValue(value);
-                  }}
+                  onChange={handleScoreChange}
+                  justificado={scoreJustificado}
+                  onJustificadoChange={handleJustificadoChange}
+                  categoriaJustificacion={categoriaJustificacion}
+                  onCategoriaJustificacionChange={setCategoriaJustificacion}
+                  motivoJustificacion={motivoJustificacion}
+                  onMotivoJustificacionChange={setMotivoJustificacion}
+                  observacion={stepNote.observation}
+                  onObservacionChange={(value) =>
+                    setStepNote((current) => ({
+                      ...current,
+                      observation: value
+                    }))
+                  }
                 />
               ) : null}
             </>
@@ -306,28 +319,30 @@ export function VisitaObservacionesSanitariasScreen({
             <View style={styles.noteCard}>
               <View style={styles.sectionHeader}>
                 <AppText style={styles.sectionTitle} variant="heading">
-                  Observacion y recomendacion
+                  {recetaAnterior?.existe ? "Recomendacion" : "Observacion y recomendacion"}
                 </AppText>
                 <AppText style={styles.sectionSubtitle} variant="caption">
                   Esta informacion pertenece solo al paso {stepNumber}.
                 </AppText>
               </View>
 
-              <TextInput
-                multiline
-                numberOfLines={4}
-                onChangeText={(value) =>
-                  setStepNote((current) => ({
-                    ...current,
-                    observation: value
-                  }))
-                }
-                placeholder="Observacion del paso"
-                placeholderTextColor={theme.colors.textMuted}
-                style={styles.noteInput}
-                textAlignVertical="top"
-                value={stepNote.observation}
-              />
+              {!recetaAnterior?.existe ? (
+                <TextInput
+                  multiline
+                  numberOfLines={4}
+                  onChangeText={(value) =>
+                    setStepNote((current) => ({
+                      ...current,
+                      observation: value
+                    }))
+                  }
+                  placeholder="Observacion del paso"
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={styles.noteInput}
+                  textAlignVertical="top"
+                  value={stepNote.observation}
+                />
+              ) : null}
 
               <TextInput
                 multiline
@@ -440,9 +455,15 @@ export function VisitaObservacionesSanitariasScreen({
       setIncidenceLevels(nextIncidenceLevels.map(normalizeIncidenceLevel));
       setObservaciones(nextObservaciones);
       setSelections(buildSelectionMap(nextObservaciones));
-      setScoreValue(
-        visitaCalificacionesService.getByModulo(id, mode)?.puntaje ?? null
+      const currentCalificacion = visitaCalificacionesService.getByModulo(id, mode);
+      setScoreValue(currentCalificacion?.puntaje ?? null);
+      setScoreJustificado(
+        currentCalificacion && currentCalificacion.puntaje < 3
+          ? (currentCalificacion.justificado ?? false)
+          : null
       );
+      setCategoriaJustificacion(currentCalificacion?.categoriaJustificacion ?? null);
+      setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
       try {
         setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
       } catch {
@@ -569,6 +590,30 @@ export function VisitaObservacionesSanitariasScreen({
     });
   }
 
+  function handleScoreChange(value: number) {
+    setSubmitError(null);
+    setScoreValue(value);
+
+    if (value === 3) {
+      setScoreJustificado(null);
+      setCategoriaJustificacion(null);
+      setMotivoJustificacion(null);
+      return;
+    }
+
+    setScoreJustificado((currentValue) => currentValue ?? false);
+  }
+
+  function handleJustificadoChange(value: boolean) {
+    setSubmitError(null);
+    setScoreJustificado(value);
+
+    if (!value) {
+      setCategoriaJustificacion(null);
+      setMotivoJustificacion(null);
+    }
+  }
+
   async function handleContinue() {
     if (!visitaId) {
       setSubmitError("No se encontro una visita valida.");
@@ -597,6 +642,17 @@ export function VisitaObservacionesSanitariasScreen({
 
     if (shouldScore && hasRegisteredData && scoreValue === null) {
       setSubmitError("Selecciona un puntaje de cumplimiento para este modulo.");
+      return;
+    }
+
+    if (
+      shouldScore &&
+      scoreValue !== null &&
+      scoreValue < 3 &&
+      scoreJustificado === true &&
+      (!categoriaJustificacion || !motivoJustificacion)
+    ) {
+      setSubmitError("Selecciona categoria y motivo de justificacion.");
       return;
     }
 
@@ -642,16 +698,18 @@ export function VisitaObservacionesSanitariasScreen({
         await visitaCalificacionesService.upsert(visitaId, {
           modulo: mode,
           puntaje: scoreToSave,
-          observacion: stepNote.observation.trim() || null
+          observacion: stepNote.observation.trim() || null,
+          justificado: resolveJustificado(scoreToSave, scoreJustificado),
+          categoriaJustificacion:
+            scoreJustificado === true ? categoriaJustificacion : null,
+          motivoJustificacion: scoreJustificado === true ? motivoJustificacion : null
         });
       }
 
-      if (stepNote.observation.trim() || stepNote.recommendation.trim()) {
-        await observacionesSanitariasService.upsertStepNote(visitaId, stepNumber, {
-          observation: stepNote.observation.trim() || null,
-          recommendation: stepNote.recommendation.trim() || null
-        });
-      }
+      await observacionesSanitariasService.upsertStepNote(visitaId, stepNumber, {
+        observation: stepNote.observation.trim() || null,
+        recommendation: stepNote.recommendation.trim() || null
+      });
 
       router.replace({
         pathname:
@@ -1464,6 +1522,10 @@ function isZeroIncidenceLevel(level?: IncidenceLevelCatalogItem | null) {
   }
 
   return level.sortOrder <= 0 || normalizeCatalogName(level.name).includes("0");
+}
+
+function resolveJustificado(score: number, justificado: boolean | null) {
+  return score === 3 ? null : (justificado ?? false);
 }
 
 function getLevelColor(sortOrder: number) {

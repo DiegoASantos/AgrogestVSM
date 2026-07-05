@@ -54,4 +54,5 @@ en la raíz.
 - [Spec 008: Sistema de Calificación de Cumplimiento por Módulo en Visitas](008-calificacion-cumplimiento-modulos.md)
 - [Spec 009: Intercambio manual de posiciones en el orden de mezcla de coadyuvantes](009-intercambio-orden-mezcla-coadyuvantes.md)
 - [Spec 010: Gestor de sincronización adaptativo con tasa de éxito para redes inestables](010-gestor-sync-adaptativo-tasa-exito.md)
+- [Spec 011: Justificación de puntajes bajos, observaciones de paso ampliadas y resumen ejecutivo en receta PDF](011-justificacion-puntajes-bajos-observaciones-paso-resumen-pdf.md)
 - [Plantilla](TEMPLATE.md)

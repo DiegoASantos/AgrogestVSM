@@ -82,6 +82,13 @@ de una visita. Cada visita puede tener una calificación por módulo:
 usa escala 0-3 y se sincroniza desde mobile mediante outbox después de que la
 visita padre tenga identificador de servidor.
 
+Cuando un puntaje es menor a 3, la calificación puede registrar si el
+incumplimiento fue justificado. Para incumplimientos justificados se guarda una
+categoría y un motivo de catálogo mobile; para puntaje 3 los campos de
+justificación quedan en `NULL`. La observación cualitativa usada por el técnico
+se registra como observación del paso en `visita_paso_observaciones` y también
+se envía como soporte de la calificación cuando aplica.
+
 La calificación solo es clasificable cuando existe una receta anterior para la
 misma parcela. Por eso mobile exige registrar al menos una recomendación antes
 de finalizar una receta nueva. Si una visita previa no tiene receta, la visita

@@ -255,6 +255,13 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       color: #6b7a6f;
       text-align: center;
     }
+    .producer-summary {
+      background: #f7fbf8;
+      border: 1px solid #b7d7c3;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 14px;
+    }
   </style>
 </head>
 <body>
@@ -270,6 +277,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
   ${renderFertilizacion(receta)}
   ${renderRiego(receta)}
   ${renderLabores(receta)}
+  ${renderResumenProductor(receta)}
   <div class="footer">
     Generado automaticamente por AgroGest VSM
   </div>
@@ -686,6 +694,85 @@ function renderLabores(receta: VisitaRecetaCompleta): string {
   html += "</div>";
 
   return html;
+}
+
+function renderResumenProductor(receta: VisitaRecetaCompleta): string {
+  if (receta.fitosanidad.length === 0 && receta.fertilizacion.length === 0) {
+    return "";
+  }
+
+  return `
+    <h2>Resumen para el productor</h2>
+    <div class="producer-summary">
+      ${renderResumenFitosanitario(receta)}
+      ${renderResumenFertilizacion(receta)}
+    </div>`;
+}
+
+function renderResumenFitosanitario(receta: VisitaRecetaCompleta): string {
+  if (receta.fitosanidad.length === 0) {
+    return "";
+  }
+
+  return `
+    <h3>Productos fitosanitarios</h3>
+    <table>
+      <tr><th>Objetivo</th><th>Producto</th><th>Dosis</th></tr>
+      ${receta.fitosanidad
+        .map(
+          (item) => `
+            <tr>
+              <td>${escapeHtml(item.objetivoNombre)}</td>
+              <td>${escapeHtml(item.marcaProductoNombre ?? "-")}</td>
+              <td>${escapeHtml(formatFitosanidadDosis(item))}</td>
+            </tr>`
+        )
+        .join("")}
+    </table>`;
+}
+
+function renderResumenFertilizacion(receta: VisitaRecetaCompleta): string {
+  if (receta.fertilizacion.length === 0) {
+    return "";
+  }
+
+  return `
+    <h3>Fertilizantes</h3>
+    <table>
+      <tr><th>Fertilizante</th><th>Via</th><th>Dosis</th></tr>
+      ${receta.fertilizacion
+        .map(
+          (item) => `
+            <tr>
+              <td>${escapeHtml(item.fertilizanteNombre ?? "-")}</td>
+              <td>${escapeHtml(item.viaAplicacion === "edafica" ? "Edafica" : "Foliar")}</td>
+              <td>${escapeHtml(formatFertilizacionDosis(item))}</td>
+            </tr>`
+        )
+        .join("")}
+    </table>`;
+}
+
+function formatFitosanidadDosis(
+  item: VisitaRecetaCompleta["fitosanidad"][number]
+) {
+  if (item.cantidadTotalProducto !== null && item.cantidadTotalProducto !== undefined) {
+    return `${item.cantidadTotalProducto} L`;
+  }
+
+  if (item.dosisIa !== null && item.dosisIa !== undefined) {
+    return `${item.dosisIa} mg o mL/cilindro`;
+  }
+
+  return "-";
+}
+
+function formatFertilizacionDosis(
+  item: VisitaRecetaCompleta["fertilizacion"][number]
+) {
+  const parts = [item.dosis, item.unidadDosis].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" ") : "-";
 }
 
 async function getReportIconUri(): Promise<string | null> {

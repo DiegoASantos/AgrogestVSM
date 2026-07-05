@@ -660,7 +660,10 @@ async function handleCalificacion(
   const response = await visitaCalificacionesRemote.upsert(visitaPadre.serverId, {
     modulo: calificacion.modulo,
     puntaje: calificacion.puntaje,
-    observacion: calificacion.observacion
+    observacion: calificacion.observacion,
+    justificado: calificacion.justificado,
+    categoriaJustificacion: calificacion.categoriaJustificacion,
+    motivoJustificacion: calificacion.motivoJustificacion
   });
 
   visitaCalificacionesRepository.update(calificacion.id, {

@@ -17,6 +17,9 @@ type CalificacionRow = {
   modulo: CalificacionModulo;
   puntaje: number;
   observacion: string | null;
+  justificado: number | null;
+  categoria_justificacion: string | null;
+  motivo_justificacion: string | null;
   sync_status: SyncStatus;
   sync_error_message: string | null;
   created_at: string;
@@ -36,6 +39,9 @@ const CALIFICACION_COLUMNS = `
   modulo,
   puntaje,
   observacion,
+  justificado,
+  categoria_justificacion,
+  motivo_justificacion,
   sync_status,
   sync_error_message,
   created_at,
@@ -86,7 +92,10 @@ export const visitaCalificacionesRepository = {
     if (existing) {
       return this.update(existing.id, {
         puntaje: input.puntaje,
-        observacion: input.observacion ?? null
+        observacion: input.observacion ?? null,
+        justificado: input.justificado ?? null,
+        categoriaJustificacion: input.categoriaJustificacion ?? null,
+        motivoJustificacion: input.motivoJustificacion ?? null
       });
     }
 
@@ -103,17 +112,23 @@ export const visitaCalificacionesRepository = {
           modulo,
           puntaje,
           observacion,
+          justificado,
+          categoria_justificacion,
+          motivo_justificacion,
           sync_status,
           sync_error_message,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         null,
         visitaLocalId,
         input.modulo,
         input.puntaje,
         input.observacion ?? null,
+        toSqliteBoolean(input.justificado ?? null),
+        input.categoriaJustificacion ?? null,
+        input.motivoJustificacion ?? null,
         "pending",
         null,
         timestamp,
@@ -155,6 +170,21 @@ export const visitaCalificacionesRepository = {
     if (input.observacion !== undefined) {
       sets.push("observacion = ?");
       params.push(input.observacion);
+    }
+
+    if (input.justificado !== undefined) {
+      sets.push("justificado = ?");
+      params.push(toSqliteBoolean(input.justificado));
+    }
+
+    if (input.categoriaJustificacion !== undefined) {
+      sets.push("categoria_justificacion = ?");
+      params.push(input.categoriaJustificacion);
+    }
+
+    if (input.motivoJustificacion !== undefined) {
+      sets.push("motivo_justificacion = ?");
+      params.push(input.motivoJustificacion);
     }
 
     if (input.serverId !== undefined) {
@@ -226,9 +256,28 @@ function mapRow(row: CalificacionRow): VisitaCalificacion {
     modulo: row.modulo,
     puntaje: row.puntaje,
     observacion: row.observacion,
+    justificado: fromSqliteBoolean(row.justificado),
+    categoriaJustificacion: row.categoria_justificacion,
+    motivoJustificacion: row.motivo_justificacion,
     syncStatus: row.sync_status,
     syncErrorMessage: row.sync_error_message,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+function toSqliteBoolean(value: boolean | null) {
+  if (value === null) {
+    return null;
+  }
+
+  return value ? 1 : 0;
+}
+
+function fromSqliteBoolean(value: number | null) {
+  if (value === null) {
+    return null;
+  }
+
+  return value === 1;
 }

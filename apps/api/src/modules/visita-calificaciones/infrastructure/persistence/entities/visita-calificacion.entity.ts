@@ -29,6 +29,25 @@ export class VisitaCalificacionEntity {
   @Column({ name: "observacion", type: "text", nullable: true })
   observacion!: string | null;
 
+  @Column({ name: "justificado", type: "boolean", nullable: true })
+  justificado!: boolean | null;
+
+  @Column({
+    name: "categoria_justificacion",
+    type: "varchar",
+    length: 100,
+    nullable: true
+  })
+  categoriaJustificacion!: string | null;
+
+  @Column({
+    name: "motivo_justificacion",
+    type: "varchar",
+    length: 200,
+    nullable: true
+  })
+  motivoJustificacion!: string | null;
+
   @Column({ name: "creado_at", type: "timestamptz", default: () => "now()" })
   createdAt!: Date;
 

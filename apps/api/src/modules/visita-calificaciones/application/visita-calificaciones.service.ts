@@ -28,6 +28,12 @@ type VisitScore = {
   scorePorModulo: ModuleScoreMap;
 };
 
+type NormalizedJustification = {
+  justificado: boolean | null;
+  categoriaJustificacion: string | null;
+  motivoJustificacion: string | null;
+};
+
 @Injectable()
 export class VisitaCalificacionesService {
   constructor(
@@ -45,6 +51,7 @@ export class VisitaCalificacionesService {
 
   async upsert(visitaId: string, dto: UpsertVisitaCalificacionDto) {
     await this.ensureVisitaExists(visitaId);
+    const justification = normalizeJustification(dto);
 
     const existing = await this.calificacionesRepository.findOne({
       where: { visitaId, modulo: dto.modulo }
@@ -54,13 +61,15 @@ export class VisitaCalificacionesService {
       ? this.calificacionesRepository.merge(existing, {
           puntaje: dto.puntaje,
           observacion: dto.observacion ?? null,
+          ...justification,
           updatedAt: new Date()
         })
       : this.calificacionesRepository.create({
           visitaId,
           modulo: dto.modulo,
           puntaje: dto.puntaje,
-          observacion: dto.observacion ?? null
+          observacion: dto.observacion ?? null,
+          ...justification
         });
 
     const saved = await this.calificacionesRepository.save(entity);
@@ -318,10 +327,54 @@ export class VisitaCalificacionesService {
       modulo: calificacion.modulo,
       puntaje: calificacion.puntaje,
       observacion: calificacion.observacion,
+      justificado: calificacion.justificado,
+      categoriaJustificacion: calificacion.categoriaJustificacion,
+      motivoJustificacion: calificacion.motivoJustificacion,
       createdAt: calificacion.createdAt,
       updatedAt: calificacion.updatedAt
     };
   }
+}
+
+function normalizeJustification(
+  dto: UpsertVisitaCalificacionDto
+): NormalizedJustification {
+  if (dto.puntaje === 3) {
+    return {
+      justificado: null,
+      categoriaJustificacion: null,
+      motivoJustificacion: null
+    };
+  }
+
+  if (typeof dto.justificado !== "boolean") {
+    throw new BadRequestException(
+      "Indica si el incumplimiento esta justificado."
+    );
+  }
+
+  if (!dto.justificado) {
+    return {
+      justificado: false,
+      categoriaJustificacion: null,
+      motivoJustificacion: null
+    };
+  }
+
+  const categoriaJustificacion = dto.categoriaJustificacion?.trim() || null;
+  const motivoJustificacion = dto.motivoJustificacion?.trim() || null;
+
+  if (!categoriaJustificacion || !motivoJustificacion) {
+    throw new BadRequestException(
+      "Selecciona categoria y motivo para justificar el incumplimiento."
+    );
+  }
+
+  return {
+    justificado: true,
+    categoriaJustificacion,
+    motivoJustificacion
+  };
 }
 
 function emptyModuleScores(): ModuleScoreMap {

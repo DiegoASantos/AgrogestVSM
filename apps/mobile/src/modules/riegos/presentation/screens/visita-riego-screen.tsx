@@ -26,10 +26,12 @@ import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
 import {
   ComplianceScoreCard,
-  PreviousRecipeSummaryCard
+  PreviousRecipeSummaryCard,
+  StepObservationCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
 import type { RecetaAnterior } from "../../../visita-calificaciones/types";
+import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import { riegosService } from "../../services";
 import type { TipoRiegoCatalogItem } from "../../types";
 import {
@@ -69,6 +71,10 @@ export function VisitaRiegoScreen() {
   const [humedadSuelo, setHumedadSuelo] = useState<HumedadSuelo | null>(null);
   const [estresHidrico, setEstresHidrico] = useState(false);
   const [scoreValue, setScoreValue] = useState<number | null>(null);
+  const [scoreJustificado, setScoreJustificado] = useState<boolean | null>(null);
+  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(null);
+  const [motivoJustificacion, setMotivoJustificacion] = useState<string | null>(null);
+  const [stepObservation, setStepObservation] = useState("");
   const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
 
   const [legendSuelo, setLegendSuelo] = useState(false);
@@ -363,12 +369,22 @@ export function VisitaRiegoScreen() {
               {recetaAnterior?.existe ? (
                 <ComplianceScoreCard
                   value={scoreValue}
-                  onChange={(value) => {
-                    setSubmitError(null);
-                    setScoreValue(value);
-                  }}
+                  onChange={handleScoreChange}
+                  justificado={scoreJustificado}
+                  onJustificadoChange={handleJustificadoChange}
+                  categoriaJustificacion={categoriaJustificacion}
+                  onCategoriaJustificacionChange={setCategoriaJustificacion}
+                  motivoJustificacion={motivoJustificacion}
+                  onMotivoJustificacionChange={setMotivoJustificacion}
+                  observacion={stepObservation}
+                  onObservacionChange={setStepObservation}
                 />
-              ) : null}
+              ) : (
+                <StepObservationCard
+                  value={stepObservation}
+                  onChange={setStepObservation}
+                />
+              )}
 
               {submitError ? (
                 <View style={styles.errorBanner}>
@@ -442,6 +458,10 @@ export function VisitaRiegoScreen() {
       }
 
       const existingRiego = await riegosService.getByVisitaId(id);
+      const nextStepNote = await observacionesSanitariasService.getStepNote(
+        id,
+        STEP_NUMBER
+      );
 
       setTiposRiego(nextTiposRiego.filter((tipoRiego) => tipoRiego.isActive));
 
@@ -459,9 +479,19 @@ export function VisitaRiegoScreen() {
         loadDefaults();
       }
 
-      setScoreValue(
-        visitaCalificacionesService.getByModulo(id, "riego")?.puntaje ?? null
+      const currentCalificacion = visitaCalificacionesService.getByModulo(
+        id,
+        "riego"
       );
+      setScoreValue(currentCalificacion?.puntaje ?? null);
+      setScoreJustificado(
+        currentCalificacion && currentCalificacion.puntaje < 3
+          ? (currentCalificacion.justificado ?? false)
+          : null
+      );
+      setCategoriaJustificacion(currentCalificacion?.categoriaJustificacion ?? null);
+      setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
+      setStepObservation(nextStepNote?.observation ?? "");
       try {
         setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
       } catch {
@@ -532,6 +562,30 @@ export function VisitaRiegoScreen() {
     });
   }
 
+  function handleScoreChange(value: number) {
+    setSubmitError(null);
+    setScoreValue(value);
+
+    if (value === 3) {
+      setScoreJustificado(null);
+      setCategoriaJustificacion(null);
+      setMotivoJustificacion(null);
+      return;
+    }
+
+    setScoreJustificado((currentValue) => currentValue ?? false);
+  }
+
+  function handleJustificadoChange(value: boolean) {
+    setSubmitError(null);
+    setScoreJustificado(value);
+
+    if (!value) {
+      setCategoriaJustificacion(null);
+      setMotivoJustificacion(null);
+    }
+  }
+
   async function handleContinue() {
     if (!visitaId) {
       setSubmitError("No se encontro una visita valida.");
@@ -565,6 +619,17 @@ export function VisitaRiegoScreen() {
       return;
     }
 
+    if (
+      shouldScore &&
+      scoreValue !== null &&
+      scoreValue < 3 &&
+      scoreJustificado === true &&
+      (!categoriaJustificacion || !motivoJustificacion)
+    ) {
+      setSubmitError("Selecciona categoria y motivo de justificacion.");
+      return;
+    }
+
     setIsSaving(true);
     setSubmitError(null);
 
@@ -581,9 +646,16 @@ export function VisitaRiegoScreen() {
         await visitaCalificacionesService.upsert(visitaId, {
           modulo: "riego",
           puntaje: scoreValue ?? 3,
-          observacion: null
+          observacion: stepObservation.trim() || null,
+          justificado: resolveJustificado(scoreValue ?? 3, scoreJustificado),
+          categoriaJustificacion:
+            scoreJustificado === true ? categoriaJustificacion : null,
+          motivoJustificacion: scoreJustificado === true ? motivoJustificacion : null
         });
       }
+      await observacionesSanitariasService.upsertStepNote(visitaId, STEP_NUMBER, {
+        observation: stepObservation.trim() || null
+      });
       router.replace({
         pathname: "/visitas-campo/[id]/labores-culturales",
         params: { id: visitaId }
@@ -777,6 +849,10 @@ function toSingleParam(value?: string | string[]) {
   }
 
   return value ?? null;
+}
+
+function resolveJustificado(score: number, justificado: boolean | null) {
+  return score === 3 ? null : (justificado ?? false);
 }
 
 const styles = StyleSheet.create({

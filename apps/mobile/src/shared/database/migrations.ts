@@ -937,6 +937,24 @@ const MIGRATIONS: Migration[] = [
         updated_at TEXT NOT NULL
       )`
     ]
+  },
+  {
+    version: 38,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "visita_calificaciones", "justificado", "INTEGER");
+      addColumnIfMissing(
+        db,
+        "visita_calificaciones",
+        "categoria_justificacion",
+        "TEXT"
+      );
+      addColumnIfMissing(
+        db,
+        "visita_calificaciones",
+        "motivo_justificacion",
+        "TEXT"
+      );
+    }
   }
 ];
 

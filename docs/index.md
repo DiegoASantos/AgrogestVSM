@@ -53,6 +53,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 008: Sistema de Calificacion de Cumplimiento por Modulo en Visitas](specs/008-calificacion-cumplimiento-modulos.md)
 - [Spec 009: Intercambio manual de posiciones en el orden de mezcla de coadyuvantes](specs/009-intercambio-orden-mezcla-coadyuvantes.md)
 - [Spec 010: Gestor de sincronizacion adaptativo con tasa de exito para redes inestables](specs/010-gestor-sync-adaptativo-tasa-exito.md)
+- [Spec 011: Justificacion de puntajes bajos, observaciones de paso ampliadas y resumen ejecutivo en receta PDF](specs/011-justificacion-puntajes-bajos-observaciones-paso-resumen-pdf.md)
 
 ## Runbooks
 

@@ -100,8 +100,8 @@ export class VisitaPasoObservacionesService {
   }
 
   private ensureValidStep(stepNumber: number) {
-    if (!Number.isInteger(stepNumber) || stepNumber < 1 || stepNumber > 5) {
-      throw new BadRequestException("Step number must be between 1 and 5.");
+    if (!Number.isInteger(stepNumber) || stepNumber < 1 || stepNumber > 6) {
+      throw new BadRequestException("Step number must be between 1 and 6.");
     }
   }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 37;
+const LATEST_MIGRATION_VERSION = 38;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -16,6 +16,7 @@ type FakeDatabase = {
   visitaRiegosColumns: Set<string>;
   visitaEvaluacionesColumns: Set<string>;
   visitaObservacionesSanitariasColumns: Set<string>;
+  visitaCalificacionesColumns: Set<string>;
   detalleNutrientesRows: Array<{ id: string; name: string }>;
   appMetaRows: Map<string, string | null>;
   organosRows: Array<{
@@ -39,7 +40,8 @@ function createFakeDatabase(
   incidenceLevelColumns: Iterable<string> = [],
   visitaRiegosColumns: Iterable<string> = [],
   visitaEvaluacionesColumns: Iterable<string> = [],
-  visitaObservacionesSanitariasColumns: Iterable<string> = []
+  visitaObservacionesSanitariasColumns: Iterable<string> = [],
+  visitaCalificacionesColumns: Iterable<string> = []
 ): FakeDatabase {
   return {
     currentVersion,
@@ -53,6 +55,7 @@ function createFakeDatabase(
     visitaRiegosColumns: new Set(visitaRiegosColumns),
     visitaEvaluacionesColumns: new Set(visitaEvaluacionesColumns),
     visitaObservacionesSanitariasColumns: new Set(visitaObservacionesSanitariasColumns),
+    visitaCalificacionesColumns: new Set(visitaCalificacionesColumns),
     detalleNutrientesRows: [],
     appMetaRows: new Map(),
     organosRows: [],
@@ -215,6 +218,33 @@ function createFakeDatabase(
         return;
       }
 
+      if (statement.startsWith("CREATE TABLE IF NOT EXISTS visita_calificaciones")) {
+        if (this.visitaCalificacionesColumns.size > 0) {
+          return;
+        }
+
+        this.visitaCalificacionesColumns = new Set([
+          "local_id",
+          "server_id",
+          "visita_local_id",
+          "modulo",
+          "puntaje",
+          "observacion",
+          ...(statement.includes("justificado") ? ["justificado"] : []),
+          ...(statement.includes("categoria_justificacion")
+            ? ["categoria_justificacion"]
+            : []),
+          ...(statement.includes("motivo_justificacion")
+            ? ["motivo_justificacion"]
+            : []),
+          "sync_status",
+          "sync_error_message",
+          "created_at",
+          "updated_at"
+        ]);
+        return;
+      }
+
       if (statement.startsWith("ALTER TABLE productores ADD COLUMN ")) {
         const parts = statement.split(/\s+/u);
         const columnName = parts[5];
@@ -309,6 +339,21 @@ function createFakeDatabase(
         }
 
         this.visitaObservacionesSanitariasColumns.add(columnName);
+      }
+
+      if (statement.startsWith("ALTER TABLE visita_calificaciones ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.visitaCalificacionesColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.visitaCalificacionesColumns.add(columnName);
       }
 
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
@@ -466,6 +511,12 @@ function createFakeDatabase(
 
       if (statement === "PRAGMA table_info(visita_observaciones_sanitarias)") {
         return Array.from(this.visitaObservacionesSanitariasColumns, (name) => ({
+          name
+        })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(visita_calificaciones)") {
+        return Array.from(this.visitaCalificacionesColumns, (name) => ({
           name
         })) as T[];
       }
@@ -1064,5 +1115,36 @@ describe("runMigrations", () => {
     expect(db.executedStatements).toContain(
       "CREATE INDEX IF NOT EXISTS idx_parcelas_productor_subsector ON parcelas(productor_id, subsector_id)"
     );
+  });
+
+  it("adds justification columns to existing local visit scores", () => {
+    const db = createFakeDatabase(
+      37,
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+        "local_id",
+        "server_id",
+        "visita_local_id",
+        "modulo",
+        "puntaje",
+        "observacion",
+        "sync_status",
+        "sync_error_message",
+        "created_at",
+        "updated_at"
+      ]
+    );
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.visitaCalificacionesColumns.has("justificado")).toBe(true);
+    expect(db.visitaCalificacionesColumns.has("categoria_justificacion")).toBe(true);
+    expect(db.visitaCalificacionesColumns.has("motivo_justificacion")).toBe(true);
   });
 });
