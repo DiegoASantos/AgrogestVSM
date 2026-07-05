@@ -579,7 +579,7 @@ function renderFitosanidad(
         <tr><td>Dosis i.a.</td><td>${app.dosisIa ?? "-"} mg o mL/cilindro</td></tr>
         <tr><td>Volumen aplicacion</td><td>${app.volumenAplicacion ?? "-"} cilindros/ha</td></tr>
         <tr><td class="calculated">Cantidad total i.a.</td><td class="calculated">${formatNumber(calculatedTotalIa)} mg o mL</td></tr>
-        <tr><td>Marca</td><td>${escapeHtml(app.marcaProductoNombre ?? "-")}</td></tr>
+        <tr><td>Nombre comercial</td><td>${escapeHtml(app.marcaProductoNombre ?? "-")}</td></tr>
         <tr><td>Concentracion en producto</td><td>${app.concentracionProducto ?? "-"} mg o mL i.a./L</td></tr>
         <tr><td class="calculated">Cantidad total producto</td><td class="calculated">${formatNumber(calculatedTotalProducto)} L</td></tr>
       </table>`;
@@ -717,7 +717,7 @@ function renderResumenFitosanitario(receta: VisitaRecetaCompleta): string {
   return `
     <h3>Productos fitosanitarios</h3>
     <table>
-      <tr><th>Objetivo</th><th>Producto</th><th>Dosis</th></tr>
+      <tr><th>Objetivo</th><th>Nombre comercial</th><th>Dosis</th></tr>
       ${receta.fitosanidad
         .map(
           (item) => `

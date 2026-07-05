@@ -55,4 +55,5 @@ en la raíz.
 - [Spec 009: Intercambio manual de posiciones en el orden de mezcla de coadyuvantes](009-intercambio-orden-mezcla-coadyuvantes.md)
 - [Spec 010: Gestor de sincronización adaptativo con tasa de éxito para redes inestables](010-gestor-sync-adaptativo-tasa-exito.md)
 - [Spec 011: Justificación de puntajes bajos, observaciones de paso ampliadas y resumen ejecutivo en receta PDF](011-justificacion-puntajes-bajos-observaciones-paso-resumen-pdf.md)
+- [Spec 012: Selector de nombre comercial en receta fitosanitaria](012-nombre-comercial-receta-fitosanitaria.md)
 - [Plantilla](TEMPLATE.md)

@@ -412,7 +412,7 @@ describe("visita de campo complete flow", () => {
       organosAfectados: ["hoja_tierna", "fruto_verde"]
     });
 
-    for (const stepNumber of [1, 2, 3, 4, 5]) {
+    for (const stepNumber of [1, 2, 3, 4, 5, 6]) {
       await observacionesSanitariasService.upsertStepNote(visita.id, stepNumber, {
         observation: `Observacion paso ${stepNumber}`,
         recommendation: `Recomendacion paso ${stepNumber}`

@@ -202,16 +202,21 @@ function buildDetail(overrides: Partial<VisitaCampoFull> = {}): VisitaCampoFull 
       }),
       buildStepNote({
         stepNumber: 3,
+        observation: "Reforzar monitoreo sanitario",
+        recommendation: "Continuar evaluacion visual"
+      }),
+      buildStepNote({
+        stepNumber: 4,
         observation: "Reforzar plan nutricional",
         recommendation: "Programar fertilizacion foliar"
       }),
       buildStepNote({
-        stepNumber: 4,
+        stepNumber: 5,
         observation: "Riego suficiente",
         recommendation: "Mantener humedad optima"
       }),
       buildStepNote({
-        stepNumber: 5,
+        stepNumber: 6,
         observation: "Programar poda sanitaria",
         recommendation: "Retirar fruta caida"
       })
@@ -514,24 +519,27 @@ describe("visitaPdfReportService", () => {
     expect(html).toContain("Cuajado inicial");
     expect(html).toContain("Presencia &lt;alta&gt; &amp; revisar");
 
-    expect(html).toContain("Paso 2 - Plagas y enfermedades");
+    expect(html).toContain("Paso 2 - Plagas");
     expect(html).toContain("Trips");
     expect(html).toContain("Incidencia Baja: 1 a 5 brotes afectados");
     expect(html).toContain("Severidad Alta: Dano visible en organos jovenes");
     expect(html).toContain("Organos: Tronco/rama, Panícula floral, Fruto recién cuajado");
     expect(html).toContain("Se observa dano en brotes");
+    expect(html).toContain("Aplicar control localizado");
+
+    expect(html).toContain("Paso 3 - Enfermedades");
     expect(html).toContain("Oidio");
     expect(html).toContain("% arboles enfermos: 12%");
     expect(html).toContain("Sintomas en hojas maduras");
-    expect(html).toContain("Aplicar control localizado");
+    expect(html).toContain("Continuar evaluacion visual");
 
-    expect(html).toContain("Paso 3 - Nutricion");
+    expect(html).toContain("Paso 4 - Nutricion");
     expect(html).toContain("Deficiencia de nitrogeno");
     expect(html).toContain("Incidencia: 18%");
     expect(html).toContain("25%");
     expect(html).toContain("Organos: Hoja madura, Raices");
     expect(html).toContain("Programar fertilizacion foliar");
-    expect(html).toContain("Paso 4 - Riego");
+    expect(html).toContain("Paso 5 - Riego");
     expect(html).toContain("Goteo");
     expect(html).toContain("Subterranea");
     expect(html).toContain("Franco");
@@ -539,7 +547,7 @@ describe("visitaPdfReportService", () => {
     expect(html).toContain("Estres hidrico intencional");
     expect(html).toContain("No");
     expect(html).toContain("Mantener humedad optima");
-    expect(html).toContain("Paso 5 - Labores culturales");
+    expect(html).toContain("Paso 6 - Labores culturales");
     expect(html).toContain("Poda sanitaria");
     expect(html).toContain("Retiro de material afectado");
     expect(html).toContain("Monitorear focos activos");
@@ -600,13 +608,14 @@ describe("visitaPdfReportService", () => {
 
     const html = getPreviewHtml();
 
-    expect(html).toContain("No hay plagas o enfermedades registradas.");
+    expect(html).toContain("No hay plagas registradas.");
+    expect(html).toContain("No hay enfermedades registradas.");
     expect(html).toContain("No hay datos de nutricion registrados.");
     expect(html).toContain("No hay informacion de riego registrada.");
     expect(html).toContain("No hay labores culturales registradas.");
   });
 
-  it("renders step 4 and step 5 saved records even when catalogs are unavailable", async () => {
+  it("renders step 5 and step 6 saved records even when catalogs are unavailable", async () => {
     mocks.getFullDetail.mockResolvedValue(
       buildDetail({
         riego: buildRiego({
@@ -630,13 +639,13 @@ describe("visitaPdfReportService", () => {
 
     const html = getPreviewHtml();
 
-    expect(html).toContain("Paso 4 - Riego");
+    expect(html).toContain("Paso 5 - Riego");
     expect(html).toContain("Tipo registrado: tipo-riego-local-123");
     expect(html).toContain("Superficial");
     expect(html).toContain("Arenoso");
     expect(html).toContain("Seco");
     expect(html).toContain("Si");
-    expect(html).toContain("Paso 5 - Labores culturales");
+    expect(html).toContain("Paso 6 - Labores culturales");
     expect(html).toContain("Seleccion registrada: labor-local-abc");
     expect(html).toContain("Seleccion registrada: labor-local-def");
   });

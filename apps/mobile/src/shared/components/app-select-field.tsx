@@ -25,6 +25,7 @@ type AppSelectFieldProps = {
   searchable?: boolean;
   searchPlaceholder?: string;
   onToggle: () => void;
+  onClose?: () => void;
   onSelect: (value: string) => void;
 };
 
@@ -42,6 +43,7 @@ export function AppSelectField({
   searchable = false,
   searchPlaceholder = "Buscar",
   onToggle,
+  onClose,
   onSelect
 }: AppSelectFieldProps) {
   const [searchText, setSearchText] = useState("");
@@ -150,6 +152,7 @@ export function AppSelectField({
                   onPress={() => {
                     setSearchText("");
                     onSelect(option.value);
+                    onClose?.();
                   }}
                   style={({ pressed }) => [
                     styles.optionRow,

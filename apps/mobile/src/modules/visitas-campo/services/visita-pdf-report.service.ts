@@ -98,6 +98,16 @@ async function buildVisitReportHtml(visitaId: string) {
     }
   }
 
+  const pestDiseaseTypeMap = new Map(
+    pestDiseases.map((p) => [p.id, p.type.toLowerCase()])
+  );
+  const plagasObservaciones = detail.observacionesSanitarias.filter(
+    (obs) => pestDiseaseTypeMap.get(obs.pestDiseaseId) === "plaga"
+  );
+  const enfermedadesObservaciones = detail.observacionesSanitarias.filter(
+    (obs) => pestDiseaseTypeMap.get(obs.pestDiseaseId) === "enfermedad"
+  );
+
   return `<!doctype html>
 <html>
   <head>
@@ -270,29 +280,41 @@ async function buildVisitReportHtml(visitaId: string) {
     )}
 
     ${renderSection(
-      "Paso 2 - Plagas y enfermedades",
+      "Paso 2 - Plagas",
       renderSanitaryObservations(
-        detail.observacionesSanitarias,
+        plagasObservaciones,
         pestDiseases,
         incidenceLevels,
-        levelDescriptions
+        levelDescriptions,
+        "plagas"
       ) + renderStepNote(stepNotes.get(2))
     )}
 
     ${renderSection(
-      "Paso 3 - Nutricion",
-      renderNutrition(detail.evaluaciones) + renderStepNote(stepNotes.get(3))
+      "Paso 3 - Enfermedades",
+      renderSanitaryObservations(
+        enfermedadesObservaciones,
+        pestDiseases,
+        incidenceLevels,
+        levelDescriptions,
+        "enfermedades"
+      ) + renderStepNote(stepNotes.get(3))
     )}
 
     ${renderSection(
-      "Paso 4 - Riego",
-      renderRiego(detail.riego, tiposRiego) + renderStepNote(stepNotes.get(4))
+      "Paso 4 - Nutricion",
+      renderNutrition(detail.evaluaciones) + renderStepNote(stepNotes.get(4))
     )}
 
     ${renderSection(
-      "Paso 5 - Labores culturales",
+      "Paso 5 - Riego",
+      renderRiego(detail.riego, tiposRiego) + renderStepNote(stepNotes.get(5))
+    )}
+
+    ${renderSection(
+      "Paso 6 - Labores culturales",
       renderCulturalLabors(detail.laboresCulturales, labores) +
-        renderStepNote(stepNotes.get(5))
+        renderStepNote(stepNotes.get(6))
     )}
 
     <div class="footer">
@@ -377,10 +399,11 @@ function renderSanitaryObservations(
   }>,
   pestDiseases: Array<{ id: string; name: string; type: string }>,
   incidenceLevels: Array<{ id: string; name: string }>,
-  levelDescriptions: Record<string, string | null>
+  levelDescriptions: Record<string, string | null>,
+  emptyLabel = "plagas o enfermedades"
 ) {
   if (observations.length === 0) {
-    return `<div class="empty">No hay plagas o enfermedades registradas.</div>`;
+    return `<div class="empty">No hay ${emptyLabel} registradas.</div>`;
   }
 
   return `<ul class="list">${observations

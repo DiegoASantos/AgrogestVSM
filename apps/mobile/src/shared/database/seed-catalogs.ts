@@ -294,10 +294,11 @@ export async function downloadAllCatalogs() {
 
         for (const item of marcasProducto) {
           db.runSync(
-            `INSERT OR REPLACE INTO marcas_producto (id, name, ingrediente_activo_id, concentracion, ingrediente_activo_nombre)
-         VALUES (?, ?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO marcas_producto (id, name, tipo_producto_id, ingrediente_activo_id, concentracion, ingrediente_activo_nombre)
+         VALUES (?, ?, ?, ?, ?, ?)`,
             item.id,
             item.name,
+            item.tipoProductoId ?? null,
             item.ingredienteActivoId ?? null,
             item.concentracion?.toString() ?? null,
             item.ingredienteActivoNombre ?? null

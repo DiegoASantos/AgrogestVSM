@@ -955,6 +955,13 @@ const MIGRATIONS: Migration[] = [
         "TEXT"
       );
     }
+  },
+  {
+    version: 39,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "marcas_producto", "tipo_producto_id", "TEXT");
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
   }
 ];
 

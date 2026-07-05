@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 38;
+const LATEST_MIGRATION_VERSION = 39;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -17,6 +17,7 @@ type FakeDatabase = {
   visitaEvaluacionesColumns: Set<string>;
   visitaObservacionesSanitariasColumns: Set<string>;
   visitaCalificacionesColumns: Set<string>;
+  marcasProductoColumns: Set<string>;
   detalleNutrientesRows: Array<{ id: string; name: string }>;
   appMetaRows: Map<string, string | null>;
   organosRows: Array<{
@@ -56,6 +57,13 @@ function createFakeDatabase(
     visitaEvaluacionesColumns: new Set(visitaEvaluacionesColumns),
     visitaObservacionesSanitariasColumns: new Set(visitaObservacionesSanitariasColumns),
     visitaCalificacionesColumns: new Set(visitaCalificacionesColumns),
+    marcasProductoColumns: new Set([
+      "id",
+      "name",
+      "ingrediente_activo_id",
+      "concentracion",
+      "ingrediente_activo_nombre"
+    ]),
     detalleNutrientesRows: [],
     appMetaRows: new Map(),
     organosRows: [],
@@ -356,6 +364,21 @@ function createFakeDatabase(
         this.visitaCalificacionesColumns.add(columnName);
       }
 
+      if (statement.startsWith("ALTER TABLE marcas_producto ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.marcasProductoColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.marcasProductoColumns.add(columnName);
+      }
+
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
         this.pestDiseaseColumns.delete("code");
       }
@@ -517,6 +540,12 @@ function createFakeDatabase(
 
       if (statement === "PRAGMA table_info(visita_calificaciones)") {
         return Array.from(this.visitaCalificacionesColumns, (name) => ({
+          name
+        })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(marcas_producto)") {
+        return Array.from(this.marcasProductoColumns, (name) => ({
           name
         })) as T[];
       }
@@ -1146,5 +1175,19 @@ describe("runMigrations", () => {
     expect(db.visitaCalificacionesColumns.has("justificado")).toBe(true);
     expect(db.visitaCalificacionesColumns.has("categoria_justificacion")).toBe(true);
     expect(db.visitaCalificacionesColumns.has("motivo_justificacion")).toBe(true);
+  });
+
+  it("adds product type to commercial product names and refreshes catalogs", () => {
+    const db = createFakeDatabase(38);
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-07-05T10:00:00.000Z");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.marcasProductoColumns.has("tipo_producto_id")).toBe(true);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE marcas_producto ADD COLUMN tipo_producto_id TEXT"
+    );
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
   });
 });

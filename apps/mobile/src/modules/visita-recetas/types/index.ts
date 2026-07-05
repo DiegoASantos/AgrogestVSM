@@ -13,6 +13,7 @@ export type IngredienteActivoCatalogItem = {
 export type MarcaProductoCatalogItem = {
   id: string;
   name: string;
+  tipoProductoId: string | null;
   ingredienteActivoId: string | null;
   ingredienteActivoNombre: string | null;
   concentracion: number | null;

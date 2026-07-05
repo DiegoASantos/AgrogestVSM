@@ -305,6 +305,7 @@ export const SQL_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS marcas_producto (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
+    tipo_producto_id TEXT,
     ingrediente_activo_id TEXT,
     concentracion TEXT,
     ingrediente_activo_nombre TEXT

@@ -61,8 +61,8 @@ export class RecetasCatalogosController {
   }
 
   @Get("marcas-producto")
-  @ApiOperation({ summary: "Lista todas las marcas de producto." })
-  @ApiOkResponse({ description: "Lista de marcas." })
+  @ApiOperation({ summary: "Lista todos los nombres comerciales de producto." })
+  @ApiOkResponse({ description: "Lista de nombres comerciales." })
   async getMarcasProducto() {
     const items = await this.marcaProductoRepo.find({
       where: { isActive: true },
@@ -74,6 +74,7 @@ export class RecetasCatalogosController {
       items.map((i) => ({
         id: i.id,
         name: i.name,
+        tipoProductoId: i.tipoProductoId,
         ingredienteActivoId: i.ingredienteActivoId,
         ingredienteActivoNombre: i.ingredienteActivo?.name ?? null,
         concentracion: i.concentracion

@@ -76,6 +76,14 @@ Entidades hijas:
 - receta agronómica y sus secciones.
 - calificaciones de cumplimiento técnico por módulo.
 
+La receta fitosanitaria usa los catalogos `tipos_producto_fitosanitario`,
+`ingredientes_activos` y `marcas_producto`. La tabla `marcas_producto` conserva
+su nombre historico, pero su columna `nombre` representa el nombre comercial
+visible para el tecnico. Cada nombre comercial puede asociarse a un tipo de
+producto y a un ingrediente activo; mobile filtra el selector de nombre
+comercial por el tipo de producto seleccionado y sigue guardando los nombres en
+la receta para compatibilidad offline e historica.
+
 Las calificaciones de cumplimiento viven en `visita_calificaciones` y son hijas
 de una visita. Cada visita puede tener una calificación por módulo:
 `plagas`, `enfermedades`, `nutricion`, `riego` y `labores`. El puntaje técnico

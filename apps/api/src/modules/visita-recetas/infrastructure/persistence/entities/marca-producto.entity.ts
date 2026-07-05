@@ -8,6 +8,7 @@ import {
   UpdateDateColumn
 } from "typeorm";
 import { IngredienteActivoEntity } from "./ingrediente-activo.entity";
+import { TipoProductoFitosanitarioEntity } from "./tipo-producto-fitosanitario.entity";
 
 @Entity({ name: "marcas_producto" })
 export class MarcaProductoEntity {
@@ -19,6 +20,9 @@ export class MarcaProductoEntity {
 
   @Column({ name: "ingrediente_activo_id", type: "bigint", nullable: true })
   ingredienteActivoId!: string | null;
+
+  @Column({ name: "tipo_producto_id", type: "bigint", nullable: true })
+  tipoProductoId!: string | null;
 
   @Column({
     name: "concentracion",
@@ -41,4 +45,8 @@ export class MarcaProductoEntity {
   @ManyToOne(() => IngredienteActivoEntity, { onDelete: "SET NULL" })
   @JoinColumn({ name: "ingrediente_activo_id", referencedColumnName: "id" })
   ingredienteActivo!: IngredienteActivoEntity | null;
+
+  @ManyToOne(() => TipoProductoFitosanitarioEntity, { onDelete: "SET NULL" })
+  @JoinColumn({ name: "tipo_producto_id", referencedColumnName: "id" })
+  tipoProducto!: TipoProductoFitosanitarioEntity | null;
 }

@@ -83,7 +83,7 @@ export const visitasCampoService = {
         observacionesSanitariasRepository.getByVisitaLocalId(localId),
       riego: riegosRepository.getByVisitaLocalId(localId),
       laboresCulturales: laboresCulturalesVisitaRepository.getByVisitaLocalId(localId),
-      stepNotes: [1, 2, 3, 4, 5]
+      stepNotes: [1, 2, 3, 4, 5, 6]
         .map((stepNumber) =>
           visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
         )
@@ -110,7 +110,7 @@ export const visitasCampoService = {
 
     const evaluaciones = evaluacionesRepository.getByVisitaLocalId(localId);
     const observaciones = observacionesSanitariasRepository.getByVisitaLocalId(localId);
-    const stepNotes = [1, 2, 3, 4, 5]
+    const stepNotes = [1, 2, 3, 4, 5, 6]
       .map((stepNumber) =>
         visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
       )
@@ -162,7 +162,7 @@ export const visitasCampoService = {
 
     const evaluaciones = evaluacionesRepository.getByVisitaLocalId(localId);
     const observaciones = observacionesSanitariasRepository.getByVisitaLocalId(localId);
-    const stepNotes = [1, 2, 3, 4, 5]
+    const stepNotes = [1, 2, 3, 4, 5, 6]
       .map((stepNumber) =>
         visitaStepNotesRepository.getByVisitaAndStep(localId, stepNumber)
       )

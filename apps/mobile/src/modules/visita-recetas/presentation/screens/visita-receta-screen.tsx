@@ -29,6 +29,7 @@ import type {
   ConsolidacionHallazgo,
   CoadyuvanteCatalogItem,
   ModoAccionCatalogItem,
+  MarcaProductoCatalogItem,
   TipoControlCatalogItem,
   TipoProductoFitosanitarioCatalogItem,
   FertilizanteCatalogItem,
@@ -113,6 +114,9 @@ export function VisitaRecetaScreen() {
   );
 
   const [coadyuvantes, setCoadyuvantes] = useState<CoadyuvanteCatalogItem[]>([]);
+  const [marcasProducto, setMarcasProducto] = useState<MarcaProductoCatalogItem[]>(
+    []
+  );
   const [modosAccion, setModosAccion] = useState<ModoAccionCatalogItem[]>([]);
   const [tiposControl, setTiposControl] = useState<TipoControlCatalogItem[]>([]);
   const [tiposProducto, setTiposProducto] = useState<
@@ -164,6 +168,7 @@ export function VisitaRecetaScreen() {
     try {
       const catalogos = visitaRecetasService.getCatalogos();
       setCoadyuvantes(catalogos.coadyuvantes);
+      setMarcasProducto(catalogos.marcasProducto);
       setModosAccion(catalogos.modosAccion);
       setTiposControl(catalogos.tiposControl);
       setTiposProducto(catalogos.tiposProducto);
@@ -506,6 +511,10 @@ export function VisitaRecetaScreen() {
     setOpenDropdown((prev) => (prev === key ? null : key));
   }
 
+  function closeDropdown() {
+    setOpenDropdown(null);
+  }
+
   function resetOrdenExchangeState() {
     setOrdenExchangeResetToken((value) => value + 1);
   }
@@ -593,8 +602,10 @@ export function VisitaRecetaScreen() {
                 calculationAreaHectares={calculationAreaHectares}
                 index={index}
                 key={app.localId}
+                marcasProducto={marcasProducto}
                 modosAccion={modosAccion}
                 onChange={(patch) => updateFitosanidadApp(index, patch)}
+                onCloseDropdown={closeDropdown}
                 openDropdown={openDropdown}
                 resetToken={ordenExchangeResetToken}
                 tiposControl={tiposControl}
@@ -614,6 +625,7 @@ export function VisitaRecetaScreen() {
           <FertilizacionCard
             fertilizantes={fertilizantes}
             onChange={updateFertilizacionCalculos}
+            onCloseDropdown={closeDropdown}
             openDropdown={openDropdown}
             toggleDropdown={toggleDropdown}
             value={fertilizacion}
@@ -803,24 +815,28 @@ function FitosanidadCard({
   index,
   coadyuvantes,
   calculationAreaHectares,
+  marcasProducto,
   tiposControl,
   tiposProducto,
   modosAccion,
   openDropdown,
   resetToken,
   onChange,
+  onCloseDropdown,
   toggleDropdown
 }: {
   value: AppFitosanidad;
   index: number;
   coadyuvantes: CoadyuvanteCatalogItem[];
   calculationAreaHectares: number | null;
+  marcasProducto: MarcaProductoCatalogItem[];
   tiposControl: TipoControlCatalogItem[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
   openDropdown: string | null;
   resetToken: number;
   onChange: (patch: Partial<AppFitosanidad>) => void;
+  onCloseDropdown: () => void;
   toggleDropdown: (key: string) => void;
 }) {
   const prefix = `fito_${index}`;
@@ -835,6 +851,9 @@ function FitosanidadCard({
     isSelectableOrdenItem(item)
   ).length;
   const canExchangeOrden = selectableOrdenCount >= 2;
+  const nombreComercialOptions = marcasProducto.filter(
+    (marca) => marca.tipoProductoId === value.tipoProductoId
+  );
 
   useEffect(() => {
     setIsExchangeMode(false);
@@ -883,6 +902,49 @@ function FitosanidadCard({
     setSelectedOrdenIndex(null);
   }
 
+  function buildNombreComercialPatch(
+    option: MarcaProductoCatalogItem
+  ): Partial<AppFitosanidad> {
+    return {
+      marcaProductoNombre: option.name,
+      ingredienteActivoNombre: option.ingredienteActivoNombre ?? "",
+      concentracionProducto: option.concentracion?.toString() ?? ""
+    };
+  }
+
+  function handleTipoProductoSelect(tipoProductoId: string) {
+    const matchingOptions = marcasProducto.filter(
+      (marca) => marca.tipoProductoId === tipoProductoId
+    );
+
+    if (matchingOptions.length === 1 && matchingOptions[0]) {
+      onChange({
+        tipoProductoId,
+        ...buildNombreComercialPatch(matchingOptions[0])
+      });
+      return;
+    }
+
+    onChange({
+      tipoProductoId,
+      marcaProductoNombre: "",
+      ingredienteActivoNombre: "",
+      concentracionProducto: ""
+    });
+  }
+
+  function handleNombreComercialSelect(marcaProductoId: string) {
+    const selected = nombreComercialOptions.find(
+      (option) => option.id === marcaProductoId
+    );
+
+    if (!selected) {
+      return;
+    }
+
+    onChange(buildNombreComercialPatch(selected));
+  }
+
   return (
     <View style={styles.fitosanidadCard}>
       <View style={styles.fitoHeader}>
@@ -905,6 +967,7 @@ function FitosanidadCard({
         placeholder="Seleccionar tipo"
         selectedLabel={tiposControl.find((c) => c.id === value.tipoControlId)?.name}
         isOpen={openDropdown === `${prefix}_control`}
+        onClose={onCloseDropdown}
         onToggle={() => toggleDropdown(`${prefix}_control`)}
         onSelect={(v) => onChange({ tipoControlId: v })}
       />
@@ -916,8 +979,9 @@ function FitosanidadCard({
         placeholder="Seleccionar producto"
         selectedLabel={tiposProducto.find((c) => c.id === value.tipoProductoId)?.name}
         isOpen={openDropdown === `${prefix}_producto`}
+        onClose={onCloseDropdown}
         onToggle={() => toggleDropdown(`${prefix}_producto`)}
-        onSelect={(v) => onChange({ tipoProductoId: v })}
+        onSelect={handleTipoProductoSelect}
       />
 
       <LabeledTextInput
@@ -933,15 +997,15 @@ function FitosanidadCard({
         placeholder="Seleccionar modo"
         selectedLabel={modosAccion.find((c) => c.id === value.modoAccionId)?.name}
         isOpen={openDropdown === `${prefix}_modo`}
+        onClose={onCloseDropdown}
         onToggle={() => toggleDropdown(`${prefix}_modo`)}
         onSelect={(v) => onChange({ modoAccionId: v })}
       />
 
-      <LabeledTextInput
+      <ReadonlyField
         label="Ingrediente activo (i.a.)"
+        placeholder="Se completa con el nombre comercial"
         value={value.ingredienteActivoNombre}
-        onChangeText={(v) => onChange({ ingredienteActivoNombre: v })}
-        placeholder="Ej: Abamectina"
       />
 
       <LabeledNumericInput
@@ -967,11 +1031,26 @@ function FitosanidadCard({
         value={value.cantidadTotalIa}
       />
 
-      <LabeledTextInput
-        label="Marca de producto"
-        value={value.marcaProductoNombre}
-        onChangeText={(v) => onChange({ marcaProductoNombre: v })}
-        placeholder="Ej: Agrimec"
+      <AppSelectField
+        disabled={!value.tipoProductoId}
+        emptyMessage="No hay nombres comerciales para el tipo seleccionado."
+        icon="pricetag-outline"
+        label="Nombre comercial"
+        options={nombreComercialOptions.map((marca) => ({
+          value: marca.id,
+          label: marca.name,
+          helper: marca.ingredienteActivoNombre ?? undefined
+        }))}
+        placeholder={
+          value.tipoProductoId
+            ? "Seleccionar nombre comercial"
+            : "Selecciona primero tipo de producto"
+        }
+        selectedLabel={value.marcaProductoNombre || undefined}
+        isOpen={openDropdown === `${prefix}_nombre_comercial`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_nombre_comercial`)}
+        onSelect={handleNombreComercialSelect}
       />
 
       <LabeledNumericInput
@@ -1161,12 +1240,14 @@ function FertilizacionCard({
   fertilizantes,
   openDropdown,
   onChange,
+  onCloseDropdown,
   toggleDropdown
 }: {
   value: AppFertilizacion;
   fertilizantes: FertilizanteCatalogItem[];
   openDropdown: string | null;
   onChange: (patch: Partial<AppFertilizacion>) => void;
+  onCloseDropdown: () => void;
   toggleDropdown: (key: string) => void;
 }) {
   const unidadDosis =
@@ -1190,6 +1271,7 @@ function FertilizacionCard({
         placeholder="Seleccionar via"
         selectedLabel={value.viaAplicacion === "edafica" ? "Edafica" : "Foliar"}
         isOpen={openDropdown === "fert_via"}
+        onClose={onCloseDropdown}
         onToggle={() => toggleDropdown("fert_via")}
         onSelect={(v) => onChange({ viaAplicacion: v as "edafica" | "foliar" })}
       />
@@ -1205,6 +1287,7 @@ function FertilizacionCard({
         placeholder="Seleccionar fertilizante"
         selectedLabel={value.fertilizanteNombre || undefined}
         isOpen={openDropdown === "fert_fertilizante"}
+        onClose={onCloseDropdown}
         onToggle={() => toggleDropdown("fert_fertilizante")}
         onSelect={(v) => {
           const fert = fertilizantes.find((f) => f.name === v);
@@ -1225,6 +1308,7 @@ function FertilizacionCard({
         placeholder="Seleccionar tipo"
         selectedLabel={value.tipoProducto === "solido" ? "Solido" : "Liquido"}
         isOpen={openDropdown === "fert_tipo"}
+        onClose={onCloseDropdown}
         onToggle={() => toggleDropdown("fert_tipo")}
         onSelect={(v) => onChange({ tipoProducto: v as "solido" | "liquido" })}
       />
@@ -1471,7 +1555,15 @@ function LabeledNumericInput({
   );
 }
 
-function ReadonlyField({ label, value }: { label: string; value: string }) {
+function ReadonlyField({
+  label,
+  placeholder = "Calculado automaticamente",
+  value
+}: {
+  label: string;
+  placeholder?: string;
+  value: string;
+}) {
   return (
     <View style={styles.fieldWrapper}>
       <AppText variant="label" style={styles.fieldLabel}>
@@ -1482,7 +1574,7 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
           style={value ? styles.readonlyValue : styles.readonlyPlaceholder}
           variant="body"
         >
-          {value || "Calculado automaticamente"}
+          {value || placeholder}
         </AppText>
       </View>
     </View>

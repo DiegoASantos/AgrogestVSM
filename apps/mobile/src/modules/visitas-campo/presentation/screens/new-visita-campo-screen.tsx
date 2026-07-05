@@ -997,7 +997,7 @@ function WizardProgress({ compact, currentStep, steps }: WizardProgressProps) {
     <View style={[styles.progressCard, compact && styles.progressCardCompact]}>
       <View style={[styles.progressCopy, compact && styles.progressCopyCompact]}>
         <AppText style={styles.progressStepText} variant="label">
-          Paso {currentStep} de {steps.length}
+          Paso
         </AppText>
         <AppText style={styles.progressTitle} variant="body">
           {activeStep.title}

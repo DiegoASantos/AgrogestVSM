@@ -131,16 +131,18 @@ export const visitaRecetasRepository = {
     const rows = db.getAllSync<{
       id: string;
       name: string;
+      tipo_producto_id: string | null;
       ingrediente_activo_id: string | null;
       concentracion: string | null;
       ingrediente_activo_nombre: string | null;
     }>(
-      `SELECT id, name, ingrediente_activo_id, concentracion, ingrediente_activo_nombre
+      `SELECT id, name, tipo_producto_id, ingrediente_activo_id, concentracion, ingrediente_activo_nombre
        FROM marcas_producto ORDER BY name ASC`
     );
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
+      tipoProductoId: r.tipo_producto_id,
       ingredienteActivoId: r.ingrediente_activo_id,
       ingredienteActivoNombre: r.ingrediente_activo_nombre,
       concentracion: r.concentracion ? Number(r.concentracion) : null

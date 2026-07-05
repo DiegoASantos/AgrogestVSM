@@ -1189,7 +1189,7 @@ function WizardProgress({ stepNumber }: { stepNumber: number }) {
   return (
     <View style={styles.progressCard}>
       <AppText style={styles.progressLabel} variant="label">
-        Paso {stepNumber} de {WIZARD_STEPS.length}
+        Paso
       </AppText>
       <View style={styles.progressSteps}>
         {WIZARD_STEPS.map((step) => {
