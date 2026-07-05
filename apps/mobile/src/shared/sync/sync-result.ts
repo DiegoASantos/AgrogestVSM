@@ -4,6 +4,7 @@ export type SyncRunStatus =
   | "unauthenticated"
   | "auth_failed"
   | "already_running"
+  | "backoff"
   | "failed";
 
 export type SyncRunResult = {

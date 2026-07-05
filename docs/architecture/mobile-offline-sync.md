@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-07-05
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -31,7 +31,24 @@ la API cuando vuelva a tener conectividad.
 - recuperación de conectividad;
 - aplicación activa;
 - solicitud manual;
-- ciclo periódico aproximado de cinco minutos.
+- ciclo periodico aproximado de treinta segundos cuando hay trabajo local o
+  verificacion ligera.
+
+## Calidad de red adaptativa
+
+El sync no asume que "hay conexion" equivale a "la red sirve para sincronizar".
+NetInfo solo decide desconexion absoluta. Cuando hay conexion, `SyncManager`
+mantiene en SQLite una ventana reciente de intentos en `sync_state` y calcula la
+tasa de exito:
+
+- tasa de exito mayor o igual a 70%: red estable, sync normal;
+- tasa menor a 70%: red inestable, sync automatico con backoff;
+- tasa menor a 20%: intervalo minimo de dos minutos entre reintentos
+  automaticos;
+- tres exitos consecutivos restauran el estado estable.
+
+Los guardados siguen escribiendo primero en SQLite y programan sync en segundo
+plano. La UI no espera a la red para confirmar el guardado local.
 
 ## Reintentos y conflictos
 

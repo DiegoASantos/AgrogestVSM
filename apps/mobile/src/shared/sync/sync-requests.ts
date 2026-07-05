@@ -48,6 +48,10 @@ export function requestSync(options: SyncRequestOptions = {}) {
   return pendingRequest;
 }
 
+export function scheduleSync(options: SyncRequestOptions = {}) {
+  return requestSync(options);
+}
+
 export function subscribeToSyncRequests(listener: SyncRequestListener) {
   listeners.add(listener);
 

@@ -1,4 +1,6 @@
 export { useSync } from "./use-sync.web";
+export { requestSync, scheduleSync } from "./sync-requests";
+export { SyncStatusIndicator } from "./sync-status-indicator";
 export {
   getSyncCounts,
   getSyncErrorDetails,

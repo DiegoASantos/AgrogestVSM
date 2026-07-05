@@ -24,7 +24,8 @@ import {
   getSyncCounts,
   getSyncErrorDetails,
   getSyncPendingDetails,
-  requestSync,
+  scheduleSync,
+  SyncStatusIndicator,
   type SyncErrorDetail,
   type SyncPendingDetail,
   type SyncRunResult
@@ -98,7 +99,7 @@ export function HomeScreen() {
     setIsManualSyncing(true);
 
     try {
-      await requestSync({ forceRefresh: true, immediate: true });
+      await scheduleSync({ forceRefresh: true });
       loadDashboard();
     } finally {
       setIsManualSyncing(false);
@@ -214,6 +215,11 @@ export function HomeScreen() {
             <AppText style={styles.sectionTitle} variant="heading">
               Estado de sincronizacion
             </AppText>
+            <SyncStatusIndicator
+              errorCount={syncCounts.errorCount}
+              isSyncing={isManualSyncing}
+              pendingCount={syncCounts.pendingCount}
+            />
             <View style={styles.syncMetrics}>
               <SyncMetric
                 icon="document-text-outline"
@@ -767,7 +773,8 @@ function getSyncAttemptVariant(result: SyncRunResult): StatusVariant {
   if (
     result.status === "offline" ||
     result.status === "auth_failed" ||
-    result.status === "already_running"
+    result.status === "already_running" ||
+    result.status === "backoff"
   ) {
     return "warning";
   }

@@ -2,7 +2,7 @@
 title: Desarrollo local
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-07-05
 ---
 
 # Desarrollo local
@@ -67,3 +67,17 @@ pnpm --filter @agrogest/api seed:auth
 
 Advertencia: las migraciones actuales presuponen parte del esquema inicial. No
 usar este procedimiento sobre una base vacía hasta resolver el riesgo R-001.
+
+## Diagnostico de sync mobile
+
+El estado adaptativo del sync mobile se guarda en la tabla SQLite `sync_state`.
+Para diagnosticar redes inestables, revisar:
+
+- `window_json`: ultimos intentos y resultado de exito/fallo;
+- `consecutive_failures` y `consecutive_successes`: recuperacion o degradacion
+  reciente;
+- `backoff_step`: posicion actual del backoff automatico;
+- `last_attempt_at`: ultimo intento que realmente proceso el outbox.
+
+La tabla es local y no afecta contratos API. Si se deshabilita el gestor
+adaptativo por rollback, puede permanecer sin ser consultada.

@@ -1,14 +1,27 @@
 ---
 title: Gestor de sincronización adaptativo con tasa de éxito para redes inestables
-status: draft
+status: implemented
 numero: "010"
 area: mobile-sync
 created: 2026-07-04
-approved_by:
-implemented_in:
+approved_by: Usuario via Codex, 2026-07-04
+implemented_in: apps/mobile/src/shared/sync/sync-manager.ts
 ---
 
 # Spec 010: Gestor de sincronización adaptativo con tasa de éxito para redes inestables
+
+## Implementado en
+
+- `apps/mobile/src/shared/sync/sync-manager.ts`
+- `apps/mobile/src/shared/sync/sync-state-store.ts`
+- `apps/mobile/src/shared/sync/sync-requests.ts`
+- `apps/mobile/src/shared/sync/use-sync.ts`
+- `apps/mobile/src/shared/database/migrations.ts`
+- `apps/mobile/src/shared/database/schema.ts`
+- `apps/mobile/src/shared/sync/sync-status-indicator.tsx`
+- `docs/adr/003-sync-adaptativo-por-tasa-exito.md`
+- `docs/architecture/mobile-offline-sync.md`
+- `docs/runbooks/local-development.md`
 
 ## Contexto
 
@@ -178,20 +191,20 @@ Componente `SyncStatusIndicator` reutilizable:
 
 ## Criterios de aceptación
 
-- [ ] CA-001: Guardar una receta completa no requiere esperar al sync remoto.
+- [x] CA-001: Guardar una receta completa no requiere esperar al sync remoto.
   El guardado en SQLite es instantáneo y el usuario puede seguir trabajando.
-- [ ] CA-002: En red ESTABLE (tasa ≥ 70%), los datos se sincronizan en menos de
+- [x] CA-002: En red ESTABLE (tasa ≥ 70%), los datos se sincronizan en menos de
   60 segundos tras el guardado.
-- [ ] CA-003: En red INESTABLE (tasa < 70%), el sync aplica backoff y no
+- [x] CA-003: En red INESTABLE (tasa < 70%), el sync aplica backoff y no
   bloquea la UI. El usuario ve el indicador "pendiente".
-- [ ] CA-004: Una red lenta pero confiable (ej: latencia 8s, 100% éxito) se
+- [x] CA-004: Una red lenta pero confiable (ej: latencia 8s, 100% éxito) se
   clasifica como ESTABLE y sincroniza normalmente.
-- [ ] CA-005: Tras 3 fallos consecutivos, el intervalo entre reintentos es al
+- [x] CA-005: Tras 3 fallos consecutivos, el intervalo entre reintentos es al
   menos 15s.
-- [ ] CA-006: Tras 3 éxitos consecutivos desde estado INESTABLE, se restaura a
+- [x] CA-006: Tras 3 éxitos consecutivos desde estado INESTABLE, se restaura a
   ESTABLE.
-- [ ] CA-007: Con el outbox vacío, no se muestran indicadores de sync.
-- [ ] CA-008: Al abrir la app después de un cierre, el estado de backoff
+- [x] CA-007: Con el outbox vacío, no se muestran indicadores de sync.
+- [x] CA-008: Al abrir la app después de un cierre, el estado de backoff
   previo se conserva (no parte de cero).
 
 ## Pruebas
@@ -216,9 +229,9 @@ Componente `SyncStatusIndicator` reutilizable:
 
 ## Impacto documental
 
-- [ ] Arquitectura — actualizar `docs/architecture/` con el flujo de sync
+- [x] Arquitectura — actualizar `docs/architecture/` con el flujo de sync
   adaptativo.
-- [ ] Dominio — sin cambios.
-- [ ] Runbook — agregar diagnóstico de estado de sync (`sync_state`).
-- [ ] ADR — crear ADR para la decisión de tasa de éxito vs timeout fijo.
-- [ ] Variables o despliegue — sin cambios.
+- [x] Dominio — sin cambios.
+- [x] Runbook — agregar diagnóstico de estado de sync (`sync_state`).
+- [x] ADR — crear ADR para la decisión de tasa de éxito vs timeout fijo.
+- [x] Variables o despliegue — sin cambios.

@@ -15,7 +15,7 @@ import {
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
-import { requestSync } from "../../../../shared/sync";
+import { scheduleSync } from "../../../../shared/sync";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import type {
   IncidenceLevelCatalogItem,
@@ -374,7 +374,7 @@ export function VisitaCampoDetailScreen() {
 
     try {
       visitasCampoService.retrySyncForVisita(visitaId);
-      await requestSync({ forceRefresh: true, immediate: true });
+      await scheduleSync({ forceRefresh: true });
 
       const updated = await visitasCampoService.getFullDetail(visitaId);
       setDetail(updated);

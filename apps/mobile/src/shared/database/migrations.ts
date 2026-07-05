@@ -923,6 +923,20 @@ const MIGRATIONS: Migration[] = [
         "CREATE INDEX IF NOT EXISTS idx_visita_calificaciones_sync ON visita_calificaciones(sync_status)"
       );
     }
+  },
+  {
+    version: 37,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS sync_state (
+        id TEXT PRIMARY KEY NOT NULL,
+        window_json TEXT NOT NULL DEFAULT '[]',
+        consecutive_failures INTEGER NOT NULL DEFAULT 0,
+        consecutive_successes INTEGER NOT NULL DEFAULT 0,
+        backoff_step INTEGER NOT NULL DEFAULT 0,
+        last_attempt_at TEXT,
+        updated_at TEXT NOT NULL
+      )`
+    ]
   }
 ];
 

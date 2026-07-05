@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 36;
+const LATEST_MIGRATION_VERSION = 37;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -543,6 +543,11 @@ describe("runMigrations", () => {
     expect(db.executedStatements).toContain(
       "CREATE INDEX IF NOT EXISTS idx_sub_etapas_etapa ON sub_etapas(etapa_fenologica_id)"
     );
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.startsWith("CREATE TABLE IF NOT EXISTS sync_state")
+      )
+    ).toBe(true);
     expect(db.executedStatements).not.toContain(
       "ALTER TABLE pest_diseases DROP COLUMN code"
     );

@@ -139,6 +139,18 @@ vi.mock("../../modules/visita-recetas/repositories/visita-recetas.repository", (
   }
 }));
 
+const visitaCalificacionesUpdate = vi.fn();
+const visitaCalificacionesGetById = vi.fn();
+vi.mock(
+  "../../modules/visita-calificaciones/repositories/visita-calificaciones.repository",
+  () => ({
+    visitaCalificacionesRepository: {
+      update: visitaCalificacionesUpdate,
+      getById: visitaCalificacionesGetById
+    }
+  })
+);
+
 const handlerVisita = vi.fn();
 const handlerEvaluacion = vi.fn();
 vi.mock("./sync-handlers", () => ({

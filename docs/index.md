@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-04
+last_reviewed: 2026-07-05
 ---
 
 # Documentación de AgroGest VSM
@@ -36,6 +36,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Índice de ADR](adr/README.md)
 - [ADR-001: `docs/` como vault canónico](adr/001-docs-vault-canonico.md)
 - [ADR-002: equipo inicial de IA reducido](adr/002-equipo-ia-reducido.md)
+- [ADR-003: sync adaptativo por tasa de exito](adr/003-sync-adaptativo-por-tasa-exito.md)
 - [Plantilla de ADR](adr/TEMPLATE.md)
 
 ## Especificaciones
@@ -51,6 +52,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 007: Subsectores como hijo de sectores](specs/007-subsectores.md)
 - [Spec 008: Sistema de Calificacion de Cumplimiento por Modulo en Visitas](specs/008-calificacion-cumplimiento-modulos.md)
 - [Spec 009: Intercambio manual de posiciones en el orden de mezcla de coadyuvantes](specs/009-intercambio-orden-mezcla-coadyuvantes.md)
+- [Spec 010: Gestor de sincronizacion adaptativo con tasa de exito para redes inestables](specs/010-gestor-sync-adaptativo-tasa-exito.md)
 
 ## Runbooks
 

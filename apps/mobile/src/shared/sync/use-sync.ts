@@ -11,10 +11,11 @@ import {
   setLastSyncAttempt
 } from "./sync-status";
 import { processOutbox } from "./sync-engine";
+import { createDefaultSyncManager } from "./sync-state-store";
 import { createSyncRunResult, type SyncRunResult } from "./sync-result";
 import { subscribeToSyncRequests, type SyncRequestOptions } from "./sync-requests";
 
-const SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const SYNC_INTERVAL_MS = 30 * 1000;
 const OUTBOX_SYNC_DEBOUNCE_MS = 750;
 const RECONNECT_RETRY_DELAYS_MS = [10_000, 30_000, 90_000] as const;
 
@@ -31,6 +32,7 @@ export function useSync() {
   );
   const reconnectRetryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const rerunAfterCurrentSyncRef = useRef(false);
+  const syncManagerRef = useRef(createDefaultSyncManager());
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
@@ -75,6 +77,19 @@ export function useSync() {
       );
     }
 
+    const adaptiveDelayMs = syncManagerRef.current.getDelayUntilNextRunMs(
+      isOnlineRef.current
+    );
+
+    if (!forceRefresh && adaptiveDelayMs !== null && adaptiveDelayMs > 0) {
+      return finishRun(
+        createSyncRunResult(
+          "backoff",
+          `Red inestable. El siguiente intento automatico se hara en ${formatDelay(adaptiveDelayMs)}.`
+        )
+      );
+    }
+
     isSyncingRef.current = true;
 
     try {
@@ -90,6 +105,11 @@ export function useSync() {
       }
 
       const result = await processOutbox();
+      const attemptedItems = result.processed + result.skipped + result.errors;
+
+      if (attemptedItems > 0) {
+        syncManagerRef.current.recordAttempt(result.skipped === 0 && result.errors === 0);
+      }
 
       if (result.processed > 0 || result.errors > 0) {
         debugLog("Sync", "Cycle completed", result);
@@ -118,6 +138,7 @@ export function useSync() {
       );
     } catch (error) {
       console.warn("Sync cycle failed:", error);
+      syncManagerRef.current.recordAttempt(false);
       return finishRun(
         createSyncRunResult(
           "failed",
@@ -146,6 +167,16 @@ export function useSync() {
         scheduledSyncResolveRef.current?.(null);
       }
 
+      const adaptiveDelayMs =
+        options.forceRefresh
+          ? 0
+          : syncManagerRef.current.getDelayUntilNextRunMs(isOnlineRef.current);
+      const requestedDelayMs = options.immediate ? 0 : OUTBOX_SYNC_DEBOUNCE_MS;
+      const delayMs =
+        adaptiveDelayMs === null
+          ? requestedDelayMs
+          : Math.max(requestedDelayMs, adaptiveDelayMs);
+
       return new Promise<SyncRunResult | null>((resolve) => {
         scheduledSyncResolveRef.current = resolve;
         scheduledSyncRef.current = setTimeout(
@@ -155,7 +186,7 @@ export function useSync() {
             const result = await runSync(Boolean(options.forceRefresh));
             resolve(result);
           },
-          options.immediate ? 0 : OUTBOX_SYNC_DEBOUNCE_MS
+          delayMs
         );
       });
     },
@@ -219,4 +250,14 @@ function clearTimers(timers: ReturnType<typeof setTimeout>[]) {
   for (const timer of timers) {
     clearTimeout(timer);
   }
+}
+
+function formatDelay(delayMs: number) {
+  const totalSeconds = Math.ceil(delayMs / 1000);
+
+  if (totalSeconds < 60) {
+    return `${totalSeconds}s`;
+  }
+
+  return `${Math.ceil(totalSeconds / 60)}min`;
 }

@@ -420,5 +420,14 @@ export const SQL_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS app_meta (
     key TEXT PRIMARY KEY NOT NULL,
     value TEXT
+  )`,
+  `CREATE TABLE IF NOT EXISTS sync_state (
+    id TEXT PRIMARY KEY NOT NULL,
+    window_json TEXT NOT NULL DEFAULT '[]',
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    consecutive_successes INTEGER NOT NULL DEFAULT 0,
+    backoff_step INTEGER NOT NULL DEFAULT 0,
+    last_attempt_at TEXT,
+    updated_at TEXT NOT NULL
   )`
 ] as const;

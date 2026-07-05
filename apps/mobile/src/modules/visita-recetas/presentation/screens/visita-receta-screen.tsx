@@ -21,7 +21,7 @@ import {
 import { AppSelectField } from "../../../../shared/components/app-select-field";
 import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
-import { requestSync } from "../../../../shared/sync";
+import { scheduleSync } from "../../../../shared/sync";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import { visitaRecetasService, type SaveRecetaData } from "../../services";
@@ -467,12 +467,7 @@ export function VisitaRecetaScreen() {
       };
 
       visitaRecetasService.save(visitaId, data);
-
-      try {
-        await requestSync({ forceRefresh: true, immediate: true });
-      } catch (syncError) {
-        console.warn("No se pudo sincronizar la receta despues de guardarla.", syncError);
-      }
+      void scheduleSync({ forceRefresh: true });
 
       const updated = visitaRecetasService.getByVisitaId(visitaId);
       setRecetaData(updated);

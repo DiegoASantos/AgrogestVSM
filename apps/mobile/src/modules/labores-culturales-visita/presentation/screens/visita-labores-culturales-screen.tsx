@@ -22,7 +22,7 @@ import {
 import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
-import { requestSync } from "../../../../shared/sync";
+import { scheduleSync } from "../../../../shared/sync";
 import {
   ComplianceScoreCard,
   PreviousRecipeSummaryCard
@@ -363,7 +363,7 @@ export function VisitaLaboresCulturalesScreen() {
           observacion: null
         });
       }
-      void requestSync({ immediate: true });
+      void scheduleSync();
       router.replace({
         pathname: "/visitas-campo/[id]/receta",
         params: { id: visitaId }
