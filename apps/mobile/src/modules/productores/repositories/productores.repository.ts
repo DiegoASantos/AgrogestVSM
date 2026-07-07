@@ -40,6 +40,7 @@ export const productoresRepository = {
     const rows = db.getAllSync<ProductorRow>(
       `SELECT ${PRODUCTOR_COLUMNS}
        FROM productores
+       WHERE is_active = 1
        ORDER BY COALESCE(first_name, document_number, public_id) ASC, id ASC`
     );
 
@@ -64,12 +65,13 @@ export const productoresRepository = {
     const rows = db.getAllSync<ProductorRow>(
       `SELECT ${PRODUCTOR_COLUMNS}
        FROM productores
-       WHERE id IN (
-         SELECT DISTINCT parcelas.productor_id
-         FROM parcelas
-         INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
-         WHERE subsectores.sector_id = ?
-       )
+       WHERE is_active = 1
+         AND id IN (
+          SELECT DISTINCT parcelas.productor_id
+          FROM parcelas
+          INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
+          WHERE subsectores.sector_id = ?
+        )
        ORDER BY COALESCE(first_name, document_number, public_id) ASC, id ASC`,
       sectorId
     );
