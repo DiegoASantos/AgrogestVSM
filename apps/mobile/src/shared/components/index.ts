@@ -8,6 +8,7 @@ export * from "./app-header";
 export * from "./app-input";
 export * from "./app-map";
 export * from "./app-map.types";
+export * from "./app-paginated-select-field";
 export * from "./app-select-field";
 export * from "./app-status-badge";
 export * from "./app-text";

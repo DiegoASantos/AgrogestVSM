@@ -5,6 +5,14 @@ export const productoresService = {
     return productoresRepository.getAll();
   },
 
+  async searchByName(query: string, limit: number, offset: number) {
+    return productoresRepository.searchByName(query, limit, offset);
+  },
+
+  async countByName(query: string) {
+    return productoresRepository.countByName(query);
+  },
+
   async getById(id: string) {
     const productor = productoresRepository.getById(id);
 

@@ -27,3 +27,10 @@ export type ProductorPayload = {
   address?: string | null;
   isActive?: boolean;
 };
+
+export type ProductoresListResponse = {
+  items: ProductorListItem[];
+  count: number;
+  page: number;
+  totalPages: number;
+};

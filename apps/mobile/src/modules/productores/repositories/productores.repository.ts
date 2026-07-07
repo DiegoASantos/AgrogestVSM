@@ -47,6 +47,51 @@ export const productoresRepository = {
     return rows.map(mapProductorRow);
   },
 
+  searchByName(query: string, limit: number, offset: number) {
+    const db = getDatabase();
+    const searchPattern = `%${query.trim().toLowerCase()}%`;
+    const rows = db.getAllSync<ProductorRow>(
+      `SELECT ${PRODUCTOR_COLUMNS}
+       FROM productores
+       WHERE is_active = 1
+         AND (
+          LOWER(COALESCE(first_name, '')) LIKE ?
+          OR LOWER(COALESCE(last_name, '')) LIKE ?
+          OR LOWER(COALESCE(document_number, '')) LIKE ?
+        )
+       ORDER BY COALESCE(first_name, document_number, public_id) ASC, id ASC
+       LIMIT ?
+       OFFSET ?`,
+      searchPattern,
+      searchPattern,
+      searchPattern,
+      limit,
+      offset
+    );
+
+    return rows.map(mapProductorRow);
+  },
+
+  countByName(query: string) {
+    const db = getDatabase();
+    const searchPattern = `%${query.trim().toLowerCase()}%`;
+    const row = db.getFirstSync<{ total: number }>(
+      `SELECT COUNT(*) AS total
+       FROM productores
+       WHERE is_active = 1
+         AND (
+          LOWER(COALESCE(first_name, '')) LIKE ?
+          OR LOWER(COALESCE(last_name, '')) LIKE ?
+          OR LOWER(COALESCE(document_number, '')) LIKE ?
+        )`,
+      searchPattern,
+      searchPattern,
+      searchPattern
+    );
+
+    return row?.total ?? 0;
+  },
+
   getById(id: string) {
     const db = getDatabase();
     const row = db.getFirstSync<ProductorRow>(

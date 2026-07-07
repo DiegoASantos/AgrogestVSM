@@ -1,11 +1,13 @@
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ImageBackground, ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppButton,
   AppCard,
+  AppPaginatedSelectField,
+  type AppPaginatedSelectOption,
   AppSelectField,
   AppText,
   ScreenContainer
@@ -38,23 +40,18 @@ export function NewVisitaSelectorScreen() {
   const [sectorId, setSectorId] = useState("");
   const [subsectorId, setSubsectorId] = useState("");
   const [parcelaId, setParcelaId] = useState("");
-  const [productores, setProductores] = useState<Productor[]>([]);
+  const [selectedProductorLabel, setSelectedProductorLabel] = useState<string>();
   const [sectores, setSectores] = useState<Sector[]>([]);
   const [subsectores, setSubsectores] = useState<Subsector[]>([]);
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
 
   useEffect(() => {
-    void loadProductores();
+    void ensureProductoresAvailable();
   }, []);
 
   const sectorOptions = sectores.map((sector) => ({
     value: sector.id,
     label: sector.name
-  }));
-  const productorOptions = productores.map((productor) => ({
-    value: productor.id,
-    label: buildProductorLabel(productor),
-    helper: productor.documentNumber ?? productor.publicId
   }));
   const subsectorOptions = subsectores.map((subsector) => ({
     value: subsector.id,
@@ -66,6 +63,22 @@ export function NewVisitaSelectorScreen() {
     helper: parcela.code
   }));
   const selectedParcela = parcelas.find((parcela) => parcela.id === parcelaId);
+
+  const loadProductorOptions = useCallback(
+    async (query: string, page: number, pageSize: number) => {
+      const offset = (page - 1) * pageSize;
+      const [nextProductores, total] = await Promise.all([
+        productoresService.searchByName(query, pageSize, offset),
+        productoresService.countByName(query)
+      ]);
+
+      return {
+        options: nextProductores.map(toProductorOption),
+        total
+      };
+    },
+    []
+  );
 
   return (
     <ScreenContainer contentStyle={styles.container}>
@@ -93,21 +106,21 @@ export function NewVisitaSelectorScreen() {
 
         <View style={styles.body}>
           <AppCard style={styles.fieldsCard}>
-            <AppSelectField
+            <AppPaginatedSelectField
               emptyMessage="No hay productores descargados. Sincroniza los catalogos cuando tengas internet."
               icon="person-outline"
               isLoading={loadingCatalog === "productor"}
               isOpen={openCatalog === "productor"}
               label="Productor"
-              onSelect={(value) => {
-                void handleProductorSelection(value);
+              onSearch={loadProductorOptions}
+              onSelect={(option) => {
+                setSelectedProductorLabel(option.label);
+                void handleProductorSelection(option.value);
               }}
               onToggle={() => toggleCatalog("productor")}
-              options={productorOptions}
               placeholder="Selecciona un productor"
-              searchable
               searchPlaceholder="Buscar por nombre o documento"
-              selectedLabel={findSelectedLabel(productorOptions, productorId)}
+              selectedLabel={selectedProductorLabel}
             />
             <View style={styles.divider} />
             <AppSelectField
@@ -209,22 +222,25 @@ export function NewVisitaSelectorScreen() {
     setOpenCatalog((current) => (current === catalog ? null : catalog));
   }
 
-  async function loadProductores() {
+  async function ensureProductoresAvailable() {
     setLoadingCatalog("productor");
     setError(null);
 
     try {
-      let nextProductores = await productoresService.getAll();
+      let totalProductores = await productoresService.countByName("");
 
-      if (nextProductores.length === 0) {
+      if (totalProductores === 0) {
         await downloadAllCatalogs();
-        nextProductores = await productoresService.getAll();
+        totalProductores = await productoresService.countByName("");
       }
 
-      setProductores(nextProductores);
+      if (totalProductores === 1) {
+        const [singleProductor] = await productoresService.searchByName("", 1, 0);
 
-      if (nextProductores.length === 1) {
-        await handleProductorSelection(nextProductores[0].id);
+        if (singleProductor) {
+          setSelectedProductorLabel(buildProductorLabel(singleProductor));
+          await handleProductorSelection(singleProductor.id);
+        }
       }
     } catch (nextError) {
       setError(toApiError(nextError).message || "No se pudieron cargar los productores.");
@@ -316,6 +332,14 @@ export function NewVisitaSelectorScreen() {
       setLoadingCatalog(null);
     }
   }
+}
+
+function toProductorOption(productor: Productor): AppPaginatedSelectOption {
+  return {
+    value: productor.id,
+    label: buildProductorLabel(productor),
+    helper: productor.documentNumber ?? productor.publicId
+  };
 }
 
 function buildProductorLabel(productor: Productor) {

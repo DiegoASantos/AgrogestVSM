@@ -19,8 +19,6 @@ import { agriculturalCatalogsService } from "../../mantenimiento/services/agricu
 import type { CatalogOption } from "../../mantenimiento/types/agricultural-catalogs.types";
 import {
   buildOptionsLookup,
-  matchesStatusFilter,
-  normalizeSearch,
   renderStatusBadge,
   type StatusFilter
 } from "../../mantenimiento/presentation/catalog-screen.helpers";
@@ -61,10 +59,14 @@ const PRODUCTOR_ENTITY_LABELS: Record<ProductorEntityType, string> = {
   fundo: "Fundo",
   cooperativa: "Cooperativa"
 };
+const PAGE_SIZE = 10;
 
 export function ProductoresOverview() {
   const { session, logout } = useAuthSession();
   const [items, setItems] = useState<ProductorListItem[]>([]);
+  const [count, setCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [documentTypeOptions, setDocumentTypeOptions] = useState<CatalogOption[]>(
     []
   );
@@ -86,40 +88,19 @@ export function ProductoresOverview() {
       return;
     }
 
-    void loadData();
-  }, [session]);
+    void loadData(page);
+  }, [page, search, session, statusFilter]);
 
   const documentTypeLookup = useMemo(
     () => buildOptionsLookup(documentTypeOptions),
     [documentTypeOptions]
   );
 
-  const filteredItems = useMemo(() => {
-    const normalizedSearch = normalizeSearch(search);
-
-    return items.filter((item) => {
-      const documentTypeLabel =
-        item.documentTypeId === null
-          ? ""
-          : documentTypeLookup[String(item.documentTypeId)] ??
-            String(item.documentTypeId);
-      const entityLabel = PRODUCTOR_ENTITY_LABELS[item.entityType];
-      const producerLabel = buildProductorDisplayName(item);
-
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        (item.documentNumber ?? "").toLowerCase().includes(normalizedSearch) ||
-        producerLabel.toLowerCase().includes(normalizedSearch) ||
-        entityLabel.toLowerCase().includes(normalizedSearch) ||
-        (item.firstName ?? "").toLowerCase().includes(normalizedSearch) ||
-        (item.lastName ?? "").toLowerCase().includes(normalizedSearch) ||
-        (item.email ?? "").toLowerCase().includes(normalizedSearch) ||
-        (item.address ?? "").toLowerCase().includes(normalizedSearch) ||
-        documentTypeLabel.toLowerCase().includes(normalizedSearch);
-
-      return matchesSearch && matchesStatusFilter(item.isActive, statusFilter);
-    });
-  }, [documentTypeLookup, items, search, statusFilter]);
+  const fromItem = count === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const toItem = Math.min(page * PAGE_SIZE, count);
+  const resultsSummary = `${count} productor${count === 1 ? "" : "es"} encontrado${count === 1 ? "" : "s"}${
+    count > 0 ? ` -- Mostrando ${fromItem} - ${toItem}` : ""
+  }.`;
 
   const columns: DataTableColumn<ProductorListItem>[] = [
     {
@@ -189,7 +170,7 @@ export function ProductoresOverview() {
     }
   ];
 
-  async function loadData() {
+  async function loadData(currentPage = page) {
     if (!session) {
       return;
     }
@@ -197,11 +178,18 @@ export function ProductoresOverview() {
     try {
       setIsLoading(true);
       setListError(null);
-      const [nextItems, nextDocumentTypes] = await Promise.all([
-        productoresService.getAll(session),
+      const [productoresPage, nextDocumentTypes] = await Promise.all([
+        productoresService.getPage(session, {
+          page: currentPage,
+          limit: PAGE_SIZE,
+          search,
+          isActive: statusFilter === "all" ? undefined : statusFilter === "active"
+        }),
         agriculturalCatalogsService.getTiposDocumento(session)
       ]);
-      setItems(nextItems);
+      setItems(productoresPage.items);
+      setCount(productoresPage.count);
+      setTotalPages(productoresPage.totalPages);
       setDocumentTypeOptions(
         nextDocumentTypes.map((item) => ({
           id: item.id,
@@ -309,7 +297,7 @@ export function ProductoresOverview() {
         setSuccessMessage("Productor creado correctamente.");
       }
 
-      await loadData();
+      await loadData(page);
       setFormState(emptyForm);
       setModalOpen(false);
     } catch (error) {
@@ -341,7 +329,7 @@ export function ProductoresOverview() {
       }
 
       setItemToDeactivate(null);
-      await loadData();
+      await loadData(page);
     } catch (error) {
       const apiError = toApiError(error);
 
@@ -362,7 +350,7 @@ export function ProductoresOverview() {
         <ToolbarActions
           actions={
             <>
-              <button className="ui-button ui-button--ghost" onClick={() => void loadData()} type="button">
+              <button className="ui-button ui-button--ghost" onClick={() => void loadData(page)} type="button">
                 Recargar
               </button>
               <Link className="ui-button ui-button--secondary" href={adminRoutes.mantenimiento}>
@@ -385,6 +373,7 @@ export function ProductoresOverview() {
               onClick={() => {
                 setSearch("");
                 setStatusFilter("all");
+                setPage(1);
               }}
               type="button"
             >
@@ -395,8 +384,11 @@ export function ProductoresOverview() {
           <label className="field-group">
             <span>Buscar</span>
             <input
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Documento, correo o direccion"
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Nombre, apellido o documento"
               value={search}
             />
           </label>
@@ -404,9 +396,10 @@ export function ProductoresOverview() {
           <label className="field-group">
             <span>Estado</span>
             <select
-              onChange={(event) =>
-                setStatusFilter(event.target.value as StatusFilter)
-              }
+              onChange={(event) => {
+                setStatusFilter(event.target.value as StatusFilter);
+                setPage(1);
+              }}
               value={statusFilter}
             >
               <option value="all">Todos</option>
@@ -423,7 +416,7 @@ export function ProductoresOverview() {
         {listError ? (
           <ErrorState
             action={
-              <button className="ui-button ui-button--secondary" onClick={() => void loadData()} type="button">
+              <button className="ui-button ui-button--secondary" onClick={() => void loadData(page)} type="button">
                 Reintentar
               </button>
             }
@@ -435,19 +428,26 @@ export function ProductoresOverview() {
           <LoadingState description="Cargando productores..." />
         ) : null}
 
-        {!listError && !isLoading && filteredItems.length === 0 ? (
+        {!listError && !isLoading && items.length === 0 ? (
           <EmptyState
             description="No hay productores cargados o la busqueda no devolvio coincidencias."
             title="No se encontraron productores"
           />
         ) : null}
 
-        {!listError && !isLoading && filteredItems.length > 0 ? (
+        {!listError && !isLoading && items.length > 0 ? (
           <DataTable
             caption="Listado administrativo de productores."
             columns={columns}
             getRowKey={(row) => row.id}
-            rows={filteredItems}
+            pagination={{
+              loading: isLoading,
+              onPageChange: setPage,
+              page,
+              summary: resultsSummary,
+              totalPages
+            }}
+            rows={items}
           />
         ) : null}
 

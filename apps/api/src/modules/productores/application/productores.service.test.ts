@@ -26,12 +26,25 @@ function buildProductor(overrides: Partial<ProductorEntity> = {}): ProductorEnti
   };
 }
 
-function buildService(options: { existingProductor?: ProductorEntity | null } = {}) {
+function buildService(
+  options: {
+    existingProductor?: ProductorEntity | null;
+    findAllResult?: [ProductorEntity[], number];
+  } = {}
+) {
+  const queryBuilder = {
+    orderBy: vi.fn(() => queryBuilder),
+    skip: vi.fn(() => queryBuilder),
+    take: vi.fn(() => queryBuilder),
+    andWhere: vi.fn(() => queryBuilder),
+    getManyAndCount: vi.fn(async () => options.findAllResult ?? [[], 0])
+  };
   const repository = {
     create: vi.fn((value: Partial<ProductorEntity>) => buildProductor(value)),
     save: vi.fn(async (value: ProductorEntity) => value),
     findOne: vi.fn(async () => options.existingProductor ?? null),
-    findAndCount: vi.fn()
+    findAndCount: vi.fn(),
+    createQueryBuilder: vi.fn(() => queryBuilder)
   };
 
   const service = new ProductoresService(
@@ -41,7 +54,7 @@ function buildService(options: { existingProductor?: ProductorEntity | null } = 
     {} as never
   );
 
-  return { repository, service };
+  return { queryBuilder, repository, service };
 }
 
 describe("ProductoresService", () => {
@@ -192,6 +205,45 @@ describe("ProductoresService", () => {
       ).rejects.toBeInstanceOf(BadRequestException);
 
       expect(repository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("findAll", () => {
+    it("applies pagination, active filter and simple search", async () => {
+      const productor = buildProductor({
+        firstName: "Maria",
+        lastName: "Garcia"
+      });
+      const { queryBuilder, service } = buildService({
+        findAllResult: [[productor], 1]
+      });
+
+      const result = await service.findAll({
+        page: 2,
+        limit: 10,
+        search: "garcia",
+        activo: true,
+        get skip() {
+          return 10;
+        },
+        get take() {
+          return 10;
+        }
+      });
+
+      expect(queryBuilder.skip).toHaveBeenCalledWith(10);
+      expect(queryBuilder.take).toHaveBeenCalledWith(10);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        "productor.activo = :isActive",
+        { isActive: true }
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledTimes(2);
+      expect(result.data).toHaveLength(1);
+      expect(result.meta).toMatchObject({
+        total: 1,
+        page: 2,
+        limit: 10
+      });
     });
   });
 });

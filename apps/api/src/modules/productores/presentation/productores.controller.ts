@@ -20,10 +20,10 @@ import {
   ApiTags
 } from "@nestjs/swagger";
 
-import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { ProductoresService } from "../application/productores.service";
 import { CreateProductorDto } from "./dto/create-productor.dto";
+import { FindProductoresQueryDto } from "./dto/find-productores-query.dto";
 import { UpdateProductorDto } from "./dto/update-productor.dto";
 import { FindHistorialVisitasProductorQueryDto } from "../../visitas-campo/presentation/dto/find-historial-visitas-productor-query.dto";
 
@@ -52,8 +52,8 @@ export class ProductoresController {
   @ApiOkResponse({
     description: "Lista de productores paginada."
   })
-  getProductores(@Query() pagination: PaginationQueryDto) {
-    return this.productoresService.findAll(pagination);
+  getProductores(@Query() query: FindProductoresQueryDto) {
+    return this.productoresService.findAll(query);
   }
 
   @Get(":id/resumen")

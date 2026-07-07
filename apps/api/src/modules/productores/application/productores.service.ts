@@ -5,10 +5,9 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { QueryFailedError, Repository } from "typeorm";
+import { Brackets, QueryFailedError, Repository } from "typeorm";
 
 import { createPaginatedMeta, createSuccessResponse } from "../../../common/http/api-response";
-import type { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParcelasService } from "../../parcelas/application/parcelas.service";
 import { ParcelaEntity } from "../../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { SectoresService } from "../../sectores/application/sectores.service";
@@ -17,6 +16,7 @@ import { SubsectorEntity } from "../../subsectores/infrastructure/persistence/en
 import { VisitasCampoService } from "../../visitas-campo/application/visitas-campo.service";
 import { FindHistorialVisitasProductorQueryDto } from "../../visitas-campo/presentation/dto/find-historial-visitas-productor-query.dto";
 import { CreateProductorDto } from "../presentation/dto/create-productor.dto";
+import { FindProductoresQueryDto } from "../presentation/dto/find-productores-query.dto";
 import { UpdateProductorDto } from "../presentation/dto/update-productor.dto";
 import {
   ProductorEntity,
@@ -72,18 +72,43 @@ export class ProductoresService {
     }
   }
 
-  async findAll(pagination: PaginationQueryDto) {
-    const [productores, total] = await this.productoresRepository.findAndCount({
-      order: {
-        createdAt: "DESC"
-      },
-      skip: pagination.skip,
-      take: pagination.take
-    });
+  async findAll(query: FindProductoresQueryDto) {
+    const queryBuilder = this.productoresRepository
+      .createQueryBuilder("productor")
+      .orderBy("productor.creado_at", "DESC")
+      .skip(query.skip)
+      .take(query.take);
+
+    if (query.activo !== undefined) {
+      queryBuilder.andWhere("productor.activo = :isActive", {
+        isActive: query.activo
+      });
+    }
+
+    if (query.search) {
+      const searchValue = `%${query.search.toLowerCase()}%`;
+
+      queryBuilder.andWhere(
+        new Brackets((searchQuery) => {
+          searchQuery
+            .where("LOWER(COALESCE(productor.nombres, '')) LIKE :search", {
+              search: searchValue
+            })
+            .orWhere("LOWER(COALESCE(productor.apellidos, '')) LIKE :search", {
+              search: searchValue
+            })
+            .orWhere("LOWER(COALESCE(productor.nro_documento, '')) LIKE :search", {
+              search: searchValue
+            });
+        })
+      );
+    }
+
+    const [productores, total] = await queryBuilder.getManyAndCount();
 
     return createSuccessResponse(
       productores.map((productor) => this.toResponse(productor)),
-      createPaginatedMeta(total, pagination.page, pagination.limit)
+      createPaginatedMeta(total, query.page, query.limit)
     );
   }
 
