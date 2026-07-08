@@ -2,7 +2,7 @@
 title: Cultivos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-28
+last_reviewed: 2026-07-08
 ---
 
 # Cultivos
@@ -26,6 +26,8 @@ Campos conceptuales vigentes:
 
 - `id`: identificador interno numérico del backend; mobile lo almacena como
   texto para referenciar catálogos y visitas.
+- `publicId`: identificador UUID estable para integraciones externas; no
+  reemplaza el `id` interno usado por admin web y mobile.
 - `code`: código corto visible, obligatorio y no nulo del cultivo. La API lo
   normaliza en mayúsculas cuando se envía.
 - `name`: nombre visible y obligatorio del cultivo.
@@ -128,6 +130,7 @@ de aplicar la contracción.
 - `apps/api/src/modules/cultivos`
 - `apps/api/src/modules/variedades`
 - `apps/api/src/modules/campanias`
+- `apps/api/src/modules/integraciones`
 - `apps/api/src/modules/visitas-campo`
 - `apps/api/src/modules/nutricion`
 - `apps/mobile/src/shared/database/schema.ts`

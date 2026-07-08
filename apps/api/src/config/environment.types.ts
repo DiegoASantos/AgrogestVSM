@@ -7,6 +7,7 @@ export type EnvironmentVariables = {
   APP_TRUST_PROXY: boolean;
   LOG_LEVEL: string;
   CORS_ALLOWED_ORIGINS: string[];
+  COST_BUILD_API_KEY: string;
   DB_HOST: string;
   DB_PORT: number;
   DB_NAME: string;
@@ -32,6 +33,7 @@ export type AppRuntimeConfig = {
   trustProxy: boolean;
   logLevel: string;
   allowedOrigins?: string[];
+  costBuildApiKey: string;
   loginRateLimit: {
     ttlMs: number;
     max: number;

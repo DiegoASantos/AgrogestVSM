@@ -19,6 +19,13 @@ export class VariedadEntity {
   id!: string;
 
   @Column({
+    name: "public_id",
+    type: "uuid",
+    default: () => "gen_random_uuid()"
+  })
+  publicId!: string;
+
+  @Column({
     name: "cultivo_id",
     type: "bigint"
   })

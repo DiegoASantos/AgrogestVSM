@@ -15,6 +15,7 @@ export const appConfig = registerAs("app", (): AppRuntimeConfig => {
     trustProxy: environment.APP_TRUST_PROXY,
     logLevel: environment.LOG_LEVEL,
     allowedOrigins: environment.CORS_ALLOWED_ORIGINS,
+    costBuildApiKey: environment.COST_BUILD_API_KEY,
     loginRateLimit: {
       ttlMs: environment.LOGIN_RATE_LIMIT_TTL_MS,
       max: environment.LOGIN_RATE_LIMIT_MAX,

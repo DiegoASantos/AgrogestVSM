@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-05
+last_reviewed: 2026-07-08
 ---
 
 # Documentación de AgroGest VSM
@@ -56,6 +56,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 011: Justificacion de puntajes bajos, observaciones de paso ampliadas y resumen ejecutivo en receta PDF](specs/011-justificacion-puntajes-bajos-observaciones-paso-resumen-pdf.md)
 - [Spec 012: Selector de nombre comercial en receta fitosanitaria](specs/012-nombre-comercial-receta-fitosanitaria.md)
 - [Spec 013: Paginacion y busqueda de productores en mobile y web](specs/013-paginacion-selector-productor.md)
+- [Spec 014: Exportacion protegida para Cost-Build](specs/014-exportacion-cost-build-api-key.md)
 
 ## Runbooks
 

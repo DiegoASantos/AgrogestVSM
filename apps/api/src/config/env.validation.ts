@@ -42,6 +42,7 @@ function buildEnvironmentVariables(
     ),
     LOG_LEVEL: parseLogLevel(source.LOG_LEVEL),
     CORS_ALLOWED_ORIGINS: parseAllowedOrigins(source.CORS_ALLOWED_ORIGINS),
+    COST_BUILD_API_KEY: getOptionalString(source.COST_BUILD_API_KEY),
     DB_HOST: getString(source.DB_HOST, DEFAULT_DB_HOST),
     DB_PORT: parsePort(source.DB_PORT, "DB_PORT", DEFAULT_DB_PORT),
     DB_NAME: getRequiredString(source.DB_NAME, "DB_NAME"),
@@ -224,4 +225,8 @@ function getString(value: unknown, defaultValue: string): string {
   const normalizedValue = String(value ?? "").trim();
 
   return normalizedValue || defaultValue;
+}
+
+function getOptionalString(value: unknown): string {
+  return String(value ?? "").trim();
 }

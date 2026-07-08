@@ -2,7 +2,7 @@
 title: Deploy API en Render
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-08
 ---
 
 # Deploy API en Render para piloto
@@ -31,6 +31,8 @@ base PostgreSQL de Supabase que ya configuraste.
 3. Ten a mano estos valores:
    - `DB_PASSWORD` de Supabase
    - `CORS_ALLOWED_ORIGINS` del panel web
+   - `COST_BUILD_API_KEY` si se habilita la exportacion protegida para
+     Cost-Build
    - `SEED_ADMIN_PASSWORD` para el usuario admin inicial
 
 La base debe tener el esquema existente o haber sido preparada previamente con
@@ -48,6 +50,7 @@ bootstrap destructivo durante el arranque.
    Esta region se dejo asi porque tu pooler actual de Supabase esta en `us-east-1`.
 7. Completa los valores que Render te pedira porque estan marcados como secretos:
    - `CORS_ALLOWED_ORIGINS`
+   - `COST_BUILD_API_KEY`
    - `DB_PASSWORD`
    - `SEED_ADMIN_PASSWORD`
 8. Crea el servicio.
@@ -58,6 +61,8 @@ bootstrap destructivo durante el arranque.
 - `APP_HOST=0.0.0.0`
 - `APP_TRUST_PROXY=true`
 - `LOG_LEVEL=info`
+- `COST_BUILD_API_KEY` queda como secreto manual cuando se usa la integracion
+  Cost-Build
 - `DB_HOST=aws-1-us-east-1.pooler.supabase.com`
 - `DB_PORT=5432`
 - `DB_NAME=postgres`
@@ -126,6 +131,7 @@ APP_HOST=0.0.0.0
 APP_TRUST_PROXY=true
 LOG_LEVEL=info
 CORS_ALLOWED_ORIGINS=https://tu-admin-web.vercel.app
+COST_BUILD_API_KEY=<api_key_cost_build>
 DB_HOST=aws-1-us-east-1.pooler.supabase.com
 DB_PORT=5432
 DB_NAME=postgres
@@ -164,7 +170,9 @@ Después de cada deploy:
 2. probar login válido;
 3. verificar que intentos repetidos produzcan HTTP 429;
 4. revisar catálogos, parcelas y visitas;
-5. confirmar el panel desde el origen permitido.
+5. si `COST_BUILD_API_KEY` esta configurada, probar
+   `/integraciones/cost-build/export` con y sin `x-api-key`;
+6. confirmar el panel desde el origen permitido.
 
 Si falla, seguir [el runbook de rollback](rollback.md). Si el release cambia
 datos, confirmar primero la compatibilidad de la migración.

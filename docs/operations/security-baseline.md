@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-07-08
 ---
 
 # Línea base de seguridad operativa
@@ -17,6 +17,7 @@ last_reviewed: 2026-06-25
 - TLS configurable para PostgreSQL;
 - `synchronize: false` en ejecución normal;
 - rate limiting de login por IP;
+- exportación Cost-Build protegida por API key dedicada;
 - `Cache-Control: no-store` en endpoints de autenticación;
 - tokens mobile en almacenamiento seguro;
 - access token web solo en memoria y refresh token por sesión de pestaña.
@@ -52,6 +53,9 @@ preferida es instalar la CA correspondiente y activar verificación estricta.
 - `.env` está ignorado.
 - Las IAs no deben leer ni copiar secretos salvo autorización explícita.
 - Rotar secretos ante exposición o cambio de responsable.
+- `COST_BUILD_API_KEY` habilita lectura masiva de datos para integración
+  externa; debe configurarse solo como secreto del entorno y rotarse si se
+  comparte por canales no seguros.
 
 ## Permisos mínimos
 

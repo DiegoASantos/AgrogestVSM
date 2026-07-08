@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-01
+last_reviewed: 2026-07-08
 ---
 
 # Especificaciones
@@ -57,4 +57,5 @@ en la raíz.
 - [Spec 011: Justificación de puntajes bajos, observaciones de paso ampliadas y resumen ejecutivo en receta PDF](011-justificacion-puntajes-bajos-observaciones-paso-resumen-pdf.md)
 - [Spec 012: Selector de nombre comercial en receta fitosanitaria](012-nombre-comercial-receta-fitosanitaria.md)
 - [Spec 013: Paginación y búsqueda en selector de productor mobile](013-paginacion-selector-productor.md)
+- [Spec 014: Exportacion protegida para Cost-Build](014-exportacion-cost-build-api-key.md)
 - [Plantilla](TEMPLATE.md)

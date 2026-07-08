@@ -62,6 +62,10 @@ export class AppConfigService {
     return this.runtimeAppConfig.allowedOrigins ?? [];
   }
 
+  get costBuildApiKey(): string {
+    return this.runtimeAppConfig.costBuildApiKey;
+  }
+
   get isDevelopment(): boolean {
     return this.nodeEnv === "development";
   }

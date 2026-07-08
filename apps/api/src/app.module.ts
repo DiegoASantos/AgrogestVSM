@@ -8,6 +8,7 @@ import { CultivosModule } from "./modules/cultivos/cultivos.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { HealthModule } from "./modules/health/health.module";
 import { GeografiasModule } from "./modules/geografias/geografias.module";
+import { IntegracionesModule } from "./modules/integraciones/integraciones.module";
 import { NutricionModule } from "./modules/nutricion/nutricion.module";
 import { OperacionesCampoModule } from "./modules/operaciones-campo/operaciones-campo.module";
 import { ParcelasModule } from "./modules/parcelas/parcelas.module";
@@ -52,6 +53,7 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     VisitaRiegosModule,
     VisitaLaboresCulturalesModule,
     VisitaRecetasModule,
+    IntegracionesModule,
     DashboardModule
   ]
 })

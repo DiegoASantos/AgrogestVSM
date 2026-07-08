@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-07-08
 ---
 
 # Registro de riesgos
@@ -24,6 +24,8 @@ last_reviewed: 2026-06-25
 | R-013 | Rate limiting usa memoria de una sola instancia                                         | Media     | Aceptado temporalmente | Migrar a almacenamiento compartido al escalar        |
 | R-014 | Backups gestionados del proveedor no han sido auditados                                 | Alta      | Abierto                | Verificar plan, retención y restauración en Supabase |
 | R-015 | El bootstrap fresco puede conservar índices únicos equivalentes con nombres distintos   | Baja      | Aceptado temporalmente | Auditar catálogo e índices antes de nuevas migraciones |
+
+| R-016 | Integracion Cost-Build expone lectura masiva de datos personales por API key            | Alta      | Mitigado               | API key dedicada, secreto fuera de Git, rotacion si se comparte y endpoint solo lectura |
 
 ## Revisión
 

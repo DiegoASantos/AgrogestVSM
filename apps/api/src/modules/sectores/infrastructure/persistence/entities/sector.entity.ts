@@ -23,6 +23,13 @@ export class SectorEntity {
   id!: string;
 
   @Column({
+    name: "public_id",
+    type: "uuid",
+    default: () => "gen_random_uuid()"
+  })
+  publicId!: string;
+
+  @Column({
     name: "distrito_id",
     type: "bigint"
   })

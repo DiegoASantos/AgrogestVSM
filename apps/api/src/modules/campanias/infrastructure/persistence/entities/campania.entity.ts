@@ -19,6 +19,13 @@ export class CampaniaEntity {
   id!: string;
 
   @Column({
+    name: "public_id",
+    type: "uuid",
+    default: () => "gen_random_uuid()"
+  })
+  publicId!: string;
+
+  @Column({
     name: "nombre",
     type: "varchar",
     length: 100

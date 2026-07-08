@@ -15,6 +15,13 @@ export class CultivoEntity {
   id!: string;
 
   @Column({
+    name: "public_id",
+    type: "uuid",
+    default: () => "gen_random_uuid()"
+  })
+  publicId!: string;
+
+  @Column({
     name: "codigo",
     type: "varchar",
     length: 20

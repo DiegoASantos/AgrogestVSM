@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-03
+last_reviewed: 2026-07-08
 ---
 
 # Modelo del dominio
@@ -53,6 +53,11 @@ Restricciones territoriales relevantes:
 Estos catálogos contextualizan la parcela y cada visita. El cultivo es el
 catálogo base de producción agrícola: desde él se resuelven variedades,
 campañas, etapas fenológicas y nutrientes aplicables a una visita.
+
+Para integraciones externas, cultivos, variedades, campañas, productores,
+sectores, subsectores y parcelas exponen un `publicId` UUID estable. Cost-Build
+consume esos identificadores como `id_origen` mediante un endpoint de solo
+lectura protegido por API key.
 
 ## Visita de campo
 

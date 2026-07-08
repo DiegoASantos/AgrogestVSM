@@ -28,6 +28,7 @@ describe("validateEnvironment", () => {
       ...REQUIRED_ENV,
       APP_TRUST_PROXY: "false",
       LOG_LEVEL: "debug",
+      COST_BUILD_API_KEY: " test-cost-build-key ",
       LOGIN_RATE_LIMIT_TTL_MS: "30000",
       LOGIN_RATE_LIMIT_MAX: "8",
       LOGIN_RATE_LIMIT_BLOCK_MS: "120000"
@@ -35,6 +36,7 @@ describe("validateEnvironment", () => {
 
     expect(result.APP_TRUST_PROXY).toBe(false);
     expect(result.LOG_LEVEL).toBe("debug");
+    expect(result.COST_BUILD_API_KEY).toBe("test-cost-build-key");
     expect(result.LOGIN_RATE_LIMIT_TTL_MS).toBe(30_000);
     expect(result.LOGIN_RATE_LIMIT_MAX).toBe(8);
     expect(result.LOGIN_RATE_LIMIT_BLOCK_MS).toBe(120_000);

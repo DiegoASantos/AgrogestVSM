@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-07-08
 related_code:
   - apps/api
   - apps/mobile
@@ -34,6 +34,7 @@ Mobile online ───┘
 - validación global y respuestas de error normalizadas;
 - JWT de acceso y refresh sessions;
 - guards globales de autenticación y roles;
+- endpoint de integración externa Cost-Build protegido por API key dedicada;
 - rate limiting de login por IP;
 - Swagger solo en desarrollo.
 
