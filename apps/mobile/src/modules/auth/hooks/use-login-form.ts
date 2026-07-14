@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { loginFormSchema, type LoginFormValues } from "../schemas/login-form.schema";
 import type { LoginFormErrors } from "../types/auth.types";
@@ -9,6 +9,22 @@ export function useLoginForm(initialEmail = "") {
     password: ""
   }));
   const [errors, setErrors] = useState<LoginFormErrors>({});
+
+  useEffect(() => {
+    const nextEmail = initialEmail.trim();
+
+    if (!nextEmail) {
+      return;
+    }
+
+    setValues((prev) => {
+      if (prev.email) {
+        return prev;
+      }
+
+      return { ...prev, email: nextEmail };
+    });
+  }, [initialEmail]);
 
   function updateField<K extends keyof LoginFormValues>(
     field: K,
