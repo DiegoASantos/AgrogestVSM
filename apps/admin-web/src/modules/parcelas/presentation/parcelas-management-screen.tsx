@@ -109,6 +109,15 @@ export function ParcelasManagementScreen() {
     [subsectores]
   );
 
+  const productoresLookup = useMemo(
+    () =>
+      productores.reduce<Record<string, string>>((accumulator, productor) => {
+        accumulator[productor.id] = buildProductorLabel(productor);
+        return accumulator;
+      }, {}),
+    [productores]
+  );
+
   const agronomoUsersLookup = useMemo(
     () =>
       agronomoUsers.reduce<Record<string, string>>((accumulator, user) => {
@@ -139,13 +148,16 @@ export function ParcelasManagementScreen() {
       const sectorLabel = sectoresLookup[item.sectorId] ?? item.sectorId;
       const subsectorLabel =
         subsectoresLookup[item.subsectorId]?.name ?? item.subsectorId;
+      const productorLabel =
+        productoresLookup[item.productorId] ?? "";
       const matchesSearch =
         normalizedSearch.length === 0 ||
         item.code.toLowerCase().includes(normalizedSearch) ||
         (item.name ?? "").toLowerCase().includes(normalizedSearch) ||
         (item.description ?? "").toLowerCase().includes(normalizedSearch) ||
         subsectorLabel.toLowerCase().includes(normalizedSearch) ||
-        sectorLabel.toLowerCase().includes(normalizedSearch);
+        sectorLabel.toLowerCase().includes(normalizedSearch) ||
+        productorLabel.toLowerCase().includes(normalizedSearch);
 
       const matchesSector =
         sectorFilter.length === 0 || item.sectorId === sectorFilter;
@@ -162,7 +174,8 @@ export function ParcelasManagementScreen() {
     sectorFilter,
     sectoresLookup,
     statusFilter,
-    subsectoresLookup
+    subsectoresLookup,
+    productoresLookup
   ]);
 
   const columns: DataTableColumn<ParcelaListItem>[] = [
@@ -515,7 +528,7 @@ export function ParcelasManagementScreen() {
           <span>Buscar</span>
           <input
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Codigo, nombre, descripcion, sector o subsector"
+            placeholder="Codigo, nombre, descripcion, sector, subsector o productor"
             value={search}
           />
         </label>
