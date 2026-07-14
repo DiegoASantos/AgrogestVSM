@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, type ComponentProps } from "react";
 import {
   ImageBackground,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   View
@@ -16,6 +15,7 @@ import {
   AppButton,
   AppCard,
   AppText,
+  FormScrollView,
   ScreenContainer
 } from "../../../../shared/components";
 import { AppSelectField } from "../../../../shared/components/app-select-field";
@@ -544,10 +544,7 @@ export function VisitaRecetaScreen() {
   return (
     <ScreenContainer contentStyle={styles.container}>
       <StatusBar style="light" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <FormScrollView contentContainerStyle={styles.scrollContent}>
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
@@ -689,7 +686,7 @@ export function VisitaRecetaScreen() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
+      </FormScrollView>
     </ScreenContainer>
   );
 }

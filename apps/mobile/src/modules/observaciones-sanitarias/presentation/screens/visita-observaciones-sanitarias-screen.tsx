@@ -7,7 +7,6 @@ import {
   ImageBackground,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   type ImageSourcePropType,
@@ -31,6 +30,7 @@ import {
   AppCard,
   AppEmptyState,
   AppText,
+  FormScrollView,
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
@@ -191,10 +191,7 @@ export function VisitaObservacionesSanitariasScreen({
   return (
     <ScreenContainer contentStyle={styles.container}>
       <StatusBar style="light" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <FormScrollView contentContainerStyle={styles.scrollContent}>
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
@@ -407,7 +404,7 @@ export function VisitaObservacionesSanitariasScreen({
             </View>
           ) : null}
         </View>
-      </ScrollView>
+      </FormScrollView>
 
       <ImagePreviewModal item={imagePreview} onClose={() => setImagePreview(null)} />
     </ScreenContainer>

@@ -8,7 +8,6 @@ import {
   Modal,
   PanResponder,
   Pressable,
-  ScrollView,
   StyleSheet,
   TextInput,
   type LayoutChangeEvent,
@@ -22,6 +21,7 @@ import {
   AppCard,
   AppSelectField,
   AppText,
+  FormScrollView,
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
@@ -357,10 +357,7 @@ export function NewVisitaCampoScreen() {
         </View>
       </SafeAreaView>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <FormScrollView contentContainerStyle={styles.scrollContent}>
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
@@ -694,7 +691,7 @@ export function NewVisitaCampoScreen() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
+      </FormScrollView>
 
       <SubEtapaInfoModal
         onClose={() => setSelectedSubEtapaInfo(null)}
@@ -1463,6 +1460,12 @@ function DatePickerField({
   onSelect,
   onClear
 }: DatePickerFieldProps) {
+  const [pickerView, setPickerView] = useState<"calendar" | "months" | "years">(
+    "calendar"
+  );
+  const [viewedYear, setViewedYear] = useState(() =>
+    (parseDateValue(value) ?? new Date()).getFullYear()
+  );
   const [visibleMonth, setVisibleMonth] = useState(() =>
     getMonthStart(parseDateValue(value) ?? new Date())
   );
@@ -1472,10 +1475,251 @@ function DatePickerField({
       return;
     }
 
-    setVisibleMonth(getMonthStart(parseDateValue(value) ?? new Date()));
+    const defaultDate = parseDateValue(value) ?? new Date();
+    setVisibleMonth(getMonthStart(defaultDate));
+    setViewedYear(defaultDate.getFullYear());
+    setPickerView("calendar");
   }, [isOpen, value]);
 
-  const calendarWeeks = useMemo(() => buildCalendarWeeks(visibleMonth), [visibleMonth]);
+  const calendarWeeks = useMemo(
+    () => buildCalendarWeeks(visibleMonth),
+    [visibleMonth]
+  );
+
+  const yearRange = useMemo(() => buildYearRange(viewedYear), [viewedYear]);
+
+  const handleMonthPress = (monthIndex: number) => {
+    setVisibleMonth(new Date(viewedYear, monthIndex, 1));
+    setPickerView("calendar");
+  };
+
+  const handleYearPress = (year: number) => {
+    setViewedYear(year);
+    setPickerView("months");
+  };
+
+  const renderCalendarHeader = () => (
+    <View style={styles.calendarHeader}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() =>
+          setVisibleMonth((currentMonth) => addMonths(currentMonth, -1))
+        }
+        style={({ pressed }) => [
+          styles.calendarNavButton,
+          pressed && styles.calendarNavButtonPressed
+        ]}
+      >
+        <Ionicons color="#064b31" name="chevron-back" size={20} />
+      </Pressable>
+      <Pressable
+        onPress={() => setPickerView("months")}
+        style={({ pressed }) => [
+          styles.calendarMonthPressable,
+          pressed && styles.calendarMonthPressablePressed
+        ]}
+      >
+        <AppText style={styles.calendarMonthText} variant="label">
+          {formatMonthYear(visibleMonth)}
+        </AppText>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() =>
+          setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))
+        }
+        style={({ pressed }) => [
+          styles.calendarNavButton,
+          pressed && styles.calendarNavButtonPressed
+        ]}
+      >
+        <Ionicons color="#064b31" name="chevron-forward" size={20} />
+      </Pressable>
+    </View>
+  );
+
+  const renderMonthsView = () => (
+    <>
+      <View style={styles.drillHeader}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setPickerView("calendar")}
+          style={({ pressed }) => [
+            styles.drillBackButton,
+            pressed && styles.calendarNavButtonPressed
+          ]}
+        >
+          <Ionicons color="#064b31" name="chevron-back" size={20} />
+        </Pressable>
+        <Pressable
+          onPress={() => setPickerView("years")}
+          style={({ pressed }) => [
+            styles.drillTitle,
+            pressed && styles.calendarMonthPressablePressed
+          ]}
+        >
+          <AppText style={styles.calendarMonthText} variant="label">
+            {viewedYear}
+          </AppText>
+        </Pressable>
+        <View style={styles.drillSpacer} />
+      </View>
+      <View style={styles.monthGrid}>
+        {MONTH_LABELS.map((monthLabel, index) => {
+          const isCurrent =
+            visibleMonth.getMonth() === index &&
+            visibleMonth.getFullYear() === viewedYear;
+
+          return (
+            <Pressable
+              key={monthLabel}
+              onPress={() => handleMonthPress(index)}
+              style={({ pressed }) => [
+                styles.monthCell,
+                pressed && styles.calendarDayCellPressed,
+                isCurrent && styles.monthCellSelected
+              ]}
+            >
+              <AppText
+                style={[
+                  styles.monthCellText,
+                  isCurrent && styles.monthCellTextSelected
+                ]}
+                variant="body"
+              >
+                {monthLabel.substring(0, 3)}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
+
+  const renderYearsView = () => (
+    <>
+      <View style={styles.drillHeader}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setPickerView("months")}
+          style={({ pressed }) => [
+            styles.drillBackButton,
+            pressed && styles.calendarNavButtonPressed
+          ]}
+        >
+          <Ionicons color="#064b31" name="chevron-back" size={20} />
+        </Pressable>
+        <AppText style={styles.calendarMonthText} variant="label">
+          {yearRange[0]} – {yearRange[yearRange.length - 1]}
+        </AppText>
+        <View style={styles.drillSpacer} />
+      </View>
+      <View style={styles.yearGrid}>
+        {yearRange.map((year) => {
+          const isSelected = year === viewedYear;
+
+          return (
+            <Pressable
+              key={year}
+              onPress={() => handleYearPress(year)}
+              style={({ pressed }) => [
+                styles.yearCell,
+                pressed && styles.calendarDayCellPressed,
+                isSelected && styles.yearCellSelected
+              ]}
+            >
+              <AppText
+                style={[
+                  styles.yearCellText,
+                  isSelected && styles.yearCellTextSelected
+                ]}
+                variant="body"
+              >
+                {year}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
+
+  const renderBody = () => {
+    if (pickerView === "months") {
+      return renderMonthsView();
+    }
+    if (pickerView === "years") {
+      return renderYearsView();
+    }
+
+    return (
+      <>
+        {renderCalendarHeader()}
+
+        <View style={styles.calendarWeekHeader}>
+          {DAY_LABELS.map((dayLabel) => (
+            <View key={dayLabel} style={styles.calendarDayLabelCell}>
+              <AppText style={styles.calendarDayLabelText} variant="caption">
+                {dayLabel}
+              </AppText>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.calendarGrid}>
+          {calendarWeeks.map((week, weekIndex) => (
+            <View
+              key={`${visibleMonth.toISOString()}-${weekIndex}`}
+              style={styles.calendarWeekRow}
+            >
+              {week.map((day, dayIndex) => {
+                const isFutureDay =
+                  !!day.value &&
+                  !!maxDate &&
+                  compareDateValues(day.value, maxDate) > 0;
+                const isDisabled = !day.isCurrentMonth || isFutureDay;
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isDisabled}
+                    key={`${weekIndex}-${dayIndex}-${day.value || "empty"}`}
+                    onPress={() => {
+                      if (day.value) {
+                        onSelect(day.value);
+                      }
+                    }}
+                    style={({ pressed }) => [
+                      styles.calendarDayCell,
+                      !day.isCurrentMonth &&
+                        styles.calendarDayCellOutsideMonth,
+                      isFutureDay && styles.calendarDayCellDisabled,
+                      day.value === value && styles.calendarDayCellSelected,
+                      pressed &&
+                        !isDisabled &&
+                        day.value !== value &&
+                        styles.calendarDayCellPressed
+                    ]}
+                  >
+                    <AppText
+                      style={[
+                        (!day.isCurrentMonth || isFutureDay) &&
+                          styles.calendarDayTextDisabled,
+                        day.value === value && styles.calendarDayTextSelected
+                      ]}
+                      variant="body"
+                    >
+                      {day.dayNumber > 0 ? String(day.dayNumber) : ""}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      </>
+    );
+  };
 
   return (
     <InlinePickerField
@@ -1487,90 +1731,7 @@ function DatePickerField({
       placeholder={placeholder}
       valueLabel={formatDisplayDate(value)}
     >
-      <View style={styles.calendarHeader}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, -1))}
-          style={({ pressed }) => [
-            styles.calendarNavButton,
-            pressed && styles.calendarNavButtonPressed
-          ]}
-        >
-          <Ionicons color="#064b31" name="chevron-back" size={20} />
-        </Pressable>
-        <AppText style={styles.calendarMonthText} variant="label">
-          {formatMonthYear(visibleMonth)}
-        </AppText>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setVisibleMonth((currentMonth) => addMonths(currentMonth, 1))}
-          style={({ pressed }) => [
-            styles.calendarNavButton,
-            pressed && styles.calendarNavButtonPressed
-          ]}
-        >
-          <Ionicons color="#064b31" name="chevron-forward" size={20} />
-        </Pressable>
-      </View>
-
-      <View style={styles.calendarWeekHeader}>
-        {DAY_LABELS.map((dayLabel) => (
-          <View key={dayLabel} style={styles.calendarDayLabelCell}>
-            <AppText style={styles.calendarDayLabelText} variant="caption">
-              {dayLabel}
-            </AppText>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.calendarGrid}>
-        {calendarWeeks.map((week, weekIndex) => (
-          <View
-            key={`${visibleMonth.toISOString()}-${weekIndex}`}
-            style={styles.calendarWeekRow}
-          >
-            {week.map((day, dayIndex) => {
-              const isFutureDay =
-                !!day.value && !!maxDate && compareDateValues(day.value, maxDate) > 0;
-              const isDisabled = !day.isCurrentMonth || isFutureDay;
-
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={isDisabled}
-                  key={`${weekIndex}-${dayIndex}-${day.value || "empty"}`}
-                  onPress={() => {
-                    if (day.value) {
-                      onSelect(day.value);
-                    }
-                  }}
-                  style={({ pressed }) => [
-                    styles.calendarDayCell,
-                    !day.isCurrentMonth && styles.calendarDayCellOutsideMonth,
-                    isFutureDay && styles.calendarDayCellDisabled,
-                    day.value === value && styles.calendarDayCellSelected,
-                    pressed &&
-                      !isDisabled &&
-                      day.value !== value &&
-                      styles.calendarDayCellPressed
-                  ]}
-                >
-                  <AppText
-                    style={[
-                      (!day.isCurrentMonth || isFutureDay) &&
-                        styles.calendarDayTextDisabled,
-                      day.value === value && styles.calendarDayTextSelected
-                    ]}
-                    variant="body"
-                  >
-                    {day.dayNumber > 0 ? String(day.dayNumber) : ""}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
-      </View>
+      {renderBody()}
 
       {allowClear && value && onClear ? (
         <View style={styles.pickerActionRow}>
@@ -1956,6 +2117,17 @@ function addMonths(date: Date, months: number) {
 
 function formatMonthYear(date: Date) {
   return `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function buildYearRange(center: number) {
+  const start = center - 10;
+  const range: number[] = [];
+
+  for (let i = 0; i < 21; i += 1) {
+    range.push(start + i);
+  }
+
+  return range;
 }
 
 function buildCalendarWeeks(date: Date) {
@@ -2399,6 +2571,96 @@ const styles = StyleSheet.create({
   },
   calendarDayTextDisabled: {
     color: theme.colors.textMuted
+  },
+  calendarMonthPressable: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    borderRadius: 8
+  },
+  calendarMonthPressablePressed: {
+    backgroundColor: "#d8f3dc"
+  },
+  drillHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  drillBackButton: {
+    minWidth: 42,
+    minHeight: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    backgroundColor: "#f0f3e8",
+    borderWidth: 1,
+    borderColor: "#e3dfd2"
+  },
+  drillTitle: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    borderRadius: 8
+  },
+  drillSpacer: {
+    minWidth: 42
+  },
+  monthGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  monthCell: {
+    width: "30%",
+    flexGrow: 1,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    backgroundColor: "#f8faf5",
+    borderWidth: 1,
+    borderColor: "#e3dfd2"
+  },
+  monthCellSelected: {
+    backgroundColor: "#12622f",
+    borderColor: "#12622f"
+  },
+  monthCellText: {
+    color: "#1f2b26"
+  },
+  monthCellTextSelected: {
+    color: "#ffffff",
+    fontWeight: "700"
+  },
+  yearGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    maxHeight: 280
+  },
+  yearCell: {
+    width: "30%",
+    flexGrow: 1,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    backgroundColor: "#f8faf5",
+    borderWidth: 1,
+    borderColor: "#e3dfd2"
+  },
+  yearCellSelected: {
+    backgroundColor: "#12622f",
+    borderColor: "#12622f"
+  },
+  yearCellText: {
+    color: "#1f2b26"
+  },
+  yearCellTextSelected: {
+    color: "#ffffff",
+    fontWeight: "700"
   },
   calendarDayTextSelected: {
     color: "#ffffff",

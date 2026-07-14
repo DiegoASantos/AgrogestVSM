@@ -12,4 +12,5 @@ export * from "./app-paginated-select-field";
 export * from "./app-select-field";
 export * from "./app-status-badge";
 export * from "./app-text";
+export * from "./form-scroll-view";
 export * from "./screen-container";

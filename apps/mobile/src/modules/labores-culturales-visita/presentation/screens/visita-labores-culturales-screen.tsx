@@ -6,7 +6,6 @@ import {
   ImageBackground,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   View
 } from "react-native";
@@ -17,6 +16,7 @@ import {
   AppCard,
   AppEmptyState,
   AppText,
+  FormScrollView,
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
@@ -92,10 +92,7 @@ export function VisitaLaboresCulturalesScreen() {
   return (
     <ScreenContainer contentStyle={styles.container}>
       <StatusBar style="light" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <FormScrollView contentContainerStyle={styles.scrollContent}>
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
@@ -261,7 +258,7 @@ export function VisitaLaboresCulturalesScreen() {
             </View>
           ) : null}
         </View>
-      </ScrollView>
+      </FormScrollView>
 
       <HelpModal item={helpItem} onClose={() => setHelpItem(null)} />
     </ScreenContainer>

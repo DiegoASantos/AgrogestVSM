@@ -18,6 +18,7 @@ import {
   AppCard,
   AppEmptyState,
   AppText,
+  FormScrollView,
   ScreenContainer
 } from "../../../../shared/components";
 import { getDatabase } from "../../../../shared/database/connection";
@@ -97,10 +98,7 @@ export function VisitaRiegoScreen() {
   return (
     <ScreenContainer contentStyle={styles.container}>
       <StatusBar style="light" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <FormScrollView contentContainerStyle={styles.scrollContent}>
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
@@ -431,7 +429,7 @@ export function VisitaRiegoScreen() {
             </>
           ) : null}
         </View>
-      </ScrollView>
+      </FormScrollView>
 
       <SueloLegendModal
         onClose={() => setLegendSuelo(false)}
