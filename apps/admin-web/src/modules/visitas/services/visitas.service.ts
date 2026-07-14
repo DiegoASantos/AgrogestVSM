@@ -9,6 +9,7 @@ import {
 import type {
   AgronomistFilterOption,
   CampaignLookupItem,
+  ConsolidacionHallazgo,
   CropLookupItem,
   IncidenceLevelLookupItem,
   VisitaCalificacion,
@@ -22,6 +23,7 @@ import type {
   ProductorCalificacion,
   ProductorVisitasHistory,
   VarietyLookupItem,
+  TipoRiegoLookupItem,
   VisitaCampo,
   VisitaDetailData,
   VisitaEvaluacion,
@@ -29,6 +31,7 @@ import type {
   VisitaListFilters,
   VisitaListResponse,
   VisitaObservacionSanitaria,
+  VisitaRecetaCompleta,
   VisitaRiego
 } from "../types/visitas.types";
 
@@ -155,12 +158,13 @@ export const visitasService = {
           : Promise.resolve(null)
       ]);
 
-    const [pestDiseases, incidenceLevels] = await Promise.all([
+    const [pestDiseases, incidenceLevels, tiposRiego] = await Promise.all([
       safeRequestAll<PestDiseaseLookupItem>(session, "/plagas-enfermedades"),
       safeRequestAll<IncidenceLevelLookupItem>(
         session,
         "/niveles-incidencia-severidad"
-      )
+      ),
+      safeRequestAll<TipoRiegoLookupItem>(session, "/tipos-riego")
     ]);
 
     return {
@@ -173,9 +177,34 @@ export const visitasService = {
         campaign,
         phenologicalStage,
         pestDiseases,
-        incidenceLevels
+        incidenceLevels,
+        tiposRiego
       }
     };
+  },
+
+  async getRecetaByVisitaId(
+    session: AuthSessionInput,
+    visitaId: string
+  ): Promise<VisitaRecetaCompleta | null> {
+    return apiRequest<VisitaRecetaCompleta | null>(
+      `/visitas-campo/${visitaId}/receta`,
+      {
+        headers: createAuthHeaders(session.accessToken, session.tokenType)
+      }
+    );
+  },
+
+  async getRecetaConsolidacion(
+    session: AuthSessionInput,
+    visitaId: string
+  ): Promise<ConsolidacionHallazgo> {
+    return apiRequest<ConsolidacionHallazgo>(
+      `/visitas-campo/${visitaId}/receta/consolidacion`,
+      {
+        headers: createAuthHeaders(session.accessToken, session.tokenType)
+      }
+    );
   },
 
   async getHistoryByProductor(

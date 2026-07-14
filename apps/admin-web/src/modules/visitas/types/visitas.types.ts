@@ -17,11 +17,14 @@ export type VisitaCampo = {
   campaignId: string;
   agronomistUserId: string;
   plantsCount: number | null;
+  areaHectares: string | null;
   sowingDate: string | null;
   visitDate: string;
   startVisitTime: string;
   endVisitTime: string | null;
   phenologicalStageId: string | null;
+  subEtapaId: string | null;
+  subEtapaPercentage: number | null;
   generalObservation: string | null;
   synchronizedAt: string | null;
   isActive: boolean;
@@ -34,7 +37,9 @@ export type VisitaEvaluacion = {
   visitaId: string;
   order: number;
   percentage: number | null;
+  incidencePercentage: string | null;
   description: string;
+  organosAfectados: string[];
 };
 
 export type VisitaObservacionSanitaria = {
@@ -42,13 +47,20 @@ export type VisitaObservacionSanitaria = {
   visitaId: string;
   pestDiseaseId: string;
   incidenceLevelId: string | null;
-  observation: string;
+  severityLevelId: string | null;
+  incidencePercentage: string | null;
+  observation: string | null;
+  organosAfectados: string[];
 };
 
 export type VisitaRiego = {
   id: string;
   visitaId: string;
   tipoRiegoId: string;
+  fuenteAgua: string | null;
+  tipoSuelo: string | null;
+  humedadSuelo: string | null;
+  estresHidrico: boolean | null;
 };
 
 export type LaborCulturalLookupItem = LookupItem & {
@@ -236,6 +248,94 @@ export type IncidenceLevelLookupItem = LookupItem & {
   type?: "incidencia" | "severidad";
 };
 
+export type TipoRiegoLookupItem = LookupItem & {
+  description: string | null;
+};
+
+export type RecetaFitosanidad = {
+  id: string;
+  numero: number;
+  objetivo: "plaga" | "enfermedad";
+  objetivoNombre: string;
+  tipoControlId: string | null;
+  tipoProductoId: string | null;
+  disolvente: string;
+  modoAccionId: string | null;
+  ingredienteActivoNombre: string | null;
+  dosisIa: number | null;
+  volumenAplicacion: number | null;
+  cantidadTotalIa: number | null;
+  marcaProductoNombre: string | null;
+  concentracionProducto: number | null;
+  cantidadTotalProducto: number | null;
+  coadyuvantesIds: string | null;
+  ordenMezcla: string | null;
+};
+
+export type RecetaFertilizacion = {
+  id: string;
+  viaAplicacion: "edafica" | "foliar";
+  fertilizanteNombre: string | null;
+  tipoProducto: "solido" | "liquido" | null;
+  dosis: number | null;
+  unidadDosis: string | null;
+  cantidadTotalPlantas: number | null;
+  volumenAplicacion: number | null;
+  cantidadTotalFertilizante: number | null;
+};
+
+export type RecetaRiego = {
+  id: string;
+  tipoRecomendacion: string;
+};
+
+export type RecetaLabor = {
+  id: string;
+  labor: string;
+};
+
+export type VisitaRecetaCompleta = {
+  id: string;
+  visitaId: string;
+  etapaFenologica: string | null;
+  version: number;
+  fitosanidad: RecetaFitosanidad[];
+  fertilizacion: RecetaFertilizacion[];
+  riego: RecetaRiego | null;
+  labores: RecetaLabor[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ConsolidacionHallazgo = {
+  etapaFenologica: string | null;
+  plagas: Array<{
+    nombre: string;
+    incidencia: string;
+    severidad: string;
+    organos: string[];
+  }>;
+  enfermedades: Array<{
+    nombre: string;
+    incidencia: string;
+    severidad: string;
+    organos: string[];
+  }>;
+  nutricion: Array<{
+    elemento: string;
+    incidencia: string;
+    severidad: string;
+  }>;
+  riego: {
+    humedadSuelo: string | null;
+    estresHidrico: boolean | null;
+  };
+  labores: Array<{
+    nombre: string;
+    categoria: string;
+  }>;
+};
+
 export type VisitaDetailData = {
   visita: VisitaCampo;
   evaluaciones: VisitaEvaluacion[];
@@ -252,5 +352,6 @@ export type VisitaDetailData = {
     phenologicalStage: PhenologicalStageLookupItem | null;
     pestDiseases: PestDiseaseLookupItem[];
     incidenceLevels: IncidenceLevelLookupItem[];
+    tiposRiego: TipoRiegoLookupItem[];
   };
 };
