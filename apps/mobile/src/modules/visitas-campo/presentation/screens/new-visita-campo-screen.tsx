@@ -1543,9 +1543,9 @@ function DatePickerField({
       <View style={styles.drillHeader}>
         <Pressable
           accessibilityRole="button"
-          onPress={() => setPickerView("calendar")}
+          onPress={() => setViewedYear((prev) => prev - 1)}
           style={({ pressed }) => [
-            styles.drillBackButton,
+            styles.calendarNavButton,
             pressed && styles.calendarNavButtonPressed
           ]}
         >
@@ -1562,7 +1562,16 @@ function DatePickerField({
             {viewedYear}
           </AppText>
         </Pressable>
-        <View style={styles.drillSpacer} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setViewedYear((prev) => prev + 1)}
+          style={({ pressed }) => [
+            styles.calendarNavButton,
+            pressed && styles.calendarNavButtonPressed
+          ]}
+        >
+          <Ionicons color="#064b31" name="chevron-forward" size={20} />
+        </Pressable>
       </View>
       <View style={styles.monthGrid}>
         {MONTH_LABELS.map((monthLabel, index) => {
@@ -1601,9 +1610,9 @@ function DatePickerField({
       <View style={styles.drillHeader}>
         <Pressable
           accessibilityRole="button"
-          onPress={() => setPickerView("months")}
+          onPress={() => setViewedYear((prev) => prev - 12)}
           style={({ pressed }) => [
-            styles.drillBackButton,
+            styles.calendarNavButton,
             pressed && styles.calendarNavButtonPressed
           ]}
         >
@@ -1612,7 +1621,16 @@ function DatePickerField({
         <AppText style={styles.calendarMonthText} variant="label">
           {yearRange[0]} – {yearRange[yearRange.length - 1]}
         </AppText>
-        <View style={styles.drillSpacer} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setViewedYear((prev) => prev + 12)}
+          style={({ pressed }) => [
+            styles.calendarNavButton,
+            pressed && styles.calendarNavButtonPressed
+          ]}
+        >
+          <Ionicons color="#064b31" name="chevron-forward" size={20} />
+        </Pressable>
       </View>
       <View style={styles.yearGrid}>
         {yearRange.map((year) => {
@@ -2120,10 +2138,10 @@ function formatMonthYear(date: Date) {
 }
 
 function buildYearRange(center: number) {
-  const start = center - 10;
+  const start = Math.floor(center / 12) * 12;
   const range: number[] = [];
 
-  for (let i = 0; i < 21; i += 1) {
+  for (let i = 0; i < 12; i += 1) {
     range.push(start + i);
   }
 
@@ -2637,11 +2655,10 @@ const styles = StyleSheet.create({
   yearGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    maxHeight: 280
+    gap: 8
   },
   yearCell: {
-    width: "30%",
+    width: "31%",
     flexGrow: 1,
     minHeight: 48,
     alignItems: "center",
