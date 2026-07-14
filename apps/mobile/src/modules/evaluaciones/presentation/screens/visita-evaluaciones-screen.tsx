@@ -144,7 +144,9 @@ export function VisitaNutricionScreen() {
   const [selections, setSelections] = useState<Record<string, NutritionSelection>>({});
   const [scoreValue, setScoreValue] = useState<number | null>(null);
   const [scoreJustificado, setScoreJustificado] = useState<boolean | null>(null);
-  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(null);
+  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(
+    null
+  );
   const [motivoJustificacion, setMotivoJustificacion] = useState<string | null>(null);
   const [stepObservation, setStepObservation] = useState("");
   const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
@@ -364,7 +366,9 @@ export function VisitaNutricionScreen() {
       setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
       setStepObservation(nextStepNote?.observation ?? "");
       try {
-        setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
+        setRecetaAnterior(
+          await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id)
+        );
       } catch {
         setRecetaAnterior({ existe: false });
       }
@@ -587,6 +591,16 @@ function NutrientSection({
   onToggleOrgano,
   selections
 }: NutrientSectionProps) {
+  const [expandedNutrientIds, setExpandedNutrientIds] = useState<Set<string>>(
+    () => new Set(nutrients.length === 1 ? [nutrients[0].id] : [])
+  );
+
+  useEffect(() => {
+    setExpandedNutrientIds(new Set(nutrients.length === 1 ? [nutrients[0].id] : []));
+  }, [nutrients]);
+
+  const hasMultipleNutrients = nutrients.length > 1;
+
   return (
     <View style={styles.sectionGroup}>
       <View style={styles.groupHeader}>
@@ -603,42 +617,64 @@ function NutrientSection({
           </AppText>
         </View>
         <AppText style={styles.groupSubtitle} variant="caption">
-          Selecciona el grado observado en cada nutriente.
+          {hasMultipleNutrients
+            ? "Selecciona una deficiencia para expandirla y registrar la evaluacion."
+            : "Registra la evaluacion de la deficiencia nutricional."}
         </AppText>
       </View>
 
-      {nutrients.map((nutrient) => (
-        <NutrientCard
-          isCompactLayout={isCompactLayout}
-          key={nutrient.id}
-          nutrient={nutrient}
-          onIncidencePercentageChange={onIncidencePercentageChange}
-          onImagePress={onImagePress}
-          onSelectDetail={onSelectDetail}
-          onToggleOrgano={onToggleOrgano}
-          selection={selections[nutrient.id] ?? createEmptySelection()}
-        />
-      ))}
+      {nutrients.map((nutrient) => {
+        const isExpanded = expandedNutrientIds.has(nutrient.id);
+
+        return (
+          <NutrientCard
+            isCompactLayout={isCompactLayout}
+            isExpanded={isExpanded}
+            key={nutrient.id}
+            nutrient={nutrient}
+            onIncidencePercentageChange={onIncidencePercentageChange}
+            onImagePress={onImagePress}
+            onSelectDetail={onSelectDetail}
+            onToggleExpanded={() =>
+              setExpandedNutrientIds((currentIds) => {
+                const nextIds = new Set(currentIds);
+                if (nextIds.has(nutrient.id)) {
+                  nextIds.delete(nutrient.id);
+                } else {
+                  nextIds.add(nutrient.id);
+                }
+                return nextIds;
+              })
+            }
+            onToggleOrgano={onToggleOrgano}
+            selection={selections[nutrient.id] ?? createEmptySelection()}
+          />
+        );
+      })}
     </View>
   );
 }
 
 type NutrientCardProps = {
   isCompactLayout: boolean;
+  isExpanded: boolean;
   nutrient: NutrientCatalogItem;
   onIncidencePercentageChange: (nutrientId: string, value: string) => void;
   onImagePress: (nutrient: NutrientCatalogItem) => void;
   onSelectDetail: (nutrientId: string, detailId: string) => void;
+  onToggleExpanded: () => void;
   onToggleOrgano: (nutrientId: string, organo: OrganoAfectado) => void;
   selection: NutritionSelection;
 };
 
 function NutrientCard({
   isCompactLayout,
+  isExpanded,
   nutrient,
   onIncidencePercentageChange,
   onImagePress,
   onSelectDetail,
+  onToggleExpanded,
   onToggleOrgano,
   selection
 }: NutrientCardProps) {
@@ -655,145 +691,183 @@ function NutrientCard({
   return (
     <View style={[styles.nutrientCard, isCompactLayout && styles.nutrientCardCompact]}>
       <Pressable
-        accessibilityLabel={`Ver imagen de ${nutrient.name}`}
-        accessibilityRole="imagebutton"
-        onPress={() => onImagePress(nutrient)}
+        accessibilityLabel={`${isExpanded ? "Contraer" : "Expandir"} ${nutrient.name}`}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isExpanded }}
+        onPress={onToggleExpanded}
+        style={({ pressed }) => [styles.accordionHeader, pressed && styles.pressed]}
       >
-        <Image
-          resizeMode="cover"
-          source={imageSource}
-          style={[styles.nutrientImage, isCompactLayout && styles.nutrientImageCompact]}
+        <AppText style={styles.accordionTitle} variant="label">
+          {nutrient.name}
+        </AppText>
+        <Ionicons
+          color={theme.colors.primaryDark}
+          name={isExpanded ? "chevron-up" : "chevron-down"}
+          size={20}
         />
       </Pressable>
 
-      <View style={[styles.cardContent, isCompactLayout && styles.cardContentCompact]}>
-        <View style={[styles.cardHeader, isCompactLayout && styles.cardHeaderCompact]}>
-          <View style={styles.cardTitleColumn}>
-            <AppText style={styles.nutrientName} variant="label">
-              {nutrient.name}
-            </AppText>
-          </View>
-        </View>
-
-        <PercentageInputBlock
-          label="Incidencia"
-          onChangeText={(value) => onIncidencePercentageChange(nutrient.id, value)}
-          value={selection.incidencePercentage}
-        />
-
-        {nutrient.details.length > 0 ? (
-          <>
-            <View
-              style={[styles.detailLabelRow, disablesSeverity && styles.disabledArea]}
-            >
-              <AppText style={styles.detailLabel} variant="caption">
-                Severidad
-              </AppText>
-              {disablesSeverity ? (
-                <AppText style={styles.disabledHint} variant="caption">
-                  {incidenceIsZero
-                    ? "Incidencia 0: no hay severidad que evaluar."
-                    : "Indica primero la incidencia."}
-                </AppText>
-              ) : null}
-            </View>
-            <View
+      {!isExpanded ? null : (
+        <View
+          style={[
+            styles.accordionContent,
+            isCompactLayout && styles.accordionContentCompact
+          ]}
+        >
+          <Pressable
+            accessibilityLabel={`Ver imagen de ${nutrient.name}`}
+            accessibilityRole="imagebutton"
+            onPress={() => onImagePress(nutrient)}
+          >
+            <Image
+              resizeMode="cover"
+              source={imageSource}
               style={[
-                styles.detailButtons,
-                isCompactLayout && styles.detailButtonsCompact,
-                disablesSeverity && styles.disabledArea
+                styles.nutrientImage,
+                isCompactLayout && styles.nutrientImageCompact
               ]}
-            >
-              {nutrient.details.map((detail, index) => {
-                const selected = detail.id === selection.detailId;
+            />
+          </Pressable>
 
-                return (
+          <View
+            style={[styles.cardContent, isCompactLayout && styles.cardContentCompact]}
+          >
+            <View
+              style={[styles.cardHeader, isCompactLayout && styles.cardHeaderCompact]}
+            >
+              <View style={styles.cardTitleColumn}>
+                <AppText style={styles.nutrientName} variant="label">
+                  {nutrient.name}
+                </AppText>
+              </View>
+            </View>
+
+            <PercentageInputBlock
+              label="Incidencia"
+              onChangeText={(value) => onIncidencePercentageChange(nutrient.id, value)}
+              value={selection.incidencePercentage}
+            />
+
+            {nutrient.details.length > 0 ? (
+              <>
+                <View
+                  style={[styles.detailLabelRow, disablesSeverity && styles.disabledArea]}
+                >
+                  <AppText style={styles.detailLabel} variant="caption">
+                    Severidad
+                  </AppText>
+                  {disablesSeverity ? (
+                    <AppText style={styles.disabledHint} variant="caption">
+                      {incidenceIsZero
+                        ? "Incidencia 0: no hay severidad que evaluar."
+                        : "Indica primero la incidencia."}
+                    </AppText>
+                  ) : null}
+                </View>
+                <View
+                  style={[
+                    styles.detailButtons,
+                    isCompactLayout && styles.detailButtonsCompact,
+                    disablesSeverity && styles.disabledArea
+                  ]}
+                >
+                  {nutrient.details.map((detail, index) => {
+                    const selected = detail.id === selection.detailId;
+
+                    return (
+                      <Pressable
+                        accessibilityLabel={`${nutrient.name} ${detail.name}`}
+                        accessibilityRole="button"
+                        disabled={disablesSeverity}
+                        key={detail.id}
+                        onPress={() => {
+                          onSelectDetail(nutrient.id, detail.id);
+                          setExpanded(false);
+                        }}
+                        style={[
+                          styles.detailButton,
+                          isCompactLayout && styles.detailButtonCompact,
+                          selected
+                            ? {
+                                backgroundColor: getDetailColor(index + 1),
+                                borderColor: getDetailColor(index + 1)
+                              }
+                            : styles.detailButtonInactive
+                        ]}
+                      >
+                        <AppText
+                          numberOfLines={1}
+                          style={[
+                            styles.detailButtonText,
+                            selected
+                              ? styles.detailButtonTextSelected
+                              : styles.detailButtonTextInactive
+                          ]}
+                          variant="label"
+                        >
+                          {detail.name}
+                        </AppText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {!disablesSeverity && selectedDetail && hasDescription ? (
                   <Pressable
-                    accessibilityLabel={`${nutrient.name} ${detail.name}`}
+                    accessibilityLabel={`Ver descripcion de ${selectedDetail.name}`}
                     accessibilityRole="button"
-                    disabled={disablesSeverity}
-                    key={detail.id}
-                    onPress={() => {
-                      onSelectDetail(nutrient.id, detail.id);
-                      setExpanded(false);
-                    }}
-                    style={[
-                      styles.detailButton,
-                      isCompactLayout && styles.detailButtonCompact,
-                      selected
-                        ? {
-                            backgroundColor: getDetailColor(index + 1),
-                            borderColor: getDetailColor(index + 1)
-                          }
-                        : styles.detailButtonInactive
-                    ]}
+                    onPress={() => setExpanded(!expanded)}
+                    style={styles.detailDescriptionBlock}
                   >
                     <AppText
-                      numberOfLines={1}
                       style={[
-                        styles.detailButtonText,
-                        selected
-                          ? styles.detailButtonTextSelected
-                          : styles.detailButtonTextInactive
+                        styles.detailDescriptionText,
+                        !expanded &&
+                          isLongDescription &&
+                          styles.detailDescriptionTextCollapsed
                       ]}
-                      variant="label"
+                      numberOfLines={
+                        expanded ? undefined : isLongDescription ? 2 : undefined
+                      }
+                      variant="caption"
                     >
-                      {detail.name}
+                      {description}
                     </AppText>
+                    {isLongDescription ? (
+                      <View style={styles.detailDescriptionToggle}>
+                        <AppText
+                          style={styles.detailDescriptionToggleText}
+                          variant="caption"
+                        >
+                          {expanded ? "Mostrar menos" : "Mostrar mas"}
+                        </AppText>
+                        <Ionicons
+                          color={theme.colors.primary}
+                          name={expanded ? "chevron-up" : "chevron-down"}
+                          size={14}
+                        />
+                      </View>
+                    ) : null}
                   </Pressable>
-                );
-              })}
-            </View>
-
-            {!disablesSeverity && selectedDetail && hasDescription ? (
-              <Pressable
-                accessibilityLabel={`Ver descripcion de ${selectedDetail.name}`}
-                accessibilityRole="button"
-                onPress={() => setExpanded(!expanded)}
-                style={styles.detailDescriptionBlock}
-              >
-                <AppText
-                  style={[
-                    styles.detailDescriptionText,
-                    !expanded &&
-                      isLongDescription &&
-                      styles.detailDescriptionTextCollapsed
-                  ]}
-                  numberOfLines={expanded ? undefined : isLongDescription ? 2 : undefined}
-                  variant="caption"
-                >
-                  {description}
-                </AppText>
-                {isLongDescription ? (
-                  <View style={styles.detailDescriptionToggle}>
-                    <AppText style={styles.detailDescriptionToggleText} variant="caption">
-                      {expanded ? "Mostrar menos" : "Mostrar mas"}
-                    </AppText>
-                    <Ionicons
-                      color={theme.colors.primary}
-                      name={expanded ? "chevron-up" : "chevron-down"}
-                      size={14}
-                    />
-                  </View>
                 ) : null}
-              </Pressable>
-            ) : null}
-          </>
-        ) : (
-          <AppText variant="muted">Sin grados registrados.</AppText>
-        )}
+              </>
+            ) : (
+              <AppText variant="muted">Sin grados registrados.</AppText>
+            )}
 
-        <OrganoSelector
-          disabled={disablesSeverity}
-          disabledHint={
-            incidenceIsZero
-              ? "Incidencia 0: no hay organos afectados."
-              : "Indica primero la incidencia."
-          }
-          onToggle={(organo) => onToggleOrgano(nutrient.id, organo)}
-          selectedOrganos={selection.organosAfectados}
-        />
-      </View>
+            <OrganoSelector
+              disabled={disablesSeverity}
+              disabledHint={
+                incidenceIsZero
+                  ? "Incidencia 0: no hay organos afectados."
+                  : "Indica primero la incidencia."
+              }
+              onToggle={(organo) => onToggleOrgano(nutrient.id, organo)}
+              selectedOrganos={selection.organosAfectados}
+            />
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -1401,6 +1475,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16
   },
+  accordionContent: {
+    flexDirection: "row",
+    gap: 12
+  },
+  accordionContentCompact: {
+    alignItems: "stretch",
+    flexDirection: "column"
+  },
+  accordionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+    minHeight: 48
+  },
+  accordionTitle: {
+    color: theme.colors.primaryDark,
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 22
+  },
   cardContent: {
     flex: 1,
     gap: 10
@@ -1716,7 +1811,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderLight,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
-    flexDirection: "row",
     gap: 12,
     padding: 12,
     ...theme.shadow.sm

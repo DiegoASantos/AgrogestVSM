@@ -22,7 +22,13 @@ export function FormScrollView({ children, style, contentContainerStyle, ...scro
     const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 
     const showSubscription = Keyboard.addListener(showEvent, (e) => {
-      setKeyboardOffset(e.endCoordinates.height);
+      const height = e.endCoordinates.height;
+
+      setKeyboardOffset(height);
+
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 150);
     });
     const hideSubscription = Keyboard.addListener(hideEvent, () => {
       setKeyboardOffset(0);
@@ -36,7 +42,7 @@ export function FormScrollView({ children, style, contentContainerStyle, ...scro
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.keyboardArea}
     >
       <ScrollView

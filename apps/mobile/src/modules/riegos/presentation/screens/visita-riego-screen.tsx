@@ -60,6 +60,12 @@ const META_KEYS = {
   tipoSuelo: "riego_tipo_suelo_default"
 } as const;
 
+type LockedRiegoFields = {
+  tipoRiego: boolean;
+  fuenteAgua: boolean;
+  tipoSuelo: boolean;
+};
+
 export function VisitaRiegoScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
@@ -71,9 +77,16 @@ export function VisitaRiegoScreen() {
   const [tipoSuelo, setTipoSuelo] = useState<TipoSuelo | null>(null);
   const [humedadSuelo, setHumedadSuelo] = useState<HumedadSuelo | null>(null);
   const [estresHidrico, setEstresHidrico] = useState(false);
+  const [lockedFields, setLockedFields] = useState<LockedRiegoFields>({
+    tipoRiego: false,
+    fuenteAgua: false,
+    tipoSuelo: false
+  });
   const [scoreValue, setScoreValue] = useState<number | null>(null);
   const [scoreJustificado, setScoreJustificado] = useState<boolean | null>(null);
-  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(null);
+  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(
+    null
+  );
   const [motivoJustificacion, setMotivoJustificacion] = useState<string | null>(null);
   const [stepObservation, setStepObservation] = useState("");
   const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
@@ -126,7 +139,8 @@ export function VisitaRiegoScreen() {
               Riego
             </AppText>
             <AppText style={styles.heroSubtitle} variant="body">
-              Registra la labor de riego y las condiciones del suelo durante la visita a campo.
+              Registra la labor de riego y las condiciones del suelo durante la visita a
+              campo.
             </AppText>
           </View>
         </ImageBackground>
@@ -181,12 +195,19 @@ export function VisitaRiegoScreen() {
                       Selecciona el sistema utilizado durante la visita.
                     </AppText>
                   </View>
+                  {lockedFields.tipoRiego ? (
+                    <EditIconButton
+                      label="Editar sistema de riego"
+                      onPress={() => unlockField("tipoRiego")}
+                    />
+                  ) : null}
                 </View>
 
                 <View style={styles.optionList}>
                   {tiposRiego.map((tipoRiego) => (
                     <OptionListItem
                       description={tipoRiego.description}
+                      disabled={lockedFields.tipoRiego}
                       isSelected={selectedTipoRiegoId === tipoRiego.id}
                       key={tipoRiego.id}
                       label={tipoRiego.name}
@@ -216,6 +237,12 @@ export function VisitaRiegoScreen() {
                       Origen del agua utilizada en el riego.
                     </AppText>
                   </View>
+                  {lockedFields.fuenteAgua ? (
+                    <EditIconButton
+                      label="Editar fuente de agua"
+                      onPress={() => unlockField("fuenteAgua")}
+                    />
+                  ) : null}
                 </View>
 
                 <View style={styles.optionList}>
@@ -223,6 +250,7 @@ export function VisitaRiegoScreen() {
                     const isSelected = fuenteAgua === opcion;
                     return (
                       <OptionListItem
+                        disabled={lockedFields.fuenteAgua}
                         isSelected={isSelected}
                         key={opcion}
                         label={FUENTE_AGUA_LABELS[opcion]}
@@ -250,15 +278,27 @@ export function VisitaRiegoScreen() {
                       Tipo de suelo
                     </AppText>
                   </View>
-                  <Pressable
-                    accessibilityLabel="Ver leyenda de tipos de suelo"
-                    accessibilityRole="button"
-                    hitSlop={8}
-                    onPress={() => setLegendSuelo(true)}
-                    style={styles.legendButton}
-                  >
-                    <Ionicons color={theme.colors.info} name="information-circle-outline" size={24} />
-                  </Pressable>
+                  <View style={styles.headerActions}>
+                    {lockedFields.tipoSuelo ? (
+                      <EditIconButton
+                        label="Editar tipo de suelo"
+                        onPress={() => unlockField("tipoSuelo")}
+                      />
+                    ) : null}
+                    <Pressable
+                      accessibilityLabel="Ver leyenda de tipos de suelo"
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={() => setLegendSuelo(true)}
+                      style={styles.legendButton}
+                    >
+                      <Ionicons
+                        color={theme.colors.info}
+                        name="information-circle-outline"
+                        size={24}
+                      />
+                    </Pressable>
+                  </View>
                 </View>
 
                 <View style={styles.optionList}>
@@ -266,6 +306,7 @@ export function VisitaRiegoScreen() {
                     const isSelected = tipoSuelo === opcion;
                     return (
                       <OptionListItem
+                        disabled={lockedFields.tipoSuelo}
                         isSelected={isSelected}
                         key={opcion}
                         label={TIPO_SUELO_LABELS[opcion]}
@@ -300,7 +341,11 @@ export function VisitaRiegoScreen() {
                     onPress={() => setLegendHumedad(true)}
                     style={styles.legendButton}
                   >
-                    <Ionicons color={theme.colors.info} name="information-circle-outline" size={24} />
+                    <Ionicons
+                      color={theme.colors.info}
+                      name="information-circle-outline"
+                      size={24}
+                    />
                   </Pressable>
                 </View>
 
@@ -326,41 +371,44 @@ export function VisitaRiegoScreen() {
               </View>
 
               {humedadSuelo === "seco" ? (
-              <View style={styles.switchCard}>
-                <View style={styles.switchContent}>
-                  <View style={styles.switchTextArea}>
-                    <AppText style={styles.switchTitle} variant="heading">
-                      Estres hidrico intencionado
-                    </AppText>
-                    <AppText variant="muted">
-                      Marca si la condicion seca corresponde a un estres hidrico planificado.
-                    </AppText>
+                <View style={styles.switchCard}>
+                  <View style={styles.switchContent}>
+                    <View style={styles.switchTextArea}>
+                      <AppText style={styles.switchTitle} variant="heading">
+                        Estres hidrico intencionado
+                      </AppText>
+                      <AppText variant="muted">
+                        Marca si la condicion seca corresponde a un estres hidrico
+                        planificado.
+                      </AppText>
+                    </View>
+                    <Switch
+                      accessibilityLabel="Estres hidrico intencionado"
+                      accessibilityRole="switch"
+                      ios_backgroundColor={theme.colors.border}
+                      onValueChange={(value) => {
+                        setSubmitError(null);
+                        setEstresHidrico(value);
+                      }}
+                      thumbColor={
+                        estresHidrico ? theme.colors.primaryDark : theme.colors.surface
+                      }
+                      trackColor={{
+                        false: theme.colors.border,
+                        true: theme.colors.primaryMuted
+                      }}
+                      value={estresHidrico}
+                    />
                   </View>
-                  <Switch
-                    accessibilityLabel="Estres hidrico intencionado"
-                    accessibilityRole="switch"
-                    ios_backgroundColor={theme.colors.border}
-                    onValueChange={(value) => {
-                      setSubmitError(null);
-                      setEstresHidrico(value);
-                    }}
-                    thumbColor={estresHidrico ? theme.colors.primaryDark : theme.colors.surface}
-                    trackColor={{
-                      false: theme.colors.border,
-                      true: theme.colors.primaryMuted
-                    }}
-                    value={estresHidrico}
-                  />
+                  {estresHidrico ? (
+                    <View style={styles.stressBadge}>
+                      <Ionicons color={theme.colors.warning} name="warning" size={16} />
+                      <AppText style={styles.stressBadgeText} variant="caption">
+                        Estres hidrico intencionado
+                      </AppText>
+                    </View>
+                  ) : null}
                 </View>
-                {estresHidrico ? (
-                  <View style={styles.stressBadge}>
-                    <Ionicons color={theme.colors.warning} name="warning" size={16} />
-                    <AppText style={styles.stressBadgeText} variant="caption">
-                      Estres hidrico intencionado
-                    </AppText>
-                  </View>
-                ) : null}
-              </View>
               ) : null}
 
               <PreviousRecipeSummaryCard modulo="riego" receta={recetaAnterior} />
@@ -431,10 +479,7 @@ export function VisitaRiegoScreen() {
         </View>
       </FormScrollView>
 
-      <SueloLegendModal
-        onClose={() => setLegendSuelo(false)}
-        visible={legendSuelo}
-      />
+      <SueloLegendModal onClose={() => setLegendSuelo(false)} visible={legendSuelo} />
       <HumedadLegendModal
         onClose={() => setLegendHumedad(false)}
         visible={legendHumedad}
@@ -468,19 +513,33 @@ export function VisitaRiegoScreen() {
         setFuenteAgua(existingRiego.fuenteAgua);
         setTipoSuelo(existingRiego.tipoSuelo);
         setHumedadSuelo(existingRiego.humedadSuelo);
+        setLockedFields({
+          tipoRiego: Boolean(existingRiego.tipoRiegoId),
+          fuenteAgua: Boolean(existingRiego.fuenteAgua),
+          tipoSuelo: Boolean(existingRiego.tipoSuelo)
+        });
         setEstresHidrico(
           existingRiego.humedadSuelo === "seco"
             ? (existingRiego.estresHidrico ?? false)
             : false
         );
       } else {
-        loadDefaults();
+        const previousRiego = await riegosService.getLastBySameParcelaBeforeVisita(id);
+        if (previousRiego) {
+          setSelectedTipoRiegoId(previousRiego.tipoRiegoId);
+          setFuenteAgua(previousRiego.fuenteAgua);
+          setTipoSuelo(previousRiego.tipoSuelo);
+          setLockedFields({
+            tipoRiego: Boolean(previousRiego.tipoRiegoId),
+            fuenteAgua: Boolean(previousRiego.fuenteAgua),
+            tipoSuelo: Boolean(previousRiego.tipoSuelo)
+          });
+        } else {
+          loadDefaults();
+        }
       }
 
-      const currentCalificacion = visitaCalificacionesService.getByModulo(
-        id,
-        "riego"
-      );
+      const currentCalificacion = visitaCalificacionesService.getByModulo(id, "riego");
       setScoreValue(currentCalificacion?.puntaje ?? null);
       setScoreJustificado(
         currentCalificacion && currentCalificacion.puntaje < 3
@@ -491,7 +550,9 @@ export function VisitaRiegoScreen() {
       setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
       setStepObservation(nextStepNote?.observation ?? "");
       try {
-        setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
+        setRecetaAnterior(
+          await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id)
+        );
       } catch {
         setRecetaAnterior({ existe: false });
       }
@@ -506,12 +567,18 @@ export function VisitaRiegoScreen() {
   function loadDefaults() {
     try {
       const db = getDatabase();
+      const nextLockedFields: LockedRiegoFields = {
+        tipoRiego: false,
+        fuenteAgua: false,
+        tipoSuelo: false
+      };
       const row = db.getFirstSync<{ value: string }>(
         "SELECT value FROM app_meta WHERE key = ? LIMIT 1",
         META_KEYS.fuenteAgua
       );
       if (row?.value && FUENTES_AGUA.includes(row.value as FuenteAgua)) {
         setFuenteAgua(row.value as FuenteAgua);
+        nextLockedFields.fuenteAgua = true;
       }
 
       const sueloRow = db.getFirstSync<{ value: string }>(
@@ -520,10 +587,19 @@ export function VisitaRiegoScreen() {
       );
       if (sueloRow?.value && TIPOS_SUELO.includes(sueloRow.value as TipoSuelo)) {
         setTipoSuelo(sueloRow.value as TipoSuelo);
+        nextLockedFields.tipoSuelo = true;
       }
+      setLockedFields(nextLockedFields);
     } catch {
       // defaults not available, user will pick manually
     }
+  }
+
+  function unlockField(field: keyof LockedRiegoFields) {
+    setLockedFields((currentFields) => ({
+      ...currentFields,
+      [field]: false
+    }));
   }
 
   function persistDefaults() {
@@ -669,11 +745,13 @@ export function VisitaRiegoScreen() {
 
 function OptionListItem({
   description,
+  disabled = false,
   isSelected,
   label,
   onPress
 }: {
   description?: string | null;
+  disabled?: boolean;
   isSelected: boolean;
   label: string;
   onPress: () => void;
@@ -682,12 +760,14 @@ function OptionListItem({
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="radio"
-      accessibilityState={{ checked: isSelected }}
+      accessibilityState={{ checked: isSelected, disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.optionRow,
         isSelected && styles.optionRowSelected,
-        pressed && styles.pressed
+        disabled && styles.optionRowDisabled,
+        pressed && !disabled && styles.pressed
       ]}
     >
       <View style={[styles.radioIndicator, isSelected && styles.radioIndicatorSelected]}>
@@ -706,6 +786,20 @@ function OptionListItem({
           </AppText>
         ) : null}
       </View>
+    </Pressable>
+  );
+}
+
+function EditIconButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => [styles.editIconButton, pressed && styles.pressed]}
+    >
+      <Ionicons color={theme.colors.primaryDark} name="pencil-outline" size={20} />
     </Pressable>
   );
 }
@@ -907,6 +1001,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 12
   },
+  editIconButton: {
+    alignItems: "center",
+    backgroundColor: "#eef7e4",
+    borderColor: "#d2ead8",
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: "center",
+    width: 44
+  },
+  headerActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8
+  },
   hero: {
     minHeight: 300
   },
@@ -1016,6 +1125,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 10,
     elevation: 3
+  },
+  optionRowDisabled: {
+    opacity: 0.62
   },
   optionRowTitle: {
     color: theme.colors.textMuted,

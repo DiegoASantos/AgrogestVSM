@@ -112,6 +112,30 @@ export const riegosRepository = {
     return row ? mapRiegoRow(row) : null;
   },
 
+  getLastBySameParcelaBeforeVisita(visitaLocalId: string) {
+    const db = getDatabase();
+    const row = db.getFirstSync<VisitaRiegoRow>(
+      `SELECT ${RIEGO_COLUMNS.split(",")
+        .map((column) => `riego.${column.trim()}`)
+        .join(", ")}
+       FROM visita_riegos riego
+       INNER JOIN visitas_campo visita ON visita.local_id = riego.visita_local_id
+       WHERE visita.parcela_id = (
+         SELECT parcela_id
+         FROM visitas_campo
+         WHERE local_id = ?
+         LIMIT 1
+       )
+         AND riego.visita_local_id <> ?
+       ORDER BY visita.visit_date DESC, visita.created_at DESC
+       LIMIT 1`,
+      visitaLocalId,
+      visitaLocalId
+    );
+
+    return row ? mapRiegoRow(row) : null;
+  },
+
   insert(input: CreateRiegoInput, visitaLocalId: string) {
     const db = getDatabase();
     const localId = generateLocalId();

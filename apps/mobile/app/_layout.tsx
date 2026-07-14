@@ -129,7 +129,13 @@ function AppNavigation() {
         <Stack.Screen
           name="visitas-campo/[id]/observaciones-sanitarias"
           options={{
-            title: "Plagas y enfermedades"
+            title: "Plagas"
+          }}
+        />
+        <Stack.Screen
+          name="visitas-campo/[id]/enfermedades"
+          options={{
+            title: "Enfermedades"
           }}
         />
         <Stack.Screen

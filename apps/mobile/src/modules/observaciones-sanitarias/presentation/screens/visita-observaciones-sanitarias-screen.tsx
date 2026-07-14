@@ -159,7 +159,9 @@ export function VisitaObservacionesSanitariasScreen({
   });
   const [scoreValue, setScoreValue] = useState<number | null>(null);
   const [scoreJustificado, setScoreJustificado] = useState<boolean | null>(null);
-  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(null);
+  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(
+    null
+  );
   const [motivoJustificacion, setMotivoJustificacion] = useState<string | null>(null);
   const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
   const [imagePreview, setImagePreview] = useState<PestDiseaseByStageItem | null>(null);
@@ -187,6 +189,9 @@ export function VisitaObservacionesSanitariasScreen({
     () => pestDiseases.filter((item) => item.type === "enfermedad"),
     [pestDiseases]
   );
+  const activePestDiseases = mode === "plagas" ? plagas : enfermedades;
+  const modeLabel = mode === "plagas" ? "plagas" : "enfermedades";
+  const modeTitle = mode === "plagas" ? "Plagas" : "Enfermedades";
 
   return (
     <ScreenContainer contentStyle={styles.container}>
@@ -216,7 +221,7 @@ export function VisitaObservacionesSanitariasScreen({
 
           <View style={styles.heroContent}>
             <AppText style={styles.heroTitle} variant="title">
-              {mode === "plagas" ? "Plagas" : "Enfermedades"}
+              {modeTitle}
             </AppText>
             <AppText style={styles.heroSubtitle} variant="body">
               Evalua incidencia y severidad segun la etapa fenologica registrada.
@@ -229,15 +234,13 @@ export function VisitaObservacionesSanitariasScreen({
 
           {isLoading ? (
             <AppCard>
-              <AppText variant="muted">Cargando plagas y enfermedades...</AppText>
+              <AppText variant="muted">Cargando {modeLabel}...</AppText>
             </AppCard>
           ) : null}
 
           {!isLoading && error ? (
             <AppCard>
-              <AppText variant="heading">
-                No se pudo cargar el paso {stepNumber}
-              </AppText>
+              <AppText variant="heading">No se pudo cargar el paso {stepNumber}</AppText>
               <AppText variant="muted">{error}</AppText>
               <AppButton
                 label="Reintentar"
@@ -250,10 +253,10 @@ export function VisitaObservacionesSanitariasScreen({
             </AppCard>
           ) : null}
 
-          {!isLoading && !error && pestDiseases.length === 0 ? (
+          {!isLoading && !error && activePestDiseases.length === 0 ? (
             <AppEmptyState
-              title="Sin plagas o enfermedades"
-              message="No hay registros activos asociados a la etapa fenologica seleccionada."
+              title={`Sin ${modeLabel}`}
+              message={`No hay ${modeLabel} activas asociadas a la etapa fenologica seleccionada.`}
             />
           ) : null}
 
@@ -316,7 +319,9 @@ export function VisitaObservacionesSanitariasScreen({
             <View style={styles.noteCard}>
               <View style={styles.sectionHeader}>
                 <AppText style={styles.sectionTitle} variant="heading">
-                  {recetaAnterior?.existe ? "Recomendacion" : "Observacion y recomendacion"}
+                  {recetaAnterior?.existe
+                    ? "Recomendacion"
+                    : "Observacion y recomendacion"}
                 </AppText>
                 <AppText style={styles.sectionSubtitle} variant="caption">
                   Esta informacion pertenece solo al paso {stepNumber}.
@@ -462,7 +467,9 @@ export function VisitaObservacionesSanitariasScreen({
       setCategoriaJustificacion(currentCalificacion?.categoriaJustificacion ?? null);
       setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
       try {
-        setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
+        setRecetaAnterior(
+          await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id)
+        );
       } catch {
         setRecetaAnterior({ existe: false });
       }
@@ -620,7 +627,11 @@ export function VisitaObservacionesSanitariasScreen({
     const activeItems = mode === "plagas" ? plagas : enfermedades;
     const activeItemIds = new Set(activeItems.map((item) => item.id));
     const shouldScore = recetaAnterior?.existe === true;
-    const validationMessage = validateSelections(selections, activeItems, incidenceLevels);
+    const validationMessage = validateSelections(
+      selections,
+      activeItems,
+      incidenceLevels
+    );
     const hasRegisteredData = activeItems.some((item) => {
       const selection = selections[item.id];
 
@@ -662,10 +673,10 @@ export function VisitaObservacionesSanitariasScreen({
         ([pestDiseaseId, selection]) =>
           activeItemIds.has(pestDiseaseId) &&
           Boolean(
-          selection.incidenceLevelId ||
-          selection.incidencePercentage !== "" ||
-          selection.severityLevelId ||
-          selection.organosAfectados.length > 0
+            selection.incidenceLevelId ||
+            selection.incidencePercentage !== "" ||
+            selection.severityLevelId ||
+            selection.organosAfectados.length > 0
           )
       );
 
@@ -753,6 +764,16 @@ function SanitarySection({
   selections,
   title
 }: SanitarySectionProps) {
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(
+    () => new Set(items.length === 1 ? [items[0].id] : [])
+  );
+
+  useEffect(() => {
+    setExpandedItemIds(new Set(items.length === 1 ? [items[0].id] : []));
+  }, [items]);
+
+  const hasMultipleItems = items.length > 1;
+
   return (
     <View style={styles.sectionGroup}>
       <View style={styles.groupHeader}>
@@ -765,23 +786,41 @@ function SanitarySection({
           </AppText>
         </View>
         <AppText style={styles.groupSubtitle} variant="caption">
-          Selecciona incidencia, severidad y organos afectados.
+          {hasMultipleItems
+            ? "Selecciona una opcion para expandirla y registrar incidencia, severidad y organos afectados."
+            : "Registra incidencia, severidad y organos afectados."}
         </AppText>
       </View>
 
-      {items.map((item) => (
-        <SanitaryCard
-          incidenceLevels={incidenceLevels}
-          isCompactLayout={isCompactLayout}
-          item={item}
-          key={item.id}
-          onImagePress={onImagePress}
-          onIncidencePercentageChange={onIncidencePercentageChange}
-          onSelectLevel={onSelectLevel}
-          onToggleOrgano={onToggleOrgano}
-          selection={selections[item.id]}
-        />
-      ))}
+      {items.map((item) => {
+        const isExpanded = expandedItemIds.has(item.id);
+
+        return (
+          <SanitaryCard
+            incidenceLevels={incidenceLevels}
+            isCompactLayout={isCompactLayout}
+            isExpanded={isExpanded}
+            item={item}
+            key={item.id}
+            onImagePress={onImagePress}
+            onIncidencePercentageChange={onIncidencePercentageChange}
+            onSelectLevel={onSelectLevel}
+            onToggleExpanded={() =>
+              setExpandedItemIds((currentIds) => {
+                const nextIds = new Set(currentIds);
+                if (nextIds.has(item.id)) {
+                  nextIds.delete(item.id);
+                } else {
+                  nextIds.add(item.id);
+                }
+                return nextIds;
+              })
+            }
+            onToggleOrgano={onToggleOrgano}
+            selection={selections[item.id]}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -789,6 +828,7 @@ function SanitarySection({
 type SanitaryCardProps = {
   incidenceLevels: IncidenceLevelCatalogItem[];
   isCompactLayout: boolean;
+  isExpanded: boolean;
   item: PestDiseaseByStageItem;
   onImagePress: (item: PestDiseaseByStageItem) => void;
   onIncidencePercentageChange: (pestDiseaseId: string, value: string) => void;
@@ -797,6 +837,7 @@ type SanitaryCardProps = {
     type: IncidenceLevelCatalogItem["type"],
     levelId: string
   ) => void;
+  onToggleExpanded: () => void;
   onToggleOrgano: (pestDiseaseId: string, organo: OrganoAfectado) => void;
   selection?: SanitarySelection;
 };
@@ -804,10 +845,12 @@ type SanitaryCardProps = {
 function SanitaryCard({
   incidenceLevels,
   isCompactLayout,
+  isExpanded,
   item,
   onImagePress,
   onIncidencePercentageChange,
   onSelectLevel,
+  onToggleExpanded,
   onToggleOrgano,
   selection
 }: SanitaryCardProps) {
@@ -832,80 +875,110 @@ function SanitaryCard({
   return (
     <View style={[styles.sanitaryCard, isCompactLayout && styles.sanitaryCardCompact]}>
       <Pressable
-        accessibilityLabel={`Ver imagen de ${item.name}`}
-        accessibilityRole="imagebutton"
-        onPress={() => onImagePress(item)}
+        accessibilityLabel={`${isExpanded ? "Contraer" : "Expandir"} ${item.name}`}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isExpanded }}
+        onPress={onToggleExpanded}
+        style={({ pressed }) => [styles.accordionHeader, pressed && styles.pressed]}
       >
-        <Image
-          resizeMode="cover"
-          source={imageSource}
-          style={[styles.pestImage, isCompactLayout && styles.pestImageCompact]}
+        <AppText style={styles.accordionTitle} variant="label">
+          {item.name}
+        </AppText>
+        <Ionicons
+          color={theme.colors.primaryDark}
+          name={isExpanded ? "chevron-up" : "chevron-down"}
+          size={20}
         />
       </Pressable>
 
-      <View style={[styles.cardContent, isCompactLayout && styles.cardContentCompact]}>
-        <View style={[styles.cardHeader, isCompactLayout && styles.cardHeaderCompact]}>
-          <View style={styles.cardTitleColumn}>
-            <AppText style={styles.pestName} variant="label">
-              {item.name}
-            </AppText>
+      {!isExpanded ? null : (
+        <View
+          style={[
+            styles.accordionContent,
+            isCompactLayout && styles.accordionContentCompact
+          ]}
+        >
+          <Pressable
+            accessibilityLabel={`Ver imagen de ${item.name}`}
+            accessibilityRole="imagebutton"
+            onPress={() => onImagePress(item)}
+          >
+            <Image
+              resizeMode="cover"
+              source={imageSource}
+              style={[styles.pestImage, isCompactLayout && styles.pestImageCompact]}
+            />
+          </Pressable>
+
+          <View
+            style={[styles.cardContent, isCompactLayout && styles.cardContentCompact]}
+          >
+            <View
+              style={[styles.cardHeader, isCompactLayout && styles.cardHeaderCompact]}
+            >
+              <View style={styles.cardTitleColumn}>
+                <AppText style={styles.pestName} variant="label">
+                  {item.name}
+                </AppText>
+              </View>
+            </View>
+
+            {incidenceOptions.length > 0 ? (
+              <LevelSelectorRow
+                accentColor="#12622f"
+                label="Incidencia"
+                levels={incidenceOptions}
+                isCompactLayout={isCompactLayout}
+                levelDescriptions={levelDescriptions}
+                onSelect={(levelId) => onSelectLevel(item.id, "incidencia", levelId)}
+                selectedLevelId={selection?.incidenceLevelId ?? null}
+              />
+            ) : null}
+            {showsSickTreePercentage ? (
+              <PercentageInputBlock
+                disabled={disablesSeverity}
+                disabledHint={
+                  incidenceIsZero
+                    ? "Incidencia 0: no hay arboles enfermos que cuantificar."
+                    : "Selecciona primero la incidencia."
+                }
+                hint="Porcentaje de arboles enfermos. Escala de 1% en 1%."
+                label="% de arboles enfermos"
+                onChangeText={(value) => onIncidencePercentageChange(item.id, value)}
+                value={selection?.incidencePercentage ?? ""}
+              />
+            ) : null}
+            {severityOptions.length > 0 ? (
+              <LevelSelectorRow
+                accentColor="#7b4b00"
+                disabled={disablesSeverity}
+                disabledHint={
+                  incidenceIsZero
+                    ? "Incidencia 0: no hay severidad que evaluar."
+                    : "Indica primero la incidencia."
+                }
+                label="Severidad"
+                levels={severityOptions}
+                isCompactLayout={isCompactLayout}
+                levelDescriptions={levelDescriptions}
+                onSelect={(levelId) => onSelectLevel(item.id, "severidad", levelId)}
+                selectedLevelId={selection?.severityLevelId ?? null}
+              />
+            ) : null}
+
+            <OrganoSelector
+              disabled={disablesSeverity}
+              disabledHint={
+                incidenceIsZero
+                  ? "Incidencia 0: no hay organos afectados."
+                  : "Indica primero la incidencia."
+              }
+              onToggle={(organo) => onToggleOrgano(item.id, organo)}
+              selectedOrganos={selection?.organosAfectados ?? []}
+            />
           </View>
         </View>
-
-        {incidenceOptions.length > 0 ? (
-          <LevelSelectorRow
-            accentColor="#12622f"
-            label="Incidencia"
-            levels={incidenceOptions}
-            isCompactLayout={isCompactLayout}
-            levelDescriptions={levelDescriptions}
-            onSelect={(levelId) => onSelectLevel(item.id, "incidencia", levelId)}
-            selectedLevelId={selection?.incidenceLevelId ?? null}
-          />
-        ) : null}
-        {showsSickTreePercentage ? (
-          <PercentageInputBlock
-            disabled={disablesSeverity}
-            disabledHint={
-              incidenceIsZero
-                ? "Incidencia 0: no hay arboles enfermos que cuantificar."
-                : "Selecciona primero la incidencia."
-            }
-            hint="Porcentaje de arboles enfermos. Escala de 1% en 1%."
-            label="% de arboles enfermos"
-            onChangeText={(value) => onIncidencePercentageChange(item.id, value)}
-            value={selection?.incidencePercentage ?? ""}
-          />
-        ) : null}
-        {severityOptions.length > 0 ? (
-          <LevelSelectorRow
-            accentColor="#7b4b00"
-            disabled={disablesSeverity}
-            disabledHint={
-              incidenceIsZero
-                ? "Incidencia 0: no hay severidad que evaluar."
-                : "Indica primero la incidencia."
-            }
-            label="Severidad"
-            levels={severityOptions}
-            isCompactLayout={isCompactLayout}
-            levelDescriptions={levelDescriptions}
-            onSelect={(levelId) => onSelectLevel(item.id, "severidad", levelId)}
-            selectedLevelId={selection?.severityLevelId ?? null}
-          />
-        ) : null}
-
-        <OrganoSelector
-          disabled={disablesSeverity}
-          disabledHint={
-            incidenceIsZero
-              ? "Incidencia 0: no hay organos afectados."
-              : "Indica primero la incidencia."
-          }
-          onToggle={(organo) => onToggleOrgano(item.id, organo)}
-          selectedOrganos={selection?.organosAfectados ?? []}
-        />
-      </View>
+      )}
     </View>
   );
 }
@@ -1576,6 +1649,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16
   },
+  accordionContent: {
+    flexDirection: "row",
+    gap: 12
+  },
+  accordionContentCompact: {
+    alignItems: "stretch",
+    flexDirection: "column"
+  },
+  accordionHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+    minHeight: 48
+  },
+  accordionTitle: {
+    color: theme.colors.primaryDark,
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 22
+  },
   cardContent: {
     flex: 1,
     gap: 8
@@ -1883,7 +1977,6 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.borderLight,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
-    flexDirection: "row",
     gap: 12,
     padding: 12,
     ...theme.shadow.sm

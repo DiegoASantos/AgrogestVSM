@@ -18,6 +18,10 @@ export const riegosService = {
     return Promise.resolve(riegosRepository.getByVisitaLocalId(visitaId));
   },
 
+  getLastBySameParcelaBeforeVisita(visitaId: string) {
+    return Promise.resolve(riegosRepository.getLastBySameParcelaBeforeVisita(visitaId));
+  },
+
   saveSelection(visitaId: string, input: SaveRiegoInput) {
     const existing = riegosRepository.getByVisitaLocalId(visitaId);
 
