@@ -85,14 +85,14 @@ export class ProductoresService {
       .take(query.take);
 
     if (isAgronomoUser(currentUser)) {
-      queryBuilder
-        .innerJoin(
-          "parcelas",
-          "p",
-          "p.productor_id = productor.id AND p.agronomo_usuario_id = :currentUserId",
-          { currentUserId: currentUser!.userId }
-        )
-        .distinct(true);
+      queryBuilder.andWhere(
+        `EXISTS (
+          SELECT 1 FROM parcelas p
+          WHERE p.productor_id = productor.id
+            AND p.agronomo_usuario_id = :currentUserId
+        )`,
+        { currentUserId: currentUser!.userId }
+      );
     }
 
     if (query.activo !== undefined) {
