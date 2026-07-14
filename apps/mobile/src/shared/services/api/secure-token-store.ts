@@ -34,3 +34,14 @@ export async function clearAuthTokens() {
     SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY)
   ]);
 }
+
+const LAST_LOGIN_EMAIL_KEY = "last_login_email";
+
+export async function saveLastLoginEmail(email: string) {
+  await SecureStore.setItemAsync(LAST_LOGIN_EMAIL_KEY, email);
+}
+
+export async function loadLastLoginEmail(): Promise<string | null> {
+  const email = await SecureStore.getItemAsync(LAST_LOGIN_EMAIL_KEY);
+  return email ?? null;
+}

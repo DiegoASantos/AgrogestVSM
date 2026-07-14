@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -17,6 +17,10 @@ import { getCatalogsDownloadedAt } from "../../../shared/database/catalog-status
 import { initDatabase } from "../../../shared/database/connection";
 import { downloadAllCatalogs } from "../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../shared/services";
+import {
+  loadLastLoginEmail,
+  saveLastLoginEmail
+} from "../../../shared/services/api/secure-token-store";
 import { useAuthSession } from "../hooks/use-auth-session";
 import { useLoginForm } from "../hooks/use-login-form";
 import { authService } from "../services";
@@ -24,8 +28,18 @@ import { authService } from "../services";
 export function LoginForm() {
   const router = useRouter();
   const { session, signIn } = useAuthSession();
+  const [persistedEmail, setPersistedEmail] = useState("");
+
+  useEffect(() => {
+    void loadLastLoginEmail().then((email) => {
+      if (email) {
+        setPersistedEmail(email);
+      }
+    });
+  }, []);
+
   const { values, errors, updateField, submit } = useLoginForm(
-    session.user?.email ?? ""
+    session.user?.email ?? persistedEmail
   );
   const [loginPhase, setLoginPhase] = useState<"idle" | "authenticating">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -39,6 +53,7 @@ export function LoginForm() {
 
       try {
         const nextSession = await authService.authenticate(nextValues);
+        await saveLastLoginEmail(nextValues.email);
         initDatabase();
         await signIn(nextSession);
         router.replace("/home");

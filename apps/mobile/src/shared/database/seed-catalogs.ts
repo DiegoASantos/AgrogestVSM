@@ -356,6 +356,8 @@ async function performCatalogDownload() {
           );
         }
 
+        db.runSync("DELETE FROM productores");
+
         for (const productor of productores) {
           db.runSync(
             `INSERT OR REPLACE INTO productores (
@@ -458,6 +460,8 @@ async function performCatalogDownload() {
             subsector.updatedAt
           );
         }
+
+        db.runSync("DELETE FROM parcelas");
 
         for (const parcela of parcelas) {
           db.runSync(
