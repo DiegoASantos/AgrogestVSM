@@ -22,10 +22,13 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { CurrentAuthUser } from "../../auth/presentation/decorators/current-auth-user.decorator";
+import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { ParcelasService } from "../application/parcelas.service";
 import { CreateParcelaDto } from "./dto/create-parcela.dto";
 import { FindParcelasQueryDto } from "./dto/find-parcelas-query.dto";
 import { FindParcelasSummaryQueryDto } from "./dto/find-parcelas-summary-query.dto";
+import { UpdateParcelaAgronomoDto } from "./dto/update-parcela-agronomo.dto";
 import { UpdateParcelaDto } from "./dto/update-parcela.dto";
 
 @ApiTags("Parcelas")
@@ -71,8 +74,11 @@ export class ParcelasController {
   @ApiOkResponse({
     description: "Lista de parcelas."
   })
-  getParcelas(@Query() query: FindParcelasQueryDto) {
-    return this.parcelasService.findAll(query);
+  getParcelas(
+    @Query() query: FindParcelasQueryDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.parcelasService.findAll(query, currentUser);
   }
 
   @Get("mapa")
@@ -104,8 +110,11 @@ export class ParcelasController {
     description:
       "FeatureCollection GeoJSON con features MultiPolygon y Point para parcelas."
   })
-  getParcelasMap(@Query() query: FindParcelasSummaryQueryDto) {
-    return this.parcelasService.findMap(query);
+  getParcelasMap(
+    @Query() query: FindParcelasSummaryQueryDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.parcelasService.findMap(query, currentUser);
   }
 
   @Get("resumen")
@@ -203,6 +212,30 @@ export class ParcelasController {
     @Body() updateParcelaDto: UpdateParcelaDto
   ) {
     return this.parcelasService.update(id, updateParcelaDto);
+  }
+
+  @Patch(":id/agronomo")
+  @ApiOperation({ summary: "Asigna o desasigna un agronomo a una parcela." })
+  @ApiParam({
+    name: "id",
+    type: String,
+    example: "1"
+  })
+  @ApiOkResponse({
+    description: "Agronomo asignado o desasignado correctamente."
+  })
+  @ApiBadRequestResponse({
+    description:
+      "El usuario especificado no existe, no esta activo o no tiene rol AGRONOMO."
+  })
+  @ApiNotFoundResponse({
+    description: "La parcela no existe."
+  })
+  updateParcelaAgronomo(
+    @Param("id", ParseEntityIdPipe) id: string,
+    @Body() updateParcelaAgronomoDto: UpdateParcelaAgronomoDto
+  ) {
+    return this.parcelasService.updateAgronomo(id, updateParcelaAgronomoDto);
   }
 
   @Delete(":id")

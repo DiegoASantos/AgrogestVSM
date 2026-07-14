@@ -35,4 +35,22 @@ describe("sync requests", () => {
 
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it("merges manual bypass options without forcing auth refresh", () => {
+    vi.useFakeTimers();
+    const listener = vi.fn();
+    const unsubscribe = subscribeToSyncRequests(listener);
+
+    requestSync({ bypassBackoff: true, manual: true });
+    requestSync({ immediate: true });
+    vi.runOnlyPendingTimers();
+
+    expect(listener).toHaveBeenCalledWith({
+      bypassBackoff: true,
+      forceAuthRefresh: false,
+      immediate: true,
+      manual: true
+    });
+    unsubscribe();
+  });
 });

@@ -58,4 +58,5 @@ en la raíz.
 - [Spec 012: Selector de nombre comercial en receta fitosanitaria](012-nombre-comercial-receta-fitosanitaria.md)
 - [Spec 013: Paginación y búsqueda en selector de productor mobile](013-paginacion-selector-productor.md)
 - [Spec 014: Exportacion protegida para Cost-Build](014-exportacion-cost-build-api-key.md)
+- [Spec 015: Sincronizacion robusta en redes inestables y recuperacion de sesion online](015-sync-robusto-redes-inestables.md)
 - [Plantilla](TEMPLATE.md)

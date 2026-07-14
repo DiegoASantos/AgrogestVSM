@@ -21,7 +21,7 @@ const RECONNECT_RETRY_DELAYS_MS = [10_000, 30_000, 90_000] as const;
 
 export function useSync() {
   const { isOnline } = useIsOnline();
-  const { ensureOnlineSession, isAuthenticated } = useAuthSession();
+  const { authRevision, ensureOnlineSession, isAuthenticated } = useAuthSession();
   const isSyncingRef = useRef(false);
   const isOnlineRef = useRef(isOnline);
   const isAuthenticatedRef = useRef(isAuthenticated);
@@ -31,7 +31,7 @@ export function useSync() {
     null
   );
   const reconnectRetryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const rerunAfterCurrentSyncRef = useRef(false);
+  const activeRunRef = useRef<Promise<SyncRunResult> | null>(null);
   const syncManagerRef = useRef(createDefaultSyncManager());
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -55,9 +55,10 @@ export function useSync() {
     return result;
   }, []);
 
-  const runSync = useCallback(async (forceRefresh = false): Promise<SyncRunResult> => {
+  const executeSync = useCallback(async (
+    options: SyncRequestOptions = {}
+  ): Promise<SyncRunResult> => {
     if (isSyncingRef.current) {
-      rerunAfterCurrentSyncRef.current = true;
       return finishRun(
         createSyncRunResult(
           "already_running",
@@ -81,7 +82,7 @@ export function useSync() {
       isOnlineRef.current
     );
 
-    if (!forceRefresh && adaptiveDelayMs !== null && adaptiveDelayMs > 0) {
+    if (!options.bypassBackoff && adaptiveDelayMs !== null && adaptiveDelayMs > 0) {
       return finishRun(
         createSyncRunResult(
           "backoff",
@@ -91,40 +92,77 @@ export function useSync() {
     }
 
     isSyncingRef.current = true;
+    const controller = new AbortController();
+    const deadline = setTimeout(
+      () => controller.abort(),
+      options.manual ? 30_000 : 45_000
+    );
 
     try {
-      const hasOnlineSession = await ensureOnlineSessionRef.current(forceRefresh);
+      const onlineSession = await ensureOnlineSessionRef.current({
+        forceRefresh: options.forceAuthRefresh,
+        signal: controller.signal
+      });
 
-      if (!hasOnlineSession) {
+      if (onlineSession !== "valid") {
+        const status =
+          onlineSession === "reauth_required"
+            ? "reauth_required"
+            : onlineSession === "temporarily_unavailable"
+              ? "auth_temporarily_unavailable"
+              : "auth_failed";
+        const message =
+          onlineSession === "reauth_required"
+            ? "Sesion online vencida; inicia sesion para sincronizar."
+            : onlineSession === "temporarily_unavailable"
+              ? "No se pudo validar la sesion por la calidad de la red. Se reintentara automaticamente."
+              : "No se pudo validar la sesion online.";
         return finishRun(
-          createSyncRunResult(
-            "auth_failed",
-            "No se pudo validar la sesion online. Revisa tu conexion o vuelve a iniciar sesion."
-          )
+          createSyncRunResult(status, message)
         );
       }
 
-      const result = await processOutbox();
+      const result = await processOutbox({ signal: controller.signal });
       const attemptedItems = result.processed + result.skipped + result.errors;
 
       if (attemptedItems > 0) {
-        syncManagerRef.current.recordAttempt(result.skipped === 0 && result.errors === 0);
+        syncManagerRef.current.recordOutcome(
+          result.successfulRequests,
+          result.transientFailures
+        );
+      }
+
+      if (
+        options.manual &&
+        !result.aborted &&
+        result.transientFailures === 0 &&
+        result.errors === 0
+      ) {
+        syncManagerRef.current.resetState();
       }
 
       if (result.processed > 0 || result.errors > 0) {
         debugLog("Sync", "Cycle completed", result);
       }
 
-      try {
-        await refreshCatalogsIfStale();
-      } catch {
-        // Pull failure should not block sync cycle
-      }
+      void refreshCatalogsIfStale().catch(() => {
+        // Catalog pull has its own state and must not retain the outbox indicator.
+      });
 
       const counts = getSyncCounts();
       const lastTime = getLastSyncTime();
       setSyncCounts(counts);
       setLastSyncTime(lastTime);
+      if (result.aborted) {
+        return finishRun(
+          createSyncRunResult(
+            "timed_out",
+            "La sincronizacion excedio el tiempo de espera. Los datos pendientes se conservaron.",
+            result
+          )
+        );
+      }
+
       return finishRun(
         createSyncRunResult(
           result.errors > 0 ? "failed" : "success",
@@ -137,7 +175,7 @@ export function useSync() {
         )
       );
     } catch (error) {
-      console.warn("Sync cycle failed:", error);
+      debugLog("Sync", "Cycle error", { name: error instanceof Error ? error.name : "unknown" });
       syncManagerRef.current.recordAttempt(false);
       return finishRun(
         createSyncRunResult(
@@ -148,17 +186,27 @@ export function useSync() {
         )
       );
     } finally {
+      clearTimeout(deadline);
       isSyncingRef.current = false;
-
-      if (rerunAfterCurrentSyncRef.current) {
-        rerunAfterCurrentSyncRef.current = false;
-        scheduledSyncRef.current = setTimeout(() => {
-          scheduledSyncRef.current = null;
-          void runSync();
-        }, 0);
-      }
     }
   }, [finishRun]);
+
+  const runSync = useCallback(
+    (options: SyncRequestOptions = {}): Promise<SyncRunResult> => {
+      if (activeRunRef.current) {
+        return activeRunRef.current;
+      }
+
+      const activeRun = executeSync(options).finally(() => {
+        if (activeRunRef.current === activeRun) {
+          activeRunRef.current = null;
+        }
+      });
+      activeRunRef.current = activeRun;
+      return activeRun;
+    },
+    [executeSync]
+  );
 
   const scheduleSync = useCallback(
     (options: SyncRequestOptions = {}) => {
@@ -168,7 +216,7 @@ export function useSync() {
       }
 
       const adaptiveDelayMs =
-        options.forceRefresh
+        options.bypassBackoff
           ? 0
           : syncManagerRef.current.getDelayUntilNextRunMs(isOnlineRef.current);
       const requestedDelayMs = options.immediate ? 0 : OUTBOX_SYNC_DEBOUNCE_MS;
@@ -183,7 +231,7 @@ export function useSync() {
           async () => {
             scheduledSyncRef.current = null;
             scheduledSyncResolveRef.current = null;
-            const result = await runSync(Boolean(options.forceRefresh));
+            const result = await runSync(options);
             resolve(result);
           },
           delayMs
@@ -225,11 +273,11 @@ export function useSync() {
       return;
     }
 
-    void runSync(false);
+    void runSync();
 
     reconnectRetryTimersRef.current = RECONNECT_RETRY_DELAYS_MS.map((delay) =>
       setTimeout(() => {
-        void runSync(false);
+        void runSync();
       }, delay)
     );
 
@@ -242,6 +290,15 @@ export function useSync() {
       clearReconnectRetryTimers();
     };
   }, [clearReconnectRetryTimers, isOnline, isAuthenticated, runSync]);
+
+  useEffect(() => {
+    if (authRevision <= 0 || !isAuthenticated || !isOnline) {
+      return;
+    }
+
+    syncManagerRef.current.resetState();
+    void runSync({ bypassBackoff: true, immediate: true });
+  }, [authRevision, isAuthenticated, isOnline, runSync]);
 
   return { runSync, lastSyncTime, syncCounts };
 }

@@ -23,6 +23,11 @@ import {
   type ProductorEntityType
 } from "../infrastructure/persistence/entities/productor.entity";
 
+type CurrentUserContext = {
+  userId: string;
+  roles: string[];
+};
+
 @Injectable()
 export class ProductoresService {
   constructor(
@@ -72,12 +77,23 @@ export class ProductoresService {
     }
   }
 
-  async findAll(query: FindProductoresQueryDto) {
+  async findAll(query: FindProductoresQueryDto, currentUser?: CurrentUserContext) {
     const queryBuilder = this.productoresRepository
       .createQueryBuilder("productor")
       .orderBy("productor.creado_at", "DESC")
       .skip(query.skip)
       .take(query.take);
+
+    if (isAgronomoUser(currentUser)) {
+      queryBuilder
+        .innerJoin(
+          "parcelas",
+          "p",
+          "p.productor_id = productor.id AND p.agronomo_usuario_id = :currentUserId",
+          { currentUserId: currentUser!.userId }
+        )
+        .distinct(true);
+    }
 
     if (query.activo !== undefined) {
       queryBuilder.andWhere("productor.activo = :isActive", {
@@ -455,4 +471,15 @@ export class ProductoresService {
       }))
     };
   }
+}
+
+function isAgronomoUser(currentUser?: CurrentUserContext): boolean {
+  if (!currentUser) {
+    return false;
+  }
+
+  const hasAdmin = currentUser.roles.includes("ADMIN");
+  const hasAgronomo = currentUser.roles.includes("AGRONOMO");
+
+  return hasAgronomo && !hasAdmin;
 }

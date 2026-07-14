@@ -2,7 +2,7 @@ import { toTitleCase } from "@agrogest/utils";
 
 import type { LoginFormValues } from "../schemas/login-form.schema";
 import type { AuthLoginResult, AuthUser } from "../types/auth.types";
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, type ApiRequestContext } from "../../../shared/services";
 
 type LoginApiResponse = {
   accessToken: string;
@@ -59,10 +59,15 @@ export const authService = {
     return this.login(values);
   },
 
-  async refresh(refreshToken: string): Promise<AuthLoginResult> {
+  async refresh(
+    refreshToken: string,
+    context: ApiRequestContext = {}
+  ): Promise<AuthLoginResult> {
     const response = await apiRequest<RefreshApiResponse>("/auth/refresh", {
       method: "POST",
-      body: { refreshToken }
+      body: { refreshToken },
+      timeoutMs: 5_000,
+      signal: context.signal
     });
 
     return {

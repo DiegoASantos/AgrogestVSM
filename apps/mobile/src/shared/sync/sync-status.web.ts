@@ -20,3 +20,11 @@ export function getLastSyncAttempt() {
 }
 
 export function setLastSyncAttempt() {}
+
+export function getSyncPendingDetails() {
+  return [];
+}
+
+export function subscribeToSyncStatus() {
+  return () => undefined;
+}

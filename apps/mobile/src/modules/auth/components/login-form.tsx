@@ -23,8 +23,10 @@ import { authService } from "../services";
 
 export function LoginForm() {
   const router = useRouter();
-  const { signIn } = useAuthSession();
-  const { values, errors, updateField, submit } = useLoginForm();
+  const { session, signIn } = useAuthSession();
+  const { values, errors, updateField, submit } = useLoginForm(
+    session.user?.email ?? ""
+  );
   const [loginPhase, setLoginPhase] = useState<"idle" | "authenticating">("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);

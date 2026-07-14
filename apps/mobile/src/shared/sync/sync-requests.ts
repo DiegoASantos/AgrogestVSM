@@ -1,8 +1,10 @@
 import type { SyncRunResult } from "./sync-result";
 
 export type SyncRequestOptions = {
-  forceRefresh?: boolean;
+  bypassBackoff?: boolean;
+  forceAuthRefresh?: boolean;
   immediate?: boolean;
+  manual?: boolean;
 };
 
 type SyncRequestListener = (
@@ -16,8 +18,12 @@ let pendingRequest: Promise<SyncRunResult | null> | null = null;
 
 export function requestSync(options: SyncRequestOptions = {}) {
   pendingOptions = {
-    forceRefresh: Boolean(pendingOptions?.forceRefresh || options.forceRefresh),
-    immediate: Boolean(pendingOptions?.immediate || options.immediate)
+    bypassBackoff: Boolean(pendingOptions?.bypassBackoff || options.bypassBackoff),
+    forceAuthRefresh: Boolean(
+      pendingOptions?.forceAuthRefresh || options.forceAuthRefresh
+    ),
+    immediate: Boolean(pendingOptions?.immediate || options.immediate),
+    manual: Boolean(pendingOptions?.manual || options.manual)
   };
 
   if (notifyTimer && pendingRequest) {

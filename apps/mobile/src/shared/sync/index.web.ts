@@ -6,5 +6,7 @@ export {
   getSyncErrorDetails,
   getLastSyncTime,
   getLastSyncAttempt
+  ,getSyncPendingDetails,
+  subscribeToSyncStatus
 } from "./sync-status.web";
 export type { SyncRunResult, SyncRunStatus } from "./sync-result";

@@ -1,4 +1,4 @@
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, type ApiRequestContext } from "../../../shared/services";
 import type { LaborCulturalCatalogItem, VisitaLaborCultural } from "../types";
 
 type CreateLaborCulturalInput = {
@@ -16,19 +16,25 @@ export const laboresCulturalesVisitaRemote = {
     );
   },
 
-  create(visitaId: string, input: CreateLaborCulturalInput) {
+  create(
+    visitaId: string,
+    input: CreateLaborCulturalInput,
+    context: ApiRequestContext = {}
+  ) {
     return apiRequest<VisitaLaborCultural>(
       `/visitas-campo/${visitaId}/labores-culturales`,
       {
         method: "POST",
-        body: input
+        body: input,
+        ...context
       }
     );
   },
 
-  remove(id: string) {
+  remove(id: string, context: ApiRequestContext = {}) {
     return apiRequest<VisitaLaborCultural>(`/labores-culturales-visita/${id}`, {
-      method: "DELETE"
+      method: "DELETE",
+      ...context
     });
   }
 };

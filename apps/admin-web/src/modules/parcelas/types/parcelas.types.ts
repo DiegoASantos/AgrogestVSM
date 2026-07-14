@@ -20,6 +20,7 @@ export type ParcelaListItem = {
   description: string | null;
   referencePoint: GeoJsonPoint | null;
   geometry: GeoJsonMultiPolygon | null;
+  agronomoUsuarioId: string | null;
   geo: {
     point: GeoJsonPoint | null;
     polygon: GeoJsonMultiPolygon | null;

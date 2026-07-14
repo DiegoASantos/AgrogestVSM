@@ -18,6 +18,8 @@ import { productoresService } from "../../productores/services/productores.servi
 import type { ProductorListItem } from "../../productores/types/productores.types";
 import { parcelasService } from "../services/parcelas.service";
 import type { ParcelaListItem } from "../types/parcelas.types";
+import { securityService } from "../../seguridad/services/security.service";
+import type { SecurityUserItem } from "../../seguridad/types/security.types";
 import { ConfirmDialog } from "../../../shared/components/confirm-dialog";
 import { DataTable, type DataTableColumn } from "../../../shared/components/data-table";
 import { EmptyState } from "../../../shared/components/empty-state";
@@ -36,6 +38,7 @@ type ParcelaFormState = {
   sectorId: string;
   subsectorId: string;
   productorId: string;
+  agronomoUsuarioId: string;
   name: string;
   areaHectares: string;
   description: string;
@@ -47,6 +50,7 @@ const emptyForm: ParcelaFormState = {
   sectorId: "",
   subsectorId: "",
   productorId: "",
+  agronomoUsuarioId: "",
   name: "",
   areaHectares: "",
   description: "",
@@ -59,6 +63,7 @@ export function ParcelasManagementScreen() {
   const [sectores, setSectores] = useState<SectorListItem[]>([]);
   const [subsectores, setSubsectores] = useState<SubsectorListItem[]>([]);
   const [productores, setProductores] = useState<ProductorListItem[]>([]);
+  const [agronomoUsers, setAgronomoUsers] = useState<SecurityUserItem[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sectorFilter, setSectorFilter] = useState("");
@@ -104,6 +109,29 @@ export function ParcelasManagementScreen() {
     [subsectores]
   );
 
+  const agronomoUsersLookup = useMemo(
+    () =>
+      agronomoUsers.reduce<Record<string, string>>((accumulator, user) => {
+        accumulator[user.id] = user.displayName;
+        return accumulator;
+      }, {}),
+    [agronomoUsers]
+  );
+
+  const agronomoUserOptions = useMemo(
+    () =>
+      agronomoUsers
+        .filter((user) => user.isActive)
+        .sort((leftUser, rightUser) =>
+          leftUser.displayName.localeCompare(rightUser.displayName, "es")
+        )
+        .map((user) => ({
+          value: user.id,
+          label: user.displayName
+        })),
+    [agronomoUsers]
+  );
+
   const filteredItems = useMemo(() => {
     const normalizedSearch = normalizeSearch(search);
 
@@ -147,6 +175,14 @@ export function ParcelasManagementScreen() {
           <span>{item.name || "Sin nombre"}</span>
         </div>
       )
+    },
+    {
+      key: "agronomo",
+      header: "Agrónomo",
+      cell: (item) =>
+        item.agronomoUsuarioId
+          ? agronomoUsersLookup[item.agronomoUsuarioId] || "Sin nombre"
+          : "Sin asignar"
     },
     {
       key: "sector",
@@ -241,6 +277,13 @@ export function ParcelasManagementScreen() {
       setSectores(nextSectores);
       setSubsectores(nextSubsectores);
       setProductores(nextProductores);
+
+      const users = await securityService.getUsers(session);
+      setAgronomoUsers(
+        users.filter((user) =>
+          user.roles.some((role) => role.code === "AGRONOMO")
+        )
+      );
     } catch (error) {
       const apiError = toApiError(error);
 
@@ -267,6 +310,7 @@ export function ParcelasManagementScreen() {
       sectorId: item.sectorId,
       subsectorId: item.subsectorId,
       productorId: item.productorId,
+      agronomoUsuarioId: item.agronomoUsuarioId ?? "",
       name: item.name ?? "",
       areaHectares: item.areaHectares ?? "",
       description: item.description ?? "",
@@ -337,10 +381,28 @@ export function ParcelasManagementScreen() {
 
       if (formState.id) {
         await parcelasService.update(session, formState.id, payload);
-        setToast({ kind: "success", message: "Parcela actualizada correctamente." });
+        await parcelasService.updateAgronomo(
+          session,
+          formState.id,
+          formState.agronomoUsuarioId || null
+        );
+        setToast({
+          kind: "success",
+          message: "Parcela actualizada correctamente."
+        });
       } else {
-        await parcelasService.create(session, payload);
-        setToast({ kind: "success", message: "Parcela creada correctamente." });
+        const createdParcela = await parcelasService.create(session, payload);
+        if (formState.agronomoUsuarioId) {
+          await parcelasService.updateAgronomo(
+            session,
+            createdParcela.id,
+            formState.agronomoUsuarioId
+          );
+        }
+        setToast({
+          kind: "success",
+          message: "Parcela creada correctamente."
+        });
       }
 
       await loadData();
@@ -688,6 +750,26 @@ export function ParcelasManagementScreen() {
             >
               <option value="active">Activo</option>
               <option value="inactive">Inactivo</option>
+            </select>
+          </label>
+
+          <label className="field-group">
+            <span>Agrónomo</span>
+            <select
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  agronomoUsuarioId: event.target.value
+                }))
+              }
+              value={formState.agronomoUsuarioId}
+            >
+              <option value="">Sin asignar</option>
+              {agronomoUserOptions.map((user) => (
+                <option key={user.value} value={user.value}>
+                  {user.label}
+                </option>
+              ))}
             </select>
           </label>
         </form>

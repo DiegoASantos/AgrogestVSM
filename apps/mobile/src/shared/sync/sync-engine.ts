@@ -15,7 +15,14 @@ import {
 import { getDatabase } from "../database/connection";
 import { getNowIsoString } from "../database/sqlite-utils";
 import { getApiToken } from "../services/api/auth-store";
-import { ApiError } from "../services/api/errors";
+import {
+  ApiError,
+  isApiRequestAbortedError
+} from "../services/api/errors";
+import {
+  deleteSyncFailureForEntity,
+  storeSyncFailure
+} from "../database/sync-failures";
 import { debugLog } from "../utils/debug-log";
 import { classifyError } from "./sync-errors";
 import { SYNC_ENTITY_TABLES } from "./sync-entities";
@@ -23,6 +30,23 @@ import { entityHandlerMap } from "./sync-handlers";
 import { setLastSyncTime } from "./sync-status";
 
 const MAX_RETRIES = 5;
+
+export type ProcessOutboxResult = {
+  processed: number;
+  successfulRequests: number;
+  skipped: number;
+  errors: number;
+  transientFailures: number;
+  permanentFailures: number;
+  dependencySkipped: number;
+  unattempted: number;
+  stoppedByAuth: boolean;
+  aborted: boolean;
+};
+
+export type ProcessOutboxOptions = {
+  signal?: AbortSignal;
+};
 const RECONCILABLE_SYNC_ENTITIES: Array<{
   entityType: keyof typeof SYNC_ENTITY_TABLES;
   table: string;
@@ -40,15 +64,25 @@ const RECONCILABLE_SYNC_ENTITIES: Array<{
   { entityType: "visita_calificaciones", table: "visita_calificaciones" }
 ];
 
-export async function processOutbox(): Promise<{
-  processed: number;
-  skipped: number;
-  errors: number;
-}> {
+export async function processOutbox(
+  options: ProcessOutboxOptions = {}
+): Promise<ProcessOutboxResult> {
   const token = getApiToken();
+  const emptyResult: ProcessOutboxResult = {
+    processed: 0,
+    successfulRequests: 0,
+    skipped: 0,
+    errors: 0,
+    transientFailures: 0,
+    permanentFailures: 0,
+    dependencySkipped: 0,
+    unattempted: 0,
+    stoppedByAuth: false,
+    aborted: false
+  };
 
   if (!token) {
-    return { processed: 0, skipped: 0, errors: 0 };
+    return emptyResult;
   }
 
   reconcilePendingOutboxEntries();
@@ -58,12 +92,24 @@ export async function processOutbox(): Promise<{
     debugLog("Sync", `Starting cycle with ${entries.length} outbox entries`);
   }
   let processed = 0;
+  let successfulRequests = 0;
   let skipped = 0;
   let errors = 0;
+  let transientFailures = 0;
+  let permanentFailures = 0;
+  let dependencySkipped = 0;
+  let unattempted = 0;
+  let aborted = false;
   const failedVisitaIds = new Set<string>();
   let stoppedByAuth = false;
 
-  for (const entry of entries) {
+  for (const [entryIndex, entry] of entries.entries()) {
+    if (options.signal?.aborted) {
+      aborted = true;
+      unattempted = entries.length - entryIndex;
+      break;
+    }
+
     const isChildEntity = entry.entityType !== "visitas_campo";
     const isChildCreate = isChildEntity && entry.operation === "create";
 
@@ -72,6 +118,7 @@ export async function processOutbox(): Promise<{
 
       if (childVisitaLocalId && failedVisitaIds.has(childVisitaLocalId)) {
         skipped++;
+        dependencySkipped++;
         continue;
       }
     }
@@ -88,20 +135,35 @@ export async function processOutbox(): Promise<{
     }
 
     try {
-      const result = await handler(entry);
+      const result = await handler(entry, { signal: options.signal });
 
       if (result.status === "synced" || result.status === "deleted_local") {
-        deleteOutboxEntry(entry.id);
+        const db = getDatabase();
+        db.withTransactionSync(() => {
+          deleteSyncFailureForEntity(db, entry.entityType, entry.entityLocalId);
+          deleteOutboxEntry(entry.id);
+        });
         processed++;
+        if (result.status === "synced") {
+          successfulRequests++;
+        }
       } else if (result.status === "skipped") {
         skipped++;
+        dependencySkipped++;
       }
     } catch (error) {
+      if (isApiRequestAbortedError(error)) {
+        aborted = true;
+        unattempted = entries.length - entryIndex - 1;
+        break;
+      }
+
       const classified = classifyError(error);
 
       if (classified.kind === "auth") {
         console.warn("Auth error during sync. Stopping.");
         stoppedByAuth = true;
+        unattempted = entries.length - entryIndex - 1;
         break;
       }
 
@@ -113,19 +175,23 @@ export async function processOutbox(): Promise<{
       }
 
       if (classified.kind === "transient") {
-        incrementOutboxRetryCount(entry.id);
+        transientFailures++;
 
         if (entry.retryCount + 1 >= MAX_RETRIES) {
           console.warn(
             `[Sync] Entry ${entry.id} (${entry.entityType}) exhausted ${MAX_RETRIES} retries: ${classified.message}`
           );
-          markEntityError(
-            entry,
-            `Fallo tras ${MAX_RETRIES} intentos: ${classified.message}`
-          );
-          deleteOutboxEntry(entry.id);
+          const message = `Fallo tras ${MAX_RETRIES} intentos: ${classified.message}`;
+          const db = getDatabase();
+          db.withTransactionSync(() => {
+            storeSyncFailure(db, entry, "transient", message);
+            markEntityError(entry, message);
+            deleteOutboxEntry(entry.id);
+          });
           errors++;
         } else {
+          incrementOutboxRetryCount(entry.id);
+
           if (entry.entityType === "visitas_campo") {
             failedVisitaIds.add(entry.entityLocalId);
           }
@@ -142,17 +208,33 @@ export async function processOutbox(): Promise<{
       console.warn(
         `[Sync] Permanent error for ${entry.entityType}:${entry.entityLocalId}: ${classified.message}`
       );
-      markEntityError(entry, classified.message);
-      deleteOutboxEntry(entry.id);
+      permanentFailures++;
+      const db = getDatabase();
+      db.withTransactionSync(() => {
+        storeSyncFailure(db, entry, "permanent", classified.message);
+        markEntityError(entry, classified.message);
+        deleteOutboxEntry(entry.id);
+      });
       errors++;
     }
   }
 
-  if (!stoppedByAuth) {
+  if (!stoppedByAuth && !aborted) {
     setLastSyncTime(getNowIsoString());
   }
 
-  return { processed, skipped, errors };
+  return {
+    processed,
+    successfulRequests,
+    skipped,
+    errors,
+    transientFailures,
+    permanentFailures,
+    dependencySkipped,
+    unattempted,
+    stoppedByAuth,
+    aborted
+  };
 }
 
 function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {

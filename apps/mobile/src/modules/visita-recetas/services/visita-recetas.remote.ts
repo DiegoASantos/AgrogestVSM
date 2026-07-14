@@ -1,4 +1,4 @@
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, type ApiRequestContext } from "../../../shared/services";
 import type {
   CoadyuvanteCatalogItem,
   IngredienteActivoCatalogItem,
@@ -92,12 +92,13 @@ export const visitaRecetasRemote = {
     );
   },
 
-  save(visitaId: string, input: SaveRecetaInput) {
+  save(visitaId: string, input: SaveRecetaInput, context: ApiRequestContext = {}) {
     return apiRequest<VisitaRecetaCompleta>(
       `/visitas-campo/${visitaId}/receta`,
       {
         method: "POST",
-        body: input
+        body: input,
+        ...context
       }
     );
   }

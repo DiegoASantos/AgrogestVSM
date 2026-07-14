@@ -22,17 +22,33 @@ import {
 } from "../../../shared/services/api/secure-token-store";
 import { isAccessTokenExpired } from "../../../shared/utils/auth-token";
 import { authService } from "../services";
-import type { AuthLoginResult, AuthSession, AuthUser } from "../types/auth.types";
+import {
+  classifyRefreshFailure,
+  isRefreshCooldownActive
+} from "./auth-session-policy";
+import type {
+  AuthLoginResult,
+  AuthSession,
+  AuthUser,
+  EnsureOnlineSessionOptions,
+  EnsureOnlineSessionResult,
+  OnlineSessionStatus
+} from "../types/auth.types";
 
 type AuthSessionContextValue = {
   session: AuthSession;
   isAuthenticated: boolean;
+  onlineSessionStatus: OnlineSessionStatus;
+  authRevision: number;
   signIn: (nextSession: AuthLoginResult) => Promise<void>;
   signOut: () => void;
-  ensureOnlineSession: (forceRefresh?: boolean) => Promise<boolean>;
+  ensureOnlineSession: (
+    options?: EnsureOnlineSessionOptions
+  ) => Promise<EnsureOnlineSessionResult>;
 };
 
 const OFFLINE_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const REFRESH_FAILURE_COOLDOWN_MS = 60_000;
 
 const AuthSessionContext = createContext<AuthSessionContextValue | undefined>(undefined);
 
@@ -47,34 +63,49 @@ const GUEST_SESSION: AuthSession = {
 
 export function AuthSessionProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<AuthSession>(GUEST_SESSION);
+  const [onlineSessionStatus, setOnlineSessionStatus] =
+    useState<OnlineSessionStatus>("unavailable");
+  const [authRevision, setAuthRevision] = useState(0);
   const [hydrated, setHydrated] = useState(false);
   const sessionRef = useRef<AuthSession>(GUEST_SESSION);
   const refreshTokenRef = useRef<string | null>(null);
-  const refreshInFlightRef = useRef<Promise<boolean> | null>(null);
+  const refreshInFlightRef = useRef<Promise<EnsureOnlineSessionResult> | null>(null);
+  const refreshCooldownUntilRef = useRef(0);
 
-  const setActiveSession = useCallback(async (result: AuthLoginResult) => {
-    const nextSession = toAuthenticatedSession(result);
+  const setActiveSession = useCallback(
+    async (result: AuthLoginResult, source: "login" | "refresh" = "login") => {
+      const nextSession = toAuthenticatedSession(result);
 
-    setApiToken(nextSession.accessToken);
-    refreshTokenRef.current = result.refreshToken;
-    await storeAuthTokens({
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken
-    });
-    persistSessionMetadata(nextSession);
-    sessionRef.current = nextSession;
-    setSession(nextSession);
-  }, []);
+      setApiToken(nextSession.accessToken);
+      refreshTokenRef.current = result.refreshToken;
+      await storeAuthTokens({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken
+      });
+      persistSessionMetadata(nextSession);
+      sessionRef.current = nextSession;
+      setSession(nextSession);
+      refreshCooldownUntilRef.current = 0;
+      setOnlineSessionStatus("valid");
+
+      if (source === "login") {
+        setAuthRevision((current) => current + 1);
+      }
+    },
+    []
+  );
 
   const clearLocalSession = useCallback(() => {
     clearApiToken();
     refreshTokenRef.current = null;
+    refreshCooldownUntilRef.current = 0;
     clearPersistedSessionMetadata();
     void clearAuthTokens().catch(() => {
       // Local state is already cleared even if secure storage is unavailable.
     });
     sessionRef.current = GUEST_SESSION;
     setSession(GUEST_SESSION);
+    setOnlineSessionStatus("unavailable");
   }, []);
 
   const signOut = useCallback(() => {
@@ -89,11 +120,14 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
   }, [clearLocalSession]);
 
   const ensureOnlineSession = useCallback(
-    async (forceRefresh = false) => {
+    async (
+      options: EnsureOnlineSessionOptions = {}
+    ): Promise<EnsureOnlineSessionResult> => {
+      const { forceRefresh = false, signal } = options;
       const currentSession = sessionRef.current;
 
       if (currentSession.status !== "authenticated") {
-        return false;
+        return "unauthenticated";
       }
 
       if (
@@ -102,7 +136,13 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
         !isAccessTokenExpired(currentSession.accessToken)
       ) {
         setApiToken(currentSession.accessToken);
-        return true;
+        setOnlineSessionStatus("valid");
+        return "valid";
+      }
+
+      if (isRefreshCooldownActive(refreshCooldownUntilRef.current)) {
+        setOnlineSessionStatus("temporarily_unavailable");
+        return "temporarily_unavailable";
       }
 
       if (refreshInFlightRef.current) {
@@ -114,15 +154,34 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
         const refreshToken = refreshTokenRef.current ?? tokens?.refreshToken;
 
         if (!refreshToken) {
-          return false;
+          setOnlineSessionStatus("reauth_required");
+          return "reauth_required";
         }
 
         try {
-          const nextSession = await authService.refresh(refreshToken);
-          await setActiveSession(nextSession);
-          return true;
-        } catch {
-          return false;
+          const nextSession = await authService.refresh(refreshToken, { signal });
+          await setActiveSession(nextSession, "refresh");
+          return "valid";
+        } catch (error) {
+          if (classifyRefreshFailure(error) === "reauth_required") {
+            clearApiToken();
+            refreshTokenRef.current = null;
+            await clearAuthTokens().catch(() => undefined);
+
+            const offlineSession: AuthSession = {
+              ...sessionRef.current,
+              accessToken: null
+            };
+            sessionRef.current = offlineSession;
+            setSession(offlineSession);
+            persistSessionMetadata(offlineSession);
+            setOnlineSessionStatus("reauth_required");
+            return "reauth_required";
+          }
+
+          refreshCooldownUntilRef.current = Date.now() + REFRESH_FAILURE_COOLDOWN_MS;
+          setOnlineSessionStatus("temporarily_unavailable");
+          return "temporarily_unavailable";
         }
       })();
 
@@ -142,14 +201,18 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
       refreshTokenRef.current = restored.refreshToken;
       sessionRef.current = restored.session;
       setSession(restored.session);
+      setOnlineSessionStatus(restored.onlineSessionStatus);
       setHydrated(true);
     });
   }, []);
 
   useEffect(() => {
-    setTokenRefreshHandler(async () => {
-      const refreshed = await ensureOnlineSession(true);
-      return refreshed ? sessionRef.current.accessToken : null;
+    setTokenRefreshHandler(async (options) => {
+      const refreshed = await ensureOnlineSession({
+        forceRefresh: true,
+        signal: options?.signal
+      });
+      return refreshed === "valid" ? sessionRef.current.accessToken : null;
     });
 
     return () => {
@@ -161,11 +224,20 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     () => ({
       session,
       isAuthenticated: session.status === "authenticated",
-      signIn: setActiveSession,
+      onlineSessionStatus,
+      authRevision,
+      signIn: (nextSession) => setActiveSession(nextSession, "login"),
       signOut,
       ensureOnlineSession
     }),
-    [ensureOnlineSession, session, setActiveSession, signOut]
+    [
+      authRevision,
+      ensureOnlineSession,
+      onlineSessionStatus,
+      session,
+      setActiveSession,
+      signOut
+    ]
   );
 
   if (!hydrated) {
@@ -233,6 +305,7 @@ function clearPersistedSessionMetadata() {
 async function loadPersistedSession(): Promise<{
   session: AuthSession;
   refreshToken: string | null;
+  onlineSessionStatus: OnlineSessionStatus;
 }> {
   try {
     initDatabase();
@@ -242,9 +315,13 @@ async function loadPersistedSession(): Promise<{
       "auth_session_data"
     );
 
-    if (!tokens || !row?.value) {
+    if (!row?.value) {
       await clearInvalidPersistedSession();
-      return { session: GUEST_SESSION, refreshToken: null };
+      return {
+        session: GUEST_SESSION,
+        refreshToken: null,
+        onlineSessionStatus: "unavailable"
+      };
     }
 
     const data = JSON.parse(row.value) as {
@@ -265,25 +342,34 @@ async function loadPersistedSession(): Promise<{
       Date.now() >= offlineSessionExpiresAt
     ) {
       await clearInvalidPersistedSession();
-      return { session: GUEST_SESSION, refreshToken: null };
+      return {
+        session: GUEST_SESSION,
+        refreshToken: null,
+        onlineSessionStatus: "unavailable"
+      };
     }
 
-    setApiToken(tokens.accessToken);
+    setApiToken(tokens?.accessToken ?? null);
 
     return {
       session: {
         status: "authenticated",
-        accessToken: tokens.accessToken,
+        accessToken: tokens?.accessToken ?? null,
         tokenType: data.tokenType,
         expiresIn: data.expiresIn,
         offlineSessionExpiresAt: data.offlineSessionExpiresAt,
         user: data.user
       },
-      refreshToken: tokens.refreshToken
+      refreshToken: tokens?.refreshToken ?? null,
+      onlineSessionStatus: tokens ? "valid" : "reauth_required"
     };
   } catch {
     await clearInvalidPersistedSession();
-    return { session: GUEST_SESSION, refreshToken: null };
+    return {
+      session: GUEST_SESSION,
+      refreshToken: null,
+      onlineSessionStatus: "unavailable"
+    };
   }
 }
 

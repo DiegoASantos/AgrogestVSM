@@ -2,6 +2,7 @@
 title: Sync adaptativo por tasa de exito
 status: accepted
 date: 2026-07-05
+last_reviewed: 2026-07-12
 decision_makers:
   - mantenimiento
 supersedes:
@@ -42,10 +43,26 @@ intentos automaticos. NetInfo queda limitado a detectar desconexion absoluta.
 - El estado de backoff agrega una tabla local `sync_state`.
 - Un fallo clasificado como transitorio puede retrasar intentos automaticos
   aunque el usuario ya haya recuperado buena red; el reintento manual con
-  refresh puede forzar una nueva corrida.
+  `bypassBackoff` fuerza una nueva corrida sin necesidad de refresh de sesion.
+
+## Precisiones de Spec 015 (2026-07-12)
+
+- La medicion de tasa de exito cambio de booleana por ciclo a granular por
+  operacion (`recordOutcome(successes, failures)`). Los skips por dependencia y
+  errores permanentes no contaminan la metrica de calidad de red.
+- Se agregaron timeouts HTTP explicitos (15s default, 5s auth) con
+  `AbortController` en lugar de depender del timeout natural de la plataforma.
+- Se introdujo presupuesto de tiempo por ciclo: 30s manual, 45s automatico.
+- Se separo `bypassBackoff` de `forceAuthRefresh` en las opciones de sync.
+- Se agrego la tabla `sync_failures` para preservar operaciones agotadas.
+- Los intervalos de backoff se ajustaron a `[10s, 30s, 60s, 120s]` con minimo
+  severo de 60s.
+- Login fresco resetea backoff y programa sync inmediato.
 
 ## Verificacion
 
-- Pruebas unitarias de `SyncManager` para tasa de exito, backoff y recuperacion.
-- Pruebas de migracion SQLite para crear `sync_state`.
-- Validacion manual con red lenta y red intermitente antes de una entrega.
+- Pruebas unitarias de `SyncManager` para tasa de exito, `recordOutcome`, backoff
+  y recuperacion.
+- Pruebas de migracion SQLite para crear `sync_state` y `sync_failures`.
+- Pruebas de integracion offline-online con deadlines, timeouts y fallos durables.
+- Validacion manual con red lenta, red intermitente y reconexion.

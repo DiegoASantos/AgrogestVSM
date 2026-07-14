@@ -32,13 +32,18 @@ import { visitaRecetasRemote } from "../../modules/visita-recetas/services/visit
 import { visitaCalificacionesRepository } from "../../modules/visita-calificaciones/repositories/visita-calificaciones.repository";
 import { visitaCalificacionesRemote } from "../../modules/visita-calificaciones/services";
 
+export type SyncHandlerContext = {
+  signal?: AbortSignal;
+};
+
 export type SyncHandlerResult =
   | { status: "synced"; serverId: string }
   | { status: "skipped" }
   | { status: "deleted_local" };
 
 export async function handleVisitaCampo(
-  entry: SyncOutboxItem
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
 ): Promise<SyncHandlerResult> {
   if (entry.operation === "delete") {
     const serverId = getDeleteServerId(entry);
@@ -47,7 +52,7 @@ export async function handleVisitaCampo(
       return { status: "deleted_local" };
     }
 
-    await visitasCampoRemote.remove(serverId);
+    await visitasCampoRemote.remove(serverId, context);
     return { status: "synced", serverId };
   }
 
@@ -70,7 +75,8 @@ export async function handleVisitaCampo(
         ...buildVisitaCampoCreateBody(visita),
         publicId
       },
-      { accessToken: apiToken }
+      { accessToken: apiToken },
+      context
     );
 
     visitasCampoRepository.update(visita.id, {
@@ -88,7 +94,11 @@ export async function handleVisitaCampo(
       return { status: "skipped" };
     }
 
-    await visitasCampoRemote.update(visita.serverId, buildVisitaCampoUpdateBody(visita));
+    await visitasCampoRemote.update(
+      visita.serverId,
+      buildVisitaCampoUpdateBody(visita),
+      context
+    );
 
     visitasCampoRepository.update(visita.id, {
       syncStatus: "synced",
@@ -102,7 +112,8 @@ export async function handleVisitaCampo(
 }
 
 export async function handleEvaluacion(
-  entry: SyncOutboxItem
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
 ): Promise<SyncHandlerResult> {
   if (entry.operation === "delete") {
     const serverId = getDeleteServerId(entry);
@@ -111,7 +122,7 @@ export async function handleEvaluacion(
       return { status: "deleted_local" };
     }
 
-    await evaluacionesRemote.remove(serverId);
+    await evaluacionesRemote.remove(serverId, context);
     return { status: "synced", serverId };
   }
 
@@ -136,9 +147,11 @@ export async function handleEvaluacion(
       return { status: "skipped" };
     }
 
-    const response = await evaluacionesRemote.create(visitaPadre.serverId, {
-      ...buildEvaluacionCreateBody(evaluacion)
-    });
+    const response = await evaluacionesRemote.create(
+      visitaPadre.serverId,
+      { ...buildEvaluacionCreateBody(evaluacion) },
+      context
+    );
 
     evaluacionesRepository.update(evaluacion.id, {
       serverId: response.id,
@@ -158,9 +171,11 @@ export async function handleEvaluacion(
     return { status: "skipped" };
   }
 
-  await evaluacionesRemote.update(evaluacion.serverId, {
-    ...buildEvaluacionUpdateBody(evaluacion)
-  });
+  await evaluacionesRemote.update(
+    evaluacion.serverId,
+    { ...buildEvaluacionUpdateBody(evaluacion) },
+    context
+  );
 
   evaluacionesRepository.update(evaluacion.id, {
     syncStatus: "synced"
@@ -170,7 +185,8 @@ export async function handleEvaluacion(
 }
 
 export async function handleObservacion(
-  entry: SyncOutboxItem
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
 ): Promise<SyncHandlerResult> {
   if (entry.operation === "delete") {
     const serverId = getDeleteServerId(entry);
@@ -179,7 +195,7 @@ export async function handleObservacion(
       return { status: "deleted_local" };
     }
 
-    await observacionesSanitariasRemote.remove(serverId);
+    await observacionesSanitariasRemote.remove(serverId, context);
     return { status: "synced", serverId };
   }
 
@@ -204,9 +220,11 @@ export async function handleObservacion(
       return { status: "skipped" };
     }
 
-    const response = await observacionesSanitariasRemote.create(visitaPadre.serverId, {
-      ...buildObservacionCreateBody(observacion)
-    });
+    const response = await observacionesSanitariasRemote.create(
+      visitaPadre.serverId,
+      { ...buildObservacionCreateBody(observacion) },
+      context
+    );
 
     observacionesSanitariasRepository.update(observacion.id, {
       serverId: response.id,
@@ -226,9 +244,11 @@ export async function handleObservacion(
     return { status: "skipped" };
   }
 
-  await observacionesSanitariasRemote.update(observacion.serverId, {
-    ...buildObservacionUpdateBody(observacion)
-  });
+  await observacionesSanitariasRemote.update(
+    observacion.serverId,
+    { ...buildObservacionUpdateBody(observacion) },
+    context
+  );
 
   observacionesSanitariasRepository.update(observacion.id, {
     syncStatus: "synced"
@@ -237,7 +257,10 @@ export async function handleObservacion(
   return { status: "synced", serverId: observacion.serverId };
 }
 
-export async function handleStepNote(entry: SyncOutboxItem): Promise<SyncHandlerResult> {
+export async function handleStepNote(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
   const stepNote = visitaStepNotesRepository.getById(entry.entityLocalId);
 
   if (!stepNote) {
@@ -261,7 +284,8 @@ export async function handleStepNote(entry: SyncOutboxItem): Promise<SyncHandler
   const response = await observacionesSanitariasRemote.upsertStepNote(
     visitaPadre.serverId,
     stepNote.stepNumber,
-    buildStepNoteBody(stepNote)
+    buildStepNoteBody(stepNote),
+    context
   );
 
   visitaStepNotesRepository.update(stepNote.id, {
@@ -272,7 +296,10 @@ export async function handleStepNote(entry: SyncOutboxItem): Promise<SyncHandler
   return { status: "synced", serverId: response.id };
 }
 
-export async function handleRiego(entry: SyncOutboxItem): Promise<SyncHandlerResult> {
+export async function handleRiego(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
   if (entry.operation === "delete") {
     const serverId = getDeleteServerId(entry);
 
@@ -280,7 +307,7 @@ export async function handleRiego(entry: SyncOutboxItem): Promise<SyncHandlerRes
       return { status: "deleted_local" };
     }
 
-    await riegosRemote.remove(serverId);
+    await riegosRemote.remove(serverId, context);
     return { status: "synced", serverId };
   }
 
@@ -305,9 +332,11 @@ export async function handleRiego(entry: SyncOutboxItem): Promise<SyncHandlerRes
       return { status: "skipped" };
     }
 
-    const response = await riegosRemote.create(visitaPadre.serverId, {
-      ...buildRiegoBody(riego)
-    });
+    const response = await riegosRemote.create(
+      visitaPadre.serverId,
+      { ...buildRiegoBody(riego) },
+      context
+    );
 
     riegosRepository.update(riego.id, {
       serverId: response.id,
@@ -327,9 +356,11 @@ export async function handleRiego(entry: SyncOutboxItem): Promise<SyncHandlerRes
     return { status: "skipped" };
   }
 
-  await riegosRemote.update(riego.serverId, {
-    ...buildRiegoBody(riego)
-  });
+  await riegosRemote.update(
+    riego.serverId,
+    { ...buildRiegoBody(riego) },
+    context
+  );
 
   riegosRepository.update(riego.id, {
     syncStatus: "synced"
@@ -339,7 +370,8 @@ export async function handleRiego(entry: SyncOutboxItem): Promise<SyncHandlerRes
 }
 
 export async function handleLaborCultural(
-  entry: SyncOutboxItem
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
 ): Promise<SyncHandlerResult> {
   if (entry.operation === "delete") {
     const serverId = getDeleteServerId(entry);
@@ -348,7 +380,7 @@ export async function handleLaborCultural(
       return { status: "deleted_local" };
     }
 
-    await laboresCulturalesVisitaRemote.remove(serverId);
+    await laboresCulturalesVisitaRemote.remove(serverId, context);
     return { status: "synced", serverId };
   }
 
@@ -384,9 +416,11 @@ export async function handleLaborCultural(
     return { status: "skipped" };
   }
 
-  const response = await laboresCulturalesVisitaRemote.create(visitaPadre.serverId, {
-    ...buildLaborCulturalBody(labor)
-  });
+  const response = await laboresCulturalesVisitaRemote.create(
+    visitaPadre.serverId,
+    { ...buildLaborCulturalBody(labor) },
+    context
+  );
 
   laboresCulturalesVisitaRepository.update(labor.id, {
     serverId: response.id,
@@ -398,7 +432,7 @@ export async function handleLaborCultural(
 
 export const entityHandlerMap: Record<
   SyncEntityType,
-  (entry: SyncOutboxItem) => Promise<SyncHandlerResult>
+  (entry: SyncOutboxItem, context?: SyncHandlerContext) => Promise<SyncHandlerResult>
 > = {
   visitas_campo: handleVisitaCampo,
   visita_evaluaciones: handleEvaluacion,
@@ -562,7 +596,10 @@ function buildLaborCulturalBody(labor: VisitaLaborCultural) {
   };
 }
 
-async function handleReceta(entry: SyncOutboxItem): Promise<SyncHandlerResult> {
+async function handleReceta(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
   if (entry.operation === "delete") {
     return { status: "deleted_local" };
   }
@@ -623,7 +660,7 @@ async function handleReceta(entry: SyncOutboxItem): Promise<SyncHandlerResult> {
       ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
       : undefined,
     labores: receta.labores.map((l) => ({ labor: l.labor }))
-  });
+  }, context);
 
   visitaRecetasRepository.markSynced(receta.id, response.id);
 
@@ -631,7 +668,8 @@ async function handleReceta(entry: SyncOutboxItem): Promise<SyncHandlerResult> {
 }
 
 async function handleCalificacion(
-  entry: SyncOutboxItem
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
 ): Promise<SyncHandlerResult> {
   if (entry.operation === "delete") {
     return { status: "deleted_local" };
@@ -664,7 +702,7 @@ async function handleCalificacion(
     justificado: calificacion.justificado,
     categoriaJustificacion: calificacion.categoriaJustificacion,
     motivoJustificacion: calificacion.motivoJustificacion
-  });
+  }, context);
 
   visitaCalificacionesRepository.update(calificacion.id, {
     serverId: response.id,

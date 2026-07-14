@@ -2,6 +2,8 @@ import { type SQLiteDatabase } from "expo-sqlite";
 
 import { getDatabase } from "./connection";
 import type { SyncEntityType } from "../sync/sync-entities";
+import { notifySyncStatusChanged } from "../sync/sync-events";
+import { deleteSyncFailureForEntity } from "./sync-failures";
 import { scheduleSync } from "../sync/sync-requests";
 
 export type SyncOutboxOperation = "create" | "update" | "delete";
@@ -35,6 +37,12 @@ export type SyncOutboxItem = {
 };
 
 export function insertSyncOutboxEntry(db: SQLiteDatabase, entry: SyncOutboxEntry) {
+  deleteSyncFailureForEntity(
+    db,
+    entry.entityType,
+    entry.entityLocalId,
+    "transient"
+  );
   const existingEntries = db.getAllSync<Pick<SyncOutboxRow, "id" | "operation">>(
     `SELECT id, operation
      FROM sync_outbox
@@ -82,6 +90,7 @@ export function insertSyncOutboxEntry(db: SQLiteDatabase, entry: SyncOutboxEntry
   );
 
   scheduleSync();
+  notifySyncStatusChanged();
 }
 
 export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
@@ -89,7 +98,8 @@ export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
   const rows = db.getAllSync<SyncOutboxRow>(
     `SELECT id, entity_type, entity_local_id, operation, payload, retry_count, created_at
      FROM sync_outbox
-     ORDER BY id ASC
+     ORDER BY CASE WHEN entity_type = 'visitas_campo' THEN 0 ELSE 1 END,
+              id ASC
      LIMIT ?`,
     limit
   );
@@ -111,6 +121,7 @@ export function deleteOutboxEntry(id: number) {
      WHERE id = ?`,
     id
   );
+  notifySyncStatusChanged();
 }
 
 export function incrementOutboxRetryCount(id: number) {
@@ -118,4 +129,5 @@ export function incrementOutboxRetryCount(id: number) {
     `UPDATE sync_outbox SET retry_count = retry_count + 1 WHERE id = ?`,
     id
   );
+  notifySyncStatusChanged();
 }

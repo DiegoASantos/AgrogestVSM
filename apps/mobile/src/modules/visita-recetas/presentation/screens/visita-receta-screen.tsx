@@ -472,7 +472,7 @@ export function VisitaRecetaScreen() {
       };
 
       visitaRecetasService.save(visitaId, data);
-      void scheduleSync({ forceRefresh: true });
+      void scheduleSync({ immediate: true });
 
       const updated = visitaRecetasService.getByVisitaId(visitaId);
       setRecetaData(updated);

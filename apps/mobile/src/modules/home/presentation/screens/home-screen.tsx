@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -24,7 +24,9 @@ import {
   getSyncCounts,
   getSyncErrorDetails,
   getSyncPendingDetails,
+  retryTransientSyncFailures,
   scheduleSync,
+  subscribeToSyncStatus,
   SyncStatusIndicator,
   type SyncErrorDetail,
   type SyncPendingDetail,
@@ -49,7 +51,12 @@ export function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { isOnline } = useIsOnline();
-  const { isAuthenticated, session, signOut } = useAuthSession();
+  const {
+    isAuthenticated,
+    onlineSessionStatus,
+    session,
+    signOut
+  } = useAuthSession();
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
   const [syncErrors, setSyncErrors] = useState<SyncErrorDetail[]>([]);
   const [syncPending, setSyncPending] = useState<SyncPendingDetail[]>([]);
@@ -58,17 +65,22 @@ export function HomeScreen() {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [lastSyncAttempt, setLastSyncAttempt] = useState<SyncRunResult | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [isRetryingFailures, setIsRetryingFailures] = useState(false);
   const [isRefreshingCatalogs, setIsRefreshingCatalogs] = useState(false);
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
   const catalogStatus = useCatalogDownloadStatus();
   const heroHeight = Math.min(Math.max(width * 0.58, 218), 330);
 
-  const loadDashboard = useCallback(() => {
+  const loadSyncState = useCallback(() => {
     setSyncCounts(getSyncCounts());
     setSyncErrors(getSyncErrorDetails());
     setSyncPending(getSyncPendingDetails());
     setLastSyncTime(getLastSyncTime());
     setLastSyncAttempt(getLastSyncAttempt());
+  }, []);
+
+  const loadDashboard = useCallback(() => {
+    loadSyncState();
 
     if (!session.accessToken) {
       setRecentVisits([]);
@@ -80,9 +92,11 @@ export function HomeScreen() {
     } catch {
       setRecentVisits([]);
     }
-  }, [session.accessToken]);
+  }, [loadSyncState, session.accessToken]);
 
   useFocusEffect(loadDashboard);
+
+  useEffect(() => subscribeToSyncStatus(loadSyncState), [loadSyncState]);
 
   const syncStatus = useMemo(() => getSyncStatus(syncCounts), [syncCounts]);
   const goToHistory = useCallback(() => {
@@ -92,19 +106,60 @@ export function HomeScreen() {
     router.push(NEW_VISIT_ROUTE);
   }, [router]);
   const handleManualSync = useCallback(async () => {
-    if (!isOnline || isManualSyncing) {
+    if (
+      !isOnline ||
+      isManualSyncing ||
+      onlineSessionStatus === "reauth_required"
+    ) {
       return;
     }
 
     setIsManualSyncing(true);
 
     try {
-      await scheduleSync({ forceRefresh: true });
+      await scheduleSync({
+        bypassBackoff: true,
+        immediate: true,
+        manual: true
+      });
       loadDashboard();
     } finally {
       setIsManualSyncing(false);
     }
-  }, [isManualSyncing, isOnline, loadDashboard]);
+  }, [
+    isManualSyncing,
+    isOnline,
+    loadDashboard,
+    onlineSessionStatus
+  ]);
+
+  const handleRetryFailures = useCallback(async () => {
+    if (
+      !isOnline ||
+      isRetryingFailures ||
+      onlineSessionStatus === "reauth_required"
+    ) {
+      return;
+    }
+
+    setIsRetryingFailures(true);
+
+    try {
+      const requeued = retryTransientSyncFailures();
+
+      if (requeued > 0) {
+        await scheduleSync({
+          bypassBackoff: true,
+          immediate: true,
+          manual: true
+        });
+      }
+
+      loadSyncState();
+    } finally {
+      setIsRetryingFailures(false);
+    }
+  }, [isOnline, isRetryingFailures, loadSyncState, onlineSessionStatus]);
 
   const handleRefreshCatalogs = useCallback(async () => {
     if (!isOnline || isRefreshingCatalogs || catalogStatus.isDownloading) {
@@ -220,6 +275,28 @@ export function HomeScreen() {
               isSyncing={isManualSyncing}
               pendingCount={syncCounts.pendingCount}
             />
+            {onlineSessionStatus === "reauth_required" ? (
+              <View style={styles.reauthBanner}>
+                <View style={styles.reauthCopy}>
+                  <Ionicons color="#9d3d35" name="key-outline" size={20} />
+                  <AppText style={styles.reauthText} variant="caption">
+                    Sesion online vencida; inicia sesion para sincronizar.
+                  </AppText>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push("/login")}
+                  style={({ pressed }) => [
+                    styles.reauthButton,
+                    pressed && styles.pressed
+                  ]}
+                >
+                  <AppText style={styles.reauthButtonText} variant="label">
+                    Iniciar sesion
+                  </AppText>
+                </Pressable>
+              </View>
+            ) : null}
             <View style={styles.syncMetrics}>
               <SyncMetric
                 icon="document-text-outline"
@@ -250,26 +327,55 @@ export function HomeScreen() {
                 variant={syncStatus.variant}
               />
             </View>
-            {syncCounts.pendingCount > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={
+                !isOnline ||
+                isManualSyncing ||
+                onlineSessionStatus === "reauth_required"
+              }
+              onPress={() => {
+                void handleManualSync();
+              }}
+              style={({ pressed }) => [
+                styles.manualSyncButton,
+                pressed && styles.pressed,
+                (!isOnline ||
+                  isManualSyncing ||
+                  onlineSessionStatus === "reauth_required") &&
+                  styles.manualSyncButtonDisabled
+              ]}
+            >
+              <Ionicons
+                color="#ffffff"
+                name={isManualSyncing ? "sync" : "cloud-upload-outline"}
+                size={20}
+              />
+              <AppText style={styles.manualSyncButtonText} variant="label">
+                {isManualSyncing ? "Sincronizando..." : "Sincronizar ahora"}
+              </AppText>
+            </Pressable>
+            {syncErrors.some((error) => error.retryable) ? (
               <Pressable
                 accessibilityRole="button"
-                disabled={!isOnline || isManualSyncing}
+                disabled={!isOnline || isRetryingFailures}
                 onPress={() => {
-                  void handleManualSync();
+                  void handleRetryFailures();
                 }}
                 style={({ pressed }) => [
-                  styles.manualSyncButton,
+                  styles.retryFailuresButton,
                   pressed && styles.pressed,
-                  (!isOnline || isManualSyncing) && styles.manualSyncButtonDisabled
+                  (!isOnline || isRetryingFailures) &&
+                    styles.manualSyncButtonDisabled
                 ]}
               >
                 <Ionicons
-                  color="#ffffff"
-                  name={isManualSyncing ? "sync" : "cloud-upload-outline"}
-                  size={20}
+                  color="#9d3d35"
+                  name={isRetryingFailures ? "sync" : "refresh-outline"}
+                  size={19}
                 />
-                <AppText style={styles.manualSyncButtonText} variant="label">
-                  {isManualSyncing ? "Sincronizando..." : "Sincronizar ahora"}
+                <AppText style={styles.retryFailuresText} variant="label">
+                  {isRetryingFailures ? "Reintentando..." : "Reintentar fallidos"}
                 </AppText>
               </Pressable>
             ) : null}
@@ -531,6 +637,14 @@ function SyncErrorsModal({
                     value={formatErrorDateTime(error.updatedAt)}
                   />
                   <ErrorField label="Causa" value={error.message} />
+                  <ErrorField
+                    label="Accion"
+                    value={
+                      error.retryable
+                        ? "Puede reintentarse."
+                        : "Corrige el dato desde su detalle."
+                    }
+                  />
                 </View>
               ))
             ) : (
@@ -1076,6 +1190,51 @@ const styles = StyleSheet.create({
   },
   refreshCatalogsButtonText: {
     color: "#08643f",
+    fontSize: 15
+  },
+  reauthBanner: {
+    gap: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e4b7b2",
+    borderRadius: 8,
+    backgroundColor: "#fff4f2"
+  },
+  reauthCopy: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  reauthText: {
+    flex: 1,
+    color: "#7f302a",
+    lineHeight: 18
+  },
+  reauthButton: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 7,
+    backgroundColor: "#9d3d35"
+  },
+  reauthButtonText: {
+    color: "#ffffff",
+    fontSize: 13
+  },
+  retryFailuresButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#d8a29d",
+    borderRadius: 8,
+    backgroundColor: "#fff7f6"
+  },
+  retryFailuresText: {
+    color: "#8b352e",
     fontSize: 15
   },
   syncAttemptBox: {

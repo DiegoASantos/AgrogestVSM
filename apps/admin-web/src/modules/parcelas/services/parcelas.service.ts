@@ -77,5 +77,17 @@ export const parcelasService = {
       method: "DELETE",
       headers: createAuthHeaders(session.accessToken, session.tokenType)
     });
+  },
+
+  updateAgronomo(
+    session: AuthSessionInput,
+    id: string,
+    usuarioId: string | null
+  ) {
+    return apiRequest<ParcelaListItem>(`/parcelas/${id}/agronomo`, {
+      method: "PATCH",
+      body: { usuarioId },
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
   }
 };

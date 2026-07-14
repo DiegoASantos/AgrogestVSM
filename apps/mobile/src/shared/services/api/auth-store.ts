@@ -1,5 +1,11 @@
 let apiToken: string | null = null;
-let tokenRefreshHandler: (() => Promise<string | null>) | null = null;
+type TokenRefreshOptions = {
+  signal?: AbortSignal;
+};
+
+let tokenRefreshHandler:
+  | ((options?: TokenRefreshOptions) => Promise<string | null>)
+  | null = null;
 
 export function setApiToken(token: string | null) {
   apiToken = token;
@@ -13,10 +19,12 @@ export function getApiToken() {
   return apiToken;
 }
 
-export function setTokenRefreshHandler(handler: (() => Promise<string | null>) | null) {
+export function setTokenRefreshHandler(
+  handler: ((options?: TokenRefreshOptions) => Promise<string | null>) | null
+) {
   tokenRefreshHandler = handler;
 }
 
-export function refreshApiToken() {
-  return tokenRefreshHandler?.() ?? Promise.resolve(null);
+export function refreshApiToken(options: TokenRefreshOptions = {}) {
+  return tokenRefreshHandler?.(options) ?? Promise.resolve(null);
 }

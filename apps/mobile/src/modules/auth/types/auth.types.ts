@@ -12,6 +12,22 @@ export type AuthUser = {
 };
 
 export type AuthSessionStatus = "guest" | "authenticated";
+export type OnlineSessionStatus =
+  | "unavailable"
+  | "valid"
+  | "temporarily_unavailable"
+  | "reauth_required";
+
+export type EnsureOnlineSessionResult =
+  | "valid"
+  | "temporarily_unavailable"
+  | "reauth_required"
+  | "unauthenticated";
+
+export type EnsureOnlineSessionOptions = {
+  forceRefresh?: boolean;
+  signal?: AbortSignal;
+};
 
 export type AuthSession = {
   status: AuthSessionStatus;

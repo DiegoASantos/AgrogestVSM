@@ -1,4 +1,4 @@
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, type ApiRequestContext } from "../../../shared/services";
 import { getUserIdFromAccessToken } from "../../../shared/utils/auth-token";
 import type { CreateVisitaCampoDraft, VisitaCampo, VisitaCampoFull } from "../types";
 
@@ -8,7 +8,11 @@ type AuthToken = {
 };
 
 export const visitasCampoRemote = {
-  create(draft: CreateVisitaCampoDraft, authToken: AuthToken) {
+  create(
+    draft: CreateVisitaCampoDraft,
+    authToken: AuthToken,
+    context: ApiRequestContext = {}
+  ) {
     const agronomistUserId = getUserIdFromAccessToken(authToken.accessToken);
 
     return apiRequest<VisitaCampo>("/visitas-campo", {
@@ -19,20 +23,27 @@ export const visitasCampoRemote = {
       body: {
         ...draft,
         agronomistUserId
-      }
+      },
+      ...context
     });
   },
 
-  update(id: string, draft: Omit<CreateVisitaCampoDraft, "publicId">) {
+  update(
+    id: string,
+    draft: Omit<CreateVisitaCampoDraft, "publicId">,
+    context: ApiRequestContext = {}
+  ) {
     return apiRequest<VisitaCampo>(`/visitas-campo/${id}`, {
       method: "PATCH",
-      body: draft
+      body: draft,
+      ...context
     });
   },
 
-  remove(id: string) {
+  remove(id: string, context: ApiRequestContext = {}) {
     return apiRequest<VisitaCampo>(`/visitas-campo/${id}`, {
-      method: "DELETE"
+      method: "DELETE",
+      ...context
     });
   },
 

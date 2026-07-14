@@ -962,6 +962,27 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, "marcas_producto", "tipo_producto_id", "TEXT");
       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
     }
+  },
+  {
+    version: 40,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS sync_failures (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_type TEXT NOT NULL,
+        entity_local_id TEXT NOT NULL,
+        operation TEXT NOT NULL CHECK(operation IN ('create', 'update', 'delete')),
+        payload TEXT,
+        retry_count INTEGER NOT NULL DEFAULT 0 CHECK(retry_count >= 0),
+        error_kind TEXT NOT NULL CHECK(error_kind IN ('transient', 'permanent')),
+        error_message TEXT,
+        outbox_created_at TEXT NOT NULL,
+        last_attempt_at TEXT NOT NULL,
+        failed_at TEXT NOT NULL,
+        UNIQUE(entity_type, entity_local_id)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_sync_failures_kind_failed_at
+       ON sync_failures(error_kind, failed_at)`
+    ]
   }
 ];
 

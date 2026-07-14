@@ -22,7 +22,19 @@ vi.mock("../database/sync-outbox", () => ({
 const runSync = vi.fn();
 const getAllSync = vi.fn(() => []);
 vi.mock("../database/connection", () => ({
-  getDatabase: () => ({ runSync, getAllSync })
+  getDatabase: () => ({
+    runSync,
+    getAllSync,
+    withTransactionSync: (callback: () => void) => callback()
+  })
+}));
+
+const storeSyncFailure = vi.fn();
+const deleteSyncFailureForEntity = vi.fn();
+vi.mock("../database/sync-failures", () => ({
+  storeSyncFailure: (...args: unknown[]) => storeSyncFailure(...args),
+  deleteSyncFailureForEntity: (...args: unknown[]) =>
+    deleteSyncFailureForEntity(...args)
 }));
 
 vi.mock("../database/sqlite-utils", () => ({
@@ -48,6 +60,7 @@ vi.mock("../services/api/errors", async () => {
   }
   return {
     ApiError,
+    isApiRequestAbortedError: () => false,
     toApiError(error: unknown) {
       if (error instanceof ApiError) return error;
       if (error instanceof Error) return new ApiError(error.message);
@@ -209,7 +222,7 @@ describe("processOutbox", () => {
 
     const result = await processOutbox();
 
-    expect(result).toEqual({ processed: 0, skipped: 0, errors: 0 });
+    expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 0 });
     expect(getPendingOutboxEntries).not.toHaveBeenCalled();
     expect(setLastSyncTime).not.toHaveBeenCalled();
   });
@@ -219,7 +232,7 @@ describe("processOutbox", () => {
 
     const result = await processOutbox();
 
-    expect(result).toEqual({ processed: 0, skipped: 0, errors: 0 });
+    expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 0 });
     expect(setLastSyncTime).toHaveBeenCalledOnce();
   });
 
@@ -243,7 +256,7 @@ describe("processOutbox", () => {
 
     expect(handlerVisita).toHaveBeenCalledOnce();
     expect(deleteOutboxEntry).toHaveBeenCalledWith(1);
-    expect(result).toEqual({ processed: 1, skipped: 0, errors: 0 });
+    expect(result).toMatchObject({ processed: 1, skipped: 0, errors: 0 });
   });
 
   it("removes the entry on deleted_local result", async () => {
@@ -274,7 +287,7 @@ describe("processOutbox", () => {
 
     expect(incrementOutboxRetryCount).toHaveBeenCalledWith(3);
     expect(deleteOutboxEntry).not.toHaveBeenCalled();
-    expect(result).toEqual({ processed: 0, skipped: 1, errors: 0 });
+    expect(result).toMatchObject({ processed: 0, skipped: 1, errors: 0 });
   });
 
   it("marks entity as error, deletes the entry, and increments errors after MAX_RETRIES", async () => {
@@ -284,14 +297,19 @@ describe("processOutbox", () => {
 
     const result = await processOutbox();
 
-    expect(incrementOutboxRetryCount).toHaveBeenCalledWith(4);
+    expect(storeSyncFailure).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ id: 4 }),
+      "transient",
+      expect.stringContaining("5 intentos")
+    );
     expect(visitasCampoUpdate).toHaveBeenCalledWith(
       "local-1",
       expect.objectContaining({ syncStatus: "error" })
     );
     expect(runSync).toHaveBeenCalled();
     expect(deleteOutboxEntry).toHaveBeenCalledWith(4);
-    expect(result).toEqual({ processed: 0, skipped: 0, errors: 1 });
+    expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 1 });
   });
 
   it("stops immediately on auth error and does not advance lastSyncTime", async () => {
@@ -307,7 +325,7 @@ describe("processOutbox", () => {
     expect(handlerVisita).toHaveBeenCalledTimes(1);
     expect(deleteOutboxEntry).not.toHaveBeenCalled();
     expect(setLastSyncTime).not.toHaveBeenCalled();
-    expect(result).toEqual({ processed: 0, skipped: 0, errors: 0 });
+    expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 0 });
   });
 
   it("resolves a conflict by adopting the server id and counts as processed", async () => {
@@ -330,7 +348,7 @@ describe("processOutbox", () => {
       })
     );
     expect(deleteOutboxEntry).toHaveBeenCalledWith(5);
-    expect(result).toEqual({ processed: 1, skipped: 0, errors: 0 });
+    expect(result).toMatchObject({ processed: 1, skipped: 0, errors: 0 });
   });
 
   it("treats a non-retryable permanent error as error and marks the entity", async () => {
@@ -344,7 +362,7 @@ describe("processOutbox", () => {
       expect.objectContaining({ syncStatus: "error" })
     );
     expect(deleteOutboxEntry).toHaveBeenCalledWith(6);
-    expect(result).toEqual({ processed: 0, skipped: 0, errors: 1 });
+    expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 1 });
   });
 
   it("skips child create entries when their parent visita already failed this cycle", async () => {
@@ -367,7 +385,7 @@ describe("processOutbox", () => {
 
     // Parent skipped (transient, retry bumped), child also skipped (not even handled)
     expect(handlerEvaluacion).not.toHaveBeenCalled();
-    expect(result).toEqual({ processed: 0, skipped: 2, errors: 0 });
+    expect(result).toMatchObject({ processed: 0, skipped: 2, errors: 0 });
   });
 
   it("does not skip child entries whose parent visita is not part of the failed set", async () => {

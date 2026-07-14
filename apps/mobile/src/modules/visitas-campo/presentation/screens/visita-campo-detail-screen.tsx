@@ -15,7 +15,10 @@ import {
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
-import { scheduleSync } from "../../../../shared/sync";
+import {
+  retryTransientSyncFailures,
+  scheduleSync
+} from "../../../../shared/sync";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import type {
   IncidenceLevelCatalogItem,
@@ -373,8 +376,16 @@ export function VisitaCampoDetailScreen() {
     setIsRetrying(true);
 
     try {
-      visitasCampoService.retrySyncForVisita(visitaId);
-      await scheduleSync({ forceRefresh: true });
+      const requeued = retryTransientSyncFailures();
+
+      if (requeued === 0) {
+        visitasCampoService.retrySyncForVisita(visitaId);
+      }
+      await scheduleSync({
+        bypassBackoff: true,
+        immediate: true,
+        manual: true
+      });
 
       const updated = await visitasCampoService.getFullDetail(visitaId);
       setDetail(updated);

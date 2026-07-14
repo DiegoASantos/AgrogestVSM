@@ -1,4 +1,8 @@
-import { apiRequest, apiRequestAllPages } from "../../../shared/services";
+import {
+  apiRequest,
+  apiRequestAllPages,
+  type ApiRequestContext
+} from "../../../shared/services";
 import type {
   IncidenceLevelCatalogItem,
   OrganoAfectado,
@@ -52,35 +56,52 @@ export const observacionesSanitariasRemote = {
     );
   },
 
-  create(visitaId: string, input: CreateObservacionSanitariaInput) {
+  create(
+    visitaId: string,
+    input: CreateObservacionSanitariaInput,
+    context: ApiRequestContext = {}
+  ) {
     return apiRequest<VisitaObservacionSanitaria>(
       `/visitas-campo/${visitaId}/observaciones-sanitarias`,
       {
         method: "POST",
-        body: input
+        body: input,
+        ...context
       }
     );
   },
 
-  update(id: string, input: UpdateObservacionSanitariaInput) {
+  update(
+    id: string,
+    input: UpdateObservacionSanitariaInput,
+    context: ApiRequestContext = {}
+  ) {
     return apiRequest<VisitaObservacionSanitaria>(`/observaciones-sanitarias/${id}`, {
       method: "PATCH",
-      body: input
+      body: input,
+      ...context
     });
   },
 
-  remove(id: string) {
+  remove(id: string, context: ApiRequestContext = {}) {
     return apiRequest<VisitaObservacionSanitaria>(`/observaciones-sanitarias/${id}`, {
-      method: "DELETE"
+      method: "DELETE",
+      ...context
     });
   },
 
-  upsertStepNote(visitaId: string, stepNumber: number, input: UpsertStepNoteInput) {
+  upsertStepNote(
+    visitaId: string,
+    stepNumber: number,
+    input: UpsertStepNoteInput,
+    context: ApiRequestContext = {}
+  ) {
     return apiRequest<VisitaStepNote>(
       `/visitas-campo/${visitaId}/paso-observaciones/${stepNumber}`,
       {
         method: "PATCH",
-        body: input
+        body: input,
+        ...context
       }
     );
   }

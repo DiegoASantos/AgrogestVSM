@@ -1,6 +1,7 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 import { UserRoleEntity } from "../../../../auth/infrastructure/persistence/entities/user-role.entity";
+import { ParcelaEntity } from "../../../../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { VisitaCampoEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 
 @Entity({ name: "usuarios" })
@@ -82,4 +83,7 @@ export class UserEntity {
     (visitaCampo) => visitaCampo.agronomoUsuario
   )
   visitasCampoComoAgronomo!: VisitaCampoEntity[];
+
+  @OneToMany(() => ParcelaEntity, (parcela) => parcela.agronomoUsuario)
+  parcelasAsignadas!: ParcelaEntity[];
 }

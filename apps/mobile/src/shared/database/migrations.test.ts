@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 39;
+const LATEST_MIGRATION_VERSION = 40;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1189,5 +1189,28 @@ describe("runMigrations", () => {
       "ALTER TABLE marcas_producto ADD COLUMN tipo_producto_id TEXT"
     );
     expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
+  });
+
+  it("creates durable sync failures without touching the existing outbox", () => {
+    const db = createFakeDatabase(39);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(40);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("CREATE TABLE IF NOT EXISTS sync_failures")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("CREATE INDEX IF NOT EXISTS idx_sync_failures_kind_failed_at")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("DELETE FROM sync_outbox")
+      )
+    ).toBe(false);
   });
 });

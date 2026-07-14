@@ -1,4 +1,4 @@
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, type ApiRequestContext } from "../../../shared/services";
 import type { TipoRiegoCatalogItem, VisitaRiego } from "../types";
 
 type CreateRiegoInput = {
@@ -26,23 +26,26 @@ export const riegosRemote = {
     return apiRequest<VisitaRiego | null>(`/visitas-campo/${visitaId}/riego`);
   },
 
-  create(visitaId: string, input: CreateRiegoInput) {
+  create(visitaId: string, input: CreateRiegoInput, context: ApiRequestContext = {}) {
     return apiRequest<VisitaRiego>(`/visitas-campo/${visitaId}/riego`, {
       method: "POST",
-      body: input
+      body: input,
+      ...context
     });
   },
 
-  update(id: string, input: UpdateRiegoInput) {
+  update(id: string, input: UpdateRiegoInput, context: ApiRequestContext = {}) {
     return apiRequest<VisitaRiego>(`/riegos-visita/${id}`, {
       method: "PATCH",
-      body: input
+      body: input,
+      ...context
     });
   },
 
-  remove(id: string) {
+  remove(id: string, context: ApiRequestContext = {}) {
     return apiRequest<VisitaRiego>(`/riegos-visita/${id}`, {
-      method: "DELETE"
+      method: "DELETE",
+      ...context
     });
   }
 };

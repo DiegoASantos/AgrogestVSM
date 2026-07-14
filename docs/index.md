@@ -57,6 +57,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 012: Selector de nombre comercial en receta fitosanitaria](specs/012-nombre-comercial-receta-fitosanitaria.md)
 - [Spec 013: Paginacion y busqueda de productores en mobile y web](specs/013-paginacion-selector-productor.md)
 - [Spec 014: Exportacion protegida para Cost-Build](specs/014-exportacion-cost-build-api-key.md)
+- [Spec 015: Sincronizacion robusta en redes inestables y recuperacion de sesion online](specs/015-sync-robusto-redes-inestables.md)
 
 ## Runbooks
 

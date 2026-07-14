@@ -3,13 +3,11 @@ import { useState } from "react";
 import { loginFormSchema, type LoginFormValues } from "../schemas/login-form.schema";
 import type { LoginFormErrors } from "../types/auth.types";
 
-const INITIAL_VALUES: LoginFormValues = {
-  email: "",
-  password: ""
-};
-
-export function useLoginForm() {
-  const [values, setValues] = useState<LoginFormValues>(INITIAL_VALUES);
+export function useLoginForm(initialEmail = "") {
+  const [values, setValues] = useState<LoginFormValues>(() => ({
+    email: initialEmail.trim(),
+    password: ""
+  }));
   const [errors, setErrors] = useState<LoginFormErrors>({});
 
   function updateField<K extends keyof LoginFormValues>(

@@ -455,7 +455,7 @@ describe("visita de campo complete flow", () => {
       pestDiseaseId: "pest-oidium",
       organosAfectados: ["hoja_tierna", "fruto_verde"]
     });
-    expect(detail.stepNotes).toHaveLength(5);
+    expect(detail.stepNotes).toHaveLength(6);
     expect(detail.riego).toMatchObject({ tipoRiegoId: "riego-goteo" });
     expect(detail.laboresCulturales.map((labor) => labor.laborCulturalId)).toEqual([
       "labor-poda",
@@ -465,9 +465,9 @@ describe("visita de campo complete flow", () => {
     expect(nutrientes[0]?.details[0]?.name).toBe("Deficiencia leve");
     expect(syncSummary).toEqual({
       overallStatus: "pending",
-      totalEntities: 12,
+      totalEntities: 13,
       syncedCount: 0,
-      pendingCount: 12,
+      pendingCount: 13,
       errorCount: 0
     });
   });

@@ -11,6 +11,7 @@ function buildParcela(overrides: Partial<ParcelaEntity> = {}): ParcelaEntity {
     publicId: "parcela-public-1",
     subsectorId: "10",
     productorId: "1",
+    agronomoUsuarioId: null,
     code: "PAR-001",
     name: "Parcela Norte",
     areaHectares: null,
@@ -22,6 +23,7 @@ function buildParcela(overrides: Partial<ParcelaEntity> = {}): ParcelaEntity {
     updatedAt: now,
     subsector: { id: "10", sectorId: "1" } as never,
     productor: {} as never,
+    agronomoUsuario: null,
     visitasCampo: [],
     ...overrides
   };
@@ -56,12 +58,22 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
   const productoresRepository = {
     findOne: vi.fn(async () => ({ id: "1" }))
   };
+  const userRepository = {
+    createQueryBuilder: vi.fn(() => userQueryBuilder)
+  };
+  const userQueryBuilder = {
+    innerJoin: vi.fn(() => userQueryBuilder),
+    where: vi.fn(() => userQueryBuilder),
+    andWhere: vi.fn(() => userQueryBuilder),
+    getOne: vi.fn(async () => null)
+  };
 
   const service = new ParcelasService(
     parcelasRepository as never,
     sectoresRepository as never,
     subsectoresRepository as never,
     productoresRepository as never,
+    userRepository as never,
     {} as never
   );
 

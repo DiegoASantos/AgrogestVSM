@@ -7,6 +7,7 @@ import { ParcelaEntity } from "./infrastructure/persistence/entities/parcela.ent
 import { SectorEntity } from "../sectores/infrastructure/persistence/entities/sector.entity";
 import { ProductorEntity } from "../productores/infrastructure/persistence/entities/productor.entity";
 import { SubsectorEntity } from "../subsectores/infrastructure/persistence/entities/subsector.entity";
+import { UserEntity } from "../users/infrastructure/persistence/entities/user.entity";
 import { ParcelasController } from "./presentation/parcelas.controller";
 import { SectorParcelasController } from "./presentation/sector-parcelas.controller";
 
@@ -16,7 +17,8 @@ import { SectorParcelasController } from "./presentation/sector-parcelas.control
       ParcelaEntity,
       SectorEntity,
       SubsectorEntity,
-      ProductorEntity
+      ProductorEntity,
+      UserEntity
     ]),
     VisitasCampoModule
   ],

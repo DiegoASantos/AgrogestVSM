@@ -21,6 +21,8 @@ import {
 } from "@nestjs/swagger";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { CurrentAuthUser } from "../../auth/presentation/decorators/current-auth-user.decorator";
+import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { ProductoresService } from "../application/productores.service";
 import { CreateProductorDto } from "./dto/create-productor.dto";
 import { FindProductoresQueryDto } from "./dto/find-productores-query.dto";
@@ -52,8 +54,11 @@ export class ProductoresController {
   @ApiOkResponse({
     description: "Lista de productores paginada."
   })
-  getProductores(@Query() query: FindProductoresQueryDto) {
-    return this.productoresService.findAll(query);
+  getProductores(
+    @Query() query: FindProductoresQueryDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.productoresService.findAll(query, currentUser);
   }
 
   @Get(":id/resumen")

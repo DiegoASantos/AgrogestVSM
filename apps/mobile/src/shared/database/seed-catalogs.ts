@@ -18,7 +18,21 @@ import {
 import { initDatabase } from "./connection";
 import { getNowIsoString, stringifyNullableJson, toSqliteBoolean } from "./sqlite-utils";
 
-export async function downloadAllCatalogs() {
+let catalogDownloadInFlight: Promise<void> | null = null;
+
+export function downloadAllCatalogs() {
+  if (catalogDownloadInFlight) {
+    return catalogDownloadInFlight;
+  }
+
+  catalogDownloadInFlight = performCatalogDownload().finally(() => {
+    catalogDownloadInFlight = null;
+  });
+
+  return catalogDownloadInFlight;
+}
+
+async function performCatalogDownload() {
   notifyCatalogDownloadStarted();
 
   try {

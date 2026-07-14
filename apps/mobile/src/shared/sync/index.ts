@@ -7,7 +7,9 @@ export {
   getSyncPendingDetails,
   getLastSyncTime,
   getLastSyncAttempt,
+  subscribeToSyncStatus,
   type SyncErrorDetail,
   type SyncPendingDetail
 } from "./sync-status";
+export { retryTransientSyncFailures } from "../database/sync-failures";
 export type { SyncRunResult, SyncRunStatus } from "./sync-result";

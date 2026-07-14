@@ -10,6 +10,27 @@ export class ApiError extends Error {
   }
 }
 
+export class ApiTimeoutError extends ApiError {
+  constructor(
+    message = "La solicitud excedio el tiempo de espera.",
+    public readonly timeoutMs?: number
+  ) {
+    super(message, 408);
+    this.name = "ApiTimeoutError";
+  }
+}
+
+export class ApiRequestAbortedError extends ApiError {
+  constructor(message = "La solicitud fue cancelada.") {
+    super(message);
+    this.name = "ApiRequestAbortedError";
+  }
+}
+
+export function isApiRequestAbortedError(error: unknown) {
+  return error instanceof ApiRequestAbortedError;
+}
+
 export function toApiError(error: unknown) {
   if (error instanceof ApiError) {
     return error;

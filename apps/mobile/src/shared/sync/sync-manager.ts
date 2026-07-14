@@ -33,8 +33,8 @@ export const DEFAULT_SYNC_MANAGER_CONFIG: SyncManagerConfig = {
   stableSuccessRate: 0.7,
   severeFailureSuccessRate: 0.2,
   recoverySuccesses: 3,
-  backoffIntervalsMs: [15_000, 45_000, 120_000, 300_000],
-  severeMinimumBackoffMs: 120_000
+  backoffIntervalsMs: [10_000, 30_000, 60_000, 120_000],
+  severeMinimumBackoffMs: 60_000
 };
 
 export class SyncManager {
@@ -108,17 +108,40 @@ export class SyncManager {
   }
 
   recordAttempt(success: boolean) {
+    return this.recordOutcome(success ? 1 : 0, success ? 0 : 1);
+  }
+
+  recordOutcome(successes: number, failures: number) {
+    const normalizedSuccesses = Math.max(0, Math.floor(successes));
+    const normalizedFailures = Math.max(0, Math.floor(failures));
+
+    if (normalizedSuccesses === 0 && normalizedFailures === 0) {
+      return this.getState();
+    }
+
     const currentState = this.getState();
     const attemptedAt = this.now().toISOString();
-    const nextWindow = [
-      ...currentState.window,
-      { success, attemptedAt }
-    ].slice(-this.config.windowSize);
+    const nextRecords: SyncAttemptRecord[] = [
+      ...Array.from({ length: normalizedSuccesses }, () => ({
+        success: true,
+        attemptedAt
+      })),
+      ...Array.from({ length: normalizedFailures }, () => ({
+        success: false,
+        attemptedAt
+      }))
+    ];
+    const nextWindow = [...currentState.window, ...nextRecords].slice(
+      -this.config.windowSize
+    );
+    const success = normalizedFailures === 0 && normalizedSuccesses > 0;
 
-    const consecutiveSuccesses = success ? currentState.consecutiveSuccesses + 1 : 0;
+    const consecutiveSuccesses = success
+      ? currentState.consecutiveSuccesses + normalizedSuccesses
+      : 0;
     const consecutiveFailures = success
       ? Math.max(0, currentState.consecutiveFailures - 1)
-      : currentState.consecutiveFailures + 1;
+      : currentState.consecutiveFailures + normalizedFailures;
     const maxBackoffStep = this.config.backoffIntervalsMs.length - 1;
     const wasStable = this.evaluateConnection(true, currentState) === "stable";
     let backoffStep = success
@@ -143,6 +166,12 @@ export class SyncManager {
       updatedAt: attemptedAt
     };
 
+    this.store.save(nextState);
+    return nextState;
+  }
+
+  resetState() {
+    const nextState = createInitialSyncManagerState(this.now().toISOString());
     this.store.save(nextState);
     return nextState;
   }

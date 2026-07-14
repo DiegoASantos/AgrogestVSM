@@ -1,11 +1,16 @@
 import { getCatalogsDownloadedAt } from "../database/catalog-status";
 import { getDatabase } from "../database/connection";
+import { getSyncFailures } from "../database/sync-failures";
 import {
   SYNC_ENTITY_TABLES,
   SYNC_ENTITY_TYPES,
   type SyncEntityType
 } from "./sync-entities";
 import type { SyncRunResult } from "./sync-result";
+import {
+  notifySyncStatusChanged,
+  subscribeToSyncStatus
+} from "./sync-events";
 
 type SyncCountsResult = {
   pendingCount: number;
@@ -18,6 +23,8 @@ export type SyncErrorDetail = {
   localId: string;
   message: string;
   updatedAt: string | null;
+  retryable: boolean;
+  errorKind: "transient" | "permanent" | "legacy";
 };
 
 export type SyncPendingDetail = {
@@ -44,20 +51,28 @@ const SYNC_ENTITY_LABELS: Record<SyncEntityType, string> = {
 
 export function getSyncCounts(): SyncCountsResult {
   const db = getDatabase();
-
-  let pendingCount = 0;
-  let errorCount = 0;
+  const pendingCount =
+    db.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM sync_outbox`
+    )?.count ?? 0;
+  let errorCount =
+    db.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM sync_failures`
+    )?.count ?? 0;
 
   for (const table of SYNC_ENTITY_TYPES) {
-    const row = db.getFirstSync<{ pending: number | null; error: number | null }>(
-      `SELECT
-        SUM(CASE WHEN sync_status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN sync_status = 'error' THEN 1 ELSE 0 END) as error
-       FROM ${table}`
+    const row = db.getFirstSync<{ error: number | null }>(
+      `SELECT COUNT(*) as error
+       FROM ${table}
+       WHERE sync_status = 'error'
+         AND NOT EXISTS (
+           SELECT 1 FROM sync_failures
+           WHERE entity_type = ? AND entity_local_id = ${table}.local_id
+         )`,
+      table
     );
 
     if (row) {
-      pendingCount += row.pending ?? 0;
       errorCount += row.error ?? 0;
     }
   }
@@ -67,7 +82,15 @@ export function getSyncCounts(): SyncCountsResult {
 
 export function getSyncErrorDetails(): SyncErrorDetail[] {
   const db = getDatabase();
-  const details: SyncErrorDetail[] = [];
+  const details: SyncErrorDetail[] = getSyncFailures().map((failure) => ({
+    entityType: failure.entityType,
+    entityLabel: SYNC_ENTITY_LABELS[failure.entityType],
+    localId: failure.entityLocalId,
+    message: failure.errorMessage?.trim() || "Fallo de sincronizacion sin detalle.",
+    updatedAt: failure.failedAt,
+    retryable: failure.errorKind === "transient",
+    errorKind: failure.errorKind
+  }));
 
   for (const entityType of SYNC_ENTITY_TYPES) {
     const table = SYNC_ENTITY_TABLES[entityType];
@@ -87,7 +110,12 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
         updated_at
        FROM ${table}
        WHERE sync_status = 'error'
+         AND NOT EXISTS (
+           SELECT 1 FROM sync_failures
+           WHERE entity_type = ? AND entity_local_id = ${table}.local_id
+         )
        ORDER BY updated_at DESC, local_id ASC`
+      , entityType
     );
 
     for (const row of rows) {
@@ -99,6 +127,8 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
           row.sync_error_message?.trim() ||
           "Sin detalle tecnico registrado. Reintenta la sincronizacion para capturar el mensaje actualizado.",
         updatedAt: row.updated_at
+        ,retryable: false,
+        errorKind: "legacy"
       });
     }
   }
@@ -108,32 +138,23 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
 
 export function getSyncPendingDetails(): SyncPendingDetail[] {
   const db = getDatabase();
-  const details: SyncPendingDetail[] = [];
+  const rows = db.getAllSync<{
+    entity_type: SyncEntityType;
+    entity_local_id: string;
+    created_at: string;
+  }>(
+    `SELECT entity_type, entity_local_id, created_at
+     FROM sync_outbox
+     ORDER BY CASE WHEN entity_type = 'visitas_campo' THEN 0 ELSE 1 END,
+              id ASC`
+  );
 
-  for (const entityType of SYNC_ENTITY_TYPES) {
-    const table = SYNC_ENTITY_TABLES[entityType];
-
-    const rows = db.getAllSync<{
-      local_id: string;
-      updated_at: string | null;
-    }>(
-      `SELECT local_id, updated_at
-       FROM ${table}
-       WHERE sync_status = 'pending'
-       ORDER BY updated_at ASC, local_id ASC`
-    );
-
-    for (const row of rows) {
-      details.push({
-        entityType,
-        entityLabel: SYNC_ENTITY_LABELS[entityType],
-        localId: row.local_id,
-        updatedAt: row.updated_at
-      });
-    }
-  }
-
-  return details;
+  return rows.map((row) => ({
+    entityType: row.entity_type,
+    entityLabel: SYNC_ENTITY_LABELS[row.entity_type],
+    localId: row.entity_local_id,
+    updatedAt: row.created_at
+  }));
 }
 
 export function getLastSyncTime(): string | null {
@@ -185,4 +206,7 @@ export function setLastSyncAttempt(result: SyncRunResult) {
     "last_sync_attempt",
     JSON.stringify(result)
   );
+  notifySyncStatusChanged();
 }
+
+export { notifySyncStatusChanged, subscribeToSyncStatus };

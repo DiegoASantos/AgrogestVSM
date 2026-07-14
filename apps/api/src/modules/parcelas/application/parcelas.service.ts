@@ -17,18 +17,25 @@ import {
 import { SectorEntity } from "../../sectores/infrastructure/persistence/entities/sector.entity";
 import { ProductorEntity } from "../../productores/infrastructure/persistence/entities/productor.entity";
 import { SubsectorEntity } from "../../subsectores/infrastructure/persistence/entities/subsector.entity";
+import { UserEntity } from "../../users/infrastructure/persistence/entities/user.entity";
 import type { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { VisitasCampoService } from "../../visitas-campo/application/visitas-campo.service";
 import { CreateParcelaDto } from "../presentation/dto/create-parcela.dto";
 import { FindParcelasQueryDto } from "../presentation/dto/find-parcelas-query.dto";
 import { FindParcelasSummaryQueryDto } from "../presentation/dto/find-parcelas-summary-query.dto";
 import { UpdateParcelaDto } from "../presentation/dto/update-parcela.dto";
+import { UpdateParcelaAgronomoDto } from "../presentation/dto/update-parcela-agronomo.dto";
 import {
   MultiPolygonGeometry,
   ParcelaEntity,
   PointGeometry
 } from "../infrastructure/persistence/entities/parcela.entity";
 import { assertParcelaGeodataIsPersistable } from "./parcela-geodata-validation.util";
+
+type CurrentUserContext = {
+  userId: string;
+  roles: string[];
+};
 
 @Injectable()
 export class ParcelasService {
@@ -41,6 +48,8 @@ export class ParcelasService {
     private readonly subsectoresRepository: Repository<SubsectorEntity>,
     @InjectRepository(ProductorEntity)
     private readonly productoresRepository: Repository<ProductorEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
     private readonly visitasCampoService: VisitasCampoService
   ) {}
 
@@ -84,8 +93,8 @@ export class ParcelasService {
     }
   }
 
-  async findAll(query: FindParcelasQueryDto) {
-    const qb = this.createFindEntitiesQueryBuilder(query);
+  async findAll(query: FindParcelasQueryDto, currentUser?: CurrentUserContext) {
+    const qb = this.createFindEntitiesQueryBuilder(query, currentUser);
     qb.skip(query.skip).take(query.take);
 
     const [parcelas, total] = await qb.getManyAndCount();
@@ -96,8 +105,8 @@ export class ParcelasService {
     );
   }
 
-  async findMap(query: FindParcelasSummaryQueryDto) {
-    const parcelas = await this.createFindEntitiesQueryBuilder(query).getMany();
+  async findMap(query: FindParcelasSummaryQueryDto, currentUser?: CurrentUserContext) {
+    const parcelas = await this.createFindEntitiesQueryBuilder(query, currentUser).getMany();
     const featureCollection = createGeoJsonFeatureCollection(
       parcelas.flatMap((parcela) => this.toMapFeatures(parcela))
     );
@@ -217,6 +226,25 @@ export class ParcelasService {
     return createSuccessResponse(this.toResponse(savedParcela));
   }
 
+  async updateAgronomo(id: string, dto: UpdateParcelaAgronomoDto) {
+    const parcela = await this.findEntityById(id);
+
+    if (dto.usuarioId === null || dto.usuarioId === undefined) {
+      parcela.agronomoUsuarioId = null;
+    } else {
+      const agronomo = await this.findAgronomoUserById(dto.usuarioId);
+      parcela.agronomoUsuarioId = agronomo.id;
+    }
+
+    try {
+      const savedParcela = await this.parcelasRepository.save(parcela);
+
+      return createSuccessResponse(this.toResponse(savedParcela));
+    } catch (error) {
+      this.handlePersistenceError(error);
+    }
+  }
+
   async getSummary(query: FindParcelasSummaryQueryDto) {
     const queryBuilder = this.parcelasRepository
       .createQueryBuilder("parcela")
@@ -305,12 +333,15 @@ export class ParcelasService {
     });
   }
 
-  private createFindEntitiesQueryBuilder(query: {
-    sector_id?: string;
-    subsector_id?: string;
-    productor_id?: string;
-    activo?: boolean;
-  }) {
+  private createFindEntitiesQueryBuilder(
+    query: {
+      sector_id?: string;
+      subsector_id?: string;
+      productor_id?: string;
+      activo?: boolean;
+    },
+    currentUser?: CurrentUserContext
+  ) {
     const queryBuilder = this.parcelasRepository
       .createQueryBuilder("parcela")
       .innerJoinAndSelect("parcela.subsector", "subsector");
@@ -336,6 +367,12 @@ export class ParcelasService {
     if (query.activo !== undefined) {
       queryBuilder.andWhere("parcela.activo = :activo", {
         activo: query.activo
+      });
+    }
+
+    if (isAgronomoUser(currentUser)) {
+      queryBuilder.andWhere("parcela.agronomo_usuario_id = :currentUserId", {
+        currentUserId: currentUser!.userId
       });
     }
 
@@ -549,6 +586,7 @@ export class ParcelasService {
       description: parcela.description,
       referencePoint,
       geometry,
+      agronomoUsuarioId: parcela.agronomoUsuarioId ?? null,
       geo: {
         point: referencePoint,
         polygon: geometry,
@@ -605,6 +643,36 @@ export class ParcelasService {
 
     return parcela.subsector.sectorId;
   }
+
+  private async findAgronomoUserById(userId: string): Promise<UserEntity> {
+    const user = await this.userRepository
+      .createQueryBuilder("u")
+      .innerJoin("u.userRoles", "ur")
+      .innerJoin("ur.role", "r")
+      .where("u.id = :userId", { userId })
+      .andWhere("r.codigo = 'AGRONOMO'")
+      .andWhere("u.activo = true")
+      .getOne();
+
+    if (!user) {
+      throw new BadRequestException(
+        "El usuario especificado no existe, no esta activo o no tiene rol AGRONOMO."
+      );
+    }
+
+    return user;
+  }
+}
+
+function isAgronomoUser(currentUser?: CurrentUserContext): boolean {
+  if (!currentUser) {
+    return false;
+  }
+
+  const hasAdmin = currentUser.roles.includes("ADMIN");
+  const hasAgronomo = currentUser.roles.includes("AGRONOMO");
+
+  return hasAgronomo && !hasAdmin;
 }
 
 function normalizeAreaHectares(value: unknown): string | null {

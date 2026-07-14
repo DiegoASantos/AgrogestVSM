@@ -41,7 +41,7 @@ describe("SyncManager", () => {
 
     expect(manager.getSuccessRate()).toBe(0);
     expect(manager.evaluateConnection(true)).toBe("unstable");
-    expect(manager.getBackoffIntervalMs()).toBe(300_000);
+    expect(manager.getBackoffIntervalMs()).toBe(120_000);
   });
 
   it("uses the severe minimum interval when the success rate is below 20 percent", () => {
@@ -50,7 +50,7 @@ describe("SyncManager", () => {
     manager.recordAttempt(false);
 
     expect(manager.getSuccessRate()).toBe(0);
-    expect(manager.getBackoffIntervalMs()).toBe(120_000);
+    expect(manager.getBackoffIntervalMs()).toBe(60_000);
   });
 
   it("restores stable state after three consecutive successes", () => {
@@ -75,6 +75,26 @@ describe("SyncManager", () => {
 
     expect(manager.evaluateConnection(false)).toBe("none");
     expect(manager.getDelayUntilNextRunMs(false)).toBeNull();
+  });
+
+  it("records granular outcomes instead of one boolean per cycle", () => {
+    const manager = buildManager();
+
+    manager.recordOutcome(9, 1);
+
+    expect(manager.getSuccessRate()).toBe(0.9);
+    expect(manager.evaluateConnection(true)).toBe("stable");
+  });
+
+  it("resets persisted backoff after a fresh login", () => {
+    const manager = buildManager();
+    manager.recordOutcome(0, 4);
+
+    const state = manager.resetState();
+
+    expect(state.window).toEqual([]);
+    expect(state.backoffStep).toBe(0);
+    expect(manager.getDelayUntilNextRunMs(true)).toBe(0);
   });
 });
 

@@ -10,6 +10,7 @@ import {
 
 import { ProductorEntity } from "../../../../productores/infrastructure/persistence/entities/productor.entity";
 import { SubsectorEntity } from "../../../../subsectores/infrastructure/persistence/entities/subsector.entity";
+import { UserEntity } from "../../../../users/infrastructure/persistence/entities/user.entity";
 import { VisitaCampoEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 
 export type PointGeometry = {
@@ -51,6 +52,13 @@ export class ParcelaEntity {
     type: "bigint"
   })
   productorId!: string;
+
+  @Column({
+    name: "agronomo_usuario_id",
+    type: "bigint",
+    nullable: true
+  })
+  agronomoUsuarioId!: string | null;
 
   @Column({
     name: "codigo",
@@ -141,6 +149,17 @@ export class ParcelaEntity {
     referencedColumnName: "id"
   })
   productor!: ProductorEntity;
+
+  @ManyToOne(() => UserEntity, (user) => user.parcelasAsignadas, {
+    onDelete: "SET NULL",
+    onUpdate: "NO ACTION",
+    nullable: true
+  })
+  @JoinColumn({
+    name: "agronomo_usuario_id",
+    referencedColumnName: "id"
+  })
+  agronomoUsuario!: UserEntity | null;
 
   @OneToMany(() => VisitaCampoEntity, (visitaCampo) => visitaCampo.parcela)
   visitasCampo!: VisitaCampoEntity[];

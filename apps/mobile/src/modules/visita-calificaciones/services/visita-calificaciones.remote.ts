@@ -1,4 +1,4 @@
-import { apiRequest } from "../../../shared/services";
+import { apiRequest, type ApiRequestContext } from "../../../shared/services";
 import type {
   RecetaAnterior,
   UpsertCalificacionInput,
@@ -6,12 +6,17 @@ import type {
 } from "../types";
 
 export const visitaCalificacionesRemote = {
-  upsert(visitaId: string, input: UpsertCalificacionInput) {
+  upsert(
+    visitaId: string,
+    input: UpsertCalificacionInput,
+    context: ApiRequestContext = {}
+  ) {
     return apiRequest<VisitaCalificacion>(
       `/visitas-campo/${visitaId}/calificaciones`,
       {
         method: "POST",
-        body: input
+        body: input,
+        ...context
       }
     );
   },
