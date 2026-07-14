@@ -1,7 +1,8 @@
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppMap,
@@ -15,16 +16,15 @@ import {
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
-import {
-  retryTransientSyncFailures,
-  scheduleSync
-} from "../../../../shared/sync";
+import { retryTransientSyncFailures, scheduleSync } from "../../../../shared/sync";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import type {
   IncidenceLevelCatalogItem,
   PestDiseaseCatalogItem
 } from "../../../observaciones-sanitarias/types";
 import { visitaCampoCatalogsService, visitasCampoService } from "../../services";
+import { visitaPdfReportService } from "../../services/visita-pdf-report.service";
+import { visitaRecetaPdfReportService } from "../../../visita-recetas/services";
 import type {
   CampaniaCatalogItem,
   CultivoCatalogItem,
@@ -42,6 +42,8 @@ type DetailCatalogs = {
   pestDiseases: PestDiseaseCatalogItem[];
   incidenceLevels: IncidenceLevelCatalogItem[];
 };
+
+type PdfAction = "diagnostico" | "receta";
 
 const EMPTY_CATALOGS: DetailCatalogs = {
   cultivos: [],
@@ -61,7 +63,9 @@ export function VisitaCampoDetailScreen() {
   const [catalogs, setCatalogs] = useState<DetailCatalogs>(EMPTY_CATALOGS);
   const [isLoading, setIsLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [activePdfAction, setActivePdfAction] = useState<PdfAction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const [syncSummary, setSyncSummary] = useState<VisitaSyncSummary | null>(null);
 
   useEffect(() => {
@@ -131,180 +135,201 @@ export function VisitaCampoDetailScreen() {
 
         {!isLoading && !error && visita && detail ? (
           <>
-            <AppCard>
-              <View style={styles.headerRow}>
-                <AppHeader
-                  title={visita.nroFicha || `Visita #${visita.publicId.slice(0, 8)}`}
-                  style={styles.headerText}
-                />
-                <AppStatusBadge
-                  label={visita.isActive ? "Activa" : "Inactiva"}
-                  variant={visita.isActive ? "success" : "neutral"}
-                />
-              </View>
+            <VisitDossier
+              activePdfAction={activePdfAction}
+              catalogs={catalogs}
+              detail={detail}
+              isRetrying={isRetrying}
+              onOpenPdf={(action) => {
+                void handlePdfAction(action);
+              }}
+              onRetrySync={() => {
+                void handleRetrySync();
+              }}
+              pdfError={pdfError}
+              router={router}
+              syncSummary={syncSummary}
+              visitMapPoints={visitMapPoints}
+            />
 
-              <SyncStatusRow
-                syncSummary={syncSummary}
-                syncErrorMessage={detail.visita.syncErrorMessage}
-                isRetrying={isRetrying}
-                onRetry={() => {
-                  void handleRetrySync();
-                }}
-              />
+            {/*
+              <>
+                <AppCard>
+                  <View style={styles.headerRow}>
+                    <AppHeader
+                      title={visita.nroFicha || `Visita #${visita.publicId.slice(0, 8)}`}
+                      style={styles.headerText}
+                    />
+                    <AppStatusBadge
+                      label={visita.isActive ? "Activa" : "Inactiva"}
+                      variant={visita.isActive ? "success" : "neutral"}
+                    />
+                  </View>
 
-              <View style={styles.details}>
-                <AppDetailRow label="Fecha visita" value={visita.visitDate} />
-                <AppDetailRow
-                  label="Horario"
-                  value={formatTimeRange(visita.startVisitTime, visita.endVisitTime)}
-                />
-                <AppDetailRow
-                  label="Ubicacion"
-                  value={visita.visitLocation ? "Punto registrado" : "Sin ubicacion"}
-                />
-                <AppDetailRow
-                  label="Cultivo"
-                  value={getCatalogNameById(visita.cropId, catalogs.cultivos)}
-                />
-                <AppDetailRow
-                  label="Variedad"
-                  value={getCatalogNameById(visita.varietyId, catalogs.variedades)}
-                />
-                <AppDetailRow
-                  label="Campaña"
-                  value={getCatalogNameById(visita.campaignId, catalogs.campanias)}
-                />
-                <AppDetailRow
-                  label="Plantas"
-                  value={formatNullableNumber(visita.plantsCount)}
-                />
-                <AppDetailRow
-                  label="Fecha siembra"
-                  value={visita.sowingDate || "No registrada"}
-                />
-                <AppDetailRow
-                  label="Etapa fenol."
-                  value={getCatalogNameById(
-                    visita.phenologicalStageId,
-                    catalogs.etapasFenologicas
-                  )}
-                />
-                {visita.generalObservation ? (
-                  <AppDetailRow
-                    label="Observacion"
-                    value={visita.generalObservation}
-                    layout="stacked"
+                  <SyncStatusRow
+                    syncSummary={syncSummary}
+                    syncErrorMessage={detail.visita.syncErrorMessage}
+                    isRetrying={isRetrying}
+                    onRetry={() => {
+                      void handleRetrySync();
+                    }}
                   />
-                ) : null}
-              </View>
-            </AppCard>
 
-            <AppCard>
-              <AppHeader
-                title="Ubicacion de la visita"
-                subtitle={
-                  visita.visitLocation
-                    ? "Punto georreferenciado registrado para la visita."
-                    : "La visita aun no tiene ubicacion registrada."
-                }
-              />
-              <AppMap
-                emptyMessage="La visita no tiene ubicacion disponible todavia."
-                points={visitMapPoints}
-              />
-            </AppCard>
+                  <View style={styles.details}>
+                    <AppDetailRow label="Fecha visita" value={visita.visitDate} />
+                    <AppDetailRow
+                      label="Horario"
+                      value={formatTimeRange(visita.startVisitTime, visita.endVisitTime)}
+                    />
+                    <AppDetailRow
+                      label="Ubicacion"
+                      value={visita.visitLocation ? "Punto registrado" : "Sin ubicacion"}
+                    />
+                    <AppDetailRow
+                      label="Cultivo"
+                      value={getCatalogNameById(visita.cropId, catalogs.cultivos)}
+                    />
+                    <AppDetailRow
+                      label="Variedad"
+                      value={getCatalogNameById(visita.varietyId, catalogs.variedades)}
+                    />
+                    <AppDetailRow
+                      label="Campaña"
+                      value={getCatalogNameById(visita.campaignId, catalogs.campanias)}
+                    />
+                    <AppDetailRow
+                      label="Plantas"
+                      value={formatNullableNumber(visita.plantsCount)}
+                    />
+                    <AppDetailRow
+                      label="Fecha siembra"
+                      value={visita.sowingDate || "No registrada"}
+                    />
+                    <AppDetailRow
+                      label="Etapa fenol."
+                      value={getCatalogNameById(
+                        visita.phenologicalStageId,
+                        catalogs.etapasFenologicas
+                      )}
+                    />
+                    {visita.generalObservation ? (
+                      <AppDetailRow
+                        label="Observacion"
+                        value={visita.generalObservation}
+                        layout="stacked"
+                      />
+                    ) : null}
+                  </View>
+                </AppCard>
 
-            <View style={styles.navGrid}>
-              <View style={styles.navRow}>
-                <NavCard
+                <AppCard>
+                  <AppHeader
+                    title="Ubicacion de la visita"
+                    subtitle={
+                      visita.visitLocation
+                        ? "Punto georreferenciado registrado para la visita."
+                        : "La visita aun no tiene ubicacion registrada."
+                    }
+                  />
+                  <AppMap
+                    emptyMessage="La visita no tiene ubicacion disponible todavia."
+                    points={visitMapPoints}
+                  />
+                </AppCard>
+
+                <View style={styles.navGrid}>
+                  <View style={styles.navRow}>
+                    <NavCard
+                      title="Nutricion"
+                      count={detail.evaluaciones.length}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/visitas-campo/[id]/nutricion",
+                          params: { id: visita.id }
+                        })
+                      }
+                    />
+                    <NavCard
+                      title="Plagas y enfermedades"
+                      count={detail.observacionesSanitarias.length}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/visitas-campo/[id]/observaciones-sanitarias",
+                          params: { id: visita.id }
+                        })
+                      }
+                    />
+                  </View>
+
+                  <View style={styles.navRow}>
+                    <NavCard
+                      title="Riego"
+                      count={detail.riego ? 1 : 0}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/visitas-campo/[id]/riego",
+                          params: { id: visita.id }
+                        })
+                      }
+                    />
+                    <NavCard
+                      title="Labores culturales"
+                      count={detail.laboresCulturales.length}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/visitas-campo/[id]/labores-culturales",
+                          params: { id: visita.id }
+                        })
+                      }
+                    />
+                  </View>
+                </View>
+
+                <SectionCard
                   title="Nutricion"
-                  count={detail.evaluaciones.length}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/visitas-campo/[id]/nutricion",
-                      params: { id: visita.id }
-                    })
-                  }
-                />
-                <NavCard
+                  subtitle={`${detail.evaluaciones.length} registradas`}
+                >
+                  {detail.evaluaciones.length === 0 ? (
+                    <AppText variant="muted">No hay nutricion registrada.</AppText>
+                  ) : (
+                    detail.evaluaciones.map((evaluacion) => (
+                      <DetailItemCard
+                        key={evaluacion.id}
+                        eyebrow={`Orden ${evaluacion.order}`}
+                        subtitle={formatPercentage(evaluacion.percentage)}
+                        title={evaluacion.description}
+                      />
+                    ))
+                  )}
+                </SectionCard>
+
+                <SectionCard
                   title="Plagas y enfermedades"
-                  count={detail.observacionesSanitarias.length}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/visitas-campo/[id]/observaciones-sanitarias",
-                      params: { id: visita.id }
-                    })
-                  }
-                />
-              </View>
-
-              <View style={styles.navRow}>
-                <NavCard
-                  title="Riego"
-                  count={detail.riego ? 1 : 0}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/visitas-campo/[id]/riego",
-                      params: { id: visita.id }
-                    })
-                  }
-                />
-                <NavCard
-                  title="Labores culturales"
-                  count={detail.laboresCulturales.length}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/visitas-campo/[id]/labores-culturales",
-                      params: { id: visita.id }
-                    })
-                  }
-                />
-              </View>
-            </View>
-
-            <SectionCard
-              title="Nutricion"
-              subtitle={`${detail.evaluaciones.length} registradas`}
-            >
-              {detail.evaluaciones.length === 0 ? (
-                <AppText variant="muted">No hay nutricion registrada.</AppText>
-              ) : (
-                detail.evaluaciones.map((evaluacion) => (
-                  <DetailItemCard
-                    key={evaluacion.id}
-                    eyebrow={`Orden ${evaluacion.order}`}
-                    subtitle={formatPercentage(evaluacion.percentage)}
-                    title={evaluacion.description}
-                  />
-                ))
-              )}
-            </SectionCard>
-
-            <SectionCard
-              title="Plagas y enfermedades"
-              subtitle={`${detail.observacionesSanitarias.length} registradas`}
-            >
-              {detail.observacionesSanitarias.length === 0 ? (
-                <AppText variant="muted">
-                  No hay observaciones sanitarias registradas.
-                </AppText>
-              ) : (
-                detail.observacionesSanitarias.map((observacion) => (
-                  <DetailItemCard
-                    key={observacion.id}
-                    eyebrow={getPestDiseaseLabel(
-                      observacion.pestDiseaseId,
-                      catalogs.pestDiseases
-                    )}
-                    subtitle={formatSanitaryObservationSubtitle(
-                      observacion,
-                      catalogs.incidenceLevels
-                    )}
-                    title={observacion.observation || "Sin observacion detallada"}
-                  />
-                ))
-              )}
-            </SectionCard>
+                  subtitle={`${detail.observacionesSanitarias.length} registradas`}
+                >
+                  {detail.observacionesSanitarias.length === 0 ? (
+                    <AppText variant="muted">
+                      No hay observaciones sanitarias registradas.
+                    </AppText>
+                  ) : (
+                    detail.observacionesSanitarias.map((observacion) => (
+                      <DetailItemCard
+                        key={observacion.id}
+                        eyebrow={getPestDiseaseLabel(
+                          observacion.pestDiseaseId,
+                          catalogs.pestDiseases
+                        )}
+                        subtitle={formatSanitaryObservationSubtitle(
+                          observacion,
+                          catalogs.incidenceLevels
+                        )}
+                        title={observacion.observation || "Sin observacion detallada"}
+                      />
+                    ))
+                  )}
+                </SectionCard>
+              </>
+            */}
 
             <View style={styles.bottomActions}>
               <AppButton label="Volver" onPress={() => router.back()} variant="outline" />
@@ -397,6 +422,287 @@ export function VisitaCampoDetailScreen() {
       setIsRetrying(false);
     }
   }
+
+  async function handlePdfAction(action: PdfAction) {
+    if (!visitaId || activePdfAction) {
+      return;
+    }
+
+    setPdfError(null);
+    setActivePdfAction(action);
+
+    try {
+      const service =
+        action === "diagnostico" ? visitaPdfReportService : visitaRecetaPdfReportService;
+
+      if (Platform.OS === "web") {
+        await service.preview(visitaId);
+      } else {
+        await service.share(visitaId);
+      }
+    } catch (nextError) {
+      const apiError = toApiError(nextError);
+      setPdfError(apiError.message || "No se pudo abrir el PDF. Intenta nuevamente.");
+    } finally {
+      setActivePdfAction(null);
+    }
+  }
+}
+
+type VisitMapPoint = {
+  id: string;
+  geometry: NonNullable<VisitaCampoFull["visita"]["visitLocation"]>;
+  title: string;
+  description: string;
+  pinColor: string;
+};
+
+type VisitDossierProps = {
+  activePdfAction: PdfAction | null;
+  catalogs: DetailCatalogs;
+  detail: VisitaCampoFull;
+  isRetrying: boolean;
+  onOpenPdf: (action: PdfAction) => void;
+  onRetrySync: () => void;
+  pdfError: string | null;
+  router: ReturnType<typeof useRouter>;
+  syncSummary: VisitaSyncSummary | null;
+  visitMapPoints: VisitMapPoint[];
+};
+
+function VisitDossier({
+  activePdfAction,
+  catalogs,
+  detail,
+  isRetrying,
+  onOpenPdf,
+  onRetrySync,
+  pdfError,
+  router,
+  syncSummary,
+  visitMapPoints
+}: VisitDossierProps) {
+  const { visita } = detail;
+  const recordItems = buildRecordItems(detail, catalogs);
+
+  return (
+    <AppCard style={styles.dossierCard}>
+      <View style={styles.dossierHeader}>
+        <View style={styles.dossierIcon}>
+          <Ionicons color={theme.colors.primaryDark} name="clipboard-outline" size={28} />
+        </View>
+        <View style={styles.headerText}>
+          <AppText style={styles.dossierEyebrow} variant="eyebrow">
+            Detalle de visita
+          </AppText>
+          <AppText style={styles.dossierTitle} variant="heading">
+            {visita.nroFicha || `Visita #${visita.publicId.slice(0, 8)}`}
+          </AppText>
+          <AppText style={styles.dossierSubtitle} variant="caption">
+            {getCatalogNameById(visita.cropId, catalogs.cultivos)} ·{" "}
+            {getCatalogNameById(visita.varietyId, catalogs.variedades)}
+          </AppText>
+        </View>
+        <AppStatusBadge
+          label={visita.isActive ? "Activa" : "Inactiva"}
+          variant={visita.isActive ? "success" : "neutral"}
+        />
+      </View>
+
+      <SyncStatusRow
+        syncSummary={syncSummary}
+        syncErrorMessage={detail.visita.syncErrorMessage}
+        isRetrying={isRetrying}
+        onRetry={onRetrySync}
+      />
+
+      <View style={styles.pdfPanel}>
+        <View style={styles.pdfPanelCopy}>
+          <AppText style={styles.pdfPanelTitle} variant="label">
+            Reportes de la visita
+          </AppText>
+          <AppText style={styles.pdfPanelSubtitle} variant="caption">
+            Abre los mismos PDF que se generan desde el flujo movil.
+          </AppText>
+        </View>
+        <View style={styles.pdfActions}>
+          <AppButton
+            disabled={activePdfAction !== null}
+            icon="document-text-outline"
+            label={activePdfAction === "diagnostico" ? "Abriendo..." : "PDF diagnostico"}
+            loading={activePdfAction === "diagnostico"}
+            onPress={() => onOpenPdf("diagnostico")}
+            size="small"
+          />
+          <AppButton
+            disabled={activePdfAction !== null}
+            icon="receipt-outline"
+            label={activePdfAction === "receta" ? "Abriendo..." : "PDF receta"}
+            loading={activePdfAction === "receta"}
+            onPress={() => onOpenPdf("receta")}
+            size="small"
+            variant="secondary"
+          />
+        </View>
+      </View>
+
+      {pdfError ? (
+        <View style={styles.pdfErrorBanner}>
+          <Ionicons color={theme.colors.error} name="warning-outline" size={18} />
+          <AppText style={styles.pdfErrorText} variant="caption">
+            {pdfError}
+          </AppText>
+        </View>
+      ) : null}
+
+      <View style={styles.factGrid}>
+        <FactPill icon="calendar-outline" label="Fecha" value={visita.visitDate} />
+        <FactPill
+          icon="time-outline"
+          label="Horario"
+          value={formatTimeRange(visita.startVisitTime, visita.endVisitTime)}
+        />
+        <FactPill
+          icon="leaf-outline"
+          label="Etapa"
+          value={getCatalogNameById(
+            visita.phenologicalStageId,
+            catalogs.etapasFenologicas
+          )}
+        />
+        <FactPill
+          icon="flower-outline"
+          label="Plantas"
+          value={formatNullableNumber(visita.plantsCount)}
+        />
+        <FactPill
+          icon="resize-outline"
+          label="Area"
+          value={visita.areaHectares ? `${visita.areaHectares} ha` : "No registrada"}
+        />
+        <FactPill
+          icon="calendar-number-outline"
+          label="Siembra"
+          value={visita.sowingDate || "No registrada"}
+        />
+      </View>
+
+      <View style={styles.unifiedDetails}>
+        <AppDetailRow
+          label="Campaña"
+          value={getCatalogNameById(visita.campaignId, catalogs.campanias)}
+        />
+        <AppDetailRow
+          label="Ubicacion"
+          value={visita.visitLocation ? "Punto registrado" : "Sin ubicacion"}
+        />
+        {visita.generalObservation ? (
+          <AppDetailRow
+            label="Observacion"
+            value={visita.generalObservation}
+            layout="stacked"
+          />
+        ) : null}
+      </View>
+
+      <View style={styles.mapPanel}>
+        <View style={styles.inlineHeader}>
+          <View style={styles.inlineHeaderCopy}>
+            <AppText style={styles.inlineTitle} variant="label">
+              Ubicacion de campo
+            </AppText>
+            <AppText style={styles.inlineSubtitle} variant="caption">
+              {visita.visitLocation
+                ? "Punto georreferenciado registrado."
+                : "Sin punto georreferenciado."}
+            </AppText>
+          </View>
+          <Ionicons color={theme.colors.primary} name="map-outline" size={22} />
+        </View>
+        <AppMap
+          emptyMessage="La visita no tiene ubicacion disponible todavia."
+          points={visitMapPoints}
+        />
+      </View>
+
+      <View style={styles.moduleGrid}>
+        <ModuleStatusCard
+          count={detail.evaluaciones.length}
+          icon="nutrition-outline"
+          title="Nutricion"
+          onPress={() =>
+            router.push({
+              pathname: "/visitas-campo/[id]/nutricion",
+              params: { id: visita.id }
+            })
+          }
+        />
+        <ModuleStatusCard
+          count={detail.observacionesSanitarias.length}
+          icon="bug-outline"
+          title="Sanidad"
+          onPress={() =>
+            router.push({
+              pathname: "/visitas-campo/[id]/observaciones-sanitarias",
+              params: { id: visita.id }
+            })
+          }
+        />
+        <ModuleStatusCard
+          count={detail.riego ? 1 : 0}
+          icon="water-outline"
+          title="Riego"
+          onPress={() =>
+            router.push({
+              pathname: "/visitas-campo/[id]/riego",
+              params: { id: visita.id }
+            })
+          }
+        />
+        <ModuleStatusCard
+          count={detail.laboresCulturales.length}
+          icon="construct-outline"
+          title="Labores"
+          onPress={() =>
+            router.push({
+              pathname: "/visitas-campo/[id]/labores-culturales",
+              params: { id: visita.id }
+            })
+          }
+        />
+      </View>
+
+      <View style={styles.recordPanel}>
+        <View style={styles.inlineHeader}>
+          <View style={styles.inlineHeaderCopy}>
+            <AppText style={styles.inlineTitle} variant="label">
+              Registros principales
+            </AppText>
+            <AppText style={styles.inlineSubtitle} variant="caption">
+              Nutricion, plagas y enfermedades registrados en esta visita.
+            </AppText>
+          </View>
+        </View>
+        <View style={styles.recordFeed}>
+          {recordItems.length === 0 ? (
+            <AppText variant="muted">
+              Aun no hay evaluaciones ni observaciones sanitarias registradas.
+            </AppText>
+          ) : (
+            recordItems.map((item) => (
+              <RecordFeedItem
+                key={item.id}
+                eyebrow={item.eyebrow}
+                icon={item.icon}
+                subtitle={item.subtitle}
+                title={item.title}
+              />
+            ))
+          )}
+        </View>
+      </View>
+    </AppCard>
+  );
 }
 
 function SyncStatusRow({
@@ -438,66 +744,121 @@ function SyncStatusRow({
   );
 }
 
-function NavCard({
-  title,
-  count,
-  onPress
+function FactPill({
+  icon,
+  label,
+  value
 }: {
-  title: string;
-  count: number;
-  onPress: () => void;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
 }) {
   return (
+    <View style={styles.factPill}>
+      <View style={styles.factIcon}>
+        <Ionicons color={theme.colors.primaryDark} name={icon} size={18} />
+      </View>
+      <View style={styles.factCopy}>
+        <AppText style={styles.factLabel} variant="caption">
+          {label}
+        </AppText>
+        <AppText numberOfLines={2} style={styles.factValue} variant="label">
+          {value}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+function ModuleStatusCard({
+  count,
+  icon,
+  onPress,
+  title
+}: {
+  count: number;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  title: string;
+}) {
+  const hasData = count > 0;
+
+  return (
     <Pressable
+      accessibilityLabel={`${title}: ${hasData ? `${count} registros` : "sin registro"}`}
+      accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.navCard, pressed && styles.navCardPressed]}
+      style={({ pressed }) => [
+        styles.moduleCard,
+        hasData ? styles.moduleCardDone : styles.moduleCardPending,
+        pressed && styles.moduleCardPressed
+      ]}
     >
-      <AppText variant="heading" style={styles.navCount}>
-        {count}
-      </AppText>
-      <AppText variant="caption">{title}</AppText>
+      <View style={styles.moduleIcon}>
+        <Ionicons color={theme.colors.primaryDark} name={icon} size={20} />
+      </View>
+      <View style={styles.moduleCopy}>
+        <AppText style={styles.moduleTitle} variant="label">
+          {title}
+        </AppText>
+        <AppText style={styles.moduleSubtitle} variant="caption">
+          {hasData ? `${count} registro${count === 1 ? "" : "s"}` : "Sin registro"}
+        </AppText>
+      </View>
+      <Ionicons color={theme.colors.primaryDark} name="chevron-forward" size={18} />
     </Pressable>
   );
 }
 
-function SectionCard({
-  title,
+function RecordFeedItem({
+  eyebrow,
+  icon,
   subtitle,
-  children
+  title
 }: {
-  title: string;
+  eyebrow: string;
+  icon: keyof typeof Ionicons.glyphMap;
   subtitle: string;
-  children: ReactNode;
+  title: string;
 }) {
   return (
-    <AppCard>
-      <View style={styles.sectionHeader}>
-        <AppText variant="heading">{title}</AppText>
-        <AppText variant="caption">{subtitle}</AppText>
+    <View style={styles.recordItem}>
+      <View style={styles.recordIcon}>
+        <Ionicons color={theme.colors.primaryDark} name={icon} size={18} />
       </View>
-      <View style={styles.sectionItems}>{children}</View>
-    </AppCard>
+      <View style={styles.recordCopy}>
+        <AppText style={styles.recordEyebrow} variant="eyebrow">
+          {eyebrow}
+        </AppText>
+        <AppText style={styles.recordTitle} variant="label">
+          {title}
+        </AppText>
+        <AppText style={styles.recordSubtitle} variant="caption">
+          {subtitle}
+        </AppText>
+      </View>
+    </View>
   );
 }
 
-function DetailItemCard({
-  eyebrow,
-  title,
-  subtitle
-}: {
-  eyebrow: string;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <View style={styles.itemCard}>
-      <AppText variant="eyebrow" style={styles.itemEyebrow}>
-        {eyebrow}
-      </AppText>
-      <AppText variant="label">{title}</AppText>
-      <AppText variant="caption">{subtitle}</AppText>
-    </View>
-  );
+function buildRecordItems(detail: VisitaCampoFull, catalogs: DetailCatalogs) {
+  const nutritionItems = detail.evaluaciones.map((evaluacion) => ({
+    id: `nutricion-${evaluacion.id}`,
+    eyebrow: `Nutricion · Orden ${evaluacion.order}`,
+    icon: "nutrition-outline" as const,
+    subtitle: formatPercentage(evaluacion.percentage),
+    title: evaluacion.description
+  }));
+
+  const sanitaryItems = detail.observacionesSanitarias.map((observacion) => ({
+    id: `sanidad-${observacion.id}`,
+    eyebrow: getPestDiseaseLabel(observacion.pestDiseaseId, catalogs.pestDiseases),
+    icon: "bug-outline" as const,
+    subtitle: formatSanitaryObservationSubtitle(observacion, catalogs.incidenceLevels),
+    title: observacion.observation || "Sin observacion detallada"
+  }));
+
+  return [...nutritionItems, ...sanitaryItems].slice(0, 8);
 }
 
 function toSingleParam(value?: string | string[]) {
@@ -667,6 +1028,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16
   },
+  dossierCard: {
+    gap: 18,
+    padding: 18
+  },
+  dossierHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 12
+  },
+  dossierIcon: {
+    alignItems: "center",
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primaryLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    height: 56,
+    justifyContent: "center",
+    width: 56
+  },
+  dossierEyebrow: {
+    color: theme.colors.primary,
+    fontSize: 11
+  },
+  dossierTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 22,
+    lineHeight: 27
+  },
+  dossierSubtitle: {
+    color: theme.colors.textMuted,
+    lineHeight: 18
+  },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -684,6 +1077,209 @@ const styles = StyleSheet.create({
   },
   details: {
     gap: 2
+  },
+  pdfPanel: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    gap: 12,
+    padding: 14
+  },
+  pdfPanelCopy: {
+    gap: 3
+  },
+  pdfPanelTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 16
+  },
+  pdfPanelSubtitle: {
+    color: theme.colors.textMuted,
+    lineHeight: 17
+  },
+  pdfActions: {
+    gap: 8
+  },
+  pdfErrorBanner: {
+    alignItems: "center",
+    backgroundColor: theme.colors.errorMuted,
+    borderColor: theme.colors.error,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  pdfErrorText: {
+    color: theme.colors.error,
+    flex: 1
+  },
+  factGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
+  factPill: {
+    alignItems: "center",
+    backgroundColor: "#fbfdf9",
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    flexBasis: "47%",
+    flexDirection: "row",
+    flexGrow: 1,
+    gap: 10,
+    minHeight: 74,
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  factIcon: {
+    alignItems: "center",
+    backgroundColor: "#eef7e4",
+    borderRadius: theme.radius.full,
+    height: 36,
+    justifyContent: "center",
+    width: 36
+  },
+  factCopy: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0
+  },
+  factLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 11
+  },
+  factValue: {
+    color: theme.colors.text,
+    fontSize: 14,
+    lineHeight: 18
+  },
+  unifiedDetails: {
+    backgroundColor: "#fbfdf9",
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6
+  },
+  mapPanel: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    gap: 12,
+    overflow: "hidden",
+    padding: 12
+  },
+  inlineHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between"
+  },
+  inlineHeaderCopy: {
+    flex: 1,
+    gap: 2
+  },
+  inlineTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 16
+  },
+  inlineSubtitle: {
+    color: theme.colors.textMuted,
+    lineHeight: 17
+  },
+  moduleGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
+  moduleCard: {
+    alignItems: "center",
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    flexBasis: "47%",
+    flexDirection: "row",
+    flexGrow: 1,
+    gap: 10,
+    minHeight: 72,
+    padding: 12
+  },
+  moduleCardDone: {
+    backgroundColor: "#eef9e8",
+    borderColor: "#b7dfb4"
+  },
+  moduleCardPending: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderLight
+  },
+  moduleCardPressed: {
+    opacity: 0.78
+  },
+  moduleIcon: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.full,
+    height: 36,
+    justifyContent: "center",
+    width: 36
+  },
+  moduleCopy: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0
+  },
+  moduleTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 14
+  },
+  moduleSubtitle: {
+    color: theme.colors.textMuted,
+    fontSize: 12
+  },
+  recordPanel: {
+    gap: 12
+  },
+  recordFeed: {
+    gap: 8
+  },
+  recordItem: {
+    alignItems: "flex-start",
+    backgroundColor: "#fbfdf9",
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    padding: 12
+  },
+  recordIcon: {
+    alignItems: "center",
+    backgroundColor: "#eef7e4",
+    borderRadius: theme.radius.full,
+    height: 34,
+    justifyContent: "center",
+    width: 34
+  },
+  recordCopy: {
+    flex: 1,
+    gap: 3,
+    minWidth: 0
+  },
+  recordEyebrow: {
+    color: theme.colors.primary,
+    fontSize: 10
+  },
+  recordTitle: {
+    color: theme.colors.text,
+    fontSize: 14,
+    lineHeight: 19
+  },
+  recordSubtitle: {
+    color: theme.colors.textMuted,
+    lineHeight: 17
   },
   navGrid: {
     gap: 10

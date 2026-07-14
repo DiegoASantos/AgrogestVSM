@@ -731,7 +731,7 @@ function NutrientCard({
                     ]}
                     variant="caption"
                   >
-                    {hasRegisteredSelection ? "Con registro" : "Pendiente"}
+                    {hasRegisteredSelection ? "Con registro" : "Sin registro"}
                   </AppText>
                 </View>
               </View>
