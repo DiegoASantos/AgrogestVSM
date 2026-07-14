@@ -687,6 +687,11 @@ function NutrientCard({
   const hasIncidence = selection.incidencePercentage !== "";
   const incidenceIsZero = hasIncidence && Number(selection.incidencePercentage) === 0;
   const disablesSeverity = !hasIncidence || incidenceIsZero;
+  const hasRegisteredSelection = Boolean(
+    selection.incidencePercentage ||
+    selection.detailId ||
+    selection.organosAfectados.length > 0
+  );
 
   return (
     <View style={[styles.nutrientCard, isCompactLayout && styles.nutrientCardCompact]}>
@@ -697,14 +702,55 @@ function NutrientCard({
         onPress={onToggleExpanded}
         style={({ pressed }) => [styles.accordionHeader, pressed && styles.pressed]}
       >
-        <AppText style={styles.accordionTitle} variant="label">
-          {nutrient.name}
-        </AppText>
-        <Ionicons
-          color={theme.colors.primaryDark}
-          name={isExpanded ? "chevron-up" : "chevron-down"}
-          size={20}
-        />
+        {!isExpanded ? (
+          <>
+            <Image
+              resizeMode="cover"
+              source={imageSource}
+              style={styles.accordionThumbnail}
+            />
+            <View style={styles.accordionCollapsedCopy}>
+              <View style={styles.accordionCollapsedTitleRow}>
+                <AppText numberOfLines={2} style={styles.accordionTitle} variant="label">
+                  {nutrient.name}
+                </AppText>
+                <View
+                  style={[
+                    styles.accordionStatusBadge,
+                    hasRegisteredSelection
+                      ? styles.accordionStatusBadgeDone
+                      : styles.accordionStatusBadgePending
+                  ]}
+                >
+                  <AppText
+                    style={[
+                      styles.accordionStatusText,
+                      hasRegisteredSelection
+                        ? styles.accordionStatusTextDone
+                        : styles.accordionStatusTextPending
+                    ]}
+                    variant="caption"
+                  >
+                    {hasRegisteredSelection ? "Con registro" : "Pendiente"}
+                  </AppText>
+                </View>
+              </View>
+              <AppText style={styles.accordionHint} variant="caption">
+                Toca para expandir y registrar la evaluacion.
+              </AppText>
+            </View>
+            <View style={styles.accordionChevronCircle}>
+              <Ionicons color={theme.colors.primaryDark} name="chevron-down" size={18} />
+            </View>
+          </>
+        ) : (
+          <>
+            <AppText style={styles.accordionTitle} variant="label">
+              {nutrient.name}
+            </AppText>
+            <Ionicons color={theme.colors.primaryDark} name="chevron-up" size={20} />
+          </>
+        )}
       </Pressable>
 
       {!isExpanded ? null : (
@@ -1488,7 +1534,64 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     justifyContent: "space-between",
-    minHeight: 48
+    minHeight: 56
+  },
+  accordionCollapsedCopy: {
+    flex: 1,
+    gap: 5,
+    minWidth: 0
+  },
+  accordionCollapsedTitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8
+  },
+  accordionChevronCircle: {
+    alignItems: "center",
+    backgroundColor: "#eef7e4",
+    borderColor: "#d2ead8",
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: "center",
+    width: 40
+  },
+  accordionHint: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    lineHeight: 16
+  },
+  accordionStatusBadge: {
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3
+  },
+  accordionStatusBadgeDone: {
+    backgroundColor: "#eef9e8",
+    borderColor: "#b7dfb4"
+  },
+  accordionStatusBadgePending: {
+    backgroundColor: "#fff7ed",
+    borderColor: "#fed7aa"
+  },
+  accordionStatusText: {
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  accordionStatusTextDone: {
+    color: theme.colors.primaryDark
+  },
+  accordionStatusTextPending: {
+    color: "#9a5b13"
+  },
+  accordionThumbnail: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: "#d2ead8",
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    height: 52,
+    width: 52
   },
   accordionTitle: {
     color: theme.colors.primaryDark,
