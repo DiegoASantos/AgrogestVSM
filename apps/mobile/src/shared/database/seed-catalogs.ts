@@ -356,7 +356,9 @@ async function performCatalogDownload() {
           );
         }
 
-        db.runSync("DELETE FROM productores");
+        db.runSync(
+          "DELETE FROM productores WHERE id NOT IN (SELECT DISTINCT productor_id FROM parcelas)"
+        );
 
         for (const productor of productores) {
           db.runSync(
@@ -461,7 +463,9 @@ async function performCatalogDownload() {
           );
         }
 
-        db.runSync("DELETE FROM parcelas");
+        db.runSync(
+          "DELETE FROM parcelas WHERE id NOT IN (SELECT DISTINCT parcela_id FROM visitas_campo)"
+        );
 
         for (const parcela of parcelas) {
           db.runSync(
