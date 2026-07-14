@@ -8,8 +8,36 @@ import type {
   VisitaRecetaCompleta
 } from "../types/visitas.types";
 
-export function openDiagnosticPdf(detail: VisitaDetailData) {
+export type PrintablePdfWindow = Window;
+
+export function createPrintablePdfWindow() {
+  const popup = window.open("", "_blank", "width=980,height=720");
+
+  if (!popup) {
+    throw new Error(
+      "El navegador bloqueo la ventana del PDF. Intenta nuevamente desde el boton de descarga."
+    );
+  }
+
+  writePopupHtml(
+    popup,
+    wrapReportHtml({
+      title: "Preparando reporte",
+      subtitle: "AgroGest VSM",
+      body: `<div class="empty">Estamos preparando el documento. Esta ventana se actualizara automaticamente.</div>`
+    }),
+    "Preparando reporte"
+  );
+
+  return popup;
+}
+
+export function openDiagnosticPdf(
+  detail: VisitaDetailData,
+  popup: PrintablePdfWindow = createPrintablePdfWindow()
+) {
   openPrintableDocument(
+    popup,
     buildDiagnosticHtml(detail),
     buildDocumentTitle("diagnostico", detail)
   );
@@ -18,32 +46,46 @@ export function openDiagnosticPdf(detail: VisitaDetailData) {
 export function openRecipePdf(
   detail: VisitaDetailData,
   receta: VisitaRecetaCompleta | null,
-  consolidacion: ConsolidacionHallazgo
+  consolidacion: ConsolidacionHallazgo,
+  popup: PrintablePdfWindow = createPrintablePdfWindow()
 ) {
   openPrintableDocument(
+    popup,
     buildRecipeHtml(detail, receta, consolidacion),
     buildDocumentTitle("receta", detail)
   );
 }
 
-function openPrintableDocument(html: string, title: string) {
-  const popup = window.open("", "_blank", "noopener,noreferrer,width=980,height=720");
+export function showPrintablePdfError(popup: PrintablePdfWindow, message: string) {
+  writePopupHtml(
+    popup,
+    wrapReportHtml({
+      title: "No se pudo preparar el reporte",
+      subtitle: "AgroGest VSM",
+      body: `<div class="empty">${escapeHtml(message)}</div>`
+    }),
+    "Error de reporte"
+  );
+}
 
-  if (!popup) {
-    throw new Error(
-      "El navegador bloqueo la ventana del PDF. Permite ventanas emergentes para descargar el reporte."
-    );
-  }
-
-  popup.document.open();
-  popup.document.write(html);
-  popup.document.close();
-  popup.document.title = title;
+function openPrintableDocument(
+  popup: PrintablePdfWindow,
+  html: string,
+  title: string
+) {
+  writePopupHtml(popup, html, title);
   popup.focus();
 
   window.setTimeout(() => {
     popup.print();
   }, 300);
+}
+
+function writePopupHtml(popup: PrintablePdfWindow, html: string, title: string) {
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
+  popup.document.title = title;
 }
 
 function buildDiagnosticHtml(detail: VisitaDetailData) {

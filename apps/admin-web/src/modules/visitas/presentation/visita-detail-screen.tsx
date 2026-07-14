@@ -24,8 +24,10 @@ import { toApiError } from "../../../shared/services";
 import { formatDateOnly } from "../../../shared/utils/date-only";
 import { buildAdminMapHref } from "../../mapas/utils/map-query";
 import {
+  createPrintablePdfWindow,
   openDiagnosticPdf,
-  openRecipePdf
+  openRecipePdf,
+  showPrintablePdfError
 } from "../services/visita-pdf-web.service";
 import { visitasService } from "../services/visitas.service";
 import type {
@@ -406,12 +408,14 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
       return;
     }
 
+    const popup = createPrintablePdfWindow();
+
     try {
       setActivePdfAction(action);
       setPdfErrorMessage(null);
 
       if (action === "diagnostico") {
-        openDiagnosticPdf(detail);
+        openDiagnosticPdf(detail, popup);
         return;
       }
 
@@ -420,16 +424,19 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
         visitasService.getRecetaConsolidacion(session, detail.visita.id)
       ]);
 
-      openRecipePdf(detail, receta, consolidacion);
+      openRecipePdf(detail, receta, consolidacion, popup);
     } catch (error) {
       const apiError = toApiError(error);
 
       if (apiError.statusCode === 401) {
+        showPrintablePdfError(popup, "Tu sesion expiro. Inicia sesion nuevamente.");
         logout();
         return;
       }
 
-      setPdfErrorMessage(apiError.message || "No se pudo preparar el PDF.");
+      const message = apiError.message || "No se pudo preparar el PDF.";
+      showPrintablePdfError(popup, message);
+      setPdfErrorMessage(message);
     } finally {
       setActivePdfAction(null);
     }

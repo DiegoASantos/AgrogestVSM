@@ -1096,6 +1096,16 @@ canvas {
   box-shadow: none;
 }
 
+/* Keep primary buttons readable when disabled (especially in dark mode).
+   Reduce the visual prominence subtly without losing contrast. */
+.ui-button--primary:disabled {
+  opacity: 1; /* avoid full desaturation which makes text unreadable in dark themes */
+  filter: saturate(0.95) brightness(0.9);
+  color: var(--primary-foreground);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .action-link--primary,
 .ui-button--primary {
   color: #fff;
