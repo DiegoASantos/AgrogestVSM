@@ -7,11 +7,7 @@ const COADYUVANTE_ORDER: Record<string, number> = {
   Antiespumante: 6
 };
 
-const FIXED_ORDEN_MEZCLA_ITEMS = new Set([
-  "Agua",
-  "Corrector de pH",
-  "Producto agroquimico"
-]);
+const FIXED_ORDEN_MEZCLA_ITEMS = new Set(["Agua"]);
 
 export function generateOrdenMezcla(coadyuvanteNombres: string[]): string[] {
   const orden: string[] = ["Agua"];

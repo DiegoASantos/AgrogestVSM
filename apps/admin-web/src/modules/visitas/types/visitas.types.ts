@@ -230,12 +230,21 @@ export type CampaignLookupItem = LookupItem & {
 
 export type ParcelaLookupItem = LookupItem & {
   code: string;
+  productorId: string;
   sectorId: string;
+  areaHectares: string | null;
 };
 
 export type PhenologicalStageLookupItem = LookupItem & {
   cultivoId: string;
   description: string | null;
+};
+
+export type SubEtapaLookupItem = LookupItem & {
+  etapaFenologicaId: string;
+  sortOrder: number;
+  description: string | null;
+  percentage: number | null;
 };
 
 export type PestDiseaseLookupItem = LookupItem & {
@@ -249,6 +258,30 @@ export type IncidenceLevelLookupItem = LookupItem & {
 };
 
 export type TipoRiegoLookupItem = LookupItem & {
+  description: string | null;
+};
+
+export type ProductorLookupItem = {
+  id: string;
+  publicId: string;
+  entityType: "persona" | "fundo" | "cooperativa";
+  documentNumber: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+};
+
+export type VisitaStepNote = {
+  id: string;
+  visitaId: string;
+  stepNumber: number;
+  observation: string | null;
+  recommendation: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CoadyuvanteCatalogItem = LookupItem & {
   description: string | null;
 };
 
@@ -343,13 +376,16 @@ export type VisitaDetailData = {
   riego: VisitaRiego | null;
   laboresCulturales: VisitaLaborCultural[];
   calificaciones: VisitaCalificacion[];
+  stepNotes: VisitaStepNote[];
   lookups: {
     agronomist: LookupItem | null;
     crop: CropLookupItem | null;
     variety: VarietyLookupItem | null;
     parcela: ParcelaLookupItem | null;
+    productor: ProductorLookupItem | null;
     campaign: CampaignLookupItem | null;
     phenologicalStage: PhenologicalStageLookupItem | null;
+    subEtapas: SubEtapaLookupItem[];
     pestDiseases: PestDiseaseLookupItem[];
     incidenceLevels: IncidenceLevelLookupItem[];
     tiposRiego: TipoRiegoLookupItem[];

@@ -3232,6 +3232,32 @@ canvas {
   gap: 10px;
 }
 
+.visit-dossier__pdf-primary {
+  border-color: var(--primary-strong);
+  background: var(--primary-strong);
+  color: #ffffff;
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--primary-strong) 24%, transparent);
+}
+
+.visit-dossier__pdf-primary:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+[data-theme="dark"] .visit-dossier__pdf-primary {
+  border-color: #86efac;
+  background: #86efac;
+  color: #052e16;
+  box-shadow: 0 12px 24px rgba(134, 239, 172, 0.18);
+}
+
+[data-theme="dark"] .visit-dossier__pdf-primary:hover:not(:disabled) {
+  border-color: #bbf7d0;
+  background: #bbf7d0;
+  color: #052e16;
+}
+
 .visit-status,
 .visit-count {
   display: inline-flex;

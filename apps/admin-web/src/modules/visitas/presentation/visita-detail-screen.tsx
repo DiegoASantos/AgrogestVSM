@@ -153,7 +153,7 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
 
           <div className="visit-dossier__pdf-actions">
             <button
-              className="ui-button ui-button--primary"
+              className="ui-button ui-button--primary visit-dossier__pdf-primary"
               disabled={activePdfAction !== null}
               onClick={() => void handlePdfAction("diagnostico")}
               type="button"
@@ -419,12 +419,13 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
         return;
       }
 
-      const [receta, consolidacion] = await Promise.all([
+      const [receta, consolidacion, coadyuvantes] = await Promise.all([
         visitasService.getRecetaByVisitaId(session, detail.visita.id),
-        visitasService.getRecetaConsolidacion(session, detail.visita.id)
+        visitasService.getRecetaConsolidacion(session, detail.visita.id),
+        visitasService.getCoadyuvantes(session)
       ]);
 
-      openRecipePdf(detail, receta, consolidacion, popup);
+      openRecipePdf(detail, receta, consolidacion, coadyuvantes, popup);
     } catch (error) {
       const apiError = toApiError(error);
 

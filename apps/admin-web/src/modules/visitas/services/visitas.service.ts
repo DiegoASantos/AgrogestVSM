@@ -9,6 +9,7 @@ import {
 import type {
   AgronomistFilterOption,
   CampaignLookupItem,
+  CoadyuvanteCatalogItem,
   ConsolidacionHallazgo,
   CropLookupItem,
   IncidenceLevelLookupItem,
@@ -20,9 +21,11 @@ import type {
   ParcelaVisitasHistory,
   PestDiseaseLookupItem,
   PhenologicalStageLookupItem,
+  ProductorLookupItem,
   ProductorCalificacion,
   ProductorVisitasHistory,
   VarietyLookupItem,
+  SubEtapaLookupItem,
   TipoRiegoLookupItem,
   VisitaCampo,
   VisitaDetailData,
@@ -32,6 +35,7 @@ import type {
   VisitaListResponse,
   VisitaObservacionSanitaria,
   VisitaRecetaCompleta,
+  VisitaStepNote,
   VisitaRiego
 } from "../types/visitas.types";
 
@@ -56,9 +60,11 @@ type CampaniaApiItem = {
 
 type ParcelaApiItem = {
   id: string;
+  productorId: string;
   sectorId: string;
   code: string;
   name: string | null;
+  areaHectares: string | null;
 };
 
 type UserApiItem = {
@@ -158,24 +164,41 @@ export const visitasService = {
           : Promise.resolve(null)
       ]);
 
-    const [pestDiseases, incidenceLevels, tiposRiego] = await Promise.all([
-      safeRequestAll<PestDiseaseLookupItem>(session, "/plagas-enfermedades"),
-      safeRequestAll<IncidenceLevelLookupItem>(
-        session,
-        "/niveles-incidencia-severidad"
-      ),
-      safeRequestAll<TipoRiegoLookupItem>(session, "/tipos-riego")
-    ]);
+    const [productor, subEtapas, pestDiseases, incidenceLevels, tiposRiego, stepNotes] =
+      await Promise.all([
+        parcela?.productorId
+          ? safeRequest<ProductorLookupItem>(session, `/productores/${parcela.productorId}`)
+          : Promise.resolve(null),
+        detail.visita.phenologicalStageId
+          ? safeRequestAll<SubEtapaLookupItem>(
+              session,
+              `/sub-etapas?etapa_fenologica_id=${detail.visita.phenologicalStageId}&estado=true`
+            )
+          : Promise.resolve([]),
+        safeRequestAll<PestDiseaseLookupItem>(session, "/plagas-enfermedades"),
+        safeRequestAll<IncidenceLevelLookupItem>(
+          session,
+          "/niveles-incidencia-severidad"
+        ),
+        safeRequestAll<TipoRiegoLookupItem>(session, "/tipos-riego"),
+        safeRequestList<VisitaStepNote>(
+          session,
+          `/visitas-campo/${id}/paso-observaciones`
+        )
+      ]);
 
     return {
       ...detail,
+      stepNotes,
       lookups: {
         agronomist: agronomist ? { id: agronomist.id, name: agronomist.displayName } : null,
         crop,
         variety,
         parcela,
+        productor,
         campaign,
         phenologicalStage,
+        subEtapas,
         pestDiseases,
         incidenceLevels,
         tiposRiego
@@ -205,6 +228,10 @@ export const visitasService = {
         headers: createAuthHeaders(session.accessToken, session.tokenType)
       }
     );
+  },
+
+  async getCoadyuvantes(session: AuthSessionInput): Promise<CoadyuvanteCatalogItem[]> {
+    return safeRequestAll<CoadyuvanteCatalogItem>(session, "/coadyuvantes");
   },
 
   async getHistoryByProductor(

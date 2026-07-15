@@ -32,10 +32,10 @@ describe("visita receta orden de mezcla", () => {
     expect(swapOrdenMezclaItems(orden, 2, 9)).toBe(orden);
   });
 
-  it("identifica los elementos fijos que no son intercambiables", () => {
+  it("mantiene fijo solo el agua", () => {
     expect(isOrdenMezclaFixedItem("Agua")).toBe(true);
-    expect(isOrdenMezclaFixedItem("Corrector de pH")).toBe(true);
-    expect(isOrdenMezclaFixedItem("Producto agroquimico")).toBe(true);
+    expect(isOrdenMezclaFixedItem("Corrector de pH")).toBe(false);
+    expect(isOrdenMezclaFixedItem("Producto agroquimico")).toBe(false);
     expect(isOrdenMezclaFixedItem("Adherente")).toBe(false);
   });
 });

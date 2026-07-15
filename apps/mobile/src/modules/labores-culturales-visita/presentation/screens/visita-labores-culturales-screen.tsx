@@ -33,6 +33,7 @@ import type { RecetaAnterior } from "../../../visita-calificaciones/types";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import { laboresCulturalesVisitaService } from "../../services";
 import type { LaborCulturalCatalogItem } from "../../types";
+import { getDefaultLaborSelectionIds } from "../labor-cultural-defaults";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
@@ -173,6 +174,9 @@ export function VisitaLaboresCulturalesScreen() {
                   <AppText variant="muted">
                     Una respuesta por categoria. La leyenda queda visible para comparar.
                   </AppText>
+                  <AppText variant="caption">
+                    Revisa y edita las opciones preseleccionadas segun el estado observado.
+                  </AppText>
                 </View>
               </View>
 
@@ -298,8 +302,13 @@ export function VisitaLaboresCulturalesScreen() {
         "labores"
       );
 
-      setLabores(nextLabores.filter((labor) => labor.isActive && labor.categoryCode));
-      setSelectedLaborIds(new Set(existingLabores.map((labor) => labor.laborCulturalId)));
+      const activeLabores = nextLabores.filter((labor) => labor.isActive && labor.categoryCode);
+      setLabores(activeLabores);
+      setSelectedLaborIds(
+        existingLabores.length > 0
+          ? new Set(existingLabores.map((labor) => labor.laborCulturalId))
+          : getDefaultLaborSelectionIds(activeLabores)
+      );
       setScoreValue(currentCalificacion?.puntaje ?? null);
       setScoreJustificado(
         currentCalificacion && currentCalificacion.puntaje < 3
