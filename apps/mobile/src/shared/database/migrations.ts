@@ -981,10 +981,49 @@ const MIGRATIONS: Migration[] = [
         UNIQUE(entity_type, entity_local_id)
       )`,
       `CREATE INDEX IF NOT EXISTS idx_sync_failures_kind_failed_at
-       ON sync_failures(error_kind, failed_at)`
+      ON sync_failures(error_kind, failed_at)`
     ]
+  },
+  {
+    version: 41,
+    run(db: SQLiteDatabase) {
+      const rows = db.getAllSync<{
+        local_id: string;
+        visita_local_id: string;
+        modulo: string;
+        receta_anterior_json: string | null;
+      }>(`
+        SELECT c.local_id, c.visita_local_id, c.modulo, v.receta_anterior_json
+        FROM visita_calificaciones c
+        INNER JOIN visitas_campo v ON v.local_id = c.visita_local_id
+        WHERE c.sync_status <> 'synced'
+      `);
+
+      for (const row of rows) {
+        if (isLegacyPendingCalificacionEligible(row.receta_anterior_json, row.modulo)) continue;
+        db.runSync("DELETE FROM sync_outbox WHERE entity_type = 'visita_calificaciones' AND entity_local_id = ?", row.local_id);
+        db.runSync("DELETE FROM visita_calificaciones WHERE local_id = ?", row.local_id);
+      }
+    }
   }
 ];
+
+function isLegacyPendingCalificacionEligible(raw: string | null, modulo: string) {
+  if (!raw) return false;
+  try {
+    const receta = JSON.parse(raw) as Record<string, unknown>;
+    const map = receta.modulosEvaluables as Record<string, boolean> | undefined;
+    if (map) return map[modulo] === true;
+    if (modulo === "plagas" || modulo === "enfermedades") {
+      return Array.isArray(receta.fitosanidad) && receta.fitosanidad.some((item) =>
+        (item as { objetivo?: string }).objetivo === (modulo === "plagas" ? "plaga" : "enfermedad")
+      );
+    }
+    if (modulo === "nutricion") return Array.isArray(receta.fertilizacion) && receta.fertilizacion.length > 0;
+    if (modulo === "riego") return Boolean((receta.riego as { tipoRecomendacion?: string } | null)?.tipoRecomendacion?.trim());
+    return Array.isArray(receta.labores) && receta.labores.some((item) => Boolean((item as { labor?: string }).labor?.trim()));
+  } catch { return false; }
+}
 
 function recreateSubsectoresAndParcelas(db: SQLiteDatabase) {
   db.execSync("DELETE FROM sync_outbox");

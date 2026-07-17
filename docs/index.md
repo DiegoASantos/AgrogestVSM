@@ -58,6 +58,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 013: Paginacion y busqueda de productores en mobile y web](specs/013-paginacion-selector-productor.md)
 - [Spec 014: Exportacion protegida para Cost-Build](specs/014-exportacion-cost-build-api-key.md)
 - [Spec 015: Sincronizacion robusta en redes inestables y recuperacion de sesion online](specs/015-sync-robusto-redes-inestables.md)
+- [Spec 016: Ajustes UX de formularios y valores iniciales de labores culturales](specs/016-ajustes-ux-formularios-y-labores-culturales.md)
+- [Spec 017: Calificacion de cumplimiento solo para modulos recomendados](specs/017-calificacion-solo-modulos-recomendados.md)
 
 ## Runbooks
 

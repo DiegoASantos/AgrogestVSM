@@ -31,7 +31,7 @@ import {
   StepObservationCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
-import type { RecetaAnterior } from "../../../visita-calificaciones/types";
+import { isModuloEvaluable, type RecetaAnterior } from "../../../visita-calificaciones/types";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import { riegosService } from "../../services";
 import type { TipoRiegoCatalogItem } from "../../types";
@@ -411,8 +411,8 @@ export function VisitaRiegoScreen() {
                 </View>
               ) : null}
 
-              <PreviousRecipeSummaryCard modulo="riego" receta={recetaAnterior} />
-              {recetaAnterior?.existe ? (
+              {isModuloEvaluable(recetaAnterior, "riego") ? <PreviousRecipeSummaryCard modulo="riego" receta={recetaAnterior} /> : null}
+              {isModuloEvaluable(recetaAnterior, "riego") ? (
                 <ComplianceScoreCard
                   value={scoreValue}
                   onChange={handleScoreChange}
@@ -686,7 +686,7 @@ export function VisitaRiegoScreen() {
       return;
     }
 
-    const shouldScore = recetaAnterior?.existe === true;
+    const shouldScore = isModuloEvaluable(recetaAnterior, "riego");
 
     if (shouldScore && scoreValue === null) {
       setSubmitError("Selecciona un puntaje de cumplimiento para riego.");
@@ -719,9 +719,9 @@ export function VisitaRiegoScreen() {
       if (shouldScore) {
         await visitaCalificacionesService.upsert(visitaId, {
           modulo: "riego",
-          puntaje: scoreValue ?? 3,
+          puntaje: scoreValue!,
           observacion: stepObservation.trim() || null,
-          justificado: resolveJustificado(scoreValue ?? 3, scoreJustificado),
+          justificado: resolveJustificado(scoreValue!, scoreJustificado),
           categoriaJustificacion:
             scoreJustificado === true ? categoriaJustificacion : null,
           motivoJustificacion: scoreJustificado === true ? motivoJustificacion : null

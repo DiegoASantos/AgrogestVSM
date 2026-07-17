@@ -49,7 +49,7 @@ import {
   StepObservationCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
-import type { RecetaAnterior } from "../../../visita-calificaciones/types";
+import { isModuloEvaluable, type RecetaAnterior } from "../../../visita-calificaciones/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import { evaluacionesService } from "../../services";
 import type { VisitaEvaluacion } from "../../types";
@@ -247,8 +247,8 @@ export function VisitaNutricionScreen() {
 
           {!isLoading && !error ? (
             <>
-              <PreviousRecipeSummaryCard modulo="nutricion" receta={recetaAnterior} />
-              {recetaAnterior?.existe ? (
+              {isModuloEvaluable(recetaAnterior, "nutricion") ? <PreviousRecipeSummaryCard modulo="nutricion" receta={recetaAnterior} /> : null}
+              {isModuloEvaluable(recetaAnterior, "nutricion") ? (
                 <ComplianceScoreCard
                   value={scoreValue}
                   onChange={handleScoreChange}
@@ -480,7 +480,7 @@ export function VisitaNutricionScreen() {
     }
 
     const hasRegisteredData = hasAnyNutritionSelection(selections, nutrients);
-    const shouldScore = recetaAnterior?.existe === true;
+    const shouldScore = isModuloEvaluable(recetaAnterior, "nutricion");
     const validationMessage = hasRegisteredData
       ? validateNutritionSelections(selections, nutrients)
       : null;
@@ -490,7 +490,7 @@ export function VisitaNutricionScreen() {
       return;
     }
 
-    if (shouldScore && hasRegisteredData && scoreValue === null) {
+    if (shouldScore && scoreValue === null) {
       setSubmitError("Selecciona un puntaje de cumplimiento para nutricion.");
       return;
     }
@@ -546,9 +546,9 @@ export function VisitaNutricionScreen() {
       if (shouldScore) {
         await visitaCalificacionesService.upsert(visitaId, {
           modulo: "nutricion",
-          puntaje: scoreValue ?? 3,
+          puntaje: scoreValue!,
           observacion: stepObservation.trim() || null,
-          justificado: resolveJustificado(scoreValue ?? 3, scoreJustificado),
+          justificado: resolveJustificado(scoreValue!, scoreJustificado),
           categoriaJustificacion:
             scoreJustificado === true ? categoriaJustificacion : null,
           motivoJustificacion: scoreJustificado === true ? motivoJustificacion : null

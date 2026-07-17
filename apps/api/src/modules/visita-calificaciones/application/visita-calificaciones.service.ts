@@ -50,12 +50,37 @@ export class VisitaCalificacionesService {
   ) {}
 
   async upsert(visitaId: string, dto: UpsertVisitaCalificacionDto) {
-    await this.ensureVisitaExists(visitaId);
+    const visita = await this.ensureVisitaExists(visitaId);
     const justification = normalizeJustification(dto);
 
     const existing = await this.calificacionesRepository.findOne({
       where: { visitaId, modulo: dto.modulo }
     });
+
+    if (!existing) {
+      const previousVisit = await this.visitasRepository
+        .createQueryBuilder("visita")
+        .innerJoin(VisitaRecetaEntity, "receta", "receta.visita_id = visita.id")
+        .where("visita.parcela_id = :parcelaId", { parcelaId: visita.parcelaId })
+        .andWhere("visita.activo = true")
+        .andWhere("visita.id <> :visitaId", { visitaId })
+        .orderBy("visita.fecha_visita", "DESC")
+        .addOrderBy("visita.hora_visita_inicio", "DESC")
+        .addOrderBy("visita.id", "DESC")
+        .getOne();
+      const receta = previousVisit
+        ? await this.recetasRepository.findOne({
+            where: { visitaId: previousVisit.id },
+            relations: ["fitosanidad", "fertilizacion", "riego", "labores"]
+          })
+        : null;
+
+      if (!receta || !resolveEvaluableModules(receta)[dto.modulo]) {
+        throw new BadRequestException(
+          "No existe una recomendacion previa para calificar este modulo."
+        );
+      }
+    }
 
     const entity = existing
       ? this.calificacionesRepository.merge(existing, {
@@ -117,7 +142,7 @@ export class VisitaCalificacionesService {
     const previousVisit = await queryBuilder.getOne();
 
     if (!previousVisit) {
-      return createSuccessResponse({ existe: false });
+      return createSuccessResponse({ existe: false, modulosEvaluables: emptyEvaluableModules() });
     }
 
     const receta = await this.recetasRepository.findOne({
@@ -126,11 +151,12 @@ export class VisitaCalificacionesService {
     });
 
     if (!receta) {
-      return createSuccessResponse({ existe: false });
+      return createSuccessResponse({ existe: false, modulosEvaluables: emptyEvaluableModules() });
     }
 
     return createSuccessResponse({
       existe: true,
+      modulosEvaluables: resolveEvaluableModules(receta),
       visitaId: previousVisit.id,
       fechaVisita: previousVisit.fechaVisita,
       etapaFenologicaNombre: previousVisit.etapaFenologica?.name ?? null,
@@ -232,12 +258,10 @@ export class VisitaCalificacionesService {
       moduleScores[modulo] = calificacion ? roundScore((calificacion.puntaje / 3) * 100) : null;
     }
 
-    const hasAllModules = CALIFICACION_MODULOS.every((modulo) =>
-      calificacionesByModule.has(modulo)
-    );
+    const evaluatedModules = CALIFICACION_MODULOS.filter((modulo) => calificacionesByModule.has(modulo));
     const weights = resolveStageWeights(visita.etapaFenologica?.name ?? null);
 
-    if (!hasAllModules || !weights) {
+    if (evaluatedModules.length === 0 || !weights) {
       return {
         visitaId: visita.id,
         campaignId: visita.campaniaId,
@@ -246,7 +270,8 @@ export class VisitaCalificacionesService {
       };
     }
 
-    const scoreGeneral = CALIFICACION_MODULOS.reduce((total, modulo) => {
+    const totalWeight = evaluatedModules.reduce((total, modulo) => total + weights[modulo], 0);
+    const scoreGeneral = evaluatedModules.reduce((total, modulo) => {
       const calificacion = calificacionesByModule.get(modulo);
 
       if (!calificacion) {
@@ -254,7 +279,7 @@ export class VisitaCalificacionesService {
       }
 
       return total + (calificacion.puntaje / 3) * weights[modulo];
-    }, 0);
+    }, 0) / totalWeight * 100;
 
     return {
       visitaId: visita.id,
@@ -297,6 +322,8 @@ export class VisitaCalificacionesService {
 
       throw new BadRequestException("Visita de campo not found.");
     }
+
+    return visita;
   }
 
   private async ensureParcelaExists(parcelaId: string) {
@@ -384,6 +411,20 @@ function emptyModuleScores(): ModuleScoreMap {
     nutricion: null,
     riego: null,
     labores: null
+  };
+}
+
+function emptyEvaluableModules(): Record<CalificacionModulo, boolean> {
+  return { plagas: false, enfermedades: false, nutricion: false, riego: false, labores: false };
+}
+
+function resolveEvaluableModules(receta: VisitaRecetaEntity): Record<CalificacionModulo, boolean> {
+  return {
+    plagas: (receta.fitosanidad ?? []).some((item) => item.objetivo === "plaga"),
+    enfermedades: (receta.fitosanidad ?? []).some((item) => item.objetivo === "enfermedad"),
+    nutricion: (receta.fertilizacion ?? []).length > 0,
+    riego: Boolean(receta.riego?.tipoRecomendacion?.trim()),
+    labores: (receta.labores ?? []).some((item) => Boolean(item.labor?.trim()))
   };
 }
 

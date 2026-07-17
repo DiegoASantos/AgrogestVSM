@@ -35,6 +35,7 @@ export type UpsertCalificacionInput = {
 
 export type RecetaAnterior = {
   existe: boolean;
+  modulosEvaluables?: Record<CalificacionModulo, boolean>;
   visitaId?: string;
   fechaVisita?: string;
   etapaFenologicaNombre?: string | null;
@@ -67,6 +68,29 @@ export type RecetaAnterior = {
   riego?: { tipoRecomendacion: string } | null;
   labores?: Array<{ labor: string }>;
 };
+
+export function isModuloEvaluable(
+  receta: RecetaAnterior | null,
+  modulo: CalificacionModulo
+) {
+  if (!receta?.existe) {
+    return false;
+  }
+
+  if (receta.modulosEvaluables) {
+    return receta.modulosEvaluables[modulo];
+  }
+
+  if (modulo === "plagas" || modulo === "enfermedades") {
+    return receta.fitosanidad?.some((item) =>
+      item.objetivo === (modulo === "plagas" ? "plaga" : "enfermedad")
+    ) ?? false;
+  }
+
+  if (modulo === "nutricion") return (receta.fertilizacion?.length ?? 0) > 0;
+  if (modulo === "riego") return Boolean(receta.riego?.tipoRecomendacion?.trim());
+  return receta.labores?.some((item) => Boolean(item.labor?.trim())) ?? false;
+}
 
 export type ComplianceLegendItem = {
   puntaje: number;

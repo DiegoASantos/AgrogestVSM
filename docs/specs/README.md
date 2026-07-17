@@ -59,4 +59,6 @@ en la raíz.
 - [Spec 013: Paginación y búsqueda en selector de productor mobile](013-paginacion-selector-productor.md)
 - [Spec 014: Exportacion protegida para Cost-Build](014-exportacion-cost-build-api-key.md)
 - [Spec 015: Sincronizacion robusta en redes inestables y recuperacion de sesion online](015-sync-robusto-redes-inestables.md)
+- [Spec 016: Ajustes UX de formularios y valores iniciales de labores culturales](016-ajustes-ux-formularios-y-labores-culturales.md)
+- [Spec 017: Calificacion de cumplimiento solo para modulos recomendados](017-calificacion-solo-modulos-recomendados.md)
 - [Plantilla](TEMPLATE.md)

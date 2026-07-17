@@ -29,7 +29,7 @@ import {
   StepObservationCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
-import type { RecetaAnterior } from "../../../visita-calificaciones/types";
+import { isModuloEvaluable, type RecetaAnterior } from "../../../visita-calificaciones/types";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import { laboresCulturalesVisitaService } from "../../services";
 import type { LaborCulturalCatalogItem } from "../../types";
@@ -196,8 +196,8 @@ export function VisitaLaboresCulturalesScreen() {
                 />
               ))}
 
-              <PreviousRecipeSummaryCard modulo="labores" receta={recetaAnterior} />
-              {recetaAnterior?.existe ? (
+              {isModuloEvaluable(recetaAnterior, "labores") ? <PreviousRecipeSummaryCard modulo="labores" receta={recetaAnterior} /> : null}
+              {isModuloEvaluable(recetaAnterior, "labores") ? (
                 <ComplianceScoreCard
                   value={scoreValue}
                   onChange={handleScoreChange}
@@ -404,7 +404,7 @@ export function VisitaLaboresCulturalesScreen() {
       return;
     }
 
-    const shouldScore = recetaAnterior?.existe === true;
+    const shouldScore = isModuloEvaluable(recetaAnterior, "labores");
 
     if (shouldScore && scoreValue === null) {
       setSubmitError("Selecciona un puntaje de cumplimiento para labores.");
@@ -430,9 +430,9 @@ export function VisitaLaboresCulturalesScreen() {
       if (shouldScore) {
         await visitaCalificacionesService.upsert(visitaId, {
           modulo: "labores",
-          puntaje: scoreValue ?? 3,
+          puntaje: scoreValue!,
           observacion: stepObservation.trim() || null,
-          justificado: resolveJustificado(scoreValue ?? 3, scoreJustificado),
+          justificado: resolveJustificado(scoreValue!, scoreJustificado),
           categoriaJustificacion:
             scoreJustificado === true ? categoriaJustificacion : null,
           motivoJustificacion: scoreJustificado === true ? motivoJustificacion : null

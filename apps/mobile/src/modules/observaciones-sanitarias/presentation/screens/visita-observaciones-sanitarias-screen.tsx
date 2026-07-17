@@ -41,7 +41,7 @@ import {
   PreviousRecipeSummaryCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
-import type { RecetaAnterior } from "../../../visita-calificaciones/types";
+import { isModuloEvaluable, type RecetaAnterior } from "../../../visita-calificaciones/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import { observacionesSanitariasService } from "../../services";
 import type {
@@ -292,8 +292,8 @@ export function VisitaObservacionesSanitariasScreen({
 
           {!isLoading && !error ? (
             <>
-              <PreviousRecipeSummaryCard modulo={mode} receta={recetaAnterior} />
-              {recetaAnterior?.existe ? (
+              {isModuloEvaluable(recetaAnterior, mode) ? <PreviousRecipeSummaryCard modulo={mode} receta={recetaAnterior} /> : null}
+              {isModuloEvaluable(recetaAnterior, mode) ? (
                 <ComplianceScoreCard
                   value={scoreValue}
                   onChange={handleScoreChange}
@@ -626,7 +626,7 @@ export function VisitaObservacionesSanitariasScreen({
 
     const activeItems = mode === "plagas" ? plagas : enfermedades;
     const activeItemIds = new Set(activeItems.map((item) => item.id));
-    const shouldScore = recetaAnterior?.existe === true;
+    const shouldScore = isModuloEvaluable(recetaAnterior, mode);
     const validationMessage = validateSelections(
       selections,
       activeItems,
@@ -648,7 +648,7 @@ export function VisitaObservacionesSanitariasScreen({
       return;
     }
 
-    if (shouldScore && hasRegisteredData && scoreValue === null) {
+    if (shouldScore && scoreValue === null) {
       setSubmitError("Selecciona un puntaje de cumplimiento para este modulo.");
       return;
     }
@@ -668,7 +668,7 @@ export function VisitaObservacionesSanitariasScreen({
     setSubmitError(null);
 
     try {
-      const scoreToSave = scoreValue ?? 3;
+      const scoreToSave = scoreValue!;
       const selectedEntries = Object.entries(selections).filter(
         ([pestDiseaseId, selection]) =>
           activeItemIds.has(pestDiseaseId) &&
