@@ -13,6 +13,7 @@ type StepNoteRow = {
   step_number: number;
   observation: string | null;
   recommendation: string | null;
+  finalizado_at: string | null;
   sync_status: SyncStatus;
   created_at: string;
   updated_at: string;
@@ -23,6 +24,7 @@ type UpsertStepNoteInput = {
   recommendation?: string | null;
   serverId?: string | null;
   syncStatus?: SyncStatus;
+  finalizedAt?: string | null;
 };
 
 const STEP_NOTE_COLUMNS = `
@@ -32,6 +34,7 @@ const STEP_NOTE_COLUMNS = `
   step_number,
   observation,
   recommendation,
+  finalizado_at,
   sync_status,
   created_at,
   updated_at
@@ -85,16 +88,18 @@ export const visitaStepNotesRepository = {
           step_number,
           observation,
           recommendation,
+          finalizado_at,
           sync_status,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         input.serverId ?? null,
         visitaLocalId,
         stepNumber,
         input.observation ?? null,
         input.recommendation ?? null,
+        input.finalizedAt ?? null,
         input.syncStatus ?? "pending",
         timestamp,
         timestamp
@@ -132,6 +137,7 @@ export const visitaStepNotesRepository = {
       sets.push("recommendation = ?");
       params.push(input.recommendation);
     }
+    if (input.finalizedAt !== undefined) { sets.push("finalizado_at = ?"); params.push(input.finalizedAt); }
 
     if (input.serverId !== undefined) {
       sets.push("server_id = ?");
@@ -194,6 +200,7 @@ function mapStepNoteRow(row: StepNoteRow): VisitaStepNote {
     stepNumber: row.step_number,
     observation: row.observation,
     recommendation: row.recommendation,
+    finalizedAt: row.finalizado_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

@@ -33,6 +33,7 @@ type UpdateObservacionSanitariaInput = {
 type UpsertStepNoteInput = {
   observation?: string | null;
   recommendation?: string | null;
+  finalized?: boolean;
 };
 
 export const observacionesSanitariasRemote = {
@@ -68,6 +69,18 @@ export const observacionesSanitariasRemote = {
         body: input,
         ...context
       }
+    );
+  },
+
+  upsert(
+    visitaId: string,
+    pestDiseaseId: string,
+    input: CreateObservacionSanitariaInput,
+    context: ApiRequestContext = {}
+  ) {
+    return apiRequest<VisitaObservacionSanitaria>(
+      `/visitas-campo/${visitaId}/observaciones-sanitarias/${pestDiseaseId}`,
+      { method: "PUT", body: input, ...context }
     );
   },
 

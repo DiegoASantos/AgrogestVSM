@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-08
+last_reviewed: 2026-07-19
 ---
 
 # Documentación de AgroGest VSM
@@ -60,6 +60,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 015: Sincronizacion robusta en redes inestables y recuperacion de sesion online](specs/015-sync-robusto-redes-inestables.md)
 - [Spec 016: Ajustes UX de formularios y valores iniciales de labores culturales](specs/016-ajustes-ux-formularios-y-labores-culturales.md)
 - [Spec 017: Calificacion de cumplimiento solo para modulos recomendados](specs/017-calificacion-solo-modulos-recomendados.md)
+- [Spec 018: Score sanitario independiente para Plagas](specs/018-score-sanitario-plagas.md)
 
 ## Runbooks
 

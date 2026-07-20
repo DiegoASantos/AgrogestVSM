@@ -68,13 +68,17 @@ export class VisitaPasoObservacionesService {
             : {}),
           ...(dto.recommendation !== undefined
             ? { recommendation: dto.recommendation }
+            : {}),
+          ...(dto.finalized === true && stepNumber === 2 && !existingStepNote.finalizedAt
+            ? { finalizedAt: new Date() }
             : {})
         })
       : this.stepNotesRepository.create({
           visitaId,
           stepNumber,
           observation: dto.observation ?? null,
-          recommendation: dto.recommendation ?? null
+        recommendation: dto.recommendation ?? null,
+        finalizedAt: dto.finalized === true && stepNumber === 2 ? new Date() : null
         });
 
     const savedStepNote = await this.stepNotesRepository.save(stepNote);
@@ -112,6 +116,7 @@ export class VisitaPasoObservacionesService {
       stepNumber: stepNote.stepNumber,
       observation: stepNote.observation,
       recommendation: stepNote.recommendation,
+      finalizedAt: stepNote.finalizedAt,
       createdAt: stepNote.createdAt,
       updatedAt: stepNote.updatedAt
     };

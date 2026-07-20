@@ -255,6 +255,7 @@ export const SQL_SCHEMA = [
     step_number INTEGER NOT NULL,
     observation TEXT,
     recommendation TEXT,
+    finalizado_at TEXT,
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     sync_error_message TEXT,
     created_at TEXT NOT NULL,

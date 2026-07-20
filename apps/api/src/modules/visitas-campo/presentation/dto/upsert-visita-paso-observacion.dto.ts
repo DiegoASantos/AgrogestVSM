@@ -1,5 +1,5 @@
 import { Transform } from "class-transformer";
-import { IsOptional, IsString, MaxLength } from "class-validator";
+import { IsBoolean, IsOptional, IsString, MaxLength } from "class-validator";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
 function trimOptionalString(value: unknown): string | null | undefined {
@@ -34,4 +34,9 @@ export class UpsertVisitaPasoObservacionDto {
   @IsString()
   @MaxLength(5000)
   recommendation?: string | null;
+
+  @ApiPropertyOptional({ description: "Finaliza explícitamente el paso Plagas." })
+  @IsOptional()
+  @IsBoolean()
+  finalized?: boolean;
 }

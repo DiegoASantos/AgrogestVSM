@@ -44,6 +44,9 @@ export class VisitaPasoObservacionEntity {
   })
   recommendation!: string | null;
 
+  @Column({ name: "finalizado_at", type: "timestamptz", nullable: true })
+  finalizedAt!: Date | null;
+
   @CreateDateColumn({
     name: "created_at",
     type: "timestamptz"

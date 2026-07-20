@@ -62,7 +62,7 @@ export async function handleVisitaCampo(
     return { status: "deleted_local" };
   }
 
-  if (entry.operation === "create") {
+  if (entry.operation === "create" || entry.operation === "update") {
     const apiToken = getApiToken();
 
     if (!apiToken) {
@@ -220,8 +220,9 @@ export async function handleObservacion(
       return { status: "skipped" };
     }
 
-    const response = await observacionesSanitariasRemote.create(
+    const response = await observacionesSanitariasRemote.upsert(
       visitaPadre.serverId,
+      observacion.pestDiseaseId,
       { ...buildObservacionCreateBody(observacion) },
       context
     );
@@ -576,7 +577,8 @@ function toOptionalNumber(value: string | null) {
 function buildStepNoteBody(stepNote: VisitaStepNote) {
   return {
     observation: stepNote.observation ?? null,
-    recommendation: stepNote.recommendation ?? null
+    recommendation: stepNote.recommendation ?? null,
+    finalized: stepNote.stepNumber === 2 && Boolean(stepNote.finalizedAt)
   };
 }
 

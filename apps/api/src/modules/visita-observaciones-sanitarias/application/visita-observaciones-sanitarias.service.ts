@@ -63,6 +63,23 @@ export class VisitaObservacionesSanitariasService {
     }
   }
 
+  async upsertByVisitAndPest(
+    visitaId: string,
+    pestDiseaseId: string,
+    dto: CreateVisitaObservacionSanitariaDto
+  ) {
+    if (dto.pestDiseaseId !== pestDiseaseId) {
+      throw new BadRequestException("La plaga de la ruta y el cuerpo no coinciden.");
+    }
+    const existing = await this.observacionesRepository.findOne({
+      where: { visitaId, plagaEnfermedadId: pestDiseaseId }
+    });
+    if (!existing) {
+      return this.create(visitaId, dto);
+    }
+    return this.update(existing.id, dto);
+  }
+
   async findByVisitaId(visitaId: string) {
     await this.ensureVisitaExists(visitaId, true);
 

@@ -716,7 +716,8 @@ export function VisitaObservacionesSanitariasScreen({
 
       await observacionesSanitariasService.upsertStepNote(visitaId, stepNumber, {
         observation: stepNote.observation.trim() || null,
-        recommendation: stepNote.recommendation.trim() || null
+        recommendation: stepNote.recommendation.trim() || null,
+        ...(mode === "plagas" ? { finalizedAt: new Date().toISOString() } : {})
       });
 
       router.replace({

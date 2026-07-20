@@ -65,6 +65,7 @@ export type VisitaStepNote = {
   stepNumber: number;
   observation: string | null;
   recommendation: string | null;
+  finalizedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };

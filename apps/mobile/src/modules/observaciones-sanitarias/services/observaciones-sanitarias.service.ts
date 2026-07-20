@@ -52,7 +52,11 @@ export const observacionesSanitariasService = {
   upsertStepNote(
     visitaId: string,
     stepNumber: number,
-    input: { observation?: string | null; recommendation?: string | null }
+    input: {
+      observation?: string | null;
+      recommendation?: string | null;
+      finalizedAt?: string | null;
+    }
   ) {
     return Promise.resolve(visitaStepNotesRepository.upsert(visitaId, stepNumber, input));
   },

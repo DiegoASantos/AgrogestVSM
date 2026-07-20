@@ -24,6 +24,9 @@ export class NivelIncidenciaEntity {
   })
   sortOrder!: number;
 
+  @Column({ name: "grado", type: "smallint" })
+  grade!: number;
+
   @Column({
     name: "tipo",
     type: "varchar",

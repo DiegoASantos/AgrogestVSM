@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-08
+last_reviewed: 2026-07-19
 ---
 
 # Especificaciones
@@ -61,4 +61,5 @@ en la raíz.
 - [Spec 015: Sincronizacion robusta en redes inestables y recuperacion de sesion online](015-sync-robusto-redes-inestables.md)
 - [Spec 016: Ajustes UX de formularios y valores iniciales de labores culturales](016-ajustes-ux-formularios-y-labores-culturales.md)
 - [Spec 017: Calificacion de cumplimiento solo para modulos recomendados](017-calificacion-solo-modulos-recomendados.md)
+- [Spec 018: Score sanitario independiente para Plagas](018-score-sanitario-plagas.md)
 - [Plantilla](TEMPLATE.md)

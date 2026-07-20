@@ -31,6 +31,9 @@ export class PlagaEnfermedadEntity {
   })
   name!: string;
 
+  @Column({ name: "codigo", type: "varchar", length: 80, nullable: true })
+  code!: string | null;
+
   @Column({
     name: "tipo",
     type: "varchar",

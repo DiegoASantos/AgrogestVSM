@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put } from "@nestjs/common";
 import {
   ApiBadRequestResponse,
   ApiConflictResponse,
@@ -45,6 +45,20 @@ export class VisitaCampoObservacionesSanitariasController {
     @Body() createDto: CreateVisitaObservacionSanitariaDto
   ) {
     return this.observacionesSanitariasService.create(visitaId, createDto);
+  }
+
+  @Put(":visitaId/observaciones-sanitarias/:pestDiseaseId")
+  @ApiOperation({ summary: "Crea o actualiza idempotentemente una plaga de la visita." })
+  upsertObservacionSanitaria(
+    @Param("visitaId", ParseEntityIdPipe) visitaId: string,
+    @Param("pestDiseaseId", ParseEntityIdPipe) pestDiseaseId: string,
+    @Body() dto: CreateVisitaObservacionSanitariaDto
+  ) {
+    return this.observacionesSanitariasService.upsertByVisitAndPest(
+      visitaId,
+      pestDiseaseId,
+      dto
+    );
   }
 
   @Get(":visitaId/observaciones-sanitarias")
