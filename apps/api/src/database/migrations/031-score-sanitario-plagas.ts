@@ -6,14 +6,27 @@ export const SCORE_SANITARIO_PLAGAS_MIGRATION: DatabaseMigration = {
   sql: `
     ALTER TABLE niveles_incidencia_severidad
       ADD COLUMN IF NOT EXISTS grado smallint;
-    UPDATE niveles_incidencia_severidad SET grado = valor_orden WHERE grado IS NULL;
+    WITH niveles_ordenados AS (
+      SELECT
+        id,
+        floor(
+          (row_number() OVER (PARTITION BY tipo ORDER BY valor_orden, id) - 1)
+          * 4.0
+          / count(*) OVER (PARTITION BY tipo)
+        )::smallint AS grado_normalizado
+      FROM niveles_incidencia_severidad
+    )
+    UPDATE niveles_incidencia_severidad nivel
+    SET grado = niveles_ordenados.grado_normalizado
+    FROM niveles_ordenados
+    WHERE niveles_ordenados.id = nivel.id;
     ALTER TABLE niveles_incidencia_severidad
       ALTER COLUMN grado SET NOT NULL;
     ALTER TABLE niveles_incidencia_severidad
       DROP CONSTRAINT IF EXISTS chk_niveles_incidencia_severidad_grado;
     ALTER TABLE niveles_incidencia_severidad
       ADD CONSTRAINT chk_niveles_incidencia_severidad_grado CHECK (grado BETWEEN 0 AND 3);
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_niveles_incidencia_severidad_tipo_grado
+    CREATE INDEX IF NOT EXISTS idx_niveles_incidencia_severidad_tipo_grado
       ON niveles_incidencia_severidad(tipo, grado);
 
     ALTER TABLE plagas_enfermedades ADD COLUMN IF NOT EXISTS codigo varchar(80);
