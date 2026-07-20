@@ -2,7 +2,7 @@
 title: Instalación y recuperación del entorno de IA
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-07-19
 ---
 
 # Instalación y recuperación del entorno de IA
@@ -95,6 +95,26 @@ obsidian version
 obsidian vaults verbose
 obsidian vault=docs vault info=path
 ```
+
+## Recuperación del sandbox de Codex en monorepos pnpm
+
+En Windows, `node_modules` y las junctions creadas por pnpm pueden bloquear el
+sandbox de Codex. Si Codex funciona en una carpeta limpia pero no en el
+monorepo, usar un git worktree limpio:
+
+```powershell
+git worktree add C:\tmp\agrogest-vsm-codex-clean -b codex/worktree-limpio
+```
+
+Abrir ese worktree en otra ventana de VS Code e iniciar una sesión nueva de
+Codex. Antes de ejecutar `pnpm install`, comprobar que el sandbox puede leer y
+aplicar un parche. Usar el worktree limpio para editar con Codex y el
+repositorio principal, que conserva `node_modules`, para ejecutar pruebas y
+builds.
+
+Esta práctica no afecta Git ni producción. `.gitignore` y `files.exclude` de
+VS Code no controlan el escaneo del sandbox de Codex. No borrar
+`node_modules` del repositorio principal salvo autorización explícita.
 
 ## Recuperación ante configuración corrupta
 
