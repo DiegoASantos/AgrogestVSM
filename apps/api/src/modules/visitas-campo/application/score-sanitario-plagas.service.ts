@@ -49,7 +49,7 @@ export class ScoreSanitarioPlagasService {
     });
   }
 
-  private async resolveVisitScore(visitaId: string): Promise<ModuleScore> {
+  async resolveVisitScore(visitaId: string): Promise<ModuleScore> {
     const visit = await this.visits.findOne({ where: { id: visitaId } });
     if (!visit) throw new NotFoundException("Visita de campo no encontrada.");
     if (!visit.isActive) return { finalized: false, score: null, percentage: null };

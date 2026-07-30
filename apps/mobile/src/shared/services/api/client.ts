@@ -5,7 +5,7 @@ import { ApiError, ApiRequestAbortedError, ApiTimeoutError } from "./errors";
 export const DEFAULT_API_TIMEOUT_MS = 15_000;
 
 export type ApiRequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   headers?: Record<string, string>;
   signal?: AbortSignal;

@@ -98,6 +98,20 @@ export type VisitaCalificacion = {
 
 export type ScorePorModulo = Record<CalificacionModulo, number | null>;
 
+export type TechnicalModuleScore = {
+  score: number | null;
+  percentage: number | null;
+  semaphore: "verde" | "amarillo" | "rojo" | null;
+};
+
+export type TechnicalVisitScores = {
+  visitaId: string;
+  scoreTecnicoGeneral: number | null;
+  modulosIncluidos: CalificacionModulo[];
+  modulosFaltantes: CalificacionModulo[];
+  scorePorModulo: Record<CalificacionModulo, TechnicalModuleScore>;
+};
+
 export type ProductorCalificacion = {
   productorId: string;
   scoreGeneral: number | null;
@@ -377,6 +391,7 @@ export type VisitaDetailData = {
   laboresCulturales: VisitaLaborCultural[];
   calificaciones: VisitaCalificacion[];
   stepNotes: VisitaStepNote[];
+  technicalScores: TechnicalVisitScores | null;
   lookups: {
     agronomist: LookupItem | null;
     crop: CropLookupItem | null;

@@ -27,6 +27,7 @@ import type {
   VarietyLookupItem,
   SubEtapaLookupItem,
   TipoRiegoLookupItem,
+  TechnicalVisitScores,
   VisitaCampo,
   VisitaDetailData,
   VisitaEvaluacion,
@@ -164,7 +165,7 @@ export const visitasService = {
           : Promise.resolve(null)
       ]);
 
-    const [productor, subEtapas, pestDiseases, incidenceLevels, tiposRiego, stepNotes] =
+    const [productor, subEtapas, pestDiseases, incidenceLevels, tiposRiego, stepNotes, technicalScores] =
       await Promise.all([
         parcela?.productorId
           ? safeRequest<ProductorLookupItem>(session, `/productores/${parcela.productorId}`)
@@ -184,12 +185,14 @@ export const visitasService = {
         safeRequestList<VisitaStepNote>(
           session,
           `/visitas-campo/${id}/paso-observaciones`
-        )
+        ),
+        safeRequest<TechnicalVisitScores>(session, `/visitas-campo/${id}/scores-tecnicos`)
       ]);
 
     return {
       ...detail,
       stepNotes,
+      technicalScores,
       lookups: {
         agronomist: agronomist ? { id: agronomist.id, name: agronomist.displayName } : null,
         crop,

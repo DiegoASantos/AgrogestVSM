@@ -62,4 +62,5 @@ en la raíz.
 - [Spec 016: Ajustes UX de formularios y valores iniciales de labores culturales](016-ajustes-ux-formularios-y-labores-culturales.md)
 - [Spec 017: Calificacion de cumplimiento solo para modulos recomendados](017-calificacion-solo-modulos-recomendados.md)
 - [Spec 018: Score sanitario independiente para Plagas](018-score-sanitario-plagas.md)
+- [Spec 019: Scores técnicos independientes por módulo para mango](019-scores-tecnicos-independientes-mango.md)
 - [Plantilla](TEMPLATE.md)

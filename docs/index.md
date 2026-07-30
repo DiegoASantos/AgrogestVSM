@@ -61,6 +61,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 016: Ajustes UX de formularios y valores iniciales de labores culturales](specs/016-ajustes-ux-formularios-y-labores-culturales.md)
 - [Spec 017: Calificacion de cumplimiento solo para modulos recomendados](specs/017-calificacion-solo-modulos-recomendados.md)
 - [Spec 018: Score sanitario independiente para Plagas](specs/018-score-sanitario-plagas.md)
+- [Spec 019: Scores técnicos independientes por módulo para mango](specs/019-scores-tecnicos-independientes-mango.md)
 
 ## Runbooks
 

@@ -1,6 +1,6 @@
 import { apiRequest, type ApiRequestContext } from "../../../shared/services";
 import { getUserIdFromAccessToken } from "../../../shared/utils/auth-token";
-import type { CreateVisitaCampoDraft, VisitaCampo, VisitaCampoFull } from "../types";
+import type { CreateVisitaCampoDraft, TechnicalVisitScores, VisitaCampo, VisitaCampoFull } from "../types";
 
 type AuthToken = {
   accessToken: string;
@@ -53,5 +53,9 @@ export const visitasCampoRemote = {
 
   getFullDetail(id: string) {
     return apiRequest<VisitaCampoFull>(`/visitas-campo/${id}/detalle-completo`);
+  },
+
+  getTechnicalScores(id: string) {
+    return apiRequest<TechnicalVisitScores>(`/visitas-campo/${id}/scores-tecnicos`);
   }
 };

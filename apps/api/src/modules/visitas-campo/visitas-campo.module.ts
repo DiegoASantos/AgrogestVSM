@@ -17,6 +17,7 @@ import { EtapasFenologicasService } from "./application/etapas-fenologicas.servi
 import { SubEtapasService } from "./application/sub-etapas.service";
 import { VisitaPasoObservacionesService } from "./application/visita-paso-observaciones.service";
 import { ScoreSanitarioPlagasService } from "./application/score-sanitario-plagas.service";
+import { TechnicalScoresService } from "./application/technical-scores.service";
 import { VisitasCampoService } from "./application/visitas-campo.service";
 import { EtapaFenologicaEntity } from "./infrastructure/persistence/entities/etapa-fenologica.entity";
 import { SubEtapaEntity } from "./infrastructure/persistence/entities/sub-etapa.entity";
@@ -26,6 +27,7 @@ import { EtapasFenologicasController } from "./presentation/etapas-fenologicas.c
 import { SubEtapasController } from "./presentation/sub-etapas.controller";
 import { VisitaPasoObservacionesController } from "./presentation/visita-paso-observaciones.controller";
 import { ScoreSanitarioPlagasController } from "./presentation/score-sanitario-plagas.controller";
+import { TechnicalScoresController } from "./presentation/technical-scores.controller";
 import { VisitasCampoController } from "./presentation/visitas-campo.controller";
 
 @Module({
@@ -54,14 +56,16 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
     EtapasFenologicasController,
     SubEtapasController,
     VisitaPasoObservacionesController,
-    ScoreSanitarioPlagasController
+    ScoreSanitarioPlagasController,
+    TechnicalScoresController
   ],
   providers: [
     VisitasCampoService,
     EtapasFenologicasService,
     SubEtapasService,
     VisitaPasoObservacionesService,
-    ScoreSanitarioPlagasService
+    ScoreSanitarioPlagasService,
+    TechnicalScoresService
   ],
   exports: [
     TypeOrmModule,

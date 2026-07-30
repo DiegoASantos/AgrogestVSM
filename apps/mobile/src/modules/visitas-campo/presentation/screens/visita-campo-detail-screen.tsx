@@ -22,7 +22,7 @@ import type {
   IncidenceLevelCatalogItem,
   PestDiseaseCatalogItem
 } from "../../../observaciones-sanitarias/types";
-import { visitaCampoCatalogsService, visitasCampoService } from "../../services";
+import { visitaCampoCatalogsService, visitasCampoRemote, visitasCampoService } from "../../services";
 import { visitaPdfReportService } from "../../services/visita-pdf-report.service";
 import { visitaRecetaPdfReportService } from "../../../visita-recetas/services";
 import type {
@@ -31,6 +31,7 @@ import type {
   EtapaFenologicaCatalogItem,
   VariedadCatalogItem,
   VisitaCampoFull,
+  TechnicalVisitScores,
   VisitaSyncSummary
 } from "../../types";
 
@@ -67,6 +68,7 @@ export function VisitaCampoDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [syncSummary, setSyncSummary] = useState<VisitaSyncSummary | null>(null);
+  const [technicalScores, setTechnicalScores] = useState<TechnicalVisitScores | null>(null);
 
   useEffect(() => {
     if (!visitaId) {
@@ -149,6 +151,7 @@ export function VisitaCampoDetailScreen() {
               pdfError={pdfError}
               router={router}
               syncSummary={syncSummary}
+              technicalScores={technicalScores}
               visitMapPoints={visitMapPoints}
             />
 
@@ -354,6 +357,15 @@ export function VisitaCampoDetailScreen() {
       await loadVisitReferenceCatalogs(nextDetail.visita.cropId);
       setDetail(nextDetail);
       setSyncSummary(visitasCampoService.getVisitaSyncSummary(id));
+      if (nextDetail.visita.serverId) {
+        try {
+          setTechnicalScores(await visitasCampoRemote.getTechnicalScores(nextDetail.visita.serverId));
+        } catch {
+          setTechnicalScores(null);
+        }
+      } else {
+        setTechnicalScores(null);
+      }
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setError(apiError.message || "No se pudo obtener el detalle.");
@@ -467,6 +479,7 @@ type VisitDossierProps = {
   pdfError: string | null;
   router: ReturnType<typeof useRouter>;
   syncSummary: VisitaSyncSummary | null;
+  technicalScores: TechnicalVisitScores | null;
   visitMapPoints: VisitMapPoint[];
 };
 
@@ -480,6 +493,7 @@ function VisitDossier({
   pdfError,
   router,
   syncSummary,
+  technicalScores,
   visitMapPoints
 }: VisitDossierProps) {
   const { visita } = detail;
@@ -515,6 +529,20 @@ function VisitDossier({
         isRetrying={isRetrying}
         onRetry={onRetrySync}
       />
+
+      {technicalScores ? (
+        <View style={styles.technicalPanel}>
+          <AppText style={styles.technicalTitle} variant="label">Score técnico</AppText>
+          <AppText style={styles.technicalValue} variant="heading">
+            {technicalScores.scoreTecnicoGeneral === null
+              ? "Pendiente de datos"
+              : `${technicalScores.scoreTecnicoGeneral.toFixed(2)}%`}
+          </AppText>
+          <AppText style={styles.technicalSubtitle} variant="caption">
+            {technicalScores.modulosIncluidos.length} módulo(s) incluido(s) · {technicalScores.modulosFaltantes.length} pendiente(s)
+          </AppText>
+        </View>
+      ) : null}
 
       <View style={styles.pdfPanel}>
         <View style={styles.pdfPanelCopy}>
@@ -1071,6 +1099,25 @@ const styles = StyleSheet.create({
   },
   syncRow: {
     gap: 8
+  },
+  technicalPanel: {
+    backgroundColor: "#eef7e4",
+    borderColor: theme.colors.primaryLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    gap: 3,
+    padding: 14
+  },
+  technicalTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 14
+  },
+  technicalValue: {
+    color: theme.colors.primaryDark,
+    fontSize: 24
+  },
+  technicalSubtitle: {
+    color: theme.colors.textMuted
   },
   syncErrorText: {
     color: theme.colors.error

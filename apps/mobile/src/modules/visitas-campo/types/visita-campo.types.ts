@@ -68,6 +68,20 @@ export type VisitaSyncSummary = {
   errorCount: number;
 };
 
+export type TechnicalModuleScore = {
+  score: number | null;
+  percentage: number | null;
+  semaphore: "verde" | "amarillo" | "rojo" | null;
+};
+
+export type TechnicalVisitScores = {
+  visitaId: string;
+  scoreTecnicoGeneral: number | null;
+  modulosIncluidos: Array<"plagas" | "enfermedades" | "nutricion" | "riego" | "labores">;
+  modulosFaltantes: Array<"plagas" | "enfermedades" | "nutricion" | "riego" | "labores">;
+  scorePorModulo: Record<"plagas" | "enfermedades" | "nutricion" | "riego" | "labores", TechnicalModuleScore>;
+};
+
 export type CreateVisitaCampoDraft = {
   publicId?: string;
   cropId: string;

@@ -206,7 +206,33 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
             label="Cumplimiento"
             value={scoreAverage === null ? "Sin calificacion" : `${scoreAverage.toFixed(1)} / 3`}
           />
+          <FactCard
+            icon={<ShieldAlert aria-hidden="true" size={18} />}
+            label="Score técnico"
+            value={
+              detail.technicalScores?.scoreTecnicoGeneral === null || !detail.technicalScores
+                ? "Sin datos técnicos"
+                : `${detail.technicalScores.scoreTecnicoGeneral.toFixed(2)}%`
+            }
+          />
         </div>
+
+        {detail.technicalScores ? (
+          <div className="visit-dossier__block">
+            <div className="visit-dossier__block-header">
+              <span>Scores técnicos por módulo</span>
+            </div>
+            <div className="visit-dossier__compact-grid">
+              {Object.entries(detail.technicalScores.scorePorModulo).map(([module, score]) => (
+                <DetailPill
+                  key={module}
+                  label={getModuloLabel(module as VisitaCalificacion["modulo"])}
+                  value={score.percentage === null ? "Sin datos" : `${score.percentage.toFixed(2)}%`}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="visit-dossier__body">
           <div className="visit-dossier__column visit-dossier__column--main">

@@ -1,0 +1,64 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { TechnicalScoresService } from "./technical-scores.service";
+
+function buildVisit(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "1",
+    etapaFenologica: { name: "Floración" },
+    observacionesSanitarias: [
+      {
+        plagaEnfermedad: { type: "enfermedad" },
+        nivelIncidencia: { grade: 2 },
+        nivelSeveridad: { grade: 1 }
+      }
+    ],
+    evaluaciones: [{ description: "Nutricion - Zinc: Incidencia 10%", percentage: "1" }],
+    riego: [{ estresHidrico: false, humedadSuelo: "optimo" }],
+    labores: [
+      ["weed_infestation", "clean"],
+      ["soil_sanitary_status", "clean"],
+      ["unproductive_branch_density", "low"],
+      ["branch_break_risk", "low"],
+      ["canopy_status", "good"],
+      ["load_balance", "balanced"]
+    ].map(([categoryCode, optionCode]) => ({ laborCultural: { categoryCode, optionCode } })),
+    ...overrides
+  };
+}
+
+describe("TechnicalScoresService", () => {
+  it("separa los módulos técnicos y pondera solo sus valores disponibles", async () => {
+    const visits = { findOne: vi.fn().mockResolvedValue(buildVisit()) };
+    const pestScores = { resolveVisitScore: vi.fn().mockResolvedValue({ score: 3 }) };
+    const service = new TechnicalScoresService(visits as never, pestScores as never);
+
+    const response = await service.byVisit("1");
+
+    expect(response.data.scorePorModulo).toMatchObject({
+      plagas: { percentage: 100 },
+      enfermedades: { score: 1, percentage: 33.33 },
+      nutricion: { score: 2, percentage: 66.67 },
+      riego: { score: 3, percentage: 100 },
+      labores: { score: 3, percentage: 100 }
+    });
+    expect(response.data.scoreTecnicoGeneral).toBe(81.67);
+    expect(response.data.modulosFaltantes).toEqual([]);
+  });
+
+  it("renormaliza sin inventar módulos no registrados", async () => {
+    const visits = {
+      findOne: vi.fn().mockResolvedValue(
+        buildVisit({ observacionesSanitarias: [], evaluaciones: [], labores: [], riego: [{ estresHidrico: false, humedadSuelo: "optimo" }] })
+      )
+    };
+    const pestScores = { resolveVisitScore: vi.fn().mockResolvedValue({ score: null }) };
+    const service = new TechnicalScoresService(visits as never, pestScores as never);
+
+    const response = await service.byVisit("1");
+
+    expect(response.data.scoreTecnicoGeneral).toBe(100);
+    expect(response.data.modulosIncluidos).toEqual(["riego"]);
+    expect(response.data.modulosFaltantes).toHaveLength(4);
+  });
+});
