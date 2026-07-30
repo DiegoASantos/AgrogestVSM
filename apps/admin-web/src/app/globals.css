@@ -117,7 +117,8 @@
 .climate-metric-grid svg { color: #0f766e; grid-row: span 2; }
 .climate-metric-grid span { color: var(--muted-foreground, #52606d); font-size: .76rem; }
 .climate-metric-grid strong { color: #123b63; font-size: .92rem; }
-.climate-chart-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.climate-chart-grid { display: grid; gap: 18px; }
+.climate-chart-grid--two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .climate-chart-card__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .climate-chart-card__header small { color: var(--muted-foreground, #52606d); }
 .climate-chart-card__header select { min-width: 150px; }
@@ -130,7 +131,7 @@
 .climate-reading-group > div strong { color: #123b63; text-align: right; }
 .climate-reading-group > div small { grid-column: 1 / -1; }
 @media (max-width: 900px) { .climate-split { grid-template-columns: 1fr; } }
-@media (max-width: 1100px) { .climate-chart-grid { grid-template-columns: 1fr; } .climate-metric-grid { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
+@media (max-width: 1100px) { .climate-chart-grid--two-col { grid-template-columns: 1fr; } .climate-metric-grid { grid-template-columns: repeat(3, minmax(120px, 1fr)); } }
 @media (max-width: 600px) { .climate-summary-hero { align-items: flex-start; flex-direction: column; } .climate-metric-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); } .climate-chart-card__header { align-items: stretch; flex-direction: column; } }
 
 /* ---- Dark Mode ---- */
