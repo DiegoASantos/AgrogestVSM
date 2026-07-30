@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Area, AreaChart, Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CloudRain, Droplets, Gauge, Sun, Thermometer, Wind } from "lucide-react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
@@ -62,16 +62,41 @@ function SummaryMetrics({ readings }: { readings: ClimateReading[] }) { const ca
 function ForecastView({ forecasts }: { forecasts: ClimateForecast[] }) {
   const [selectedId, setSelectedId] = useState(forecasts[0]?.id ?? ""); const point = forecasts.find((item) => item.id === selectedId) ?? forecasts[0];
   if (!point) return <Empty message="No hay pronosticos disponibles todavia."/>;
-  return <div className="climate-stack"><PointSelector points={forecasts} value={point.id} onChange={setSelectedId}/><div className="climate-chart-grid"><ForecastChart title="Temperatura" caption="Evolucion diaria" days={point.days} variables={["temperature_2m_max", "temperature_2m_min"]} kind="line" height={340}/><div className="climate-chart-grid--two-col"><ForecastChart title="Agua y demanda hidrica" caption="Acumulados, probabilidad y ET" days={point.days} variables={["precipitation_sum", "precipitation_probability_max", "et0_fao_evapotranspiration"]} kind="bar"/><ForecastChart title="Atmosfera" caption="Viento, rafagas, radiacion e insolacion" days={point.days} variables={["wind_speed_10m_max", "wind_gusts_10m_max", "shortwave_radiation_sum", "sunshine_duration"]} kind="area"/></div></div></div>;
+  return <div className="climate-stack"><PointSelector points={forecasts} value={point.id} onChange={setSelectedId}/><div className="climate-chart-grid"><ForecastChart title="Temperatura" caption="Evolucion diaria" days={point.days} variables={["temperature_2m_max", "temperature_2m_min"]} kind="line" height={340} showAll/><div className="climate-chart-grid--two-col"><ForecastChart title="Agua y demanda hidrica" caption="Acumulados, probabilidad y ET" days={point.days} variables={["precipitation_sum", "precipitation_probability_max", "et0_fao_evapotranspiration"]} kind="bar"/><ForecastChart title="Atmosfera" caption="Viento, rafagas, radiacion e insolacion" days={point.days} variables={["wind_speed_10m_max", "wind_gusts_10m_max", "shortwave_radiation_sum", "sunshine_duration"]} kind="area"/></div></div></div>;
 }
 
-function ForecastChart({ title, caption, days, variables, kind, height = 255 }: { title: string; caption: string; days: ClimateForecast["days"]; variables: string[]; kind: "line" | "bar" | "area"; height?: number }) {
-  const available = variables.filter((variable) => days.some((day) => day.variable === variable)); const [selected, setSelected] = useState(available[0] ?? variables[0]);
+function ForecastChart({ title, caption, days, variables, kind, height = 255, showAll }: { title: string; caption: string; days: ClimateForecast["days"]; variables: string[]; kind: "line" | "bar" | "area"; height?: number; showAll?: boolean }) {
+  const available = variables.filter((variable) => days.some((day) => day.variable === variable));
+  const [selected, setSelected] = useState(available[0] ?? variables[0]);
   useEffect(() => { if (available.length && !available.includes(selected)) setSelected(available[0]); }, [available.join(","), selected]);
+  if (showAll && kind === "line") return <MultiLineChart title={title} caption={caption} days={days} variables={available} height={height}/>;
   const rows = useMemo(() => days.filter((day) => day.variable === selected).map((day) => ({ date: dateOnly(day.validAt), value: Number(day.value) })).filter((day) => Number.isFinite(day.value)), [days, selected]);
   const unit = days.find((day) => day.variable === selected)?.unit ?? "";
   const Chart = kind === "line" ? LineChart : kind === "bar" ? BarChart : AreaChart;
   return <section className="climate-chart-card"><header className="climate-chart-card__header"><div><p className="eyebrow">Pronosticado</p><h3 className="title title--section">{title}</h3><small>{caption}</small></div><label className="field-group"><span className="sr-only">Variable de {title}</span><select value={selected} onChange={(event) => setSelected(event.target.value)}>{available.map((variable) => <option value={variable} key={variable}>{label(variable)}</option>)}</select></label></header>{rows.length === 0 ? <Empty message="La fuente aun no entrega esta variable."/> : <ResponsiveContainer height={height} width="100%"><Chart data={rows}><XAxis dataKey="date"/><YAxis domain={[0, (dataMax: number) => (Number.isFinite(dataMax) ? Math.max(dataMax, 1) : 1)]} unit={` ${unit}`}/><Tooltip formatter={(value) => [`${formatValue(String(value))} ${unit}`, label(selected)]}/>{kind === "line" ? <Line dataKey="value" stroke="#0284c7" strokeWidth={2.5} type="monotone" dot={{ r: 3 }}/>: kind === "bar" ? <Bar dataKey="value" fill="#0f766e" radius={[5, 5, 0, 0]}/>: <Area dataKey="value" stroke="#d97706" fill="#fef3c7" strokeWidth={2.5} type="monotone"/>}</Chart></ResponsiveContainer>}</section>;
+}
+
+const LINE_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#8b5cf6"];
+
+function MultiLineChart({ title, caption, days, variables, height }: { title: string; caption: string; days: ClimateForecast["days"]; variables: string[]; height: number }) {
+  const rows = useMemo(() => mergeByDate(days, variables), [days, variables.join(",")]);
+  const unit = days.find((day) => variables.includes(day.variable))?.unit ?? "";
+  if (rows.length === 0 || variables.length === 0) return <section className="climate-chart-card"><header className="climate-chart-card__header"><div><p className="eyebrow">Pronosticado</p><h3 className="title title--section">{title}</h3><small>{caption}</small></div></header><Empty message="La fuente aun no entrega esta variable."/></section>;
+  return <section className="climate-chart-card"><header className="climate-chart-card__header"><div><p className="eyebrow">Pronosticado</p><h3 className="title title--section">{title}</h3><small>{caption}</small></div></header><ResponsiveContainer height={height} width="100%"><LineChart data={rows}><XAxis dataKey="date"/><YAxis unit={` ${unit}`}/><Tooltip formatter={(value, name) => [`${formatValue(String(value))} ${unit}`, label(String(name))]}/><Legend formatter={(value) => label(String(value))}/>{variables.map((variable, i) => <Line key={variable} dataKey={variable} stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2.5} type="monotone" dot={{ r: 3 }} connectNulls/>)}</LineChart></ResponsiveContainer></section>;
+}
+
+function mergeByDate(days: ClimateForecast["days"], variables: string[]): Array<Record<string, string | number>> {
+  const map = new Map<string, Record<string, string | number>>();
+  for (const variable of variables) {
+    for (const day of days) {
+      if (day.variable !== variable) continue;
+      const d = dateOnly(String(day.validAt));
+      if (!map.has(d)) map.set(d, { date: d });
+      const entry = map.get(d)!;
+      entry[variable] = Number(day.value);
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => String(a.date).localeCompare(String(b.date)));
 }
 
 function HistoryView({ points, session }: { points: ClimatePoint[]; session: NonNullable<ReturnType<typeof useAuthSession>["session"]> }) {
@@ -90,7 +115,7 @@ function ClimateTable({ title, headers, rows, empty }: { title: string; headers:
 function Badge({ value }: { value: string }) { return <span className={`climate-badge climate-badge--${value.toLowerCase().replaceAll(" ", "-")}`}>{value}</span>; }
 function Empty({ message }: { message: string }) { return <p className="climate-empty">{message}</p>; }
 function date(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? "Sin registro" : new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short" }).format(parsed); }
-function dateOnly(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? "-" : new Intl.DateTimeFormat("es-PE", { dateStyle: "medium" }).format(parsed); }
+function dateOnly(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? "-" : new Intl.DateTimeFormat("es-PE", { day: "2-digit", month: "2-digit", year: "2-digit" }).format(parsed); }
 function latestDate(readings: ClimateReading[] | undefined) { const value = readings?.[0]?.dataAt; return value ? date(value) : "sin registro"; }
 function formatValue(value: number | string) { const numeric = Number(value); return Number.isFinite(numeric) ? numeric.toFixed(1) : "Sin dato"; }
 function label(variable: string) { return ({ temperature_2m: "Temperatura", apparent_temperature: "Temperatura aparente", dew_point_2m: "Punto de rocio", temperature_2m_max: "Temperatura maxima", temperature_2m_min: "Temperatura minima", relative_humidity_2m: "Humedad relativa", vapour_pressure_deficit: "VPD", precipitation: "Precipitacion", precipitation_sum: "Precipitacion acumulada", precipitation_probability_max: "Probabilidad de lluvia", wind_speed_10m: "Viento a 10 m", wind_speed_10m_max: "Viento maximo", wind_direction_10m: "Direccion del viento", wind_gusts_10m: "Rafagas", wind_gusts_10m_max: "Rafagas maximas", shortwave_radiation: "Radiacion solar", shortwave_radiation_sum: "Radiacion acumulada", sunshine_duration: "Horas de sol", cloud_cover: "Nubosidad", surface_pressure: "Presion superficial", et0_fao_evapotranspiration: "ET de referencia", soil_temperature_0cm: "Temperatura de suelo regional", soil_moisture_0_to_1cm: "Humedad de suelo regional" } as Record<string, string>)[variable] ?? variable.replaceAll("_", " "); }
