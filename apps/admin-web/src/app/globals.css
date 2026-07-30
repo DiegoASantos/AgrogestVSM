@@ -581,7 +581,11 @@
   justify-content: center;
 }
 .notification-modal {
-  position: relative;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
   width: min(520px, 100%);
   max-height: min(680px, calc(100vh - 48px));
   margin: 0;
@@ -592,6 +596,7 @@
   box-shadow: 0 24px 68px rgba(8, 38, 29, 0.28);
   padding: 0;
   overflow: auto;
+  animation: notification-modal-enter 180ms ease-out;
 }
 .notification-modal--precaucion {
   border-top-color: #d97706;
@@ -612,12 +617,26 @@
   padding: 22px 24px 16px;
   border-bottom: 1px solid #dfe9e3;
   gap: 12px;
-  background: linear-gradient(135deg, #f2faf5, #fff);
+  background: linear-gradient(135deg, #edf8f0, #fff 72%);
+  position: relative;
+  overflow: hidden;
+}
+.notification-modal__header::after {
+  content: "";
+  position: absolute;
+  width: 130px;
+  height: 130px;
+  right: -60px;
+  top: -75px;
+  border-radius: 50%;
+  background: rgba(15, 118, 110, 0.1);
+  pointer-events: none;
 }
 .notification-modal__header h3 {
   margin: 2px 0 0;
   font-size: 1.2rem;
-  color: #123b63;
+  color: #153d53;
+  letter-spacing: -0.01em;
 }
 .notification-modal__close {
   display: flex;
@@ -631,6 +650,7 @@
   color: #51645b;
   cursor: pointer;
   flex-shrink: 0;
+  z-index: 1;
 }
 .notification-modal__close:hover {
   background: #fee2e2;
@@ -647,6 +667,18 @@
   background: linear-gradient(135deg, #eaf6ef, #f8fbf9);
   border: 1px solid #d6e9dd;
   text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.notification-modal__kpi::before {
+  content: "MEDICIÓN TERRITORIAL";
+  position: absolute;
+  top: 9px;
+  left: 11px;
+  color: #5c7b6c;
+  font-size: 0.59rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
 }
 .notification-modal__kpi span {
   display: block;
@@ -670,6 +702,7 @@
   padding: 8px 10px;
   border: 1px solid #dbe7ee;
   border-radius: 8px;
+  background: #fcfefd;
 }
 .notification-modal__meta span {
   color: var(--muted-foreground, #52606d);
@@ -684,6 +717,7 @@
   border-radius: 10px;
   background: linear-gradient(125deg, #fef3c7, #fef9c3);
   border: 1px solid #fde68a;
+  box-shadow: inset 3px 0 0 #d97706;
 }
 .notification-modal__impact .eyebrow {
   color: #92400e;
@@ -720,6 +754,21 @@
 .notification-modal__close:focus-visible {
   outline: 3px solid #86efac;
   outline-offset: 2px;
+}
+@keyframes notification-modal-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -47%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notification-modal {
+    animation: none;
+  }
 }
 @media (max-width: 540px) {
   .notification-modal-overlay {
