@@ -104,6 +104,9 @@ async function run() {
     await assertColumnExists(client, "visita_riegos", "tipo_suelo");
     await assertColumnExists(client, "visita_riegos", "humedad_suelo");
     await assertColumnExists(client, "visita_riegos", "estres_hidrico");
+    await assertTableExists(client, "clima", "puntos_climaticos");
+    await assertTableExists(client, "clima", "lecturas");
+    await assertTableExists(client, "clima", "pronosticos");
     console.log("Database migrations validated successfully.");
   } finally {
     await client.query("SELECT pg_advisory_unlock(842017052026)");
@@ -141,6 +144,16 @@ async function assertColumnExists(
 
   if (Number(result.rows?.[0]?.count ?? 0) !== 1) {
     throw new Error(`Expected column ${tableName}.${columnName} to exist.`);
+  }
+}
+
+async function assertTableExists(client: PgClient, schemaName: string, tableName: string) {
+  const result = (await client.query(
+    `SELECT COUNT(*)::text AS count FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2`,
+    [schemaName, tableName]
+  )) as CountResult;
+  if (Number(result.rows?.[0]?.count ?? 0) !== 1) {
+    throw new Error(`Expected table ${schemaName}.${tableName} to exist.`);
   }
 }
 

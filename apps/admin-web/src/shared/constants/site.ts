@@ -11,6 +11,15 @@ export const adminRoutes = {
   dashboard: "/dashboard",
   visitas: "/visitas",
   mapas: "/mapas",
+  clima: {
+    resumen: "/clima/resumen",
+    mapa: "/clima/mapa",
+    pronostico: "/clima/pronostico",
+    historial: "/clima/historial",
+    estaciones: "/clima/estaciones",
+    alertas: "/clima/alertas",
+    fuentes: "/clima/fuentes"
+  },
   mantenimiento: "/mantenimiento",
   seguridad: "/seguridad",
   mantenimientoItems: {

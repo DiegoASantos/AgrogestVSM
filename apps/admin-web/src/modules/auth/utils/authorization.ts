@@ -28,6 +28,7 @@ export function isRestrictedAdminPath(pathname: string) {
   return (
     pathname === adminRoutes.mantenimiento ||
     pathname.startsWith(`${adminRoutes.mantenimiento}/`) ||
+    pathname.startsWith("/clima/") ||
     pathname === adminRoutes.seguridad ||
     pathname.startsWith(`${adminRoutes.seguridad}/`)
   );

@@ -5,6 +5,7 @@ import { DatabaseModule } from "./database/database.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CampaniasModule } from "./modules/campanias/campanias.module";
 import { CultivosModule } from "./modules/cultivos/cultivos.module";
+import { ClimaModule } from "./modules/clima/clima.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { HealthModule } from "./modules/health/health.module";
 import { GeografiasModule } from "./modules/geografias/geografias.module";
@@ -37,6 +38,7 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     UsersModule,
     RolesModule,
     CultivosModule,
+    ClimaModule,
     VariedadesModule,
     CampaniasModule,
     TiposDocumentoModule,

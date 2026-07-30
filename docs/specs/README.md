@@ -63,4 +63,5 @@ en la raíz.
 - [Spec 017: Calificacion de cumplimiento solo para modulos recomendados](017-calificacion-solo-modulos-recomendados.md)
 - [Spec 018: Score sanitario independiente para Plagas](018-score-sanitario-plagas.md)
 - [Spec 019: Scores técnicos independientes por módulo para mango](019-scores-tecnicos-independientes-mango.md)
+- [Spec 020: Módulo clima territorial para el panel web](020-modulo-clima-territorial-web.md)
 - [Plantilla](TEMPLATE.md)

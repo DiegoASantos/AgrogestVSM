@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   MapIcon,
+  CloudSun,
   Wrench,
   ShieldCheck,
   Sprout,
@@ -43,6 +44,7 @@ import {
 import { useTheme } from "../hooks/use-theme";
 import {
   adminMainNavigation,
+  adminClimateNavigation,
   adminMaintenanceNavigation,
   adminSecurityNavigation,
   resolveAdminRouteMeta,
@@ -85,9 +87,12 @@ const securityNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.seguridadItems.roles]: KeyRound,
   [adminRoutes.seguridadItems.usuarioRoles]: UserCog
 };
+const climateNavIcons: Record<string, LucideIcon> = Object.fromEntries(
+  adminClimateNavigation.map((item) => [item.href, CloudSun])
+);
 
 function getIconForHref(href: string): LucideIcon | undefined {
-  return mainNavIcons[href] ?? maintenanceNavIcons[href] ?? securityNavIcons[href];
+  return mainNavIcons[href] ?? maintenanceNavIcons[href] ?? securityNavIcons[href] ?? climateNavIcons[href];
 }
 
 export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
@@ -102,6 +107,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
   const isAdmin = isAdminSession(session);
   const canAccessCurrentRoute = canAccessAdminPath(pathname, session);
   const maintenanceNavigation = isAdmin ? adminMaintenanceNavigation : [];
+  const climateNavigation = isAdmin ? adminClimateNavigation : [];
   const securityNavigation = isAdmin ? adminSecurityNavigation : [];
 
   useEffect(() => {
@@ -195,6 +201,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
             defaultOpen
             isCollapsed={sidebarCollapsed}
           />
+          {climateNavigation.length > 0 ? <SidebarGroup items={climateNavigation} pathname={pathname} title="Clima" icon={CloudSun} isCollapsed={sidebarCollapsed} /> : null}
           {maintenanceNavigation.length > 0 ? (
             <SidebarGroup
               items={maintenanceNavigation}
