@@ -104,6 +104,8 @@
 .climate-badge--critica { background: #fee2e2; color: #991b1b; }
 .climate-badge--sin-configurar, .climate-badge--no-disponible { background: #e5e7eb; color: #4b5563; }
 .climate-empty { margin: 0; padding: 24px; border-radius: 10px; color: var(--muted-foreground, #52606d); text-align: center; background: #f8fafc; }
+.climate-notice { margin: 18px 0 0; padding: 12px 14px; border-left: 4px solid #0f766e; border-radius: 8px; background: #ecfdf5; color: #134e4a; font-size: .9rem; line-height: 1.5; }
+.climate-notice strong { display: inline-block; margin-right: 4px; }
 @media (max-width: 900px) { .climate-split { grid-template-columns: 1fr; } }
 
 /* ---- Dark Mode ---- */

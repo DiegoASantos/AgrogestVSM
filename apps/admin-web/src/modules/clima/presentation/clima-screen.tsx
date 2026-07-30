@@ -46,12 +46,17 @@ function ClimateMap({ points }: { points: ClimatePoint[] }) {
 }
 
 function ClimateContent({ section, data }: { section: ClimateSection; data: unknown }) {
-  if (section === "resumen") return <SummaryView summary={data as Summary}/>;
-  if (section === "pronostico") return <ForecastView forecasts={data as ForecastPoint[]}/>;
-  if (section === "historial") return <PointsView points={data as ClimatePoint[]}/>;
-  if (section === "estaciones") return <StationsView items={data as Array<Record<string, unknown>>}/>;
-  if (section === "alertas") return <AlertsView items={data as AlertItem[]}/>;
-  return <SourcesView items={data as ClimateSource[]}/>;
+  const content = section === "resumen" ? <SummaryView summary={data as Summary}/>
+    : section === "pronostico" ? <ForecastView forecasts={data as ForecastPoint[]}/>
+      : section === "historial" ? <PointsView points={data as ClimatePoint[]}/>
+        : section === "estaciones" ? <StationsView items={data as Array<Record<string, unknown>>}/>
+          : section === "alertas" ? <AlertsView items={data as AlertItem[]}/>
+            : <SourcesView items={data as ClimateSource[]}/>;
+  return <><ClimateDataNotice/>{content}</>;
+}
+
+function ClimateDataNotice() {
+  return <aside className="climate-notice" role="note"><strong>Dato territorial estimado.</strong> Sin estaciones ni sensores propios, los valores proceden de modelos, reanálisis o satélite en cuadrículas geográficas; no representan una medición exacta de campo. Revise fuente, fecha y tipo antes de interpretarlos.</aside>;
 }
 
 type Summary = { points: ClimatePoint[]; alerts: AlertItem[]; sources: ClimateSource[] };
