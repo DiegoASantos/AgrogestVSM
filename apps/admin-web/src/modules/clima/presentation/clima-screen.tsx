@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, Bar, BarChart, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { CloudRain, Droplets, Gauge, Sun, Thermometer, Wind } from "lucide-react";
+import { CloudRain, Droplets, Gauge, Sun, Thermometer, ThermometerSnowflake, ThermometerSun, Wind } from "lucide-react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { AdminMap, type AdminMapPoint } from "../../../shared/components/admin-map";
@@ -38,7 +38,7 @@ export function ClimaScreen({ section }: { section: ClimateSection }) {
   const [title, description] = titles[section];
   if (error) return <ErrorState description={error} />;
   if (!data || !session) return <LoadingState description="Cargando informacion climatica territorial." />;
-  return <section className="panel-grid"><article className="panel climate-screen"><ToolbarActions eyebrow="Clima" title={title} description={description}/><ClimateNotice/>{section === "mapa" ? <ClimateMap points={data as ClimatePoint[]}/> : <ClimateContent section={section} data={data} session={session}/>}</article></section>;
+  return <section className="panel-grid"><article className="panel climate-screen"><ToolbarActions eyebrow="Clima" title={title} description={description}/><ClimateNotice/>{section === "mapa" ? <ClimateMap points={data as ClimatePoint[]} session={session}/> : <ClimateContent section={section} data={data} session={session}/>}</article></section>;
 }
 
 function ClimateContent({ section, data, session }: { section: ClimateSection; data: unknown; session: NonNullable<ReturnType<typeof useAuthSession>["session"]> }) {
@@ -51,7 +51,74 @@ function ClimateContent({ section, data, session }: { section: ClimateSection; d
 }
 
 function ClimateNotice() { return <aside className="climate-notice" role="note"><strong>Dato territorial estimado.</strong> Los modelos, reanalisis y satelites representan cuadrillas geograficas; no son mediciones exactas de campo.</aside>; }
-function ClimateMap({ points }: { points: ClimatePoint[] }) { const mapPoints: AdminMapPoint[] = points.map((point) => ({ id: point.id, geometry: { type: "Point", coordinates: [point.longitude, point.latitude] }, color: "#1d7a9b", radius: 8, popup: { title: point.name, description: `${point.district}, ${point.department}` } })); return <><div className="climate-map-caption"><strong>{points.length}</strong> puntos territoriales disponibles.</div><AdminMap points={mapPoints} emptyMessage="No hay puntos climaticos configurados."/></>; }
+function ClimateMap({ points, session }: { points: ClimatePoint[]; session: NonNullable<ReturnType<typeof useAuthSession>["session"]> }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [forecast, setForecast] = useState<ClimateForecast[] | null>(null);
+  const [loadingForecast, setLoadingForecast] = useState(false);
+  const selected = points.find((p) => p.id === selectedId);
+  const handleSelect = async (pointId: string) => {
+    setSelectedId(pointId); setLoadingForecast(true);
+    try { setForecast(await climaService.getForecast(session, pointId)); } catch { setForecast(null); }
+    setLoadingForecast(false);
+  };
+  const mapPoints: AdminMapPoint[] = points.map((point) => ({
+    id: point.id, geometry: { type: "Point", coordinates: [point.longitude, point.latitude] },
+    color: selectedId === point.id ? "#0f766e" : "#1d7a9b",
+    radius: selectedId === point.id ? 10 : 8,
+    isSelected: selectedId === point.id,
+    onSelect: () => handleSelect(point.id)
+  }));
+  return <div className="climate-map-layout"><div className="climate-map-layout__map"><div className="climate-map-caption"><strong>{points.length}</strong> puntos territoriales. Haga clic en un punto para ver el detalle climatico.</div><AdminMap points={mapPoints} emptyMessage="No hay puntos climaticos configurados."/></div><div className={`climate-map-panel${selected ? " climate-map-panel--open" : ""}`}><div className="climate-map-panel__inner">{selected ? <ClimateMapPanel point={selected} forecast={forecast} loading={loadingForecast} onClose={() => setSelectedId(null)}/> : null}</div></div></div>;
+}
+
+function ClimateMapPanel({ point, forecast, loading, onClose }: { point: ClimatePoint; forecast: ClimateForecast[] | null; loading: boolean; onClose: () => void }) {
+  const [dayOffset, setDayOffset] = useState(0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isToday = dayOffset === 0;
+  const targetDate = new Date(today); targetDate.setDate(today.getDate() + dayOffset);
+  const targetDateStr = targetDate.toISOString().slice(0, 10);
+  const forecastDays = forecast?.[0]?.days;
+  const readings: ClimateReading[] = useMemo(() => {
+    if (isToday) return (point.current ?? []).map((r) => ({ ...r }));
+    if (!forecastDays) return [];
+    return forecastDays.filter((d) => d.validAt?.startsWith(targetDateStr)).map((d) => ({ variable: d.variable, value: d.value, unit: d.unit, type: "PRONOSTICO", dataAt: d.validAt, receivedAt: d.validAt, model: null }));
+  }, [point.current, forecastDays, isToday, targetDateStr]);
+  const dayLabels = useMemo(() => {
+    const fmt = (d: Date) => new Intl.DateTimeFormat("es-PE", { day: "2-digit", month: "2-digit" }).format(d);
+    return [
+      `Hoy (${fmt(today)})`,
+      `+1 dia (${fmt(new Date(today.getTime() + 86400000))})`,
+      `+2 dias (${fmt(new Date(today.getTime() + 172800000))})`,
+      `+3 dias (${fmt(new Date(today.getTime() + 259200000))})`
+    ];
+  }, []);
+  return (
+    <>
+      <div className="climate-map-panel__header">
+        <div>
+          <h3>{point.name}</h3>
+          <span>{point.district}, {point.department}</span>
+        </div>
+        <button className="climate-map-panel__close" onClick={onClose} aria-label="Cerrar panel">{"\u00D7"}</button>
+      </div>
+      <div className="climate-map-panel__body">
+        <div className="climate-map-panel__dates">
+          {[0, 1, 2, 3].map((offset) => (
+            <button key={offset} className={offset === dayOffset ? "active" : ""} onClick={() => setDayOffset(offset)}>
+              {dayLabels[offset]}
+            </button>
+          ))}
+        </div>
+        {loading
+          ? <div className="climate-map-panel__loading">Cargando pronostico...</div>
+          : readings.length === 0 && !isToday
+            ? <Empty message={`Sin pronostico disponible para ${dayLabels[dayOffset]}.`}/>
+            : <ReadingGroups readings={readings}/>
+        }
+      </div>
+    </>
+  );
+}
 
 function SummaryView({ summary }: { summary: Summary }) {
   return <div className="climate-stack"><section className="climate-summary-hero"><div><p className="eyebrow">Lectura territorial</p><h3 className="title title--section">Condiciones actuales estimadas</h3><span>Seleccione una zona para profundizar en Pronostico o Historial.</span></div><div className="climate-summary-hero__legend"><Badge value="ESTIMADO"/><span>Modelo geografico</span></div></section>{summary.points.map((point) => <section className="climate-data-section" key={point.id}><header><div><p className="eyebrow">Open-Meteo · estimado</p><h3 className="title title--section">{point.name} <small>{point.district}</small></h3></div><span className="climate-badge">Actualizado {latestDate(point.current)}</span></header><SummaryMetrics readings={point.current ?? []}/><ReadingGroups readings={point.current ?? []}/></section>)}<section className="climate-split"><ClimateTable title="Alertas activas" empty="No hay alertas climaticas activas." headers={["Zona", "Condicion", "Valor", "Severidad", "Inicio"]} rows={summary.alerts.map((item) => [item.pointName, label(item.variable), `${item.value} ${item.unit}`, <Badge key="severity" value={item.severity}/>, date(item.startsAt)])}/><SourcesView items={summary.sources} compact/></section></div>;
@@ -62,7 +129,25 @@ function SummaryMetrics({ readings }: { readings: ClimateReading[] }) { const ca
 function ForecastView({ forecasts }: { forecasts: ClimateForecast[] }) {
   const [selectedId, setSelectedId] = useState(forecasts[0]?.id ?? ""); const point = forecasts.find((item) => item.id === selectedId) ?? forecasts[0];
   if (!point) return <Empty message="No hay pronosticos disponibles todavia."/>;
-  return <div className="climate-stack"><PointSelector points={forecasts} value={point.id} onChange={setSelectedId}/><div className="climate-chart-grid"><ForecastChart title="Temperatura" caption="Evolucion diaria" days={point.days} variables={["temperature_2m_max", "temperature_2m_min"]} kind="line" height={340} showAll/><div className="climate-chart-grid--two-col"><ForecastChart title="Agua y demanda hidrica" caption="Acumulados, probabilidad y ET" days={point.days} variables={["precipitation_sum", "precipitation_probability_max", "et0_fao_evapotranspiration"]} kind="bar"/><ForecastChart title="Atmosfera" caption="Viento, rafagas, radiacion e insolacion" days={point.days} variables={["wind_speed_10m_max", "wind_gusts_10m_max", "shortwave_radiation_sum", "sunshine_duration"]} kind="area"/></div></div></div>;
+  return <div className="climate-stack"><PointSelector points={forecasts} value={point.id} onChange={setSelectedId}/><ForecastSummary days={point.days}/><div className="climate-chart-grid"><ForecastChart title="Temperatura" caption="Evolucion diaria" days={point.days} variables={["temperature_2m_max", "temperature_2m_min"]} kind="line" height={340} showAll/><div className="climate-chart-grid--two-col"><ForecastChart title="Agua y demanda hidrica" caption="Acumulados, probabilidad y ET" days={point.days} variables={["precipitation_sum", "precipitation_probability_max", "et0_fao_evapotranspiration"]} kind="bar"/><ForecastChart title="Atmosfera" caption="Viento, rafagas, radiacion e insolacion" days={point.days} variables={["wind_speed_10m_max", "wind_gusts_10m_max", "shortwave_radiation_sum", "sunshine_duration"]} kind="area"/></div></div></div>;
+}
+
+function ForecastSummary({ days }: { days: ClimateForecast["days"] }) {
+  const agg = useMemo(() => {
+    const over = (variable: string, fn: (acc: number, v: number) => number, init: number) => {
+      let result = init; for (const d of days) { if (d.variable === variable && Number.isFinite(Number(d.value))) result = fn(result, Number(d.value)); } return result;
+    };
+    const unit = (variable: string) => days.find((d) => d.variable === variable)?.unit ?? "";
+    return [
+      { Icon: ThermometerSun, label: "Temperatura maxima", value: over("temperature_2m_max", Math.max, -Infinity), unit: unit("temperature_2m_max") },
+      { Icon: ThermometerSnowflake, label: "Temperatura minima", value: over("temperature_2m_min", Math.min, Infinity), unit: unit("temperature_2m_min") },
+      { Icon: CloudRain, label: "Lluvia acumulada", value: over("precipitation_sum", (a, v) => a + v, 0), unit: unit("precipitation_sum") },
+      { Icon: Wind, label: "Viento maximo", value: over("wind_speed_10m_max", Math.max, -Infinity), unit: unit("wind_speed_10m_max") },
+      { Icon: Sun, label: "Horas de sol (max)", value: over("sunshine_duration", Math.max, -Infinity), unit: unit("sunshine_duration") },
+      { Icon: Droplets, label: "Prob. lluvia (max)", value: over("precipitation_probability_max", Math.max, -Infinity), unit: unit("precipitation_probability_max") }
+    ];
+  }, [days]);
+  return <div className="climate-metric-grid">{agg.map(({ Icon, label: lbl, value, unit }) => <article key={lbl}><Icon aria-hidden="true" size={20}/><span>{lbl}</span><strong>{Number.isFinite(value) ? `${value.toFixed(1)} ${unit}` : "Sin dato"}</strong></article>)}</div>;
 }
 
 function ForecastChart({ title, caption, days, variables, kind, height = 255, showAll }: { title: string; caption: string; days: ClimateForecast["days"]; variables: string[]; kind: "line" | "bar" | "area"; height?: number; showAll?: boolean }) {

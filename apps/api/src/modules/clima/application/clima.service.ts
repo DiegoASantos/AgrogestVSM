@@ -30,13 +30,13 @@ export class ClimaService {
   async forecast(pointId?: string) {
     await this.syncCurrentIfNeeded();
     const points = pointId ? [await this.point(pointId)] : await this.points();
-    const result = await Promise.all(points.map(async (point) => ({ ...toPoint(point), days: await this.dataSource.query("SELECT variable, valor AS value, unidad AS unit, valido_at AS \"validAt\", emitido_at AS \"issuedAt\" FROM clima.pronosticos WHERE punto_climatico_id=$1 ORDER BY valido_at,variable", [point.id]) })));
+    const result = await Promise.all(points.map(async (point) => ({ ...toPoint(point), days: (await this.dataSource.query("SELECT variable, valor AS value, unidad AS unit, valido_at AS \"validAt\", emitido_at AS \"issuedAt\" FROM clima.pronosticos WHERE punto_climatico_id=$1 ORDER BY valido_at,variable", [point.id])).map(normalizeSunshine) })));
     return createSuccessResponse(result);
   }
 
   async history(pointId: string, start?: string, end?: string) {
     const point = await this.point(pointId);
-    const rows = await this.dataSource.query("SELECT variable, valor AS value, unidad AS unit, tipo AS type, dato_at AS \"dataAt\", recibido_at AS \"receivedAt\", modelo AS model FROM clima.lecturas WHERE punto_climatico_id=$1 AND dato_at >= COALESCE($2::timestamptz, now()-interval '30 days') AND dato_at <= COALESCE($3::timestamptz, now()) ORDER BY dato_at ASC", [point.id, start ?? null, end ?? null]);
+    const rows = (await this.dataSource.query("SELECT variable, valor AS value, unidad AS unit, tipo AS type, dato_at AS \"dataAt\", recibido_at AS \"receivedAt\", modelo AS model FROM clima.lecturas WHERE punto_climatico_id=$1 AND dato_at >= COALESCE($2::timestamptz, now()-interval '30 days') AND dato_at <= COALESCE($3::timestamptz, now()) ORDER BY dato_at ASC", [point.id, start ?? null, end ?? null])).map(normalizeSunshine);
     return createSuccessResponse({ point: toPoint(point), rows });
   }
 
@@ -86,5 +86,11 @@ export class ClimaService {
   private async point(publicId: string) { const rows = await this.dataSource.query("SELECT id,public_id,nombre,departamento,distrito,latitud,longitud FROM clima.puntos_climaticos WHERE public_id=$1 AND activo=true", [publicId]); if (!rows[0]) throw new NotFoundException("Punto climatico no encontrado."); return rows[0] as Punto; }
 }
 function numeric(value: unknown) { return typeof value === "number" && Number.isFinite(value) ? value : null; }
+function normalizeSunshine<T extends { variable: string; value: number; unit: string }>(row: T): T {
+  if (row.variable !== "sunshine_duration" || row.value === null || typeof row.value !== "number") return row;
+  const raw = Number(row.value);
+  if (!Number.isFinite(raw) || raw <= 24) return row;
+  return { ...row, value: Math.round((raw / 3600) * 100) / 100, unit: "h" };
+}
 function resolveSeverity(value: number, rule: { operador: string; precaution: string | null; high: string | null; critical: string | null }) { const matches = (threshold: string | null) => threshold !== null && (rule.operador === ">=" ? value >= Number(threshold) : value <= Number(threshold)); if (matches(rule.critical)) return "CRITICA"; if (matches(rule.high)) return "ALTA"; if (matches(rule.precaution)) return "PRECAUCION"; return null; }
 function toPoint(point: Punto) { return { id: point.public_id, name: point.nombre, department: point.departamento, district: point.distrito, latitude: Number(point.latitud), longitude: Number(point.longitud) }; }
