@@ -5,12 +5,12 @@ import { createSuccessResponse } from "../../../common/http/api-response";
 
 type Punto = { id: string; public_id: string; nombre: string; departamento: string; distrito: string; latitud: string; longitud: string };
 const CURRENT_FIELDS: Array<[string, string]> = [
-  ["temperature_2m", "\u00B0C"], ["relative_humidity_2m", "%"], ["apparent_temperature", "\u00B0C"], ["dew_point_2m", "\u00B0C"], ["vapour_pressure_deficit", "kPa"],
-  ["precipitation", "mm"], ["wind_speed_10m", "km/h"], ["wind_direction_10m", "\u00B0"], ["wind_gusts_10m", "km/h"], ["shortwave_radiation", "W/m2"],
-  ["cloud_cover", "%"], ["surface_pressure", "hPa"], ["soil_temperature_0cm", "\u00B0C"], ["soil_moisture_0_to_1cm", "m3/m3"]
+  ["temperature_2m", "°C"], ["relative_humidity_2m", "%"], ["apparent_temperature", "°C"], ["dew_point_2m", "°C"], ["vapour_pressure_deficit", "kPa"],
+  ["precipitation", "mm"], ["wind_speed_10m", "km/h"], ["wind_direction_10m", "°"], ["wind_gusts_10m", "km/h"], ["shortwave_radiation", "W/m2"],
+  ["cloud_cover", "%"], ["surface_pressure", "hPa"], ["soil_temperature_0cm", "°C"], ["soil_moisture_0_to_1cm", "m3/m3"]
 ];
 const DAILY_FIELDS: Array<[string, string]> = [
-  ["temperature_2m_max", "\u00B0C"], ["temperature_2m_min", "\u00B0C"], ["precipitation_sum", "mm"], ["precipitation_probability_max", "%"],
+  ["temperature_2m_max", "°C"], ["temperature_2m_min", "°C"], ["precipitation_sum", "mm"], ["precipitation_probability_max", "%"],
   ["et0_fao_evapotranspiration", "mm"], ["wind_speed_10m_max", "km/h"], ["wind_gusts_10m_max", "km/h"], ["shortwave_radiation_sum", "MJ/m2"], ["sunshine_duration", "h"]
 ];
 

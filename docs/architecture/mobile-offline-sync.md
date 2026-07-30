@@ -73,6 +73,7 @@ ciclo.
 ## Presupuesto de ciclo
 
 Cada ejecucion de sync tiene un deadline:
+
 - manual (`Sincronizar ahora`): 30 segundos;
 - automatico: 45 segundos.
 
@@ -83,6 +84,7 @@ procesadas y `isSyncing` vuelve a `false`. La UI nunca queda en
 ## Sesion online
 
 La sesion distingue tres estados:
+
 - `online_valid`: token vigente, sync habilitado;
 - `online_temporarily_unavailable`: fallo transitorio de refresh, cooldown de
   60s; token vigente usable sin HTTP; acceso offline conservado;
@@ -129,6 +131,10 @@ de clima por parcela para que Inicio pueda mostrarla sin conexión; no crea
 entradas en `sync_outbox`, no modifica datos de campo y señala al usuario cuando
 la estimación está vencida. La API es la única que resuelve la ubicación de la
 parcela y consulta al proveedor externo.
+
+El clima general de Inicio usa `clima_distrito_cache`: una caché local de solo
+lectura por distrito, sin outbox ni cambios de datos operativos. La API resuelve
+el punto climático territorial; este flujo no usa geometría de parcelas.
 
 ## Cambios críticos
 

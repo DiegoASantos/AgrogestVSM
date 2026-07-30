@@ -64,6 +64,10 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 019: Scores técnicos independientes por módulo para mango](specs/019-scores-tecnicos-independientes-mango.md)
 - [Spec 020: Módulo clima territorial para el panel web](specs/020-modulo-clima-territorial-web.md)
 
+## Spec 021
+
+- [Clima general móvil por distrito](specs/021-clima-general-mobile-por-distrito.md)
+
 ## Runbooks
 
 - [Flujo diario de mantenimiento con IA](runbooks/daily-workflow.md)

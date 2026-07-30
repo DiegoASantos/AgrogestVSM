@@ -942,18 +942,8 @@ const MIGRATIONS: Migration[] = [
     version: 38,
     run(db: SQLiteDatabase) {
       addColumnIfMissing(db, "visita_calificaciones", "justificado", "INTEGER");
-      addColumnIfMissing(
-        db,
-        "visita_calificaciones",
-        "categoria_justificacion",
-        "TEXT"
-      );
-      addColumnIfMissing(
-        db,
-        "visita_calificaciones",
-        "motivo_justificacion",
-        "TEXT"
-      );
+      addColumnIfMissing(db, "visita_calificaciones", "categoria_justificacion", "TEXT");
+      addColumnIfMissing(db, "visita_calificaciones", "motivo_justificacion", "TEXT");
     }
   },
   {
@@ -1000,8 +990,12 @@ const MIGRATIONS: Migration[] = [
       `);
 
       for (const row of rows) {
-        if (isLegacyPendingCalificacionEligible(row.receta_anterior_json, row.modulo)) continue;
-        db.runSync("DELETE FROM sync_outbox WHERE entity_type = 'visita_calificaciones' AND entity_local_id = ?", row.local_id);
+        if (isLegacyPendingCalificacionEligible(row.receta_anterior_json, row.modulo))
+          continue;
+        db.runSync(
+          "DELETE FROM sync_outbox WHERE entity_type = 'visita_calificaciones' AND entity_local_id = ?",
+          row.local_id
+        );
         db.runSync("DELETE FROM visita_calificaciones WHERE local_id = ?", row.local_id);
       }
     }
@@ -1010,7 +1004,9 @@ const MIGRATIONS: Migration[] = [
     version: 42,
     run(db: SQLiteDatabase) {
       addColumnIfMissing(db, "visita_paso_observaciones", "finalizado_at", "TEXT");
-      db.execSync("CREATE INDEX IF NOT EXISTS idx_obs_sanitarias_visita_plaga ON visita_observaciones_sanitarias(visita_local_id, pest_disease_id)");
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_obs_sanitarias_visita_plaga ON visita_observaciones_sanitarias(visita_local_id, pest_disease_id)"
+      );
     }
   },
   {
@@ -1025,6 +1021,18 @@ const MIGRATIONS: Migration[] = [
         FOREIGN KEY (parcela_id) REFERENCES parcelas(id)
       )`
     ]
+  },
+  {
+    version: 44,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS clima_distrito_cache (
+        distrito_codigo TEXT PRIMARY KEY NOT NULL,
+        payload_json TEXT NOT NULL,
+        fetched_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`
+    ]
   }
 ];
 
@@ -1035,14 +1043,28 @@ function isLegacyPendingCalificacionEligible(raw: string | null, modulo: string)
     const map = receta.modulosEvaluables as Record<string, boolean> | undefined;
     if (map) return map[modulo] === true;
     if (modulo === "plagas" || modulo === "enfermedades") {
-      return Array.isArray(receta.fitosanidad) && receta.fitosanidad.some((item) =>
-        (item as { objetivo?: string }).objetivo === (modulo === "plagas" ? "plaga" : "enfermedad")
+      return (
+        Array.isArray(receta.fitosanidad) &&
+        receta.fitosanidad.some(
+          (item) =>
+            (item as { objetivo?: string }).objetivo ===
+            (modulo === "plagas" ? "plaga" : "enfermedad")
+        )
       );
     }
-    if (modulo === "nutricion") return Array.isArray(receta.fertilizacion) && receta.fertilizacion.length > 0;
-    if (modulo === "riego") return Boolean((receta.riego as { tipoRecomendacion?: string } | null)?.tipoRecomendacion?.trim());
-    return Array.isArray(receta.labores) && receta.labores.some((item) => Boolean((item as { labor?: string }).labor?.trim()));
-  } catch { return false; }
+    if (modulo === "nutricion")
+      return Array.isArray(receta.fertilizacion) && receta.fertilizacion.length > 0;
+    if (modulo === "riego")
+      return Boolean(
+        (receta.riego as { tipoRecomendacion?: string } | null)?.tipoRecomendacion?.trim()
+      );
+    return (
+      Array.isArray(receta.labores) &&
+      receta.labores.some((item) => Boolean((item as { labor?: string }).labor?.trim()))
+    );
+  } catch {
+    return false;
+  }
 }
 
 function recreateSubsectoresAndParcelas(db: SQLiteDatabase) {
@@ -1091,17 +1113,12 @@ function relaxProductoresDocumentColumns(db: SQLiteDatabase) {
   const columns = db.getAllSync<{ name: string; notnull?: number }>(
     "PRAGMA table_info(productores)"
   );
-  const documentTypeColumn = columns.find(
-    (column) => column.name === "document_type_id"
-  );
+  const documentTypeColumn = columns.find((column) => column.name === "document_type_id");
   const documentNumberColumn = columns.find(
     (column) => column.name === "document_number"
   );
 
-  if (
-    documentTypeColumn?.notnull !== 1 &&
-    documentNumberColumn?.notnull !== 1
-  ) {
+  if (documentTypeColumn?.notnull !== 1 && documentNumberColumn?.notnull !== 1) {
     return;
   }
 

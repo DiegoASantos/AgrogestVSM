@@ -32,68 +32,68 @@ const ALERT_VAR_ICONS: Record<string, typeof Thermometer> = {
 };
 
 const ALERT_VAR_LABELS: Record<string, string> = {
-  temperature_2m_max: "Temperatura m\u00E1xima",
-  temperature_2m_min: "Temperatura m\u00EDnima",
-  vapour_pressure_deficit: "D\u00E9ficit de presi\u00F3n de vapor",
-  wind_speed_10m_max: "Viento m\u00E1ximo",
-  wind_gusts_10m_max: "R\u00E1fagas de viento",
+  temperature_2m_max: "Temperatura máxima",
+  temperature_2m_min: "Temperatura mínima",
+  vapour_pressure_deficit: "Déficit de presión de vapor",
+  wind_speed_10m_max: "Viento máximo",
+  wind_gusts_10m_max: "Ráfagas de viento",
   precipitation_sum: "Lluvia acumulada",
   precipitation_probability: "Probabilidad de lluvia",
   sunshine_duration: "Horas de sol",
-  et0: "Evapotranspiraci\u00F3n"
+  et0: "Evapotranspiración"
 };
 
 const ALERT_IMPACTS: Record<string, Record<string, string>> = {
   temperature_2m_max: {
-    PRECAUCION: "Temperaturas elevadas pueden causar estr\u00E9s en floraci\u00F3n. Monitorear riego y considerar bioestimulantes foliares.",
-    ALTA: "Riesgo de aborto floral y ca\u00EDda de frutos reci\u00E9n cuajados. Aumentar frecuencia de riego para refrescar el microclima del huerto.",
-    CRITICA: "Peligro de da\u00F1o irreversible en floraci\u00F3n y cuajado. Aplicar riego inmediato, evaluar malla sombra. Posible p\u00E9rdida de rendimiento."
+    PRECAUCION: "Temperaturas elevadas pueden causar estrés en floración. Monitorear riego y considerar bioestimulantes foliares.",
+    ALTA: "Riesgo de aborto floral y caída de frutos recién cuajados. Aumentar frecuencia de riego para refrescar el microclima del huerto.",
+    CRITICA: "Peligro de daño irreversible en floración y cuajado. Aplicar riego inmediato, evaluar malla sombra. Posible pérdida de rendimiento."
   },
   temperature_2m_min: {
-    PRECAUCION: "Temperaturas bajas pueden retrasar la inducci\u00F3n floral. Las yemas requieren fr\u00EDo moderado.",
-    ALTA: "Fr\u00EDo intenso: riesgo de detenci\u00F3n del desarrollo floral. Puede afectar brotaci\u00F3n en variedades sensibles como Kent.",
-    CRITICA: "Temperaturas extremadamente bajas. Peligro de da\u00F1o celular en yemas y frutos peque\u00F1os. Evaluar da\u00F1os al amanecer."
+    PRECAUCION: "Temperaturas bajas pueden retrasar la inducción floral. Las yemas requieren frío moderado.",
+    ALTA: "Frío intenso: riesgo de detención del desarrollo floral. Puede afectar brotación en variedades sensibles como Kent.",
+    CRITICA: "Temperaturas extremadamente bajas. Peligro de daño celular en yemas y frutos pequeños. Evaluar daños al amanecer."
   },
   vapour_pressure_deficit: {
-    PRECAUCION: "VPD elevado: la atm\u00F3sfera demanda m\u00E1s agua de la planta. Verificar humedad del suelo.",
-    ALTA: "Estr\u00E9s h\u00EDdrico atmosf\u00E9rico. La planta cierra estomas reduciendo fotos\u00EDntesis. Afecta llenado de fruto y calibre.",
-    CRITICA: "VPD cr\u00EDtico. La planta entra en modo supervivencia. Riego inmediato requerido. Riesgo de fruta peque\u00F1a y aborto."
+    PRECAUCION: "VPD elevado: la atmósfera demanda más agua de la planta. Verificar humedad del suelo.",
+    ALTA: "Estrés hídrico atmosférico. La planta cierra estomas reduciendo fotosíntesis. Afecta llenado de fruto y calibre.",
+    CRITICA: "VPD crítico. La planta entra en modo supervivencia. Riego inmediato requerido. Riesgo de fruta pequeña y aborto."
   },
   wind_speed_10m_max: {
     PRECAUCION: "Viento moderado. Puede desprender flores y reducir cuajado. Evaluar cortinas rompeviento.",
-    ALTA: "Viento fuerte: da\u00F1o mec\u00E1nico a flores, frutos y ramas j\u00F3venes. Posible ca\u00EDda de fruta cuajada.",
-    CRITICA: "Viento muy fuerte: riesgo de quiebre de ramas cargadas y ca\u00EDda masiva de frutos. Alejar al personal del campo."
+    ALTA: "Viento fuerte: daño mecánico a flores, frutos y ramas jóvenes. Posible caída de fruta cuajada.",
+    CRITICA: "Viento muy fuerte: riesgo de quiebre de ramas cargadas y caída masiva de frutos. Alejar al personal del campo."
   },
   wind_gusts_10m_max: {
-    PRECAUCION: "R\u00E1fagas moderadas. Pueden afectar polinizaci\u00F3n y da\u00F1ar flores.",
-    ALTA: "R\u00E1fagas fuertes: riesgo de da\u00F1o estructural en ramas con carga frutal. Posible rotura de ramas.",
-    CRITICA: "R\u00E1fagas extremadamente peligrosas. Alto riesgo de quiebre de cargadores. No realizar labores en campo."
+    PRECAUCION: "Ráfagas moderadas. Pueden afectar polinización y dañar flores.",
+    ALTA: "Ráfagas fuertes: riesgo de daño estructural en ramas con carga frutal. Posible rotura de ramas.",
+    CRITICA: "Ráfagas extremadamente peligrosas. Alto riesgo de quiebre de cargadores. No realizar labores en campo."
   },
   precipitation_sum: {
-    PRECAUCION: "Lluvia ligera. Si coincide con floraci\u00F3n: riesgo leve de lavado de polen. En cosecha: posible manchado.",
-    ALTA: "Lluvia significativa. En floraci\u00F3n: reduce dr\u00E1sticamente el cuajado. En cosecha: riesgo de antracnosis post-cosecha.",
-    CRITICA: "Lluvia intensa. Puede causar: lavado total de flores, ca\u00EDda de frutos, inundaci\u00F3n, proliferaci\u00F3n de hongos. Suspender cosecha."
+    PRECAUCION: "Lluvia ligera. Si coincide con floración: riesgo leve de lavado de polen. En cosecha: posible manchado.",
+    ALTA: "Lluvia significativa. En floración: reduce drásticamente el cuajado. En cosecha: riesgo de antracnosis post-cosecha.",
+    CRITICA: "Lluvia intensa. Puede causar: lavado total de flores, caída de frutos, inundación, proliferación de hongos. Suspender cosecha."
   },
   precipitation_probability: {
-    PRECAUCION: "Probabilidad elevada de lluvia. Precauci\u00F3n si hay floraci\u00F3n o cosecha programada.",
+    PRECAUCION: "Probabilidad elevada de lluvia. Precaución si hay floración o cosecha programada.",
     ALTA: "Alta probabilidad de lluvia. Planificar cobertura de fungicidas si hay fruta en desarrollo.",
     CRITICA: "Lluvia casi segura. Condiciones ideales para antracnosis. Proteger cosecha y aplicar preventivo urgente."
   },
   sunshine_duration: {
-    PRECAUCION: "Horas de sol bajo lo \u00F3ptimo. Puede retrasar acumulaci\u00F3n de az\u00FAcares en frutos.",
-    ALTA: "Muy pocas horas de sol. Riesgo de fruta con bajo az\u00FAcar, retraso en maduraci\u00F3n y menor calidad.",
-    CRITICA: "D\u00E9ficit solar cr\u00EDtico. Fotos\u00EDntesis limitada. Afecta calibre, color y sabor. Puede retrasar cosecha."
+    PRECAUCION: "Horas de sol bajo lo óptimo. Puede retrasar acumulación de azúcares en frutos.",
+    ALTA: "Muy pocas horas de sol. Riesgo de fruta con bajo azúcar, retraso en maduración y menor calidad.",
+    CRITICA: "Déficit solar crítico. Fotosíntesis limitada. Afecta calibre, color y sabor. Puede retrasar cosecha."
   },
   et0: {
-    PRECAUCION: "ET elevada. Aumentar monitoreo de humedad del suelo. El cultivo demanda m\u00E1s agua.",
-    ALTA: "Alta demanda evaporativa. Requiere riego suplementario. Sin riego, la fruta no alcanza calibre de exportaci\u00F3n.",
-    CRITICA: "Demanda h\u00EDdrica extrema. D\u00E9ficit inminente sin riego. Riesgo de p\u00E9rdida de calibre y aborto de frutos."
+    PRECAUCION: "ET elevada. Aumentar monitoreo de humedad del suelo. El cultivo demanda más agua.",
+    ALTA: "Alta demanda evaporativa. Requiere riego suplementario. Sin riego, la fruta no alcanza calibre de exportación.",
+    CRITICA: "Demanda hídrica extrema. Déficit inminente sin riego. Riesgo de pérdida de calibre y aborto de frutos."
   }
 };
 
 function getImpact(variable: string, severity: string): string {
   return ALERT_IMPACTS[variable]?.[severity]
-    ?? `Condici\u00F3n clim\u00E1tica ${severity.toLowerCase()} detectada. Evaluar las condiciones en campo y ajustar el manejo agron\u00F3mico seg\u00FAn la etapa fenol\u00F3gica actual del cultivo.`;
+    ?? `Condición climática ${severity.toLowerCase()} detectada. Evaluar las condiciones en campo y ajustar el manejo agronómico según la etapa fenológica actual del cultivo.`;
 }
 
 function severityBadge(severity: string) {
@@ -144,7 +144,7 @@ export function NotificationBell() {
         onClick={() => setIsOpen((v) => !v)}
         type="button"
         aria-label={`Notificaciones${count > 0 ? `: ${count} alertas activas` : ""}`}
-        title="Alertas clim\u00E1ticas"
+        title="Alertas climáticas"
       >
         <Bell size={18} />
         {count > 0 && <span className="notification-bell__badge">{count}</span>}
@@ -153,7 +153,7 @@ export function NotificationBell() {
       {isOpen && (
         <div ref={panelRef} className="notification-panel">
           <div className="notification-panel__header">
-            <h3>Alertas clim\u00E1ticas</h3>
+            <h3>Alertas climáticas</h3>
             <span>{count} activa{count !== 1 ? "s" : ""}</span>
           </div>
           <div className="notification-panel__body">
@@ -172,7 +172,7 @@ export function NotificationBell() {
                     <span className="notification-item__icon"><Icon size={18} /></span>
                     <span className="notification-item__body">
                       <strong>{ALERT_VAR_LABELS[alert.variable] ?? alert.variable} {alert.value}{alert.unit}</strong>
-                      <small>{alert.pointName} &middot; {severityBadge(alert.severity)}</small>
+                      <small>{alert.pointName} · {severityBadge(alert.severity)}</small>
                     </span>
                   </button>
                 );
@@ -187,7 +187,7 @@ export function NotificationBell() {
           <dialog open className="notification-modal" onClick={(e) => e.stopPropagation()}>
             <div className="notification-modal__header">
               <div>
-                <p className="eyebrow">Alerta clim\u00E1tica</p>
+                <p className="eyebrow">Alerta climática</p>
                 <h3>{ALERT_VAR_LABELS[selectedAlert.variable] ?? selectedAlert.variable}</h3>
               </div>
               <button className="notification-modal__close" onClick={() => setSelectedAlert(null)} aria-label="Cerrar"><X size={18} /></button>

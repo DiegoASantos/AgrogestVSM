@@ -1,12 +1,15 @@
 import { climaCacheRepository } from "../repositories/clima-cache.repository";
-import type { ClimateLoadResult } from "../types/clima.types";
+import type { ClimateDistrictCode, ClimateLoadResult } from "../types/clima.types";
 import { climaRemote } from "./clima.remote";
 
 export const climaService = {
-  async getForParcela(parcelaId: string, isOnline: boolean): Promise<ClimateLoadResult> {
+  async getForDistrict(
+    districtCode: ClimateDistrictCode,
+    isOnline: boolean
+  ): Promise<ClimateLoadResult> {
     if (isOnline) {
       try {
-        const climate = await climaRemote.getByParcelaId(parcelaId);
+        const climate = await climaRemote.getByDistrictCode(districtCode);
         climaCacheRepository.save(climate);
         return { climate, isCached: false, isStale: false };
       } catch {
@@ -14,11 +17,9 @@ export const climaService = {
       }
     }
 
-    const cached = climaCacheRepository.get(parcelaId);
-    if (!cached) {
-      throw new Error("No hay una estimación climática guardada para esta parcela.");
-    }
-
+    const cached = climaCacheRepository.get(districtCode);
+    if (!cached)
+      throw new Error("No hay una estimación climática guardada para este distrito.");
     return {
       climate: cached.climate,
       isCached: true,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 43;
+const LATEST_MIGRATION_VERSION = 44;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -48,7 +48,13 @@ function createFakeDatabase(
     currentVersion,
     executedStatements: [],
     productorColumns: new Set(productorColumns),
-    productorNotNullColumns: new Set(["id", "public_id", "is_active", "created_at", "updated_at"]),
+    productorNotNullColumns: new Set([
+      "id",
+      "public_id",
+      "is_active",
+      "created_at",
+      "updated_at"
+    ]),
     productorNextColumns: new Set(),
     productorNextNotNullColumns: new Set(),
     pestDiseaseColumns: new Set(pestDiseaseColumns),
@@ -242,9 +248,7 @@ function createFakeDatabase(
           ...(statement.includes("categoria_justificacion")
             ? ["categoria_justificacion"]
             : []),
-          ...(statement.includes("motivo_justificacion")
-            ? ["motivo_justificacion"]
-            : []),
+          ...(statement.includes("motivo_justificacion") ? ["motivo_justificacion"] : []),
           "sync_status",
           "sync_error_message",
           "created_at",

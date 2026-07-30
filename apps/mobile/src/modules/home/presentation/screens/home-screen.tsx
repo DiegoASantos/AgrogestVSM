@@ -48,12 +48,7 @@ export function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { isOnline } = useIsOnline();
-  const {
-    isAuthenticated,
-    onlineSessionStatus,
-    session,
-    signOut
-  } = useAuthSession();
+  const { isAuthenticated, onlineSessionStatus, session, signOut } = useAuthSession();
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
   const [syncErrors, setSyncErrors] = useState<SyncErrorDetail[]>([]);
   const [syncPending, setSyncPending] = useState<SyncPendingDetail[]>([]);
@@ -88,7 +83,10 @@ export function HomeScreen() {
 
     try {
       setRecentVisits(visitasCampoService.getRecentByAccessToken(session.accessToken));
-      void parcelasService.getAll().then(setParcelas).catch(() => setParcelas([]));
+      void parcelasService
+        .getAll()
+        .then(setParcelas)
+        .catch(() => setParcelas([]));
     } catch {
       setRecentVisits([]);
       setParcelas([]);
@@ -104,11 +102,7 @@ export function HomeScreen() {
     router.push(HISTORY_ROUTE);
   }, [router]);
   const handleManualSync = useCallback(async () => {
-    if (
-      !isOnline ||
-      isManualSyncing ||
-      onlineSessionStatus === "reauth_required"
-    ) {
+    if (!isOnline || isManualSyncing || onlineSessionStatus === "reauth_required") {
       return;
     }
 
@@ -124,19 +118,10 @@ export function HomeScreen() {
     } finally {
       setIsManualSyncing(false);
     }
-  }, [
-    isManualSyncing,
-    isOnline,
-    loadDashboard,
-    onlineSessionStatus
-  ]);
+  }, [isManualSyncing, isOnline, loadDashboard, onlineSessionStatus]);
 
   const handleRetryFailures = useCallback(async () => {
-    if (
-      !isOnline ||
-      isRetryingFailures ||
-      onlineSessionStatus === "reauth_required"
-    ) {
+    if (!isOnline || isRetryingFailures || onlineSessionStatus === "reauth_required") {
       return;
     }
 
@@ -328,9 +313,7 @@ export function HomeScreen() {
             <Pressable
               accessibilityRole="button"
               disabled={
-                !isOnline ||
-                isManualSyncing ||
-                onlineSessionStatus === "reauth_required"
+                !isOnline || isManualSyncing || onlineSessionStatus === "reauth_required"
               }
               onPress={() => {
                 void handleManualSync();
@@ -363,8 +346,7 @@ export function HomeScreen() {
                 style={({ pressed }) => [
                   styles.retryFailuresButton,
                   pressed && styles.pressed,
-                  (!isOnline || isRetryingFailures) &&
-                    styles.manualSyncButtonDisabled
+                  (!isOnline || isRetryingFailures) && styles.manualSyncButtonDisabled
                 ]}
               >
                 <Ionicons
@@ -426,7 +408,7 @@ export function HomeScreen() {
             ) : null}
           </View>
 
-          <ClimateDashboard isOnline={isOnline} parcelas={parcelas} />
+          <ClimateDashboard isOnline={isOnline} />
 
           <View style={styles.activityPanel}>
             <View style={styles.activityHeader}>
@@ -696,7 +678,10 @@ function SyncPendingModal({
               pending.map((item, index) => (
                 <View
                   key={`${item.entityType}-${item.localId}`}
-                  style={[styles.errorItem, { borderColor: "#f3cd8c", backgroundColor: "#fef9e7" }]}
+                  style={[
+                    styles.errorItem,
+                    { borderColor: "#f3cd8c", backgroundColor: "#fef9e7" }
+                  ]}
                 >
                   <View style={styles.errorItemHeader}>
                     <AppText style={{ color: "#b45309" }} variant="eyebrow">

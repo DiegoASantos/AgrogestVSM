@@ -458,5 +458,12 @@ export const SQL_SCHEMA = [
     expires_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (parcela_id) REFERENCES parcelas(id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS clima_distrito_cache (
+    distrito_codigo TEXT PRIMARY KEY NOT NULL,
+    payload_json TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
   )`
 ] as const;

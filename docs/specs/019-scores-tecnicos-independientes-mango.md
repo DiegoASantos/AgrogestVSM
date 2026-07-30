@@ -75,6 +75,12 @@ históricos. Inicialmente aplica a todo mango, sin distinguir variedad.
   ni sincronización. Al no haber conexión muestra el valor guardado y señala si
   está vencido; nunca lo usa para disparar alertas.
 
+## Enmienda climática 2026-07-30
+
+La spec 021 sustituye temporalmente el clima móvil por parcela: mientras no
+exista geometría válida, Inicio usa clima territorial por distrito. La ruta de
+parcela se conserva para una futura etapa georreferenciada.
+
 ## Contratos afectados
 
 - PostgreSQL y SQLite para datos técnicos, versiones de regla, revisiones de
@@ -109,17 +115,17 @@ históricos. Inicialmente aplica a todo mango, sin distinguir variedad.
 ## Criterios de aceptación
 
 - [ ] CA-001: Cumplimiento y score técnico devuelven contratos distintos y los
-  cambios técnicos no alteran ningún cálculo histórico de cumplimiento.
+      cambios técnicos no alteran ningún cálculo histórico de cumplimiento.
 - [ ] CA-002: Cada módulo calcula el resultado, semáforo y acciones esperados
-  a partir de sus capturas validadas.
+      a partir de sus capturas validadas.
 - [ ] CA-003: El global renormaliza módulos disponibles e informa cobertura.
 - [ ] CA-004: Mobile conserva padre-hijo, idempotencia, reintentos y pendientes
-  en todos los cambios de captura.
+      en todos los cambios de captura.
 - [ ] CA-005: Una receta emitida permanece inmutable y recibe una revisión nueva.
 - [ ] CA-006: Datos climáticos incompletos, atrasados o no autorizados no activan
-  la alerta predictiva.
+      la alerta predictiva.
 - [x] CA-007: Inicio puede mostrar una estimación por parcela online y el último
-  valor cacheado offline, claramente diferenciado de una estación METOS.
+      valor cacheado offline, claramente diferenciado de una estación METOS.
 
 ## Pruebas
 

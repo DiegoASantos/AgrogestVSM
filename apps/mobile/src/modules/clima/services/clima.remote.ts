@@ -1,9 +1,9 @@
 import { apiRequest } from "../../../shared/services";
-import type { ParcelaClimate } from "../types/clima.types";
+import type { ClimateDistrictCode, DistrictClimate } from "../types/clima.types";
 
 export const climaRemote = {
-  getByParcelaId(parcelaId: string) {
-    return apiRequest<ParcelaClimate>(`/parcelas/${parcelaId}/clima`, {
+  getByDistrictCode(districtCode: ClimateDistrictCode) {
+    return apiRequest<DistrictClimate>(`/mobile/clima/${districtCode}`, {
       timeoutMs: 10_000
     });
   }

@@ -1,5 +1,18 @@
-export type ParcelaClimate = {
-  parcelaId: string;
+export const climateDistricts = [
+  { code: "tambogrande", name: "Tambogrande" },
+  { code: "las-lomas", name: "Las Lomas" },
+  { code: "motupe", name: "Motupe" },
+  { code: "casma", name: "Casma" }
+] as const;
+
+// TODO: replace with the district-to-climate-point catalog when it exists.
+export type ClimateDistrictCode = (typeof climateDistricts)[number]["code"];
+
+export type DistrictClimate = {
+  district: {
+    code: ClimateDistrictCode;
+    name: string;
+  };
   source: {
     type: "estimated_weather_model";
     provider: "Open-Meteo";
@@ -33,7 +46,7 @@ export type ParcelaClimate = {
 };
 
 export type ClimateLoadResult = {
-  climate: ParcelaClimate;
+  climate: DistrictClimate;
   isCached: boolean;
   isStale: boolean;
 };

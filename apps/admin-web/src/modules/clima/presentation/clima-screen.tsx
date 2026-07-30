@@ -68,7 +68,7 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: NonN
     isSelected: selectedId === point.id,
     onSelect: () => handleSelect(point.id)
   }));
-  return <div className="climate-map-layout"><div className="climate-map-layout__map"><div className="climate-map-caption"><strong>{points.length}</strong> puntos territoriales. Haga clic en un punto para ver el detalle clim\u00E1tico.{selectedId ? <button className="climate-map-caption__reset" onClick={() => setSelectedId(null)}>Limpiar selecci\u00F3n</button> : null}</div><AdminMap points={mapPoints} emptyMessage="No hay puntos climaticos configurados."/><div className="climate-map-legend"><span className="climate-map-legend__dot climate-map-legend__dot--normal"/><span>Punto clim\u00E1tico</span><span className="climate-map-legend__dot climate-map-legend__dot--selected"/><span>Seleccionado</span></div></div><div className={`climate-map-panel${selected ? " climate-map-panel--open" : ""}`}><div className="climate-map-panel__inner">{selected ? <ClimateMapPanel point={selected} forecast={forecast} loading={loadingForecast} onClose={() => setSelectedId(null)}/> : null}</div></div></div>;
+  return <div className="climate-map-layout"><div className="climate-map-layout__map"><div className="climate-map-caption"><strong>{points.length}</strong> puntos territoriales. Haga clic en un punto para ver el detalle climático.{selectedId ? <button className="climate-map-caption__reset" onClick={() => setSelectedId(null)}>Limpiar selección</button> : null}</div><AdminMap points={mapPoints} emptyMessage="No hay puntos climaticos configurados."/><div className="climate-map-legend"><span className="climate-map-legend__dot climate-map-legend__dot--normal"/><span>Punto climático</span><span className="climate-map-legend__dot climate-map-legend__dot--selected"/><span>Seleccionado</span></div></div><div className={`climate-map-panel${selected ? " climate-map-panel--open" : ""}`}><div className="climate-map-panel__inner">{selected ? <ClimateMapPanel point={selected} forecast={forecast} loading={loadingForecast} onClose={() => setSelectedId(null)}/> : null}</div></div></div>;
 }
 
 function ClimateMapPanel({ point, forecast, loading, onClose }: { point: ClimatePoint; forecast: ClimateForecast[] | null; loading: boolean; onClose: () => void }) {
@@ -97,9 +97,9 @@ function ClimateMapPanel({ point, forecast, loading, onClose }: { point: Climate
       <div className="climate-map-panel__header">
         <div>
           <h3>{point.name}</h3>
-          <span>{point.district}, {point.department} · {isToday ? "Actual" : "Pron\u00F3stico"}</span>
+          <span>{point.district}, {point.department} · {isToday ? "Actual" : "Pronóstico"}</span>
         </div>
-        <button className="climate-map-panel__close" onClick={onClose} aria-label="Cerrar panel">{"\u00D7"}</button>
+        <button className="climate-map-panel__close" onClick={onClose} aria-label="Cerrar panel">{"×"}</button>
       </div>
       <div className="climate-map-panel__body">
         <div className="climate-map-panel__dates">
@@ -110,9 +110,9 @@ function ClimateMapPanel({ point, forecast, loading, onClose }: { point: Climate
           ))}
         </div>
         {loading
-          ? <div className="climate-map-panel__loading">Cargando pron\u00F3stico...</div>
+          ? <div className="climate-map-panel__loading">Cargando pronóstico...</div>
           : readings.length === 0
-            ? <div className="climate-map-panel__empty">Sin datos disponibles para este d\u00EDa.</div>
+            ? <div className="climate-map-panel__empty">Sin datos disponibles para este día.</div>
             : <>
                 <PanelSummary readings={readings}/>
                 <ReadingGroups readings={readings}/>
@@ -127,7 +127,7 @@ function PanelSummary({ readings }: { readings: ClimateReading[] }) {
   const cards = [
     [Thermometer, "Temperatura", "temperature_2m"],
     [Droplets, "Humedad", "relative_humidity_2m"],
-    [CloudRain, "Precipitaci\u00F3n", "precipitation"],
+    [CloudRain, "Precipitación", "precipitation"],
     [Wind, "Viento", "wind_speed_10m"]
   ] as const;
   return <div className="climate-map-panel__summary">{cards.map(([Icon, title, variable]) => { const r = readings.find((item) => item.variable === variable); return <article key={variable}><Icon aria-hidden="true" size={16}/><div><span style={{ display: "block", fontSize: ".7rem", color: "var(--muted-foreground, #52606d)" }}>{title}</span><strong>{r ? `${formatValue(r.value)} ${r.unit}` : "-"}</strong></div></article>; })}</div>;
@@ -150,7 +150,7 @@ function SummaryView({ summary, session }: { summary: Summary; session: NonNulla
 }
 
 const COMPARE_VARS = [
-  ["Temperatura", "temperature_2m", "\u00B0C"],
+  ["Temperatura", "temperature_2m", "°C"],
   ["Humedad", "relative_humidity_2m", "%"],
   ["VPD", "vapour_pressure_deficit", "kPa"],
   ["Viento", "wind_speed_10m", "km/h"]
@@ -172,11 +172,11 @@ function SummaryMiniForecast({ forecast, pointName }: { forecast: ClimateForecas
   const days = forecast[0].days;
   const tempData = useMemo(() => mergeByDate(days, ["temperature_2m_max", "temperature_2m_min"]), [days]);
   const rainData = useMemo(() => days.filter((d) => d.variable === "precipitation_sum").map((d) => ({ date: dateOnly(d.validAt), value: Number(d.value) })).filter((d) => Number.isFinite(d.value)).slice(0, 5), [days]);
-  const tempUnit = days.find((d) => d.variable === "temperature_2m_max")?.unit ?? "\u00B0C";
+  const tempUnit = days.find((d) => d.variable === "temperature_2m_max")?.unit ?? "°C";
   const rainUnit = days.find((d) => d.variable === "precipitation_sum")?.unit ?? "mm";
-  return <section className="climate-data-section"><header><div><p className="eyebrow">Tendencia</p><h3 className="title title--section">{pointName} <small>pr\u00F3ximos d\u00EDas</small></h3></div></header><div className="climate-chart-grid--two-col">
-    <div className="climate-chart-card" style={{ minHeight: 220 }}><header className="climate-chart-card__header"><div><h3 className="title title--section">Temperatura</h3><small>M\u00E1x / M\u00EDn</small></div></header><ResponsiveContainer height={140} width="100%"><LineChart data={tempData}><XAxis dataKey="date"/><YAxis unit={` ${tempUnit}`}/><Tooltip formatter={(value, name) => [`${formatValue(String(value))} ${tempUnit}`, label(String(name))]}/><Line dataKey="temperature_2m_max" stroke="#ef4444" strokeWidth={2} type="monotone" dot={{ r: 2 }}/><Line dataKey="temperature_2m_min" stroke="#3b82f6" strokeWidth={2} type="monotone" dot={{ r: 2 }}/></LineChart></ResponsiveContainer></div>
-    <div className="climate-chart-card" style={{ minHeight: 220 }}><header className="climate-chart-card__header"><div><h3 className="title title--section">Precipitaci\u00F3n</h3><small>Lluvia diaria acumulada</small></div></header><ResponsiveContainer height={140} width="100%"><BarChart data={rainData}><XAxis dataKey="date"/><YAxis domain={[0, (dataMax: number) => (Number.isFinite(dataMax) ? Math.max(dataMax, 1) : 1)]} unit={` ${rainUnit}`}/><Tooltip formatter={(value) => [`${formatValue(String(value))} ${rainUnit}`, "Precipitaci\u00F3n"]}/><Bar dataKey="value" fill="#0284c7" radius={[5, 5, 0, 0]}/></BarChart></ResponsiveContainer></div>
+  return <section className="climate-data-section"><header><div><p className="eyebrow">Tendencia</p><h3 className="title title--section">{pointName} <small>próximos días</small></h3></div></header><div className="climate-chart-grid--two-col">
+    <div className="climate-chart-card" style={{ minHeight: 220 }}><header className="climate-chart-card__header"><div><h3 className="title title--section">Temperatura</h3><small>Máx / Mín</small></div></header><ResponsiveContainer height={140} width="100%"><LineChart data={tempData}><XAxis dataKey="date"/><YAxis unit={` ${tempUnit}`}/><Tooltip formatter={(value, name) => [`${formatValue(String(value))} ${tempUnit}`, label(String(name))]}/><Line dataKey="temperature_2m_max" stroke="#ef4444" strokeWidth={2} type="monotone" dot={{ r: 2 }}/><Line dataKey="temperature_2m_min" stroke="#3b82f6" strokeWidth={2} type="monotone" dot={{ r: 2 }}/></LineChart></ResponsiveContainer></div>
+    <div className="climate-chart-card" style={{ minHeight: 220 }}><header className="climate-chart-card__header"><div><h3 className="title title--section">Precipitación</h3><small>Lluvia diaria acumulada</small></div></header><ResponsiveContainer height={140} width="100%"><BarChart data={rainData}><XAxis dataKey="date"/><YAxis domain={[0, (dataMax: number) => (Number.isFinite(dataMax) ? Math.max(dataMax, 1) : 1)]} unit={` ${rainUnit}`}/><Tooltip formatter={(value) => [`${formatValue(String(value))} ${rainUnit}`, "Precipitación"]}/><Bar dataKey="value" fill="#0284c7" radius={[5, 5, 0, 0]}/></BarChart></ResponsiveContainer></div>
   </div></section>;
 }
 
