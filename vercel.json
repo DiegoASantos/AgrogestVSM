@@ -1,6 +1,7 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "pnpm --filter @agrogest/admin-web build",
   "outputDirectory": "apps/admin-web/.next",
-  "installCommand": "pnpm --filter @agrogest/admin-web install --frozen-lockfile",
+  "installCommand": "pnpm install --frozen-lockfile",
   "framework": "nextjs"
 }
