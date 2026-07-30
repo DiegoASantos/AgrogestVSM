@@ -42,7 +42,7 @@ export function ClimaScreen({ section }: { section: ClimateSection }) {
 }
 
 function ClimateContent({ section, data, session }: { section: ClimateSection; data: unknown; session: NonNullable<ReturnType<typeof useAuthSession>["session"]> }) {
-  if (section === "resumen") return <SummaryView summary={data as Summary}/>;
+  if (section === "resumen") return <SummaryView summary={data as Summary} session={session}/>;
   if (section === "pronostico") return <ForecastView forecasts={data as ClimateForecast[]}/>;
   if (section === "historial") return <HistoryView points={data as ClimatePoint[]} session={session}/>;
   if (section === "estaciones") return <StationsView items={data as Array<Record<string, unknown>>}/>;
@@ -133,8 +133,51 @@ function PanelSummary({ readings }: { readings: ClimateReading[] }) {
   return <div className="climate-map-panel__summary">{cards.map(([Icon, title, variable]) => { const r = readings.find((item) => item.variable === variable); return <article key={variable}><Icon aria-hidden="true" size={16}/><div><span style={{ display: "block", fontSize: ".7rem", color: "var(--muted-foreground, #52606d)" }}>{title}</span><strong>{r ? `${formatValue(r.value)} ${r.unit}` : "-"}</strong></div></article>; })}</div>;
 }
 
-function SummaryView({ summary }: { summary: Summary }) {
-  return <div className="climate-stack"><section className="climate-summary-hero"><div><p className="eyebrow">Lectura territorial</p><h3 className="title title--section">Condiciones actuales estimadas</h3><span>Seleccione una zona para profundizar en Pronostico o Historial.</span></div><div className="climate-summary-hero__legend"><Badge value="ESTIMADO"/><span>Modelo geografico</span></div></section>{summary.points.map((point) => <section className="climate-data-section" key={point.id}><header><div><p className="eyebrow">Open-Meteo · estimado</p><h3 className="title title--section">{point.name} <small>{point.district}</small></h3></div><span className="climate-badge">Actualizado {latestDate(point.current)}</span></header><SummaryMetrics readings={point.current ?? []}/><ReadingGroups readings={point.current ?? []}/></section>)}<section className="climate-split"><ClimateTable title="Alertas activas" empty="No hay alertas climaticas activas." headers={["Zona", "Condicion", "Valor", "Severidad", "Inicio"]} rows={summary.alerts.map((item) => [item.pointName, label(item.variable), `${item.value} ${item.unit}`, <Badge key="severity" value={item.severity}/>, date(item.startsAt)])}/><SourcesView items={summary.sources} compact/></section></div>;
+function SummaryView({ summary, session }: { summary: Summary; session: NonNullable<ReturnType<typeof useAuthSession>["session"]> }) {
+  const [selectedId, setSelectedId] = useState(summary.points[0]?.id ?? "");
+  const [forecast, setForecast] = useState<ClimateForecast[] | null>(null);
+  const selected = summary.points.find((p) => p.id === selectedId) ?? summary.points[0];
+  useEffect(() => { if (selectedId) { void climaService.getForecast(session, selectedId).then(setForecast).catch(() => setForecast(null)); } }, [selectedId, session]);
+  return <div className="climate-stack">
+    <section className="climate-summary-hero"><div><p className="eyebrow">Lectura territorial</p><h3 className="title title--section">Condiciones actuales estimadas</h3><span>Compare zonas y consulte la tendencia para tomar decisiones.</span></div><div className="climate-summary-hero__legend"><Badge value="ESTIMADO"/><span>Modelo geografico</span></div></section>
+    <PointSelector points={summary.points} value={selectedId} onChange={setSelectedId}/>
+    {selected && <section className="climate-data-section"><header><div><p className="eyebrow">Open-Meteo · estimado</p><h3 className="title title--section">{selected.name} <small>{selected.district}</small></h3></div><span className="climate-badge">{selected.current?.length ? `Actualizado ${latestDate(selected.current)}` : "Sin datos recientes"}</span></header><SummaryMetrics readings={selected.current ?? []}/></section>}
+    <SummaryComparison points={summary.points}/>
+    <SummaryMiniForecast forecast={forecast} pointName={selected?.name ?? ""}/>
+    <ReadingGroups readings={selected?.current ?? []}/>
+    <section className="climate-split"><ClimateTable title="Alertas activas" empty="No hay alertas climaticas activas." headers={["Zona", "Condicion", "Valor", "Severidad", "Inicio"]} rows={summary.alerts.map((item) => [item.pointName, label(item.variable), `${item.value} ${item.unit}`, <Badge key="severity" value={item.severity}/>, date(item.startsAt)])}/><SourcesView items={summary.sources} compact/></section>
+  </div>;
+}
+
+const COMPARE_VARS = [
+  ["Temperatura", "temperature_2m", "\u00B0C"],
+  ["Humedad", "relative_humidity_2m", "%"],
+  ["VPD", "vapour_pressure_deficit", "kPa"],
+  ["Viento", "wind_speed_10m", "km/h"]
+] as const;
+
+function SummaryComparison({ points }: { points: ClimatePoint[] }) {
+  const data = useMemo(() => COMPARE_VARS.map(([labelVar, variable]) => {
+    const row: Record<string, string | number> = { variable: labelVar };
+    for (const p of points) { const r = p.current?.find((c) => c.variable === variable); row[p.name] = r ? Number(r.value) : 0; }
+    return row;
+  }), [points]);
+  const allZero = data.every((d) => Object.values(d).every((v) => typeof v !== "number" || v === 0));
+  if (allZero || points.length === 0) return null;
+  return <section className="climate-chart-card"><header className="climate-chart-card__header"><div><p className="eyebrow">Comparativo territorial</p><h3 className="title title--section">Variables clave por zona</h3><small>Valores actuales estimados para cada punto climatico.</small></div></header><ResponsiveContainer height={240} width="100%"><BarChart data={data}><XAxis dataKey="variable"/><YAxis/><Tooltip/><Legend/>{points.map((p, i) => <Bar key={p.id} dataKey={p.name} fill={LINE_COLORS[i % LINE_COLORS.length]} radius={[5, 5, 0, 0]}/>)}</BarChart></ResponsiveContainer></section>;
+}
+
+function SummaryMiniForecast({ forecast, pointName }: { forecast: ClimateForecast[] | null; pointName: string }) {
+  if (!forecast?.[0]?.days?.length) return null;
+  const days = forecast[0].days;
+  const tempData = useMemo(() => mergeByDate(days, ["temperature_2m_max", "temperature_2m_min"]), [days]);
+  const rainData = useMemo(() => days.filter((d) => d.variable === "precipitation_sum").map((d) => ({ date: dateOnly(d.validAt), value: Number(d.value) })).filter((d) => Number.isFinite(d.value)).slice(0, 5), [days]);
+  const tempUnit = days.find((d) => d.variable === "temperature_2m_max")?.unit ?? "\u00B0C";
+  const rainUnit = days.find((d) => d.variable === "precipitation_sum")?.unit ?? "mm";
+  return <section className="climate-data-section"><header><div><p className="eyebrow">Tendencia</p><h3 className="title title--section">{pointName} <small>pr\u00F3ximos d\u00EDas</small></h3></div></header><div className="climate-chart-grid--two-col">
+    <div className="climate-chart-card" style={{ minHeight: 220 }}><header className="climate-chart-card__header"><div><h3 className="title title--section">Temperatura</h3><small>M\u00E1x / M\u00EDn</small></div></header><ResponsiveContainer height={140} width="100%"><LineChart data={tempData}><XAxis dataKey="date"/><YAxis unit={` ${tempUnit}`}/><Tooltip formatter={(value, name) => [`${formatValue(String(value))} ${tempUnit}`, label(String(name))]}/><Line dataKey="temperature_2m_max" stroke="#ef4444" strokeWidth={2} type="monotone" dot={{ r: 2 }}/><Line dataKey="temperature_2m_min" stroke="#3b82f6" strokeWidth={2} type="monotone" dot={{ r: 2 }}/></LineChart></ResponsiveContainer></div>
+    <div className="climate-chart-card" style={{ minHeight: 220 }}><header className="climate-chart-card__header"><div><h3 className="title title--section">Precipitaci\u00F3n</h3><small>Lluvia diaria acumulada</small></div></header><ResponsiveContainer height={140} width="100%"><BarChart data={rainData}><XAxis dataKey="date"/><YAxis domain={[0, (dataMax: number) => (Number.isFinite(dataMax) ? Math.max(dataMax, 1) : 1)]} unit={` ${rainUnit}`}/><Tooltip formatter={(value) => [`${formatValue(String(value))} ${rainUnit}`, "Precipitaci\u00F3n"]}/><Bar dataKey="value" fill="#0284c7" radius={[5, 5, 0, 0]}/></BarChart></ResponsiveContainer></div>
+  </div></section>;
 }
 
 function SummaryMetrics({ readings }: { readings: ClimateReading[] }) { const cards = [[Thermometer, "Temperatura", "temperature_2m"], [Droplets, "Humedad", "relative_humidity_2m"], [CloudRain, "Lluvia", "precipitation"], [Wind, "Viento", "wind_speed_10m"], [Sun, "Radiacion", "shortwave_radiation"], [Gauge, "VPD", "vapour_pressure_deficit"]] as const; return <div className="climate-metric-grid">{cards.map(([Icon, title, variable]) => { const reading = readings.find((item) => item.variable === variable); return <article key={variable}><Icon aria-hidden="true" size={20}/><span>{title}</span><strong>{reading ? `${formatValue(reading.value)} ${reading.unit}` : "Sin dato"}</strong></article>; })}</div>; }
