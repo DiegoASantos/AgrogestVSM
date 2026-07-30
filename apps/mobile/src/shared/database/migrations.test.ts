@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 41;
+const LATEST_MIGRATION_VERSION = 43;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1196,7 +1196,7 @@ describe("runMigrations", () => {
 
     runMigrations(db as never);
 
-    expect(db.currentVersion).toBe(41);
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
     expect(
       db.executedStatements.some((statement) =>
         statement.includes("CREATE TABLE IF NOT EXISTS sync_failures")

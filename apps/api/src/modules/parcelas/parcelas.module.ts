@@ -3,6 +3,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { VisitasCampoModule } from "../visitas-campo/visitas-campo.module";
 import { ParcelasService } from "./application/parcelas.service";
+import { ParcelaClimaService } from "./application/parcela-clima.service";
 import { ParcelaEntity } from "./infrastructure/persistence/entities/parcela.entity";
 import { SectorEntity } from "../sectores/infrastructure/persistence/entities/sector.entity";
 import { ProductorEntity } from "../productores/infrastructure/persistence/entities/productor.entity";
@@ -10,6 +11,7 @@ import { SubsectorEntity } from "../subsectores/infrastructure/persistence/entit
 import { UserEntity } from "../users/infrastructure/persistence/entities/user.entity";
 import { ParcelasController } from "./presentation/parcelas.controller";
 import { SectorParcelasController } from "./presentation/sector-parcelas.controller";
+import { ParcelaClimaController } from "./presentation/parcela-clima.controller";
 
 @Module({
   imports: [
@@ -22,8 +24,8 @@ import { SectorParcelasController } from "./presentation/sector-parcelas.control
     ]),
     VisitasCampoModule
   ],
-  controllers: [ParcelasController, SectorParcelasController],
-  providers: [ParcelasService],
+  controllers: [ParcelasController, SectorParcelasController, ParcelaClimaController],
+  providers: [ParcelasService, ParcelaClimaService],
   exports: [TypeOrmModule, ParcelasService]
 })
 export class ParcelasModule {}

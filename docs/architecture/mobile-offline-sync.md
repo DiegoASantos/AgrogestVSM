@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-12
+last_reviewed: 2026-07-30
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -120,6 +120,15 @@ y programa un sync inmediato con `bypassBackoff`.
 - los catalogos se refrescan de forma independiente al push del outbox;
 - las operaciones agotadas se preservan en `sync_failures` hasta reintento
   explicito o correccion del dato.
+
+## Cachés de consulta
+
+Los datos derivados y de solo lectura no se convierten en entidades
+sincronizables. Por ejemplo, `clima_parcela_cache` conserva la última respuesta
+de clima por parcela para que Inicio pueda mostrarla sin conexión; no crea
+entradas en `sync_outbox`, no modifica datos de campo y señala al usuario cuando
+la estimación está vencida. La API es la única que resuelve la ubicación de la
+parcela y consulta al proveedor externo.
 
 ## Cambios críticos
 

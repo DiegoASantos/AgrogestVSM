@@ -33,18 +33,15 @@ import {
   type SyncRunResult
 } from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
+import { ClimateDashboard } from "../../../clima/presentation/components/climate-dashboard";
+import { parcelasService } from "../../../parcelas/services/parcelas.service";
+import type { Parcela } from "../../../parcelas/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import type { RecentVisitaCampo } from "../../../visitas-campo/types";
 
 // Static requires keep the branded dashboard available while the device is offline.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const HOME_BACKGROUND = require("../../../../../assets/images/fondo_home_movil.webp");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const VISITS_CARD_BACKGROUND = require("../../../../../assets/images/card_1_home.webp");
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const HISTORY_CARD_BACKGROUND = require("../../../../../assets/images/card_2_home.webp");
-
-const NEW_VISIT_ROUTE = "/visitas-campo/nueva";
 const HISTORY_ROUTE = "/visitas-campo/historial";
 
 export function HomeScreen() {
@@ -68,6 +65,7 @@ export function HomeScreen() {
   const [isRetryingFailures, setIsRetryingFailures] = useState(false);
   const [isRefreshingCatalogs, setIsRefreshingCatalogs] = useState(false);
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
+  const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const catalogStatus = useCatalogDownloadStatus();
   const heroHeight = Math.min(Math.max(width * 0.58, 218), 330);
 
@@ -84,13 +82,16 @@ export function HomeScreen() {
 
     if (!session.accessToken) {
       setRecentVisits([]);
+      setParcelas([]);
       return;
     }
 
     try {
       setRecentVisits(visitasCampoService.getRecentByAccessToken(session.accessToken));
+      void parcelasService.getAll().then(setParcelas).catch(() => setParcelas([]));
     } catch {
       setRecentVisits([]);
+      setParcelas([]);
     }
   }, [loadSyncState, session.accessToken]);
 
@@ -101,9 +102,6 @@ export function HomeScreen() {
   const syncStatus = useMemo(() => getSyncStatus(syncCounts), [syncCounts]);
   const goToHistory = useCallback(() => {
     router.push(HISTORY_ROUTE);
-  }, [router]);
-  const goToNewVisit = useCallback(() => {
-    router.push(NEW_VISIT_ROUTE);
   }, [router]);
   const handleManualSync = useCallback(async () => {
     if (
@@ -428,22 +426,7 @@ export function HomeScreen() {
             ) : null}
           </View>
 
-          <View style={styles.actionGrid}>
-            <ActionCard
-              background={VISITS_CARD_BACKGROUND}
-              description="Registra y gestiona visitas a campo"
-              icon="calendar-outline"
-              label="Visitas"
-              onPress={goToNewVisit}
-            />
-            <ActionCard
-              background={HISTORY_CARD_BACKGROUND}
-              description="Consulta tus visitas realizadas"
-              icon="time-outline"
-              label="Historial"
-              onPress={goToHistory}
-            />
-          </View>
+          <ClimateDashboard isOnline={isOnline} parcelas={parcelas} />
 
           <View style={styles.activityPanel}>
             <View style={styles.activityHeader}>
@@ -758,50 +741,6 @@ function ErrorField({ label, value }: { label: string; value: string }) {
         {value}
       </AppText>
     </View>
-  );
-}
-
-function ActionCard({
-  background,
-  description,
-  icon,
-  label,
-  onPress
-}: {
-  background: number;
-  description: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}
-    >
-      <ImageBackground
-        imageStyle={styles.actionBackground}
-        resizeMode="cover"
-        source={background}
-        style={styles.actionBackgroundContainer}
-      >
-        <View style={styles.actionTop}>
-          <View style={styles.actionIcon}>
-            <Ionicons color="#ffffff" name={icon} size={27} />
-          </View>
-          <View style={styles.actionCopy}>
-            <AppText style={styles.actionTitle} variant="heading">
-              {label}
-            </AppText>
-            <AppText style={styles.actionDescription} variant="caption">
-              {description}
-            </AppText>
-          </View>
-          <Ionicons color="#064b31" name="chevron-forward" size={25} />
-        </View>
-      </ImageBackground>
-    </Pressable>
   );
 }
 
@@ -1301,59 +1240,6 @@ const styles = StyleSheet.create({
     color: "#56625d",
     fontSize: 10,
     lineHeight: 13
-  },
-  actionGrid: {
-    flexDirection: "row",
-    gap: 12
-  },
-  actionCard: {
-    minHeight: 145,
-    flex: 1,
-    overflow: "hidden",
-    borderRadius: 17,
-    backgroundColor: "#eef5e8",
-    shadowColor: "#345245",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09,
-    shadowRadius: 7,
-    elevation: 3
-  },
-  actionBackgroundContainer: {
-    flex: 1,
-    paddingHorizontal: 13,
-    paddingTop: 15,
-    paddingBottom: 53
-  },
-  actionBackground: {
-    borderRadius: 17
-  },
-  actionTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9
-  },
-  actionIcon: {
-    width: 45,
-    height: 45,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 12,
-    backgroundColor: "#3f7d2b"
-  },
-  actionCopy: {
-    minWidth: 0,
-    flex: 1
-  },
-  actionTitle: {
-    color: "#064b31",
-    fontSize: 17,
-    lineHeight: 21
-  },
-  actionDescription: {
-    marginTop: 3,
-    color: "#44534d",
-    fontSize: 11,
-    lineHeight: 15
   },
   activityPanel: {
     paddingHorizontal: 15,

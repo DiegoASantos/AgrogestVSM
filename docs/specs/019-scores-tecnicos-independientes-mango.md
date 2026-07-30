@@ -4,7 +4,7 @@ status: implementing
 numero: 019
 area: visitas, sanidad, nutrición, riego, labores, scoring, api, mobile, sync, database, admin-web
 created: 2026-07-28
-approved_by: usuario, 2026-07-28
+approved_by: usuario, 2026-07-28; ampliación climática aprobada, 2026-07-30
 implemented_in:
 ---
 
@@ -28,14 +28,20 @@ históricos. Inicialmente aplica a todo mango, sin distinguir variedad.
 - Acciones automáticas desde un catálogo técnico aprobado y revisión nueva de
   receta cuando la receta previa ya fue emitida.
 - Alerta climática de Enfermedades mediante estación meteorológica por parcela.
+- Tablero de Inicio con condición, variables de campo y pronóstico de siete días
+  por parcela. La fuente inicial es Open-Meteo con selección `best_match` y
+  caché local SQLite de solo lectura para consulta offline.
+- Adaptador futuro para estación METOS/iMETOS Disease por parcela, con prioridad
+  sobre el modelo cuando existan lecturas válidas y autorizadas.
 
 ### Excluido
 
 - Reemplazar, recalcular o mezclar el score de cumplimiento existente.
 - Productos, dosis, períodos de carencia o recomendaciones químicas generadas
   automáticamente.
-- Activar una integración meteorológica sin estación, credenciales y validación
-  operativa autorizadas.
+- Activar alertas predictivas de enfermedades o riego a partir de Open-Meteo.
+- Integrar METOS/iMETOS Disease sin contrato, credenciales, estación asociada y
+  validación operativa autorizadas.
 
 ## Requisitos
 
@@ -59,6 +65,15 @@ históricos. Inicialmente aplica a todo mango, sin distinguir variedad.
 - RF-007: La alerta climática solo usa lecturas recientes y trazables de una
   estación asociada a la parcela; con cobertura insuficiente devuelve estado no
   disponible y no altera el score observado.
+- RF-008: Inicio muestra clima estimado de Open-Meteo únicamente para parcelas
+  autorizadas. La API deriva la ubicación desde el punto de referencia o un
+  punto interior de la geometría; mobile nunca entrega coordenadas como entrada.
+- RF-009: La estimación expone temperatura, humedad relativa, precipitación,
+  viento, lluvia acumulada 24 h, ET0, humedad de suelo modelada 3–9 cm y siete
+  días de pronóstico. Debe identificarse como modelo, no como sensor de campo.
+- RF-010: Mobile conserva el último resultado por parcela en SQLite, sin outbox
+  ni sincronización. Al no haber conexión muestra el valor guardado y señala si
+  está vencido; nunca lo usa para disparar alertas.
 
 ## Contratos afectados
 
@@ -68,6 +83,8 @@ históricos. Inicialmente aplica a todo mango, sin distinguir variedad.
   de captura y catálogo con códigos/grados explícitos.
 - Mobile: SQLite, outbox, handlers y pantallas de módulos; admin web: detalle,
   agregados técnicos y revisiones de receta.
+- API: `GET /parcelas/:id/clima`, protegido por el mismo alcance de parcela;
+  cache de servidor de corta duración y contrato de fuente explícita.
 
 ## Seguridad y datos
 
@@ -76,6 +93,7 @@ históricos. Inicialmente aplica a todo mango, sin distinguir variedad.
   revisiones de receta.
 - Las credenciales de estación se mantienen fuera del repositorio; no se
   registran en logs ni se aceptan lecturas climáticas manipulables desde mobile.
+- La coordenada precisa de la parcela no se expone en la respuesta climática.
 
 ## Migración y rollback
 
@@ -100,6 +118,8 @@ históricos. Inicialmente aplica a todo mango, sin distinguir variedad.
 - [ ] CA-005: Una receta emitida permanece inmutable y recibe una revisión nueva.
 - [ ] CA-006: Datos climáticos incompletos, atrasados o no autorizados no activan
   la alerta predictiva.
+- [x] CA-007: Inicio puede mostrar una estimación por parcela online y el último
+  valor cacheado offline, claramente diferenciado de una estación METOS.
 
 ## Pruebas
 

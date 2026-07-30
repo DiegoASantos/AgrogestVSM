@@ -1012,6 +1012,19 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, "visita_paso_observaciones", "finalizado_at", "TEXT");
       db.execSync("CREATE INDEX IF NOT EXISTS idx_obs_sanitarias_visita_plaga ON visita_observaciones_sanitarias(visita_local_id, pest_disease_id)");
     }
+  },
+  {
+    version: 43,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS clima_parcela_cache (
+        parcela_id TEXT PRIMARY KEY NOT NULL,
+        payload_json TEXT NOT NULL,
+        fetched_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (parcela_id) REFERENCES parcelas(id)
+      )`
+    ]
   }
 ];
 

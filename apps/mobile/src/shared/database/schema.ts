@@ -450,5 +450,13 @@ export const SQL_SCHEMA = [
     UNIQUE(entity_type, entity_local_id)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_sync_failures_kind_failed_at
-    ON sync_failures(error_kind, failed_at)`
+    ON sync_failures(error_kind, failed_at)`,
+  `CREATE TABLE IF NOT EXISTS clima_parcela_cache (
+    parcela_id TEXT PRIMARY KEY NOT NULL,
+    payload_json TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (parcela_id) REFERENCES parcelas(id)
+  )`
 ] as const;
