@@ -8,109 +8,79 @@ import { AdminMap, type AdminMapPoint } from "../../../shared/components/admin-m
 import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
-import { climaService, type ClimatePoint, type ClimateSource } from "../services/clima.service";
+import { climaService, type ClimateForecast, type ClimatePoint, type ClimateReading, type ClimateSource } from "../services/clima.service";
 
 export type ClimateSection = "resumen" | "mapa" | "pronostico" | "historial" | "estaciones" | "alertas" | "fuentes";
+type AlertItem = { publicId: string; pointName: string; severity: string; variable: string; value: number; unit: string; startsAt: string; status?: string };
+type Summary = { points: ClimatePoint[]; alerts: AlertItem[]; sources: ClimateSource[] };
 
 const titles: Record<ClimateSection, [string, string]> = {
-  resumen: ["Resumen climático", "Condiciones territoriales, alertas y disponibilidad de fuentes."],
-  mapa: ["Mapa agroclimático", "Puntos climáticos y estaciones; no muestra parcelas."],
-  pronostico: ["Pronóstico", "Variables pronosticadas para los próximos siete días."],
-  historial: ["Historial climático", "Seleccione un punto para consultar sus lecturas almacenadas."],
-  estaciones: ["Estaciones meteorológicas", "Inventario y conectividad de estaciones virtuales, oficiales o propias."],
-  alertas: ["Alertas climáticas", "Eventos meteorológicos generales; no incluyen recomendaciones agrícolas."],
-  fuentes: ["Estado de fuentes de datos", "Disponibilidad, última consulta y trazabilidad de proveedores."]
+  resumen: ["Resumen climatico", "Condiciones territoriales agrupadas por variable."],
+  mapa: ["Mapa agroclimatico", "Puntos climaticos territoriales; no muestra parcelas."],
+  pronostico: ["Pronostico", "Tendencia diaria por variable y punto territorial."],
+  historial: ["Historial climatico", "Lecturas persistidas, con tipo y fecha de cada dato."],
+  estaciones: ["Estaciones meteorologicas", "Inventario de estaciones configuradas."],
+  alertas: ["Alertas climaticas", "Eventos meteorologicos generales, no diagnosticos agronomicos."],
+  fuentes: ["Estado de fuentes de datos", "Disponibilidad y trazabilidad de proveedores."]
 };
 
 export function ClimaScreen({ section }: { section: ClimateSection }) {
   const { session } = useAuthSession();
   const [data, setData] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     if (!session) return;
+    setData(null); setError(null);
     const load = section === "resumen" ? climaService.getSummary : section === "mapa" ? climaService.getMap : section === "pronostico" ? climaService.getForecast : section === "estaciones" ? climaService.getStations : section === "alertas" ? climaService.getAlerts : section === "fuentes" ? climaService.getSources : climaService.getPoints;
-    void load(session).then(setData).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "No se pudo cargar el módulo climático."));
+    void load(session).then(setData).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "No se pudo cargar el modulo climatico."));
   }, [section, session]);
-
   const [title, description] = titles[section];
   if (error) return <ErrorState description={error} />;
-  if (!data) return <LoadingState description="Cargando información climática territorial." />;
-
-  return <section className="panel-grid"><article className="panel climate-screen"><ToolbarActions eyebrow="Clima" title={title} description={description}/>{section === "mapa" ? <ClimateMap points={data as ClimatePoint[]}/> : <ClimateContent section={section} data={data}/>}</article></section>;
+  if (!data || !session) return <LoadingState description="Cargando informacion climatica territorial." />;
+  return <section className="panel-grid"><article className="panel climate-screen"><ToolbarActions eyebrow="Clima" title={title} description={description}/><ClimateNotice/>{section === "mapa" ? <ClimateMap points={data as ClimatePoint[]}/> : <ClimateContent section={section} data={data} session={session}/>}</article></section>;
 }
 
-function ClimateMap({ points }: { points: ClimatePoint[] }) {
-  const mapPoints: AdminMapPoint[] = points.map((point) => ({ id: point.id, geometry: { type: "Point", coordinates: [point.longitude, point.latitude] }, color: "#1d7a9b", radius: 8, popup: { title: point.name, description: `${point.district}, ${point.department}` } }));
-  return <><div className="climate-map-caption"><strong>{points.length}</strong> puntos territoriales disponibles. Seleccione un punto para revisar su ubicación.</div><AdminMap points={mapPoints} emptyMessage="No hay puntos climáticos configurados."/></>;
+function ClimateContent({ section, data, session }: { section: ClimateSection; data: unknown; session: NonNullable<ReturnType<typeof useAuthSession>["session"]> }) {
+  if (section === "resumen") return <SummaryView summary={data as Summary}/>;
+  if (section === "pronostico") return <ForecastView forecasts={data as ClimateForecast[]}/>;
+  if (section === "historial") return <HistoryView points={data as ClimatePoint[]} session={session}/>;
+  if (section === "estaciones") return <StationsView items={data as Array<Record<string, unknown>>}/>;
+  if (section === "alertas") return <AlertsView items={data as AlertItem[]}/>;
+  return <SourcesView items={data as ClimateSource[]}/>;
 }
 
-function ClimateContent({ section, data }: { section: ClimateSection; data: unknown }) {
-  const content = section === "resumen" ? <SummaryView summary={data as Summary}/>
-    : section === "pronostico" ? <ForecastView forecasts={data as ForecastPoint[]}/>
-      : section === "historial" ? <PointsView points={data as ClimatePoint[]}/>
-        : section === "estaciones" ? <StationsView items={data as Array<Record<string, unknown>>}/>
-          : section === "alertas" ? <AlertsView items={data as AlertItem[]}/>
-            : <SourcesView items={data as ClimateSource[]}/>;
-  return <><ClimateDataNotice/>{content}</>;
-}
-
-function ClimateDataNotice() {
-  return <aside className="climate-notice" role="note"><strong>Dato territorial estimado.</strong> Sin estaciones ni sensores propios, los valores proceden de modelos, reanálisis o satélite en cuadrículas geográficas; no representan una medición exacta de campo. Revise fuente, fecha y tipo antes de interpretarlos.</aside>;
-}
-
-type Summary = { points: ClimatePoint[]; alerts: AlertItem[]; sources: ClimateSource[] };
-type AlertItem = { publicId: string; pointName: string; severity: string; variable: string; value: number; unit: string; startsAt: string; status?: string };
-type ForecastDay = { variable: string; value: number; unit: string; validAt: string };
-type ForecastPoint = ClimatePoint & { days: ForecastDay[] };
+function ClimateNotice() { return <aside className="climate-notice" role="note"><strong>Dato territorial estimado.</strong> Los modelos, reanalisis y satelites representan cuadrillas geograficas; no son mediciones exactas de campo.</aside>; }
+function ClimateMap({ points }: { points: ClimatePoint[] }) { const mapPoints: AdminMapPoint[] = points.map((point) => ({ id: point.id, geometry: { type: "Point", coordinates: [point.longitude, point.latitude] }, color: "#1d7a9b", radius: 8, popup: { title: point.name, description: `${point.district}, ${point.department}` } })); return <><div className="climate-map-caption"><strong>{points.length}</strong> puntos territoriales disponibles.</div><AdminMap points={mapPoints} emptyMessage="No hay puntos climaticos configurados."/></>; }
 
 function SummaryView({ summary }: { summary: Summary }) {
-  return <div className="climate-stack"><div className="climate-kpi-grid">{summary.points.map((point) => <article className="climate-kpi" key={point.id}><span>{point.name}</span><strong>{formatReading(point.current, "temperature_2m")}</strong><small>Temperatura actual · {point.district}</small><div className="climate-kpi__meta"><span>HR {formatReading(point.current, "relative_humidity_2m")}</span><span>Viento {formatReading(point.current, "wind_speed_10m")}</span></div></article>)}</div><section className="climate-split"><ClimateTable title="Alertas activas" empty="No hay alertas climáticas activas." headers={["Zona", "Condición", "Valor", "Severidad", "Inicio"]} rows={summary.alerts.map((item) => [item.pointName, labelVariable(item.variable), `${item.value} ${item.unit}`, <Severity key="severity" value={item.severity}/>, formatDate(item.startsAt)])}/><SourcesView items={summary.sources} compact/></section></div>;
+  return <div className="climate-stack">{summary.points.map((point) => <section className="climate-data-section" key={point.id}><header><div><p className="eyebrow">Estimacion actual</p><h3 className="title title--section">{point.name} <small>{point.district}</small></h3></div><span className="climate-badge">Open-Meteo</span></header><ReadingGroups readings={point.current ?? []}/></section>)}<section className="climate-split"><ClimateTable title="Alertas activas" empty="No hay alertas climaticas activas." headers={["Zona", "Condicion", "Valor", "Severidad", "Inicio"]} rows={summary.alerts.map((item) => [item.pointName, label(item.variable), `${item.value} ${item.unit}`, <Badge key="severity" value={item.severity}/>, date(item.startsAt)])}/><SourcesView items={summary.sources} compact/></section></div>;
 }
 
-function ForecastView({ forecasts }: { forecasts: ForecastPoint[] }) {
-  const [selectedId, setSelectedId] = useState(forecasts[0]?.id ?? "");
-  const point = forecasts.find((item) => item.id === selectedId) ?? forecasts[0];
+function ForecastView({ forecasts }: { forecasts: ClimateForecast[] }) {
+  const [selectedId, setSelectedId] = useState(forecasts[0]?.id ?? ""); const point = forecasts.find((item) => item.id === selectedId) ?? forecasts[0];
   const chartData = useMemo(() => groupForecast(point?.days ?? []), [point]);
-  if (!point) return <Empty message="No hay pronósticos disponibles todavía."/>;
-  return <div className="climate-stack"><label className="field-group climate-selector"><span>Punto climático</span><select value={point.id} onChange={(event) => setSelectedId(event.target.value)}>{forecasts.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.district}</option>)}</select></label><section className="climate-chart-card"><div><p className="eyebrow">Pronosticado</p><h3 className="title title--section">Temperatura máxima y mínima</h3></div><ResponsiveContainer height={280} width="100%"><LineChart data={chartData}><XAxis dataKey="date"/><YAxis unit="°C"/><Tooltip/><Line dataKey="max" stroke="#1e40af" strokeWidth={2} type="monotone" name="Máxima"/><Line dataKey="min" stroke="#d97706" strokeDasharray="5 4" strokeWidth={2} type="monotone" name="Mínima"/></LineChart></ResponsiveContainer></section><ClimateTable title="Detalle diario" headers={["Fecha", "Mín.", "Máx.", "Lluvia", "Prob.", "ET₀", "Viento"]} rows={chartData.map((row) => [row.date, formatUnit(row.min,"°C"), formatUnit(row.max,"°C"), formatUnit(row.rain,"mm"), formatUnit(row.probability,"%"), formatUnit(row.et0,"mm"), formatUnit(row.wind,"km/h")])}/></div>;
+  if (!point) return <Empty message="No hay pronosticos disponibles todavia."/>;
+  return <div className="climate-stack"><PointSelector points={forecasts} value={point.id} onChange={setSelectedId}/><section className="climate-chart-card"><div><p className="eyebrow">Pronosticado</p><h3 className="title title--section">Temperatura minima y maxima</h3></div><ResponsiveContainer height={250} width="100%"><LineChart data={chartData}><XAxis dataKey="date"/><YAxis unit=" C"/><Tooltip/><Line dataKey="max" stroke="#1e40af" strokeWidth={2} type="monotone" name="Maxima"/><Line dataKey="min" stroke="#d97706" strokeDasharray="5 4" strokeWidth={2} type="monotone" name="Minima"/></LineChart></ResponsiveContainer></section><ForecastGroups days={point.days}/></div>;
 }
 
-function PointsView({ points }: { points: ClimatePoint[] }) { return <div className="climate-kpi-grid">{points.map((point) => <article className="climate-kpi" key={point.id}><span>{point.name}</span><strong>{point.department}</strong><small>{point.district}</small><div className="climate-kpi__meta"><span>Lat. {point.latitude.toFixed(3)}</span><span>Long. {point.longitude.toFixed(3)}</span></div></article>)}</div>; }
-function StationsView({ items }: { items: Array<Record<string, unknown>> }) { return <ClimateTable title="Estaciones registradas" empty="No hay estaciones registradas." headers={["Nombre", "Código", "Tipo", "Estado", "Última comunicación"]} rows={items.map((item) => [String(item.nombre ?? "—"), String(item.codigo ?? "—"), String(item.tipo ?? "—"), <Status key="status" value={String(item.estado ?? "SIN CONFIGURAR")}/>, formatDate(String(item.lastCommunicationAt ?? ""))])}/>; }
-function AlertsView({ items }: { items: AlertItem[] }) { return <ClimateTable title="Eventos detectados" empty="No hay alertas registradas." headers={["Zona", "Variable", "Valor", "Severidad", "Estado", "Inicio"]} rows={items.map((item) => [item.pointName, labelVariable(item.variable), `${item.value} ${item.unit}`, <Severity key="severity" value={item.severity}/>, <Status key="status" value={item.status ?? "ACTIVA"}/>, formatDate(item.startsAt)])}/>; }
-function SourcesView({
-  items,
-  compact = false
-}: {
-  items: ClimateSource[];
-  compact?: boolean;
-}) {
-  const rows = items.map((item) => [
-    item.nombre,
-    item.tipo,
-    <Status key={`${item.codigo}-status`} value={item.estado} />,
-    formatDate(item.lastSuccessAt ?? ""),
-    item.lastError ?? "Sin incidentes"
-  ]);
-
-  return (
-    <ClimateTable
-      empty="No hay fuentes configuradas."
-      headers={["Fuente", "Tipo", "Estado", "Última consulta", "Detalle"]}
-      rows={rows}
-      title={compact ? "Fuentes" : "Salud de las fuentes"}
-    />
-  );
+function HistoryView({ points, session }: { points: ClimatePoint[]; session: NonNullable<ReturnType<typeof useAuthSession>["session"]> }) {
+  const [selectedId, setSelectedId] = useState(points[0]?.id ?? ""); const [history, setHistory] = useState<{ point: ClimatePoint; rows: ClimateReading[] } | null>(null); const [error, setError] = useState<string | null>(null);
+  useEffect(() => { if (!selectedId) return; void climaService.getHistory(session, selectedId).then(setHistory).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "No se pudo cargar el historial.")); }, [selectedId, session]);
+  if (error) return <ErrorState description={error}/>;
+  return <div className="climate-stack"><PointSelector points={points} value={selectedId} onChange={setSelectedId}/>{!history ? <LoadingState description="Cargando lecturas persistidas."/> : <><ReadingGroups readings={history.rows}/><ClimateTable title="Trazabilidad de lecturas" empty="Aun no hay lecturas historicas persistidas." headers={["Variable", "Valor", "Tipo", "Fecha del dato", "Modelo"]} rows={history.rows.map((row) => [label(row.variable), `${row.value} ${row.unit}`, <Badge key="type" value={row.type}/>, date(row.dataAt), row.model ?? "No informado"])} /></>}</div>;
 }
 
-function ClimateTable({ title, headers, rows, empty }: { title: string; headers: string[]; rows: ReactNode[][]; empty?: string }) { return <section className="climate-table-card"><div className="climate-table-card__header"><h3 className="title title--section">{title}</h3><span>{rows.length} registros</span></div>{rows.length === 0 ? <Empty message={empty ?? "No hay datos disponibles."} /> : <div className="data-table__wrapper"><table className="data-table"><thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>}</section>; }
-function Severity({ value }: { value: string }) { return <span className={`climate-badge climate-badge--${value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}>{value}</span>; }
-function Status({ value }: { value: string }) { return <span className={`climate-badge climate-badge--${value.toLowerCase().replaceAll(" ", "-")}`}>{value}</span>; }
+function PointSelector({ points, value, onChange }: { points: ClimatePoint[]; value: string; onChange: (value: string) => void }) { return <label className="field-group climate-selector"><span>Punto climatico</span><select value={value} onChange={(event) => onChange(event.target.value)}>{points.map((point) => <option key={point.id} value={point.id}>{point.name} - {point.district}</option>)}</select></label>; }
+function ReadingGroups({ readings }: { readings: ClimateReading[] }) { const groups = groupReadings(readings); return <div className="climate-reading-groups">{groups.map(([title, values]) => <section className="climate-reading-group" key={title}><h4>{title}</h4>{values.length === 0 ? <span className="climate-empty">Sin dato disponible.</span> : values.map((item) => <div key={item.variable}><span>{label(item.variable)}</span><strong>{item.value.toFixed(1)} {item.unit}</strong><small>{item.type} - {date(item.dataAt)}</small></div>)}</section>)}</div>; }
+function ForecastGroups({ days }: { days: ClimateForecast["days"] }) { const byVariable = new Map<string, ClimateForecast["days"]>(); for (const item of days) byVariable.set(item.variable, [...(byVariable.get(item.variable) ?? []), item]); return <div className="climate-reading-groups">{[...byVariable.entries()].map(([variable, rows]) => <section className="climate-reading-group" key={variable}><h4>{label(variable)}</h4>{rows.map((row) => <div key={row.validAt}><span>{dateOnly(row.validAt)}</span><strong>{row.value.toFixed(1)} {row.unit}</strong><small>PRONOSTICADO</small></div>)}</section>)}</div>; }
+function StationsView({ items }: { items: Array<Record<string, unknown>> }) { return <ClimateTable title="Estaciones registradas" empty="No hay estaciones registradas." headers={["Nombre", "Codigo", "Tipo", "Estado", "Ultima comunicacion"]} rows={items.map((item) => [String(item.nombre ?? "-"), String(item.codigo ?? "-"), String(item.tipo ?? "-"), <Badge key="status" value={String(item.estado ?? "SIN CONFIGURAR")}/>, date(String(item.lastCommunicationAt ?? ""))])}/>; }
+function AlertsView({ items }: { items: AlertItem[] }) { return <ClimateTable title="Eventos detectados" empty="No hay alertas registradas." headers={["Zona", "Variable", "Valor", "Severidad", "Estado", "Inicio"]} rows={items.map((item) => [item.pointName, label(item.variable), `${item.value} ${item.unit}`, <Badge key="severity" value={item.severity}/>, <Badge key="status" value={item.status ?? "ACTIVA"}/>, date(item.startsAt)])}/>; }
+function SourcesView({ items, compact = false }: { items: ClimateSource[]; compact?: boolean }) { return <ClimateTable title={compact ? "Fuentes" : "Salud de las fuentes"} empty="No hay fuentes configuradas." headers={["Fuente", "Tipo", "Estado", "Ultima consulta", "Detalle"]} rows={items.map((item) => [item.nombre, item.tipo, <Badge key={item.codigo} value={item.estado}/>, date(item.lastSuccessAt ?? ""), item.lastError ?? "Sin incidentes"])} />; }
+function ClimateTable({ title, headers, rows, empty }: { title: string; headers: string[]; rows: ReactNode[][]; empty?: string }) { return <section className="climate-table-card"><div className="climate-table-card__header"><h3 className="title title--section">{title}</h3><span>{rows.length} registros</span></div>{rows.length === 0 ? <Empty message={empty ?? "No hay datos disponibles."}/> : <div className="data-table__wrapper"><table className="data-table"><thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody></table></div>}</section>; }
+function Badge({ value }: { value: string }) { return <span className={`climate-badge climate-badge--${value.toLowerCase().replaceAll(" ", "-")}`}>{value}</span>; }
 function Empty({ message }: { message: string }) { return <p className="climate-empty">{message}</p>; }
-function formatReading(values: ClimatePoint["current"], variable: string) { const match = values?.find((value) => value.variable === variable); return match ? `${Number(match.value).toFixed(1)} ${match.unit}` : "Sin dato"; }
-function formatUnit(value: number | undefined, unit: string) { return value === undefined ? "—" : `${Number(value).toFixed(1)} ${unit}`; }
-function formatDate(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "Sin registro" : new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short" }).format(date); }
-function labelVariable(variable: string) { return ({ temperature_2m_max: "Temperatura máxima", temperature_2m_min: "Temperatura mínima", precipitation_sum: "Precipitación", precipitation_probability_max: "Probabilidad de lluvia", et0_fao_evapotranspiration: "Evapotranspiración", wind_speed_10m_max: "Viento máximo" } as Record<string,string>)[variable] ?? variable.replaceAll("_", " "); }
-function groupForecast(days: ForecastDay[]) { const groups = new Map<string, Record<string, number | string>>(); for (const day of days) { const date = new Intl.DateTimeFormat("es-PE", { day: "2-digit", month: "short" }).format(new Date(day.validAt)); const row = groups.get(date) ?? { date }; row[forecastKey(day.variable)] = day.value; groups.set(date, row); } return [...groups.values()] as Array<{ date: string; min?: number; max?: number; rain?: number; probability?: number; et0?: number; wind?: number }>; }
-function forecastKey(variable: string) { return ({ temperature_2m_max: "max", temperature_2m_min: "min", precipitation_sum: "rain", precipitation_probability_max: "probability", et0_fao_evapotranspiration: "et0", wind_speed_10m_max: "wind" } as Record<string,string>)[variable] ?? variable; }
+function date(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? "Sin registro" : new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short" }).format(parsed); }
+function dateOnly(value: string) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? "-" : new Intl.DateTimeFormat("es-PE", { dateStyle: "medium" }).format(parsed); }
+function label(variable: string) { return ({ temperature_2m: "Temperatura", apparent_temperature: "Temperatura aparente", dew_point_2m: "Punto de rocio", temperature_2m_max: "Temperatura maxima", temperature_2m_min: "Temperatura minima", relative_humidity_2m: "Humedad relativa", vapour_pressure_deficit: "VPD", precipitation: "Precipitacion", precipitation_sum: "Precipitacion acumulada", precipitation_probability_max: "Probabilidad de lluvia", wind_speed_10m: "Viento a 10 m", wind_speed_10m_max: "Viento maximo", wind_direction_10m: "Direccion del viento", wind_gusts_10m: "Rafagas", wind_gusts_10m_max: "Rafagas maximas", shortwave_radiation: "Radiacion solar", shortwave_radiation_sum: "Radiacion acumulada", sunshine_duration: "Horas de sol", cloud_cover: "Nubosidad", surface_pressure: "Presion superficial", et0_fao_evapotranspiration: "ET de referencia", soil_temperature_0cm: "Temperatura de suelo regional", soil_moisture_0_to_1cm: "Humedad de suelo regional" } as Record<string, string>)[variable] ?? variable.replaceAll("_", " "); }
+function groupReadings(readings: ClimateReading[]) { const variables: Array<[string, string[]]> = [["Temperatura", ["temperature_2m", "apparent_temperature", "dew_point_2m", "soil_temperature_0cm"]], ["Humedad y VPD", ["relative_humidity_2m", "vapour_pressure_deficit", "soil_moisture_0_to_1cm"]], ["Precipitacion", ["precipitation"]], ["Viento", ["wind_speed_10m", "wind_direction_10m", "wind_gusts_10m"]], ["Radiacion y nubosidad", ["shortwave_radiation", "cloud_cover", "surface_pressure"]]]; return variables.map(([title, names]) => [title, readings.filter((reading) => names.includes(reading.variable))] as [string, ClimateReading[]]); }
+function groupForecast(days: ClimateForecast["days"]) { const groups = new Map<string, Record<string, number | string>>(); for (const day of days) { const key = dateOnly(day.validAt); const row = groups.get(key) ?? { date: key }; row[day.variable === "temperature_2m_max" ? "max" : day.variable === "temperature_2m_min" ? "min" : day.variable] = day.value; groups.set(key, row); } return [...groups.values()] as Array<{ date: string; min?: number; max?: number }>; }
