@@ -2,6 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
 
+import {
+  type ProductorRankingItem,
+  VisitaCalificacionesService
+} from "../../visita-calificaciones/application/visita-calificaciones.service";
+
 type VisitasPorMes = {
   mes: string;
   count: number;
@@ -49,6 +54,8 @@ type RecetaReciente = {
   etapa: string | null;
 };
 
+type CampaniaActual = { id: string; nombre: string };
+
 export type DashboardResumenData = {
   kpis: {
     totalVisitas: number;
@@ -67,25 +74,34 @@ export type DashboardResumenData = {
     ultimasVisitas: VisitaReciente[];
     ultimasRecetas: RecetaReciente[];
   };
+  rankingProductores: {
+    general: ProductorRankingItem[];
+    campaniaActual: {
+      nombre: string | null;
+      productores: ProductorRankingItem[];
+    };
+  };
 };
 
 @Injectable()
 export class DashboardService {
   constructor(
     @InjectDataSource()
-    private readonly dataSource: DataSource
+    private readonly dataSource: DataSource,
+    private readonly calificacionesService: VisitaCalificacionesService
   ) {}
 
   async getResumen(year?: number): Promise<DashboardResumenData> {
     const targetYear = year ?? new Date().getFullYear();
 
-    const [kpis, charts, actividadReciente] = await Promise.all([
+    const [kpis, charts, actividadReciente, rankingProductores] = await Promise.all([
       this.getKpis(),
       this.getCharts(targetYear),
-      this.getActividadReciente()
+      this.getActividadReciente(),
+      this.getRankingProductores()
     ]);
 
-    return { kpis, charts, actividadReciente };
+    return { kpis, charts, actividadReciente, rankingProductores };
   }
 
   private async getKpis() {
@@ -96,45 +112,47 @@ export class DashboardService {
       recetasEmitidas,
       cumplimientoPromedio
     ] = await Promise.all([
-        this.dataSource
-          .createQueryBuilder()
-          .select("COUNT(*)", "count")
-          .from("visitas_campo", "v")
-          .where("v.activo = true")
-          .getRawOne<{ count: string }>()
-          .then((r) => Number(r?.count ?? 0)),
+      this.dataSource
+        .createQueryBuilder()
+        .select("COUNT(*)", "count")
+        .from("visitas_campo", "v")
+        .where("v.activo = true")
+        .getRawOne<{ count: string }>()
+        .then((r) => Number(r?.count ?? 0)),
 
-        this.dataSource
-          .createQueryBuilder()
-          .select("COUNT(*)", "count")
-          .from("visitas_campo", "v")
-          .where("v.activo = true")
-          .andWhere("v.fecha_visita >= date_trunc('month', CURRENT_DATE)")
-          .getRawOne<{ count: string }>()
-          .then((r) => Number(r?.count ?? 0)),
+      this.dataSource
+        .createQueryBuilder()
+        .select("COUNT(*)", "count")
+        .from("visitas_campo", "v")
+        .where("v.activo = true")
+        .andWhere("v.fecha_visita >= date_trunc('month', CURRENT_DATE)")
+        .getRawOne<{ count: string }>()
+        .then((r) => Number(r?.count ?? 0)),
 
-        this.dataSource
-          .createQueryBuilder()
-          .select("COUNT(*)", "count")
-          .from("productores", "p")
-          .where("p.activo = true")
-          .getRawOne<{ count: string }>()
-          .then((r) => Number(r?.count ?? 0)),
+      this.dataSource
+        .createQueryBuilder()
+        .select("COUNT(*)", "count")
+        .from("productores", "p")
+        .where("p.activo = true")
+        .getRawOne<{ count: string }>()
+        .then((r) => Number(r?.count ?? 0)),
 
-        this.dataSource
-          .createQueryBuilder()
-          .select("COUNT(*)", "count")
-          .from("visita_recetas", "vr")
-          .getRawOne<{ count: string }>()
-          .then((r) => Number(r?.count ?? 0)),
+      this.dataSource
+        .createQueryBuilder()
+        .select("COUNT(*)", "count")
+        .from("visita_recetas", "vr")
+        .getRawOne<{ count: string }>()
+        .then((r) => Number(r?.count ?? 0)),
 
-        this.dataSource
-          .createQueryBuilder()
-          .select("ROUND(AVG(vc.puntaje::numeric / 3 * 100), 0)", "score")
-          .from("visita_calificaciones", "vc")
-          .getRawOne<{ score: string | null }>()
-          .then((r) => (r?.score === null || r?.score === undefined ? null : Number(r.score)))
-      ]);
+      this.dataSource
+        .createQueryBuilder()
+        .select("ROUND(AVG(vc.puntaje::numeric / 3 * 100), 0)", "score")
+        .from("visita_calificaciones", "vc")
+        .getRawOne<{ score: string | null }>()
+        .then((r) =>
+          r?.score === null || r?.score === undefined ? null : Number(r.score)
+        )
+    ]);
 
     return {
       totalVisitas,
@@ -251,6 +269,29 @@ export class DashboardService {
     ]);
 
     return { ultimasVisitas, ultimasRecetas };
+  }
+
+  private async getRankingProductores() {
+    const [general, campaignRows] = await Promise.all([
+      this.calificacionesService.getProductorRanking(),
+      this.dataSource.query(
+        `SELECT id, nombre
+         FROM campanias
+         WHERE activa = true
+           AND fecha_inicio <= CURRENT_DATE
+           AND (fecha_fin IS NULL OR fecha_fin >= CURRENT_DATE)
+         ORDER BY fecha_inicio DESC, id DESC
+         LIMIT 1`
+      )
+    ]);
+    const campania = campaignRows[0] as CampaniaActual | undefined;
+    const productores = campania
+      ? await this.calificacionesService.getProductorRanking({
+          campaniaId: String(campania.id)
+        })
+      : [];
+
+    return { general, campaniaActual: { nombre: campania?.nombre ?? null, productores } };
   }
 
   private async getUltimasVisitas(): Promise<VisitaReciente[]> {

@@ -15,7 +15,7 @@ import { ChartVisitasPorMes } from "./chart-visitas-por-mes";
 import { ChartVisitasPorCampania } from "./chart-visitas-por-campania";
 import { ChartPlagasFrecuentes } from "./chart-plagas-frecuentes";
 import { ChartDeficienciasNutrientes } from "./chart-deficiencias-nutrientes";
-import { ActividadReciente } from "./actividad-reciente";
+import { TopProductores } from "./actividad-reciente";
 
 const DASHBOARD_YEAR = 2026;
 const chartCardClassName =
@@ -127,7 +127,10 @@ export function DashboardOverview() {
       </div>
 
       <div className={chartCardClassName}>
-        <ActividadReciente ultimasVisitas={data.actividadReciente.ultimasVisitas} />
+        <TopProductores
+          campaniaActual={data.rankingProductores.campaniaActual}
+          general={data.rankingProductores.general}
+        />
       </div>
     </div>
   );

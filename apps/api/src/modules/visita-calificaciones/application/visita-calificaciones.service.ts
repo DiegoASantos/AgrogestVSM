@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException
-} from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 
@@ -26,6 +22,14 @@ type VisitScore = {
   campaignId: string;
   scoreGeneral: number | null;
   scorePorModulo: ModuleScoreMap;
+};
+
+export type ProductorRankingItem = {
+  productorId: string;
+  productorNombre: string;
+  score: number;
+  parcelasEvaluadas: number;
+  visitasCalificadas: number;
 };
 
 type NormalizedJustification = {
@@ -142,7 +146,10 @@ export class VisitaCalificacionesService {
     const previousVisit = await queryBuilder.getOne();
 
     if (!previousVisit) {
-      return createSuccessResponse({ existe: false, modulosEvaluables: emptyEvaluableModules() });
+      return createSuccessResponse({
+        existe: false,
+        modulosEvaluables: emptyEvaluableModules()
+      });
     }
 
     const receta = await this.recetasRepository.findOne({
@@ -151,7 +158,10 @@ export class VisitaCalificacionesService {
     });
 
     if (!receta) {
-      return createSuccessResponse({ existe: false, modulosEvaluables: emptyEvaluableModules() });
+      return createSuccessResponse({
+        existe: false,
+        modulosEvaluables: emptyEvaluableModules()
+      });
     }
 
     return createSuccessResponse({
@@ -224,10 +234,7 @@ export class VisitaCalificacionesService {
       visitas.map((visita) => visita.id)
     );
     const visitScores = visitas.map((visita) =>
-      this.calculateVisitScore(
-        visita,
-        calificacionesByVisit.get(visita.id) ?? []
-      )
+      this.calculateVisitScore(visita, calificacionesByVisit.get(visita.id) ?? [])
     );
     const scoredVisits = visitScores.filter((score) => score.scoreGeneral !== null);
 
@@ -240,6 +247,63 @@ export class VisitaCalificacionesService {
       totalVisitas: visitas.length,
       totalVisitasCalificadas: scoredVisits.length
     });
+  }
+
+  async getProductorRanking(options: { campaniaId?: string | null } = {}) {
+    const queryBuilder = this.visitasRepository
+      .createQueryBuilder("visita")
+      .innerJoinAndSelect("visita.parcela", "parcela")
+      .innerJoinAndSelect("parcela.productor", "productor")
+      .leftJoinAndSelect("visita.etapaFenologica", "etapaFenologica")
+      .where("visita.activo = true")
+      .andWhere("productor.activo = true");
+
+    if (options.campaniaId) {
+      queryBuilder.andWhere("visita.campania_id = :campaniaId", {
+        campaniaId: options.campaniaId
+      });
+    }
+
+    const visitas = await queryBuilder.getMany();
+    const calificacionesByVisit = await this.findCalificacionesByVisitIds(
+      visitas.map((visita) => visita.id)
+    );
+    const grouped = new Map<
+      string,
+      { productor: ProductorEntity; parcelaIds: Set<string>; scores: number[] }
+    >();
+
+    for (const visita of visitas) {
+      const score = this.calculateVisitScore(
+        visita,
+        calificacionesByVisit.get(visita.id) ?? []
+      ).scoreGeneral;
+      if (!isNumber(score)) continue;
+
+      const current = grouped.get(visita.parcela.productorId) ?? {
+        productor: visita.parcela.productor,
+        parcelaIds: new Set<string>(),
+        scores: []
+      };
+      current.parcelaIds.add(visita.parcelaId);
+      current.scores.push(score);
+      grouped.set(visita.parcela.productorId, current);
+    }
+
+    return [...grouped.entries()]
+      .map(([productorId, item]) => ({
+        productorId,
+        productorNombre: productorName(item.productor),
+        score: average(item.scores) ?? 0,
+        parcelasEvaluadas: item.parcelaIds.size,
+        visitasCalificadas: item.scores.length
+      }))
+      .sort(
+        (left, right) =>
+          right.score - left.score ||
+          left.productorNombre.localeCompare(right.productorNombre)
+      )
+      .slice(0, 10);
   }
 
   calculateVisitScore(
@@ -255,10 +319,14 @@ export class VisitaCalificacionesService {
 
     for (const modulo of CALIFICACION_MODULOS) {
       const calificacion = calificacionesByModule.get(modulo);
-      moduleScores[modulo] = calificacion ? roundScore((calificacion.puntaje / 3) * 100) : null;
+      moduleScores[modulo] = calificacion
+        ? roundScore((calificacion.puntaje / 3) * 100)
+        : null;
     }
 
-    const evaluatedModules = CALIFICACION_MODULOS.filter((modulo) => calificacionesByModule.has(modulo));
+    const evaluatedModules = CALIFICACION_MODULOS.filter((modulo) =>
+      calificacionesByModule.has(modulo)
+    );
     const weights = resolveStageWeights(visita.etapaFenologica?.name ?? null);
 
     if (evaluatedModules.length === 0 || !weights) {
@@ -270,16 +338,22 @@ export class VisitaCalificacionesService {
       };
     }
 
-    const totalWeight = evaluatedModules.reduce((total, modulo) => total + weights[modulo], 0);
-    const scoreGeneral = evaluatedModules.reduce((total, modulo) => {
-      const calificacion = calificacionesByModule.get(modulo);
+    const totalWeight = evaluatedModules.reduce(
+      (total, modulo) => total + weights[modulo],
+      0
+    );
+    const scoreGeneral =
+      (evaluatedModules.reduce((total, modulo) => {
+        const calificacion = calificacionesByModule.get(modulo);
 
-      if (!calificacion) {
-        return total;
-      }
+        if (!calificacion) {
+          return total;
+        }
 
-      return total + (calificacion.puntaje / 3) * weights[modulo];
-    }, 0) / totalWeight * 100;
+        return total + (calificacion.puntaje / 3) * weights[modulo];
+      }, 0) /
+        totalWeight) *
+      100;
 
     return {
       visitaId: visita.id,
@@ -375,9 +449,7 @@ function normalizeJustification(
   }
 
   if (typeof dto.justificado !== "boolean") {
-    throw new BadRequestException(
-      "Indica si el incumplimiento esta justificado."
-    );
+    throw new BadRequestException("Indica si el incumplimiento esta justificado.");
   }
 
   if (!dto.justificado) {
@@ -415,13 +487,23 @@ function emptyModuleScores(): ModuleScoreMap {
 }
 
 function emptyEvaluableModules(): Record<CalificacionModulo, boolean> {
-  return { plagas: false, enfermedades: false, nutricion: false, riego: false, labores: false };
+  return {
+    plagas: false,
+    enfermedades: false,
+    nutricion: false,
+    riego: false,
+    labores: false
+  };
 }
 
-function resolveEvaluableModules(receta: VisitaRecetaEntity): Record<CalificacionModulo, boolean> {
+function resolveEvaluableModules(
+  receta: VisitaRecetaEntity
+): Record<CalificacionModulo, boolean> {
   return {
     plagas: (receta.fitosanidad ?? []).some((item) => item.objetivo === "plaga"),
-    enfermedades: (receta.fitosanidad ?? []).some((item) => item.objetivo === "enfermedad"),
+    enfermedades: (receta.fitosanidad ?? []).some(
+      (item) => item.objetivo === "enfermedad"
+    ),
     nutricion: (receta.fertilizacion ?? []).length > 0,
     riego: Boolean(receta.riego?.tipoRecomendacion?.trim()),
     labores: (receta.labores ?? []).some((item) => Boolean(item.labor?.trim()))
@@ -480,4 +562,11 @@ function roundScore(value: number) {
 
 function isNumber(value: number | null): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function productorName(productor: ProductorEntity) {
+  const fullName = [productor.firstName, productor.lastName]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .join(" ");
+  return fullName || `Productor #${productor.id}`;
 }

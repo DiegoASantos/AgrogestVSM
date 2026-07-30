@@ -32,6 +32,14 @@ export type RecetaReciente = {
   etapa: string | null;
 };
 
+export type ProductorRankingItem = {
+  productorId: string;
+  productorNombre: string;
+  score: number;
+  parcelasEvaluadas: number;
+  visitasCalificadas: number;
+};
+
 export type DashboardResumen = {
   kpis: {
     totalVisitas: number;
@@ -49,5 +57,12 @@ export type DashboardResumen = {
   actividadReciente: {
     ultimasVisitas: VisitaReciente[];
     ultimasRecetas: RecetaReciente[];
+  };
+  rankingProductores: {
+    general: ProductorRankingItem[];
+    campaniaActual: {
+      nombre: string | null;
+      productores: ProductorRankingItem[];
+    };
   };
 };

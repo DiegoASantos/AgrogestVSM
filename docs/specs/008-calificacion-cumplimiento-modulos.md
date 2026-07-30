@@ -194,12 +194,12 @@ ALTER TABLE visitas_campo ADD COLUMN receta_anterior_json TEXT;
 
 ### API — Endpoints
 
-| Método | Path | Body/Query | Respuesta | Propósito |
-|--------|------|-----------|-----------|-----------|
-| `POST` | `/visitas-campo/:visitaId/calificaciones` | `{ modulo, puntaje, observacion? }` | `{ id, publicId, ... }` | UPSERT calificación (mobile sync) |
-| `GET` | `/visitas-campo/:visitaId/calificaciones` | — | `CalificacionDto[]` | Listar calificaciones de una visita |
-| `GET` | `/parcelas/:parcelaId/visita-anterior-receta` | `?excluirVisitaId=` | `{ existe, visitaId, fechaVisita, fitosanidad[], fertilizacion[], riego, labores[] }` o `{ existe: false }` | Receta anterior para referencia |
-| `GET` | `/productores/:productorId/calificacion` | `?campania_id=` | `{ scoreGeneral, scorePorModulo, scorePorCampania, totalVisitas, totalVisitasCalificadas }` | Score del productor |
+| Método | Path                                          | Body/Query                          | Respuesta                                                                                                   | Propósito                           |
+| ------ | --------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `POST` | `/visitas-campo/:visitaId/calificaciones`     | `{ modulo, puntaje, observacion? }` | `{ id, publicId, ... }`                                                                                     | UPSERT calificación (mobile sync)   |
+| `GET`  | `/visitas-campo/:visitaId/calificaciones`     | —                                   | `CalificacionDto[]`                                                                                         | Listar calificaciones de una visita |
+| `GET`  | `/parcelas/:parcelaId/visita-anterior-receta` | `?excluirVisitaId=`                 | `{ existe, visitaId, fechaVisita, fitosanidad[], fertilizacion[], riego, labores[] }` o `{ existe: false }` | Receta anterior para referencia     |
+| `GET`  | `/productores/:productorId/calificacion`      | `?campania_id=`                     | `{ scoreGeneral, scorePorModulo, scorePorCampania, totalVisitas, totalVisitasCalificadas }`                 | Score del productor                 |
 
 ### API — Modificar `getFullDetail`
 
@@ -270,14 +270,38 @@ PreviousRecipeCardProps = {
 // apps/api/src/modules/visita-calificaciones/domain/weight-matrix.ts
 
 export const STAGE_WEIGHTS: Record<string, Record<string, number>> = {
-  poda:              { plagas: 15, enfermedades: 20, nutricion: 25, riego: 15, labores: 25 },
-  brotamiento:       { plagas: 25, enfermedades: 20, nutricion: 15, riego: 25, labores: 15 },
-  maduracion_del_brote: { plagas: 25, enfermedades: 20, nutricion: 15, riego: 25, labores: 15 },
-  induccion_floral:  { plagas: 25, enfermedades: 20, nutricion: 15, riego: 25, labores: 15 },
-  floracion:         { plagas: 25, enfermedades: 20, nutricion: 15, riego: 25, labores: 15 },
-  amarre_y_cuajado:  { plagas: 25, enfermedades: 15, nutricion: 25, riego: 20, labores: 15 },
-  desarrollo_de_fruto: { plagas: 20, enfermedades: 25, nutricion: 15, riego: 25, labores: 15 },
-  cosecha:           { plagas: 20, enfermedades: 25, nutricion: 15, riego: 25, labores: 15 },
+  poda: { plagas: 15, enfermedades: 20, nutricion: 25, riego: 15, labores: 25 },
+  brotamiento: { plagas: 25, enfermedades: 20, nutricion: 15, riego: 25, labores: 15 },
+  maduracion_del_brote: {
+    plagas: 25,
+    enfermedades: 20,
+    nutricion: 15,
+    riego: 25,
+    labores: 15
+  },
+  induccion_floral: {
+    plagas: 25,
+    enfermedades: 20,
+    nutricion: 15,
+    riego: 25,
+    labores: 15
+  },
+  floracion: { plagas: 25, enfermedades: 20, nutricion: 15, riego: 25, labores: 15 },
+  amarre_y_cuajado: {
+    plagas: 25,
+    enfermedades: 15,
+    nutricion: 25,
+    riego: 20,
+    labores: 15
+  },
+  desarrollo_de_fruto: {
+    plagas: 20,
+    enfermedades: 25,
+    nutricion: 15,
+    riego: 25,
+    labores: 15
+  },
+  cosecha: { plagas: 20, enfermedades: 25, nutricion: 15, riego: 25, labores: 15 }
 };
 ```
 
@@ -309,13 +333,16 @@ export const STAGE_WEIGHTS: Record<string, Record<string, number>> = {
 ### PostgreSQL (026-visita-calificaciones)
 
 **Up:**
+
 1. `CREATE TABLE visita_calificaciones (...)` como se especifica en contratos.
 2. `CREATE INDEX idx_calificaciones_visita ON visita_calificaciones(visita_id)`.
 
 **Rollback:**
+
 1. `DROP TABLE IF EXISTS visita_calificaciones CASCADE`.
 
 **Compatibilidad:**
+
 - La migración es aditiva (no modifica tablas existentes). No requiere
   cambios en datos existentes.
 - Los clientes antiguos ignoran la nueva tabla sin errores.
@@ -325,16 +352,19 @@ export const STAGE_WEIGHTS: Record<string, Record<string, number>> = {
 ### SQLite mobile
 
 **Up:**
+
 1. `CREATE TABLE IF NOT EXISTS visita_calificaciones (...)`.
 2. `ALTER TABLE visitas_campo ADD COLUMN receta_anterior_json TEXT`.
    (usar `IF NOT EXISTS` o capturar error de columna duplicada)
 
 **Rollback:**
+
 1. `DROP TABLE IF EXISTS visita_calificaciones`.
 2. No se revierte la columna `receta_anterior_json` (es aditiva y no causa
    problemas).
 
 **Compatibilidad:**
+
 - La tabla nueva no afecta consultas existentes.
 - `ALTER TABLE ADD COLUMN` es seguro en SQLite si se maneja el error de
   columna ya existente.
@@ -342,56 +372,63 @@ export const STAGE_WEIGHTS: Record<string, Record<string, number>> = {
 ## Criterios de aceptación
 
 - [ ] CA-001: La migración PostgreSQL 026 crea `visita_calificaciones` con
-  todos los constraints e índices especificados.
+      todos los constraints e índices especificados.
 - [ ] CA-002: La API permite crear una calificación vía
-  `POST /visitas-campo/:id/calificaciones` y valida módulo, puntaje y
-  unicidad.
+      `POST /visitas-campo/:id/calificaciones` y valida módulo, puntaje y
+      unicidad.
 - [ ] CA-003: La API devuelve `CalificacionDto[]` en
-  `GET /visitas-campo/:id/calificaciones`.
+      `GET /visitas-campo/:id/calificaciones`.
 - [ ] CA-004: La API devuelve `CalificacionDto[]` dentro de
-  `GET /visitas-campo/:id/detalle-completo`.
+      `GET /visitas-campo/:id/detalle-completo`.
 - [ ] CA-005: `detalle-completo` incluye `visita.etapaFenologicaNombre`.
 - [ ] CA-006: `GET /parcelas/:id/visita-anterior-receta` retorna la receta
-  completa de la última visita (cuando existe) o `{ existe: false }`.
+      completa de la última visita (cuando existe) o `{ existe: false }`.
 - [ ] CA-007: `GET /productores/:id/calificacion` retorna `scoreGeneral`,
-  `scorePorModulo`, `scorePorCampania`, `totalVisitas`,
-  `totalVisitasCalificadas`.
+      `scorePorModulo`, `scorePorCampania`, `totalVisitas`,
+      `totalVisitasCalificadas`.
 - [ ] CA-008: El score ponderado usa correctamente la matriz de pesos según
-  la etapa fenológica de la visita.
+      la etapa fenológica de la visita.
 - [ ] CA-009: Una visita sin etapa fenológica mapeada retorna `score = null`.
 - [ ] CA-010: El score general es el promedio de scores de todas las visitas.
 - [ ] CA-011: El score por campaña es el promedio de scores de visitas de esa
-  campaña.
+      campaña.
 - [ ] CA-012: El SQLite mobile crea `visita_calificaciones` correctamente.
 - [ ] CA-013: El componente `ScoreSelector` muestra 4 opciones (0-3) con
-  colores semánticos.
+      colores semánticos.
 - [ ] CA-014: `PreviousRecipeCard` inicia colapsada mostrando solo resumen de
-  1 línea.
+      1 línea.
 - [ ] CA-015: Al expandir `PreviousRecipeCard`, se muestra el detalle del
-  módulo correspondiente al paso.
+      módulo correspondiente al paso.
 - [ ] CA-016: Si no existe receta anterior clasificable, `PreviousRecipeCard`
-  muestra el aviso correspondiente y no se muestra selector de scoring.
+      muestra el aviso correspondiente y no se muestra selector de scoring.
 - [ ] CA-017: En Paso 2, si no hay plagas registradas, se asigna
-  automáticamente `plagas=3` al guardar.
+      automáticamente `plagas=3` al guardar.
 - [ ] CA-018: En Paso 3, si no hay enfermedades registradas, se asigna
-  automáticamente `enfermedades=3`.
+      automáticamente `enfermedades=3`.
 - [ ] CA-019: En Paso 4, si no hay evaluaciones, se asigna automáticamente
-  `nutricion=3`.
+      `nutricion=3`.
 - [ ] CA-020: En Paso 6, si no hay labores, se asigna automáticamente
-  `labores=3`.
+      `labores=3`.
 - [ ] CA-021: Paso 5 (Riego) siempre requiere calificación manual.
 - [ ] CA-022: El outbox sincroniza `visita_calificaciones` después de
-  `visitas_campo`.
+      `visitas_campo`.
 - [ ] CA-023: La API permite UPSERT por `(visita_id, modulo)` para
-  idempotencia en sync.
+      idempotencia en sync.
 - [ ] CA-024: El admin web muestra las 5 calificaciones en el detalle de la
-  visita.
+      visita.
 - [ ] CA-025: El admin web muestra score general + score por campaña en la
-  página del productor.
+      página del productor.
 - [ ] CA-026: El dashboard muestra KPI de score promedio.
 - [ ] CA-027: `pnpm lint` pasa sin errores.
 - [ ] CA-028: `pnpm typecheck` pasa sin errores.
 - [ ] CA-029: `pnpm test` pasa con las nuevas pruebas.
+
+## Enmienda de ranking 2026-07-30
+
+El dashboard muestra hasta diez productores según el promedio de scores
+ponderados de las visitas calificadas de sus parcelas. Permite alternar entre
+la campaña activa vigente más reciente y el histórico general; productores sin
+score válido no forman parte del ranking.
 
 ## Pruebas
 
@@ -433,10 +470,10 @@ export const STAGE_WEIGHTS: Record<string, Record<string, number>> = {
 ## Impacto documental
 
 - [x] Arquitectura: actualizar `docs/domain/data-model.md` con nueva entidad
-  `visita_calificaciones` y sus relaciones.
+      `visita_calificaciones` y sus relaciones.
 - [x] Dominio: documentar el proceso de calificación de cumplimiento, la
-  matriz de pesos y la fórmula de score.
+      matriz de pesos y la fórmula de score.
 - [ ] Runbook: no se espera actualización.
 - [ ] ADR: no se requiere ADR (cambio aditivo sin decisión arquitectónica
-  significativa).
+      significativa).
 - [ ] Variables o despliegue: no aplica.

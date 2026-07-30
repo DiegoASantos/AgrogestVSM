@@ -59,7 +59,7 @@ describe("DashboardService", () => {
     const dataSource = {
       createQueryBuilder: () => queryBuilder
     };
-    const service = new DashboardService(dataSource as never);
+    const service = new DashboardService(dataSource as never, {} as never);
 
     const result = await (
       service as unknown as {
