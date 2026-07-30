@@ -42,6 +42,7 @@ import {
   isAdminSession
 } from "../../modules/auth/utils/authorization";
 import { useTheme } from "../hooks/use-theme";
+import { NotificationBell } from "./notification-bell";
 import {
   adminMainNavigation,
   adminClimateNavigation,
@@ -242,6 +243,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
                 {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
               </button>
             )}
+            <NotificationBell />
             <div className="topbar-user-menu">
               <button
                 className="topbar-user-pill"
