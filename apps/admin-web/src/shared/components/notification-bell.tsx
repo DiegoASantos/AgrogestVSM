@@ -131,6 +131,26 @@ function formatAlertDateTime(value: string): string {
   return date.toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function getLimaDateKey(value: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Lima",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function isAlertFromToday(alert: AlertRow): boolean {
+  const startsAt = new Date(alert.startsAt);
+  return (
+    !Number.isNaN(startsAt.getTime()) &&
+    getLimaDateKey(startsAt) === getLimaDateKey(new Date())
+  );
+}
+
 function severityBadge(severity: string) {
   const colors: Record<string, string> = {
     PRECAUCION: "climate-badge--precaucion",
@@ -180,7 +200,9 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler);
   }, [isOpen]);
 
-  const active = alerts.filter((a) => a.status === "ACTIVA");
+  const active = alerts.filter(
+    (alert) => alert.status === "ACTIVA" && isAlertFromToday(alert)
+  );
   const count = active.length;
 
   if (!session) return null;
@@ -252,7 +274,7 @@ export function NotificationBell() {
         >
           <dialog
             open
-            className="notification-modal"
+            className={`notification-modal notification-modal--${selectedAlert.severity.toLowerCase()}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="notification-modal__header">
@@ -303,6 +325,15 @@ export function NotificationBell() {
                 <p className="eyebrow">Impacto en el cultivo de mango</p>
                 <p>{getImpact(selectedAlert.variable, selectedAlert.severity)}</p>
               </div>
+            </div>
+            <div className="notification-modal__footer">
+              <button
+                className="notification-modal__action"
+                onClick={() => setSelectedAlert(null)}
+                type="button"
+              >
+                Cerrar
+              </button>
             </div>
           </dialog>
         </div>
