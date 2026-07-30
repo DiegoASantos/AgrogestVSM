@@ -68,7 +68,7 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: NonN
     isSelected: selectedId === point.id,
     onSelect: () => handleSelect(point.id)
   }));
-  return <div className="climate-map-layout"><div className="climate-map-layout__map"><div className="climate-map-caption"><strong>{points.length}</strong> puntos territoriales. Haga clic en un punto para ver el detalle climatico.</div><AdminMap points={mapPoints} emptyMessage="No hay puntos climaticos configurados."/></div><div className={`climate-map-panel${selected ? " climate-map-panel--open" : ""}`}><div className="climate-map-panel__inner">{selected ? <ClimateMapPanel point={selected} forecast={forecast} loading={loadingForecast} onClose={() => setSelectedId(null)}/> : null}</div></div></div>;
+  return <div className="climate-map-layout"><div className="climate-map-layout__map"><div className="climate-map-caption"><strong>{points.length}</strong> puntos territoriales. Haga clic en un punto para ver el detalle clim\u00E1tico.{selectedId ? <button className="climate-map-caption__reset" onClick={() => setSelectedId(null)}>Limpiar selecci\u00F3n</button> : null}</div><AdminMap points={mapPoints} emptyMessage="No hay puntos climaticos configurados."/><div className="climate-map-legend"><span className="climate-map-legend__dot climate-map-legend__dot--normal"/><span>Punto clim\u00E1tico</span><span className="climate-map-legend__dot climate-map-legend__dot--selected"/><span>Seleccionado</span></div></div><div className={`climate-map-panel${selected ? " climate-map-panel--open" : ""}`}><div className="climate-map-panel__inner">{selected ? <ClimateMapPanel point={selected} forecast={forecast} loading={loadingForecast} onClose={() => setSelectedId(null)}/> : null}</div></div></div>;
 }
 
 function ClimateMapPanel({ point, forecast, loading, onClose }: { point: ClimatePoint; forecast: ClimateForecast[] | null; loading: boolean; onClose: () => void }) {
@@ -84,12 +84,12 @@ function ClimateMapPanel({ point, forecast, loading, onClose }: { point: Climate
     return forecastDays.filter((d) => d.validAt?.startsWith(targetDateStr)).map((d) => ({ variable: d.variable, value: d.value, unit: d.unit, type: "PRONOSTICO", dataAt: d.validAt, receivedAt: d.validAt, model: null }));
   }, [point.current, forecastDays, isToday, targetDateStr]);
   const dayLabels = useMemo(() => {
-    const fmt = (d: Date) => new Intl.DateTimeFormat("es-PE", { day: "2-digit", month: "2-digit" }).format(d);
+    const fmt = (d: Date) => new Intl.DateTimeFormat("es-PE", { day: "2-digit", month: "short" }).format(d);
     return [
-      `Hoy (${fmt(today)})`,
-      `+1 dia (${fmt(new Date(today.getTime() + 86400000))})`,
-      `+2 dias (${fmt(new Date(today.getTime() + 172800000))})`,
-      `+3 dias (${fmt(new Date(today.getTime() + 259200000))})`
+      `Hoy ${fmt(today)}`,
+      `+1d ${fmt(new Date(today.getTime() + 86400000))}`,
+      `+2d ${fmt(new Date(today.getTime() + 172800000))}`,
+      `+3d ${fmt(new Date(today.getTime() + 259200000))}`
     ];
   }, []);
   return (
@@ -97,7 +97,7 @@ function ClimateMapPanel({ point, forecast, loading, onClose }: { point: Climate
       <div className="climate-map-panel__header">
         <div>
           <h3>{point.name}</h3>
-          <span>{point.district}, {point.department}</span>
+          <span>{point.district}, {point.department} · {isToday ? "Actual" : "Pron\u00F3stico"}</span>
         </div>
         <button className="climate-map-panel__close" onClick={onClose} aria-label="Cerrar panel">{"\u00D7"}</button>
       </div>
@@ -110,14 +110,27 @@ function ClimateMapPanel({ point, forecast, loading, onClose }: { point: Climate
           ))}
         </div>
         {loading
-          ? <div className="climate-map-panel__loading">Cargando pronostico...</div>
-          : readings.length === 0 && !isToday
-            ? <Empty message={`Sin pronostico disponible para ${dayLabels[dayOffset]}.`}/>
-            : <ReadingGroups readings={readings}/>
+          ? <div className="climate-map-panel__loading">Cargando pron\u00F3stico...</div>
+          : readings.length === 0
+            ? <div className="climate-map-panel__empty">Sin datos disponibles para este d\u00EDa.</div>
+            : <>
+                <PanelSummary readings={readings}/>
+                <ReadingGroups readings={readings}/>
+              </>
         }
       </div>
     </>
   );
+}
+
+function PanelSummary({ readings }: { readings: ClimateReading[] }) {
+  const cards = [
+    [Thermometer, "Temperatura", "temperature_2m"],
+    [Droplets, "Humedad", "relative_humidity_2m"],
+    [CloudRain, "Precipitaci\u00F3n", "precipitation"],
+    [Wind, "Viento", "wind_speed_10m"]
+  ] as const;
+  return <div className="climate-map-panel__summary">{cards.map(([Icon, title, variable]) => { const r = readings.find((item) => item.variable === variable); return <article key={variable}><Icon aria-hidden="true" size={16}/><div><span style={{ display: "block", fontSize: ".7rem", color: "var(--muted-foreground, #52606d)" }}>{title}</span><strong>{r ? `${formatValue(r.value)} ${r.unit}` : "-"}</strong></div></article>; })}</div>;
 }
 
 function SummaryView({ summary }: { summary: Summary }) {
