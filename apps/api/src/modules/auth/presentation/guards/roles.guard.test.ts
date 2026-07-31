@@ -4,10 +4,13 @@ import { describe, expect, it } from "vitest";
 
 import { RolesGuard } from "./roles.guard";
 
-function makeContext(user: { roles?: string[] } | undefined): ExecutionContext {
+function makeContext(
+  user: { roles?: string[] } | undefined,
+  method = "GET"
+): ExecutionContext {
   return {
     switchToHttp: () => ({
-      getRequest: () => ({ user })
+      getRequest: () => ({ user, method })
     }),
     getHandler: () => () => undefined,
     getClass: () => class {}
@@ -57,5 +60,24 @@ describe("RolesGuard", () => {
     expect(() => guard.canActivate(makeContext(undefined))).toThrow(
       ForbiddenException
     );
+  });
+
+  it("allows ANALISTA to use safe read methods", () => {
+    const guard = new RolesGuard(makeReflector(undefined));
+    expect(guard.canActivate(makeContext({ roles: ["ANALISTA"] }, "GET"))).toBe(true);
+  });
+
+  it("blocks ANALISTA from mutating requests without requiring each controller to opt in", () => {
+    const guard = new RolesGuard(makeReflector(undefined));
+    expect(() =>
+      guard.canActivate(makeContext({ roles: ["ANALISTA"] }, "PATCH"))
+    ).toThrow(ForbiddenException);
+  });
+
+  it("keeps ADMIN access when a user also carries ANALISTA", () => {
+    const guard = new RolesGuard(makeReflector(undefined));
+    expect(
+      guard.canActivate(makeContext({ roles: ["ANALISTA", "ADMIN"] }, "DELETE"))
+    ).toBe(true);
   });
 });

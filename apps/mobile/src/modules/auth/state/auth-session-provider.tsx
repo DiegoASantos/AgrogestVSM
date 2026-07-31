@@ -24,6 +24,7 @@ import { isAccessTokenExpired } from "../../../shared/utils/auth-token";
 import { authService } from "../services";
 import {
   classifyRefreshFailure,
+  isAnalystUser,
   isRefreshCooldownActive
 } from "./auth-session-policy";
 import type {
@@ -160,6 +161,11 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
 
         try {
           const nextSession = await authService.refresh(refreshToken, { signal });
+          if (isAnalystUser(nextSession.user)) {
+            await authService.logout(nextSession.refreshToken).catch(() => undefined);
+            clearLocalSession();
+            return "reauth_required";
+          }
           await setActiveSession(nextSession, "refresh");
           return "valid";
         } catch (error) {
@@ -193,7 +199,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
         refreshInFlightRef.current = null;
       }
     },
-    [setActiveSession]
+    [clearLocalSession, setActiveSession]
   );
 
   useEffect(() => {
@@ -339,7 +345,8 @@ async function loadPersistedSession(): Promise<{
       typeof data.offlineSessionExpiresAt !== "string" ||
       !data.user ||
       !Number.isFinite(offlineSessionExpiresAt) ||
-      Date.now() >= offlineSessionExpiresAt
+      Date.now() >= offlineSessionExpiresAt ||
+      isAnalystUser(data.user)
     ) {
       await clearInvalidPersistedSession();
       return {

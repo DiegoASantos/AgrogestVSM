@@ -39,7 +39,8 @@ import {
 import { useAuthSession } from "../../modules/auth/hooks/use-auth-session";
 import {
   canAccessAdminPath,
-  isAdminSession
+  isAdminSession,
+  isAnalystSession
 } from "../../modules/auth/utils/authorization";
 import { useTheme } from "../hooks/use-theme";
 import { NotificationBell } from "./notification-bell";
@@ -106,9 +107,10 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const isAdmin = isAdminSession(session);
+  const isAnalyst = isAnalystSession(session);
   const canAccessCurrentRoute = canAccessAdminPath(pathname, session);
   const maintenanceNavigation = isAdmin ? adminMaintenanceNavigation : [];
-  const climateNavigation = isAdmin ? adminClimateNavigation : [];
+  const climateNavigation = isAdmin || isAnalyst ? adminClimateNavigation : [];
   const securityNavigation = isAdmin ? adminSecurityNavigation : [];
 
   useEffect(() => {

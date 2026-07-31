@@ -119,7 +119,10 @@ productor y por campaña se resuelven desde `campaniaId`.
 - relación usuario-rol;
 - sesión de refresh token.
 
-Los roles actuales distinguen principalmente administración y trabajo técnico.
+Los roles distinguen administración, trabajo técnico y consulta. `ANALISTA` usa
+el panel web en modo solo lectura (Dashboard, Visitas, Mapas y Clima), no puede
+acceder a Mantenimiento ni Seguridad y la API rechaza sus mutaciones. La
+aplicación móvil no admite sesiones con ese rol.
 
 ## Fuente estructural
 

@@ -24,6 +24,10 @@ import {
 import { useAuthSession } from "../hooks/use-auth-session";
 import { useLoginForm } from "../hooks/use-login-form";
 import { authService } from "../services";
+import {
+  isAnalystUser,
+  MOBILE_ANALYST_ACCESS_DENIED_MESSAGE
+} from "../state/auth-session-policy";
 
 export function LoginForm() {
   const router = useRouter();
@@ -53,6 +57,11 @@ export function LoginForm() {
 
       try {
         const nextSession = await authService.authenticate(nextValues);
+        if (isAnalystUser(nextSession.user)) {
+          void authService.logout(nextSession.refreshToken).catch(() => undefined);
+          setSubmitError(MOBILE_ANALYST_ACCESS_DENIED_MESSAGE);
+          return;
+        }
         await saveLastLoginEmail(nextValues.email);
         initDatabase();
         await signIn(nextSession);

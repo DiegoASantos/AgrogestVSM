@@ -4,6 +4,7 @@ import type { AuthSession } from "../types/auth.types";
 import {
   canAccessAdminPath,
   hasRole,
+  isAnalystSession,
   isAdminSession,
   isRestrictedAdminPath
 } from "./authorization";
@@ -56,6 +57,13 @@ describe("isAdminSession", () => {
   });
 });
 
+describe("isAnalystSession", () => {
+  it("matches ANALISTA sessions", () => {
+    expect(isAnalystSession(makeSession(["ANALISTA"]))).toBe(true);
+    expect(isAnalystSession(makeSession(["ADMIN"]))).toBe(false);
+  });
+});
+
 describe("isRestrictedAdminPath", () => {
   it.each([
     "/mantenimiento",
@@ -66,7 +74,7 @@ describe("isRestrictedAdminPath", () => {
     expect(isRestrictedAdminPath(path)).toBe(true);
   });
 
-  it.each(["/dashboard", "/visitas", "/mapas", "/"])(
+  it.each(["/dashboard", "/visitas", "/mapas", "/clima/resumen", "/"])(
     "does not flag %s as restricted",
     (path) => {
       expect(isRestrictedAdminPath(path)).toBe(false);
@@ -82,6 +90,7 @@ describe("canAccessAdminPath", () => {
   it("allows non-restricted paths for any session", () => {
     expect(canAccessAdminPath("/dashboard", null)).toBe(true);
     expect(canAccessAdminPath("/visitas", makeSession(["VIEWER"]))).toBe(true);
+    expect(canAccessAdminPath("/clima/resumen", makeSession(["ANALISTA"]))).toBe(true);
   });
 
   it("blocks restricted paths for non-admin sessions", () => {

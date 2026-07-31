@@ -2,6 +2,7 @@ import type { AuthRole, AuthSession } from "../types/auth.types";
 import { adminRoutes } from "../../../shared/constants/site";
 
 export const ADMIN_ROLE_CODE = "ADMIN";
+export const ANALYST_ROLE_CODE = "ANALISTA";
 
 type SessionInput = Pick<AuthSession, "user"> | null | undefined;
 type RolesInput = Pick<AuthRole, "code">[] | undefined;
@@ -16,6 +17,10 @@ export function isAdminSession(session: SessionInput) {
   return hasRole(session?.user.roles, ADMIN_ROLE_CODE);
 }
 
+export function isAnalystSession(session: SessionInput) {
+  return hasRole(session?.user.roles, ANALYST_ROLE_CODE);
+}
+
 export function canAccessAdminPath(pathname: string, session: SessionInput) {
   if (!pathname) {
     return true;
@@ -28,7 +33,6 @@ export function isRestrictedAdminPath(pathname: string) {
   return (
     pathname === adminRoutes.mantenimiento ||
     pathname.startsWith(`${adminRoutes.mantenimiento}/`) ||
-    pathname.startsWith("/clima/") ||
     pathname === adminRoutes.seguridad ||
     pathname.startsWith(`${adminRoutes.seguridad}/`)
   );

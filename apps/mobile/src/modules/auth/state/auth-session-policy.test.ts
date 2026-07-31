@@ -6,6 +6,7 @@ import {
 } from "../../../shared/services/api/errors";
 import {
   classifyRefreshFailure,
+  isAnalystUser,
   isRefreshCooldownActive
 } from "./auth-session-policy";
 
@@ -28,5 +29,11 @@ describe("auth session refresh policy", () => {
   it("uses a strict cooldown boundary", () => {
     expect(isRefreshCooldownActive(61_000, 1_000)).toBe(true);
     expect(isRefreshCooldownActive(61_000, 61_000)).toBe(false);
+  });
+
+  it("identifies the role that is restricted to the web panel", () => {
+    expect(isAnalystUser({ roles: ["ANALISTA"] })).toBe(true);
+    expect(isAnalystUser({ roles: [" admin "] })).toBe(false);
+    expect(isAnalystUser(null)).toBe(false);
   });
 });

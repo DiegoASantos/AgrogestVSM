@@ -65,4 +65,5 @@ en la raíz.
 - [Spec 019: Scores técnicos independientes por módulo para mango](019-scores-tecnicos-independientes-mango.md)
 - [Spec 020: Módulo clima territorial para el panel web](020-modulo-clima-territorial-web.md)
 - [Spec 021: Clima general móvil por distrito](021-clima-general-mobile-por-distrito.md)
+- [Spec 022: Rol analista web de solo lectura](022-rol-analista-web-solo-lectura.md)
 - [Plantilla](TEMPLATE.md)
