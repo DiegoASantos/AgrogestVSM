@@ -47,7 +47,10 @@ import {
 } from "../../../visita-calificaciones/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import { observacionesSanitariasService } from "../../services";
-import { resolveDiseaseIncidenceGrade } from "../../domain/disease-incidence";
+import {
+  resolveDiseaseIncidenceDescription,
+  resolveDiseaseIncidenceGrade
+} from "../../domain/disease-incidence";
 import { getLevelOptionsForItem } from "../../domain/stage-level-options";
 import type {
   IncidenceLevelCatalogItem,
@@ -569,7 +572,6 @@ export function VisitaObservacionesSanitariasScreen({
       setSubmitError(
         "No existe un grado de incidencia configurado para el porcentaje indicado."
       );
-      return;
     }
 
     setSelections((currentSelections) => {
@@ -898,8 +900,13 @@ function SanitaryCard({
     for (const rel of item.stageLevels) {
       map[rel.nivelIncidenciaSeveridadId] = rel.description;
     }
+    if (showsSickTreePercentage) {
+      for (const level of incidenceOptions) {
+        map[level.id] ??= resolveDiseaseIncidenceDescription(level.grade);
+      }
+    }
     return map;
-  }, [item.stageLevels]);
+  }, [incidenceOptions, item.stageLevels, showsSickTreePercentage]);
 
   return (
     <View style={[styles.sanitaryCard, isCompactLayout && styles.sanitaryCardCompact]}>

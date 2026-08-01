@@ -5,7 +5,7 @@ type CreateRiegoInput = {
   tipoRiegoId: number;
   fuenteAgua?: string | null;
   tipoSuelo?: string | null;
-  humedadSuelo?: string | null;
+  humedadSuelo: string;
   estresHidrico?: boolean | null;
 };
 

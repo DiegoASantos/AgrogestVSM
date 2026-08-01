@@ -171,7 +171,7 @@ export type CreateVisitaCampoDraft = {
   sowingDate?: string;
   visitDate: string;
   startVisitTime: string;
-  endVisitTime?: string;
+  endVisitTime?: string | null;
   phenologicalStageId?: string;
   subEtapaId?: string;
   subEtapaPercentage?: number;

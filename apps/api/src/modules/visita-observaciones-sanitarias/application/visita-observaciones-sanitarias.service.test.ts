@@ -34,7 +34,15 @@ function buildFixture() {
   };
   const visits = { findOne: vi.fn().mockResolvedValue(visit) };
   const diseases = { findOne: vi.fn().mockResolvedValue(disease) };
-  const levels = { findOne: vi.fn().mockResolvedValue(severity) };
+  const levels = {
+    findOne: vi.fn().mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.grade === undefined
+          ? severity
+          : incidenceLevels.find((level) => level.grade === where.grade) ?? null
+      )
+    )
+  };
   const diseaseStageLevels = {
     findOne: vi.fn().mockResolvedValue({ id: "stage-relation" }),
     find: vi.fn().mockResolvedValue(stageLevels)

@@ -61,13 +61,16 @@ export class ScoreTecnicoNutricionService {
     private readonly evaluations: Repository<VisitaEvaluacionEntity>
   ) {}
 
-  async resolveVisitScore(visitaId: string): Promise<NutritionModuleScore> {
+  async resolveVisitScore(
+    visitaId: string,
+    completedByRecipe = false
+  ): Promise<NutritionModuleScore> {
     const visit = await this.visits.findOne({ where: { id: visitaId } });
     if (!visit) throw new NotFoundException("Visita de campo no encontrada.");
     if (!visit.isActive) return emptyNutritionModuleScore();
 
     const step = await this.steps.findOne({ where: { visitaId, stepNumber: 4 } });
-    if (!step?.finalizedAt) return emptyNutritionModuleScore();
+    if (!step?.finalizedAt && !completedByRecipe) return emptyNutritionModuleScore();
 
     const rows = await this.evaluations.find({
       where: { visitaId },

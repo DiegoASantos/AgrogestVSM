@@ -416,8 +416,8 @@ function seedOfflineCompleteVisit() {
     tipoRiegoId: "10",
     fuenteAgua: null,
     tipoSuelo: null,
-    humedadSuelo: null,
-    estresHidrico: null,
+    humedadSuelo: "optimo",
+    estresHidrico: false,
     createdAt: now,
     updatedAt: now
   };
@@ -566,8 +566,8 @@ describe("offline/online sync with complete visit data", () => {
         tipoRiegoId: 10,
         fuenteAgua: null,
         tipoSuelo: null,
-        humedadSuelo: null,
-        estresHidrico: null
+        humedadSuelo: "optimo",
+        estresHidrico: false
       },
       { signal: undefined }
     );

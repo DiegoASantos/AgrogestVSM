@@ -49,7 +49,8 @@ function buildService(observations: unknown[], departmentCode = "15") {
   return new ScoreSanitarioPlagasService(
     visits as never,
     steps as never,
-    observationRepository as never
+    observationRepository as never,
+    { findOne: vi.fn().mockResolvedValue(null) } as never
   );
 }
 
@@ -167,7 +168,8 @@ describe("ScoreSanitarioPlagasService", () => {
     const service = new ScoreSanitarioPlagasService(
       visits as never,
       steps as never,
-      observations as never
+      observations as never,
+      { findOne: vi.fn().mockResolvedValue(null) } as never
     );
 
     await expect(service.resolveVisitScore("visit-1")).resolves.toEqual({
@@ -177,5 +179,24 @@ describe("ScoreSanitarioPlagasService", () => {
       detail: null
     });
     expect(observations.find).not.toHaveBeenCalled();
+  });
+
+  it("consolida con nota 3 sin hallazgos cuando la visita ya tiene receta", async () => {
+    const visits = {
+      findOne: vi.fn().mockResolvedValue({ id: "visit-1", isActive: true }),
+      createQueryBuilder: vi.fn().mockReturnValue(buildQueryBuilder())
+    };
+    const service = new ScoreSanitarioPlagasService(
+      visits as never,
+      { findOne: vi.fn().mockResolvedValue(null) } as never,
+      { find: vi.fn().mockResolvedValue([]) } as never,
+      { findOne: vi.fn().mockResolvedValue({ id: "recipe-1" }) } as never
+    );
+
+    await expect(service.resolveVisitScore("visit-1")).resolves.toMatchObject({
+      finalized: true,
+      score: 3,
+      percentage: 100
+    });
   });
 });

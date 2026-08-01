@@ -331,7 +331,7 @@ export function VisitaRiegoScreen() {
                   </View>
                   <View style={styles.sectionHeaderText}>
                     <AppText style={styles.sectionTitle} variant="heading">
-                      Humedad del suelo
+                      Humedad del suelo *
                     </AppText>
                   </View>
                   <Pressable

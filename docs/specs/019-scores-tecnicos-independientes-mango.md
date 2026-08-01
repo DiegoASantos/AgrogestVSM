@@ -4,7 +4,7 @@ status: implementing
 numero: 019
 area: visitas, sanidad, nutrición, riego, labores, scoring, api, mobile, sync, database, admin-web
 created: 2026-07-28
-approved_by: usuario, 2026-07-28; ampliación climática aprobada, 2026-07-30; consolidación macro-score de Plagas aprobada, 2026-07-31; consolidación macro-score de Enfermedades aprobada, 2026-07-31; consolidación macro-score de Nutrición aprobada, 2026-07-31
+approved_by: usuario, 2026-07-28; ampliación climática aprobada, 2026-07-30; consolidación macro-score de Plagas aprobada, 2026-07-31; consolidación macro-score de Enfermedades aprobada, 2026-07-31; consolidación macro-score de Nutrición aprobada, 2026-07-31; cierre técnico por receta y correcciones de captura aprobados, 2026-07-31
 implemented_in:
 ---
 
@@ -146,6 +146,32 @@ Riesgo de Rendimiento`). Los mensajes son autoritativos en API.
 - RF-030: Los seis nutrientes usan códigos estables y las evaluaciones nuevas
   guardan su identidad de catálogo. Los lectores mantienen compatibilidad con
   filas históricas identificadas por descripción durante la transición.
+
+## Enmienda de cierre técnico por receta y captura 2026-07-31
+
+- RF-031: Mientras una visita no tenga el paso correspondiente finalizado ni
+  una receta emitida, Plagas, Enfermedades, Nutrición y Riego se muestran como
+  pendientes. La existencia de al menos una receta cierra la evaluación técnica
+  de esos módulos para esa visita.
+- RF-032: En una visita con receta, la ausencia de registros en Plagas,
+  Enfermedades o Nutrición representa ausencia de hallazgos y aplica los valores
+  por defecto ya definidos, por lo que cada macro-score resulta 3. En Riego, la
+  ausencia de registro también produce score 3; un registro existente conserva
+  la fórmula técnica vigente.
+- RF-033: La humedad del suelo es obligatoria en toda alta de Riego. Mobile debe
+  impedir continuar sin selección y la API debe rechazar el contrato incompleto.
+  Las lecturas históricas nulas se conservan por compatibilidad y no requieren
+  una migración destructiva.
+- RF-034: Los campos Hora de inicio y Hora de fin permiten borrar y editar
+  valores parciales sin reordenar los dígitos durante la captura. La
+  normalización a formato de API ocurre al completar o finalizar la edición, y
+  el envío mantiene la validación horaria existente.
+- RF-035: El porcentaje de árboles enfermos conserva cada valor digitado entre
+  0 y 100 y deriva la incidencia sin sustituirlo por 0 ni perder el foco de
+  captura. El porcentaje sigue siendo entero y obligatorio para toda enfermedad
+  evaluada.
+- RF-036: Esta enmienda no modifica, infiere ni recalcula el score de
+  cumplimiento.
 
 ## Enmienda climática 2026-07-30
 

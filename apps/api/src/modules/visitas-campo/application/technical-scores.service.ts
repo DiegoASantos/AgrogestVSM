@@ -4,6 +4,7 @@ import { Repository } from "typeorm";
 
 import { createSuccessResponse } from "../../../common/http/api-response";
 import { ParcelaEntity } from "../../parcelas/infrastructure/persistence/entities/parcela.entity";
+import { VisitaRecetaEntity } from "../../visita-recetas/infrastructure/persistence/entities/visita-receta.entity";
 import {
   resolveStageWeights,
   type CalificacionModulo
@@ -59,7 +60,9 @@ export class TechnicalScoresService {
     private readonly visits: Repository<VisitaCampoEntity>,
     private readonly pestScores: ScoreSanitarioPlagasService,
     private readonly diseaseScores: ScoreSanitarioEnfermedadesService,
-    private readonly nutritionScores: ScoreTecnicoNutricionService
+    private readonly nutritionScores: ScoreTecnicoNutricionService,
+    @InjectRepository(VisitaRecetaEntity)
+    private readonly recipes: Repository<VisitaRecetaEntity>
   ) {}
 
   async byVisit(visitaId: string) {
@@ -108,10 +111,22 @@ export class TechnicalScoresService {
     });
     if (!visit) throw new NotFoundException("Visita de campo no encontrada.");
 
-    const pest = await this.pestScores.resolveVisitScore(visitaId);
-    const disease = await this.diseaseScores.resolveVisitScore(visitaId);
-    const nutrition = await this.nutritionScores.resolveVisitScore(visitaId);
-    const riegoScore = irrigationScore(visit);
+    const completedByRecipe = Boolean(
+      await this.recipes.findOne({
+        where: { visitaId },
+        select: { id: true }
+      })
+    );
+    const pest = await this.pestScores.resolveVisitScore(visitaId, completedByRecipe);
+    const disease = await this.diseaseScores.resolveVisitScore(
+      visitaId,
+      completedByRecipe
+    );
+    const nutrition = await this.nutritionScores.resolveVisitScore(
+      visitaId,
+      completedByRecipe
+    );
+    const riegoScore = irrigationScore(visit, completedByRecipe);
     const riegoDetail: RiegoModuleScoreDetail | null =
       riegoScore.score !== null
         ? {
@@ -155,9 +170,13 @@ export class TechnicalScoresService {
   }
 }
 
-function irrigationScore(visit: VisitaCampoEntity): TechnicalModuleScore {
+function irrigationScore(
+  visit: VisitaCampoEntity,
+  completedByRecipe: boolean
+): TechnicalModuleScore {
   const riego = visit.riego[0];
-  if (!riego || riego.estresHidrico === null || !riego.humedadSuelo)
+  if (!riego) return moduleScore(completedByRecipe ? 3 : null, "riego");
+  if (riego.estresHidrico === null || !riego.humedadSuelo)
     return moduleScore(null, "riego");
   const scores = riego.estresHidrico
     ? { seco: 3, moderadamente_seco: 2, optimo: 1, saturado: 0 }

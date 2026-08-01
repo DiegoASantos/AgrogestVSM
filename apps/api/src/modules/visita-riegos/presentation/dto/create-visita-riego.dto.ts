@@ -42,14 +42,13 @@ export class CreateVisitaRiegoDto {
   @IsIn(TIPOS_SUELO)
   tipoSuelo?: (typeof TIPOS_SUELO)[number];
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: "optimo",
     description:
       "Humedad del suelo: saturado, optimo, moderadamente_seco o seco."
   })
-  @IsOptional()
   @IsIn(HUMEDADES_SUELO)
-  humedadSuelo?: (typeof HUMEDADES_SUELO)[number];
+  humedadSuelo!: (typeof HUMEDADES_SUELO)[number];
 
   @ApiPropertyOptional({
     example: false,

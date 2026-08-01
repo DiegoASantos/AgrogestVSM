@@ -312,9 +312,10 @@ export class VisitaObservacionesSanitariasService {
     }
 
     const grade = resolveDiseaseIncidenceGrade(incidencePercentage);
-    const incidenceLevel = stageLevels
-      .map((item) => item.nivelIncidenciaSeveridad)
-      .find((level) => level.type === "incidencia" && level.grade === grade);
+    const incidenceLevel = await this.nivelesIncidenciaRepository.findOne({
+      where: { type: "incidencia", grade },
+      order: { id: "ASC" }
+    });
     if (!incidenceLevel) {
       throw new BadRequestException(
         `No existe un nivel de incidencia configurado para el grado ${grade}.`

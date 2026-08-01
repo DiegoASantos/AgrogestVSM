@@ -86,6 +86,15 @@ describe("ScoreTecnicoNutricionService", () => {
     });
   });
 
+  it("consolida con nota 3 sin hallazgos cuando una receta cierra la visita", async () => {
+    const result = await buildService({ finalized: false }).resolveVisitScore(
+      "visit-1",
+      true
+    );
+
+    expect(result).toMatchObject({ finalized: true, score: 3, percentage: 100 });
+  });
+
   it("mantiene compatibilidad con registros históricos identificados por descripción", async () => {
     const result = await buildService({
       evaluations: [

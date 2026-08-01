@@ -9,3 +9,14 @@ export function resolveDiseaseIncidenceGrade(percentage: number) {
   if (percentage <= 20) return 2;
   return 3;
 }
+
+export function resolveDiseaseIncidenceDescription(grade: number) {
+  return (
+    {
+      0: "0% de árboles enfermos.",
+      1: "Más de 0% y hasta 5% de árboles enfermos.",
+      2: "Más de 5% y hasta 20% de árboles enfermos.",
+      3: "Más de 20% y hasta 100% de árboles enfermos."
+    }[grade] ?? null
+  );
+}

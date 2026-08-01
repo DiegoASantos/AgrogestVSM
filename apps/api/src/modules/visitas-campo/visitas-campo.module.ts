@@ -14,6 +14,7 @@ import { VisitaLaborCulturalEntity } from "../visita-labores-culturales/infrastr
 import { VisitaObservacionSanitariaEntity } from "../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
 import { VisitaObservacionSanitariaOrganoEntity } from "../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria-organo.entity";
 import { VisitaRiegoEntity } from "../visita-riegos/infrastructure/persistence/entities/visita-riego.entity";
+import { VisitaRecetaEntity } from "../visita-recetas/infrastructure/persistence/entities/visita-receta.entity";
 import { EtapasFenologicasService } from "./application/etapas-fenologicas.service";
 import { SubEtapasService } from "./application/sub-etapas.service";
 import { VisitaPasoObservacionesService } from "./application/visita-paso-observaciones.service";
@@ -51,6 +52,7 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
       VisitaObservacionSanitariaEntity,
       VisitaObservacionSanitariaOrganoEntity,
       VisitaRiegoEntity,
+      VisitaRecetaEntity,
       VisitaLaborCulturalEntity,
       VisitaPasoObservacionEntity
     ])

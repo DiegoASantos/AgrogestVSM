@@ -92,6 +92,15 @@ describe("ScoreSanitarioEnfermedadesService", () => {
     });
   });
 
+  it("consolida con nota 3 sin hallazgos cuando una receta cierra la visita", async () => {
+    const result = await buildService({ finalized: false }).resolveVisitScore(
+      "visit-1",
+      true
+    );
+
+    expect(result).toMatchObject({ finalized: true, score: 3, percentage: 100 });
+  });
+
   it.each([
     [0, "rojo", "Crisis Sanitaria"],
     [1, "amarillo", "Alerta / Umbral de Acción"],

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveDiseaseIncidenceGrade } from "./disease-incidence";
+import {
+  resolveDiseaseIncidenceDescription,
+  resolveDiseaseIncidenceGrade
+} from "./disease-incidence";
 
 describe("resolveDiseaseIncidenceGrade", () => {
   it.each([
@@ -17,5 +20,11 @@ describe("resolveDiseaseIncidenceGrade", () => {
 
   it.each([-1, 101, 1.5])("rechaza el porcentaje inválido %s", (percentage) => {
     expect(() => resolveDiseaseIncidenceGrade(percentage)).toThrow(RangeError);
+  });
+
+  it("expone la descripción del grado derivado aunque falte la relación de etapa", () => {
+    expect(resolveDiseaseIncidenceDescription(2)).toBe(
+      "Más de 5% y hasta 20% de árboles enfermos."
+    );
   });
 });

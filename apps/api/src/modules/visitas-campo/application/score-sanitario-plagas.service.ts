@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
 import { createSuccessResponse } from "../../../common/http/api-response";
+import { VisitaRecetaEntity } from "../../visita-recetas/infrastructure/persistence/entities/visita-receta.entity";
 import { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
 import { VisitaCampoEntity } from "../infrastructure/persistence/entities/visita-campo.entity";
 import { VisitaPasoObservacionEntity } from "../infrastructure/persistence/entities/visita-paso-observacion.entity";
@@ -91,7 +92,9 @@ export class ScoreSanitarioPlagasService {
     @InjectRepository(VisitaPasoObservacionEntity)
     private readonly steps: Repository<VisitaPasoObservacionEntity>,
     @InjectRepository(VisitaObservacionSanitariaEntity)
-    private readonly observations: Repository<VisitaObservacionSanitariaEntity>
+    private readonly observations: Repository<VisitaObservacionSanitariaEntity>,
+    @InjectRepository(VisitaRecetaEntity)
+    private readonly recipes: Repository<VisitaRecetaEntity>
   ) {}
 
   async byVisit(visitaId: string) {
@@ -130,13 +133,24 @@ export class ScoreSanitarioPlagasService {
     });
   }
 
-  async resolveVisitScore(visitaId: string): Promise<ModuleScore> {
+  async resolveVisitScore(
+    visitaId: string,
+    completedByRecipe?: boolean
+  ): Promise<ModuleScore> {
     const visit = await this.visits.findOne({ where: { id: visitaId } });
     if (!visit) throw new NotFoundException("Visita de campo no encontrada.");
     if (!visit.isActive)
       return { finalized: false, score: null, percentage: null, detail: null };
     const step = await this.steps.findOne({ where: { visitaId, stepNumber: 2 } });
-    if (!step?.finalizedAt)
+    const hasRecipe =
+      completedByRecipe ??
+      Boolean(
+        await this.recipes.findOne({
+          where: { visitaId },
+          select: { id: true }
+        })
+      );
+    if (!step?.finalizedAt && !hasRecipe)
       return { finalized: false, score: null, percentage: null, detail: null };
     const department = await this.visits
       .createQueryBuilder("v")

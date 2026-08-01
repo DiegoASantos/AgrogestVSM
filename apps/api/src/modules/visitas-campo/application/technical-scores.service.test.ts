@@ -29,6 +29,10 @@ function buildVisit(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function buildRecipeRepository(hasRecipe = false) {
+  return { findOne: vi.fn().mockResolvedValue(hasRecipe ? { id: "recipe-1" } : null) };
+}
+
 describe("TechnicalScoresService", () => {
   it("separa los módulos técnicos y pondera solo sus valores disponibles", async () => {
     const visits = { findOne: vi.fn().mockResolvedValue(buildVisit()) };
@@ -43,7 +47,8 @@ describe("TechnicalScoresService", () => {
       visits as never,
       pestScores as never,
       diseaseScores as never,
-      nutritionScores as never
+      nutritionScores as never,
+      buildRecipeRepository() as never
     );
 
     const response = await service.byVisit("1");
@@ -81,7 +86,8 @@ describe("TechnicalScoresService", () => {
       visits as never,
       pestScores as never,
       diseaseScores as never,
-      nutritionScores as never
+      nutritionScores as never,
+      buildRecipeRepository() as never
     );
 
     const response = await service.byVisit("1");
@@ -89,6 +95,41 @@ describe("TechnicalScoresService", () => {
     expect(response.data.scoreTecnicoGeneral).toBe(100);
     expect(response.data.modulosIncluidos).toEqual(["riego"]);
     expect(response.data.modulosFaltantes).toHaveLength(4);
+  });
+
+  it("publica score 3 en los módulos sin hallazgos cuando existe una receta", async () => {
+    const visits = {
+      findOne: vi.fn().mockResolvedValue(buildVisit({ riego: [], labores: [] }))
+    };
+    const pestScores = {
+      resolveVisitScore: vi.fn().mockResolvedValue({ score: 3, detail: null })
+    };
+    const diseaseScores = {
+      resolveVisitScore: vi.fn().mockResolvedValue({ score: 3, detail: null })
+    };
+    const nutritionScores = {
+      resolveVisitScore: vi.fn().mockResolvedValue({ score: 3, detail: null })
+    };
+    const service = new TechnicalScoresService(
+      visits as never,
+      pestScores as never,
+      diseaseScores as never,
+      nutritionScores as never,
+      buildRecipeRepository(true) as never
+    );
+
+    const response = await service.byVisit("1");
+
+    expect(response.data.scorePorModulo).toMatchObject({
+      plagas: { score: 3 },
+      enfermedades: { score: 3 },
+      nutricion: { score: 3 },
+      riego: { score: 3, semaphore: "verde" }
+    });
+    expect(response.data.detalleRiego).toMatchObject({ moduleScore: 3 });
+    expect(pestScores.resolveVisitScore).toHaveBeenCalledWith("1", true);
+    expect(diseaseScores.resolveVisitScore).toHaveBeenCalledWith("1", true);
+    expect(nutritionScores.resolveVisitScore).toHaveBeenCalledWith("1", true);
   });
 
   it.each([
@@ -112,7 +153,8 @@ describe("TechnicalScoresService", () => {
       visits as never,
       pestScores as never,
       diseaseScores as never,
-      nutritionScores as never
+      nutritionScores as never,
+      buildRecipeRepository() as never
     );
 
     const response = await service.byVisit("1");
@@ -144,7 +186,8 @@ describe("TechnicalScoresService", () => {
         visits as never,
         pestScores as never,
         diseaseScores as never,
-        nutritionScores as never
+        nutritionScores as never,
+        buildRecipeRepository() as never
       );
 
       const response = await service.byVisit("1");
@@ -175,7 +218,8 @@ describe("TechnicalScoresService", () => {
       visits as never,
       pestScores as never,
       diseaseScores as never,
-      nutritionScores as never
+      nutritionScores as never,
+      buildRecipeRepository() as never
     );
 
     const response = await service.byVisit("1");

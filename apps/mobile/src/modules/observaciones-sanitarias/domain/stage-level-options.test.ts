@@ -8,6 +8,14 @@ const severityLevels = [
   { id: "severity-2", name: "Alta", sortOrder: 2, grade: 3, type: "severidad" }
 ] satisfies IncidenceLevelCatalogItem[];
 
+const incidenceLevels = [0, 1, 2, 3].map((grade) => ({
+  id: `incidence-${grade}`,
+  name: `Grado ${grade}`,
+  sortOrder: grade,
+  grade,
+  type: "incidencia" as const
+})) satisfies IncidenceLevelCatalogItem[];
+
 function catalogItem(type: "plaga" | "enfermedad", levelIds: string[]) {
   return {
     id: `${type}-1`,
@@ -41,6 +49,16 @@ describe("niveles sanitarios por etapa", () => {
         "severidad"
       ).map((item) => item.id)
     ).toEqual(["severity-2"]);
+  });
+
+  it("ofrece los cuatro grados globales de incidencia para derivar el porcentaje", () => {
+    expect(
+      getLevelOptionsForItem(
+        catalogItem("enfermedad", ["incidence-0"]),
+        incidenceLevels,
+        "incidencia"
+      ).map((item) => item.grade)
+    ).toEqual([0, 1, 2, 3]);
   });
 
   it("preserva el fallback legado de plagas", () => {

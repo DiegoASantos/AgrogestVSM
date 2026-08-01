@@ -113,7 +113,12 @@ pesos hardcodeada por nombre normalizado de etapa fenológica. Los agregados por
 productor y por campaña se resuelven desde `campaniaId`.
 
 Los scores técnicos de la observación actual son indicadores separados y se
-derivan en la API; no se guardan en `visita_calificaciones`. Para Plagas, una
+derivan en la API; no se guardan en `visita_calificaciones`. Un módulo se
+considera evaluado cuando su paso fue finalizado o cuando la visita ya tiene
+una fila en `visita_recetas`. En este último caso, la ausencia de capturas en
+Plagas, Enfermedades, Nutrición o Riego significa que no se encontraron
+problemas y produce score técnico 3; antes de ambas señales se mantiene como
+pendiente. Para Plagas, una
 visita elegible consolida siempre Trips, Queresas, Ácaros, Cochinilla, Chinche
 y Mosca de la fruta. La ausencia de registro equivale en el cálculo a grados
 0/0 y nota 3, sin crear filas artificiales. Cada nota es
@@ -123,6 +128,8 @@ desglose y el semáforo para que web y mobile presenten el mismo resultado.
 
 Para Enfermedades, el porcentaje entero de árboles enfermos (0–100) es la fuente
 de la incidencia: 0%→grado 0, 1–5%→grado 1, 6–20%→grado 2 y 21–100%→grado 3.
+Los cuatro grados de incidencia son globales porque los determina el porcentaje;
+la severidad continúa restringida por enfermedad y etapa fenológica.
 Una visita elegible consolida siempre Oidium, Antracnosis, Muerte regresiva y
 Alternaria; una enfermedad sin registro aporta porcentaje 0, incidencia 0,
 severidad 0 y nota 3, sin persistencia artificial. Cada nota usa
@@ -135,9 +142,15 @@ El porcentaje deriva la incidencia con los mismos límites: 0%→grado 0,
 1–5%→grado 1, 6–20%→grado 2 y 21–100%→grado 3. La nota individual es
 `3 - incidencia`. El módulo siempre consolida Nitrógeno, Magnesio, Potasio,
 Hierro, Zinc y Boro; cada deficiencia sin registro aporta incidencia 0 y nota 3.
-`ScoreNutricion` es el mínimo de las seis notas y solo se publica cuando el paso
-4 fue finalizado. La severidad y los órganos afectados no intervienen en esta
-fórmula.
+`ScoreNutricion` es el mínimo de las seis notas y se publica al finalizar el
+paso 4 o al existir una receta para la visita. La severidad y los órganos
+afectados no intervienen en esta fórmula.
+
+En Riego, toda captura nueva exige `humedad_suelo`; mobile impide avanzar sin
+seleccionarla y la API rechaza altas incompletas. Las filas históricas nulas se
+mantienen legibles por compatibilidad. Una visita con receta y sin fila de riego
+representa ausencia de desviaciones y obtiene score 3; una fila existente se
+calcula con la matriz técnica vigente.
 
 ## Seguridad
 

@@ -42,7 +42,7 @@ export class VisitaRiegosService {
       tipoRiegoId: String(createDto.tipoRiegoId),
       fuenteAgua: createDto.fuenteAgua ?? null,
       tipoSuelo: createDto.tipoSuelo ?? null,
-      humedadSuelo: createDto.humedadSuelo ?? null,
+      humedadSuelo: createDto.humedadSuelo,
       estresHidrico: createDto.estresHidrico ?? null
     });
 
@@ -87,6 +87,10 @@ export class VisitaRiegosService {
 
     if (updateDto.estresHidrico !== undefined) {
       riego.estresHidrico = updateDto.estresHidrico;
+    }
+
+    if (!riego.humedadSuelo) {
+      throw new BadRequestException("La humedad del suelo es obligatoria.");
     }
 
     try {

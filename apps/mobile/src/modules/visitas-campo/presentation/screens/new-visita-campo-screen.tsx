@@ -44,6 +44,10 @@ import type {
   VariedadCatalogItem
 } from "../../types";
 import { getSubEtapaImageSource } from "../../utils/sub-etapa-images";
+import {
+  formatEditable12HourInput,
+  isComplete12HourInput
+} from "../../domain/time-input";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
@@ -756,7 +760,9 @@ export function NewVisitaCampoScreen() {
     value: string
   ) {
     const period = field === "startVisitTime" ? startVisitTimePeriod : endVisitTimePeriod;
-    const nextValue = formatTyped12HourInput(value);
+    const previousValue =
+      field === "startVisitTime" ? startVisitTimeInput : endVisitTimeInput;
+    const nextValue = formatEditable12HourInput(previousValue, value);
 
     if (field === "startVisitTime") {
       setStartVisitTimeInput(nextValue);
@@ -764,7 +770,12 @@ export function NewVisitaCampoScreen() {
       setEndVisitTimeInput(nextValue);
     }
 
-    updateField(field, normalize12HourTimeForApi(nextValue, period));
+    updateField(
+      field,
+      isComplete12HourInput(nextValue)
+        ? normalize12HourTimeForApi(nextValue, period)
+        : ""
+    );
   }
 
   function handleTimeInputEndEditing(field: "startVisitTime" | "endVisitTime") {
@@ -2113,9 +2124,9 @@ function buildCreateDraft(
     ...(values.sowingDate.trim() ? { sowingDate: values.sowingDate.trim() } : {}),
     visitDate: values.visitDate.trim(),
     startVisitTime: normalizeTimeForApi(values.startVisitTime),
-    ...(values.endVisitTime.trim()
-      ? { endVisitTime: normalizeTimeForApi(values.endVisitTime) }
-      : {}),
+    endVisitTime: values.endVisitTime.trim()
+      ? normalizeTimeForApi(values.endVisitTime)
+      : null,
     ...(values.phenologicalStage
       ? { phenologicalStageId: values.phenologicalStage }
       : {}),
@@ -2210,19 +2221,6 @@ function normalizeTimeForApi(value: string) {
   }
 
   return trimmedValue.length === 5 ? `${trimmedValue}:00` : trimmedValue;
-}
-
-function formatTyped12HourInput(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 4);
-
-  if (digits.length <= 2) {
-    return digits;
-  }
-
-  const hourDigits = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
-  const minuteDigits = digits.length === 3 ? digits.slice(1) : digits.slice(2);
-
-  return `${format12HourPart(hourDigits)}:${formatBoundedTimePart(minuteDigits, 59)}`;
 }
 
 function normalizeTyped12HourInput(value: string) {

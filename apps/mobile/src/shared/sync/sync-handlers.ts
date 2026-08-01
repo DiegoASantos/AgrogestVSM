@@ -535,7 +535,7 @@ function buildVisitaCampoUpdateBody(
     sowingDate: visita.sowingDate ?? undefined,
     visitDate: visita.visitDate,
     startVisitTime: visita.startVisitTime,
-    endVisitTime: visita.endVisitTime ?? undefined,
+    endVisitTime: visita.endVisitTime,
     phenologicalStageId: visita.phenologicalStageId ?? undefined,
     subEtapaId: visita.subEtapaId ?? undefined,
     subEtapaPercentage: visita.subEtapaPercentage ?? undefined,
@@ -640,6 +640,10 @@ function buildStepNoteBody(stepNote: VisitaStepNote) {
 }
 
 function buildRiegoBody(riego: VisitaRiego) {
+  if (!riego.humedadSuelo) {
+    throw new Error("Selecciona la humedad del suelo antes de sincronizar el riego.");
+  }
+
   return {
     tipoRiegoId: Number(riego.tipoRiegoId),
     fuenteAgua: riego.fuenteAgua,

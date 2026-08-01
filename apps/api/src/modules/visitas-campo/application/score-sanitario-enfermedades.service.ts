@@ -60,13 +60,16 @@ export class ScoreSanitarioEnfermedadesService {
     private readonly observations: Repository<VisitaObservacionSanitariaEntity>
   ) {}
 
-  async resolveVisitScore(visitaId: string): Promise<DiseaseModuleScore> {
+  async resolveVisitScore(
+    visitaId: string,
+    completedByRecipe = false
+  ): Promise<DiseaseModuleScore> {
     const visit = await this.visits.findOne({ where: { id: visitaId } });
     if (!visit) throw new NotFoundException("Visita de campo no encontrada.");
     if (!visit.isActive) return emptyDiseaseModuleScore();
 
     const step = await this.steps.findOne({ where: { visitaId, stepNumber: 3 } });
-    if (!step?.finalizedAt) return emptyDiseaseModuleScore();
+    if (!step?.finalizedAt && !completedByRecipe) return emptyDiseaseModuleScore();
 
     const rows = await this.observations.find({
       where: { visitaId },
