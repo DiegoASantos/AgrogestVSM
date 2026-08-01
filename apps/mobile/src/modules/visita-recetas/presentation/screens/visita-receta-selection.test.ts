@@ -6,6 +6,7 @@ import {
   buildTypeSelectionPatch,
   getCommercialOptions,
   getIngredientOptions,
+  resolveCommercialSelectionPatch,
   resolveIngredientId
 } from "./visita-receta-selection";
 
@@ -107,5 +108,14 @@ describe("recipe catalog selection cascade", () => {
     expect(
       resolveIngredientId("type-1", "Historico", "Producto antiguo", ingredients, brands)
     ).toBe("");
+  });
+
+  it("rehydrates concentration and unit after a catalog refresh", () => {
+    expect(resolveCommercialSelectionPatch(" cobre solo ", brands)).toEqual({
+      marcaProductoNombre: "Cobre Solo",
+      concentracionProducto: "50",
+      unidadMedidaProducto: "g/Kg"
+    });
+    expect(resolveCommercialSelectionPatch("Producto ausente", brands)).toBeNull();
   });
 });

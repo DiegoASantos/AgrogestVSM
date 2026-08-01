@@ -1164,6 +1164,10 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, "fertilizantes", "unidad_medida", "TEXT");
       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
     }
+  },
+  {
+    version: 50,
+    statements: ["DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"]
   }
 ];
 

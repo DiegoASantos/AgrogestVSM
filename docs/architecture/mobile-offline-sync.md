@@ -152,8 +152,10 @@ el punto climático territorial; este flujo no usa geometría de parcelas.
 Los catálogos de receta `marcas_producto` y `fertilizantes` conservan localmente
 la concentración comercial textual y su unidad de medida. Son caché de solo
 lectura y no generan outbox. La migración aditiva 49 agrega las columnas
-necesarias e invalida `catalogs_downloaded_at` para forzar una descarga posterior
-sin borrar recetas, catálogos existentes ni operaciones pendientes.
+necesarias y la correctiva 50 vuelve a invalidar `catalogs_downloaded_at` para
+forzar la descarga posterior a la reparación del backend. Cuando esa descarga
+termina, una receta abierta relee SQLite y completa concentración y unidad de la
+selección existente, sin borrar recetas, catálogos ni operaciones pendientes.
 
 El detalle de visita deriva directamente desde SQLite los scores técnicos de
 Plagas, Enfermedades, Nutrición y Riego. Esta previsualización no se persiste ni

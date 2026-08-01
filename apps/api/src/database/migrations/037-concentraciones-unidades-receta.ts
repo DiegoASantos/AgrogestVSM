@@ -1,11 +1,8 @@
 import type { DatabaseMigration } from "./001-territorial-sectors-and-piura-geography";
 
-export const CONCENTRACIONES_UNIDADES_RECETA_MIGRATION: DatabaseMigration = {
-  id: "037-concentraciones-unidades-receta",
-  description:
-    "Stores commercial concentration and measurement unit for fitosanitary products and fertilizers without duplicating existing catalog rows.",
-  sql: `
-    ALTER TABLE marcas_producto
+export function buildConcentracionesUnidadesRecetaSql(includeSchema = true) {
+  const schemaSql = includeSchema
+    ? `ALTER TABLE marcas_producto
       ALTER COLUMN concentracion TYPE varchar(30)
       USING concentracion::text;
 
@@ -14,7 +11,11 @@ export const CONCENTRACIONES_UNIDADES_RECETA_MIGRATION: DatabaseMigration = {
 
     ALTER TABLE fertilizantes
       ADD COLUMN IF NOT EXISTS concentracion varchar(30),
-      ADD COLUMN IF NOT EXISTS unidad_medida varchar(20);
+      ADD COLUMN IF NOT EXISTS unidad_medida varchar(20);`
+    : "";
+
+  return `
+    ${schemaSql}
 
     UPDATE marcas_producto
     SET nombre = 'Austar 25 SC', actualizado_at = now()
@@ -78,9 +79,15 @@ export const CONCENTRACIONES_UNIDADES_RECETA_MIGRATION: DatabaseMigration = {
     SET
       concentracion = catalogo.concentracion,
       unidad_medida = catalogo.unidad_medida,
+      activo = true,
+      actualizado_at = now()
+    FROM catalogo_marcas_037 catalogo
+    WHERE lower(trim(marca.nombre)) = lower(trim(catalogo.nombre));
+
+    UPDATE marcas_producto marca
+    SET
       tipo_producto_id = COALESCE(marca.tipo_producto_id, tipo.id),
       ingrediente_activo_id = COALESCE(marca.ingrediente_activo_id, ingrediente.id),
-      activo = true,
       actualizado_at = now()
     FROM catalogo_marcas_037 catalogo
     INNER JOIN tipos_producto_fitosanitario tipo
@@ -200,5 +207,12 @@ export const CONCENTRACIONES_UNIDADES_RECETA_MIGRATION: DatabaseMigration = {
     -- dependen de ellos. Revertir primero mobile y API. Una futura contraccion de
     -- marcas_producto.concentracion a numeric requiere normalizar previamente los
     -- valores compuestos y cualitativos, por lo que no se automatiza aqui.
-  `
+  `;
+}
+
+export const CONCENTRACIONES_UNIDADES_RECETA_MIGRATION: DatabaseMigration = {
+  id: "037-concentraciones-unidades-receta",
+  description:
+    "Stores commercial concentration and measurement unit for fitosanitary products and fertilizers without duplicating existing catalog rows.",
+  sql: buildConcentracionesUnidadesRecetaSql()
 };

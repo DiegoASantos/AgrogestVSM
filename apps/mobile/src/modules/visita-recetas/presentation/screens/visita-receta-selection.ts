@@ -129,6 +129,20 @@ export function buildCommercialSelectionPatch(
   };
 }
 
+export function resolveCommercialSelectionPatch(
+  marcaProductoNombre: string,
+  marcasProducto: MarcaProductoCatalogItem[]
+) {
+  const normalizedName = marcaProductoNombre.trim().toLowerCase();
+  if (!normalizedName) return null;
+
+  const selected = marcasProducto.find(
+    (option) => option.name.trim().toLowerCase() === normalizedName
+  );
+
+  return selected ? buildCommercialSelectionPatch(selected) : null;
+}
+
 export function resolveIngredientId(
   tipoProductoId: string,
   ingredienteActivoNombre: string,

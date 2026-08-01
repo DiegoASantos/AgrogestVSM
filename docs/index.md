@@ -70,6 +70,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Rol analista web de solo lectura](specs/022-rol-analista-web-solo-lectura.md)
 - [Selectores dependientes de receta y etapa fenologica obligatoria](specs/023-selectores-receta-y-etapa-obligatoria.md)
 - [Concentraciones y unidades de productos en receta mobile](specs/024-concentraciones-unidades-receta.md)
+- [Reparación y recarga de concentraciones en receta mobile](specs/025-reparacion-recarga-concentraciones-receta.md)
 
 ## Runbooks
 

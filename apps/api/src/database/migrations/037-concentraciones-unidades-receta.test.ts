@@ -30,6 +30,8 @@ describe("037-concentraciones-unidades-receta", () => {
     expect(sql).toContain("WHERE NOT EXISTS");
     expect(sql).toContain("SET nombre = 'Austar 25 SC'");
     expect(sql).toContain("SET activo = false");
+    expect(sql).toContain(`FROM catalogo_marcas_037 catalogo
+    WHERE lower(trim(marca.nombre)) = lower(trim(catalogo.nombre));`);
   });
 
   it("splits slash-separated fertilizer brands", () => {

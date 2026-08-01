@@ -20,6 +20,7 @@ import {
 } from "../../../../shared/components";
 import { AppSelectField } from "../../../../shared/components/app-select-field";
 import { theme } from "../../../../shared/constants/theme";
+import { useCatalogDownloadStatus } from "../../../../shared/database/catalog-download-state";
 import { toApiError } from "../../../../shared/services";
 import { scheduleSync } from "../../../../shared/sync";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
@@ -47,6 +48,7 @@ import {
   buildTypeSelectionPatch,
   getCommercialOptions,
   getIngredientOptions,
+  resolveCommercialSelectionPatch,
   resolveIngredientId
 } from "./visita-receta-selection";
 
@@ -158,6 +160,8 @@ export function VisitaRecetaScreen() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [ordenExchangeResetToken, setOrdenExchangeResetToken] = useState(0);
   const loadRequestRef = useRef(0);
+  const catalogDownloadStatus = useCatalogDownloadStatus();
+  const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
 
   useEffect(() => {
     if (!visitaId) {
@@ -175,6 +179,68 @@ export function VisitaRecetaScreen() {
       }
     };
   }, [visitaId]);
+
+  useEffect(() => {
+    const downloadWasActive = catalogDownloadWasActiveRef.current;
+    catalogDownloadWasActiveRef.current = catalogDownloadStatus.isDownloading;
+
+    if (
+      !downloadWasActive ||
+      catalogDownloadStatus.isDownloading ||
+      catalogDownloadStatus.error
+    ) {
+      return;
+    }
+
+    const catalogos = visitaRecetasService.getCatalogos();
+    setCoadyuvantes(catalogos.coadyuvantes);
+    setIngredientesActivos(catalogos.ingredientesActivos);
+    setMarcasProducto(catalogos.marcasProducto);
+    setModosAccion(catalogos.modosAccion);
+    setTiposControl(catalogos.tiposControl);
+    setTiposProducto(catalogos.tiposProducto);
+    setFertilizantes(catalogos.fertilizantes);
+
+    setFitosanidadApps((currentApps) =>
+      currentApps.map((current) => {
+        const selectionPatch = resolveCommercialSelectionPatch(
+          current.marcaProductoNombre,
+          catalogos.marcasProducto
+        );
+
+        if (!selectionPatch) return current;
+
+        const totalProducto = calculateTotalProducto(
+          current.cantidadTotalIa,
+          selectionPatch.concentracionProducto
+        );
+
+        return {
+          ...current,
+          ...selectionPatch,
+          cantidadTotalProducto: totalProducto ? totalProducto.toFixed(2) : ""
+        };
+      })
+    );
+
+    setFertilizacion((current) => {
+      const selected = catalogos.fertilizantes.find(
+        (fertilizante) =>
+          fertilizante.name.trim().toLowerCase() ===
+          current.fertilizanteNombre.trim().toLowerCase()
+      );
+
+      return selected
+        ? {
+            ...current,
+            fertilizanteNombre: selected.name,
+            tipoProducto: selected.type,
+            concentracion: selected.concentracion ?? "",
+            unidadMedida: selected.unidadMedida ?? ""
+          }
+        : current;
+    });
+  }, [catalogDownloadStatus.error, catalogDownloadStatus.isDownloading]);
 
   function isActiveLoad(requestId: number) {
     return loadRequestRef.current === requestId;
@@ -1119,7 +1185,11 @@ function FitosanidadCard({
       <LabeledNumericInput
         editable={false}
         label="Concentracion comercial"
-        placeholder="Selecciona un nombre comercial"
+        placeholder={
+          value.marcaProductoNombre
+            ? "Concentracion no disponible. Actualiza los catalogos."
+            : "Selecciona un nombre comercial"
+        }
         value={formatCatalogConcentration(
           value.concentracionProducto,
           value.unidadMedidaProducto
@@ -1372,7 +1442,11 @@ function FertilizacionCard({
       <LabeledNumericInput
         editable={false}
         label="Concentracion comercial"
-        placeholder="Selecciona un fertilizante"
+        placeholder={
+          value.fertilizanteNombre
+            ? "Concentracion no disponible. Actualiza los catalogos."
+            : "Selecciona un fertilizante"
+        }
         value={formatCatalogConcentration(value.concentracion, value.unidadMedida)}
       />
 

@@ -68,4 +68,5 @@ en la raíz.
 - [Spec 022: Rol analista web de solo lectura](022-rol-analista-web-solo-lectura.md)
 - [Spec 023: Selectores dependientes de receta y etapa fenologica obligatoria](023-selectores-receta-y-etapa-obligatoria.md)
 - [Spec 024: Concentraciones y unidades de productos en receta mobile](024-concentraciones-unidades-receta.md)
+- [Spec 025: Reparación y recarga de concentraciones en receta mobile](025-reparacion-recarga-concentraciones-receta.md)
 - [Plantilla](TEMPLATE.md)

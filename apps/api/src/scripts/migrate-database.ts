@@ -107,6 +107,24 @@ async function run() {
     await assertColumnExists(client, "marcas_producto", "unidad_medida");
     await assertColumnExists(client, "fertilizantes", "concentracion");
     await assertColumnExists(client, "fertilizantes", "unidad_medida");
+    await assertMinimumCount(
+      client,
+      `SELECT COUNT(*)::text AS count
+       FROM marcas_producto
+       WHERE NULLIF(trim(concentracion), '') IS NOT NULL
+         AND NULLIF(trim(unidad_medida), '') IS NOT NULL`,
+      21,
+      "marcas de producto con concentracion y unidad"
+    );
+    await assertMinimumCount(
+      client,
+      `SELECT COUNT(*)::text AS count
+       FROM fertilizantes
+       WHERE NULLIF(trim(concentracion), '') IS NOT NULL
+         AND NULLIF(trim(unidad_medida), '') IS NOT NULL`,
+      15,
+      "fertilizantes con concentracion y unidad"
+    );
     await assertTableExists(client, "clima", "puntos_climaticos");
     await assertTableExists(client, "clima", "lecturas");
     await assertTableExists(client, "clima", "pronosticos");
@@ -128,6 +146,20 @@ async function assertCount(
 
   if (actual !== expected) {
     throw new Error(`Expected ${expected} ${label}, found ${actual}.`);
+  }
+}
+
+async function assertMinimumCount(
+  client: PgClient,
+  sql: string,
+  minimum: number,
+  label: string
+) {
+  const result = (await client.query(sql)) as CountResult;
+  const actual = Number(result.rows?.[0]?.count ?? -1);
+
+  if (actual < minimum) {
+    throw new Error(`Expected at least ${minimum} ${label}, found ${actual}.`);
   }
 }
 

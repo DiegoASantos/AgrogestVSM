@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 49;
+const LATEST_MIGRATION_VERSION = 50;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1345,6 +1345,24 @@ describe("runMigrations", () => {
       db.executedStatements.some((statement) =>
         statement.includes("DELETE FROM visita_receta")
       )
+    ).toBe(false);
+  });
+
+  it("invalidates the recipe catalog cache again after the corrective migration", () => {
+    const db = createFakeDatabase(49);
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-08-01T14:00:00.000Z");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("DELETE FROM visita_receta")
+      )
+    ).toBe(false);
+    expect(
+      db.executedStatements.some((statement) => statement.includes("sync_outbox"))
     ).toBe(false);
   });
 });
