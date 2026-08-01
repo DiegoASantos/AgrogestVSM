@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 44;
+const LATEST_MIGRATION_VERSION = 47;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -154,7 +154,13 @@ function createFakeDatabase(
       }
 
       if (statement.startsWith("CREATE TABLE IF NOT EXISTS incidence_levels")) {
-        this.incidenceLevelColumns = new Set(["id", "name", "sort_order", "type"]);
+        this.incidenceLevelColumns = new Set([
+          "id",
+          "name",
+          "sort_order",
+          "grade",
+          "type"
+        ]);
         return;
       }
 
@@ -197,6 +203,7 @@ function createFakeDatabase(
           "local_id",
           "server_id",
           "visita_local_id",
+          ...(statement.includes("nutrient_id") ? ["nutrient_id"] : []),
           "sort_order",
           ...(statement.includes("incidence_percentage") ? ["incidence_percentage"] : []),
           "percentage",
@@ -763,7 +770,7 @@ describe("runMigrations", () => {
     expect(db.visitaRiegosColumns.has("humedad_suelo")).toBe(true);
     expect(db.visitaRiegosColumns.has("estres_hidrico")).toBe(true);
     expect(db.executedStatements).toContain(
-      "ALTER TABLE visita_riegos ADD COLUMN fuente_agua TEXT DEFAULT NULL CHECK(fuente_agua IS NULL OR fuente_agua IN ('subterranea', 'superficial', 'pluvial'))"
+      "ALTER TABLE visita_riegos ADD COLUMN fuente_agua TEXT DEFAULT NULL CHECK(fuente_agua IS NULL OR fuente_agua IN ('subterranea', 'superficial'))"
     );
     expect(db.executedStatements).toContain(
       "ALTER TABLE visita_riegos ADD COLUMN tipo_suelo TEXT DEFAULT NULL CHECK(tipo_suelo IS NULL OR tipo_suelo IN ('arenoso', 'arcilloso', 'limoso', 'franco'))"
@@ -1216,5 +1223,66 @@ describe("runMigrations", () => {
         statement.includes("DELETE FROM sync_outbox")
       )
     ).toBe(false);
+  });
+
+  it("adds the normalized grade to incidence levels and refreshes catalogs", () => {
+    const db = createFakeDatabase(44, [], [], ["id", "name", "sort_order", "type"]);
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-07-31T10:00:00.000Z");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.incidenceLevelColumns.has("grade")).toBe(true);
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
+    expect(
+      db.executedStatements.some((statement) => statement.includes("ranked_levels"))
+    ).toBe(true);
+  });
+
+  it("adds stable nutrient identity to catalogs and visit evaluations", () => {
+    const db = createFakeDatabase(
+      45,
+      [],
+      [],
+      [],
+      [],
+      [
+        "local_id",
+        "server_id",
+        "visita_local_id",
+        "sort_order",
+        "incidence_percentage",
+        "percentage",
+        "description",
+        "organos_afectados",
+        "sync_status",
+        "created_at",
+        "updated_at"
+      ]
+    );
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-07-31T10:00:00.000Z");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.visitaEvaluacionesColumns.has("nutrient_id")).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("ALTER TABLE nutrientes ADD COLUMN code TEXT")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("uq_visita_evaluaciones_nutriente")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("SET incidence_percentage = '0'") &&
+          statement.includes("nutrient_id IS NOT NULL")
+      )
+    ).toBe(true);
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
   });
 });

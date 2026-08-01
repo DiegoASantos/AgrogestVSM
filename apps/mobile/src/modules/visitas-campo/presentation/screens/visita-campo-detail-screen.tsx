@@ -22,7 +22,11 @@ import type {
   IncidenceLevelCatalogItem,
   PestDiseaseCatalogItem
 } from "../../../observaciones-sanitarias/types";
-import { visitaCampoCatalogsService, visitasCampoRemote, visitasCampoService } from "../../services";
+import {
+  visitaCampoCatalogsService,
+  visitasCampoRemote,
+  visitasCampoService
+} from "../../services";
 import { visitaPdfReportService } from "../../services/visita-pdf-report.service";
 import { visitaRecetaPdfReportService } from "../../../visita-recetas/services";
 import type {
@@ -68,7 +72,9 @@ export function VisitaCampoDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [syncSummary, setSyncSummary] = useState<VisitaSyncSummary | null>(null);
-  const [technicalScores, setTechnicalScores] = useState<TechnicalVisitScores | null>(null);
+  const [technicalScores, setTechnicalScores] = useState<TechnicalVisitScores | null>(
+    null
+  );
 
   useEffect(() => {
     if (!visitaId) {
@@ -359,7 +365,9 @@ export function VisitaCampoDetailScreen() {
       setSyncSummary(visitasCampoService.getVisitaSyncSummary(id));
       if (nextDetail.visita.serverId) {
         try {
-          setTechnicalScores(await visitasCampoRemote.getTechnicalScores(nextDetail.visita.serverId));
+          setTechnicalScores(
+            await visitasCampoRemote.getTechnicalScores(nextDetail.visita.serverId)
+          );
         } catch {
           setTechnicalScores(null);
         }
@@ -531,17 +539,12 @@ function VisitDossier({
       />
 
       {technicalScores ? (
-        <View style={styles.technicalPanel}>
-          <AppText style={styles.technicalTitle} variant="label">Score técnico</AppText>
-          <AppText style={styles.technicalValue} variant="heading">
-            {technicalScores.scoreTecnicoGeneral === null
-              ? "Pendiente de datos"
-              : `${technicalScores.scoreTecnicoGeneral.toFixed(2)}%`}
-          </AppText>
-          <AppText style={styles.technicalSubtitle} variant="caption">
-            {technicalScores.modulosIncluidos.length} módulo(s) incluido(s) · {technicalScores.modulosFaltantes.length} pendiente(s)
-          </AppText>
-        </View>
+        <>
+          <PestTechnicalScorePanel detail={technicalScores.detallePlagas} />
+          <DiseaseTechnicalScorePanel detail={technicalScores.detalleEnfermedades} />
+          <NutritionTechnicalScorePanel detail={technicalScores.detalleNutricion} />
+          <RiegoTechnicalScorePanel detail={technicalScores.detalleRiego} />
+        </>
       ) : null}
 
       <View style={styles.pdfPanel}>
@@ -731,6 +734,335 @@ function VisitDossier({
       </View>
     </AppCard>
   );
+}
+
+function PestTechnicalScorePanel({
+  detail
+}: {
+  detail: TechnicalVisitScores["detallePlagas"];
+}) {
+  if (!detail) {
+    return (
+      <View style={styles.technicalPanel}>
+        <View style={styles.technicalHeader}>
+          <View style={styles.technicalIcon}>
+            <Ionicons color={theme.colors.textMuted} name="bug-outline" size={20} />
+          </View>
+          <View style={styles.headerText}>
+            <AppText style={styles.technicalEyebrow} variant="eyebrow">
+              Scores técnicos por módulo
+            </AppText>
+            <AppText style={styles.technicalTitle} variant="label">
+              Plagas
+            </AppText>
+          </View>
+        </View>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          Pendiente de finalizar la evaluación de Plagas.
+        </AppText>
+      </View>
+    );
+  }
+
+  const colors = getPestSemaphoreColors(detail.semaphore);
+
+  return (
+    <View
+      style={[
+        styles.technicalPanel,
+        { backgroundColor: colors.background, borderColor: colors.accent }
+      ]}
+    >
+      <View style={styles.technicalHeader}>
+        <View style={[styles.technicalIcon, { backgroundColor: colors.iconBackground }]}>
+          <Ionicons color={colors.accent} name="bug-outline" size={20} />
+        </View>
+        <View style={styles.headerText}>
+          <AppText
+            style={[styles.technicalEyebrow, { color: colors.accent }]}
+            variant="eyebrow"
+          >
+            Scores técnicos por módulo
+          </AppText>
+          <AppText style={styles.technicalTitle} variant="label">
+            Plagas
+          </AppText>
+        </View>
+        <View style={styles.technicalResult}>
+          <AppText
+            style={[styles.technicalValue, { color: colors.accent }]}
+            variant="heading"
+          >
+            {detail.moduleScore} / 3
+          </AppText>
+          <AppText style={styles.technicalPercentage} variant="caption">
+            {detail.modulePercentage.toFixed(2)}%
+          </AppText>
+        </View>
+      </View>
+      <View style={[styles.technicalStatus, { borderLeftColor: colors.accent }]}>
+        <AppText
+          style={[styles.technicalStatusTitle, { color: colors.accent }]}
+          variant="label"
+        >
+          {detail.status}
+        </AppText>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          {detail.message}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+function DiseaseTechnicalScorePanel({
+  detail
+}: {
+  detail: TechnicalVisitScores["detalleEnfermedades"];
+}) {
+  if (!detail) {
+    return (
+      <View style={styles.technicalPanel}>
+        <View style={styles.technicalHeader}>
+          <View style={styles.technicalIcon}>
+            <Ionicons color={theme.colors.textMuted} name="leaf-outline" size={20} />
+          </View>
+          <View style={styles.headerText}>
+            <AppText style={styles.technicalEyebrow} variant="eyebrow">
+              Scores técnicos por módulo
+            </AppText>
+            <AppText style={styles.technicalTitle} variant="label">
+              Enfermedades
+            </AppText>
+          </View>
+        </View>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          Pendiente de finalizar la evaluación de Enfermedades.
+        </AppText>
+      </View>
+    );
+  }
+
+  const colors = getPestSemaphoreColors(detail.semaphore);
+
+  return (
+    <View
+      style={[
+        styles.technicalPanel,
+        { backgroundColor: colors.background, borderColor: colors.accent }
+      ]}
+    >
+      <View style={styles.technicalHeader}>
+        <View style={[styles.technicalIcon, { backgroundColor: colors.iconBackground }]}>
+          <Ionicons color={colors.accent} name="leaf-outline" size={20} />
+        </View>
+        <View style={styles.headerText}>
+          <AppText
+            style={[styles.technicalEyebrow, { color: colors.accent }]}
+            variant="eyebrow"
+          >
+            Scores técnicos por módulo
+          </AppText>
+          <AppText style={styles.technicalTitle} variant="label">
+            Enfermedades
+          </AppText>
+        </View>
+        <View style={styles.technicalResult}>
+          <AppText
+            style={[styles.technicalValue, { color: colors.accent }]}
+            variant="heading"
+          >
+            {detail.moduleScore} / 3
+          </AppText>
+        </View>
+      </View>
+      <View style={[styles.technicalStatus, { borderLeftColor: colors.accent }]}>
+        <AppText
+          style={[styles.technicalStatusTitle, { color: colors.accent }]}
+          variant="label"
+        >
+          {detail.status}
+        </AppText>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          {detail.message}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+function NutritionTechnicalScorePanel({
+  detail
+}: {
+  detail: TechnicalVisitScores["detalleNutricion"];
+}) {
+  if (!detail) {
+    return (
+      <View style={styles.technicalPanel}>
+        <View style={styles.technicalHeader}>
+          <View style={styles.technicalIcon}>
+            <Ionicons color={theme.colors.textMuted} name="nutrition-outline" size={20} />
+          </View>
+          <View style={styles.headerText}>
+            <AppText style={styles.technicalEyebrow} variant="eyebrow">
+              Scores técnicos por módulo
+            </AppText>
+            <AppText style={styles.technicalTitle} variant="label">
+              Nutrición
+            </AppText>
+          </View>
+        </View>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          Pendiente de finalizar la evaluación de Nutrición.
+        </AppText>
+      </View>
+    );
+  }
+
+  const colors = getPestSemaphoreColors(detail.semaphore);
+
+  return (
+    <View
+      style={[
+        styles.technicalPanel,
+        { backgroundColor: colors.background, borderColor: colors.accent }
+      ]}
+    >
+      <View style={styles.technicalHeader}>
+        <View style={[styles.technicalIcon, { backgroundColor: colors.iconBackground }]}>
+          <Ionicons color={colors.accent} name="nutrition-outline" size={20} />
+        </View>
+        <View style={styles.headerText}>
+          <AppText
+            style={[styles.technicalEyebrow, { color: colors.accent }]}
+            variant="eyebrow"
+          >
+            Score técnico por módulo
+          </AppText>
+          <AppText style={styles.technicalTitle} variant="label">
+            Nutrición
+          </AppText>
+        </View>
+        <View style={styles.technicalResult}>
+          <AppText
+            style={[styles.technicalValue, { color: colors.accent }]}
+            variant="heading"
+          >
+            {detail.moduleScore} / 3
+          </AppText>
+        </View>
+      </View>
+      <View style={[styles.technicalStatus, { borderLeftColor: colors.accent }]}>
+        <AppText
+          style={[styles.technicalStatusTitle, { color: colors.accent }]}
+          variant="label"
+        >
+          {detail.status}
+        </AppText>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          {detail.message}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+function RiegoTechnicalScorePanel({
+  detail
+}: {
+  detail: TechnicalVisitScores["detalleRiego"];
+}) {
+  if (!detail) {
+    return (
+      <View style={styles.technicalPanel}>
+        <View style={styles.technicalHeader}>
+          <View style={styles.technicalIcon}>
+            <Ionicons color={theme.colors.textMuted} name="water-outline" size={20} />
+          </View>
+          <View style={styles.headerText}>
+            <AppText style={styles.technicalEyebrow} variant="eyebrow">
+              Scores técnicos por módulo
+            </AppText>
+            <AppText style={styles.technicalTitle} variant="label">
+              Riego
+            </AppText>
+          </View>
+        </View>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          Pendiente de registrar la evaluacion de Riego.
+        </AppText>
+      </View>
+    );
+  }
+
+  const colors = getPestSemaphoreColors(detail.semaphore);
+
+  return (
+    <View
+      style={[
+        styles.technicalPanel,
+        { backgroundColor: colors.background, borderColor: colors.accent }
+      ]}
+    >
+      <View style={styles.technicalHeader}>
+        <View style={[styles.technicalIcon, { backgroundColor: colors.iconBackground }]}>
+          <Ionicons color={colors.accent} name="water-outline" size={20} />
+        </View>
+        <View style={styles.headerText}>
+          <AppText
+            style={[styles.technicalEyebrow, { color: colors.accent }]}
+            variant="eyebrow"
+          >
+            Scores técnicos por módulo
+          </AppText>
+          <AppText style={styles.technicalTitle} variant="label">
+            Riego
+          </AppText>
+        </View>
+        <View style={styles.technicalResult}>
+          <AppText
+            style={[styles.technicalValue, { color: colors.accent }]}
+            variant="heading"
+          >
+            {detail.moduleScore} / 3
+          </AppText>
+        </View>
+      </View>
+      <View style={[styles.technicalStatus, { borderLeftColor: colors.accent }]}>
+        <AppText
+          style={[styles.technicalStatusTitle, { color: colors.accent }]}
+          variant="label"
+        >
+          {detail.status}
+        </AppText>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          {detail.message}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+function getPestSemaphoreColors(semaphore: "verde" | "amarillo" | "rojo") {
+  if (semaphore === "rojo") {
+    return {
+      accent: theme.colors.error,
+      background: theme.colors.errorMuted,
+      iconBackground: "#f8d7d3"
+    };
+  }
+  if (semaphore === "amarillo") {
+    return {
+      accent: theme.colors.warning,
+      background: theme.colors.warningMuted,
+      iconBackground: "#fcebc2"
+    };
+  }
+  return {
+    accent: theme.colors.success,
+    background: theme.colors.successMuted,
+    iconBackground: theme.colors.primaryMuted
+  };
 }
 
 function SyncStatusRow({
@@ -1101,23 +1433,56 @@ const styles = StyleSheet.create({
     gap: 8
   },
   technicalPanel: {
-    backgroundColor: "#eef7e4",
-    borderColor: theme.colors.primaryLight,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
-    gap: 3,
+    gap: 12,
     padding: 14
+  },
+  technicalHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10
+  },
+  technicalIcon: {
+    alignItems: "center",
+    backgroundColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    height: 40,
+    justifyContent: "center",
+    width: 40
+  },
+  technicalEyebrow: {
+    color: theme.colors.textMuted,
+    fontSize: 10
   },
   technicalTitle: {
     color: theme.colors.primaryDark,
-    fontSize: 14
+    fontSize: 17
+  },
+  technicalResult: {
+    alignItems: "flex-end"
   },
   technicalValue: {
     color: theme.colors.primaryDark,
-    fontSize: 24
+    fontSize: 22
+  },
+  technicalPercentage: {
+    color: theme.colors.textMuted,
+    fontSize: 11
+  },
+  technicalStatus: {
+    borderLeftWidth: 3,
+    gap: 4,
+    paddingLeft: 11
+  },
+  technicalStatusTitle: {
+    fontSize: 14
   },
   technicalSubtitle: {
-    color: theme.colors.textMuted
+    color: theme.colors.textMuted,
+    lineHeight: 18
   },
   syncErrorText: {
     color: theme.colors.error

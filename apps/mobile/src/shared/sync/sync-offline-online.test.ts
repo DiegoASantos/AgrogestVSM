@@ -374,6 +374,7 @@ function seedOfflineCompleteVisit() {
     serverId: null,
     syncStatus: "pending",
     visitaId: visita.id,
+    nutrientId: null,
     order: 1,
     incidencePercentage: null,
     percentage: "40",
@@ -529,6 +530,7 @@ describe("offline/online sync with complete visit data", () => {
     expect(evaluacionRemoteCreate).toHaveBeenCalledWith(
       "server-visita-1",
       {
+        nutrientId: null,
         order: 1,
         incidencePercentage: null,
         percentage: 40,

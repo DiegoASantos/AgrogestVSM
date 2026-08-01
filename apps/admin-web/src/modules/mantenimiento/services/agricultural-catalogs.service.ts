@@ -76,6 +76,7 @@ type NivelIncidenciaApiItem = {
   id: number;
   name: string;
   sortOrder: number;
+  grade: number;
   type: "incidencia" | "severidad";
 };
 
@@ -343,6 +344,7 @@ export const agriculturalCatalogsService = {
       id: String(item.id),
       name: item.name,
       sortOrder: item.sortOrder,
+      grade: item.grade,
       type: item.type
     }));
   },
@@ -364,6 +366,7 @@ export const agriculturalCatalogsService = {
       id: String(item.id),
       name: item.name,
       sortOrder: item.sortOrder,
+      grade: item.grade,
       type: item.type
     };
   },
@@ -386,6 +389,7 @@ export const agriculturalCatalogsService = {
       id: String(item.id),
       name: item.name,
       sortOrder: item.sortOrder,
+      grade: item.grade,
       type: item.type
     };
   },
@@ -678,14 +682,10 @@ export const agriculturalCatalogsService = {
     id: string,
     payload: OperationalCatalogPayload
   ): Promise<OperationalCatalogItem> {
-    const item = await request<OperationalCatalogApiItem>(
-      session,
-      `/tipos-riego/${id}`,
-      {
-        method: "PATCH",
-        body: payload
-      }
-    );
+    const item = await request<OperationalCatalogApiItem>(session, `/tipos-riego/${id}`, {
+      method: "PATCH",
+      body: payload
+    });
 
     return mapOperationalCatalogItem(item);
   },
@@ -741,13 +741,9 @@ export const agriculturalCatalogsService = {
   },
 
   async deleteLaborCultural(session: AuthSessionInput, id: string) {
-    return request<OperationalCatalogApiItem>(
-      session,
-      `/labores-culturales/${id}`,
-      {
-        method: "DELETE"
-      }
-    );
+    return request<OperationalCatalogApiItem>(session, `/labores-culturales/${id}`, {
+      method: "DELETE"
+    });
   },
 
   async getCultivoOptions(session: AuthSessionInput): Promise<CatalogOption[]> {

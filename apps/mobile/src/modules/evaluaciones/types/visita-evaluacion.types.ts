@@ -5,6 +5,7 @@ export type VisitaEvaluacion = {
   serverId: string | null;
   syncStatus: "pending" | "synced" | "error";
   visitaId: string;
+  nutrientId: string | null;
   order: number;
   incidencePercentage: string | null;
   percentage: string | null;

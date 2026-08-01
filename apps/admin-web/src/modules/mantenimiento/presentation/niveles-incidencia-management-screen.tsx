@@ -24,6 +24,7 @@ type NivelFormState = {
   id: string | null;
   name: string;
   sortOrder: string;
+  grade: string;
   type: NivelIncidenciaCatalogType;
 };
 
@@ -31,6 +32,7 @@ const emptyForm: NivelFormState = {
   id: null,
   name: "",
   sortOrder: "",
+  grade: "",
   type: "incidencia"
 };
 
@@ -42,12 +44,11 @@ export function NivelesIncidenciaManagementScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | NivelIncidenciaCatalogType>(
-    "all"
-  );
+  const [typeFilter, setTypeFilter] = useState<"all" | NivelIncidenciaCatalogType>("all");
   const [formState, setFormState] = useState<NivelFormState>(emptyForm);
-  const [itemToDelete, setItemToDelete] =
-    useState<NivelIncidenciaCatalogItem | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<NivelIncidenciaCatalogItem | null>(
+    null
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -63,17 +64,19 @@ export function NivelesIncidenciaManagementScreen() {
   const filteredItems = useMemo(() => {
     const normalizedSearch = normalizeSearch(search);
 
-    return items.filter((item) => {
-      if (normalizedSearch.length === 0) {
-        return true;
-      }
+    return items
+      .filter((item) => {
+        if (normalizedSearch.length === 0) {
+          return true;
+        }
 
-      return (
-        item.name.toLowerCase().includes(normalizedSearch) ||
-        String(item.sortOrder).includes(normalizedSearch) ||
-        item.type.toLowerCase().includes(normalizedSearch)
-      );
-    }).filter((item) => typeFilter === "all" || item.type === typeFilter);
+        return (
+          item.name.toLowerCase().includes(normalizedSearch) ||
+          String(item.sortOrder).includes(normalizedSearch) ||
+          item.type.toLowerCase().includes(normalizedSearch)
+        );
+      })
+      .filter((item) => typeFilter === "all" || item.type === typeFilter);
   }, [items, search, typeFilter]);
 
   const columns: DataTableColumn<NivelIncidenciaCatalogItem>[] = [
@@ -86,6 +89,11 @@ export function NivelesIncidenciaManagementScreen() {
       key: "sortOrder",
       header: "Orden",
       cell: (item) => item.sortOrder
+    },
+    {
+      key: "grade",
+      header: "Grado",
+      cell: (item) => item.grade
     },
     {
       key: "type",
@@ -126,9 +134,7 @@ export function NivelesIncidenciaManagementScreen() {
     setListError(null);
 
     try {
-      const nextItems = await agriculturalCatalogsService.getNivelesIncidencia(
-        session
-      );
+      const nextItems = await agriculturalCatalogsService.getNivelesIncidencia(session);
       setItems(nextItems);
     } catch (error) {
       setListError(toApiError(error).message);
@@ -144,6 +150,7 @@ export function NivelesIncidenciaManagementScreen() {
       id: item.id,
       name: item.name,
       sortOrder: String(item.sortOrder),
+      grade: String(item.grade),
       type: item.type
     });
     setModalOpen(true);
@@ -164,9 +171,17 @@ export function NivelesIncidenciaManagementScreen() {
 
     const name = formState.name.trim();
     const sortOrder = Number(formState.sortOrder);
+    const grade = Number(formState.grade);
 
-    if (!name || !Number.isInteger(sortOrder) || sortOrder < 1) {
-      setFormError("Nombre y orden valido son obligatorios.");
+    if (
+      !name ||
+      !Number.isInteger(sortOrder) ||
+      sortOrder < 1 ||
+      !Number.isInteger(grade) ||
+      grade < 0 ||
+      grade > 3
+    ) {
+      setFormError("Nombre, orden y grado técnico entre 0 y 3 son obligatorios.");
       return;
     }
 
@@ -178,6 +193,7 @@ export function NivelesIncidenciaManagementScreen() {
       const payload = {
         name,
         sortOrder,
+        grade,
         type: formState.type
       };
 
@@ -187,14 +203,10 @@ export function NivelesIncidenciaManagementScreen() {
           formState.id,
           payload
         );
-        setSuccessMessage(
-          "Nivel de incidencia y severidad actualizado correctamente."
-        );
+        setSuccessMessage("Nivel de incidencia y severidad actualizado correctamente.");
       } else {
         await agriculturalCatalogsService.createNivelIncidencia(session, payload);
-        setSuccessMessage(
-          "Nivel de incidencia y severidad creado correctamente."
-        );
+        setSuccessMessage("Nivel de incidencia y severidad creado correctamente.");
       }
 
       await loadLevels();
@@ -215,10 +227,7 @@ export function NivelesIncidenciaManagementScreen() {
     setIsDeleting(true);
 
     try {
-      await agriculturalCatalogsService.deleteNivelIncidencia(
-        session,
-        itemToDelete.id
-      );
+      await agriculturalCatalogsService.deleteNivelIncidencia(session, itemToDelete.id);
       setSuccessMessage("Nivel de incidencia y severidad eliminado correctamente.");
 
       if (formState.id === itemToDelete.id) {
@@ -239,10 +248,21 @@ export function NivelesIncidenciaManagementScreen() {
       <ToolbarActions
         actions={
           <>
-            <button className="ui-button ui-button--ghost" onClick={() => void loadLevels()} type="button">
+            <button
+              className="ui-button ui-button--ghost"
+              onClick={() => void loadLevels()}
+              type="button"
+            >
               Recargar
             </button>
-            <button className="ui-button ui-button--primary" onClick={() => { resetForm(); setModalOpen(true); }} type="button">
+            <button
+              className="ui-button ui-button--primary"
+              onClick={() => {
+                resetForm();
+                setModalOpen(true);
+              }}
+              type="button"
+            >
               Nuevo nivel
             </button>
           </>
@@ -266,9 +286,7 @@ export function NivelesIncidenciaManagementScreen() {
           <span>Tipo</span>
           <select
             onChange={(event) =>
-              setTypeFilter(
-                event.target.value as "all" | NivelIncidenciaCatalogType
-              )
+              setTypeFilter(event.target.value as "all" | NivelIncidenciaCatalogType)
             }
             value={typeFilter}
           >
@@ -279,9 +297,7 @@ export function NivelesIncidenciaManagementScreen() {
         </label>
       </FilterBar>
 
-      {successMessage ? (
-        <FeedbackBanner kind="success" message={successMessage} />
-      ) : null}
+      {successMessage ? <FeedbackBanner kind="success" message={successMessage} /> : null}
 
       {listError ? (
         <ErrorState
@@ -320,7 +336,10 @@ export function NivelesIncidenciaManagementScreen() {
 
       <FormModal
         open={modalOpen}
-        onClose={() => { resetForm(); setModalOpen(false); }}
+        onClose={() => {
+          resetForm();
+          setModalOpen(false);
+        }}
         title={
           formState.id
             ? "Editar nivel de incidencia y severidad"
@@ -329,7 +348,14 @@ export function NivelesIncidenciaManagementScreen() {
         description="Alta o edicion simple de niveles con su valor de orden."
         footer={
           <>
-            <button className="ui-button ui-button--ghost" onClick={() => { resetForm(); setModalOpen(false); }} type="button">
+            <button
+              className="ui-button ui-button--ghost"
+              onClick={() => {
+                resetForm();
+                setModalOpen(false);
+              }}
+              type="button"
+            >
               Cancelar
             </button>
             <button
@@ -375,6 +401,23 @@ export function NivelesIncidenciaManagementScreen() {
               placeholder="1"
               type="number"
               value={formState.sortOrder}
+            />
+          </label>
+
+          <label className="field-group">
+            <span>Grado técnico</span>
+            <input
+              max={3}
+              min={0}
+              onChange={(event) =>
+                setFormState((currentState) => ({
+                  ...currentState,
+                  grade: event.target.value
+                }))
+              }
+              placeholder="0"
+              type="number"
+              value={formState.grade}
             />
           </label>
 

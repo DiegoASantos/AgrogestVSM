@@ -17,6 +17,7 @@ import { PlagaEnfermedadEntity } from "../infrastructure/persistence/entities/pl
 import { VisitaObservacionSanitariaEntity } from "../infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
 import { VisitaObservacionSanitariaOrganoEntity } from "../infrastructure/persistence/entities/visita-observacion-sanitaria-organo.entity";
 import type { OrganoAfectado } from "../domain/organo-afectado";
+import { resolveDiseaseIncidenceGrade } from "../domain/disease-incidence";
 
 @Injectable()
 export class VisitaObservacionesSanitariasService {
@@ -37,24 +38,37 @@ export class VisitaObservacionesSanitariasService {
 
   async create(visitaId: string, createDto: CreateVisitaObservacionSanitariaDto) {
     const visita = await this.ensureVisitaExists(visitaId);
-    await this.ensurePlagaEnfermedadExists(createDto.pestDiseaseId);
-    await this.ensureNivelIncidenciaExists(createDto.incidenceLevelId, "incidencia");
+    const pestDisease = await this.ensurePlagaEnfermedadExists(createDto.pestDiseaseId);
+    if (pestDisease.type.toLowerCase() !== "enfermedad") {
+      await this.ensureNivelIncidenciaExists(createDto.incidenceLevelId, "incidencia");
+    }
     await this.ensureNivelIncidenciaExists(createDto.severityLevelId, "severidad");
     await this.ensurePestDiseaseMatchesVisitStage(visita, createDto.pestDiseaseId);
     await this.ensureUniquePestDisease(visitaId, createDto.pestDiseaseId);
+    const resolvedLevels = await this.resolveDiseaseObservationLevels({
+      visit: visita,
+      pestDisease,
+      incidencePercentage: createDto.incidencePercentage,
+      incidenceLevelId: createDto.incidenceLevelId,
+      severityLevelId: createDto.severityLevelId,
+      organosAfectados: createDto.organosAfectados
+    });
 
     const observacion = this.observacionesRepository.create({
       visitaId,
       plagaEnfermedadId: createDto.pestDiseaseId,
-      nivelIncidenciaId: createDto.incidenceLevelId ?? null,
-      nivelSeveridadId: createDto.severityLevelId ?? null,
-      incidencePercentage: normalizePercentage(createDto.incidencePercentage),
+      nivelIncidenciaId: resolvedLevels.incidenceLevelId,
+      nivelSeveridadId: resolvedLevels.severityLevelId,
+      incidencePercentage: normalizePercentage(resolvedLevels.incidencePercentage),
       observation: createDto.observation ?? null
     });
 
     try {
       const savedObservacion = await this.observacionesRepository.save(observacion);
-      await this.replaceOrganosAfectados(savedObservacion.id, createDto.organosAfectados);
+      await this.replaceOrganosAfectados(
+        savedObservacion.id,
+        resolvedLevels.organosAfectados
+      );
       const savedWithOrganos = await this.findEntityById(savedObservacion.id);
 
       return createSuccessResponse(this.toResponse(savedWithOrganos));
@@ -121,11 +135,12 @@ export class VisitaObservacionesSanitariasService {
         ? updateDto.severityLevelId
         : observacion.nivelSeveridadId;
 
-    if (updateDto.pestDiseaseId !== undefined) {
-      await this.ensurePlagaEnfermedadExists(updateDto.pestDiseaseId);
-    }
+    const pestDisease = await this.ensurePlagaEnfermedadExists(nextPestDiseaseId);
 
-    if (updateDto.incidenceLevelId !== undefined) {
+    if (
+      pestDisease.type.toLowerCase() !== "enfermedad" &&
+      updateDto.incidenceLevelId !== undefined
+    ) {
       await this.ensureNivelIncidenciaExists(updateDto.incidenceLevelId, "incidencia");
     }
 
@@ -141,19 +156,41 @@ export class VisitaObservacionesSanitariasService {
       nextPestDiseaseId,
       observacion.id
     );
+    const nextIncidencePercentage =
+      updateDto.incidencePercentage !== undefined
+        ? updateDto.incidencePercentage
+        : observacion.incidencePercentage === null
+          ? null
+          : Number(observacion.incidencePercentage);
+    const nextOrganos =
+      updateDto.organosAfectados ??
+      observacion.organosAfectados.map((item) => item.organo);
+    const resolvedLevels = await this.resolveDiseaseObservationLevels({
+      visit: visita,
+      pestDisease,
+      incidencePercentage: nextIncidencePercentage,
+      incidenceLevelId: nextIncidenceLevelId,
+      severityLevelId: nextSeverityLevelId,
+      organosAfectados: nextOrganos
+    });
 
     const updatedObservacion = this.observacionesRepository.merge(observacion, {
       ...(updateDto.pestDiseaseId !== undefined
         ? { plagaEnfermedadId: updateDto.pestDiseaseId }
         : {}),
-      ...(updateDto.incidenceLevelId !== undefined
-        ? { nivelIncidenciaId: nextIncidenceLevelId ?? null }
+      ...(updateDto.incidenceLevelId !== undefined ||
+      pestDisease.type.toLowerCase() === "enfermedad"
+        ? { nivelIncidenciaId: resolvedLevels.incidenceLevelId }
         : {}),
-      ...(updateDto.severityLevelId !== undefined
-        ? { nivelSeveridadId: nextSeverityLevelId ?? null }
+      ...(updateDto.severityLevelId !== undefined ||
+      pestDisease.type.toLowerCase() === "enfermedad"
+        ? { nivelSeveridadId: resolvedLevels.severityLevelId }
         : {}),
-      ...(updateDto.incidencePercentage !== undefined
-        ? { incidencePercentage: normalizePercentage(updateDto.incidencePercentage) }
+      ...(updateDto.incidencePercentage !== undefined ||
+      pestDisease.type.toLowerCase() === "enfermedad"
+        ? {
+            incidencePercentage: normalizePercentage(resolvedLevels.incidencePercentage)
+          }
         : {}),
       ...(updateDto.observation !== undefined
         ? { observation: updateDto.observation }
@@ -164,10 +201,13 @@ export class VisitaObservacionesSanitariasService {
       const savedObservacion =
         await this.observacionesRepository.save(updatedObservacion);
 
-      if (updateDto.organosAfectados !== undefined) {
+      if (
+        updateDto.organosAfectados !== undefined ||
+        pestDisease.type.toLowerCase() === "enfermedad"
+      ) {
         await this.replaceOrganosAfectados(
           savedObservacion.id,
-          updateDto.organosAfectados
+          resolvedLevels.organosAfectados
         );
       }
 
@@ -227,6 +267,93 @@ export class VisitaObservacionesSanitariasService {
     if (!plagaEnfermedad) {
       throw new BadRequestException("Plaga enfermedad not found.");
     }
+
+    return plagaEnfermedad;
+  }
+
+  private async resolveDiseaseObservationLevels(input: {
+    visit: VisitaCampoEntity;
+    pestDisease: PlagaEnfermedadEntity;
+    incidencePercentage: number | null | undefined;
+    incidenceLevelId: number | null | undefined;
+    severityLevelId: number | null | undefined;
+    organosAfectados: string[];
+  }) {
+    if (input.pestDisease.type.toLowerCase() !== "enfermedad") {
+      return {
+        incidenceLevelId: input.incidenceLevelId ?? null,
+        severityLevelId: input.severityLevelId ?? null,
+        incidencePercentage: input.incidencePercentage,
+        organosAfectados: input.organosAfectados
+      };
+    }
+    const stageLevels = await this.plagasEnfermedadesEtapasNivelesRepository.find({
+      where: {
+        plagaEnfermedadId: input.pestDisease.id,
+        etapaFenologicaId: input.visit.etapaFenologicaId!,
+        isActive: true
+      },
+      relations: { nivelIncidenciaSeveridad: true },
+      order: { id: "ASC" }
+    });
+    const legacyIncidenceLevel = stageLevels
+      .map((item) => item.nivelIncidenciaSeveridad)
+      .find(
+        (level) => level.id === input.incidenceLevelId && level.type === "incidencia"
+      );
+    const incidencePercentage =
+      input.incidencePercentage === null || input.incidencePercentage === undefined
+        ? legacyIncidenceLevel?.grade === 0
+          ? 0
+          : null
+        : input.incidencePercentage;
+    if (incidencePercentage === null) {
+      throw new BadRequestException("El porcentaje de árboles enfermos es obligatorio.");
+    }
+
+    const grade = resolveDiseaseIncidenceGrade(incidencePercentage);
+    const incidenceLevel = stageLevels
+      .map((item) => item.nivelIncidenciaSeveridad)
+      .find((level) => level.type === "incidencia" && level.grade === grade);
+    if (!incidenceLevel) {
+      throw new BadRequestException(
+        `No existe un nivel de incidencia configurado para el grado ${grade}.`
+      );
+    }
+
+    if (grade === 0) {
+      return {
+        incidenceLevelId: incidenceLevel.id,
+        severityLevelId: null,
+        incidencePercentage: 0,
+        organosAfectados: []
+      };
+    }
+    if (input.severityLevelId === null || input.severityLevelId === undefined) {
+      throw new BadRequestException(
+        "La severidad es obligatoria cuando existen árboles enfermos."
+      );
+    }
+    if (input.organosAfectados.length === 0) {
+      throw new BadRequestException(
+        "Debe registrar al menos un órgano afectado cuando existen árboles enfermos."
+      );
+    }
+    const severityLevel = stageLevels
+      .map((item) => item.nivelIncidenciaSeveridad)
+      .find((level) => level.id === input.severityLevelId && level.type === "severidad");
+    if (!severityLevel) {
+      throw new BadRequestException(
+        "El nivel de severidad no está disponible para esta enfermedad y etapa fenológica."
+      );
+    }
+
+    return {
+      incidenceLevelId: incidenceLevel.id,
+      severityLevelId: severityLevel.id,
+      incidencePercentage,
+      organosAfectados: input.organosAfectados
+    };
   }
 
   private async ensureNivelIncidenciaExists(

@@ -84,6 +84,7 @@ const evaluacionesInsert = vi.fn(
       serverId: null,
       syncStatus: "pending",
       visitaId: visitaLocalId,
+      nutrientId: null,
       order: input.order,
       incidencePercentage: null,
       percentage: input.percentage === undefined ? null : String(input.percentage),

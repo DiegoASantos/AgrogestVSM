@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException
-} from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
@@ -60,16 +56,18 @@ export class VisitaPasoObservacionesService {
     const existingStepNote = await this.stepNotesRepository.findOne({
       where: { visitaId, stepNumber }
     });
+    const isTechnicalSanitaryStep =
+      stepNumber === 2 || stepNumber === 3 || stepNumber === 4;
 
     const stepNote = existingStepNote
       ? this.stepNotesRepository.merge(existingStepNote, {
-          ...(dto.observation !== undefined
-            ? { observation: dto.observation }
-            : {}),
+          ...(dto.observation !== undefined ? { observation: dto.observation } : {}),
           ...(dto.recommendation !== undefined
             ? { recommendation: dto.recommendation }
             : {}),
-          ...(dto.finalized === true && stepNumber === 2 && !existingStepNote.finalizedAt
+          ...(dto.finalized === true &&
+          isTechnicalSanitaryStep &&
+          !existingStepNote.finalizedAt
             ? { finalizedAt: new Date() }
             : {})
         })
@@ -77,8 +75,9 @@ export class VisitaPasoObservacionesService {
           visitaId,
           stepNumber,
           observation: dto.observation ?? null,
-        recommendation: dto.recommendation ?? null,
-        finalizedAt: dto.finalized === true && stepNumber === 2 ? new Date() : null
+          recommendation: dto.recommendation ?? null,
+          finalizedAt:
+            dto.finalized === true && isTechnicalSanitaryStep ? new Date() : null
         });
 
     const savedStepNote = await this.stepNotesRepository.save(stepNote);
@@ -86,10 +85,7 @@ export class VisitaPasoObservacionesService {
     return createSuccessResponse(this.toResponse(savedStepNote));
   }
 
-  private async ensureVisitaExists(
-    visitaId: string,
-    useNotFoundException = false
-  ) {
+  private async ensureVisitaExists(visitaId: string, useNotFoundException = false) {
     const visita = await this.visitasCampoRepository.findOne({
       where: { id: visitaId }
     });

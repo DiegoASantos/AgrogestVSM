@@ -51,7 +51,8 @@ export class CreateVisitaObservacionSanitariaDto {
 
   @ApiPropertyOptional({
     example: 12,
-    description: "Porcentaje de arboles enfermos. Entero entre 0 y 100."
+    description:
+      "Porcentaje de árboles enfermos. Es obligatorio para enfermedades y debe ser un entero entre 0 y 100."
   })
   @Transform(({ value }) => parseOptionalNumber(value))
   @IsOptional()

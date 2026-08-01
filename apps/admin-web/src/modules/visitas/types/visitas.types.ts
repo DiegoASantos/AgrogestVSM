@@ -104,12 +104,92 @@ export type TechnicalModuleScore = {
   semaphore: "verde" | "amarillo" | "rojo" | null;
 };
 
+export type PestTechnicalScoreItem = {
+  key: string;
+  pestDiseaseId: string | null;
+  name: string;
+  evaluated: boolean;
+  incidenceGrade: number;
+  severityGrade: number;
+  score: number;
+  formula: string;
+  specialRule: string | null;
+};
+
+export type PestModuleTechnicalDetail = {
+  moduleFormula: string;
+  appliedFormula: string;
+  moduleScore: number;
+  modulePercentage: number;
+  semaphore: "verde" | "amarillo" | "rojo";
+  status: string;
+  message: string;
+  pestScores: PestTechnicalScoreItem[];
+};
+
+export type DiseaseTechnicalScoreItem = {
+  key: string;
+  pestDiseaseId: string | null;
+  name: string;
+  evaluated: boolean;
+  incidencePercentage: number;
+  incidenceGrade: number;
+  severityGrade: number;
+  score: number;
+  formula: string;
+};
+
+export type DiseaseModuleTechnicalDetail = {
+  moduleFormula: string;
+  appliedFormula: string;
+  moduleScore: number;
+  modulePercentage: number;
+  semaphore: "verde" | "amarillo" | "rojo";
+  status: string;
+  message: string;
+  diseaseScores: DiseaseTechnicalScoreItem[];
+};
+
+export type NutritionTechnicalScoreItem = {
+  key: string;
+  nutrientId: string | null;
+  name: string;
+  evaluated: boolean;
+  incidencePercentage: number;
+  incidenceGrade: number;
+  score: number;
+  formula: string;
+};
+
+export type NutritionModuleTechnicalDetail = {
+  moduleFormula: string;
+  appliedFormula: string;
+  moduleScore: number;
+  modulePercentage: number;
+  semaphore: "verde" | "amarillo" | "rojo";
+  status: string;
+  message: string;
+  nutritionScores: NutritionTechnicalScoreItem[];
+};
+
+export type RiegoModuleTechnicalDetail = {
+  moduleScore: number;
+  modulePercentage: number;
+  semaphore: "verde" | "amarillo" | "rojo";
+  status: string;
+  message: string;
+};
+
 export type TechnicalVisitScores = {
   visitaId: string;
   scoreTecnicoGeneral: number | null;
   modulosIncluidos: CalificacionModulo[];
   modulosFaltantes: CalificacionModulo[];
   scorePorModulo: Record<CalificacionModulo, TechnicalModuleScore>;
+  detallePlagas: PestModuleTechnicalDetail | null;
+  detalleEnfermedades: DiseaseModuleTechnicalDetail | null;
+  detalleNutricion: NutritionModuleTechnicalDetail | null;
+  detalleRiego: RiegoModuleTechnicalDetail | null;
 };
 
 export type ProductorCalificacion = {
@@ -264,10 +344,12 @@ export type SubEtapaLookupItem = LookupItem & {
 export type PestDiseaseLookupItem = LookupItem & {
   scientificName: string | null;
   type: string;
+  code?: string | null;
 };
 
 export type IncidenceLevelLookupItem = LookupItem & {
   sortOrder: number | null;
+  grade: number;
   type?: "incidencia" | "severidad";
 };
 

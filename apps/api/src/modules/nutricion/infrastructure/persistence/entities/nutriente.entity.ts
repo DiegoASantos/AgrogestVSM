@@ -27,6 +27,14 @@ export class NutrienteEntity {
   cultivoId!: string;
 
   @Column({
+    name: "codigo",
+    type: "varchar",
+    length: 40,
+    nullable: true
+  })
+  code!: string | null;
+
+  @Column({
     name: "nombre",
     type: "varchar",
     length: 100

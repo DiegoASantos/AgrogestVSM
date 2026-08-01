@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  Bug,
   CalendarDays,
   ClipboardCheck,
   Download,
@@ -31,8 +32,12 @@ import {
 } from "../services/visita-pdf-web.service";
 import { visitasService } from "../services/visitas.service";
 import type {
+  DiseaseModuleTechnicalDetail,
   IncidenceLevelLookupItem,
+  NutritionModuleTechnicalDetail,
   PestDiseaseLookupItem,
+  PestModuleTechnicalDetail,
+  RiegoModuleTechnicalDetail,
   VisitaCalificacion,
   VisitaDetailData,
   VisitaLaborCultural,
@@ -82,7 +87,11 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
     return (
       <ErrorState
         action={
-          <button className="ui-button ui-button--secondary" onClick={loadDetail} type="button">
+          <button
+            className="ui-button ui-button--secondary"
+            onClick={loadDetail}
+            type="button"
+          >
             Reintentar
           </button>
         }
@@ -104,8 +113,7 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
     (observacion) => pestDiseaseMap.get(observacion.pestDiseaseId)?.type === "plaga"
   );
   const enfermedades = detail.observacionesSanitarias.filter(
-    (observacion) =>
-      pestDiseaseMap.get(observacion.pestDiseaseId)?.type === "enfermedad"
+    (observacion) => pestDiseaseMap.get(observacion.pestDiseaseId)?.type === "enfermedad"
   );
   const laboresCulturales = groupLaboresCulturales(detail.laboresCulturales);
   const scoreAverage = resolveScoreAverage(detail.calificaciones);
@@ -141,7 +149,13 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
 
         <div className="visit-dossier__hero">
           <div className="visit-dossier__identity">
-            <span className={detail.visita.isActive ? "visit-status" : "visit-status visit-status--muted"}>
+            <span
+              className={
+                detail.visita.isActive
+                  ? "visit-status"
+                  : "visit-status visit-status--muted"
+              }
+            >
               {detail.visita.isActive ? "Activa" : "Inactiva"}
             </span>
             <h2>{formatParcela(detail)}</h2>
@@ -204,13 +218,18 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
           <FactCard
             icon={<ClipboardCheck aria-hidden="true" size={18} />}
             label="Cumplimiento"
-            value={scoreAverage === null ? "Sin calificacion" : `${scoreAverage.toFixed(1)} / 3`}
+            value={
+              scoreAverage === null
+                ? "Sin calificacion"
+                : `${scoreAverage.toFixed(1)} / 3`
+            }
           />
           <FactCard
             icon={<ShieldAlert aria-hidden="true" size={18} />}
             label="Score técnico"
             value={
-              detail.technicalScores?.scoreTecnicoGeneral === null || !detail.technicalScores
+              detail.technicalScores?.scoreTecnicoGeneral === null ||
+              !detail.technicalScores
                 ? "Sin datos técnicos"
                 : `${detail.technicalScores.scoreTecnicoGeneral.toFixed(2)}%`
             }
@@ -222,14 +241,36 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
             <div className="visit-dossier__block-header">
               <span>Scores técnicos por módulo</span>
             </div>
+            <PestTechnicalScoreCard detail={detail.technicalScores.detallePlagas} />
+            <DiseaseTechnicalScoreCard
+              detail={detail.technicalScores.detalleEnfermedades}
+            />
+            <NutritionTechnicalScoreCard
+              detail={detail.technicalScores.detalleNutricion}
+            />
+            <RiegoTechnicalScoreCard
+              detail={detail.technicalScores.detalleRiego}
+            />
             <div className="visit-dossier__compact-grid">
-              {Object.entries(detail.technicalScores.scorePorModulo).map(([module, score]) => (
-                <DetailPill
-                  key={module}
-                  label={getModuloLabel(module as VisitaCalificacion["modulo"])}
-                  value={score.percentage === null ? "Sin datos" : `${score.percentage.toFixed(2)}%`}
-                />
-              ))}
+              {Object.entries(detail.technicalScores.scorePorModulo)
+                .filter(
+                  ([module]) =>
+                    module !== "plagas" &&
+                    module !== "enfermedades" &&
+                    module !== "nutricion" &&
+                    module !== "riego"
+                )
+                .map(([module, score]) => (
+                  <DetailPill
+                    key={module}
+                    label={getModuloLabel(module as VisitaCalificacion["modulo"])}
+                    value={
+                      score.percentage === null
+                        ? "Sin datos"
+                        : `${score.percentage.toFixed(2)}%`
+                    }
+                  />
+                ))}
             </div>
           </div>
         ) : null}
@@ -325,7 +366,9 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
                     detail.evaluaciones.length === 0
                       ? "No hay evaluaciones nutricionales."
                       : detail.evaluaciones
-                          .map((item) => formatNutritionItem(item.description, item.percentage))
+                          .map((item) =>
+                            formatNutritionItem(item.description, item.percentage)
+                          )
                           .join(" · ")
                 }
               ]}
@@ -497,6 +540,330 @@ function DetailPill({ label, value }: { label: string; value: string | number })
   );
 }
 
+function PestTechnicalScoreCard({
+  detail
+}: {
+  detail: PestModuleTechnicalDetail | null;
+}) {
+  if (!detail) {
+    return (
+      <section
+        className="pest-score-card pest-score-card--pending"
+        aria-label="Score técnico de Plagas"
+      >
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Bug aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score fitosanitario</span>
+            <h3>Plagas</h3>
+          </div>
+        </div>
+        <p className="pest-score-card__pending">
+          Pendiente de finalizar la evaluación de Plagas.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className={`pest-score-card pest-score-card--${detail.semaphore}`}
+      aria-labelledby="pest-score-title"
+    >
+      <div className="pest-score-card__summary">
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Bug aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score fitosanitario</span>
+            <h3 id="pest-score-title">Plagas</h3>
+          </div>
+        </div>
+        <div className="pest-score-card__result">
+          <strong>
+            {detail.moduleScore}
+            <span> / 3</span>
+          </strong>
+          <small>{detail.modulePercentage.toFixed(2)}%</small>
+        </div>
+        <div className="pest-score-card__status">
+          <span className="pest-score-card__traffic-light">{detail.semaphore}</span>
+          <strong>{detail.status}</strong>
+          <p>{detail.message}</p>
+        </div>
+      </div>
+
+      <div className="pest-score-card__formula">
+        <span>Consolidación por peor escenario</span>
+        <code>{detail.moduleFormula}</code>
+        <strong>{detail.appliedFormula}</strong>
+      </div>
+
+      <div
+        className="pest-score-card__pests"
+        aria-label="Notas individuales de las seis plagas"
+      >
+        {detail.pestScores.map((pest) => (
+          <article className="pest-score-item" key={pest.key}>
+            <div className="pest-score-item__header">
+              <div>
+                <strong>{pest.name}</strong>
+                <span>
+                  {pest.evaluated
+                    ? `Evaluada · I ${pest.incidenceGrade} · S ${pest.severityGrade}`
+                    : "Sin registro · I 0 · S 0"}
+                </span>
+              </div>
+              <b>{pest.score}</b>
+            </div>
+            <code>{pest.formula}</code>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DiseaseTechnicalScoreCard({
+  detail
+}: {
+  detail: DiseaseModuleTechnicalDetail | null;
+}) {
+  if (!detail) {
+    return (
+      <section
+        className="pest-score-card pest-score-card--pending"
+        aria-label="Score técnico de Enfermedades"
+      >
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Leaf aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score fitosanitario</span>
+            <h3>Enfermedades</h3>
+          </div>
+        </div>
+        <p className="pest-score-card__pending">
+          Pendiente de finalizar la evaluación de Enfermedades.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className={`pest-score-card disease-score-card pest-score-card--${detail.semaphore}`}
+      aria-labelledby="disease-score-title"
+    >
+      <div className="pest-score-card__summary">
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Leaf aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score fitosanitario</span>
+            <h3 id="disease-score-title">Enfermedades</h3>
+          </div>
+        </div>
+        <div className="pest-score-card__result">
+          <strong>
+            {detail.moduleScore}
+            <span> / 3</span>
+          </strong>
+          <small>{detail.modulePercentage.toFixed(2)}%</small>
+        </div>
+        <div className="pest-score-card__status">
+          <span className="pest-score-card__traffic-light">{detail.semaphore}</span>
+          <strong>{detail.status}</strong>
+          <p>{detail.message}</p>
+        </div>
+      </div>
+
+      <div className="pest-score-card__formula">
+        <span>Consolidación por peor escenario</span>
+        <code>{detail.moduleFormula}</code>
+        <strong>{detail.appliedFormula}</strong>
+      </div>
+
+      <div
+        className="pest-score-card__pests"
+        aria-label="Notas individuales de las cuatro enfermedades"
+      >
+        {detail.diseaseScores.map((disease) => (
+          <article className="pest-score-item" key={disease.key}>
+            <div className="pest-score-item__header">
+              <div>
+                <strong>{disease.name}</strong>
+                <span>
+                  {disease.evaluated
+                    ? `${disease.incidencePercentage}% · I ${disease.incidenceGrade} · S ${disease.severityGrade}`
+                    : "Sin registro · 0% · I 0 · S 0"}
+                </span>
+              </div>
+              <b>{disease.score}</b>
+            </div>
+            <code>{disease.formula}</code>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NutritionTechnicalScoreCard({
+  detail
+}: {
+  detail: NutritionModuleTechnicalDetail | null;
+}) {
+  if (!detail) {
+    return (
+      <section
+        className="pest-score-card nutrition-score-card pest-score-card--pending"
+        aria-label="Score técnico de Nutrición"
+      >
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Sprout aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score nutricional</span>
+            <h3>Nutrición</h3>
+          </div>
+        </div>
+        <p className="pest-score-card__pending">
+          Pendiente de finalizar la evaluación de Nutrición.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className={`pest-score-card nutrition-score-card pest-score-card--${detail.semaphore}`}
+      aria-labelledby="nutrition-score-title"
+    >
+      <div className="pest-score-card__summary">
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Sprout aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score nutricional</span>
+            <h3 id="nutrition-score-title">Nutrición</h3>
+          </div>
+        </div>
+        <div className="pest-score-card__result nutrition-score-card__result">
+          <strong>
+            {detail.moduleScore}
+            <span> / 3</span>
+          </strong>
+          <small>{detail.modulePercentage.toFixed(2)}%</small>
+        </div>
+        <div className="pest-score-card__status">
+          <span className="pest-score-card__traffic-light">{detail.semaphore}</span>
+          <strong>{detail.status}</strong>
+          <p>{detail.message}</p>
+        </div>
+      </div>
+
+      <div className="pest-score-card__formula">
+        <span>Consolidación por peor escenario</span>
+        <code>{detail.moduleFormula}</code>
+        <strong>{detail.appliedFormula}</strong>
+      </div>
+
+      <div
+        className="pest-score-card__pests"
+        aria-label="Notas individuales de las seis deficiencias nutricionales"
+      >
+        {detail.nutritionScores.map((nutrient) => (
+          <article className="pest-score-item" key={nutrient.key}>
+            <div className="pest-score-item__header">
+              <div>
+                <strong>{nutrient.name}</strong>
+                <span>
+                  {nutrient.evaluated
+                    ? `${nutrient.incidencePercentage}% · I ${nutrient.incidenceGrade}`
+                    : "Sin registro · 0% · I 0"}
+                </span>
+              </div>
+              <b>{nutrient.score}</b>
+            </div>
+            <code>{nutrient.formula}</code>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RiegoTechnicalScoreCard({
+  detail
+}: {
+  detail: RiegoModuleTechnicalDetail | null;
+}) {
+  if (!detail) {
+    return (
+      <section
+        className="pest-score-card pest-score-card--pending"
+        aria-label="Score técnico de Riego"
+      >
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Droplets aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score hidrico</span>
+            <h3>Riego</h3>
+          </div>
+        </div>
+        <p className="pest-score-card__pending">
+          Pendiente de registrar la evaluación de Riego.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className={`pest-score-card pest-score-card--${detail.semaphore}`}
+      aria-labelledby="riego-score-title"
+    >
+      <div className="pest-score-card__summary">
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Droplets aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score hidrico</span>
+            <h3 id="riego-score-title">Riego</h3>
+          </div>
+        </div>
+        <div className="pest-score-card__result">
+          <strong>
+            {detail.moduleScore}
+            <span> / 3</span>
+          </strong>
+        </div>
+        <div className="pest-score-card__status">
+          <span className="pest-score-card__traffic-light">{detail.semaphore}</span>
+          <strong>{detail.status}</strong>
+          <p>{detail.message}</p>
+        </div>
+      </div>
+
+      <div className="pest-score-card__formula">
+        <span>Formula de score de riego</span>
+        <code>ScoreRiego = Nriego</code>
+      </div>
+    </section>
+  );
+}
+
 function ModuleGroup({
   icon,
   items,
@@ -519,7 +886,11 @@ function ModuleGroup({
               <strong>{item.title}</strong>
               <p>{item.content}</p>
             </div>
-            <span className={item.count > 0 ? "visit-count" : "visit-count visit-count--muted"}>
+            <span
+              className={
+                item.count > 0 ? "visit-count" : "visit-count visit-count--muted"
+              }
+            >
               {item.count > 0 ? "Con registro" : "Sin registro"}
             </span>
           </div>
@@ -616,7 +987,8 @@ function groupLaboresCulturales(labores: VisitaLaborCultural[]) {
 
       return {
         category: catalog?.categoryName ?? "Labores culturales",
-        option: catalog?.optionLabel ?? catalog?.name ?? `Labor #${labor.laborCulturalId}`,
+        option:
+          catalog?.optionLabel ?? catalog?.name ?? `Labor #${labor.laborCulturalId}`,
         legend: catalog?.legend ?? catalog?.description ?? null,
         sortOrder: catalog?.sortOrder ?? 9999
       };

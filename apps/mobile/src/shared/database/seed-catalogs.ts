@@ -215,11 +215,12 @@ async function performCatalogDownload() {
 
         for (const incidenceLevel of incidenceLevels) {
           db.runSync(
-            `INSERT OR REPLACE INTO incidence_levels (id, name, sort_order, type)
-         VALUES (?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO incidence_levels (id, name, sort_order, grade, type)
+         VALUES (?, ?, ?, ?, ?)`,
             incidenceLevel.id,
             incidenceLevel.name,
             incidenceLevel.sortOrder,
+            incidenceLevel.grade,
             incidenceLevel.type
           );
         }

@@ -9,6 +9,7 @@ export type NutrientDetailCatalogItem = {
 export type NutrientCatalogItem = {
   id: string;
   cultivoId: string;
+  code: string | null;
   name: string;
   description: string | null;
   isActive: boolean;

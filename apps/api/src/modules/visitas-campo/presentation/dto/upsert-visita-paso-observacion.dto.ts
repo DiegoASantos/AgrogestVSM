@@ -35,7 +35,10 @@ export class UpsertVisitaPasoObservacionDto {
   @MaxLength(5000)
   recommendation?: string | null;
 
-  @ApiPropertyOptional({ description: "Finaliza explícitamente el paso Plagas." })
+  @ApiPropertyOptional({
+    description:
+      "Finaliza explícitamente los pasos técnicos de Plagas, Enfermedades o Nutrición."
+  })
   @IsOptional()
   @IsBoolean()
   finalized?: boolean;

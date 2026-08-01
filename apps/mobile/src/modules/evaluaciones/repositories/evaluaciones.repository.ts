@@ -11,6 +11,7 @@ type EvaluacionRow = {
   local_id: string;
   server_id: string | null;
   visita_local_id: string;
+  nutrient_id: string | null;
   sort_order: number;
   incidence_percentage: string | null;
   percentage: string | null;
@@ -22,6 +23,7 @@ type EvaluacionRow = {
 };
 
 type CreateEvaluacionInput = {
+  nutrientId?: string | null;
   order: number;
   incidencePercentage?: number | null;
   percentage?: number | null;
@@ -30,6 +32,7 @@ type CreateEvaluacionInput = {
 };
 
 type UpdateEvaluacionInput = {
+  nutrientId?: string | null;
   order?: number;
   incidencePercentage?: number | null;
   percentage?: number | null;
@@ -43,6 +46,7 @@ const EVALUACION_COLUMNS = `
   local_id,
   server_id,
   visita_local_id,
+  nutrient_id,
   sort_order,
   incidence_percentage,
   percentage,
@@ -102,6 +106,7 @@ export const evaluacionesRepository = {
           local_id,
           server_id,
           visita_local_id,
+          nutrient_id,
           sort_order,
           incidence_percentage,
           percentage,
@@ -110,10 +115,11 @@ export const evaluacionesRepository = {
           sync_status,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         null,
         visitaLocalId,
+        input.nutrientId ?? null,
         input.order,
         input.incidencePercentage === undefined || input.incidencePercentage === null
           ? null
@@ -153,6 +159,11 @@ export const evaluacionesRepository = {
     if (data.order !== undefined) {
       sets.push("sort_order = ?");
       params.push(data.order);
+    }
+
+    if (data.nutrientId !== undefined) {
+      sets.push("nutrient_id = ?");
+      params.push(data.nutrientId);
     }
 
     if (data.percentage !== undefined) {
@@ -232,7 +243,12 @@ export const evaluacionesRepository = {
     const db = getDatabase();
     const existing = this.getById(localId);
     const payload = existing?.serverId
-      ? JSON.stringify({ serverId: existing.serverId })
+      ? JSON.stringify({
+          serverId: existing.serverId,
+          visitaId: existing.visitaId,
+          nutrientId: existing.nutrientId,
+          description: existing.description
+        })
       : null;
 
     db.withTransactionSync(() => {
@@ -263,6 +279,7 @@ function mapEvaluacionRow(row: EvaluacionRow): VisitaEvaluacion {
     serverId: row.server_id,
     syncStatus: row.sync_status,
     visitaId: row.visita_local_id,
+    nutrientId: row.nutrient_id,
     order: row.sort_order,
     incidencePercentage: row.incidence_percentage,
     percentage: row.percentage,

@@ -41,9 +41,14 @@ import {
   PreviousRecipeSummaryCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
-import { isModuloEvaluable, type RecetaAnterior } from "../../../visita-calificaciones/types";
+import {
+  isModuloEvaluable,
+  type RecetaAnterior
+} from "../../../visita-calificaciones/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import { observacionesSanitariasService } from "../../services";
+import { resolveDiseaseIncidenceGrade } from "../../domain/disease-incidence";
+import { getLevelOptionsForItem } from "../../domain/stage-level-options";
 import type {
   IncidenceLevelCatalogItem,
   OrganoAfectado,
@@ -292,7 +297,9 @@ export function VisitaObservacionesSanitariasScreen({
 
           {!isLoading && !error ? (
             <>
-              {isModuloEvaluable(recetaAnterior, mode) ? <PreviousRecipeSummaryCard modulo={mode} receta={recetaAnterior} /> : null}
+              {isModuloEvaluable(recetaAnterior, mode) ? (
+                <PreviousRecipeSummaryCard modulo={mode} receta={recetaAnterior} />
+              ) : null}
               {isModuloEvaluable(recetaAnterior, mode) ? (
                 <ComplianceScoreCard
                   value={scoreValue}
@@ -548,6 +555,23 @@ export function VisitaObservacionesSanitariasScreen({
 
   function handleIncidencePercentageChange(pestDiseaseId: string, value: string) {
     setSubmitError(null);
+    const normalizedValue = sanitizePercentageInput(value);
+    const disease = enfermedades.find((item) => item.id === pestDiseaseId);
+    const derivedIncidenceLevel =
+      normalizedValue === "" || !disease
+        ? null
+        : (getLevelOptionsForItem(disease, incidenceLevels, "incidencia").find(
+            (level) =>
+              level.grade === resolveDiseaseIncidenceGrade(Number(normalizedValue))
+          ) ?? null);
+
+    if (normalizedValue !== "" && !derivedIncidenceLevel) {
+      setSubmitError(
+        "No existe un grado de incidencia configurado para el porcentaje indicado."
+      );
+      return;
+    }
+
     setSelections((currentSelections) => {
       const currentSelection = currentSelections[pestDiseaseId] ?? {
         incidenceLevelId: null,
@@ -555,13 +579,22 @@ export function VisitaObservacionesSanitariasScreen({
         incidencePercentage: "",
         organosAfectados: []
       };
-      const normalizedValue = sanitizePercentageInput(value);
+      const incidenceIsZero = derivedIncidenceLevel?.grade === 0;
 
       return {
         ...currentSelections,
         [pestDiseaseId]: {
           ...currentSelection,
-          incidencePercentage: normalizedValue
+          incidencePercentage: normalizedValue,
+          incidenceLevelId: derivedIncidenceLevel?.id ?? null,
+          severityLevelId:
+            normalizedValue === "" || incidenceIsZero
+              ? null
+              : currentSelection.severityLevelId,
+          organosAfectados:
+            normalizedValue === "" || incidenceIsZero
+              ? []
+              : currentSelection.organosAfectados
         }
       };
     });
@@ -632,17 +665,6 @@ export function VisitaObservacionesSanitariasScreen({
       activeItems,
       incidenceLevels
     );
-    const hasRegisteredData = activeItems.some((item) => {
-      const selection = selections[item.id];
-
-      return Boolean(
-        selection?.incidenceLevelId ||
-        selection?.incidencePercentage !== "" ||
-        selection?.severityLevelId ||
-        selection?.organosAfectados.length
-      );
-    });
-
     if (validationMessage) {
       setSubmitError(validationMessage);
       return;
@@ -717,7 +739,7 @@ export function VisitaObservacionesSanitariasScreen({
       await observacionesSanitariasService.upsertStepNote(visitaId, stepNumber, {
         observation: stepNote.observation.trim() || null,
         recommendation: stepNote.recommendation.trim() || null,
-        ...(mode === "plagas" ? { finalizedAt: new Date().toISOString() } : {})
+        finalizedAt: new Date().toISOString()
       });
 
       router.replace({
@@ -971,6 +993,14 @@ function SanitaryCard({
               </View>
             </View>
 
+            {showsSickTreePercentage ? (
+              <PercentageInputBlock
+                hint="Ingresa un entero de 0 a 100. El grado de incidencia se calcula automáticamente."
+                label="% de árboles enfermos"
+                onChangeText={(value) => onIncidencePercentageChange(item.id, value)}
+                value={selection?.incidencePercentage ?? ""}
+              />
+            ) : null}
             {incidenceOptions.length > 0 ? (
               <LevelSelectorRow
                 accentColor="#12622f"
@@ -979,21 +1009,8 @@ function SanitaryCard({
                 isCompactLayout={isCompactLayout}
                 levelDescriptions={levelDescriptions}
                 onSelect={(levelId) => onSelectLevel(item.id, "incidencia", levelId)}
+                readOnly={showsSickTreePercentage}
                 selectedLevelId={selection?.incidenceLevelId ?? null}
-              />
-            ) : null}
-            {showsSickTreePercentage ? (
-              <PercentageInputBlock
-                disabled={disablesSeverity}
-                disabledHint={
-                  incidenceIsZero
-                    ? "Incidencia 0: no hay arboles enfermos que cuantificar."
-                    : "Selecciona primero la incidencia."
-                }
-                hint="Porcentaje de arboles enfermos. Escala de 1% en 1%."
-                label="% de arboles enfermos"
-                onChangeText={(value) => onIncidencePercentageChange(item.id, value)}
-                value={selection?.incidencePercentage ?? ""}
               />
             ) : null}
             {severityOptions.length > 0 ? (
@@ -1012,6 +1029,13 @@ function SanitaryCard({
                 onSelect={(levelId) => onSelectLevel(item.id, "severidad", levelId)}
                 selectedLevelId={selection?.severityLevelId ?? null}
               />
+            ) : showsSickTreePercentage &&
+              Boolean(selection?.incidenceLevelId) &&
+              !incidenceIsZero ? (
+              <AppText style={styles.catalogConfigurationError} variant="caption">
+                No hay niveles de severidad configurados para esta enfermedad y etapa
+                fenológica.
+              </AppText>
             ) : null}
 
             <OrganoSelector
@@ -1174,6 +1198,7 @@ type LevelSelectorRowProps = {
   isCompactLayout: boolean;
   levels: IncidenceLevelCatalogItem[];
   onSelect: (levelId: string) => void;
+  readOnly?: boolean;
   selectedLevelId: string | null;
   levelDescriptions: Record<string, string | null>;
 };
@@ -1186,6 +1211,7 @@ function LevelSelectorRow({
   isCompactLayout,
   levels,
   onSelect,
+  readOnly = false,
   selectedLevelId,
   levelDescriptions
 }: LevelSelectorRowProps) {
@@ -1224,9 +1250,9 @@ function LevelSelectorRow({
             const selected = level.id === selectedLevelId;
             return (
               <Pressable
-                accessibilityLabel={`${label} grado ${level.sortOrder}`}
+                accessibilityLabel={`${label} grado ${level.grade}`}
                 accessibilityRole="button"
-                disabled={disabled}
+                disabled={disabled || readOnly}
                 key={level.id}
                 onPress={() => {
                   onSelect(level.id);
@@ -1238,8 +1264,8 @@ function LevelSelectorRow({
                   disabled && styles.levelButtonDisabled,
                   selected
                     ? {
-                        backgroundColor: getLevelColor(level.sortOrder),
-                        borderColor: getLevelColor(level.sortOrder)
+                        backgroundColor: getLevelColor(level.grade),
+                        borderColor: getLevelColor(level.grade)
                       }
                     : styles.levelButtonInactive
                 ]}
@@ -1499,22 +1525,6 @@ function ImagePreviewModal({
   );
 }
 
-function getLevelOptionsForItem(
-  item: PestDiseaseByStageItem,
-  incidenceLevels: IncidenceLevelCatalogItem[],
-  type: IncidenceLevelCatalogItem["type"]
-) {
-  const levelIds = new Set(
-    item.stageLevels.map((relation) => relation.nivelIncidenciaSeveridadId)
-  );
-  const typedLevels = incidenceLevels.filter((level) => level.type === type);
-  const stageLevels = typedLevels.filter((level) => levelIds.has(level.id));
-
-  return (stageLevels.length > 0 ? stageLevels : typedLevels).sort(
-    (left, right) => left.sortOrder - right.sortOrder
-  );
-}
-
 function validateSelections(
   selections: Record<string, SanitarySelection>,
   pestDiseases: PestDiseaseByStageItem[],
@@ -1555,6 +1565,10 @@ function validateSelections(
 
     if (!incidenceIsZero && severityOptions.length > 0 && !selection.severityLevelId) {
       return `Selecciona severidad para ${pestDisease.name}.`;
+    }
+
+    if (!incidenceIsZero && isDisease && severityOptions.length === 0) {
+      return `No hay severidades configuradas para ${pestDisease.name} en esta etapa fenológica.`;
     }
 
     if (!incidenceIsZero && isDisease && selection.incidencePercentage === "") {
@@ -1639,7 +1653,7 @@ function isZeroIncidenceLevel(level?: IncidenceLevelCatalogItem | null) {
     return false;
   }
 
-  return level.sortOrder <= 0 || normalizeCatalogName(level.name).includes("0");
+  return level.grade === 0;
 }
 
 function resolveJustificado(score: number, justificado: boolean | null) {
@@ -2253,6 +2267,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: theme.colors.primaryDark,
     fontSize: 18
+  },
+  catalogConfigurationError: {
+    color: theme.colors.error
   },
   submitErrorText: {
     color: theme.colors.error

@@ -81,6 +81,7 @@ export type NivelIncidenciaCatalogItem = {
   id: string;
   name: string;
   sortOrder: number;
+  grade: number;
   type: NivelIncidenciaCatalogType;
 };
 
@@ -89,6 +90,7 @@ export type NivelIncidenciaCatalogType = "incidencia" | "severidad";
 export type NivelIncidenciaCatalogPayload = {
   name: string;
   sortOrder: number;
+  grade: number;
   type: NivelIncidenciaCatalogType;
 };
 

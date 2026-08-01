@@ -1,12 +1,5 @@
 import { Transform, Type } from "class-transformer";
-import {
-  IsIn,
-  IsInt,
-  IsNotEmpty,
-  IsString,
-  MaxLength,
-  Min
-} from "class-validator";
+import { IsIn, IsInt, IsNotEmpty, IsString, Max, MaxLength, Min } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 import {
@@ -31,6 +24,16 @@ export class CreateNivelIncidenciaDto {
   @IsInt()
   @Min(1)
   sortOrder!: number;
+
+  @ApiProperty({
+    example: 2,
+    description: "Grado tecnico normalizado entre 0 y 3."
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(3)
+  grade!: number;
 
   @ApiProperty({
     example: "incidencia",

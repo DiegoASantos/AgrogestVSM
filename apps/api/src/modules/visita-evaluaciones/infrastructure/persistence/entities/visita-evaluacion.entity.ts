@@ -1,6 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 
 import { VisitaCampoEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
+import { NutrienteEntity } from "../../../../nutricion/infrastructure/persistence/entities/nutriente.entity";
 
 @Entity({ name: "visita_evaluaciones" })
 export class VisitaEvaluacionEntity {
@@ -15,6 +16,13 @@ export class VisitaEvaluacionEntity {
     type: "bigint"
   })
   visitaId!: string;
+
+  @Column({
+    name: "nutriente_id",
+    type: "bigint",
+    nullable: true
+  })
+  nutrientId!: string | null;
 
   @Column({
     name: "orden",
@@ -64,4 +72,15 @@ export class VisitaEvaluacionEntity {
     referencedColumnName: "id"
   })
   visita!: VisitaCampoEntity;
+
+  @ManyToOne(() => NutrienteEntity, {
+    nullable: true,
+    onDelete: "RESTRICT",
+    onUpdate: "NO ACTION"
+  })
+  @JoinColumn({
+    name: "nutriente_id",
+    referencedColumnName: "id"
+  })
+  nutrient!: NutrienteEntity | null;
 }

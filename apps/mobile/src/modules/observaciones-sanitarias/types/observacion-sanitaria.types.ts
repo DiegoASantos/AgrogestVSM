@@ -39,6 +39,7 @@ export type IncidenceLevelCatalogItem = {
   id: string;
   name: string;
   sortOrder: number;
+  grade: number;
   type: "incidencia" | "severidad";
 };
 

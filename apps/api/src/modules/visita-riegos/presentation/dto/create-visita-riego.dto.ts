@@ -8,7 +8,7 @@ import {
   Min
 } from "class-validator";
 
-const FUENTES_AGUA = ["subterranea", "superficial", "pluvial"] as const;
+const FUENTES_AGUA = ["subterranea", "superficial"] as const;
 const TIPOS_SUELO = ["arenoso", "arcilloso", "limoso", "franco"] as const;
 const HUMEDADES_SUELO = [
   "saturado",
@@ -28,7 +28,7 @@ export class CreateVisitaRiegoDto {
 
   @ApiPropertyOptional({
     example: "subterranea",
-    description: "Fuente de agua: subterranea, superficial o pluvial."
+    description: "Fuente de agua: subterranea o superficial."
   })
   @IsOptional()
   @IsIn(FUENTES_AGUA)

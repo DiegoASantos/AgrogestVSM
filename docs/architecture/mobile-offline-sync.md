@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-30
+last_reviewed: 2026-07-31
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -117,6 +117,17 @@ y programa un sync inmediato con `bypassBackoff`.
 - no perder datos locales por una caida de red;
 - mantener idempotencia mediante IDs publicos cuando aplique;
 - no considerar `synced` una entidad que no fue confirmada por la API;
+- al finalizar el paso 3 de Enfermedades, su nota de paso espera en outbox si
+  existe una observación de enfermedad `pending` o `error`; primero se confirma
+  la captura y luego se publica la finalización que habilita el macro-score;
+- al finalizar el paso 4 de Nutrición, su nota de paso espera en outbox si existe
+  una evaluación nutricional `pending` o `error`; cada evaluación conserva el
+  `nutrientId` del catálogo y se confirma antes de publicar la finalización que
+  habilita el macro-score. La barrera incluye borrados nutricionales pendientes
+  o preservados en `sync_failures`, cuyo payload conserva visita e identidad;
+- la recarga del catálogo nutricional usa UPSERT sin borrado implícito. Si una
+  identidad `(cultivo, code)` cambia de ID remoto, SQLite remapea evaluaciones y
+  detalles dentro de la misma transacción antes de retirar el ID anterior;
 - ningun fallo de red, timeout, cancelacion o auth borra datos locales;
 - el estado de backoff nunca impide un sync manual con token valido;
 - los catalogos se refrescan de forma independiente al push del outbox;

@@ -10,12 +10,22 @@ import {
   IsString,
   Max,
   MaxLength,
+  Matches,
   Min
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ORGANOS_AFECTADOS } from "../../../visita-observaciones-sanitarias/domain/organo-afectado";
 
 export class CreateVisitaEvaluacionDto {
+  @ApiPropertyOptional({
+    example: "1",
+    description: "Id del nutriente cuando la evaluación corresponde a Nutrición."
+  })
+  @Transform(({ value }) => parseOptionalId(value))
+  @IsOptional()
+  @Matches(/^[1-9]\d*$/, { message: "nutrientId must be a positive integer." })
+  nutrientId?: string | null;
+
   @ApiProperty({
     example: 1,
     description: "Orden de la evaluacion dentro de la visita."
@@ -83,6 +93,12 @@ export class CreateVisitaEvaluacionDto {
 
 function trimRequiredString(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function parseOptionalId(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  return String(value).trim();
 }
 
 function parseInteger(value: unknown): number | unknown {

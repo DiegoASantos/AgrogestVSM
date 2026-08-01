@@ -3,6 +3,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { CampaniaEntity } from "../campanias/infrastructure/persistence/entities/campania.entity";
 import { CultivoEntity } from "../cultivos/infrastructure/persistence/entities/cultivo.entity";
+import { NutrienteEntity } from "../nutricion/infrastructure/persistence/entities/nutriente.entity";
 import { ParcelaEntity } from "../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { ProductorEntity } from "../productores/infrastructure/persistence/entities/productor.entity";
 import { UserEntity } from "../users/infrastructure/persistence/entities/user.entity";
@@ -17,6 +18,8 @@ import { EtapasFenologicasService } from "./application/etapas-fenologicas.servi
 import { SubEtapasService } from "./application/sub-etapas.service";
 import { VisitaPasoObservacionesService } from "./application/visita-paso-observaciones.service";
 import { ScoreSanitarioPlagasService } from "./application/score-sanitario-plagas.service";
+import { ScoreSanitarioEnfermedadesService } from "./application/score-sanitario-enfermedades.service";
+import { ScoreTecnicoNutricionService } from "./application/score-tecnico-nutricion.service";
 import { TechnicalScoresService } from "./application/technical-scores.service";
 import { VisitasCampoService } from "./application/visitas-campo.service";
 import { EtapaFenologicaEntity } from "./infrastructure/persistence/entities/etapa-fenologica.entity";
@@ -37,6 +40,7 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
       EtapaFenologicaEntity,
       SubEtapaEntity,
       CultivoEntity,
+      NutrienteEntity,
       VariedadEntity,
       ParcelaEntity,
       CampaniaEntity,
@@ -65,6 +69,8 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
     SubEtapasService,
     VisitaPasoObservacionesService,
     ScoreSanitarioPlagasService,
+    ScoreSanitarioEnfermedadesService,
+    ScoreTecnicoNutricionService,
     TechnicalScoresService
   ],
   exports: [

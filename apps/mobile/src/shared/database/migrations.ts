@@ -349,7 +349,7 @@ const MIGRATIONS: Migration[] = [
         db,
         "visita_riegos",
         "fuente_agua",
-        "TEXT DEFAULT NULL CHECK(fuente_agua IS NULL OR fuente_agua IN ('subterranea', 'superficial', 'pluvial'))"
+        "TEXT DEFAULT NULL CHECK(fuente_agua IS NULL OR fuente_agua IN ('subterranea', 'superficial'))"
       );
       addColumnIfMissing(
         db,
@@ -1032,6 +1032,94 @@ const MIGRATIONS: Migration[] = [
         expires_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )`
+    ]
+  },
+  {
+    version: 45,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "incidence_levels", "grade", "INTEGER");
+      db.execSync(`
+        WITH ranked_levels AS (
+          SELECT
+            id,
+            CAST(
+              ((ROW_NUMBER() OVER (PARTITION BY type ORDER BY sort_order, id) - 1) * 4.0)
+              / COUNT(*) OVER (PARTITION BY type)
+              AS INTEGER
+            ) AS normalized_grade
+          FROM incidence_levels
+        )
+        UPDATE incidence_levels
+        SET grade = (
+          SELECT normalized_grade
+          FROM ranked_levels
+          WHERE ranked_levels.id = incidence_levels.id
+        )
+      `);
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
+  },
+  {
+    version: 46,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "nutrientes", "code", "TEXT");
+      addColumnIfMissing(
+        db,
+        "visita_evaluaciones",
+        "nutrient_id",
+        "TEXT REFERENCES nutrientes(id)"
+      );
+      db.execSync(`
+        UPDATE nutrientes
+        SET code = CASE lower(trim(name))
+          WHEN 'nitrogeno' THEN 'nitrogeno'
+          WHEN 'nitrógeno' THEN 'nitrogeno'
+          WHEN 'magnesio' THEN 'magnesio'
+          WHEN 'potasio' THEN 'potasio'
+          WHEN 'hierro' THEN 'hierro'
+          WHEN 'zinc' THEN 'zinc'
+          WHEN 'boro' THEN 'boro'
+          ELSE code
+        END
+        WHERE code IS NULL
+      `);
+      db.execSync(`
+        UPDATE visita_evaluaciones AS evaluation
+        SET nutrient_id = (
+          SELECT nutrient.id
+          FROM nutrientes AS nutrient
+          INNER JOIN visitas_campo AS visit
+            ON visit.local_id = evaluation.visita_local_id
+          WHERE nutrient.cultivo_id = visit.crop_id
+            AND lower(trim(nutrient.name)) = lower(trim(substr(
+              evaluation.description,
+              length('Nutricion -') + 1,
+              instr(evaluation.description, ':') - length('Nutricion -') - 1
+            )))
+          LIMIT 1
+        )
+        WHERE evaluation.nutrient_id IS NULL
+          AND evaluation.description LIKE 'Nutricion -%:%'
+      `);
+      db.execSync(`
+        UPDATE visita_evaluaciones
+        SET incidence_percentage = '0'
+        WHERE nutrient_id IS NOT NULL
+          AND incidence_percentage IS NULL
+      `);
+      db.execSync(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_nutrientes_cultivo_code ON nutrientes(cultivo_id, code) WHERE code IS NOT NULL"
+      );
+      db.execSync(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_visita_evaluaciones_nutriente ON visita_evaluaciones(visita_local_id, nutrient_id) WHERE nutrient_id IS NOT NULL"
+      );
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
+  },
+  {
+    version: 47,
+    statements: [
+      "UPDATE visita_riegos SET fuente_agua = NULL WHERE fuente_agua = 'pluvial'"
     ]
   }
 ];

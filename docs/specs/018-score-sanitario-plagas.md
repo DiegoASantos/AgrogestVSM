@@ -4,7 +4,7 @@ status: approved
 numero: 018
 area: visitas, sanidad, scoring, api, mobile, sync, database, geodata
 created: 2026-07-19
-approved_by: usuario, 2026-07-19
+approved_by: usuario, 2026-07-19; consolidación macro-score aprobada, 2026-07-31
 implemented_in:
 ---
 
@@ -85,11 +85,11 @@ de la Fruta. No se usa ni se almacena MTD.
   - el código de departamento de la parcela es `20` (Piura) y la incidencia es
     grado 2 o 3;
   - en cualquier departamento la severidad es grado 1, 2 o 3.
-  Fuera de esos casos se aplica RF-004. MTD no forma parte del payload, modelo,
-  almacenamiento ni cálculo.
+    Fuera de esos casos se aplica RF-004. MTD no forma parte del payload, modelo,
+    almacenamiento ni cálculo.
 - RF-008: La API debe determinar el código de departamento por la cadena autorizada de
   la parcela `parcela -> subsector -> sector -> distrito -> provincia ->
-  departamento`. Debe ignorar cualquier departamento, ubigeo o resultado de
+departamento`. Debe ignorar cualquier departamento, ubigeo o resultado de
   regla que envíe mobile y rechazar una visita cuya parcela no permita resolver
   esa cadena al calcular la excepción.
 - RF-009: Cada nivel de incidencia y severidad usado por el score debe exponer
@@ -113,6 +113,28 @@ de la Fruta. No se usa ni se almacena MTD.
   `scoreModuloPlagas`, `porcentajePlagas`, `scoreSanitarioProductor` y, cuando
   corresponda, `scoreSanitarioCampania`. Los endpoints, nombres y contratos
   actuales de calificación manual permanecen sin cambios.
+
+## Enmienda de consolidación macro-score 2026-07-31
+
+Esta enmienda sustituye únicamente la participación descrita en RF-002, RF-005
+y CA-002. La etapa fenológica sigue determinando qué plagas se muestran para
+captura, pero el score técnico consolidado usa siempre este universo fijo:
+Trips, Queresas, Ácaros, Cochinilla, Chinche y Mosca de la fruta.
+
+- Una plaga sin observación en la visita se interpreta exclusivamente para el
+  cálculo como incidencia 0 y severidad 0; por tanto, su nota es 3. No se crea
+  una fila artificial en PostgreSQL ni SQLite.
+- Cada nota usa `3 - MAX(incidencia, severidad)`, salvo la regla especial de
+  Mosca de la fruta ya definida en RF-007.
+- El resultado del módulo es
+  `MIN(nota Trips, nota Queresas, nota Ácaros, nota Cochinilla, nota Chinche,
+nota Mosca de la fruta)`.
+- La API expone, de forma aditiva, las seis notas, sus grados, la fórmula
+  aplicada, la fórmula macro y el semáforo. Web presenta el desglose completo;
+  mobile presenta solo el resultado del módulo y su estado.
+- Semáforo: 2 o 3 es verde (`Salud Fitosanitaria Alta/Buena`), 1 es amarillo
+  (`Alerta / Umbral de Intervención`) y 0 es rojo (`Emergencia en Campo`), con
+  los mensajes operativos aprobados en la interfaz.
 
 ### No funcionales
 
@@ -171,7 +193,7 @@ no es una tabla ni una instantánea de score.
 - Migrar `visita_paso_observaciones` para incluir `finalizado_at` nullable y
   conservar `NULL` en visitas existentes. La misma fila local de paso 2 porta
   la finalización y se sincroniza por su clave única `(visita_local_id,
-  step_number)`.
+step_number)`.
 - Migrar el esquema local de observaciones para conservar ambos niveles de
   grado 0..3 y la selección explícita de plaga, manteniendo IDs locales y
   remotos separados y unicidad local `(visita_local_id, pest_disease_id)`.
@@ -194,10 +216,10 @@ no es una tabla ni una instantánea de score.
   idempotente. No debe aceptar una fecha ni un score enviados por mobile.
 - Añadir, sin alterar calificación manual, los endpoints de lectura:
 
-  | Método | Ruta | Respuesta mínima |
-  |---|---|---|
-  | `GET` | `/visitas-campo/:visitaId/score-sanitario-plagas` | `{ visitaId, pasoPlagasFinalizado, scoreModuloPlagas: number \| null, porcentajePlagas: number \| null }` |
-  | `GET` | `/productores/:productorId/score-sanitario-plagas?campania_id=` | `{ productorId, campaniaId: string \| null, scoreSanitarioProductor: number \| null, scoreSanitarioCampania: number \| null, visitasElegibles: number }` |
+  | Método | Ruta                                                            | Respuesta mínima                                                                                                                                         |
+  | ------ | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `GET`  | `/visitas-campo/:visitaId/score-sanitario-plagas`               | `{ visitaId, pasoPlagasFinalizado, scoreModuloPlagas: number \| null, porcentajePlagas: number \| null }`                                                |
+  | `GET`  | `/productores/:productorId/score-sanitario-plagas?campania_id=` | `{ productorId, campaniaId: string \| null, scoreSanitarioProductor: number \| null, scoreSanitarioCampania: number \| null, visitasElegibles: number }` |
 
 ### Offline-first, outbox e idempotencia
 
@@ -255,25 +277,25 @@ confirmada y según el runbook de base de datos.
 ## Criterios de aceptación
 
 - [ ] CA-001: Una visita activa con paso Plagas finalizado y sin plagas
-  seleccionadas devuelve score 3 y porcentaje 100, sin crear filas artificiales
-  para plagas no aplicables; sin la marca de finalización devuelve `null` y no
-  entra a agregados.
+      seleccionadas devuelve score 3 y porcentaje 100, sin crear filas artificiales
+      para plagas no aplicables; sin la marca de finalización devuelve `null` y no
+      entra a agregados.
 - [ ] CA-002: El módulo usa el mínimo de las notas de las plagas seleccionadas
-  y permite severidad positiva con incidencia 0.
+      y permite severidad positiva con incidencia 0.
 - [ ] CA-003: Incidencia y severidad son obligatorias e inicializan en 0; los
-  órganos solo se exigen si alguno de los grados es mayor que 0.
+      órganos solo se exigen si alguno de los grados es mayor que 0.
 - [ ] CA-004: Cada caso de Mosca de la Fruta de RF-007 fuerza nota 0 y los casos
-  fuera de la regla usan la fórmula normal; ni payload ni BD contienen MTD.
+      fuera de la regla usan la fórmula normal; ni payload ni BD contienen MTD.
 - [ ] CA-005: La API ignora un departamento enviado por cliente y obtiene el
-  código de departamento de la parcela para aplicar la regla.
+      código de departamento de la parcela para aplicar la regla.
 - [ ] CA-006: Los agregados incluyen exactamente el universo y redondeo de
-  RF-010 y RF-011, devuelven `null` sin visitas elegibles y no alteran ningún
-  campo ni resultado de cumplimiento manual.
+      RF-010 y RF-011, devuelven `null` sin visitas elegibles y no alteran ningún
+      campo ni resultado de cumplimiento manual.
 - [ ] CA-007: Una sincronización repetida, interrumpida o reiniciada hace
-  UPSERT por visita-plaga, no duplica observaciones ni órganos, y preserva el
-  orden visita-padre, observación-hija y finalización posterior del paso.
+      UPSERT por visita-plaga, no duplica observaciones ni órganos, y preserva el
+      orden visita-padre, observación-hija y finalización posterior del paso.
 - [ ] CA-008: Las migraciones PostgreSQL y SQLite conservan datos existentes,
-  pendientes del outbox y permiten rollback no destructivo.
+      pendientes del outbox y permiten rollback no destructivo.
 
 ## Pruebas
 
@@ -300,10 +322,10 @@ confirmada y según el runbook de base de datos.
 ## Impacto documental
 
 - [ ] Actualizar `docs/architecture/mobile-offline-sync.md` al implementar el
-  nuevo contrato de observaciones y outbox.
+      nuevo contrato de observaciones y outbox.
 - [ ] Actualizar el modelo de dominio y/o arquitectura de visitas con la
-  definición de score sanitario y su separación de cumplimiento manual.
+      definición de score sanitario y su separación de cumplimiento manual.
 - [ ] Actualizar runbooks de migración, rollback y riesgos si cambian las
-  operaciones o compatibilidad de versiones.
+      operaciones o compatibilidad de versiones.
 - [ ] No requiere ADR salvo que la revisión humana decida persistir una
-  instantánea de score o cambiar la fuente de verdad definida en esta spec.
+      instantánea de score o cambiar la fuente de verdad definida en esta spec.

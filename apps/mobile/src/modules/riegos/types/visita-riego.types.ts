@@ -5,13 +5,12 @@ export type TipoRiegoCatalogItem = {
   isActive: boolean;
 };
 
-export const FUENTES_AGUA = ["subterranea", "superficial", "pluvial"] as const;
+export const FUENTES_AGUA = ["subterranea", "superficial"] as const;
 export type FuenteAgua = (typeof FUENTES_AGUA)[number];
 
 export const FUENTE_AGUA_LABELS: Record<FuenteAgua, string> = {
   subterranea: "Subterranea",
-  superficial: "Superficial",
-  pluvial: "Pluvial"
+  superficial: "Superficial"
 };
 
 export const TIPOS_SUELO = ["arenoso", "arcilloso", "limoso", "franco"] as const;

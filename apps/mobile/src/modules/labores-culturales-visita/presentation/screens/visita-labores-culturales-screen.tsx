@@ -746,8 +746,8 @@ function getLaborIcon(name: string): IoniconName {
   const normalizedName = normalizeCatalogName(name);
 
   if (normalizedName.includes("maleza")) return "cut-outline";
-  if (normalizedName.includes("sanitario") || normalizedName.includes("suelo")) {
-    return "shield-checkmark-outline";
+  if (normalizedName.includes("fruta") && normalizedName.includes("caida")) {
+    return "alert-circle-outline";
   }
   if (normalizedName.includes("rama")) return "git-branch-outline";
   if (normalizedName.includes("quiebre") || normalizedName.includes("cargador")) {

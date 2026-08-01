@@ -1,10 +1,17 @@
 import { evaluacionesRepository } from "../../modules/evaluaciones/repositories/evaluaciones.repository";
 import { evaluacionesRemote } from "../../modules/evaluaciones/services/evaluaciones.remote";
 import type { VisitaEvaluacion } from "../../modules/evaluaciones/types";
+import {
+  getLegacyEvaluationDeleteServerIds,
+  hasBlockedNutritionEvaluationDelete,
+  hasRemoteNutritionEvaluationForDelete,
+  hasUnsyncedNutritionEvaluation
+} from "../../modules/evaluaciones/domain/nutrition-sync";
 import { laboresCulturalesVisitaRepository } from "../../modules/labores-culturales-visita/repositories/labores-culturales-visita.repository";
 import { laboresCulturalesVisitaRemote } from "../../modules/labores-culturales-visita/services/labores-culturales-visita.remote";
 import type { VisitaLaborCultural } from "../../modules/labores-culturales-visita/types";
 import { observacionesSanitariasRepository } from "../../modules/observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
+import { hasUnsyncedDiseaseObservation } from "../../modules/observaciones-sanitarias/domain/disease-sync";
 import { visitaStepNotesRepository } from "../../modules/observaciones-sanitarias/repositories/visita-step-notes.repository";
 import { observacionesSanitariasRemote } from "../../modules/observaciones-sanitarias/services/observaciones-sanitarias.remote";
 import type {
@@ -21,6 +28,8 @@ import type {
   VisitaCampo
 } from "../../modules/visitas-campo/types";
 import { getNowIsoString } from "../database/sqlite-utils";
+import { getSyncFailures } from "../database/sync-failures";
+import { getPendingOutboxEntries } from "../database/sync-outbox";
 import { ApiError } from "../services/api/errors";
 import { getApiToken } from "../services/api/auth-store";
 import type { SyncOutboxItem } from "../database/sync-outbox";
@@ -282,6 +291,52 @@ export async function handleStepNote(
     return { status: "skipped" };
   }
 
+  if (stepNote.stepNumber === 3 && stepNote.finalizedAt) {
+    const diseaseIds = new Set(
+      observacionesSanitariasRepository
+        .getPestDiseases()
+        .filter((item) => item.type.toLowerCase() === "enfermedad")
+        .map((item) => item.id)
+    );
+    if (
+      hasUnsyncedDiseaseObservation(
+        observacionesSanitariasRepository.getByVisitaLocalId(stepNote.visitaId),
+        diseaseIds
+      )
+    ) {
+      return { status: "skipped" };
+    }
+  }
+
+  if (stepNote.stepNumber === 4 && stepNote.finalizedAt) {
+    const pendingEntries = getPendingOutboxEntries(10_000);
+    const failures = getSyncFailures();
+    if (
+      hasUnsyncedNutritionEvaluation(
+        evaluacionesRepository.getByVisitaLocalId(stepNote.visitaId)
+      ) ||
+      hasBlockedNutritionEvaluationDelete(stepNote.visitaId, pendingEntries, true) ||
+      hasBlockedNutritionEvaluationDelete(stepNote.visitaId, failures)
+    ) {
+      return { status: "skipped" };
+    }
+
+    const legacyDeleteServerIds = new Set(getLegacyEvaluationDeleteServerIds(failures));
+    if (legacyDeleteServerIds.size > 0) {
+      const remoteEvaluations = await evaluacionesRemote.getByVisitaId(
+        visitaPadre.serverId,
+        context
+      );
+      const hasLegacyDeleteForVisit = hasRemoteNutritionEvaluationForDelete(
+        legacyDeleteServerIds,
+        remoteEvaluations
+      );
+      if (hasLegacyDeleteForVisit) {
+        return { status: "skipped" };
+      }
+    }
+  }
+
   const response = await observacionesSanitariasRemote.upsertStepNote(
     visitaPadre.serverId,
     stepNote.stepNumber,
@@ -357,11 +412,7 @@ export async function handleRiego(
     return { status: "skipped" };
   }
 
-  await riegosRemote.update(
-    riego.serverId,
-    { ...buildRiegoBody(riego) },
-    context
-  );
+  await riegosRemote.update(riego.serverId, { ...buildRiegoBody(riego) }, context);
 
   riegosRepository.update(riego.id, {
     syncStatus: "synced"
@@ -522,6 +573,7 @@ function getDeleteServerId(entry: SyncOutboxItem) {
 
 function buildEvaluacionCreateBody(evaluacion: VisitaEvaluacion) {
   return {
+    nutrientId: evaluacion.nutrientId,
     order: evaluacion.order,
     incidencePercentage: toOptionalNumber(evaluacion.incidencePercentage),
     percentage: evaluacion.percentage ? Number(evaluacion.percentage) : undefined,
@@ -532,6 +584,7 @@ function buildEvaluacionCreateBody(evaluacion: VisitaEvaluacion) {
 
 function buildEvaluacionUpdateBody(evaluacion: VisitaEvaluacion) {
   return {
+    nutrientId: evaluacion.nutrientId,
     order: evaluacion.order,
     incidencePercentage: toOptionalNumber(evaluacion.incidencePercentage),
     percentage: evaluacion.percentage ? Number(evaluacion.percentage) : null,
@@ -578,7 +631,11 @@ function buildStepNoteBody(stepNote: VisitaStepNote) {
   return {
     observation: stepNote.observation ?? null,
     recommendation: stepNote.recommendation ?? null,
-    finalized: stepNote.stepNumber === 2 && Boolean(stepNote.finalizedAt)
+    finalized:
+      (stepNote.stepNumber === 2 ||
+        stepNote.stepNumber === 3 ||
+        stepNote.stepNumber === 4) &&
+      Boolean(stepNote.finalizedAt)
   };
 }
 
@@ -628,41 +685,45 @@ async function handleReceta(
     return { status: "skipped" };
   }
 
-  const response = await visitaRecetasRemote.save(visitaPadre.serverId, {
-    etapaFenologica: receta.etapaFenologica,
-    fitosanidad: receta.fitosanidad.map((f) => ({
-      numero: f.numero,
-      objetivo: f.objetivo,
-      objetivoNombre: f.objetivoNombre,
-      tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
-      tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
-      disolvente: f.disolvente,
-      modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
-      ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
-      dosisIa: f.dosisIa ?? undefined,
-      volumenAplicacion: f.volumenAplicacion ?? undefined,
-      cantidadTotalIa: f.cantidadTotalIa ?? undefined,
-      marcaProductoNombre: f.marcaProductoNombre ?? undefined,
-      concentracionProducto: f.concentracionProducto ?? undefined,
-      cantidadTotalProducto: f.cantidadTotalProducto ?? undefined,
-      coadyuvantesIds: f.coadyuvantesIds ?? undefined,
-      ordenMezcla: f.ordenMezcla ?? undefined
-    })),
-    fertilizacion: receta.fertilizacion.map((f) => ({
-      viaAplicacion: f.viaAplicacion,
-      fertilizanteNombre: f.fertilizanteNombre ?? undefined,
-      tipoProducto: f.tipoProducto ?? undefined,
-      dosis: f.dosis ?? undefined,
-      unidadDosis: f.unidadDosis ?? undefined,
-      cantidadTotalPlantas: f.cantidadTotalPlantas ?? undefined,
-      volumenAplicacion: f.volumenAplicacion ?? undefined,
-      cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined
-    })),
-    riego: receta.riego
-      ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
-      : undefined,
-    labores: receta.labores.map((l) => ({ labor: l.labor }))
-  }, context);
+  const response = await visitaRecetasRemote.save(
+    visitaPadre.serverId,
+    {
+      etapaFenologica: receta.etapaFenologica,
+      fitosanidad: receta.fitosanidad.map((f) => ({
+        numero: f.numero,
+        objetivo: f.objetivo,
+        objetivoNombre: f.objetivoNombre,
+        tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
+        tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
+        disolvente: f.disolvente,
+        modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
+        ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
+        dosisIa: f.dosisIa ?? undefined,
+        volumenAplicacion: f.volumenAplicacion ?? undefined,
+        cantidadTotalIa: f.cantidadTotalIa ?? undefined,
+        marcaProductoNombre: f.marcaProductoNombre ?? undefined,
+        concentracionProducto: f.concentracionProducto ?? undefined,
+        cantidadTotalProducto: f.cantidadTotalProducto ?? undefined,
+        coadyuvantesIds: f.coadyuvantesIds ?? undefined,
+        ordenMezcla: f.ordenMezcla ?? undefined
+      })),
+      fertilizacion: receta.fertilizacion.map((f) => ({
+        viaAplicacion: f.viaAplicacion,
+        fertilizanteNombre: f.fertilizanteNombre ?? undefined,
+        tipoProducto: f.tipoProducto ?? undefined,
+        dosis: f.dosis ?? undefined,
+        unidadDosis: f.unidadDosis ?? undefined,
+        cantidadTotalPlantas: f.cantidadTotalPlantas ?? undefined,
+        volumenAplicacion: f.volumenAplicacion ?? undefined,
+        cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined
+      })),
+      riego: receta.riego
+        ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
+        : undefined,
+      labores: receta.labores.map((l) => ({ labor: l.labor }))
+    },
+    context
+  );
 
   visitaRecetasRepository.markSynced(receta.id, response.id);
 
@@ -697,14 +758,18 @@ async function handleCalificacion(
     return { status: "skipped" };
   }
 
-  const response = await visitaCalificacionesRemote.upsert(visitaPadre.serverId, {
-    modulo: calificacion.modulo,
-    puntaje: calificacion.puntaje,
-    observacion: calificacion.observacion,
-    justificado: calificacion.justificado,
-    categoriaJustificacion: calificacion.categoriaJustificacion,
-    motivoJustificacion: calificacion.motivoJustificacion
-  }, context);
+  const response = await visitaCalificacionesRemote.upsert(
+    visitaPadre.serverId,
+    {
+      modulo: calificacion.modulo,
+      puntaje: calificacion.puntaje,
+      observacion: calificacion.observacion,
+      justificado: calificacion.justificado,
+      categoriaJustificacion: calificacion.categoriaJustificacion,
+      motivoJustificacion: calificacion.motivoJustificacion
+    },
+    context
+  );
 
   visitaCalificacionesRepository.update(calificacion.id, {
     serverId: response.id,

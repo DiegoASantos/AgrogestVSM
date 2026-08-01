@@ -49,8 +49,12 @@ import {
   StepObservationCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
-import { isModuloEvaluable, type RecetaAnterior } from "../../../visita-calificaciones/types";
+import {
+  isModuloEvaluable,
+  type RecetaAnterior
+} from "../../../visita-calificaciones/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
+import { resolveNutritionIncidence } from "../../domain/nutrition-incidence";
 import { evaluacionesService } from "../../services";
 import type { VisitaEvaluacion } from "../../types";
 
@@ -247,7 +251,9 @@ export function VisitaNutricionScreen() {
 
           {!isLoading && !error ? (
             <>
-              {isModuloEvaluable(recetaAnterior, "nutricion") ? <PreviousRecipeSummaryCard modulo="nutricion" receta={recetaAnterior} /> : null}
+              {isModuloEvaluable(recetaAnterior, "nutricion") ? (
+                <PreviousRecipeSummaryCard modulo="nutricion" receta={recetaAnterior} />
+              ) : null}
               {isModuloEvaluable(recetaAnterior, "nutricion") ? (
                 <ComplianceScoreCard
                   value={scoreValue}
@@ -513,7 +519,8 @@ export function VisitaNutricionScreen() {
       for (const nutrient of nutrients) {
         const order = getNutrientEvaluationOrder(nutrient);
         const existingEvaluation = evaluaciones.find(
-          (evaluacion) => evaluacion.order === order
+          (evaluacion) =>
+            evaluacion.nutrientId === nutrient.id || evaluacion.order === order
         );
         const selection = selections[nutrient.id] ?? createEmptySelection();
         const selectedDetail = nutrient.details.find(
@@ -529,6 +536,7 @@ export function VisitaNutricionScreen() {
         }
 
         const payload = {
+          nutrientId: nutrient.id,
           order,
           incidencePercentage: Number(selection.incidencePercentage),
           percentage: selectedDetail ? getDetailNumericValue(selectedDetail) : null,
@@ -556,7 +564,8 @@ export function VisitaNutricionScreen() {
       }
 
       await observacionesSanitariasService.upsertStepNote(visitaId, STEP_NUMBER, {
-        observation: stepObservation.trim() || null
+        observation: stepObservation.trim() || null,
+        finalizedAt: new Date().toISOString()
       });
 
       router.replace({
@@ -789,10 +798,12 @@ function NutrientCard({
             </View>
 
             <PercentageInputBlock
-              label="Incidencia"
+              label="Porcentaje de árboles afectados"
               onChangeText={(value) => onIncidencePercentageChange(nutrient.id, value)}
               value={selection.incidencePercentage}
             />
+
+            <NutritionIncidenceBlock value={selection.incidencePercentage} />
 
             {nutrient.details.length > 0 ? (
               <>
@@ -952,6 +963,41 @@ function PercentageInputBlock({
           %
         </AppText>
       </View>
+    </View>
+  );
+}
+
+function NutritionIncidenceBlock({ value }: { value: string }) {
+  if (value === "") {
+    return (
+      <View style={styles.incidenceGradeBlock}>
+        <AppText style={styles.detailLabel} variant="caption">
+          Grado de incidencia
+        </AppText>
+        <AppText style={styles.incidenceGradePending} variant="caption">
+          Se calculará automáticamente al ingresar el porcentaje obligatorio.
+        </AppText>
+      </View>
+    );
+  }
+
+  const incidence = resolveNutritionIncidence(Number(value));
+
+  return (
+    <View style={styles.incidenceGradeBlock}>
+      <View style={styles.incidenceGradeTitleRow}>
+        <AppText style={styles.detailLabel} variant="caption">
+          Grado de incidencia
+        </AppText>
+        <View style={styles.incidenceGradeBadge}>
+          <AppText style={styles.incidenceGradeBadgeText} variant="label">
+            Grado {incidence.grade}
+          </AppText>
+        </View>
+      </View>
+      <AppText style={styles.incidenceGradeDescription} variant="caption">
+        {incidence.description}
+      </AppText>
     </View>
   );
 }
@@ -1271,7 +1317,9 @@ function buildSelectionMap(
 ) {
   const selectionEntries = nutrients.map((nutrient) => {
     const evaluation = evaluaciones.find(
-      (item) => item.order === getNutrientEvaluationOrder(nutrient)
+      (item) =>
+        item.nutrientId === nutrient.id ||
+        item.order === getNutrientEvaluationOrder(nutrient)
     );
 
     if (!evaluation) {
@@ -1870,6 +1918,40 @@ const styles = StyleSheet.create({
   },
   percentageBlock: {
     gap: 8
+  },
+  incidenceGradeBadge: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4
+  },
+  incidenceGradeBadgeText: {
+    color: theme.colors.primaryDark,
+    fontSize: 12
+  },
+  incidenceGradeBlock: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 6,
+    padding: 10
+  },
+  incidenceGradeDescription: {
+    color: theme.colors.textMuted,
+    lineHeight: 17
+  },
+  incidenceGradePending: {
+    color: theme.colors.textMuted,
+    fontStyle: "italic",
+    lineHeight: 17
+  },
+  incidenceGradeTitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
   },
   percentageHeader: {
     alignItems: "center",

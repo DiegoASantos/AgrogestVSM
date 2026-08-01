@@ -66,11 +66,13 @@ export const SQL_SCHEMA = [
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
     sort_order INTEGER NOT NULL,
+    grade INTEGER NOT NULL CHECK(grade BETWEEN 0 AND 3),
     type TEXT NOT NULL DEFAULT 'incidencia'
   )`,
   `CREATE TABLE IF NOT EXISTS nutrientes (
     id TEXT PRIMARY KEY NOT NULL,
     cultivo_id TEXT NOT NULL,
+    code TEXT,
     name TEXT NOT NULL,
     description TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
@@ -213,6 +215,7 @@ export const SQL_SCHEMA = [
     local_id TEXT PRIMARY KEY NOT NULL,
     server_id TEXT,
     visita_local_id TEXT NOT NULL,
+    nutrient_id TEXT,
     sort_order INTEGER NOT NULL,
     incidence_percentage TEXT,
     percentage TEXT,
@@ -221,7 +224,10 @@ export const SQL_SCHEMA = [
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE
+    FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+    FOREIGN KEY (nutrient_id) REFERENCES nutrientes(id),
+    CHECK(nutrient_id IS NULL OR incidence_percentage IS NOT NULL),
+    UNIQUE(visita_local_id, nutrient_id)
   )`,
   `CREATE TABLE IF NOT EXISTS visita_observaciones_sanitarias (
     local_id TEXT PRIMARY KEY NOT NULL,
@@ -268,7 +274,7 @@ export const SQL_SCHEMA = [
     server_id TEXT,
     visita_local_id TEXT NOT NULL,
     tipo_riego_id TEXT NOT NULL,
-    fuente_agua TEXT DEFAULT NULL CHECK(fuente_agua IS NULL OR fuente_agua IN ('subterranea', 'superficial', 'pluvial')),
+    fuente_agua TEXT DEFAULT NULL CHECK(fuente_agua IS NULL OR fuente_agua IN ('subterranea', 'superficial')),
     tipo_suelo TEXT DEFAULT NULL CHECK(tipo_suelo IS NULL OR tipo_suelo IN ('arenoso', 'arcilloso', 'limoso', 'franco')),
     humedad_suelo TEXT DEFAULT NULL CHECK(humedad_suelo IS NULL OR humedad_suelo IN ('saturado', 'optimo', 'moderadamente_seco', 'seco')),
     estres_hidrico INTEGER DEFAULT NULL CHECK(estres_hidrico IS NULL OR estres_hidrico IN (0, 1)),

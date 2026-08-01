@@ -231,6 +231,7 @@ function buildEvaluation(overrides: Partial<VisitaEvaluacion> = {}): VisitaEvalu
     serverId: "server-eval-1",
     syncStatus: "synced",
     visitaId: "visita-1",
+    nutrientId: null,
     order: 1,
     incidencePercentage: null,
     percentage: "25",
@@ -468,12 +469,14 @@ describe("visitaPdfReportService", () => {
         id: "inc-baja",
         name: "Baja",
         sortOrder: 1,
+        grade: 0,
         type: "incidencia"
       },
       {
         id: "sev-alta",
         name: "Alta",
         sortOrder: 3,
+        grade: 3,
         type: "severidad"
       }
     ] satisfies IncidenceLevelCatalogItem[]);

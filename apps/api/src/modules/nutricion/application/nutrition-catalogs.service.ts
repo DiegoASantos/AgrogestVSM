@@ -339,6 +339,7 @@ export class NutritionCatalogsService {
     return {
       id: nutrient.id,
       cultivoId: nutrient.cultivoId,
+      code: nutrient.code,
       name: nutrient.name,
       description: nutrient.description,
       isActive: nutrient.isActive,

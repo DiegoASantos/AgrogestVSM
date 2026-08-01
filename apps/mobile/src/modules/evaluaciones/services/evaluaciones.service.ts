@@ -2,6 +2,7 @@ import { evaluacionesRepository } from "../repositories/evaluaciones.repository"
 import type { OrganoAfectado } from "../../observaciones-sanitarias/types";
 
 type CreateEvaluacionInput = {
+  nutrientId?: string | null;
   order: number;
   incidencePercentage?: number | null;
   percentage?: number | null;
@@ -10,6 +11,7 @@ type CreateEvaluacionInput = {
 };
 
 type UpdateEvaluacionInput = {
+  nutrientId?: string | null;
   order?: number;
   incidencePercentage?: number | null;
   percentage?: number | null;

@@ -613,8 +613,8 @@ function isPositiveLaborSelection(category: string, option: string) {
     (normalizedCategory.includes("infestacion") &&
       normalizedCategory.includes("maleza") &&
       normalizedOption === "limpio") ||
-    (normalizedCategory.includes("sanitario") &&
-      normalizedCategory.includes("suelo") &&
+    (normalizedCategory.includes("fruta") &&
+      normalizedCategory.includes("caida") &&
       normalizedOption === "limpio") ||
     (normalizedCategory.includes("copa") && normalizedOption === "buena") ||
     (normalizedCategory.includes("balance") &&

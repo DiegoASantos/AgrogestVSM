@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-08
+last_reviewed: 2026-07-31
 ---
 
 # Modelo del dominio
@@ -79,7 +79,7 @@ Entidades hijas:
 - diagnóstico de riego;
 - labores culturales;
 - receta agronómica y sus secciones.
-- calificaciones de cumplimiento técnico por módulo.
+- calificaciones manuales de cumplimiento por módulo.
 
 La receta fitosanitaria usa los catalogos `tipos_producto_fitosanitario`,
 `ingredientes_activos` y `marcas_producto`. La tabla `marcas_producto` conserva
@@ -91,7 +91,7 @@ la receta para compatibilidad offline e historica.
 
 Las calificaciones de cumplimiento viven en `visita_calificaciones` y son hijas
 de una visita. Cada visita puede tener una calificación por módulo:
-`plagas`, `enfermedades`, `nutricion`, `riego` y `labores`. El puntaje técnico
+`plagas`, `enfermedades`, `nutricion`, `riego` y `labores`. El puntaje de cumplimiento
 usa escala 0-3 y se sincroniza desde mobile mediante outbox después de que la
 visita padre tenga identificador de servidor.
 
@@ -111,6 +111,33 @@ La API calcula el score de cumplimiento en escala 0-100. El score por módulo se
 deriva de `puntaje / 3 * 100`; el score general de una visita usa la matriz de
 pesos hardcodeada por nombre normalizado de etapa fenológica. Los agregados por
 productor y por campaña se resuelven desde `campaniaId`.
+
+Los scores técnicos de la observación actual son indicadores separados y se
+derivan en la API; no se guardan en `visita_calificaciones`. Para Plagas, una
+visita elegible consolida siempre Trips, Queresas, Ácaros, Cochinilla, Chinche
+y Mosca de la fruta. La ausencia de registro equivale en el cálculo a grados
+0/0 y nota 3, sin crear filas artificiales. Cada nota es
+`3 - MAX(incidencia, severidad)`, con la excepción de Mosca de la fruta, y el
+score del módulo es el mínimo de las seis notas. El contrato devuelve el
+desglose y el semáforo para que web y mobile presenten el mismo resultado.
+
+Para Enfermedades, el porcentaje entero de árboles enfermos (0–100) es la fuente
+de la incidencia: 0%→grado 0, 1–5%→grado 1, 6–20%→grado 2 y 21–100%→grado 3.
+Una visita elegible consolida siempre Oidium, Antracnosis, Muerte regresiva y
+Alternaria; una enfermedad sin registro aporta porcentaje 0, incidencia 0,
+severidad 0 y nota 3, sin persistencia artificial. Cada nota usa
+`3 - MAX(incidencia, severidad)` y `ScoreEnfermedades` es el mínimo de las cuatro
+notas. Los órganos afectados no intervienen en el cálculo.
+
+Para Nutrición, cada evaluación se vincula a un nutriente mediante
+`nutriente_id` y exige el porcentaje entero de árboles afectados entre 0 y 100.
+El porcentaje deriva la incidencia con los mismos límites: 0%→grado 0,
+1–5%→grado 1, 6–20%→grado 2 y 21–100%→grado 3. La nota individual es
+`3 - incidencia`. El módulo siempre consolida Nitrógeno, Magnesio, Potasio,
+Hierro, Zinc y Boro; cada deficiencia sin registro aporta incidencia 0 y nota 3.
+`ScoreNutricion` es el mínimo de las seis notas y solo se publica cuando el paso
+4 fue finalizado. La severidad y los órganos afectados no intervienen en esta
+fórmula.
 
 ## Seguridad
 

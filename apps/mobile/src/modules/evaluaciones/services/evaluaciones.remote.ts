@@ -3,6 +3,7 @@ import type { VisitaEvaluacion } from "../types";
 import type { OrganoAfectado } from "../../observaciones-sanitarias/types";
 
 type CreateEvaluacionInput = {
+  nutrientId?: string | null;
   order: number;
   incidencePercentage?: number | null;
   percentage?: number | null;
@@ -11,6 +12,7 @@ type CreateEvaluacionInput = {
 };
 
 type UpdateEvaluacionInput = {
+  nutrientId?: string | null;
   order?: number;
   incidencePercentage?: number | null;
   percentage?: number | null;
@@ -19,8 +21,10 @@ type UpdateEvaluacionInput = {
 };
 
 export const evaluacionesRemote = {
-  getByVisitaId(visitaId: string) {
-    return apiRequest<VisitaEvaluacion[]>(`/visitas-campo/${visitaId}/evaluaciones`);
+  getByVisitaId(visitaId: string, context: ApiRequestContext = {}) {
+    return apiRequest<VisitaEvaluacion[]>(`/visitas-campo/${visitaId}/evaluaciones`, {
+      ...context
+    });
   },
 
   create(
