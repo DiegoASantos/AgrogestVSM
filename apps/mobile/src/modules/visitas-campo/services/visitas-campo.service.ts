@@ -18,6 +18,7 @@ import { riegosRepository } from "../../riegos/repositories/riegos.repository";
 import { visitasCampoRepository } from "../repositories/visitas-campo.repository";
 import type {
   CreateVisitaCampoDraft,
+  UpdateVisitaCampoDraft,
   VisitaCampoFull,
   VisitaSyncSummary
 } from "../types";
@@ -37,7 +38,7 @@ export const visitasCampoService = {
     });
   },
 
-  async update(id: string, draft: Omit<CreateVisitaCampoDraft, "publicId">) {
+  async update(id: string, draft: UpdateVisitaCampoDraft) {
     return visitasCampoRepository.update(id, draft);
   },
 

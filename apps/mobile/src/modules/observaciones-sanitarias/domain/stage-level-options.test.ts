@@ -19,6 +19,7 @@ const incidenceLevels = [0, 1, 2, 3].map((grade) => ({
 function catalogItem(type: "plaga" | "enfermedad", levelIds: string[]) {
   return {
     id: `${type}-1`,
+    code: `${type}-1`,
     name: type,
     scientificName: null,
     type,

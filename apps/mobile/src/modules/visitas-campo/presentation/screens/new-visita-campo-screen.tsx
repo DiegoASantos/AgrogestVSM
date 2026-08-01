@@ -48,6 +48,7 @@ import {
   formatEditable12HourInput,
   isComplete12HourInput
 } from "../../domain/time-input";
+import { validateRequiredPhenologicalStage } from "../../domain/required-phenological-stage";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
@@ -584,11 +585,11 @@ export function NewVisitaCampoScreen() {
             <AppSelectField
               disabled={!values.crop}
               emptyMessage="No hay etapas fenologicas disponibles."
-              error={etapasFenologicasError}
+              error={getCatalogError(etapasFenologicasError, errors.phenologicalStage)}
               icon="flower"
               isLoading={isLoadingEtapasFenologicas}
               isOpen={activeCatalog === "phenologicalStage"}
-              label="Etapa"
+              label="Etapa *"
               onSelect={(value) => handleCatalogSelection("phenologicalStage", value)}
               onToggle={() => toggleCatalog("phenologicalStage")}
               options={etapaFenologicaOptions}
@@ -2017,6 +2018,14 @@ function validateForm(
     nextErrors.campaign = "No se encontro una campaña activa para el cultivo.";
   }
 
+  const phenologicalStageError = validateRequiredPhenologicalStage(
+    values.phenologicalStage
+  );
+
+  if (phenologicalStageError) {
+    nextErrors.phenologicalStage = phenologicalStageError;
+  }
+
   if (!values.parcelaId) {
     nextErrors.parcelaId = "No se encontro una parcela valida.";
   }
@@ -2127,9 +2136,7 @@ function buildCreateDraft(
     endVisitTime: values.endVisitTime.trim()
       ? normalizeTimeForApi(values.endVisitTime)
       : null,
-    ...(values.phenologicalStage
-      ? { phenologicalStageId: values.phenologicalStage }
-      : {}),
+    phenologicalStageId: values.phenologicalStage,
     ...(values.subEtapaId ? { subEtapaId: values.subEtapaId } : {}),
     ...(values.subEtapaPercentage.trim()
       ? { subEtapaPercentage: Number(values.subEtapaPercentage.trim()) }

@@ -28,6 +28,7 @@ import { visitaRecetasService, type SaveRecetaData } from "../../services";
 import type {
   ConsolidacionHallazgo,
   CoadyuvanteCatalogItem,
+  IngredienteActivoCatalogItem,
   ModoAccionCatalogItem,
   MarcaProductoCatalogItem,
   TipoControlCatalogItem,
@@ -40,6 +41,14 @@ import {
   isOrdenMezclaFixedItem,
   swapOrdenMezclaItems
 } from "./visita-receta-order";
+import {
+  buildCommercialSelectionPatch,
+  buildIngredientSelectionPatch,
+  buildTypeSelectionPatch,
+  getCommercialOptions,
+  getIngredientOptions,
+  resolveIngredientId
+} from "./visita-receta-selection";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
@@ -114,6 +123,9 @@ export function VisitaRecetaScreen() {
   );
 
   const [coadyuvantes, setCoadyuvantes] = useState<CoadyuvanteCatalogItem[]>([]);
+  const [ingredientesActivos, setIngredientesActivos] = useState<
+    IngredienteActivoCatalogItem[]
+  >([]);
   const [marcasProducto, setMarcasProducto] = useState<MarcaProductoCatalogItem[]>(
     []
   );
@@ -168,6 +180,7 @@ export function VisitaRecetaScreen() {
     try {
       const catalogos = visitaRecetasService.getCatalogos();
       setCoadyuvantes(catalogos.coadyuvantes);
+      setIngredientesActivos(catalogos.ingredientesActivos);
       setMarcasProducto(catalogos.marcasProducto);
       setModosAccion(catalogos.modosAccion);
       setTiposControl(catalogos.tiposControl);
@@ -191,7 +204,11 @@ export function VisitaRecetaScreen() {
 
       if (recetaData) {
         setRecetaData(recetaData);
-        restoreFromReceta(recetaData);
+        restoreFromReceta(
+          recetaData,
+          catalogos.ingredientesActivos,
+          catalogos.marcasProducto
+        );
       } else {
         setRecetaData(null);
         initFitosanidadFromConsolidacion(localConsData);
@@ -254,7 +271,11 @@ export function VisitaRecetaScreen() {
     };
   }
 
-  function restoreFromReceta(receta: VisitaRecetaCompleta) {
+  function restoreFromReceta(
+    receta: VisitaRecetaCompleta,
+    ingredientCatalog: IngredienteActivoCatalogItem[],
+    commercialCatalog: MarcaProductoCatalogItem[]
+  ) {
     setFitosanidadApps(
       receta.fitosanidad.map((f) => ({
         localId: f.id,
@@ -265,6 +286,13 @@ export function VisitaRecetaScreen() {
         tipoProductoId: f.tipoProductoId ?? "",
         disolvente: f.disolvente,
         modoAccionId: f.modoAccionId ?? "",
+        ingredienteActivoId: resolveIngredientId(
+          f.tipoProductoId ?? "",
+          f.ingredienteActivoNombre ?? "",
+          f.marcaProductoNombre ?? "",
+          ingredientCatalog,
+          commercialCatalog
+        ),
         ingredienteActivoNombre: f.ingredienteActivoNombre ?? "",
         dosisIa: f.dosisIa?.toString() ?? "",
         volumenAplicacion: f.volumenAplicacion?.toString() ?? "",
@@ -329,6 +357,7 @@ export function VisitaRecetaScreen() {
       tipoProductoId: "",
       disolvente: "Agua",
       modoAccionId: "",
+      ingredienteActivoId: "",
       ingredienteActivoNombre: "",
       dosisIa: "",
       volumenAplicacion: "",
@@ -598,6 +627,7 @@ export function VisitaRecetaScreen() {
                 coadyuvantes={coadyuvantes}
                 calculationAreaHectares={calculationAreaHectares}
                 index={index}
+                ingredientesActivos={ingredientesActivos}
                 key={app.localId}
                 marcasProducto={marcasProducto}
                 modosAccion={modosAccion}
@@ -796,6 +826,7 @@ type AppFitosanidad = {
   tipoProductoId: string;
   disolvente: string;
   modoAccionId: string;
+  ingredienteActivoId: string;
   ingredienteActivoNombre: string;
   dosisIa: string;
   volumenAplicacion: string;
@@ -812,6 +843,7 @@ function FitosanidadCard({
   index,
   coadyuvantes,
   calculationAreaHectares,
+  ingredientesActivos,
   marcasProducto,
   tiposControl,
   tiposProducto,
@@ -826,6 +858,7 @@ function FitosanidadCard({
   index: number;
   coadyuvantes: CoadyuvanteCatalogItem[];
   calculationAreaHectares: number | null;
+  ingredientesActivos: IngredienteActivoCatalogItem[];
   marcasProducto: MarcaProductoCatalogItem[];
   tiposControl: TipoControlCatalogItem[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
@@ -848,8 +881,15 @@ function FitosanidadCard({
     isSelectableOrdenItem(item)
   ).length;
   const canExchangeOrden = selectableOrdenCount >= 2;
-  const nombreComercialOptions = marcasProducto.filter(
-    (marca) => marca.tipoProductoId === value.tipoProductoId
+  const ingredienteActivoOptions = getIngredientOptions(
+    value.tipoProductoId,
+    ingredientesActivos,
+    marcasProducto
+  );
+  const nombreComercialOptions = getCommercialOptions(
+    value.tipoProductoId,
+    value.ingredienteActivoId,
+    marcasProducto
   );
 
   useEffect(() => {
@@ -899,35 +939,21 @@ function FitosanidadCard({
     setSelectedOrdenIndex(null);
   }
 
-  function buildNombreComercialPatch(
-    option: MarcaProductoCatalogItem
-  ): Partial<AppFitosanidad> {
-    return {
-      marcaProductoNombre: option.name,
-      ingredienteActivoNombre: option.ingredienteActivoNombre ?? "",
-      concentracionProducto: option.concentracion?.toString() ?? ""
-    };
+  function handleTipoProductoSelect(tipoProductoId: string) {
+    onChange(
+      buildTypeSelectionPatch(tipoProductoId, ingredientesActivos, marcasProducto)
+    );
   }
 
-  function handleTipoProductoSelect(tipoProductoId: string) {
-    const matchingOptions = marcasProducto.filter(
-      (marca) => marca.tipoProductoId === tipoProductoId
+  function handleIngredienteActivoSelect(ingredienteActivoId: string) {
+    onChange(
+      buildIngredientSelectionPatch(
+        value.tipoProductoId,
+        ingredienteActivoId,
+        ingredientesActivos,
+        marcasProducto
+      )
     );
-
-    if (matchingOptions.length === 1 && matchingOptions[0]) {
-      onChange({
-        tipoProductoId,
-        ...buildNombreComercialPatch(matchingOptions[0])
-      });
-      return;
-    }
-
-    onChange({
-      tipoProductoId,
-      marcaProductoNombre: "",
-      ingredienteActivoNombre: "",
-      concentracionProducto: ""
-    });
   }
 
   function handleNombreComercialSelect(marcaProductoId: string) {
@@ -939,7 +965,7 @@ function FitosanidadCard({
       return;
     }
 
-    onChange(buildNombreComercialPatch(selected));
+    onChange(buildCommercialSelectionPatch(selected));
   }
 
   return (
@@ -999,10 +1025,46 @@ function FitosanidadCard({
         onSelect={(v) => onChange({ modoAccionId: v })}
       />
 
-      <ReadonlyField
+      <AppSelectField
+        disabled={!value.tipoProductoId}
+        emptyMessage="No hay ingredientes activos para el tipo seleccionado."
+        icon="leaf-outline"
         label="Ingrediente activo (i.a.)"
-        placeholder="Se completa con el nombre comercial"
-        value={value.ingredienteActivoNombre}
+        options={ingredienteActivoOptions.map((ingrediente) => ({
+          value: ingrediente.id,
+          label: ingrediente.name
+        }))}
+        placeholder={
+          value.tipoProductoId
+            ? "Seleccionar ingrediente activo"
+            : "Selecciona primero tipo de producto"
+        }
+        selectedLabel={value.ingredienteActivoNombre || undefined}
+        isOpen={openDropdown === `${prefix}_ingrediente_activo`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_ingrediente_activo`)}
+        onSelect={handleIngredienteActivoSelect}
+      />
+
+      <AppSelectField
+        disabled={!value.ingredienteActivoId}
+        emptyMessage="No hay nombres comerciales para el ingrediente seleccionado."
+        icon="pricetag-outline"
+        label="Nombre comercial"
+        options={nombreComercialOptions.map((marca) => ({
+          value: marca.id,
+          label: marca.name
+        }))}
+        placeholder={
+          value.ingredienteActivoId
+            ? "Seleccionar nombre comercial"
+            : "Selecciona primero ingrediente activo"
+        }
+        selectedLabel={value.marcaProductoNombre || undefined}
+        isOpen={openDropdown === `${prefix}_nombre_comercial`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_nombre_comercial`)}
+        onSelect={handleNombreComercialSelect}
       />
 
       <LabeledNumericInput
@@ -1026,28 +1088,6 @@ function FitosanidadCard({
       <ReadonlyField
         label="Cantidad total de i.a. (mg o mL)"
         value={value.cantidadTotalIa}
-      />
-
-      <AppSelectField
-        disabled={!value.tipoProductoId}
-        emptyMessage="No hay nombres comerciales para el tipo seleccionado."
-        icon="pricetag-outline"
-        label="Nombre comercial"
-        options={nombreComercialOptions.map((marca) => ({
-          value: marca.id,
-          label: marca.name,
-          helper: marca.ingredienteActivoNombre ?? undefined
-        }))}
-        placeholder={
-          value.tipoProductoId
-            ? "Seleccionar nombre comercial"
-            : "Selecciona primero tipo de producto"
-        }
-        selectedLabel={value.marcaProductoNombre || undefined}
-        isOpen={openDropdown === `${prefix}_nombre_comercial`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_nombre_comercial`)}
-        onSelect={handleNombreComercialSelect}
       />
 
       <LabeledNumericInput

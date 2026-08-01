@@ -70,6 +70,24 @@ export const parcelasRepository = {
     return row ? mapParcelaRow(row) : null;
   },
 
+  getDepartmentCodeById(id: string) {
+    const db = getDatabase();
+    const row = db.getFirstSync<{ code: string }>(
+      `SELECT departamentos.code AS code
+       FROM parcelas
+       INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
+       INNER JOIN sectores ON sectores.id = subsectores.sector_id
+       INNER JOIN distritos ON distritos.id = sectores.distrito_id
+       INNER JOIN provincias ON provincias.id = distritos.provincia_id
+       INNER JOIN departamentos ON departamentos.id = provincias.departamento_id
+       WHERE parcelas.id = ?
+       LIMIT 1`,
+      id
+    );
+
+    return row?.code ?? null;
+  },
+
   getBySectorId(sectorId: string) {
     const db = getDatabase();
     const rows = db.getAllSync<ParcelaRow>(

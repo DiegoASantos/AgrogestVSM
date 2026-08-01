@@ -372,16 +372,16 @@ describe("mobile local CRUD services", () => {
       fuenteAgua: "subterranea",
       tipoSuelo: "franco",
       humedadSuelo: "optimo",
-      estresHidrico: false
+      estresHidrico: true
     });
 
-    expect(updated).toMatchObject({ tipoRiegoId: "riego-2" });
+    expect(updated).toMatchObject({ tipoRiegoId: "riego-2", estresHidrico: true });
     expect(riegosUpdate).toHaveBeenCalledWith("riego-1", {
       tipoRiegoId: "riego-2",
       fuenteAgua: "subterranea",
       tipoSuelo: "franco",
       humedadSuelo: "optimo",
-      estresHidrico: false
+      estresHidrico: true
     });
   });
 

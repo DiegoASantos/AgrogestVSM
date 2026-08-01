@@ -84,6 +84,7 @@ describe("visitaRecetasService", () => {
     mocks.getPestDiseases.mockReturnValue([
       {
         id: "pest-1",
+        code: "trips",
         scientificName: null,
         name: "Trips",
         type: "plaga",
@@ -91,6 +92,7 @@ describe("visitaRecetasService", () => {
       },
       {
         id: "disease-1",
+        code: "oidium",
         scientificName: null,
         name: "Oidio",
         type: "enfermedad",

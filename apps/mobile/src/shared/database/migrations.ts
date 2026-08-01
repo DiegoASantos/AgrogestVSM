@@ -1121,6 +1121,40 @@ const MIGRATIONS: Migration[] = [
     statements: [
       "UPDATE visita_riegos SET fuente_agua = NULL WHERE fuente_agua = 'pluvial'"
     ]
+  },
+  {
+    version: 48,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "pest_diseases", "code", "TEXT");
+      db.execSync(`
+        UPDATE pest_diseases
+        SET code = CASE lower(trim(name))
+          WHEN 'trips' THEN 'trips'
+          WHEN 'thrips' THEN 'trips'
+          WHEN 'queresa' THEN 'queresas'
+          WHEN 'queresas' THEN 'queresas'
+          WHEN 'acaro' THEN 'acaros'
+          WHEN 'ácaro' THEN 'acaros'
+          WHEN 'acaros' THEN 'acaros'
+          WHEN 'ácaros' THEN 'acaros'
+          WHEN 'cochinilla' THEN 'cochinilla'
+          WHEN 'cochinillas' THEN 'cochinilla'
+          WHEN 'chinche' THEN 'chinche'
+          WHEN 'chinches' THEN 'chinche'
+          WHEN 'mosca de la fruta' THEN 'mosca_fruta'
+          WHEN 'mosca fruta' THEN 'mosca_fruta'
+          WHEN 'oidium' THEN 'oidium'
+          WHEN 'oidio' THEN 'oidium'
+          WHEN 'oídio' THEN 'oidium'
+          WHEN 'antracnosis' THEN 'antracnosis'
+          WHEN 'muerte regresiva' THEN 'muerte_regresiva'
+          WHEN 'alternaria' THEN 'alternaria'
+          ELSE code
+        END
+        WHERE code IS NULL
+      `);
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
   }
 ];
 

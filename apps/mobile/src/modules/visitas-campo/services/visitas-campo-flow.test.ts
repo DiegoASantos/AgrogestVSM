@@ -481,7 +481,8 @@ describe("visita de campo complete flow", () => {
         parcelaId: "parcela-001",
         campaignId: "campaign-2026",
         visitDate: "2026-06-17",
-        startVisitTime: "08:00"
+        startVisitTime: "08:00",
+        phenologicalStageId: "stage-floracion"
       },
       { accessToken: "signed-token" }
     );

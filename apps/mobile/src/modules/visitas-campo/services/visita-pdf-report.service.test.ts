@@ -415,6 +415,7 @@ describe("visitaPdfReportService", () => {
     mocks.getPestDiseasesByPhenologicalStage.mockReturnValue([
       {
         id: "pest-trips",
+        code: "trips",
         scientificName: null,
         name: "Trips",
         type: "Plaga",
@@ -440,6 +441,7 @@ describe("visitaPdfReportService", () => {
       } satisfies PestDiseaseByStageItem,
       {
         id: "disease-oidio",
+        code: "oidium",
         scientificName: null,
         name: "Oidio",
         type: "Enfermedad",

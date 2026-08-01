@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-31
+last_reviewed: 2026-08-01
 ---
 
 # Modelo del dominio
@@ -81,13 +81,17 @@ Entidades hijas:
 - receta agronómica y sus secciones.
 - calificaciones manuales de cumplimiento por módulo.
 
+Toda visita nueva exige una etapa fenológica válida y asociada al cultivo. La
+columna permanece nullable para conservar registros históricos; una
+actualización puede omitir la etapa, pero no eliminar una ya seleccionada.
+
 La receta fitosanitaria usa los catalogos `tipos_producto_fitosanitario`,
 `ingredientes_activos` y `marcas_producto`. La tabla `marcas_producto` conserva
 su nombre historico, pero su columna `nombre` representa el nombre comercial
 visible para el tecnico. Cada nombre comercial puede asociarse a un tipo de
-producto y a un ingrediente activo; mobile filtra el selector de nombre
-comercial por el tipo de producto seleccionado y sigue guardando los nombres en
-la receta para compatibilidad offline e historica.
+producto y a un ingrediente activo. Mobile resuelve la cascada tipo de producto,
+ingrediente activo y nombre comercial; cada nivel se filtra por los anteriores.
+La receta sigue guardando los nombres para compatibilidad offline e historica.
 
 Las calificaciones de cumplimiento viven en `visita_calificaciones` y son hijas
 de una visita. Cada visita puede tener una calificación por módulo:
@@ -126,6 +130,14 @@ y Mosca de la fruta. La ausencia de registro equivale en el cálculo a grados
 score del módulo es el mínimo de las seis notas. El contrato devuelve el
 desglose y el semáforo para que web y mobile presenten el mismo resultado.
 
+Mobile también deriva en lectura el detalle de estos cuatro módulos desde las
+capturas SQLite, sin persistir el resultado ni esperar un `serverId`. El valor
+local tiene precedencia mientras existan insumos técnicos pendientes o fallidos;
+una respuesta remota solo lo confirma cuando esos insumos están sincronizados.
+Los códigos estables de `pest_diseases` permiten identificar offline el universo
+fijo de plagas y enfermedades, con compatibilidad por nombre durante la
+transición.
+
 Para Enfermedades, el porcentaje entero de árboles enfermos (0–100) es la fuente
 de la incidencia: 0%→grado 0, 1–5%→grado 1, 6–20%→grado 2 y 21–100%→grado 3.
 Los cuatro grados de incidencia son globales porque los determina el porcentaje;
@@ -150,7 +162,9 @@ En Riego, toda captura nueva exige `humedad_suelo`; mobile impide avanzar sin
 seleccionarla y la API rechaza altas incompletas. Las filas históricas nulas se
 mantienen legibles por compatibilidad. Una visita con receta y sin fila de riego
 representa ausencia de desviaciones y obtiene score 3; una fila existente se
-calcula con la matriz técnica vigente.
+calcula con la matriz técnica vigente. `estres_hidrico` se selecciona de forma
+independiente: mobile lo muestra y persiste para cualquier valor de humedad, sin
+forzarlo a `false` al cambiar o guardar una humedad distinta de `seco`.
 
 ## Seguridad
 

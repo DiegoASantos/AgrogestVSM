@@ -162,15 +162,15 @@ export class CreateVisitaCampoDto {
   })
   endVisitTime?: string | null;
 
-  @ApiPropertyOptional({
-    example: "1"
+  @ApiProperty({
+    example: "1",
+    description: "Id de la etapa fenologica actual del cultivo."
   })
-  @Transform(({ value }) => trimOptionalString(value))
-  @IsOptional()
+  @Transform(({ value }) => trimRequiredString(value))
   @Matches(/^[1-9]\d*$/, {
     message: "phenologicalStageId must be a positive integer."
   })
-  phenologicalStageId?: string | null;
+  phenologicalStageId!: string;
 
   @ApiPropertyOptional({
     example: "1"

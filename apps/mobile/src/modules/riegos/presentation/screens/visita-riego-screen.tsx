@@ -31,7 +31,10 @@ import {
   StepObservationCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
-import { isModuloEvaluable, type RecetaAnterior } from "../../../visita-calificaciones/types";
+import {
+  isModuloEvaluable,
+  type RecetaAnterior
+} from "../../../visita-calificaciones/types";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import { riegosService } from "../../services";
 import type { TipoRiegoCatalogItem } from "../../types";
@@ -360,9 +363,6 @@ export function VisitaRiegoScreen() {
                         onPress={() => {
                           setSubmitError(null);
                           setHumedadSuelo(opcion);
-                          if (opcion !== "seco") {
-                            setEstresHidrico(false);
-                          }
                         }}
                       />
                     );
@@ -370,48 +370,48 @@ export function VisitaRiegoScreen() {
                 </View>
               </View>
 
-              {humedadSuelo === "seco" ? (
-                <View style={styles.switchCard}>
-                  <View style={styles.switchContent}>
-                    <View style={styles.switchTextArea}>
-                      <AppText style={styles.switchTitle} variant="heading">
-                        Estres hidrico intencionado
-                      </AppText>
-                      <AppText variant="muted">
-                        Marca si la condicion seca corresponde a un estres hidrico
-                        planificado.
-                      </AppText>
-                    </View>
-                    <Switch
-                      accessibilityLabel="Estres hidrico intencionado"
-                      accessibilityRole="switch"
-                      ios_backgroundColor={theme.colors.border}
-                      onValueChange={(value) => {
-                        setSubmitError(null);
-                        setEstresHidrico(value);
-                      }}
-                      thumbColor={
-                        estresHidrico ? theme.colors.primaryDark : theme.colors.surface
-                      }
-                      trackColor={{
-                        false: theme.colors.border,
-                        true: theme.colors.primaryMuted
-                      }}
-                      value={estresHidrico}
-                    />
+              <View style={styles.switchCard}>
+                <View style={styles.switchContent}>
+                  <View style={styles.switchTextArea}>
+                    <AppText style={styles.switchTitle} variant="heading">
+                      Estrés hídrico intencional
+                    </AppText>
+                    <AppText variant="muted">
+                      Marca si la condición observada corresponde a un estrés hídrico
+                      planificado.
+                    </AppText>
                   </View>
-                  {estresHidrico ? (
-                    <View style={styles.stressBadge}>
-                      <Ionicons color={theme.colors.warning} name="warning" size={16} />
-                      <AppText style={styles.stressBadgeText} variant="caption">
-                        Estres hidrico intencionado
-                      </AppText>
-                    </View>
-                  ) : null}
+                  <Switch
+                    accessibilityLabel="Estrés hídrico intencional"
+                    accessibilityRole="switch"
+                    ios_backgroundColor={theme.colors.border}
+                    onValueChange={(value) => {
+                      setSubmitError(null);
+                      setEstresHidrico(value);
+                    }}
+                    thumbColor={
+                      estresHidrico ? theme.colors.primaryDark : theme.colors.surface
+                    }
+                    trackColor={{
+                      false: theme.colors.border,
+                      true: theme.colors.primaryMuted
+                    }}
+                    value={estresHidrico}
+                  />
                 </View>
-              ) : null}
+                {estresHidrico ? (
+                  <View style={styles.stressBadge}>
+                    <Ionicons color={theme.colors.warning} name="warning" size={16} />
+                    <AppText style={styles.stressBadgeText} variant="caption">
+                      Estrés hídrico intencional
+                    </AppText>
+                  </View>
+                ) : null}
+              </View>
 
-              {isModuloEvaluable(recetaAnterior, "riego") ? <PreviousRecipeSummaryCard modulo="riego" receta={recetaAnterior} /> : null}
+              {isModuloEvaluable(recetaAnterior, "riego") ? (
+                <PreviousRecipeSummaryCard modulo="riego" receta={recetaAnterior} />
+              ) : null}
               {isModuloEvaluable(recetaAnterior, "riego") ? (
                 <ComplianceScoreCard
                   value={scoreValue}
@@ -518,11 +518,7 @@ export function VisitaRiegoScreen() {
           fuenteAgua: Boolean(existingRiego.fuenteAgua),
           tipoSuelo: Boolean(existingRiego.tipoSuelo)
         });
-        setEstresHidrico(
-          existingRiego.humedadSuelo === "seco"
-            ? (existingRiego.estresHidrico ?? false)
-            : false
-        );
+        setEstresHidrico(existingRiego.estresHidrico ?? false);
       } else {
         const previousRiego = await riegosService.getLastBySameParcelaBeforeVisita(id);
         if (previousRiego) {
@@ -714,7 +710,7 @@ export function VisitaRiegoScreen() {
         fuenteAgua,
         tipoSuelo,
         humedadSuelo,
-        estresHidrico: humedadSuelo === "seco" ? estresHidrico : false
+        estresHidrico
       });
       if (shouldScore) {
         await visitaCalificacionesService.upsert(visitaId, {

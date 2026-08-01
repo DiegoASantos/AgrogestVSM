@@ -66,4 +66,5 @@ en la raíz.
 - [Spec 020: Módulo clima territorial para el panel web](020-modulo-clima-territorial-web.md)
 - [Spec 021: Clima general móvil por distrito](021-clima-general-mobile-por-distrito.md)
 - [Spec 022: Rol analista web de solo lectura](022-rol-analista-web-solo-lectura.md)
+- [Spec 023: Selectores dependientes de receta y etapa fenologica obligatoria](023-selectores-receta-y-etapa-obligatoria.md)
 - [Plantilla](TEMPLATE.md)

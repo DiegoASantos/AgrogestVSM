@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-31
+last_reviewed: 2026-08-01
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -111,6 +111,8 @@ y programa un sync inmediato con `bypassBackoff`.
 
 ## Invariantes
 
+- toda visita nueva se guarda con etapa fenológica; una visita pendiente de una
+  versión anterior sin etapa debe corregirse antes de reintentar su sync;
 - no sincronizar hijos antes de obtener el ID de la visita;
 - conservar operaciones de borrado con el ID remoto necesario;
 - evitar duplicar entradas equivalentes en la outbox;
@@ -146,6 +148,22 @@ parcela y consulta al proveedor externo.
 El clima general de Inicio usa `clima_distrito_cache`: una caché local de solo
 lectura por distrito, sin outbox ni cambios de datos operativos. La API resuelve
 el punto climático territorial; este flujo no usa geometría de parcelas.
+
+El detalle de visita deriva directamente desde SQLite los scores técnicos de
+Plagas, Enfermedades, Nutrición y Riego. Esta previsualización no se persiste ni
+crea outbox: usa las mismas reglas de elegibilidad, fórmulas, semáforos y reglas
+geográficas que la API. Si algún insumo técnico está `pending` o `error`, mobile
+mantiene el resultado local y lo identifica como pendiente de sincronización;
+solo lo sustituye por la respuesta de API cuando visita e insumos técnicos ya
+están sincronizados. Un fallo de lectura remota no oculta el resultado local.
+Los tombstones creados por versiones antiguas sin `visitaId` se contrastan por
+tipo y `serverId` contra los hijos remotos de la visita; si esa verificación no
+está disponible, se conserva el cálculo local.
+
+Para sostener la identificación offline, `pest_diseases.code` conserva en SQLite
+el código estable recibido del catálogo. La migración aditiva 48 rellena los
+códigos conocidos y elimina la marca `catalogs_downloaded_at` para provocar una
+recarga posterior sin borrar observaciones ni operaciones pendientes.
 
 ## Cambios críticos
 

@@ -68,6 +68,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 
 - [Clima general móvil por distrito](specs/021-clima-general-mobile-por-distrito.md)
 - [Rol analista web de solo lectura](specs/022-rol-analista-web-solo-lectura.md)
+- [Selectores dependientes de receta y etapa fenologica obligatoria](specs/023-selectores-receta-y-etapa-obligatoria.md)
 
 ## Runbooks
 

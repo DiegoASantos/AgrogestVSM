@@ -1,6 +1,12 @@
 import { apiRequest, type ApiRequestContext } from "../../../shared/services";
 import { getUserIdFromAccessToken } from "../../../shared/utils/auth-token";
-import type { CreateVisitaCampoDraft, TechnicalVisitScores, VisitaCampo, VisitaCampoFull } from "../types";
+import type {
+  CreateVisitaCampoDraft,
+  TechnicalVisitScores,
+  UpdateVisitaCampoDraft,
+  VisitaCampo,
+  VisitaCampoFull
+} from "../types";
 
 type AuthToken = {
   accessToken: string;
@@ -30,7 +36,7 @@ export const visitasCampoRemote = {
 
   update(
     id: string,
-    draft: Omit<CreateVisitaCampoDraft, "publicId">,
+    draft: UpdateVisitaCampoDraft,
     context: ApiRequestContext = {}
   ) {
     return apiRequest<VisitaCampo>(`/visitas-campo/${id}`, {

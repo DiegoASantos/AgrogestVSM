@@ -106,7 +106,7 @@ export class VisitasCampoService {
       fechaVisita: normalizeRequiredDateOnly(createVisitaCampoDto.visitDate),
       horaVisitaInicio: createVisitaCampoDto.startVisitTime,
       horaVisitaFin: createVisitaCampoDto.endVisitTime ?? null,
-      etapaFenologicaId: createVisitaCampoDto.phenologicalStageId ?? null,
+      etapaFenologicaId: createVisitaCampoDto.phenologicalStageId,
       subEtapaId: createVisitaCampoDto.subEtapaId ?? null,
       subEtapaPercentage:
         createVisitaCampoDto.subEtapaPercentage === undefined ||
@@ -322,6 +322,10 @@ export class VisitasCampoService {
   }
 
   async update(id: string, updateVisitaCampoDto: UpdateVisitaCampoDto) {
+    if (updateVisitaCampoDto.phenologicalStageId === null) {
+      throw new BadRequestException("La etapa fenologica no puede eliminarse.");
+    }
+
     const visitaCampo = await this.findEntityById(id);
     const nextCropId = updateVisitaCampoDto.cropId ?? visitaCampo.cultivoId;
     const nextVarietyId = updateVisitaCampoDto.varietyId ?? visitaCampo.variedadId;

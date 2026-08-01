@@ -39,6 +39,7 @@ type ObservacionOrganoRow = {
 
 type PestDiseaseRow = {
   id: string;
+  code: string | null;
   scientific_name: string | null;
   name: string;
   type: string;
@@ -282,7 +283,11 @@ export const observacionesSanitariasRepository = {
     const db = getDatabase();
     const existing = this.getById(localId);
     const payload = existing?.serverId
-      ? JSON.stringify({ serverId: existing.serverId })
+      ? JSON.stringify({
+          serverId: existing.serverId,
+          visitaId: existing.visitaId,
+          pestDiseaseId: existing.pestDiseaseId
+        })
       : null;
 
     db.withTransactionSync(() => {
@@ -315,13 +320,14 @@ export const observacionesSanitariasRepository = {
   getPestDiseases() {
     const db = getDatabase();
     const rows = db.getAllSync<PestDiseaseRow>(
-      `SELECT id, scientific_name, name, type, is_active
+      `SELECT id, code, scientific_name, name, type, is_active
        FROM pest_diseases
        ORDER BY name ASC, id ASC`
     );
 
     return rows.map((row) => ({
       id: row.id,
+      code: row.code,
       scientificName: row.scientific_name,
       name: row.name,
       type: row.type,
@@ -334,7 +340,7 @@ export const observacionesSanitariasRepository = {
   ): PestDiseaseByStageItem[] {
     const db = getDatabase();
     const rows = db.getAllSync<PestDiseaseRow>(
-      `SELECT DISTINCT pest.id, pest.scientific_name, pest.name, pest.type, pest.is_active
+      `SELECT DISTINCT pest.id, pest.code, pest.scientific_name, pest.name, pest.type, pest.is_active
        FROM pest_diseases pest
        INNER JOIN pest_disease_stage_levels relation
          ON relation.pest_disease_id = pest.id
@@ -347,6 +353,7 @@ export const observacionesSanitariasRepository = {
 
     return rows.map((row) => ({
       id: row.id,
+      code: row.code,
       scientificName: row.scientific_name,
       name: row.name,
       type: row.type,

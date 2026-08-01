@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 47;
+const LATEST_MIGRATION_VERSION = 48;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -144,6 +144,7 @@ function createFakeDatabase(
       if (statement.startsWith("CREATE TABLE IF NOT EXISTS pest_diseases")) {
         this.pestDiseaseColumns = new Set([
           "id",
+          "code",
           "scientific_name",
           "name",
           "type",
@@ -639,9 +640,8 @@ describe("runMigrations", () => {
         statement.startsWith("CREATE TABLE IF NOT EXISTS sync_state")
       )
     ).toBe(true);
-    expect(db.executedStatements).not.toContain(
-      "ALTER TABLE pest_diseases DROP COLUMN code"
-    );
+    expect(db.executedStatements).toContain("ALTER TABLE pest_diseases DROP COLUMN code");
+    expect(db.pestDiseaseColumns.has("code")).toBe(true);
   });
 
   it("adds missing productor name columns when upgrading an older database", () => {
@@ -685,7 +685,7 @@ describe("runMigrations", () => {
       "CREATE INDEX IF NOT EXISTS idx_sub_etapas_etapa ON sub_etapas(etapa_fenologica_id)"
     );
     expect(db.pestDiseaseColumns.has("scientific_name")).toBe(true);
-    expect(db.pestDiseaseColumns.has("code")).toBe(false);
+    expect(db.pestDiseaseColumns.has("code")).toBe(true);
     expect(db.executedStatements).toContain(
       "ALTER TABLE pest_diseases ADD COLUMN scientific_name TEXT"
     );
@@ -698,6 +698,29 @@ describe("runMigrations", () => {
     expect(db.executedStatements).toContain(
       "ALTER TABLE incidence_levels ADD COLUMN type TEXT NOT NULL DEFAULT 'incidencia'"
     );
+  });
+
+  it("adds stable sanitary codes and invalidates the catalog cache", () => {
+    const db = createFakeDatabase(
+      47,
+      [],
+      ["id", "scientific_name", "name", "type", "phenological_stage_id", "is_active"]
+    );
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-07-31T12:00:00.000Z");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.pestDiseaseColumns.has("code")).toBe(true);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE pest_diseases ADD COLUMN code TEXT"
+    );
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.replace(/\s+/gu, " ").includes("UPDATE pest_diseases SET code = CASE")
+      )
+    ).toBe(true);
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
   });
 
   it("migrates old sanitary organ values into the current organ catalog", () => {

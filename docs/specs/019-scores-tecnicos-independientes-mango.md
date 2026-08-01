@@ -4,7 +4,7 @@ status: implementing
 numero: 019
 area: visitas, sanidad, nutrición, riego, labores, scoring, api, mobile, sync, database, admin-web
 created: 2026-07-28
-approved_by: usuario, 2026-07-28; ampliación climática aprobada, 2026-07-30; consolidación macro-score de Plagas aprobada, 2026-07-31; consolidación macro-score de Enfermedades aprobada, 2026-07-31; consolidación macro-score de Nutrición aprobada, 2026-07-31; cierre técnico por receta y correcciones de captura aprobados, 2026-07-31
+approved_by: usuario, 2026-07-28; ampliación climática aprobada, 2026-07-30; consolidación macro-score de Plagas aprobada, 2026-07-31; consolidación macro-score de Enfermedades aprobada, 2026-07-31; consolidación macro-score de Nutrición aprobada, 2026-07-31; cierre técnico por receta y correcciones de captura aprobados, 2026-07-31; previsualización offline de scores y estrés hídrico siempre disponible aprobados, 2026-08-01
 implemented_in:
 ---
 
@@ -173,6 +173,29 @@ Riesgo de Rendimiento`). Los mensajes son autoritativos en API.
 - RF-036: Esta enmienda no modifica, infiere ni recalcula el score de
   cumplimiento.
 
+## Enmienda de previsualización offline mobile 2026-08-01
+
+- RF-037: Mobile calcula desde SQLite los scores técnicos de Plagas,
+  Enfermedades, Nutrición y Riego al abrir el detalle, sin exigir `serverId` ni
+  esperar la sincronización. El cálculo es derivado y no se persiste ni crea
+  entradas en `sync_outbox`.
+- RF-038: La previsualización local replica las fórmulas, universos fijos,
+  semáforos, mensajes, elegibilidad por paso o receta y reglas geográficas de la
+  API. Mientras existan datos técnicos pendientes muestra la nota discreta
+  `Calculado localmente · pendiente de sincronización`.
+- RF-039: Si existen cambios técnicos locales `pending` o `error`, el detalle no
+  los reemplaza con un resultado remoto potencialmente anterior. Cuando los
+  insumos técnicos están sincronizados, una respuesta válida de API confirma y
+  sustituye la previsualización; si la consulta falla se conserva el cálculo
+  local.
+- RF-040: SQLite conserva el código estable del catálogo de plagas y
+  enfermedades para identificar sin red los seis insectos y las cuatro
+  enfermedades. La expansión es aditiva, conserva observaciones y outbox, y
+  fuerza una recarga posterior del catálogo.
+- RF-041: La selección `Estrés hídrico intencional` se muestra y persiste para
+  cualquier humedad del suelo. Cambiar la humedad ya no desmarca el valor y el
+  payload no lo fuerza a `false` cuando la humedad sea distinta de `seco`.
+
 ## Enmienda climática 2026-07-30
 
 La spec 021 sustituye temporalmente el clima móvil por parcela: mientras no
@@ -217,6 +240,10 @@ parcela se conserva para una futura etapa georreferenciada.
    `code`/`nutrient_id` en SQLite. El backfill conserva compatibilidad por nombre
    y el rollback operativo mantiene estas columnas aditivas para no romper
    clientes nuevos ni evaluaciones pendientes de sincronización.
+7. La migración SQLite 48 agrega `pest_diseases.code`, rellena las identidades
+   sanitarias conocidas e invalida la marca de descarga del catálogo. El
+   rollback operativo conserva la columna aditiva y vuelve hacia adelante con
+   una migración correctiva; no elimina observaciones ni outbox.
 
 ## Criterios de aceptación
 

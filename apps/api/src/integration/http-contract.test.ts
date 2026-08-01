@@ -288,7 +288,8 @@ describe("API critical HTTP integration contract", () => {
         campaignId: "1",
         agronomistUserId: "1",
         visitDate: "2026-04-04",
-        startVisitTime: "08:30"
+        startVisitTime: "08:30",
+        phenologicalStageId: "1"
       }
     });
 
@@ -303,9 +304,29 @@ describe("API critical HTTP integration contract", () => {
       expect.objectContaining({
         publicId: "9f6c2d56-4b6e-4a96-a48b-f55eb0f25281",
         visitDate: "2026-04-04",
-        startVisitTime: "08:30"
+        startVisitTime: "08:30",
+        phenologicalStageId: "1"
       })
     );
+  });
+
+  it("rejects a visita without a phenological stage at the HTTP boundary", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/visitas-campo",
+      payload: {
+        cropId: "1",
+        varietyId: "1",
+        parcelaId: "1",
+        campaignId: "1",
+        agronomistUserId: "1",
+        visitDate: "2026-04-04",
+        startVisitTime: "08:30"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(visitasCampoService.create).not.toHaveBeenCalled();
   });
 
   it("rejects invalid visita ids through ParseEntityIdPipe", async () => {

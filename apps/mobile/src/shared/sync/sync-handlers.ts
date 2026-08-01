@@ -25,6 +25,7 @@ import { visitasCampoRepository } from "../../modules/visitas-campo/repositories
 import { visitasCampoRemote } from "../../modules/visitas-campo/services/visitas-campo.remote";
 import type {
   CreateVisitaCampoDraft,
+  UpdateVisitaCampoDraft,
   VisitaCampo
 } from "../../modules/visitas-campo/types";
 import { getNowIsoString } from "../database/sqlite-utils";
@@ -501,6 +502,13 @@ export const entityHandlerMap: Record<
 };
 
 function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft {
+  if (!visita.phenologicalStageId) {
+    throw new ApiError(
+      "Selecciona una etapa fenologica antes de sincronizar la visita.",
+      400
+    );
+  }
+
   return {
     publicId: visita.publicId,
     cropId: visita.cropId,
@@ -514,7 +522,7 @@ function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft
     visitDate: visita.visitDate,
     startVisitTime: visita.startVisitTime,
     endVisitTime: visita.endVisitTime ?? undefined,
-    phenologicalStageId: visita.phenologicalStageId ?? undefined,
+    phenologicalStageId: visita.phenologicalStageId,
     subEtapaId: visita.subEtapaId ?? undefined,
     subEtapaPercentage: visita.subEtapaPercentage ?? undefined,
     generalObservation: visita.generalObservation ?? undefined
@@ -523,7 +531,7 @@ function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft
 
 function buildVisitaCampoUpdateBody(
   visita: VisitaCampo
-): Omit<CreateVisitaCampoDraft, "publicId"> {
+): UpdateVisitaCampoDraft {
   return {
     cropId: visita.cropId,
     varietyId: visita.varietyId,

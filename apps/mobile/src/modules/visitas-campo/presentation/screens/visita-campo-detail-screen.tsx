@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
@@ -23,6 +23,10 @@ import type {
   PestDiseaseCatalogItem
 } from "../../../observaciones-sanitarias/types";
 import {
+  hasLegacyTechnicalDeleteForVisit,
+  localTechnicalScoresService,
+  pickMobileTechnicalScoreDetails,
+  shouldConfirmTechnicalScoresFromServer,
   visitaCampoCatalogsService,
   visitasCampoRemote,
   visitasCampoService
@@ -33,9 +37,9 @@ import type {
   CampaniaCatalogItem,
   CultivoCatalogItem,
   EtapaFenologicaCatalogItem,
+  MobileTechnicalScoreView,
   VariedadCatalogItem,
   VisitaCampoFull,
-  TechnicalVisitScores,
   VisitaSyncSummary
 } from "../../types";
 
@@ -63,6 +67,7 @@ export function VisitaCampoDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
+  const technicalScoreRequestId = useRef(0);
 
   const [detail, setDetail] = useState<VisitaCampoFull | null>(null);
   const [catalogs, setCatalogs] = useState<DetailCatalogs>(EMPTY_CATALOGS);
@@ -72,7 +77,7 @@ export function VisitaCampoDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [syncSummary, setSyncSummary] = useState<VisitaSyncSummary | null>(null);
-  const [technicalScores, setTechnicalScores] = useState<TechnicalVisitScores | null>(
+  const [technicalScores, setTechnicalScores] = useState<MobileTechnicalScoreView | null>(
     null
   );
 
@@ -93,8 +98,11 @@ export function VisitaCampoDetailScreen() {
         return undefined;
       }
 
-      void loadVisita(visitaId);
-      return undefined;
+      const requestId = ++technicalScoreRequestId.current;
+      void loadVisita(visitaId, requestId);
+      return () => {
+        technicalScoreRequestId.current += 1;
+      };
     }, [visitaId])
   );
 
@@ -354,32 +362,66 @@ export function VisitaCampoDetailScreen() {
     </ScreenContainer>
   );
 
-  async function loadVisita(id: string) {
+  async function loadVisita(id: string, requestId: number) {
     setIsLoading(true);
     setError(null);
 
     try {
       const nextDetail = await visitasCampoService.getFullDetail(id);
-      await loadVisitReferenceCatalogs(nextDetail.visita.cropId);
+      if (requestId !== technicalScoreRequestId.current) return;
       setDetail(nextDetail);
       setSyncSummary(visitasCampoService.getVisitaSyncSummary(id));
-      if (nextDetail.visita.serverId) {
+      const localResult = localTechnicalScoresService.calculate(nextDetail);
+      setTechnicalScores({
+        ...localResult.scores,
+        source: "local",
+        pendingSync: localResult.pendingSync
+      });
+      setIsLoading(false);
+
+      await loadVisitReferenceCatalogs(nextDetail.visita.cropId);
+
+      if (
+        shouldConfirmTechnicalScoresFromServer(
+          nextDetail.visita.serverId,
+          localResult.pendingSync
+        )
+      ) {
         try {
-          setTechnicalScores(
-            await visitasCampoRemote.getTechnicalScores(nextDetail.visita.serverId)
+          const hasLegacyDelete = await hasLegacyTechnicalDeleteForVisit(
+            nextDetail.visita.serverId!,
+            localResult.legacyDeletes
           );
+          if (requestId !== technicalScoreRequestId.current) return;
+          if (hasLegacyDelete) {
+            setTechnicalScores((current) =>
+              current?.source === "local" ? { ...current, pendingSync: true } : current
+            );
+            return;
+          }
+          const serverScores = await visitasCampoRemote.getTechnicalScores(
+            nextDetail.visita.serverId!
+          );
+          if (requestId === technicalScoreRequestId.current) {
+            setTechnicalScores({
+              ...pickMobileTechnicalScoreDetails(serverScores),
+              source: "server",
+              pendingSync: false
+            });
+          }
         } catch {
-          setTechnicalScores(null);
+          // Se conserva el calculo local si la confirmacion remota no esta disponible.
         }
-      } else {
-        setTechnicalScores(null);
       }
     } catch (nextError) {
+      if (requestId !== technicalScoreRequestId.current) return;
       const apiError = toApiError(nextError);
       setError(apiError.message || "No se pudo obtener el detalle.");
       setSyncSummary(null);
     } finally {
-      setIsLoading(false);
+      if (requestId === technicalScoreRequestId.current) {
+        setIsLoading(false);
+      }
     }
   }
 
@@ -419,6 +461,7 @@ export function VisitaCampoDetailScreen() {
     }
 
     setIsRetrying(true);
+    const requestId = ++technicalScoreRequestId.current;
 
     try {
       const requeued = retryTransientSyncFailures();
@@ -433,9 +476,49 @@ export function VisitaCampoDetailScreen() {
       });
 
       const updated = await visitasCampoService.getFullDetail(visitaId);
+      if (requestId !== technicalScoreRequestId.current) return;
       setDetail(updated);
       const updatedSummary = visitasCampoService.getVisitaSyncSummary(visitaId);
       setSyncSummary(updatedSummary);
+      const localResult = localTechnicalScoresService.calculate(updated);
+      setTechnicalScores({
+        ...localResult.scores,
+        source: "local",
+        pendingSync: localResult.pendingSync
+      });
+
+      if (
+        shouldConfirmTechnicalScoresFromServer(
+          updated.visita.serverId,
+          localResult.pendingSync
+        )
+      ) {
+        try {
+          const hasLegacyDelete = await hasLegacyTechnicalDeleteForVisit(
+            updated.visita.serverId!,
+            localResult.legacyDeletes
+          );
+          if (requestId !== technicalScoreRequestId.current) return;
+          if (hasLegacyDelete) {
+            setTechnicalScores((current) =>
+              current?.source === "local" ? { ...current, pendingSync: true } : current
+            );
+            return;
+          }
+          const serverScores = await visitasCampoRemote.getTechnicalScores(
+            updated.visita.serverId!
+          );
+          if (requestId === technicalScoreRequestId.current) {
+            setTechnicalScores({
+              ...pickMobileTechnicalScoreDetails(serverScores),
+              source: "server",
+              pendingSync: false
+            });
+          }
+        } catch {
+          // Se conserva el calculo local si la confirmacion remota no esta disponible.
+        }
+      }
     } catch {
       // silencioso: el estado se actualiza en el siguiente ciclo
     } finally {
@@ -487,7 +570,7 @@ type VisitDossierProps = {
   pdfError: string | null;
   router: ReturnType<typeof useRouter>;
   syncSummary: VisitaSyncSummary | null;
-  technicalScores: TechnicalVisitScores | null;
+  technicalScores: MobileTechnicalScoreView | null;
   visitMapPoints: VisitMapPoint[];
 };
 
@@ -540,6 +623,24 @@ function VisitDossier({
 
       {technicalScores ? (
         <>
+          <View style={styles.technicalSourceNotice}>
+            <Ionicons
+              color={theme.colors.textMuted}
+              name={
+                technicalScores.source === "local"
+                  ? "phone-portrait-outline"
+                  : "cloud-done-outline"
+              }
+              size={16}
+            />
+            <AppText style={styles.technicalSourceText} variant="caption">
+              {technicalScores.source === "local"
+                ? technicalScores.pendingSync
+                  ? "Calculado localmente · pendiente de sincronización."
+                  : "Calculado con datos guardados en el dispositivo."
+                : "Confirmado con los datos sincronizados."}
+            </AppText>
+          </View>
           <PestTechnicalScorePanel detail={technicalScores.detallePlagas} />
           <DiseaseTechnicalScorePanel detail={technicalScores.detalleEnfermedades} />
           <NutritionTechnicalScorePanel detail={technicalScores.detalleNutricion} />
@@ -739,7 +840,7 @@ function VisitDossier({
 function PestTechnicalScorePanel({
   detail
 }: {
-  detail: TechnicalVisitScores["detallePlagas"];
+  detail: MobileTechnicalScoreView["detallePlagas"];
 }) {
   if (!detail) {
     return (
@@ -818,7 +919,7 @@ function PestTechnicalScorePanel({
 function DiseaseTechnicalScorePanel({
   detail
 }: {
-  detail: TechnicalVisitScores["detalleEnfermedades"];
+  detail: MobileTechnicalScoreView["detalleEnfermedades"];
 }) {
   if (!detail) {
     return (
@@ -894,7 +995,7 @@ function DiseaseTechnicalScorePanel({
 function NutritionTechnicalScorePanel({
   detail
 }: {
-  detail: TechnicalVisitScores["detalleNutricion"];
+  detail: MobileTechnicalScoreView["detalleNutricion"];
 }) {
   if (!detail) {
     return (
@@ -970,7 +1071,7 @@ function NutritionTechnicalScorePanel({
 function RiegoTechnicalScorePanel({
   detail
 }: {
-  detail: TechnicalVisitScores["detalleRiego"];
+  detail: MobileTechnicalScoreView["detalleRiego"];
 }) {
   if (!detail) {
     return (
@@ -1439,6 +1540,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 12,
     padding: 14
+  },
+  technicalSourceNotice: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9
+  },
+  technicalSourceText: {
+    color: theme.colors.textMuted,
+    flex: 1
   },
   technicalHeader: {
     alignItems: "center",

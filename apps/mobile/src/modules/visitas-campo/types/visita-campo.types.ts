@@ -159,6 +159,16 @@ export type TechnicalVisitScores = {
   detalleRiego: RiegoModuleTechnicalDetail | null;
 };
 
+export type MobileTechnicalScoreDetails = Pick<
+  TechnicalVisitScores,
+  "detallePlagas" | "detalleEnfermedades" | "detalleNutricion" | "detalleRiego"
+>;
+
+export type MobileTechnicalScoreView = MobileTechnicalScoreDetails & {
+  source: "local" | "server";
+  pendingSync: boolean;
+};
+
 export type CreateVisitaCampoDraft = {
   publicId?: string;
   cropId: string;
@@ -172,8 +182,10 @@ export type CreateVisitaCampoDraft = {
   visitDate: string;
   startVisitTime: string;
   endVisitTime?: string | null;
-  phenologicalStageId?: string;
+  phenologicalStageId: string;
   subEtapaId?: string;
   subEtapaPercentage?: number;
   generalObservation?: string;
 };
+
+export type UpdateVisitaCampoDraft = Partial<Omit<CreateVisitaCampoDraft, "publicId">>;

@@ -201,12 +201,14 @@ async function performCatalogDownload() {
             `INSERT OR REPLACE INTO pest_diseases (
           id,
           scientific_name,
+          code,
           name,
           type,
           is_active
-        ) VALUES (?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
             pestDisease.id,
             pestDisease.scientificName,
+            pestDisease.code,
             pestDisease.name,
             pestDisease.type,
             toSqliteBoolean(pestDisease.isActive)
