@@ -89,9 +89,18 @@ La receta fitosanitaria usa los catalogos `tipos_producto_fitosanitario`,
 `ingredientes_activos` y `marcas_producto`. La tabla `marcas_producto` conserva
 su nombre historico, pero su columna `nombre` representa el nombre comercial
 visible para el tecnico. Cada nombre comercial puede asociarse a un tipo de
-producto y a un ingrediente activo. Mobile resuelve la cascada tipo de producto,
-ingrediente activo y nombre comercial; cada nivel se filtra por los anteriores.
-La receta sigue guardando los nombres para compatibilidad offline e historica.
+producto y a un ingrediente activo, y conserva la concentracion comercial como
+texto junto con su unidad de medida. El texto permite representar tanto valores
+decimales como composiciones o valores cualitativos sin interpretarlos
+parcialmente. Mobile resuelve la cascada tipo de producto, ingrediente activo y
+nombre comercial; cada nivel se filtra por los anteriores. La receta sigue
+guardando los nombres y, cuando es calculable, la concentracion numerica para
+compatibilidad offline e historica.
+
+El catalogo `fertilizantes` tambien conserva concentracion textual y unidad de
+medida. Esos datos describen el producto seleccionado y son distintos de la
+dosis y su unidad de aplicacion guardadas en el detalle de la receta. Mobile los
+usa como informacion readonly y no los duplica en la receta historica.
 
 Las calificaciones de cumplimiento viven en `visita_calificaciones` y son hijas
 de una visita. Cada visita puede tener una calificación por módulo:

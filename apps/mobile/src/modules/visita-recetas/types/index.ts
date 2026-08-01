@@ -17,6 +17,8 @@ export type MarcaProductoCatalogItem = {
   ingredienteActivoId: string | null;
   ingredienteActivoNombre: string | null;
   concentracion: number | null;
+  concentracionTexto: string | null;
+  unidadMedida: string | null;
 };
 
 export type ModoAccionCatalogItem = {
@@ -38,6 +40,8 @@ export type FertilizanteCatalogItem = {
   id: string;
   name: string;
   type: "solido" | "liquido";
+  concentracion: string | null;
+  unidadMedida: string | null;
 };
 
 export type RecetaFitosanidad = {

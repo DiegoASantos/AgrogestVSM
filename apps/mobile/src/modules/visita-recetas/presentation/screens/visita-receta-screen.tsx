@@ -102,6 +102,10 @@ function formatCalculatedField(value: string | number | null | undefined) {
   return parsed ? parsed.toFixed(2) : "";
 }
 
+function formatCatalogConcentration(concentration: string, measurementUnit: string) {
+  return [concentration.trim(), measurementUnit.trim()].filter(Boolean).join(" ");
+}
+
 function toSingleParam(value: string | string[] | undefined): string | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
@@ -141,6 +145,8 @@ export function VisitaRecetaScreen() {
     viaAplicacion: "edafica",
     fertilizanteNombre: "",
     tipoProducto: "solido",
+    concentracion: "",
+    unidadMedida: "",
     dosis: "",
     cantidadTotalPlantas: "",
     volumenAplicacion: "",
@@ -207,7 +213,8 @@ export function VisitaRecetaScreen() {
         restoreFromReceta(
           recetaData,
           catalogos.ingredientesActivos,
-          catalogos.marcasProducto
+          catalogos.marcasProducto,
+          catalogos.fertilizantes
         );
       } else {
         setRecetaData(null);
@@ -274,43 +281,60 @@ export function VisitaRecetaScreen() {
   function restoreFromReceta(
     receta: VisitaRecetaCompleta,
     ingredientCatalog: IngredienteActivoCatalogItem[],
-    commercialCatalog: MarcaProductoCatalogItem[]
+    commercialCatalog: MarcaProductoCatalogItem[],
+    fertilizerCatalog: FertilizanteCatalogItem[]
   ) {
     setFitosanidadApps(
-      receta.fitosanidad.map((f) => ({
-        localId: f.id,
-        numero: f.numero,
-        objetivo: f.objetivo,
-        objetivoNombre: f.objetivoNombre,
-        tipoControlId: f.tipoControlId ?? "",
-        tipoProductoId: f.tipoProductoId ?? "",
-        disolvente: f.disolvente,
-        modoAccionId: f.modoAccionId ?? "",
-        ingredienteActivoId: resolveIngredientId(
-          f.tipoProductoId ?? "",
-          f.ingredienteActivoNombre ?? "",
-          f.marcaProductoNombre ?? "",
-          ingredientCatalog,
-          commercialCatalog
-        ),
-        ingredienteActivoNombre: f.ingredienteActivoNombre ?? "",
-        dosisIa: f.dosisIa?.toString() ?? "",
-        volumenAplicacion: f.volumenAplicacion?.toString() ?? "",
-        cantidadTotalIa: formatCalculatedField(f.cantidadTotalIa),
-        marcaProductoNombre: f.marcaProductoNombre ?? "",
-        concentracionProducto: f.concentracionProducto?.toString() ?? "",
-        cantidadTotalProducto: formatCalculatedField(f.cantidadTotalProducto),
-        coadyuvantesIds: parseJsonArray(f.coadyuvantesIds),
-        ordenMezcla: parseJsonArray(f.ordenMezcla)
-      }))
+      receta.fitosanidad.map((f) => {
+        const catalogProduct = commercialCatalog.find(
+          (product) => product.name === f.marcaProductoNombre
+        );
+
+        return {
+          localId: f.id,
+          numero: f.numero,
+          objetivo: f.objetivo,
+          objetivoNombre: f.objetivoNombre,
+          tipoControlId: f.tipoControlId ?? "",
+          tipoProductoId: f.tipoProductoId ?? "",
+          disolvente: f.disolvente,
+          modoAccionId: f.modoAccionId ?? "",
+          ingredienteActivoId: resolveIngredientId(
+            f.tipoProductoId ?? "",
+            f.ingredienteActivoNombre ?? "",
+            f.marcaProductoNombre ?? "",
+            ingredientCatalog,
+            commercialCatalog
+          ),
+          ingredienteActivoNombre: f.ingredienteActivoNombre ?? "",
+          dosisIa: f.dosisIa?.toString() ?? "",
+          volumenAplicacion: f.volumenAplicacion?.toString() ?? "",
+          cantidadTotalIa: formatCalculatedField(f.cantidadTotalIa),
+          marcaProductoNombre: f.marcaProductoNombre ?? "",
+          concentracionProducto:
+            catalogProduct?.concentracionTexto ??
+            catalogProduct?.concentracion?.toString() ??
+            f.concentracionProducto?.toString() ??
+            "",
+          unidadMedidaProducto: catalogProduct?.unidadMedida ?? "",
+          cantidadTotalProducto: formatCalculatedField(f.cantidadTotalProducto),
+          coadyuvantesIds: parseJsonArray(f.coadyuvantesIds),
+          ordenMezcla: parseJsonArray(f.ordenMezcla)
+        };
+      })
     );
 
     if (receta.fertilizacion.length > 0) {
       const first = receta.fertilizacion[0];
+      const catalogProduct = fertilizerCatalog.find(
+        (product) => product.name === first.fertilizanteNombre
+      );
       setFertilizacion({
         viaAplicacion: first.viaAplicacion,
         fertilizanteNombre: first.fertilizanteNombre ?? "",
         tipoProducto: first.tipoProducto ?? "solido",
+        concentracion: catalogProduct?.concentracion ?? "",
+        unidadMedida: catalogProduct?.unidadMedida ?? "",
         dosis: first.dosis?.toString() ?? "",
         cantidadTotalPlantas: first.cantidadTotalPlantas?.toString() ?? "",
         volumenAplicacion: first.volumenAplicacion?.toString() ?? "",
@@ -364,6 +388,7 @@ export function VisitaRecetaScreen() {
       cantidadTotalIa: "",
       marcaProductoNombre: "",
       concentracionProducto: "",
+      unidadMedidaProducto: "",
       cantidadTotalProducto: "",
       coadyuvantesIds: [],
       ordenMezcla: []
@@ -474,7 +499,7 @@ export function VisitaRecetaScreen() {
             volumenAplicacion: parseFloat(app.volumenAplicacion) || null,
             cantidadTotalIa: totalIa || null,
             marcaProductoNombre: app.marcaProductoNombre || null,
-            concentracionProducto: parseFloat(app.concentracionProducto) || null,
+            concentracionProducto: parsePositiveDecimal(app.concentracionProducto),
             cantidadTotalProducto: totalProducto || null,
             coadyuvantesIds:
               app.coadyuvantesIds.length > 0 ? JSON.stringify(app.coadyuvantesIds) : null,
@@ -833,6 +858,7 @@ type AppFitosanidad = {
   cantidadTotalIa: string;
   marcaProductoNombre: string;
   concentracionProducto: string;
+  unidadMedidaProducto: string;
   cantidadTotalProducto: string;
   coadyuvantesIds: string[];
   ordenMezcla: string[];
@@ -1091,9 +1117,13 @@ function FitosanidadCard({
       />
 
       <LabeledNumericInput
-        label="Concentracion en producto (mg o mL i.a./L)"
-        value={value.concentracionProducto}
-        onChangeText={(v) => onChange({ concentracionProducto: v })}
+        editable={false}
+        label="Concentracion comercial"
+        placeholder="Selecciona un nombre comercial"
+        value={formatCatalogConcentration(
+          value.concentracionProducto,
+          value.unidadMedidaProducto
+        )}
       />
 
       <ReadonlyField
@@ -1266,6 +1296,8 @@ type AppFertilizacion = {
   viaAplicacion: "edafica" | "foliar";
   fertilizanteNombre: string;
   tipoProducto: "solido" | "liquido";
+  concentracion: string;
+  unidadMedida: string;
   dosis: string;
   cantidadTotalPlantas: string;
   volumenAplicacion: string;
@@ -1330,9 +1362,18 @@ function FertilizacionCard({
           const fert = fertilizantes.find((f) => f.name === v);
           onChange({
             fertilizanteNombre: v,
-            tipoProducto: fert?.type ?? value.tipoProducto
+            tipoProducto: fert?.type ?? value.tipoProducto,
+            concentracion: fert?.concentracion ?? "",
+            unidadMedida: fert?.unidadMedida ?? ""
           });
         }}
+      />
+
+      <LabeledNumericInput
+        editable={false}
+        label="Concentracion comercial"
+        placeholder="Selecciona un fertilizante"
+        value={formatCatalogConcentration(value.concentracion, value.unidadMedida)}
       />
 
       <AppSelectField
@@ -1568,11 +1609,15 @@ function LabeledTextInput({
 function LabeledNumericInput({
   label,
   value,
-  onChangeText
+  onChangeText,
+  editable = true,
+  placeholder = "0"
 }: {
   label: string;
   value: string;
-  onChangeText: (v: string) => void;
+  onChangeText?: (v: string) => void;
+  editable?: boolean;
+  placeholder?: string;
 }) {
   return (
     <View style={styles.fieldWrapper}>
@@ -1580,10 +1625,11 @@ function LabeledNumericInput({
         {label}
       </AppText>
       <TextInput
+        editable={editable}
         inputMode="decimal"
         keyboardType="decimal-pad"
         onChangeText={onChangeText}
-        placeholder="0"
+        placeholder={placeholder}
         placeholderTextColor={theme.colors.textMuted}
         style={styles.textInput}
         value={value}

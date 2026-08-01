@@ -22,7 +22,9 @@ const brands: MarcaProductoCatalogItem[] = [
     tipoProductoId: "type-1",
     ingredienteActivoId: "ia-1",
     ingredienteActivoNombre: "Abamectina",
-    concentracion: 18
+    concentracion: 18,
+    concentracionTexto: "18",
+    unidadMedida: "g/L"
   },
   {
     id: "brand-2",
@@ -30,7 +32,9 @@ const brands: MarcaProductoCatalogItem[] = [
     tipoProductoId: "type-1",
     ingredienteActivoId: "ia-1",
     ingredienteActivoNombre: "Abamectina",
-    concentracion: 20
+    concentracion: 20,
+    concentracionTexto: "20",
+    unidadMedida: "g/L"
   },
   {
     id: "brand-3",
@@ -38,7 +42,9 @@ const brands: MarcaProductoCatalogItem[] = [
     tipoProductoId: "type-1",
     ingredienteActivoId: "ia-2",
     ingredienteActivoNombre: "Azufre",
-    concentracion: 80
+    concentracion: 80,
+    concentracionTexto: "80",
+    unidadMedida: "%"
   },
   {
     id: "brand-4",
@@ -46,7 +52,9 @@ const brands: MarcaProductoCatalogItem[] = [
     tipoProductoId: "type-2",
     ingredienteActivoId: "ia-3",
     ingredienteActivoNombre: "Cobre",
-    concentracion: 50
+    concentracion: 50,
+    concentracionTexto: "50",
+    unidadMedida: "g/Kg"
   }
 ];
 
@@ -66,7 +74,8 @@ describe("recipe catalog selection cascade", () => {
       ingredienteActivoId: "",
       ingredienteActivoNombre: "",
       marcaProductoNombre: "",
-      concentracionProducto: ""
+      concentracionProducto: "",
+      unidadMedidaProducto: ""
     });
   });
 
@@ -76,7 +85,8 @@ describe("recipe catalog selection cascade", () => {
       ingredienteActivoId: "ia-3",
       ingredienteActivoNombre: "Cobre",
       marcaProductoNombre: "Cobre Solo",
-      concentracionProducto: "50"
+      concentracionProducto: "50",
+      unidadMedidaProducto: "g/Kg"
     });
   });
 
@@ -85,7 +95,8 @@ describe("recipe catalog selection cascade", () => {
       ingredienteActivoId: "ia-1",
       ingredienteActivoNombre: "Abamectina",
       marcaProductoNombre: "",
-      concentracionProducto: ""
+      concentracionProducto: "",
+      unidadMedidaProducto: ""
     });
   });
 

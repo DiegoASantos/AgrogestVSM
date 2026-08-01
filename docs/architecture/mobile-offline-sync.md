@@ -149,6 +149,12 @@ El clima general de Inicio usa `clima_distrito_cache`: una caché local de solo
 lectura por distrito, sin outbox ni cambios de datos operativos. La API resuelve
 el punto climático territorial; este flujo no usa geometría de parcelas.
 
+Los catálogos de receta `marcas_producto` y `fertilizantes` conservan localmente
+la concentración comercial textual y su unidad de medida. Son caché de solo
+lectura y no generan outbox. La migración aditiva 49 agrega las columnas
+necesarias e invalida `catalogs_downloaded_at` para forzar una descarga posterior
+sin borrar recetas, catálogos existentes ni operaciones pendientes.
+
 El detalle de visita deriva directamente desde SQLite los scores técnicos de
 Plagas, Enfermedades, Nutrición y Riego. Esta previsualización no se persiste ni
 crea outbox: usa las mismas reglas de elegibilidad, fórmulas, semáforos y reglas

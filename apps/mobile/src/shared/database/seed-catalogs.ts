@@ -311,13 +311,14 @@ async function performCatalogDownload() {
 
         for (const item of marcasProducto) {
           db.runSync(
-            `INSERT OR REPLACE INTO marcas_producto (id, name, tipo_producto_id, ingrediente_activo_id, concentracion, ingrediente_activo_nombre)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO marcas_producto (id, name, tipo_producto_id, ingrediente_activo_id, concentracion, unidad_medida, ingrediente_activo_nombre)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
             item.id,
             item.name,
             item.tipoProductoId ?? null,
             item.ingredienteActivoId ?? null,
-            item.concentracion?.toString() ?? null,
+            item.concentracionTexto ?? item.concentracion?.toString() ?? null,
+            item.unidadMedida ?? null,
             item.ingredienteActivoNombre ?? null
           );
         }
@@ -351,11 +352,13 @@ async function performCatalogDownload() {
 
         for (const item of fertilizantes) {
           db.runSync(
-            `INSERT OR REPLACE INTO fertilizantes (id, name, type)
-         VALUES (?, ?, ?)`,
+            `INSERT OR REPLACE INTO fertilizantes (id, name, type, concentracion, unidad_medida)
+         VALUES (?, ?, ?, ?, ?)`,
             item.id,
             item.name,
-            item.type
+            item.type,
+            item.concentracion ?? null,
+            item.unidadMedida ?? null
           );
         }
 

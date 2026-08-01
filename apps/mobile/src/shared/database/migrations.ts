@@ -1155,6 +1155,15 @@ const MIGRATIONS: Migration[] = [
       `);
       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
     }
+  },
+  {
+    version: 49,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "marcas_producto", "unidad_medida", "TEXT");
+      addColumnIfMissing(db, "fertilizantes", "concentracion", "TEXT");
+      addColumnIfMissing(db, "fertilizantes", "unidad_medida", "TEXT");
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
   }
 ];
 

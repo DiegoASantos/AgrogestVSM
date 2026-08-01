@@ -12,6 +12,16 @@ import { TipoControlEntity } from "../infrastructure/persistence/entities/tipo-c
 import { TipoProductoFitosanitarioEntity } from "../infrastructure/persistence/entities/tipo-producto-fitosanitario.entity";
 import { FertilizanteEntity } from "../infrastructure/persistence/entities/fertilizante.entity";
 
+function toLegacyNumericConcentration(value: string | null) {
+  const normalized = value?.trim().replace(",", ".") ?? "";
+  if (!/^\d+(?:\.\d+)?$/u.test(normalized)) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 @ApiTags("Catalogos de receta")
 @Controller()
 export class RecetasCatalogosController {
@@ -77,7 +87,9 @@ export class RecetasCatalogosController {
         tipoProductoId: i.tipoProductoId,
         ingredienteActivoId: i.ingredienteActivoId,
         ingredienteActivoNombre: i.ingredienteActivo?.name ?? null,
-        concentracion: i.concentracion
+        concentracion: toLegacyNumericConcentration(i.concentracion),
+        concentracionTexto: i.concentracion,
+        unidadMedida: i.unidadMedida
       }))
     );
   }
@@ -134,7 +146,13 @@ export class RecetasCatalogosController {
     });
 
     return createSuccessResponse(
-      items.map((i) => ({ id: i.id, name: i.name, type: i.type }))
+      items.map((i) => ({
+        id: i.id,
+        name: i.name,
+        type: i.type,
+        concentracion: i.concentracion,
+        unidadMedida: i.unidadMedida
+      }))
     );
   }
 }

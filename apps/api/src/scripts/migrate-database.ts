@@ -104,6 +104,9 @@ async function run() {
     await assertColumnExists(client, "visita_riegos", "tipo_suelo");
     await assertColumnExists(client, "visita_riegos", "humedad_suelo");
     await assertColumnExists(client, "visita_riegos", "estres_hidrico");
+    await assertColumnExists(client, "marcas_producto", "unidad_medida");
+    await assertColumnExists(client, "fertilizantes", "concentracion");
+    await assertColumnExists(client, "fertilizantes", "unidad_medida");
     await assertTableExists(client, "clima", "puntos_climaticos");
     await assertTableExists(client, "clima", "lecturas");
     await assertTableExists(client, "clima", "pronosticos");

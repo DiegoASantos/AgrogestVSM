@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 48;
+const LATEST_MIGRATION_VERSION = 49;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -18,6 +18,7 @@ type FakeDatabase = {
   visitaObservacionesSanitariasColumns: Set<string>;
   visitaCalificacionesColumns: Set<string>;
   marcasProductoColumns: Set<string>;
+  fertilizanteColumns: Set<string>;
   detalleNutrientesRows: Array<{ id: string; name: string }>;
   appMetaRows: Map<string, string | null>;
   organosRows: Array<{
@@ -70,6 +71,7 @@ function createFakeDatabase(
       "concentracion",
       "ingrediente_activo_nombre"
     ]),
+    fertilizanteColumns: new Set(["id", "name", "type"]),
     detalleNutrientesRows: [],
     appMetaRows: new Map(),
     organosRows: [],
@@ -391,6 +393,21 @@ function createFakeDatabase(
         this.marcasProductoColumns.add(columnName);
       }
 
+      if (statement.startsWith("ALTER TABLE fertilizantes ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.fertilizanteColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.fertilizanteColumns.add(columnName);
+      }
+
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
         this.pestDiseaseColumns.delete("code");
       }
@@ -560,6 +577,10 @@ function createFakeDatabase(
         return Array.from(this.marcasProductoColumns, (name) => ({
           name
         })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(fertilizantes)") {
+        return Array.from(this.fertilizanteColumns, (name) => ({ name })) as T[];
       }
 
       return [];
@@ -1307,5 +1328,23 @@ describe("runMigrations", () => {
       )
     ).toBe(true);
     expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
+  });
+
+  it("adds concentration units to recipe catalogs without deleting offline data", () => {
+    const db = createFakeDatabase(48);
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-08-01T10:00:00.000Z");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.marcasProductoColumns.has("unidad_medida")).toBe(true);
+    expect(db.fertilizanteColumns.has("concentracion")).toBe(true);
+    expect(db.fertilizanteColumns.has("unidad_medida")).toBe(true);
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("DELETE FROM visita_receta")
+      )
+    ).toBe(false);
   });
 });

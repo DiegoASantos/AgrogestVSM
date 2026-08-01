@@ -316,6 +316,7 @@ export const SQL_SCHEMA = [
     tipo_producto_id TEXT,
     ingrediente_activo_id TEXT,
     concentracion TEXT,
+    unidad_medida TEXT,
     ingrediente_activo_nombre TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS modos_accion (
@@ -333,7 +334,9 @@ export const SQL_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS fertilizantes (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('solido', 'liquido'))
+    type TEXT NOT NULL CHECK(type IN ('solido', 'liquido')),
+    concentracion TEXT,
+    unidad_medida TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS visita_recetas (
     local_id TEXT PRIMARY KEY NOT NULL,

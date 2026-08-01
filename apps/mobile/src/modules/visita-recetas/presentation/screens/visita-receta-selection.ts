@@ -6,6 +6,7 @@ export type RecipeSelectionPatch = {
   ingredienteActivoNombre: string;
   marcaProductoNombre: string;
   concentracionProducto: string;
+  unidadMedidaProducto: string;
 };
 
 export function getIngredientOptions(
@@ -53,7 +54,8 @@ export function buildTypeSelectionPatch(
     ingredienteActivoId: "",
     ingredienteActivoNombre: "",
     marcaProductoNombre: "",
-    concentracionProducto: ""
+    concentracionProducto: "",
+    unidadMedidaProducto: ""
   };
   const ingredientOptions = getIngredientOptions(
     tipoProductoId,
@@ -89,7 +91,8 @@ export function buildIngredientSelectionPatch(
     ingredienteActivoId: selectedIngredient?.id ?? "",
     ingredienteActivoNombre: selectedIngredient?.name ?? "",
     marcaProductoNombre: "",
-    concentracionProducto: ""
+    concentracionProducto: "",
+    unidadMedidaProducto: ""
   };
 
   if (!selectedIngredient) {
@@ -114,10 +117,15 @@ export function buildIngredientSelectionPatch(
 
 export function buildCommercialSelectionPatch(
   option: MarcaProductoCatalogItem
-): Pick<RecipeSelectionPatch, "marcaProductoNombre" | "concentracionProducto"> {
+): Pick<
+  RecipeSelectionPatch,
+  "marcaProductoNombre" | "concentracionProducto" | "unidadMedidaProducto"
+> {
   return {
     marcaProductoNombre: option.name,
-    concentracionProducto: option.concentracion?.toString() ?? ""
+    concentracionProducto:
+      option.concentracionTexto ?? option.concentracion?.toString() ?? "",
+    unidadMedidaProducto: option.unidadMedida ?? ""
   };
 }
 

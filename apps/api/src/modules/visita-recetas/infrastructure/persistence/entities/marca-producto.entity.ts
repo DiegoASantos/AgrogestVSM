@@ -26,12 +26,14 @@ export class MarcaProductoEntity {
 
   @Column({
     name: "concentracion",
-    type: "numeric",
-    precision: 10,
-    scale: 4,
+    type: "varchar",
+    length: 30,
     nullable: true
   })
-  concentracion!: number | null;
+  concentracion!: string | null;
+
+  @Column({ name: "unidad_medida", type: "varchar", length: 20, nullable: true })
+  unidadMedida!: string | null;
 
   @Column({ name: "activo", type: "boolean", default: () => "true" })
   isActive!: boolean;

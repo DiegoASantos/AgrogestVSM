@@ -18,9 +18,27 @@ import type {
 } from "../types";
 
 const DEFAULT_FERTILIZANTES: FertilizanteCatalogItem[] = [
-  { id: "default-complejo-npk", name: "Complejo N-P-K", type: "solido" },
-  { id: "default-calcio-boro-zinc", name: "Calcio-boro-zinc", type: "liquido" },
-  { id: "default-acidos-fulvicos", name: "ácidos fulvicos", type: "liquido" }
+  {
+    id: "default-complejo-npk",
+    name: "Complejo N-P-K",
+    type: "solido",
+    concentracion: null,
+    unidadMedida: null
+  },
+  {
+    id: "default-calcio-boro-zinc",
+    name: "Calcio-boro-zinc",
+    type: "liquido",
+    concentracion: null,
+    unidadMedida: null
+  },
+  {
+    id: "default-acidos-fulvicos",
+    name: "ácidos fulvicos",
+    type: "liquido",
+    concentracion: null,
+    unidadMedida: null
+  }
 ];
 
 type SyncStatus = "pending" | "synced" | "error";
@@ -105,6 +123,13 @@ function parseNullableNumeric(value: string | null): number | null {
   return Number.isNaN(num) ? null : num;
 }
 
+function parseSimpleCatalogConcentration(value: string | null): number | null {
+  const normalized = value?.trim().replace(",", ".") ?? "";
+  if (!/^\d+(?:\.\d+)?$/u.test(normalized)) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export const visitaRecetasRepository = {
   getCoadyuvantes(): CoadyuvanteCatalogItem[] {
     const db = getDatabase();
@@ -134,9 +159,10 @@ export const visitaRecetasRepository = {
       tipo_producto_id: string | null;
       ingrediente_activo_id: string | null;
       concentracion: string | null;
+      unidad_medida: string | null;
       ingrediente_activo_nombre: string | null;
     }>(
-      `SELECT id, name, tipo_producto_id, ingrediente_activo_id, concentracion, ingrediente_activo_nombre
+      `SELECT id, name, tipo_producto_id, ingrediente_activo_id, concentracion, unidad_medida, ingrediente_activo_nombre
        FROM marcas_producto ORDER BY name ASC`
     );
     return rows.map((r) => ({
@@ -145,7 +171,9 @@ export const visitaRecetasRepository = {
       tipoProductoId: r.tipo_producto_id,
       ingredienteActivoId: r.ingrediente_activo_id,
       ingredienteActivoNombre: r.ingrediente_activo_nombre,
-      concentracion: r.concentracion ? Number(r.concentracion) : null
+      concentracion: parseSimpleCatalogConcentration(r.concentracion),
+      concentracionTexto: r.concentracion,
+      unidadMedida: r.unidad_medida
     }));
   },
 
@@ -179,8 +207,20 @@ export const visitaRecetasRepository = {
       id: string;
       name: string;
       type: "solido" | "liquido";
-    }>("SELECT id, name, type FROM fertilizantes ORDER BY name ASC");
-    return rows.length > 0 ? rows : DEFAULT_FERTILIZANTES;
+      concentracion: string | null;
+      unidad_medida: string | null;
+    }>(
+      "SELECT id, name, type, concentracion, unidad_medida FROM fertilizantes ORDER BY name ASC"
+    );
+    return rows.length > 0
+      ? rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          type: row.type,
+          concentracion: row.concentracion,
+          unidadMedida: row.unidad_medida
+        }))
+      : DEFAULT_FERTILIZANTES;
   },
 
   getRecetaByVisitaLocalId(visitaLocalId: string): VisitaRecetaCompleta | null {

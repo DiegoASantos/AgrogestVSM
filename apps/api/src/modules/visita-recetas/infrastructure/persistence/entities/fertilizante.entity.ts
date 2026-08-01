@@ -21,6 +21,12 @@ export class FertilizanteEntity {
   })
   type!: "solido" | "liquido";
 
+  @Column({ name: "concentracion", type: "varchar", length: 30, nullable: true })
+  concentracion!: string | null;
+
+  @Column({ name: "unidad_medida", type: "varchar", length: 20, nullable: true })
+  unidadMedida!: string | null;
+
   @Column({ name: "activo", type: "boolean", default: () => "true" })
   isActive!: boolean;
 
