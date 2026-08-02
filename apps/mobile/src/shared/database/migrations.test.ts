@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 50;
+const LATEST_MIGRATION_VERSION = 52;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1364,5 +1364,32 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) => statement.includes("sync_outbox"))
     ).toBe(false);
+  });
+
+  it("adds catalog sync columns and backfills remote ids for existing rows", () => {
+    const db = createFakeDatabase(50, [
+      "id",
+      "public_id",
+      "entity_type",
+      "created_at",
+      "updated_at"
+    ]);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.productorColumns.has("server_id")).toBe(true);
+    expect(db.productorColumns.has("sync_status")).toBe(true);
+    expect(db.productorColumns.has("sync_error_message")).toBe(true);
+    for (const table of ["productores", "sectores", "subsectores", "parcelas"]) {
+      expect(
+        db.executedStatements.some(
+          (statement) =>
+            statement.includes(`UPDATE ${table}`) &&
+            statement.includes("SET server_id = id") &&
+            statement.includes("sync_status = 'synced'")
+        )
+      ).toBe(true);
+    }
   });
 });

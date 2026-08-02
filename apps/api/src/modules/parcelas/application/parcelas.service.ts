@@ -53,7 +53,19 @@ export class ParcelasService {
     private readonly visitasCampoService: VisitasCampoService
   ) {}
 
-  async create(createParcelaDto: CreateParcelaDto) {
+  async create(createParcelaDto: CreateParcelaDto, currentUser?: CurrentUserContext) {
+    if (createParcelaDto.publicId) {
+      const existing = await this.parcelasRepository.findOne({
+        where: { publicId: createParcelaDto.publicId }
+      });
+
+      if (existing) {
+        existing.subsector = await this.ensureSubsectorExists(createParcelaDto.subsectorId);
+
+        return createSuccessResponse(this.toResponse(existing));
+      }
+    }
+
     const subsector = await this.ensureSubsectorExists(createParcelaDto.subsectorId);
     await this.ensureProductorExists(createParcelaDto.productorId);
     await this.ensureUniqueName(
@@ -74,6 +86,7 @@ export class ParcelasService {
     const parcela = this.parcelasRepository.create({
       subsectorId: createParcelaDto.subsectorId,
       productorId: createParcelaDto.productorId,
+      agronomoUsuarioId: isAgronomoUser(currentUser) ? currentUser!.userId : null,
       code,
       name: createParcelaDto.name ?? null,
       areaHectares,

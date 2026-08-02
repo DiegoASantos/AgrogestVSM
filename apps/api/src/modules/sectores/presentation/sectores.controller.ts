@@ -33,7 +33,7 @@ export class SectoresController {
   constructor(private readonly sectoresService: SectoresService) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "AGRONOMO")
   @ApiOperation({ summary: "Crea un sector." })
   @ApiCreatedResponse({
     description: "Sector creado."

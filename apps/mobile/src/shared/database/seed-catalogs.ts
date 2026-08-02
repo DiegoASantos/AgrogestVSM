@@ -362,13 +362,14 @@ async function performCatalogDownload() {
           );
         }
 
-        db.runSync(
-          "DELETE FROM productores WHERE id NOT IN (SELECT DISTINCT productor_id FROM parcelas)"
-        );
-
         for (const productor of productores) {
+          const localProductorId = resolveLocalCatalogId(
+            db,
+            "productores",
+            productor.id
+          );
           db.runSync(
-            `INSERT OR REPLACE INTO productores (
+            `INSERT INTO productores (
           id,
           public_id,
           entity_type,
@@ -381,9 +382,27 @@ async function performCatalogDownload() {
           address,
           is_active,
           created_at,
-          updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            productor.id,
+          updated_at,
+          server_id,
+          sync_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          public_id = excluded.public_id,
+          entity_type = excluded.entity_type,
+          document_type_id = excluded.document_type_id,
+          document_number = excluded.document_number,
+          first_name = excluded.first_name,
+          last_name = excluded.last_name,
+          phone = excluded.phone,
+          email = excluded.email,
+          address = excluded.address,
+          is_active = excluded.is_active,
+          updated_at = excluded.updated_at,
+          server_id = excluded.server_id,
+          sync_status = 'synced',
+          sync_error_message = NULL
+        WHERE productores.sync_status <> 'pending'`,
+            localProductorId,
             productor.publicId,
             productor.entityType ?? "persona",
             productor.documentTypeId,
@@ -395,7 +414,9 @@ async function performCatalogDownload() {
             productor.address,
             toSqliteBoolean(productor.isActive),
             productor.createdAt,
-            productor.updatedAt
+            productor.updatedAt,
+            productor.id,
+            "synced"
           );
         }
 
@@ -428,54 +449,128 @@ async function performCatalogDownload() {
         }
 
         for (const sector of sectores) {
+          const localSectorId = resolveLocalCatalogId(db, "sectores", sector.id);
           db.runSync(
-            `INSERT OR REPLACE INTO sectores (
+            `INSERT INTO sectores (
           id,
+          public_id,
           distrito_id,
           name,
           description,
           is_active,
           created_at,
-          updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            sector.id,
+          updated_at,
+          server_id,
+          sync_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          public_id = excluded.public_id,
+          distrito_id = excluded.distrito_id,
+          name = excluded.name,
+          description = excluded.description,
+          is_active = excluded.is_active,
+          updated_at = excluded.updated_at,
+          server_id = excluded.server_id,
+          sync_status = 'synced',
+          sync_error_message = NULL
+        WHERE sectores.sync_status <> 'pending'`,
+            localSectorId,
+            sector.publicId,
             sector.distritoId,
             sector.name,
             sector.description,
             toSqliteBoolean(sector.isActive),
             sector.createdAt,
-            sector.updatedAt
+            sector.updatedAt,
+            sector.id,
+            "synced"
           );
         }
 
         for (const subsector of subsectores) {
+          const localSubsectorId = resolveLocalCatalogId(
+            db,
+            "subsectores",
+            subsector.id
+          );
+          const localSectorId = resolveLocalCatalogId(
+            db,
+            "sectores",
+            subsector.sectorId
+          );
           db.runSync(
-            `INSERT OR REPLACE INTO subsectores (
+            `INSERT INTO subsectores (
           id,
+          public_id,
           sector_id,
           name,
           description,
           is_active,
           created_at,
-          updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            subsector.id,
-            subsector.sectorId,
+          updated_at,
+          server_id,
+          sync_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          public_id = excluded.public_id,
+          sector_id = excluded.sector_id,
+          name = excluded.name,
+          description = excluded.description,
+          is_active = excluded.is_active,
+          updated_at = excluded.updated_at,
+          server_id = excluded.server_id,
+          sync_status = 'synced',
+          sync_error_message = NULL
+        WHERE subsectores.sync_status <> 'pending'`,
+            localSubsectorId,
+            subsector.publicId,
+            localSectorId,
             subsector.name,
             subsector.description,
             toSqliteBoolean(subsector.isActive),
             subsector.createdAt,
-            subsector.updatedAt
+            subsector.updatedAt,
+            subsector.id,
+            "synced"
           );
         }
 
-        db.runSync(
-          "DELETE FROM parcelas WHERE id NOT IN (SELECT DISTINCT parcela_id FROM visitas_campo)"
+        db.execSync(
+          `CREATE TEMP TABLE IF NOT EXISTS downloaded_parcela_ids (
+             server_id TEXT PRIMARY KEY NOT NULL
+           )`
+        );
+        db.execSync("DELETE FROM downloaded_parcela_ids");
+        for (const parcela of parcelas) {
+          db.runSync(
+            "INSERT OR IGNORE INTO downloaded_parcela_ids (server_id) VALUES (?)",
+            parcela.id
+          );
+        }
+        db.execSync(
+          `DELETE FROM parcelas
+           WHERE id NOT IN (SELECT DISTINCT parcela_id FROM visitas_campo)
+             AND (sync_status IS NULL OR sync_status = 'synced')
+             AND (
+               server_id IS NULL
+               OR server_id NOT IN (SELECT server_id FROM downloaded_parcela_ids)
+             )`
         );
 
         for (const parcela of parcelas) {
+          const localParcelaId = resolveLocalCatalogId(db, "parcelas", parcela.id);
+          const localProductorId = resolveLocalCatalogId(
+            db,
+            "productores",
+            parcela.productorId
+          );
+          const localSubsectorId = resolveLocalCatalogId(
+            db,
+            "subsectores",
+            parcela.subsectorId
+          );
           db.runSync(
-            `INSERT OR REPLACE INTO parcelas (
+            `INSERT INTO parcelas (
           id,
           public_id,
           productor_id,
@@ -488,12 +583,30 @@ async function performCatalogDownload() {
           geometry,
           is_active,
           created_at,
-          updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            parcela.id,
+          updated_at,
+          server_id,
+          sync_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          public_id = excluded.public_id,
+          productor_id = excluded.productor_id,
+          subsector_id = excluded.subsector_id,
+          code = excluded.code,
+          name = excluded.name,
+          area_hectares = excluded.area_hectares,
+          description = excluded.description,
+          reference_point = excluded.reference_point,
+          geometry = excluded.geometry,
+          is_active = excluded.is_active,
+          updated_at = excluded.updated_at,
+          server_id = excluded.server_id,
+          sync_status = 'synced',
+          sync_error_message = NULL
+        WHERE parcelas.sync_status <> 'pending'`,
+            localParcelaId,
             parcela.publicId,
-            parcela.productorId,
-            parcela.subsectorId,
+            localProductorId,
+            localSubsectorId,
             parcela.code,
             parcela.name,
             parcela.areaHectares,
@@ -502,7 +615,9 @@ async function performCatalogDownload() {
             stringifyNullableJson(parcela.geometry),
             toSqliteBoolean(parcela.isActive),
             parcela.createdAt,
-            parcela.updatedAt
+            parcela.updatedAt,
+            parcela.id,
+            "synced"
           );
         }
 
@@ -537,6 +652,22 @@ export async function refreshCatalogsIfStale(): Promise<boolean> {
 
   await downloadAllCatalogs();
   return true;
+}
+
+function resolveLocalCatalogId(
+  db: ReturnType<typeof initDatabase>,
+  table: "productores" | "sectores" | "subsectores" | "parcelas",
+  serverId: string
+) {
+  const row = db.getFirstSync<{ id: string }>(
+    `SELECT id
+     FROM ${table}
+     WHERE server_id = ?
+     LIMIT 1`,
+    serverId
+  );
+
+  return row?.id ?? serverId;
 }
 
 export async function forceRefreshAllCatalogs(): Promise<void> {

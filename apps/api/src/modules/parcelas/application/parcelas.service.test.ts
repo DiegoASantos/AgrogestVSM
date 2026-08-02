@@ -115,6 +115,40 @@ describe("ParcelasService", () => {
       });
     });
 
+    it("assigns a new parcela to an agronomist-only user", async () => {
+      const { parcelasRepository, service } = buildService([1]);
+
+      await service.create(
+        {
+          productorId: "1",
+          subsectorId: "10",
+          name: "Parcela Norte"
+        },
+        { userId: "agronomo-7", roles: ["AGRONOMO"] }
+      );
+
+      expect(parcelasRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ agronomoUsuarioId: "agronomo-7" })
+      );
+    });
+
+    it("does not auto-assign a parcela when the user has the admin role", async () => {
+      const { parcelasRepository, service } = buildService([1]);
+
+      await service.create(
+        {
+          productorId: "1",
+          subsectorId: "10",
+          name: "Parcela Norte"
+        },
+        { userId: "admin-1", roles: ["ADMIN", "AGRONOMO"] }
+      );
+
+      expect(parcelasRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ agronomoUsuarioId: null })
+      );
+    });
+
     it("pads codes to three digits and grows beyond PAR-999", async () => {
       const { parcelasRepository, service } = buildService([4, 1000]);
 

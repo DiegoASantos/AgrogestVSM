@@ -1168,6 +1168,46 @@ const MIGRATIONS: Migration[] = [
   {
     version: 50,
     statements: ["DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"]
+  },
+  {
+    version: 51,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "productores", "server_id", "TEXT");
+      addColumnIfMissing(db, "productores", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
+      addColumnIfMissing(db, "productores", "sync_error_message", "TEXT");
+      addColumnIfMissing(db, "sectores", "server_id", "TEXT");
+      addColumnIfMissing(db, "sectores", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
+      addColumnIfMissing(db, "sectores", "sync_error_message", "TEXT");
+      addColumnIfMissing(db, "subsectores", "server_id", "TEXT");
+      addColumnIfMissing(db, "subsectores", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
+      addColumnIfMissing(db, "subsectores", "sync_error_message", "TEXT");
+      addColumnIfMissing(db, "parcelas", "server_id", "TEXT");
+      addColumnIfMissing(db, "parcelas", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
+      addColumnIfMissing(db, "parcelas", "sync_error_message", "TEXT");
+      for (const table of ["productores", "sectores", "subsectores", "parcelas"]) {
+        db.execSync(
+          `UPDATE ${table}
+           SET server_id = id
+           WHERE server_id IS NULL
+             AND sync_status = 'synced'`
+        );
+      }
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
+  },
+  {
+    version: 52,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "sectores", "public_id", "TEXT NOT NULL DEFAULT ''");
+      addColumnIfMissing(db, "subsectores", "public_id", "TEXT NOT NULL DEFAULT ''");
+      db.execSync(
+        `UPDATE sectores SET public_id = id WHERE public_id = '' AND server_id IS NOT NULL`
+      );
+      db.execSync(
+        `UPDATE subsectores SET public_id = id WHERE public_id = '' AND server_id IS NOT NULL`
+      );
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
   }
 ];
 

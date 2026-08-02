@@ -351,6 +351,30 @@ describe("processOutbox", () => {
     expect(result).toMatchObject({ processed: 1, skipped: 0, errors: 0 });
   });
 
+  it("preserves an unresolved conflict as a durable failure", async () => {
+    getPendingOutboxEntries.mockReturnValue([makeEntry({ id: 51 })]);
+    handlerVisita.mockRejectedValue(new ApiError("conflict", 409));
+
+    const result = await processOutbox();
+
+    expect(storeSyncFailure).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ id: 51 }),
+      "permanent",
+      expect.stringContaining("identidad remota")
+    );
+    expect(visitasCampoUpdate).toHaveBeenCalledWith(
+      "local-1",
+      expect.objectContaining({ syncStatus: "error" })
+    );
+    expect(deleteOutboxEntry).toHaveBeenCalledWith(51);
+    expect(result).toMatchObject({
+      processed: 0,
+      permanentFailures: 1,
+      errors: 1
+    });
+  });
+
   it("treats a non-retryable permanent error as error and marks the entity", async () => {
     getPendingOutboxEntries.mockReturnValue([makeEntry({ id: 6 })]);
     handlerVisita.mockRejectedValue(new ApiError("bad request", 400));

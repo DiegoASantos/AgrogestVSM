@@ -6,6 +6,10 @@ import { riegosRepository } from "../../modules/riegos/repositories/riegos.repos
 import { visitaCalificacionesRepository } from "../../modules/visita-calificaciones/repositories/visita-calificaciones.repository";
 import { visitaRecetasRepository } from "../../modules/visita-recetas/repositories/visita-recetas.repository";
 import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
+import { productoresRepository } from "../../modules/productores/repositories/productores.repository";
+import { sectoresRepository } from "../../modules/sectores/repositories/sectores.repository";
+import { subsectoresRepository } from "../../modules/subsectores/repositories/subsectores.repository";
+import { parcelasRepository } from "../../modules/parcelas/repositories/parcelas.repository";
 import {
   deleteOutboxEntry,
   incrementOutboxRetryCount,
@@ -51,6 +55,10 @@ const RECONCILABLE_SYNC_ENTITIES: Array<{
   entityType: keyof typeof SYNC_ENTITY_TABLES;
   table: string;
 }> = [
+  { entityType: "productores", table: "productores" },
+  { entityType: "sectores", table: "sectores" },
+  { entityType: "subsectores", table: "subsectores" },
+  { entityType: "parcelas", table: "parcelas" },
   { entityType: "visitas_campo", table: "visitas_campo" },
   { entityType: "visita_evaluaciones", table: "visita_evaluaciones" },
   {
@@ -63,6 +71,12 @@ const RECONCILABLE_SYNC_ENTITIES: Array<{
   { entityType: "visita_recetas", table: "visita_recetas" },
   { entityType: "visita_calificaciones", table: "visita_calificaciones" }
 ];
+
+const ROOT_ENTITY_TYPES = new Set<string>([
+  "productores",
+  "sectores",
+  "visitas_campo"
+]);
 
 export async function processOutbox(
   options: ProcessOutboxOptions = {}
@@ -110,7 +124,7 @@ export async function processOutbox(
       break;
     }
 
-    const isChildEntity = entry.entityType !== "visitas_campo";
+    const isChildEntity = !ROOT_ENTITY_TYPES.has(entry.entityType);
     const isChildCreate = isChildEntity && entry.operation === "create";
 
     if (isChildCreate) {
@@ -168,9 +182,21 @@ export async function processOutbox(
       }
 
       if (classified.kind === "conflict") {
-        handleConflictResolution(entry, error);
-        deleteOutboxEntry(entry.id);
-        processed++;
+        if (handleConflictResolution(entry, error)) {
+          deleteOutboxEntry(entry.id);
+          processed++;
+        } else {
+          const message =
+            "Conflicto sin identidad remota recuperable. Requiere correccion manual.";
+          const db = getDatabase();
+          db.withTransactionSync(() => {
+            storeSyncFailure(db, entry, "permanent", message);
+            markEntityError(entry, message);
+            deleteOutboxEntry(entry.id);
+          });
+          permanentFailures++;
+          errors++;
+        }
         continue;
       }
 
@@ -239,13 +265,17 @@ export async function processOutbox(
 
 function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {
   if (!(error instanceof ApiError) || !error.responseData) {
-    return;
+    return false;
   }
 
-  const data = error.responseData as { id?: string; publicId?: string };
+  const data = error.responseData as {
+    id?: string;
+    publicId?: string;
+    code?: string;
+  };
 
   if (!data.id) {
-    return;
+    return false;
   }
 
   debugLog("Sync", `Conflict resolved for ${entry.entityType}:${entry.entityLocalId}`, {
@@ -291,9 +321,40 @@ function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {
         syncStatus: "synced",
         syncErrorMessage: null
       });
+    } else if (entry.entityType === "productores") {
+      productoresRepository.update(entry.entityLocalId, {
+        serverId: data.id,
+        syncStatus: "synced",
+        syncErrorMessage: null
+      });
+    } else if (entry.entityType === "sectores") {
+      sectoresRepository.update(entry.entityLocalId, {
+        serverId: data.id,
+        syncStatus: "synced",
+        syncErrorMessage: null
+      });
+    } else if (entry.entityType === "subsectores") {
+      subsectoresRepository.update(entry.entityLocalId, {
+        serverId: data.id,
+        syncStatus: "synced",
+        syncErrorMessage: null
+      });
+    } else if (entry.entityType === "parcelas") {
+      parcelasRepository.update(entry.entityLocalId, {
+        serverId: data.id,
+        syncStatus: "synced",
+        syncErrorMessage: null,
+        publicId: data.publicId,
+        code: data.code
+      });
+    } else {
+      return false;
     }
+
+    return true;
   } catch {
     // Entity may not exist (was deleted locally)
+    return false;
   }
 }
 
@@ -336,6 +397,30 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
 
   try {
     switch (entry.entityType) {
+      case "productores":
+        productoresRepository.update(entry.entityLocalId, {
+          syncStatus: "error",
+          syncErrorMessage: message
+        });
+        break;
+      case "sectores":
+        sectoresRepository.update(entry.entityLocalId, {
+          syncStatus: "error",
+          syncErrorMessage: message
+        });
+        break;
+      case "subsectores":
+        subsectoresRepository.update(entry.entityLocalId, {
+          syncStatus: "error",
+          syncErrorMessage: message
+        });
+        break;
+      case "parcelas":
+        parcelasRepository.update(entry.entityLocalId, {
+          syncStatus: "error",
+          syncErrorMessage: message
+        });
+        break;
       case "visitas_campo":
         visitasCampoRepository.update(entry.entityLocalId, {
           syncStatus: "error"
@@ -385,11 +470,13 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
         return;
     }
 
-    getDatabase().runSync(
-      `UPDATE ${table} SET sync_error_message = ? WHERE local_id = ?`,
-      message,
-      entry.entityLocalId
-    );
+    if (!["productores", "sectores", "subsectores", "parcelas"].includes(entry.entityType)) {
+      getDatabase().runSync(
+        `UPDATE ${table} SET sync_error_message = ? WHERE local_id = ?`,
+        message,
+        entry.entityLocalId
+      );
+    }
   } catch {
     // El registro puede no existir si era un delete local ya aplicado.
   }
@@ -414,6 +501,9 @@ function reconcilePendingOutboxEntries() {
   `);
 
   for (const entity of RECONCILABLE_SYNC_ENTITIES) {
+    const isCatalogEntity = ["productores", "sectores", "subsectores", "parcelas"].includes(entity.entityType);
+    const idColumn = isCatalogEntity ? "id" : "local_id";
+
     const rows =
       entity.entityType === "visita_recetas"
         ? db.getAllSync<{ local_id: string; server_id: string | null }>(
@@ -432,14 +522,14 @@ function reconcilePendingOutboxEntries() {
             entity.entityType
           )
         : db.getAllSync<{ local_id: string; server_id: string | null }>(
-            `SELECT local_id, server_id
+            `SELECT ${idColumn} AS local_id, server_id
              FROM ${entity.table}
              WHERE sync_status = 'pending'
                AND NOT EXISTS (
                  SELECT 1
                  FROM sync_outbox
                  WHERE entity_type = ?
-                   AND entity_local_id = ${entity.table}.local_id
+                   AND entity_local_id = ${entity.table}.${idColumn}
                )`,
             entity.entityType
           );

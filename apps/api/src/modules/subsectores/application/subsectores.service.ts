@@ -29,6 +29,16 @@ export class SubsectoresService {
   ) {}
 
   async create(createSubsectorDto: CreateSubsectorDto) {
+    if (createSubsectorDto.publicId) {
+      const existing = await this.subsectoresRepository.findOne({
+        where: { publicId: createSubsectorDto.publicId }
+      });
+
+      if (existing) {
+        return createSuccessResponse(this.toResponse(existing));
+      }
+    }
+
     await this.ensureSectorExists(createSubsectorDto.sectorId);
     await this.ensureUniqueName(createSubsectorDto.sectorId, createSubsectorDto.name);
 

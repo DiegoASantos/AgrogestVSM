@@ -30,6 +30,16 @@ export class SectoresService {
   ) {}
 
   async create(createSectorDto: CreateSectorDto) {
+    if (createSectorDto.publicId) {
+      const existing = await this.sectoresRepository.findOne({
+        where: { publicId: createSectorDto.publicId }
+      });
+
+      if (existing) {
+        return createSuccessResponse(this.toResponse(existing));
+      }
+    }
+
     await this.ensureDistritoExists(createSectorDto.distritoId);
     await this.ensureUniqueName(createSectorDto.distritoId, createSectorDto.name);
 

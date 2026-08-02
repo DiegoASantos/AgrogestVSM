@@ -1,8 +1,11 @@
 import { getDatabase } from "../../../shared/database/connection";
 import {
   fromSqliteBoolean,
-  parseNullableJson
+  getNowIsoString,
+  parseNullableJson,
+  stringifyNullableJson
 } from "../../../shared/database/sqlite-utils";
+import type { SQLiteBindValue } from "expo-sqlite";
 import {
   normalizeGeoJsonMultiPolygon,
   normalizeGeoJsonPoint
@@ -24,6 +27,9 @@ type ParcelaRow = {
   is_active: number;
   created_at: string;
   updated_at: string;
+  server_id: string | null;
+  sync_status: Parcela["syncStatus"];
+  sync_error_message: string | null;
 };
 
 const PARCELA_COLUMNS = `
@@ -40,7 +46,10 @@ const PARCELA_COLUMNS = `
   parcelas.geometry AS geometry,
   parcelas.is_active AS is_active,
   parcelas.created_at AS created_at,
-  parcelas.updated_at AS updated_at
+  parcelas.updated_at AS updated_at,
+  parcelas.server_id AS server_id,
+  parcelas.sync_status AS sync_status,
+  parcelas.sync_error_message AS sync_error_message
 `;
 
 export const parcelasRepository = {
@@ -130,6 +139,93 @@ export const parcelasRepository = {
     );
 
     return rows.map(mapParcelaRow);
+  },
+
+  getByProductorId(productorId: string) {
+    const db = getDatabase();
+    const rows = db.getAllSync<ParcelaRow>(
+      `SELECT ${PARCELA_COLUMNS}
+       FROM parcelas
+       INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
+       WHERE parcelas.productor_id = ?
+       ORDER BY parcelas.name ASC, parcelas.id ASC`,
+      productorId
+    );
+
+    return rows.map(mapParcelaRow);
+  },
+
+  countByProductorId(productorId: string) {
+    const db = getDatabase();
+    const row = db.getFirstSync<{ total: number }>(
+      `SELECT COUNT(*) AS total
+       FROM parcelas
+       WHERE productor_id = ?`,
+      productorId
+    );
+
+    return row?.total ?? 0;
+  },
+
+  insert(parcela: Parcela) {
+    const db = getDatabase();
+    db.runSync(
+      `INSERT INTO parcelas (
+        id, public_id, productor_id, subsector_id, code, name,
+        area_hectares, description, reference_point, geometry,
+        is_active, created_at, updated_at,
+        server_id, sync_status, sync_error_message
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      parcela.id,
+      parcela.publicId,
+      parcela.productorId,
+      parcela.subsectorId,
+      parcela.code,
+      parcela.name,
+      parcela.areaHectares,
+      parcela.description,
+      stringifyNullableJson(parcela.referencePoint),
+      stringifyNullableJson(parcela.geometry),
+      1,
+      parcela.createdAt,
+      parcela.updatedAt,
+      parcela.serverId,
+      parcela.syncStatus,
+      parcela.syncErrorMessage
+    );
+  },
+
+  update(id: string, data: { serverId?: string | null; syncStatus?: Parcela["syncStatus"]; syncErrorMessage?: string | null; code?: string; publicId?: string }) {
+    const db = getDatabase();
+    const sets: string[] = [];
+    const params: SQLiteBindValue[] = [];
+
+    if (data.serverId !== undefined) {
+      sets.push("server_id = ?");
+      params.push(data.serverId);
+    }
+    if (data.syncStatus !== undefined) {
+      sets.push("sync_status = ?");
+      params.push(data.syncStatus);
+    }
+    if (data.syncErrorMessage !== undefined) {
+      sets.push("sync_error_message = ?");
+      params.push(data.syncErrorMessage);
+    }
+    if (data.code !== undefined) {
+      sets.push("code = ?");
+      params.push(data.code);
+    }
+    if (data.publicId !== undefined) {
+      sets.push("public_id = ?");
+      params.push(data.publicId);
+    }
+
+    sets.push("updated_at = ?");
+    params.push(getNowIsoString());
+    params.push(id);
+
+    db.runSync(`UPDATE parcelas SET ${sets.join(", ")} WHERE id = ?`, ...params);
   }
 };
 
@@ -148,6 +244,9 @@ function mapParcelaRow(row: ParcelaRow): Parcela {
     geometry: normalizeGeoJsonMultiPolygon(parseNullableJson(row.geometry)),
     isActive: fromSqliteBoolean(row.is_active),
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    serverId: row.server_id,
+    syncStatus: row.sync_status,
+    syncErrorMessage: row.sync_error_message
   };
 }

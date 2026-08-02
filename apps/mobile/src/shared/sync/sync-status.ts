@@ -35,6 +35,10 @@ export type SyncPendingDetail = {
 };
 
 const SYNC_ENTITY_LABELS: Record<SyncEntityType, string> = {
+  productores: "Productor",
+  sectores: "Sector",
+  subsectores: "Subsector",
+  parcelas: "Parcela",
   visitas_campo: "Visita de campo",
   visita_evaluaciones: "Evaluacion",
   visita_observaciones_sanitarias: "Plagas y enfermedades",

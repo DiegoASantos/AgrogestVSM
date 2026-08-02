@@ -1,5 +1,6 @@
 import { getDatabase } from "../../../shared/database/connection";
-import { fromSqliteBoolean } from "../../../shared/database/sqlite-utils";
+import { fromSqliteBoolean, getNowIsoString } from "../../../shared/database/sqlite-utils";
+import type { SQLiteBindValue } from "expo-sqlite";
 import type { Productor } from "../types";
 
 type ProductorRow = {
@@ -16,6 +17,9 @@ type ProductorRow = {
   is_active: number;
   created_at: string;
   updated_at: string;
+  server_id: string | null;
+  sync_status: Productor["syncStatus"];
+  sync_error_message: string | null;
 };
 
 const PRODUCTOR_COLUMNS = `
@@ -31,7 +35,10 @@ const PRODUCTOR_COLUMNS = `
   address,
   is_active,
   created_at,
-  updated_at
+  updated_at,
+  server_id,
+  sync_status,
+  sync_error_message
 `;
 
 export const productoresRepository = {
@@ -122,6 +129,59 @@ export const productoresRepository = {
     );
 
     return rows.map(mapProductorRow);
+  },
+
+  insert(productor: Productor) {
+    const db = getDatabase();
+    db.runSync(
+      `INSERT INTO productores (
+        id, public_id, entity_type, document_type_id, document_number,
+        first_name, last_name, phone, email, address,
+        is_active, created_at, updated_at,
+        server_id, sync_status, sync_error_message
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      productor.id,
+      productor.publicId,
+      productor.entityType,
+      productor.documentTypeId,
+      productor.documentNumber,
+      productor.firstName,
+      productor.lastName,
+      productor.phone,
+      productor.email,
+      productor.address,
+      1,
+      productor.createdAt,
+      productor.updatedAt,
+      productor.serverId,
+      productor.syncStatus,
+      productor.syncErrorMessage
+    );
+  },
+
+  update(id: string, data: { serverId?: string | null; syncStatus?: Productor["syncStatus"]; syncErrorMessage?: string | null }) {
+    const db = getDatabase();
+    const sets: string[] = [];
+    const params: SQLiteBindValue[] = [];
+
+    if (data.serverId !== undefined) {
+      sets.push("server_id = ?");
+      params.push(data.serverId);
+    }
+    if (data.syncStatus !== undefined) {
+      sets.push("sync_status = ?");
+      params.push(data.syncStatus);
+    }
+    if (data.syncErrorMessage !== undefined) {
+      sets.push("sync_error_message = ?");
+      params.push(data.syncErrorMessage);
+    }
+
+    sets.push("updated_at = ?");
+    params.push(getNowIsoString());
+    params.push(id);
+
+    db.runSync(`UPDATE productores SET ${sets.join(", ")} WHERE id = ?`, ...params);
   }
 };
 
@@ -139,6 +199,9 @@ function mapProductorRow(row: ProductorRow): Productor {
     address: row.address,
     isActive: fromSqliteBoolean(row.is_active),
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    serverId: row.server_id,
+    syncStatus: row.sync_status,
+    syncErrorMessage: row.sync_error_message
   };
 }

@@ -48,8 +48,18 @@ export class ParcelasController {
     description:
       "Ya existe una parcela con el mismo codigo o nombre para el productor y subsector."
   })
-  createParcela(@Body() createParcelaDto: CreateParcelaDto) {
-    return this.parcelasService.create(createParcelaDto);
+  createParcela(
+    @Body() createParcelaDto: CreateParcelaDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    if (!currentUser) {
+      return this.parcelasService.create(createParcelaDto);
+    }
+
+    return this.parcelasService.create(createParcelaDto, {
+      userId: currentUser.userId,
+      roles: currentUser.roles
+    });
   }
 
   @Get()

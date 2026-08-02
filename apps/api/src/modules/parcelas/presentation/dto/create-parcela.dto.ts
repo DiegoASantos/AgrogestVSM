@@ -4,12 +4,22 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateParcelaDto {
+  @ApiPropertyOptional({
+    example: "550e8400-e29b-41d4-a716-446655440000",
+    format: "uuid",
+    description: "UUID público del cliente para idempotencia de sincronización."
+  })
+  @IsOptional()
+  @IsUUID("4")
+  publicId?: string;
+
   @ApiProperty({
     example: "1",
     description: "Id del productor propietario."

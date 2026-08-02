@@ -1,4 +1,8 @@
 export const SYNC_ENTITY_TABLES = {
+  productores: "productores",
+  sectores: "sectores",
+  subsectores: "subsectores",
+  parcelas: "parcelas",
   visitas_campo: "visitas_campo",
   visita_evaluaciones: "visita_evaluaciones",
   visita_observaciones_sanitarias: "visita_observaciones_sanitarias",

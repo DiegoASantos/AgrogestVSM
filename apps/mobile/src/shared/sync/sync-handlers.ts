@@ -42,6 +42,15 @@ import { visitaRecetasRemote } from "../../modules/visita-recetas/services/visit
 import { visitaCalificacionesRepository } from "../../modules/visita-calificaciones/repositories/visita-calificaciones.repository";
 import { visitaCalificacionesRemote } from "../../modules/visita-calificaciones/services";
 
+import { productoresRepository } from "../../modules/productores/repositories/productores.repository";
+import { productoresRemote } from "../../modules/productores/services/productores.remote";
+import { sectoresRepository } from "../../modules/sectores/repositories/sectores.repository";
+import { sectoresRemote } from "../../modules/sectores/services/sectores.remote";
+import { subsectoresRepository } from "../../modules/subsectores/repositories/subsectores.repository";
+import { subsectoresRemote } from "../../modules/subsectores/services/subsectores.remote";
+import { parcelasRepository } from "../../modules/parcelas/repositories/parcelas.repository";
+import { parcelasRemote } from "../../modules/parcelas/services/parcelas.remote";
+
 export type SyncHandlerContext = {
   signal?: AbortSignal;
 };
@@ -483,10 +492,191 @@ export async function handleLaborCultural(
   return { status: "synced", serverId: response.id };
 }
 
+export async function handleProductor(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    const serverId = getDeleteServerId(entry);
+    if (!serverId) {
+      return { status: "deleted_local" };
+    }
+    await productoresRemote.remove(serverId, context);
+    return { status: "synced", serverId };
+  }
+
+  const productor = productoresRepository.getById(entry.entityLocalId);
+  if (!productor) {
+    return { status: "deleted_local" };
+  }
+
+  const draft = {
+    publicId: productor.publicId,
+    entityType: productor.entityType,
+    firstName: productor.firstName ?? "",
+    lastName: productor.lastName,
+    documentTypeId: productor.documentTypeId,
+    documentNumber: productor.documentNumber,
+    phone: productor.phone,
+    email: productor.email,
+    address: productor.address
+  };
+  const response =
+    entry.operation === "update" && productor.serverId
+      ? await productoresRemote.update(productor.serverId, draft, context)
+      : await productoresRemote.create(draft, context);
+
+  productoresRepository.update(productor.id, {
+    serverId: response.id,
+    syncStatus: "synced",
+    syncErrorMessage: null
+  });
+
+  return { status: "synced", serverId: response.id };
+}
+
+export async function handleSector(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    const serverId = getDeleteServerId(entry);
+    if (!serverId) {
+      return { status: "deleted_local" };
+    }
+    await sectoresRemote.remove(serverId, context);
+    return { status: "synced", serverId };
+  }
+
+  const sector = sectoresRepository.getById(entry.entityLocalId);
+  if (!sector) {
+    return { status: "deleted_local" };
+  }
+
+  const draft = {
+    publicId: sector.publicId,
+    distritoId: sector.distritoId,
+    name: sector.name,
+    description: sector.description
+  };
+  const response =
+    entry.operation === "update" && sector.serverId
+      ? await sectoresRemote.update(sector.serverId, draft, context)
+      : await sectoresRemote.create(draft, context);
+
+  sectoresRepository.update(sector.id, {
+    serverId: response.id,
+    syncStatus: "synced",
+    syncErrorMessage: null
+  });
+
+  return { status: "synced", serverId: response.id };
+}
+
+export async function handleSubsector(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    const serverId = getDeleteServerId(entry);
+    if (!serverId) {
+      return { status: "deleted_local" };
+    }
+    await subsectoresRemote.remove(serverId, context);
+    return { status: "synced", serverId };
+  }
+
+  const subsector = subsectoresRepository.getById(entry.entityLocalId);
+  if (!subsector) {
+    return { status: "deleted_local" };
+  }
+
+  const sector = sectoresRepository.getById(subsector.sectorId);
+  if (!sector?.serverId) {
+    return { status: "skipped" };
+  }
+
+  const draft = {
+    publicId: subsector.publicId,
+    sectorId: sector.serverId,
+    name: subsector.name,
+    description: subsector.description
+  };
+  const response =
+    entry.operation === "update" && subsector.serverId
+      ? await subsectoresRemote.update(subsector.serverId, draft, context)
+      : await subsectoresRemote.create(draft, context);
+
+  subsectoresRepository.update(subsector.id, {
+    serverId: response.id,
+    syncStatus: "synced",
+    syncErrorMessage: null
+  });
+
+  return { status: "synced", serverId: response.id };
+}
+
+export async function handleParcela(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    const serverId = getDeleteServerId(entry);
+    if (!serverId) {
+      return { status: "deleted_local" };
+    }
+    await parcelasRemote.remove(serverId, context);
+    return { status: "synced", serverId };
+  }
+
+  const parcela = parcelasRepository.getById(entry.entityLocalId);
+  if (!parcela) {
+    return { status: "deleted_local" };
+  }
+
+  const productor = productoresRepository.getById(parcela.productorId);
+  if (!productor?.serverId) {
+    return { status: "skipped" };
+  }
+
+  const subsector = subsectoresRepository.getById(parcela.subsectorId);
+  if (!subsector?.serverId) {
+    return { status: "skipped" };
+  }
+
+  const draft = {
+    publicId: parcela.publicId,
+    productorId: productor.serverId,
+    subsectorId: subsector.serverId,
+    name: parcela.name || null,
+    areaHectares: parcela.areaHectares,
+    description: parcela.description,
+    referencePoint: parcela.referencePoint
+  };
+  const response =
+    entry.operation === "update" && parcela.serverId
+      ? await parcelasRemote.update(parcela.serverId, draft, context)
+      : await parcelasRemote.create(draft, context);
+
+  parcelasRepository.update(parcela.id, {
+    serverId: response.id,
+    syncStatus: "synced",
+    syncErrorMessage: null,
+    code: response.code,
+    publicId: response.publicId
+  });
+
+  return { status: "synced", serverId: response.id };
+}
+
 export const entityHandlerMap: Record<
   SyncEntityType,
   (entry: SyncOutboxItem, context?: SyncHandlerContext) => Promise<SyncHandlerResult>
 > = {
+  productores: handleProductor,
+  sectores: handleSector,
+  subsectores: handleSubsector,
+  parcelas: handleParcela,
   visitas_campo: handleVisitaCampo,
   visita_evaluaciones: handleEvaluacion,
   visita_observaciones_sanitarias: handleObservacion,

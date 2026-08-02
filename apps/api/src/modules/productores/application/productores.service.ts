@@ -39,6 +39,16 @@ export class ProductoresService {
   ) {}
 
   async create(createProductorDto: CreateProductorDto) {
+    if (createProductorDto.publicId) {
+      const existing = await this.productoresRepository.findOne({
+        where: { publicId: createProductorDto.publicId }
+      });
+
+      if (existing) {
+        return createSuccessResponse(this.toResponse(existing));
+      }
+    }
+
     const entityType = createProductorDto.entityType ?? "persona";
 
     this.validateProducerInput(entityType, createProductorDto);

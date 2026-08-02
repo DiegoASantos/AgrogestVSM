@@ -16,6 +16,7 @@ export type AppPaginatedSelectOption = {
   value: string;
   label: string;
   helper?: string;
+  muted?: boolean;
 };
 
 type LoadOptionsResult = {
@@ -232,12 +233,23 @@ export function AppPaginatedSelectField({
                   }}
                   style={({ pressed }) => [
                     styles.optionRow,
+                    item.muted && styles.mutedOption,
                     pressed && styles.pressedOption
                   ]}
                 >
-                  <AppText variant="label">{item.label}</AppText>
+                  <AppText
+                    style={item.muted ? styles.mutedOptionText : undefined}
+                    variant="label"
+                  >
+                    {item.label}
+                  </AppText>
                   {item.helper ? (
-                    <AppText variant="caption">{item.helper}</AppText>
+                    <AppText
+                      style={item.muted ? styles.mutedOptionText : undefined}
+                      variant="caption"
+                    >
+                      {item.helper}
+                    </AppText>
                   ) : null}
                 </Pressable>
               )}
@@ -359,6 +371,12 @@ const styles = StyleSheet.create({
   },
   pressedOption: {
     backgroundColor: theme.colors.primaryMuted
+  },
+  mutedOption: {
+    opacity: 0.58
+  },
+  mutedOptionText: {
+    color: theme.colors.textMuted
   },
   errorText: {
     color: theme.colors.error

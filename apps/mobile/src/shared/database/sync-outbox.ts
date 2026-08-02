@@ -98,7 +98,14 @@ export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
   const rows = db.getAllSync<SyncOutboxRow>(
     `SELECT id, entity_type, entity_local_id, operation, payload, retry_count, created_at
      FROM sync_outbox
-     ORDER BY CASE WHEN entity_type = 'visitas_campo' THEN 0 ELSE 1 END,
+     ORDER BY CASE
+       WHEN entity_type = 'productores' THEN 0
+       WHEN entity_type = 'sectores' THEN 0
+       WHEN entity_type = 'subsectores' THEN 1
+       WHEN entity_type = 'parcelas' THEN 2
+       WHEN entity_type = 'visitas_campo' THEN 3
+       ELSE 4
+     END,
               id ASC
      LIMIT ?`,
     limit

@@ -33,7 +33,7 @@ export class SubsectoresController {
   constructor(private readonly subsectoresService: SubsectoresService) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "AGRONOMO")
   @ApiOperation({ summary: "Crea un subsector." })
   @ApiCreatedResponse({
     description: "Subsector creado."

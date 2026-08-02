@@ -118,7 +118,10 @@ export const SQL_SCHEMA = [
     address TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    sync_error_message TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS departamentos (
     id TEXT PRIMARY KEY NOT NULL,
@@ -141,22 +144,30 @@ export const SQL_SCHEMA = [
   )`,
   `CREATE TABLE IF NOT EXISTS sectores (
     id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL,
     distrito_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    sync_error_message TEXT,
     FOREIGN KEY (distrito_id) REFERENCES distritos(id)
   )`,
   `CREATE TABLE IF NOT EXISTS subsectores (
     id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL,
     sector_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    sync_error_message TEXT,
     FOREIGN KEY (sector_id) REFERENCES sectores(id)
   )`,
   `CREATE TABLE IF NOT EXISTS parcelas (
@@ -173,6 +184,9 @@ export const SQL_SCHEMA = [
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    sync_error_message TEXT,
     FOREIGN KEY (productor_id) REFERENCES productores(id),
     FOREIGN KEY (subsector_id) REFERENCES subsectores(id)
   )`,

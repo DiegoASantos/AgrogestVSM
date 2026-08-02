@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ImageBackground, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, ImageBackground, ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppButton,
@@ -13,6 +13,7 @@ import {
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
+import { getDatabase } from "../../../../shared/database/connection";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
 import { parcelasService } from "../../../parcelas/services";
@@ -32,6 +33,11 @@ type LoadingCatalog = Exclude<OpenCatalog, null>;
 
 export function NewVisitaSelectorScreen() {
   const router = useRouter();
+  const { nuevoProductorId, nuevoProductorLabel, nuevaParcelaId } = useLocalSearchParams<{
+    nuevoProductorId?: string;
+    nuevoProductorLabel?: string;
+    nuevaParcelaId?: string;
+  }>();
   const [openCatalog, setOpenCatalog] = useState<OpenCatalog>(null);
   const [loadingCatalog, setLoadingCatalog] =
     useState<LoadingCatalog | null>("productor");
@@ -46,8 +52,33 @@ export function NewVisitaSelectorScreen() {
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
 
   useEffect(() => {
-    void ensureProductoresAvailable();
-  }, []);
+    if (nuevoProductorId && nuevaParcelaId) {
+      void restoreCreatedParcelaSelection(nuevoProductorId, nuevaParcelaId);
+    } else if (nuevoProductorId) {
+      setProductorId(nuevoProductorId);
+      setSelectedProductorLabel(nuevoProductorLabel ?? "Nuevo productor");
+      setTimeout(() => {
+        Alert.alert(
+          "Productor creado",
+          "Desea agregar una parcela ahora?",
+          [
+            { text: "Ahora no", style: "cancel", onPress: clearSelection },
+            {
+              text: "Agregar parcela",
+              onPress: () => {
+                router.push({
+                  pathname: "/productores/agregar-parcela",
+                  params: { productorId: nuevoProductorId }
+                });
+              }
+            }
+          ]
+        );
+      }, 500);
+    } else {
+      void ensureProductoresAvailable();
+    }
+  }, [nuevoProductorId, nuevaParcelaId]);
 
   const sectorOptions = sectores.map((sector) => ({
     value: sector.id,
@@ -72,10 +103,29 @@ export function NewVisitaSelectorScreen() {
         productoresService.countByName(query)
       ]);
 
-      return {
-        options: nextProductores.map(toProductorOption),
-        total
-      };
+      const db = getDatabase();
+      const options = nextProductores.map((productor) => {
+        const hasParcela = Boolean(
+          db.getFirstSync<{ found: number }>(
+            `SELECT 1 AS found
+             FROM parcelas
+             WHERE productor_id = ?
+             LIMIT 1`,
+            productor.id
+          )
+        );
+
+        return hasParcela
+          ? toProductorOption(productor)
+          : {
+              ...toProductorOption(productor),
+              label: `[Sin parcela] ${buildProductorLabel(productor)}`,
+              helper: "Toca para agregar una parcela",
+              muted: true
+            };
+      });
+
+      return { options, total };
     },
     []
   );
@@ -183,6 +233,13 @@ export function NewVisitaSelectorScreen() {
             </View>
           ) : null}
 
+          <AppButton
+            label="Nuevo productor"
+            onPress={handleNewProductorPress}
+            variant="outline"
+            icon="person-add-outline"
+          />
+
           <View style={styles.actions}>
             <AppButton
               disabled={!selectedParcela}
@@ -250,6 +307,33 @@ export function NewVisitaSelectorScreen() {
   }
 
   async function handleProductorSelection(value: string) {
+    const row = getDatabase().getFirstSync<{ total: number }>(
+      "SELECT COUNT(*) AS total FROM parcelas WHERE productor_id = ?",
+      value
+    );
+    const parcelaCount = row?.total ?? 0;
+
+    if (parcelaCount === 0) {
+      clearSelection();
+      Alert.alert(
+        "Productor sin parcela",
+        "Este productor no tiene una parcela asociada. Desea agregar una ahora?",
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Agregar parcela",
+            onPress: () => {
+              router.push({
+                pathname: "/productores/agregar-parcela",
+                params: { productorId: value }
+              });
+            }
+          }
+        ]
+      );
+      return;
+    }
+
     setProductorId(value);
     setSectorId("");
     setSubsectorId("");
@@ -331,6 +415,84 @@ export function NewVisitaSelectorScreen() {
     } finally {
       setLoadingCatalog(null);
     }
+  }
+
+  async function restoreCreatedParcelaSelection(
+    selectedProductorId: string,
+    selectedParcelaId: string
+  ) {
+    setLoadingCatalog("parcela");
+    setError(null);
+
+    try {
+      const [productor, parcela] = await Promise.all([
+        productoresService.getById(selectedProductorId),
+        parcelasService.getById(selectedParcelaId)
+      ]);
+      const [nextSectores, nextSubsectores, nextParcelas] = await Promise.all([
+        sectoresService.getByProductorId(selectedProductorId),
+        subsectoresService.getByProductorAndSector(
+          selectedProductorId,
+          parcela.sectorId
+        ),
+        parcelasService.getByProductorAndSubsector(
+          selectedProductorId,
+          parcela.subsectorId
+        )
+      ]);
+
+      setProductorId(selectedProductorId);
+      setSelectedProductorLabel(buildProductorLabel(productor));
+      setSectores(nextSectores);
+      setSectorId(parcela.sectorId);
+      setSubsectores(nextSubsectores);
+      setSubsectorId(parcela.subsectorId);
+      setParcelas(nextParcelas);
+      setParcelaId(selectedParcelaId);
+    } catch (nextError) {
+      clearSelection();
+      setError(
+        toApiError(nextError).message ||
+          "No se pudo recuperar la parcela creada. Vuelve a seleccionarla."
+      );
+    } finally {
+      setLoadingCatalog(null);
+    }
+  }
+
+  function handleNewProductorPress() {
+    const pending = getDatabase().getFirstSync<{ total: number }>(
+      `SELECT COUNT(*) AS total
+       FROM productores
+       WHERE is_active = 1
+         AND id NOT IN (SELECT DISTINCT productor_id FROM parcelas)`
+    );
+
+    if (!pending?.total) {
+      router.push("/productores/nuevo");
+      return;
+    }
+
+    Alert.alert(
+      "Productores sin parcela",
+      "Hay productores pendientes. Puedes continuar con uno de ellos o crear uno nuevo.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Elegir pendiente", onPress: () => setOpenCatalog("productor") },
+        { text: "Crear nuevo", onPress: () => router.push("/productores/nuevo") }
+      ]
+    );
+  }
+
+  function clearSelection() {
+    setProductorId("");
+    setSelectedProductorLabel(undefined);
+    setSectorId("");
+    setSubsectorId("");
+    setParcelaId("");
+    setSectores([]);
+    setSubsectores([]);
+    setParcelas([]);
   }
 }
 

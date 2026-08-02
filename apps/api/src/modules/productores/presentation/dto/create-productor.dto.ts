@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
   ValidateIf
@@ -28,6 +29,15 @@ export class CreateProductorDto {
   @IsOptional()
   @IsIn(PRODUCTOR_ENTITY_TYPES)
   entityType?: ProductorEntityType;
+
+  @ApiPropertyOptional({
+    example: "550e8400-e29b-41d4-a716-446655440000",
+    format: "uuid",
+    description: "UUID público del cliente para idempotencia de sincronización."
+  })
+  @IsOptional()
+  @IsUUID("4")
+  publicId?: string;
 
   @ApiPropertyOptional({
     example: 1,

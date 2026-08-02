@@ -324,6 +324,9 @@ function buildParcela(overrides: Partial<Parcela> = {}): Parcela {
     isActive: true,
     createdAt: now,
     updatedAt: now,
+    serverId: "parcela-1",
+    syncStatus: "synced",
+    syncErrorMessage: null,
     ...overrides
   };
 }
@@ -343,6 +346,9 @@ function buildProductor(overrides: Partial<Productor> = {}): Productor {
     isActive: true,
     createdAt: now,
     updatedAt: now,
+    serverId: "productor-1",
+    syncStatus: "synced",
+    syncErrorMessage: null,
     ...overrides
   };
 }

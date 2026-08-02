@@ -18,4 +18,17 @@ export type Parcela = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  serverId: string | null;
+  syncStatus: "pending" | "synced" | "error";
+  syncErrorMessage: string | null;
+};
+
+export type CreateParcelaDraft = {
+  publicId: string;
+  productorId: string;
+  subsectorId: string;
+  name: string | null;
+  areaHectares: string | null;
+  description: string | null;
+  referencePoint: GeoJsonPointGeometry | null;
 };

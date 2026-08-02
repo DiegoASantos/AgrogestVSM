@@ -1,8 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import { IsBoolean, IsOptional, IsString, Matches, MaxLength } from "class-validator";
+import { IsBoolean, IsOptional, IsString, IsUUID, Matches, MaxLength } from "class-validator";
 
 export class CreateSubsectorDto {
+  @ApiPropertyOptional({
+    example: "550e8400-e29b-41d4-a716-446655440000",
+    format: "uuid",
+    description: "UUID público del cliente para idempotencia de sincronización."
+  })
+  @IsOptional()
+  @IsUUID("4")
+  publicId?: string;
+
   @ApiProperty({
     example: "1",
     description: "Id del sector al que pertenece el subsector."

@@ -144,6 +144,18 @@ function AppNavigation() {
             title: "Receta"
           }}
         />
+        <Stack.Screen
+          name="productores/nuevo"
+          options={{
+            title: "Nuevo productor"
+          }}
+        />
+        <Stack.Screen
+          name="productores/agregar-parcela"
+          options={{
+            title: "Agregar parcela"
+          }}
+        />
       </Stack>
       {showBottomNavigation ? <AppBottomNavigation /> : null}
     </View>
@@ -155,7 +167,7 @@ function isProtectedMobilePath(pathname: string | null) {
     return false;
   }
 
-  return pathname.startsWith("/home") || pathname.startsWith("/visitas-campo");
+  return pathname.startsWith("/home") || pathname.startsWith("/visitas-campo") || pathname.startsWith("/productores");
 }
 
 const styles = StyleSheet.create({

@@ -1,5 +1,9 @@
-import { apiRequest, apiRequestAllPages } from "../../../shared/services";
-import type { Parcela } from "../types";
+import {
+  apiRequest,
+  apiRequestAllPages,
+  type ApiRequestContext
+} from "../../../shared/services";
+import type { Parcela, CreateParcelaDraft } from "../types";
 
 export const parcelasRemote = {
   getAll() {
@@ -16,5 +20,28 @@ export const parcelasRemote = {
 
   getById(id: string) {
     return apiRequest<Parcela>(`/parcelas/${id}`);
+  },
+
+  create(data: CreateParcelaDraft, context: ApiRequestContext = {}) {
+    return apiRequest<Parcela>("/parcelas", {
+      method: "POST",
+      body: data,
+      ...context
+    });
+  },
+
+  update(id: string, data: CreateParcelaDraft, context: ApiRequestContext = {}) {
+    return apiRequest<Parcela>(`/parcelas/${id}`, {
+      method: "PATCH",
+      body: data,
+      ...context
+    });
+  },
+
+  remove(id: string, context: ApiRequestContext = {}) {
+    return apiRequest<Parcela>(`/parcelas/${id}`, {
+      method: "DELETE",
+      ...context
+    });
   }
 };
