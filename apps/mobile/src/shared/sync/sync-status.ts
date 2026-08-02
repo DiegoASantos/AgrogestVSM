@@ -53,6 +53,13 @@ const SYNC_ENTITY_LABELS: Record<SyncEntityType, string> = {
   visita_calificaciones: "Calificacion de cumplimiento"
 };
 
+const CATALOG_SYNC_ENTITY_TYPES = new Set<SyncEntityType>([
+  "productores",
+  "sectores",
+  "subsectores",
+  "parcelas"
+]);
+
 export function getSyncCounts(): SyncCountsResult {
   const db = getDatabase();
   const pendingCount =
@@ -64,16 +71,18 @@ export function getSyncCounts(): SyncCountsResult {
       `SELECT COUNT(*) as count FROM sync_failures`
     )?.count ?? 0;
 
-  for (const table of SYNC_ENTITY_TYPES) {
+  for (const entityType of SYNC_ENTITY_TYPES) {
+    const table = SYNC_ENTITY_TABLES[entityType];
+    const idColumn = getSyncEntityIdColumn(entityType);
     const row = db.getFirstSync<{ error: number | null }>(
       `SELECT COUNT(*) as error
        FROM ${table}
        WHERE sync_status = 'error'
          AND NOT EXISTS (
            SELECT 1 FROM sync_failures
-           WHERE entity_type = ? AND entity_local_id = ${table}.local_id
+           WHERE entity_type = ? AND entity_local_id = ${table}.${idColumn}
          )`,
-      table
+      entityType
     );
 
     if (row) {
@@ -98,6 +107,7 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
 
   for (const entityType of SYNC_ENTITY_TYPES) {
     const table = SYNC_ENTITY_TABLES[entityType];
+    const idColumn = getSyncEntityIdColumn(entityType);
     const columns = db.getAllSync<{ name: string }>(`PRAGMA table_info(${table})`);
     const hasErrorMessage = columns.some(
       (column) => column.name === "sync_error_message"
@@ -109,17 +119,17 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
       updated_at: string | null;
     }>(
       `SELECT
-        local_id,
+        ${idColumn} AS local_id,
         ${hasErrorMessage ? "sync_error_message" : "NULL as sync_error_message"},
         updated_at
        FROM ${table}
        WHERE sync_status = 'error'
          AND NOT EXISTS (
            SELECT 1 FROM sync_failures
-           WHERE entity_type = ? AND entity_local_id = ${table}.local_id
+           WHERE entity_type = ? AND entity_local_id = ${table}.${idColumn}
          )
-       ORDER BY updated_at DESC, local_id ASC`
-      , entityType
+       ORDER BY updated_at DESC, ${idColumn} ASC`,
+      entityType
     );
 
     for (const row of rows) {
@@ -130,8 +140,8 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
         message:
           row.sync_error_message?.trim() ||
           "Sin detalle tecnico registrado. Reintenta la sincronizacion para capturar el mensaje actualizado.",
-        updatedAt: row.updated_at
-        ,retryable: false,
+        updatedAt: row.updated_at,
+        retryable: false,
         errorKind: "legacy"
       });
     }
@@ -211,6 +221,10 @@ export function setLastSyncAttempt(result: SyncRunResult) {
     JSON.stringify(result)
   );
   notifySyncStatusChanged();
+}
+
+function getSyncEntityIdColumn(entityType: SyncEntityType): "id" | "local_id" {
+  return CATALOG_SYNC_ENTITY_TYPES.has(entityType) ? "id" : "local_id";
 }
 
 export { notifySyncStatusChanged, subscribeToSyncStatus };
