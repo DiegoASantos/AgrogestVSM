@@ -72,19 +72,22 @@ export function useReportSharing({ onError }: UseReportSharingOptions) {
         }
 
         const html = await service.buildHtml(visitaId);
-        const uri = await capturerRef.current.capture(html);
+        const uris = await capturerRef.current.capture(html);
 
         try {
-          await Sharing.shareAsync(uri, {
-            dialogTitle: `Compartir ${REPORT_LABELS[report]} como imagen`,
-            mimeType: "image/png",
-            UTI: "public.png"
-          });
+          const dialogTitle = `Compartir ${REPORT_LABELS[report]} como imagen${uris.length > 1 ? ` (1/${uris.length})` : ""}`;
+
+          for (let i = 0; i < uris.length; i++) {
+            const subtitulo = uris.length > 1 ? ` (${i + 1}/${uris.length})` : "";
+            await Sharing.shareAsync(uris[i], {
+              dialogTitle: `${dialogTitle}${subtitulo}`,
+              mimeType: "image/png",
+              UTI: "public.png"
+            });
+          }
         } finally {
-          try {
-            releaseCapture(uri);
-          } catch {
-            // El archivo es temporal y el sistema lo limpiara al cerrar la app.
+          for (const uri of uris) {
+            try { releaseCapture(uri); } catch { /* temporal */ }
           }
         }
       } catch (error) {

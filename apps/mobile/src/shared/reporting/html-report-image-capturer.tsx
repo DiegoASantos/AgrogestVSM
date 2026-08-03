@@ -93,11 +93,11 @@ type PendingCapture = {
   html: string;
   id: number;
   reject: (error: Error) => void;
-  resolve: (uri: string) => void;
+  resolve: (uris: string[]) => void;
 };
 
 export type HtmlReportImageCapturerHandle = {
-  capture: (html: string) => Promise<string>;
+  capture: (html: string) => Promise<string[]>;
 };
 
 export const HtmlReportImageCapturer = forwardRef<
@@ -129,13 +129,13 @@ export const HtmlReportImageCapturer = forwardRef<
     pending.reject(new Error(message));
   }, []);
 
-  const resolvePending = useCallback((requestId: number, uri: string) => {
+  const resolvePending = useCallback((requestId: number, uris: string[]) => {
     const pending = pendingRef.current;
     if (pending?.id !== requestId) return;
 
     pendingRef.current = null;
     setRequest(null);
-    pending.resolve(normalizeCaptureUri(uri));
+    pending.resolve(uris.map(normalizeCaptureUri));
   }, []);
 
   const cancelPending = useCallback(() => {
@@ -161,7 +161,7 @@ export const HtmlReportImageCapturer = forwardRef<
           return Promise.reject(new Error(startError));
         }
 
-        return new Promise<string>((resolve, reject) => {
+        return new Promise<string[]>((resolve, reject) => {
           const nextRequest = {
             html,
             id: ++captureSequenceRef.current,
@@ -216,66 +216,92 @@ export const HtmlReportImageCapturer = forwardRef<
     const requestId = request.id;
 
     const timeout = setTimeout(() => {
-      void captureWithRetry();
+      void capturarConReintentos(requestId, contentHeight);
     }, CAPTURE_SETTLE_MS);
 
     return () => clearTimeout(timeout);
 
-    async function captureWithRetry() {
+    async function capturarConReintentos(id: number, alturaTotal: number) {
       if (
         !scrollRef.current ||
-        pendingRef.current?.id !== requestId ||
-        startedCaptureIdsRef.current.has(requestId)
+        pendingRef.current?.id !== id ||
+        startedCaptureIdsRef.current.has(id)
       ) {
         return;
       }
-      startedCaptureIdsRef.current.add(requestId);
+      startedCaptureIdsRef.current.add(id);
 
       try {
-        let lastError: unknown;
-        for (let attempt = 0; attempt < 2; attempt += 1) {
+        for (let intento = 0; intento < 2; intento++) {
           try {
-            if (pendingRef.current?.id !== requestId) return;
-
-            if (attempt > 0) {
+            if (pendingRef.current?.id !== id) return;
+            if (intento > 0) {
               await wait(CAPTURE_SETTLE_MS);
-              if (pendingRef.current?.id !== requestId) return;
+              if (pendingRef.current?.id !== id) return;
             }
 
             const pixelRatio = PixelRatio.get();
-            const uri = await captureRef(scrollRef, {
-              format: "png",
-              result: "tmpfile",
-              width: captureWidth * pixelRatio,
-              snapshotContentContainer: true
-            });
+            const uris = await capturarPaginas(alturaTotal, pixelRatio, id);
 
-            if (!uri) {
-              throw new Error("La captura no devolvio un archivo.");
-            }
-
-            if (pendingRef.current?.id !== requestId) {
-              releaseCapture(uri);
+            if (pendingRef.current?.id !== id) {
+              uris.forEach(releaseCapture);
               return;
             }
 
-            resolvePending(requestId, uri);
+            resolvePending(id, uris);
             return;
           } catch (error) {
-            lastError = error;
+            if (intento === 1) {
+              const detalle = error instanceof Error ? error.message : "Error desconocido";
+              rejectPending(
+                id,
+                `No se pudo generar la imagen (${detalle}). Intenta nuevamente o comparte el PDF.`
+              );
+            }
           }
         }
-
-        const detail = lastError instanceof Error ? lastError.message : "Error desconocido";
-        rejectPending(
-          requestId,
-          `No se pudo generar la imagen (${detail}). Intenta nuevamente o comparte el PDF.`
-        );
       } finally {
-        startedCaptureIdsRef.current.delete(requestId);
+        startedCaptureIdsRef.current.delete(id);
       }
     }
-  }, [contentHeight, laidOutHeight, rejectPending, request, resolvePending]);
+  }, [contentHeight, laidOutHeight, maxContentHeight, captureWidth, rejectPending, request, resolvePending]);
+
+  async function capturarPaginas(alturaTotal: number, pixelRatio: number, id: number): Promise<string[]> {
+    const alturaPagina = Math.min(maxContentHeight, alturaTotal);
+    const paginas = Math.ceil(alturaTotal / alturaPagina);
+    const uris: string[] = [];
+
+    for (let i = 0; i < paginas; i++) {
+      if (pendingRef.current?.id !== id) {
+        uris.forEach(releaseCapture);
+        throw new Error("Cancelado");
+      }
+
+      const offsetY = i * alturaPagina;
+
+      scrollRef.current?.scrollTo({ y: offsetY, animated: false });
+      await wait(CAPTURE_SETTLE_MS);
+
+      const alturaRestante = alturaTotal - offsetY;
+      const altoCaptura = Math.min(alturaPagina, alturaRestante);
+
+      const uri = await captureRef(scrollRef, {
+        format: "png",
+        result: "tmpfile",
+        width: captureWidth * pixelRatio,
+        height: altoCaptura * pixelRatio
+      });
+
+      if (!uri) {
+        uris.forEach(releaseCapture);
+        throw new Error("La captura no devolvio un archivo.");
+      }
+
+      uris.push(uri);
+    }
+
+    return uris;
+  }
 
   if (!request) return null;
 
@@ -354,14 +380,6 @@ export const HtmlReportImageCapturer = forwardRef<
 
     const measuredHeight = parseReportHeightMessage(event.nativeEvent.data);
     if (!measuredHeight) return;
-
-    if (measuredHeight > maxContentHeight) {
-      rejectPending(
-        requestId,
-        "El reporte es demasiado extenso para convertirlo en una sola imagen sin arriesgar la memoria del dispositivo. Comparte el PDF."
-      );
-      return;
-    }
 
     setContentHeight(measuredHeight);
   }

@@ -262,7 +262,7 @@ export function NewVisitaSelectorScreen() {
                     id: selectedParcela.id,
                     parcelaCode: selectedParcela.code,
                     parcelaName: selectedParcela.name,
-                    parcelaAreaHectares: selectedParcela.areaHectares ?? ""
+                    parcelaAreaHectares: formatearArea(selectedParcela.areaHectares)
                   }
                 });
               }}
@@ -615,3 +615,10 @@ const styles = StyleSheet.create({
     textAlign: "center"
   }
 });
+
+function formatearArea(valor: string | null): string {
+  if (!valor) return "";
+  const numero = parseFloat(valor);
+  if (isNaN(numero)) return "";
+  return String(Math.round(numero * 100) / 100);
+}
