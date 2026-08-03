@@ -95,8 +95,15 @@ jobs:
           fi
 
       - name: Notificar WhatsApp
-        if: ${{ secrets.WHATSAPP_APIKEY != '' }}
+        env:
+          WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
         run: |
+          if [ -z "$WHATSAPP_APIKEY" ]; then
+            echo "WhatsApp no configurado. Saltando notificación."
+            exit 0
+          fi
+
           MENSAJE=$(cat << 'EOF'
           ${{ steps.status.outputs.EMOJI }} CI - ${{ steps.status.outputs.ESTADO }}
           Repositorio: ${{ github.repository }}
@@ -109,9 +116,9 @@ jobs:
           )
 
           curl -s -X POST "https://api.callmebot.com/whatsapp.php" \
-            -d "phone=${{ secrets.WHATSAPP_PHONE }}" \
+            -d "phone=$WHATSAPP_PHONE" \
             -d "text=$(echo "$MENSAJE" | tr '\n' ' ' | head -c 800)" \
-            -d "apikey=${{ secrets.WHATSAPP_APIKEY }}"
+            -d "apikey=$WHATSAPP_APIKEY"
 
       - name: Notificar Email (éxito o fracaso)
         uses: dawidd6/action-send-mail@v4

@@ -324,7 +324,6 @@ El mejor enfoque es tratar cada mezcla como una decisión trazable: identificar 
 
 ## 17. Fuentes de referencia
 
-- prueba 2
 - Documento base: **Compatibilidad de agroquímicos para mezcla**.
 - [SENASA — Guía de Buenas Prácticas Agrícolas](https://www.senasa.gob.pe/senasa/descargasarchivos/2014/12/GUIA-DE-BUENAS-PRACTICAS-AGRICOLAS.pdf).
 - [SENASA — Reglamento sobre registro, comercialización, control y etiquetado de plaguicidas agrícolas](https://www.senasa.gob.pe/senasa/descargasarchivos/jer/SUB_SEC_NOR/Microsoft%20Word%20-%20Documento%206.pdf).
