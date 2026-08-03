@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-01
+last_reviewed: 2026-08-03
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -135,6 +135,12 @@ y programa un sync inmediato con `bypassBackoff`.
 - los catalogos se refrescan de forma independiente al push del outbox;
 - las operaciones agotadas se preservan en `sync_failures` hasta reintento
   explicito o correccion del dato.
+
+El diagnóstico mostrado en Inicio inspecciona las columnas disponibles antes de
+construir el detalle de errores. Las entidades operativas conservan y ordenan
+por `updated_at`; las cachés de catálogo que no tienen ese timestamp exponen
+fecha nula y se ordenan por identificador. Esta diferencia de esquema no debe
+impedir el arranque ni requiere agregar columnas artificiales a los catálogos.
 
 ## Cachés de consulta
 

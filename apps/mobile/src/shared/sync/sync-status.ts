@@ -7,10 +7,7 @@ import {
   type SyncEntityType
 } from "./sync-entities";
 import type { SyncRunResult } from "./sync-result";
-import {
-  notifySyncStatusChanged,
-  subscribeToSyncStatus
-} from "./sync-events";
+import { notifySyncStatusChanged, subscribeToSyncStatus } from "./sync-events";
 
 type SyncCountsResult = {
   pendingCount: number;
@@ -69,13 +66,11 @@ const CATALOG_SYNC_ENTITY_TYPES = new Set<SyncEntityType>([
 export function getSyncCounts(): SyncCountsResult {
   const db = getDatabase();
   const pendingCount =
-    db.getFirstSync<{ count: number }>(
-      `SELECT COUNT(*) as count FROM sync_outbox`
-    )?.count ?? 0;
+    db.getFirstSync<{ count: number }>(`SELECT COUNT(*) as count FROM sync_outbox`)
+      ?.count ?? 0;
   let errorCount =
-    db.getFirstSync<{ count: number }>(
-      `SELECT COUNT(*) as count FROM sync_failures`
-    )?.count ?? 0;
+    db.getFirstSync<{ count: number }>(`SELECT COUNT(*) as count FROM sync_failures`)
+      ?.count ?? 0;
 
   for (const entityType of SYNC_ENTITY_TYPES) {
     const table = SYNC_ENTITY_TABLES[entityType];
@@ -118,6 +113,13 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
     const hasErrorMessage = columns.some(
       (column) => column.name === "sync_error_message"
     );
+    const hasUpdatedAt = columns.some((column) => column.name === "updated_at");
+    const updatedAtSelection = hasUpdatedAt
+      ? `${table}.updated_at AS updated_at`
+      : "NULL AS updated_at";
+    const orderBy = hasUpdatedAt
+      ? `${table}.updated_at DESC, ${table}.${idColumn} ASC`
+      : `${table}.${idColumn} ASC`;
 
     const rows = db.getAllSync<{
       local_id: string;
@@ -127,14 +129,14 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
       `SELECT
         ${idColumn} AS local_id,
         ${hasErrorMessage ? "sync_error_message" : "NULL as sync_error_message"},
-        updated_at
+        ${updatedAtSelection}
        FROM ${table}
        WHERE sync_status = 'error'
          AND NOT EXISTS (
            SELECT 1 FROM sync_failures
            WHERE entity_type = ? AND entity_local_id = ${table}.${idColumn}
          )
-       ORDER BY updated_at DESC, ${idColumn} ASC`,
+       ORDER BY ${orderBy}`,
       entityType
     );
 
