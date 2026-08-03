@@ -60,7 +60,10 @@ const CATALOG_SYNC_ENTITY_TYPES = new Set<SyncEntityType>([
   "productores",
   "sectores",
   "subsectores",
-  "parcelas"
+  "parcelas",
+  "ingredientes_activos",
+  "fertilizantes",
+  "marcas_producto"
 ]);
 
 export function getSyncCounts(): SyncCountsResult {
