@@ -255,6 +255,7 @@ export class SectoresService {
   private toResponse(sector: SectorEntity) {
     return {
       id: sector.id,
+      publicId: sector.publicId,
       distritoId: sector.distritoId,
       name: sector.name,
       description: sector.description,
