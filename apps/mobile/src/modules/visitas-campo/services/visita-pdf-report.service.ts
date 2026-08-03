@@ -18,6 +18,10 @@ declare const process:
   | undefined;
 
 export const visitaPdfReportService = {
+  buildHtml(visitaId: string) {
+    return buildVisitReportHtml(visitaId);
+  },
+
   async preview(visitaId: string) {
     const { Print } = await loadPdfNativeModules();
     const html = await buildVisitReportHtml(visitaId);

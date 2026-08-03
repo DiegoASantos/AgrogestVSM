@@ -31,8 +31,12 @@ import {
   visitasCampoRemote,
   visitasCampoService
 } from "../../services";
-import { visitaPdfReportService } from "../../services/visita-pdf-report.service";
-import { visitaRecetaPdfReportService } from "../../../visita-recetas/services";
+import {
+  isReportActionActive,
+  useReportSharing,
+  type ActiveReportAction,
+  type ReportKind
+} from "../hooks/use-report-sharing";
 import type {
   CampaniaCatalogItem,
   CultivoCatalogItem,
@@ -51,10 +55,6 @@ type DetailCatalogs = {
   pestDiseases: PestDiseaseCatalogItem[];
   incidenceLevels: IncidenceLevelCatalogItem[];
 };
-
-type PdfAction = "diagnostico" | "receta";
-type PdfOperation = "preview" | "share";
-type ActivePdfAction = `${PdfAction}-${PdfOperation}` | null;
 
 const EMPTY_CATALOGS: DetailCatalogs = {
   cultivos: [],
@@ -75,13 +75,18 @@ export function VisitaCampoDetailScreen() {
   const [catalogs, setCatalogs] = useState<DetailCatalogs>(EMPTY_CATALOGS);
   const [isLoading, setIsLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [activePdfAction, setActivePdfAction] = useState<ActivePdfAction>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [syncSummary, setSyncSummary] = useState<VisitaSyncSummary | null>(null);
   const [technicalScores, setTechnicalScores] = useState<MobileTechnicalScoreView | null>(
     null
   );
+  const {
+    activeAction: activeReportAction,
+    captureHost,
+    previewReport,
+    promptShareReport
+  } = useReportSharing({ onError: setReportError });
 
   useEffect(() => {
     if (!visitaId) {
@@ -154,20 +159,22 @@ export function VisitaCampoDetailScreen() {
         {!isLoading && !error && visita && detail ? (
           <>
             <VisitDossier
-              activePdfAction={activePdfAction}
+              activeReportAction={activeReportAction}
               catalogs={catalogs}
               detail={detail}
               isRetrying={isRetrying}
-              onPreviewPdf={(action) => {
-                void handlePreviewPdf(action);
+              onPreviewReport={(action) => {
+                setReportError(null);
+                void previewReport(visita.id, action);
               }}
-              onSharePdf={(action) => {
-                void handleSharePdf(action);
+              onShareReport={(action) => {
+                setReportError(null);
+                promptShareReport(visita.id, action);
               }}
               onRetrySync={() => {
                 void handleRetrySync();
               }}
-              pdfError={pdfError}
+              reportError={reportError}
               router={router}
               syncSummary={syncSummary}
               technicalScores={technicalScores}
@@ -364,6 +371,7 @@ export function VisitaCampoDetailScreen() {
           </>
         ) : null}
       </ScrollView>
+      {captureHost}
     </ScreenContainer>
   );
 
@@ -531,45 +539,6 @@ export function VisitaCampoDetailScreen() {
     }
   }
 
-  async function handlePreviewPdf(action: PdfAction) {
-    if (!visitaId || activePdfAction) return;
-
-    setPdfError(null);
-    const activeId: ActivePdfAction = `${action}-preview`;
-    setActivePdfAction(activeId);
-
-    try {
-      const service =
-        action === "diagnostico" ? visitaPdfReportService : visitaRecetaPdfReportService;
-
-      await service.preview(visitaId);
-    } catch (nextError) {
-      const apiError = toApiError(nextError);
-      setPdfError(apiError.message || "No se pudo abrir el PDF. Intenta nuevamente.");
-    } finally {
-      setActivePdfAction(null);
-    }
-  }
-
-  async function handleSharePdf(action: PdfAction) {
-    if (!visitaId || activePdfAction) return;
-
-    setPdfError(null);
-    const activeId: ActivePdfAction = `${action}-share`;
-    setActivePdfAction(activeId);
-
-    try {
-      const service =
-        action === "diagnostico" ? visitaPdfReportService : visitaRecetaPdfReportService;
-
-      await service.share(visitaId);
-    } catch (nextError) {
-      const apiError = toApiError(nextError);
-      setPdfError(apiError.message || "No se pudo compartir el PDF. Intenta nuevamente.");
-    } finally {
-      setActivePdfAction(null);
-    }
-  }
 }
 
 type VisitMapPoint = {
@@ -581,14 +550,14 @@ type VisitMapPoint = {
 };
 
 type VisitDossierProps = {
-  activePdfAction: ActivePdfAction;
+  activeReportAction: ActiveReportAction | null;
   catalogs: DetailCatalogs;
   detail: VisitaCampoFull;
   isRetrying: boolean;
-  onPreviewPdf: (action: PdfAction) => void;
-  onSharePdf: (action: PdfAction) => void;
+  onPreviewReport: (action: ReportKind) => void;
+  onShareReport: (action: ReportKind) => void;
   onRetrySync: () => void;
-  pdfError: string | null;
+  reportError: string | null;
   router: ReturnType<typeof useRouter>;
   syncSummary: VisitaSyncSummary | null;
   technicalScores: MobileTechnicalScoreView | null;
@@ -596,14 +565,14 @@ type VisitDossierProps = {
 };
 
 function VisitDossier({
-  activePdfAction,
+  activeReportAction,
   catalogs,
   detail,
   isRetrying,
-  onPreviewPdf,
-  onSharePdf,
+  onPreviewReport,
+  onShareReport,
   onRetrySync,
-  pdfError,
+  reportError,
   router,
   syncSummary,
   technicalScores,
@@ -676,44 +645,60 @@ function VisitDossier({
             Reportes de la visita
           </AppText>
           <AppText style={styles.pdfPanelSubtitle} variant="caption">
-            Abre los mismos PDF que se generan desde el flujo movil.
+            Puedes abrir el PDF o compartir cada reporte como PDF o imagen.
           </AppText>
         </View>
         <View style={styles.pdfActions}>
           <AppButton
-            disabled={activePdfAction !== null}
+            disabled={activeReportAction !== null}
             icon="eye-outline"
             label="Ver diagnostico"
-            loading={activePdfAction === "diagnostico-preview"}
-            onPress={() => onPreviewPdf("diagnostico")}
+            loading={isReportActionActive(
+              activeReportAction,
+              visita.id,
+              "diagnostico",
+              "preview"
+            )}
+            onPress={() => onPreviewReport("diagnostico")}
             size="small"
             variant="outline"
           />
           <AppButton
-            disabled={activePdfAction !== null}
+            disabled={activeReportAction !== null}
             icon="share-outline"
             label="Compartir diagnostico"
-            loading={activePdfAction === "diagnostico-share"}
-            onPress={() => onSharePdf("diagnostico")}
+            loading={
+              isReportActionActive(activeReportAction, visita.id, "diagnostico") &&
+              activeReportAction?.operation !== "preview"
+            }
+            onPress={() => onShareReport("diagnostico")}
             size="small"
           />
         </View>
         <View style={styles.pdfActions}>
           <AppButton
-            disabled={activePdfAction !== null}
+            disabled={activeReportAction !== null}
             icon="eye-outline"
             label="Ver receta"
-            loading={activePdfAction === "receta-preview"}
-            onPress={() => onPreviewPdf("receta")}
+            loading={isReportActionActive(
+              activeReportAction,
+              visita.id,
+              "receta",
+              "preview"
+            )}
+            onPress={() => onPreviewReport("receta")}
             size="small"
             variant="outline"
           />
           <AppButton
-            disabled={activePdfAction !== null}
+            disabled={activeReportAction !== null}
             icon="share-outline"
             label="Compartir receta"
-            loading={activePdfAction === "receta-share"}
-            onPress={() => onSharePdf("receta")}
+            loading={
+              isReportActionActive(activeReportAction, visita.id, "receta") &&
+              activeReportAction?.operation !== "preview"
+            }
+            onPress={() => onShareReport("receta")}
             size="small"
           />
           <AppButton
@@ -731,11 +716,11 @@ function VisitDossier({
         </View>
       </View>
 
-      {pdfError ? (
+      {reportError ? (
         <View style={styles.pdfErrorBanner}>
           <Ionicons color={theme.colors.error} name="warning-outline" size={18} />
           <AppText style={styles.pdfErrorText} variant="caption">
-            {pdfError}
+            {reportError}
           </AppText>
         </View>
       ) : null}

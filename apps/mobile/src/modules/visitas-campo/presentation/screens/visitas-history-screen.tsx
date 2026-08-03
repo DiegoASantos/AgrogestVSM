@@ -16,11 +16,12 @@ import {
 import { theme } from "../../../../shared/constants/theme";
 import { toApiError } from "../../../../shared/services";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
-import { visitaPdfReportService, visitasCampoService } from "../../services";
-import { visitaRecetaPdfReportService } from "../../../visita-recetas/services";
+import { visitasCampoService } from "../../services";
 import type { RecentVisitaCampo, VisitaCampo } from "../../types";
-
-type PdfAction = "diagnostico" | "receta";
+import {
+  useReportSharing,
+  type ReportKind
+} from "../hooks/use-report-sharing";
 
 export function VisitasHistoryScreen() {
   const router = useRouter();
@@ -28,13 +29,17 @@ export function VisitasHistoryScreen() {
   const [visitas, setVisitas] = useState<RecentVisitaCampo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activePdfAction, setActivePdfAction] = useState<{
-    visitaId: string;
-    action: PdfAction;
-  } | null>(null);
   const [filterSearchText, setFilterSearchText] = useState("");
   const [selectedProductorId, setSelectedProductorId] = useState<string | null>(null);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const handleReportError = useCallback((message: string) => {
+    Alert.alert("No se pudo compartir el reporte", message);
+  }, []);
+  const {
+    activeAction: activeReportAction,
+    captureHost,
+    promptShareReport
+  } = useReportSharing({ onError: handleReportError });
 
   const loadVisitas = useCallback(() => {
     setIsLoading(true);
@@ -229,44 +234,24 @@ export function VisitasHistoryScreen() {
                   })
                 }
                 onShareDiagnostico={() => {
-                  void handlePdfAction(visita.id, "diagnostico");
+                  promptShareReport(visita.id, "diagnostico");
                 }}
                 onShareReceta={() => {
-                  void handlePdfAction(visita.id, "receta");
+                  promptShareReport(visita.id, "receta");
                 }}
                 pdfAction={
-                  activePdfAction?.visitaId === visita.id ? activePdfAction.action : null
+                  activeReportAction?.visitaId === visita.id
+                    ? activeReportAction.report
+                    : null
                 }
                 visita={visita}
               />
             ))
           : null}
       </ScrollView>
+      {captureHost}
     </ScreenContainer>
   );
-  async function handlePdfAction(visitaId: string, action: PdfAction) {
-    if (activePdfAction) {
-      return;
-    }
-
-    setActivePdfAction({ visitaId, action });
-
-    try {
-      if (action === "diagnostico") {
-        await visitaPdfReportService.share(visitaId);
-      } else {
-        await visitaRecetaPdfReportService.share(visitaId);
-      }
-    } catch (nextError) {
-      const apiError = toApiError(nextError);
-      Alert.alert(
-        "No se pudo compartir el PDF",
-        apiError.message || "Intenta nuevamente."
-      );
-    } finally {
-      setActivePdfAction(null);
-    }
-  }
 }
 
 function HistoryItem({
@@ -279,7 +264,7 @@ function HistoryItem({
   onPress: () => void;
   onShareDiagnostico: () => void;
   onShareReceta: () => void;
-  pdfAction: PdfAction | null;
+  pdfAction: ReportKind | null;
   visita: RecentVisitaCampo;
 }) {
   return (

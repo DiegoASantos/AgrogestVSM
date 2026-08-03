@@ -26,6 +26,10 @@ async function loadPdfNativeModules() {
 }
 
 export const visitaRecetaPdfReportService = {
+  buildHtml(visitaId: string) {
+    return buildRecetaReportHtml(visitaId);
+  },
+
   async preview(visitaId: string) {
     const { Print } = await loadPdfNativeModules();
     const html = await buildRecetaReportHtml(visitaId);
