@@ -1208,6 +1208,17 @@ const MIGRATIONS: Migration[] = [
       );
       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
     }
+  },
+  {
+    version: 53,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS tipos_documento (
+        id INTEGER PRIMARY KEY NOT NULL,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL
+      )`,
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    ]
   }
 ];
 

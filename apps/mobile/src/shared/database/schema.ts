@@ -123,6 +123,11 @@ export const SQL_SCHEMA = [
     sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
     sync_error_message TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS tipos_documento (
+    id INTEGER PRIMARY KEY NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS departamentos (
     id TEXT PRIMARY KEY NOT NULL,
     code TEXT NOT NULL,

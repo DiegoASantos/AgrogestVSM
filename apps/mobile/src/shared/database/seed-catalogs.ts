@@ -10,6 +10,7 @@ import { nutricionRepository } from "../../modules/nutricion/repositories";
 import { observacionesSanitariasRemote } from "../../modules/observaciones-sanitarias/services/observaciones-sanitarias.remote";
 import { visitaCampoCatalogsRemote } from "../../modules/visitas-campo/services/visita-campo-catalogs.remote";
 import { visitaRecetasRemote } from "../../modules/visita-recetas/services/visita-recetas.remote";
+import { tiposDocumentoRemote } from "../../modules/tipos-documento/services/tipos-documento.remote";
 import { getCatalogsDownloadedAt } from "./catalog-status";
 import {
   notifyCatalogDownloadCompleted,
@@ -59,7 +60,8 @@ async function performCatalogDownload() {
       distritos,
       sectores,
       subsectores,
-      parcelas
+      parcelas,
+      tiposDocumento
     ] = await Promise.all([
       Promise.all(
         cultivos.map((cultivo) =>
@@ -94,7 +96,8 @@ async function performCatalogDownload() {
       geografiasRemote.getDistritos(),
       sectoresRemote.getAll(),
       subsectoresRemote.getAll(),
-      parcelasRemote.getAll()
+      parcelasRemote.getAll(),
+      tiposDocumentoRemote.obtenerTodos()
     ]);
 
     const variedades = variedadesByCultivo.flat();
@@ -118,6 +121,16 @@ async function performCatalogDownload() {
             cultivo.code,
             cultivo.name,
             toSqliteBoolean(cultivo.isActive)
+          );
+        }
+
+        for (const tipoDocumento of tiposDocumento) {
+          db.runSync(
+            `INSERT OR REPLACE INTO tipos_documento (id, code, name)
+             VALUES (?, ?, ?)`,
+            tipoDocumento.id,
+            tipoDocumento.code,
+            tipoDocumento.name
           );
         }
 

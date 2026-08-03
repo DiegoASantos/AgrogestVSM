@@ -154,6 +154,19 @@ export function NewVisitaSelectorScreen() {
           </AppText>
         </ImageBackground>
 
+        <View style={styles.accionNuevoProductor}>
+          <AppButton
+            label="Nuevo productor"
+            onPress={handleNewProductorPress}
+            variant="outline"
+            size="small"
+            icon="person-add-outline"
+          />
+          <AppText variant="caption" style={styles.accionNuevoProductorTexto}>
+            Si el productor no aparece en la lista, crealo primero.
+          </AppText>
+        </View>
+
         <View style={styles.body}>
           <AppCard style={styles.fieldsCard}>
             <AppPaginatedSelectField
@@ -232,13 +245,6 @@ export function NewVisitaSelectorScreen() {
               </AppText>
             </View>
           ) : null}
-
-          <AppButton
-            label="Nuevo productor"
-            onPress={handleNewProductorPress}
-            variant="outline"
-            icon="person-add-outline"
-          />
 
           <View style={styles.actions}>
             <AppButton
@@ -592,6 +598,19 @@ const styles = StyleSheet.create({
     marginTop: 2
   },
   offlineNote: {
+    textAlign: "center"
+  },
+  accionNuevoProductor: {
+    alignSelf: "center",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    marginTop: -12,
+    marginBottom: 4
+  },
+  accionNuevoProductorTexto: {
+    color: theme.colors.textMuted,
     textAlign: "center"
   }
 });

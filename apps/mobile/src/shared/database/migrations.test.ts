@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 52;
+const LATEST_MIGRATION_VERSION = 53;
 
 type FakeDatabase = {
   currentVersion: number;

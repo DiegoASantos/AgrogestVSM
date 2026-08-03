@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -12,6 +12,7 @@ import {
   AppCard,
   AppInput,
   AppSelectField,
+  type AppSelectOption,
   AppText,
   ScreenContainer
 } from "../../../../shared/components";
@@ -20,9 +21,10 @@ import { getNowIsoString } from "../../../../shared/database/sqlite-utils";
 import { insertSyncOutboxEntry } from "../../../../shared/database/sync-outbox";
 import { getDatabase } from "../../../../shared/database/connection";
 import { productoresRepository } from "../../repositories/productores.repository";
+import { tiposDocumentoRepository } from "../../../tipos-documento/repositories/tipos-documento.repository";
 import { generatePublicId } from "../../../../shared/utils/local-id";
 
-const ENTITY_TYPE_OPTIONS = [
+const OPCIONES_TIPO_ENTIDAD: AppSelectOption[] = [
   { value: "persona", label: "Persona" },
   { value: "fundo", label: "Fundo" },
   { value: "cooperativa", label: "Cooperativa" }
@@ -30,95 +32,120 @@ const ENTITY_TYPE_OPTIONS = [
 
 export function NuevoProductorScreen() {
   const router = useRouter();
-  const [entityType, setEntityType] = useState<"persona" | "fundo" | "cooperativa">("persona");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [documentTypeId, setDocumentTypeId] = useState<string>("");
-  const [documentNumber, setDocumentNumber] = useState("");
-  const [phone, setPhone] = useState("");
+  const [tipoEntidad, setTipoEntidad] = useState<"persona" | "fundo" | "cooperativa">("persona");
+  const [nombres, setNombres] = useState("");
+  const [apellidos, setApellidos] = useState("");
+  const [tipoDocumentoId, setTipoDocumentoId] = useState<string>("");
+  const [numeroDocumento, setNumeroDocumento] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
+  const [direccion, setDireccion] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [openEntityType, setOpenEntityType] = useState(false);
+  const [guardando, setGuardando] = useState(false);
 
-  function validate(): string | null {
-    const normalizedFirstName = firstName.trim();
-    const normalizedLastName = lastName.trim();
-    const normalizedDocumentNumber = documentNumber.trim();
-    const normalizedPhone = phone.trim();
-    const normalizedEmail = email.trim();
+  const [abrirTipoEntidad, setAbrirTipoEntidad] = useState(false);
+  const [abrirTipoDocumento, setAbrirTipoDocumento] = useState(false);
 
-    if (!normalizedFirstName) {
+  const [opcionesTipoDocumento, setOpcionesTipoDocumento] = useState<AppSelectOption[]>([]);
+
+  useEffect(() => {
+    cargarTiposDocumento();
+  }, []);
+
+  function cargarTiposDocumento() {
+    const documentos = tiposDocumentoRepository.obtenerTodos();
+    setOpcionesTipoDocumento(
+      documentos.map((doc) => ({
+        value: String(doc.id),
+        label: `${doc.code} — ${doc.name}`
+      }))
+    );
+  }
+
+  function validar(): string | null {
+    const nombresNormalizados = nombres.trim();
+    const apellidosNormalizados = apellidos.trim();
+    const documentoNormalizado = numeroDocumento.trim();
+    const telefonoNormalizado = telefono.trim();
+    const emailNormalizado = email.trim();
+
+    if (!nombresNormalizados) {
       return "El nombre es obligatorio.";
     }
-    if (normalizedFirstName.length > 100) {
+    if (nombresNormalizados.length > 100) {
       return "El nombre no puede superar 100 caracteres.";
     }
-    if (entityType === "persona" && !normalizedLastName) {
+    if (tipoEntidad === "persona" && !apellidosNormalizados) {
       return "Los apellidos son obligatorios para personas.";
     }
-    if (normalizedLastName.length > 100) {
+    if (apellidosNormalizados.length > 100) {
       return "Los apellidos no pueden superar 100 caracteres.";
     }
-    const hasDocType = documentTypeId.trim() !== "";
-    const hasDocNumber = normalizedDocumentNumber !== "";
-    if (entityType === "persona" && hasDocType !== hasDocNumber) {
+    const tieneTipo = tipoDocumentoId !== "";
+    const tieneNumero = documentoNormalizado !== "";
+    if (tipoEntidad === "persona" && tieneTipo !== tieneNumero) {
       return "Tipo y numero de documento deben registrarse juntos.";
     }
-    if (hasDocType && (!Number.isInteger(Number(documentTypeId)) || Number(documentTypeId) < 1)) {
+    if (tieneTipo && (!Number.isInteger(Number(tipoDocumentoId)) || Number(tipoDocumentoId) < 1)) {
       return "El tipo de documento no es valido.";
     }
-    if (normalizedDocumentNumber.length > 20) {
-      return "El numero de documento no puede superar 20 caracteres.";
+    if (tipoEntidad === "persona" && tieneTipo && tieneNumero) {
+      const tipoDoc = tiposDocumentoRepository.obtenerPorId(Number(tipoDocumentoId));
+
+      if (tipoDoc) {
+        const errorDocumento = validarPorTipoDocumento(tipoDoc.code, documentoNormalizado);
+        if (errorDocumento) {
+          return errorDocumento;
+        }
+      }
     }
-    if (normalizedPhone.length > 20) {
+    if (telefonoNormalizado.length > 20) {
       return "El telefono no puede superar 20 caracteres.";
     }
     if (
-      normalizedEmail &&
-      (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) ||
-        normalizedEmail.length > 150)
+      emailNormalizado &&
+      (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado) ||
+        emailNormalizado.length > 150)
     ) {
       return "Ingresa un email valido de hasta 150 caracteres.";
     }
     return null;
   }
 
-  async function handleSave() {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
+  async function guardarProductor() {
+    const errorValidacion = validar();
+    if (errorValidacion) {
+      setError(errorValidacion);
       return;
     }
-    setIsSaving(true);
+    setGuardando(true);
     setError(null);
 
     try {
       const id = generatePublicId();
-      const publicId = generatePublicId();
-      const now = getNowIsoString();
+      const idPublico = generatePublicId();
+      const ahora = getNowIsoString();
 
       const db = getDatabase();
       db.withTransactionSync(() => {
         productoresRepository.insert({
           id,
-          publicId,
-          entityType,
+          publicId: idPublico,
+          entityType: tipoEntidad,
           documentTypeId:
-            entityType === "persona" && documentTypeId
-              ? Number(documentTypeId)
+            tipoEntidad === "persona" && tipoDocumentoId
+              ? Number(tipoDocumentoId)
               : null,
           documentNumber:
-            entityType === "persona" ? documentNumber.trim() || null : null,
-          firstName: firstName.trim(),
-          lastName: entityType === "persona" ? lastName.trim() || null : null,
-          phone: phone.trim() || null,
+            tipoEntidad === "persona" ? numeroDocumento.trim() || null : null,
+          firstName: nombres.trim(),
+          lastName: tipoEntidad === "persona" ? apellidos.trim() || null : null,
+          phone: telefono.trim() || null,
           email: email.trim().toLowerCase() || null,
-          address: address.trim() || null,
+          address: direccion.trim() || null,
           isActive: true,
-          createdAt: now,
-          updatedAt: now,
+          createdAt: ahora,
+          updatedAt: ahora,
           serverId: null,
           syncStatus: "pending" as const,
           syncErrorMessage: null
@@ -128,7 +155,7 @@ export function NuevoProductorScreen() {
           entityType: "productores",
           entityLocalId: id,
           operation: "create",
-          createdAt: now
+          createdAt: ahora
         });
       });
 
@@ -136,103 +163,136 @@ export function NuevoProductorScreen() {
         pathname: "/visitas-campo/nueva",
         params: {
           nuevoProductorId: id,
-          nuevoProductorLabel: buildLabel()
+          nuevoProductorLabel: construirEtiqueta()
         }
       });
     } catch {
       setError("Error al guardar el productor.");
     } finally {
-      setIsSaving(false);
+      setGuardando(false);
     }
   }
 
-  function buildLabel() {
-    const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ").trim();
-    return fullName || documentNumber || "Nuevo productor";
+  function construirEtiqueta() {
+    const nombreCompleto = [nombres.trim(), apellidos.trim()]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    return nombreCompleto || numeroDocumento || "Nuevo productor";
   }
 
-  const entityTypeLabel = ENTITY_TYPE_OPTIONS.find((o) => o.value === entityType)?.label ?? "Persona";
-  const isPersona = entityType === "persona";
+  const esPersona = tipoEntidad === "persona";
+  const etiquetaTipoEntidad =
+    OPCIONES_TIPO_ENTIDAD.find((o) => o.value === tipoEntidad)?.label ?? "Persona";
+  const etiquetaTipoDocumento =
+    opcionesTipoDocumento.find((o) => o.value === tipoDocumentoId)?.label;
 
   return (
-    <ScreenContainer contentStyle={styles.container}>
+    <ScreenContainer contentStyle={estilos.contenedor}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <AppText variant="title" style={styles.pageTitle}>
+      <ScrollView contentContainerStyle={estilos.scroll}>
+        <AppText variant="title" style={estilos.titulo}>
           Nuevo productor
         </AppText>
-        <AppText variant="body" style={{ color: theme.colors.textMuted, marginBottom: 8 }}>
-          Registra los datos del productor. La parcela puede agregarse ahora o despues.
+        <AppText variant="body" style={estilos.subtitulo}>
+          Completa los datos obligatorios y, si lo deseas, los opcionales. La parcela puede agregarse despues.
         </AppText>
 
-        <AppCard style={styles.fieldsCard}>
+        <AppCard style={estilos.tarjetaObligatoria}>
+          <View style={estilos.encabezadoSeccion}>
+            <View style={estilos.badgeObligatorio} />
+            <AppText variant="eyebrow" style={estilos.tituloSeccionObligatoria}>
+              Datos obligatorios
+            </AppText>
+          </View>
+
           <AppSelectField
             label="Tipo de entidad"
             placeholder="Selecciona el tipo"
             icon="people-outline"
-            options={ENTITY_TYPE_OPTIONS}
-            isOpen={openEntityType}
+            options={OPCIONES_TIPO_ENTIDAD}
+            isOpen={abrirTipoEntidad}
             isLoading={false}
-            onSelect={(value) => {
-              setEntityType(value as typeof entityType);
-              setOpenEntityType(false);
-              if (value !== "persona") {
-                setDocumentTypeId("");
-                setDocumentNumber("");
-                setLastName("");
+            onSelect={(valor) => {
+              setTipoEntidad(valor as typeof tipoEntidad);
+              setAbrirTipoEntidad(false);
+              if (valor !== "persona") {
+                setTipoDocumentoId("");
+                setNumeroDocumento("");
+                setApellidos("");
               }
             }}
-            onToggle={() => setOpenEntityType((prev) => !prev)}
-            onClose={() => setOpenEntityType(false)}
-            selectedLabel={entityTypeLabel}
+            onToggle={() => setAbrirTipoEntidad((prev) => !prev)}
+            onClose={() => setAbrirTipoEntidad(false)}
+            selectedLabel={etiquetaTipoEntidad}
           />
 
-          <View style={styles.divider} />
+          <View style={estilos.separador} />
 
           <AppInput
-            label={isPersona ? "Nombres" : "Nombre de la entidad"}
-            placeholder={isPersona ? "Ej: Juan Carlos" : "Ej: Fundo San Pedro"}
-            value={firstName}
-            onChangeText={setFirstName}
+            label={esPersona ? "Nombres *" : "Nombre de la entidad *"}
+            placeholder={esPersona ? "Ej: Juan Carlos" : "Ej: Fundo San Pedro"}
+            value={nombres}
+            onChangeText={setNombres}
           />
 
-          {isPersona ? (
+          {esPersona ? (
+            <AppInput
+              label="Apellidos *"
+              placeholder="Ej: Perez Lopez"
+              value={apellidos}
+              onChangeText={setApellidos}
+            />
+          ) : null}
+        </AppCard>
+
+        <AppCard style={estilos.tarjetaOpcional}>
+          <View style={estilos.encabezadoSeccion}>
+            <AppText variant="eyebrow" style={estilos.tituloSeccionOpcional}>
+              Datos opcionales
+            </AppText>
+          </View>
+
+          {esPersona ? (
             <>
-              <AppInput
-                label="Apellidos"
-                placeholder="Ej: Perez Lopez"
-                value={lastName}
-                onChangeText={setLastName}
-              />
-              <View style={styles.divider} />
-              <AppText variant="caption" style={{ color: theme.colors.textMuted }}>
-                Documento (opcional)
+              <AppText variant="label" style={estilos.subtituloSeccion}>
+                Documento
               </AppText>
-              <AppInput
+              <AppSelectField
                 label="Tipo de documento"
-                placeholder="Ej: 1 para DNI"
-                value={documentTypeId}
-                onChangeText={setDocumentTypeId}
-                keyboardType="numeric"
+                placeholder="Selecciona el tipo"
+                icon="card-outline"
+                options={opcionesTipoDocumento}
+                isOpen={abrirTipoDocumento}
+                isLoading={false}
+                emptyMessage="No hay tipos de documento. Sincroniza los catalogos."
+                onSelect={(valor) => {
+                  setTipoDocumentoId(valor);
+                  setAbrirTipoDocumento(false);
+                }}
+                onToggle={() => setAbrirTipoDocumento((prev) => !prev)}
+                onClose={() => setAbrirTipoDocumento(false)}
+                selectedLabel={etiquetaTipoDocumento}
               />
               <AppInput
                 label="Numero de documento"
                 placeholder="Ej: 12345678"
-                value={documentNumber}
-                onChangeText={setDocumentNumber}
+                value={numeroDocumento}
+                onChangeText={setNumeroDocumento}
               />
+
+              <View style={estilos.separador} />
             </>
           ) : null}
 
-          <View style={styles.divider} />
-          <AppText variant="caption" style={{ color: theme.colors.textMuted }}>
-            Datos de contacto (opcional)
+          <AppText variant="label" style={estilos.subtituloSeccion}>
+            Contacto
           </AppText>
           <AppInput
             label="Telefono"
             placeholder="Ej: 987654321"
-            value={phone}
-            onChangeText={setPhone}
+            value={telefono}
+            onChangeText={setTelefono}
             keyboardType="phone-pad"
           />
           <AppInput
@@ -246,23 +306,25 @@ export function NuevoProductorScreen() {
           <AppInput
             label="Direccion"
             placeholder="Ej: Av. Principal 123"
-            value={address}
-            onChangeText={setAddress}
+            value={direccion}
+            onChangeText={setDireccion}
           />
         </AppCard>
 
         {error ? (
-          <View style={styles.errorBanner}>
-            <AppText variant="caption" style={styles.errorText}>{error}</AppText>
+          <View style={estilos.bannerError}>
+            <AppText variant="caption" style={estilos.textoError}>
+              {error}
+            </AppText>
           </View>
         ) : null}
 
-        <View style={styles.actions}>
+        <View style={estilos.acciones}>
           <AppButton
             label="Guardar productor"
-            onPress={handleSave}
-            disabled={!firstName.trim() || isSaving}
-            loading={isSaving}
+            onPress={guardarProductor}
+            disabled={!nombres.trim() || guardando}
+            loading={guardando}
             icon="save-outline"
           />
           <AppButton
@@ -272,7 +334,7 @@ export function NuevoProductorScreen() {
           />
         </View>
 
-        <AppText style={styles.offlineNote} variant="caption">
+        <AppText style={estilos.notaOffline} variant="caption">
           El productor se guarda localmente y se sincroniza cuando haya conexion.
         </AppText>
       </ScrollView>
@@ -280,20 +342,87 @@ export function NuevoProductorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { paddingHorizontal: 0, paddingVertical: 0 },
-  scrollContent: { padding: 18, gap: 14 },
-  pageTitle: { color: theme.colors.primaryDark, marginBottom: 4 },
-  fieldsCard: { padding: 16, gap: 14, backgroundColor: theme.colors.surface },
-  divider: { height: 1, backgroundColor: theme.colors.borderLight },
-  errorBanner: {
+const estilos = StyleSheet.create({
+  contenedor: { paddingHorizontal: 0, paddingVertical: 0 },
+  scroll: { padding: 18, gap: 14 },
+  titulo: { color: theme.colors.primaryDark, marginBottom: 4 },
+  subtitulo: { color: theme.colors.textMuted, marginBottom: 4 },
+
+  tarjetaObligatoria: {
+    padding: 16,
+    gap: 14,
+    backgroundColor: theme.colors.surface,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.primary
+  },
+  tarjetaOpcional: {
+    padding: 16,
+    gap: 14,
+    backgroundColor: theme.colors.surfaceElevated
+  },
+
+  encabezadoSeccion: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4
+  },
+  badgeObligatorio: {
+    width: 4,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: theme.colors.primary
+  },
+  tituloSeccionObligatoria: {
+    color: theme.colors.primaryDark,
+    letterSpacing: 1.5
+  },
+  tituloSeccionOpcional: {
+    color: theme.colors.textMuted,
+    letterSpacing: 1.5
+  },
+  subtituloSeccion: {
+    color: theme.colors.text,
+    marginBottom: -6
+  },
+
+  separador: { height: 1, backgroundColor: theme.colors.borderLight },
+
+  bannerError: {
     padding: 12,
     borderWidth: 1,
     borderColor: theme.colors.error,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.errorMuted
   },
-  errorText: { color: theme.colors.error },
-  actions: { gap: 10 },
-  offlineNote: { textAlign: "center" }
+  textoError: { color: theme.colors.error },
+
+  acciones: { gap: 10 },
+  notaOffline: { textAlign: "center" }
 });
+
+const REGLAS_DOCUMENTO: Record<string, { digitos: number; etiqueta: string }> = {
+  DNI: { digitos: 8, etiqueta: "DNI" },
+  RUC: { digitos: 11, etiqueta: "RUC" },
+  CE: { digitos: 9, etiqueta: "CE" }
+};
+
+function validarPorTipoDocumento(codigo: string, numero: string): string | null {
+  const regla = REGLAS_DOCUMENTO[codigo];
+
+  if (regla) {
+    if (!/^\d+$/.test(numero)) {
+      return `El numero de ${regla.etiqueta} debe contener solo digitos.`;
+    }
+    if (numero.length !== regla.digitos) {
+      return `El ${regla.etiqueta} debe tener exactamente ${regla.digitos} digitos.`;
+    }
+    return null;
+  }
+
+  if (numero.length > 20) {
+    return "El numero de documento no puede superar 20 caracteres.";
+  }
+
+  return null;
+}

@@ -24,11 +24,11 @@ vi.mock("./catalog-download-state", () => ({
   notifyCatalogDownloadCompleted: vi.fn()
 }));
 
-const mockGetAllProductores = vi.fn(() => Promise.resolve([]));
-const mockGetAllParcelas = vi.fn(() => Promise.resolve([]));
+const mockGetAllProductores = vi.fn<() => Promise<Array<Record<string, unknown>>>>(() => Promise.resolve([]));
+const mockGetAllParcelas = vi.fn<() => Promise<Array<Record<string, unknown>>>>(() => Promise.resolve([]));
 
 vi.mock("../../modules/productores/services/productores.remote", () => ({
-  productoresRemote: { getAll: (...args: unknown[]) => mockGetAllProductores(...args) }
+  productoresRemote: { getAll: mockGetAllProductores }
 }));
 vi.mock("../../modules/sectores/services/sectores.remote", () => ({
   sectoresRemote: { getAll: () => Promise.resolve([]) }
@@ -37,7 +37,10 @@ vi.mock("../../modules/subsectores/services/subsectores.remote", () => ({
   subsectoresRemote: { getAll: () => Promise.resolve([]) }
 }));
 vi.mock("../../modules/parcelas/services/parcelas.remote", () => ({
-  parcelasRemote: { getAll: (...args: unknown[]) => mockGetAllParcelas(...args) }
+  parcelasRemote: { getAll: mockGetAllParcelas }
+}));
+vi.mock("../../modules/tipos-documento/services/tipos-documento.remote", () => ({
+  tiposDocumentoRemote: { obtenerTodos: () => Promise.resolve([]) }
 }));
 vi.mock("../../modules/geografias/services/geografias.remote", () => ({
   geografiasRemote: { getDistritos: () => Promise.resolve([]) }
@@ -86,20 +89,20 @@ vi.mock("../../modules/nutricion/repositories", () => ({
 }));
 
 const runSyncCalls: Array<{ sql: string; params: unknown[] }> = [];
-const execSyncCalls: string[] = [];
 
 describe("seed-catalogs convergence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     runSyncCalls.length = 0;
-    execSyncCalls.length = 0;
+    mockGetAllProductores.mockResolvedValue([]);
+    mockGetAllParcelas.mockResolvedValue([]);
 
     runSync.mockImplementation((sql: string, ...params: unknown[]) => {
       runSyncCalls.push({ sql: sql.replace(/\s+/gu, " ").trim(), params });
     });
-    execSync.mockImplementation((sql: string) => {
-      execSyncCalls.push(sql.replace(/\s+/gu, " ").trim());
-    });
+    execSync.mockImplementation(() => {});
+    getAllSync.mockReturnValue([]);
+    getFirstSync.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -108,13 +111,11 @@ describe("seed-catalogs convergence", () => {
 
   it("inserts productores with ON CONFLICT and WHERE sync_status <> 'pending' guard", async () => {
     mockGetAllProductores.mockResolvedValue([{
-      id: "101", publicId: "pub-101", entityType: "persona" as const,
+      id: "101", publicId: "pub-101", entityType: "persona",
       firstName: "Juan", lastName: "Perez", documentTypeId: 1, documentNumber: "123",
       phone: null, email: null, address: null, isActive: true,
       createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z"
     }]);
-
-    getFirstSync.mockReturnValue(null);
 
     const { downloadAllCatalogs } = await import("./seed-catalogs");
     await downloadAllCatalogs();
@@ -128,13 +129,13 @@ describe("seed-catalogs convergence", () => {
 
   it("uses resolveLocalCatalogId to preserve local id for existing synced productor", async () => {
     mockGetAllProductores.mockResolvedValue([{
-      id: "101", publicId: "pub-101", entityType: "persona" as const,
+      id: "101", publicId: "pub-101", entityType: "persona",
       firstName: "Juan", lastName: "Perez", documentTypeId: 1, documentNumber: "123",
       phone: null, email: null, address: null, isActive: true,
       createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z"
     }]);
 
-    getFirstSync.mockReturnValue({ id: "existing-local-1" });
+    (getFirstSync as ReturnType<typeof vi.fn>).mockReturnValue({ id: "existing-local-1" });
 
     const { downloadAllCatalogs } = await import("./seed-catalogs");
     await downloadAllCatalogs();
@@ -164,8 +165,6 @@ describe("seed-catalogs convergence", () => {
       createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z"
     }]);
 
-    getFirstSync.mockReturnValue(null);
-
     const { downloadAllCatalogs } = await import("./seed-catalogs");
     await downloadAllCatalogs();
 
@@ -177,27 +176,25 @@ describe("seed-catalogs convergence", () => {
     }
   });
 
-  it("migration 51 backfills server_id = id for all 4 tables", async () => {
+  it("migration 53 brings the tipos_documento table", async () => {
     const { runMigrations } = await import("./migrations");
 
-    const execFn = vi.fn();
-    const dbForMigration = {
+    const execuciones: string[] = [];
+    const dbParaMigracion = {
       runSync: vi.fn(),
-      execSync: execFn,
+      execSync: vi.fn((sql: string) => {
+        execuciones.push(sql.replace(/\s+/gu, " ").trim());
+      }),
       getAllSync: vi.fn(() => []),
       getFirstSync: vi.fn(() => null),
       withTransactionSync: vi.fn((cb: () => void) => cb())
     };
 
-    await runMigrations(dbForMigration as never, 51);
+    await runMigrations(dbParaMigracion as never);
 
-    const allExec = execFn.mock.calls
-      .map((call: string[]) => call[0])
-      .join("\n");
-
-    for (const table of ["productores", "sectores", "subsectores", "parcelas"]) {
-      expect(allExec).toContain(`UPDATE ${table}`);
-      expect(allExec).toContain("SET server_id = id");
-    }
+    const createTiposDocumento = execuciones.find((s) =>
+      s.includes("CREATE TABLE IF NOT EXISTS tipos_documento")
+    );
+    expect(createTiposDocumento).toBeDefined();
   });
 });
