@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import {
+  Alert,
   ImageBackground,
   Pressable,
   StyleSheet,
@@ -26,6 +27,7 @@ import { scheduleSync } from "../../../../shared/sync";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import { visitaRecetasService, type SaveRecetaData } from "../../services";
+import { visitaRecetaPdfReportService } from "../../services/visita-receta-pdf-report.service";
 import type {
   ConsolidacionHallazgo,
   CoadyuvanteCatalogItem,
@@ -592,14 +594,29 @@ export function VisitaRecetaScreen() {
       };
 
       visitaRecetasService.save(visitaId, data);
-      void scheduleSync({ immediate: true });
 
       const updated = visitaRecetasService.getByVisitaId(visitaId);
       setRecetaData(updated);
 
-      if (updated?.syncStatus !== "error") {
-        router.replace("/visitas-campo/historial");
-      }
+      await visitaRecetaPdfReportService.preview(visitaId);
+
+      Alert.alert(
+        "Finalizar receta",
+        "Desea finalizar y enviar la receta?",
+        [
+          {
+            text: "Seguir editando",
+            style: "cancel"
+          },
+          {
+            text: "Enviar",
+            onPress: () => {
+              void scheduleSync({ immediate: true });
+              router.replace("/visitas-campo/historial");
+            }
+          }
+        ]
+      );
     } catch (err) {
       setSubmitError(toApiError(err).message || "No se pudo guardar la receta.");
     } finally {

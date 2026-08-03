@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppMap,
@@ -538,7 +538,24 @@ export function VisitaCampoDetailScreen() {
       const service =
         action === "diagnostico" ? visitaPdfReportService : visitaRecetaPdfReportService;
 
-      if (Platform.OS === "web") {
+      if (action === "receta" && Platform.OS !== "web") {
+        await service.preview(visitaId);
+
+        Alert.alert(
+          "Receta",
+          "Desea compartir la receta?",
+          [
+            { text: "Cerrar", style: "cancel" },
+            {
+              text: "Compartir",
+              onPress: () => {
+                setActivePdfAction(action);
+                handleCompartirReceta(service);
+              }
+            }
+          ]
+        );
+      } else if (Platform.OS === "web") {
         await service.preview(visitaId);
       } else {
         await service.share(visitaId);
@@ -546,6 +563,19 @@ export function VisitaCampoDetailScreen() {
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setPdfError(apiError.message || "No se pudo abrir el PDF. Intenta nuevamente.");
+    } finally {
+      if (action !== "receta" || Platform.OS === "web") {
+        setActivePdfAction(null);
+      }
+    }
+  }
+
+  async function handleCompartirReceta(service: typeof visitaRecetaPdfReportService) {
+    try {
+      await service.share(visitaId!);
+    } catch (shareError) {
+      const apiError = toApiError(shareError);
+      setPdfError(apiError.message || "No se pudo compartir la receta.");
     } finally {
       setActivePdfAction(null);
     }
@@ -674,6 +704,18 @@ function VisitDossier({
             onPress={() => onOpenPdf("receta")}
             size="small"
             variant="secondary"
+          />
+          <AppButton
+            icon="create-outline"
+            label="Editar receta"
+            onPress={() =>
+              router.push({
+                pathname: "/visitas-campo/[id]/receta",
+                params: { id: visita.id }
+              })
+            }
+            size="small"
+            variant="outline"
           />
         </View>
       </View>

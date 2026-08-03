@@ -1,6 +1,7 @@
 import { visitaRecetasService } from "./visita-recetas.service";
 import type { VisitaRecetaCompleta } from "../types";
 import { parcelasRepository } from "../../parcelas/repositories/parcelas.repository";
+import { productoresRepository } from "../../productores/repositories/productores.repository";
 import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
 
 declare const process:
@@ -65,6 +66,8 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
 
   const visita = visitasCampoRepository.getById(visitaId);
   const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
+  const productor = parcela ? productoresRepository.getById(parcela.productorId) : null;
+  const productorNombre = construirNombreProductor(productor);
   const calculationAreaHectares = resolveCalculationAreaHectares(
     parcela?.areaHectares,
     visita?.areaHectares
@@ -269,6 +272,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     ${iconBase64 ? `<img alt="AgroGest VSM" class="header-icon" src="${iconBase64}" />` : ""}
     <div class="header-text">
       <h1>Receta de recomendaciones tecnicas</h1>
+      <p>Productor: ${productorNombre}</p>
       <p>AgroGest VSM - ${new Date().toLocaleDateString("es-PE")}</p>
     </div>
   </div>
@@ -809,4 +813,17 @@ function parseJsonArray(value: string): string[] {
   } catch {
     return [];
   }
+}
+
+function construirNombreProductor(
+  productor: { firstName: string | null; lastName: string | null } | null
+): string {
+  if (!productor) {
+    return "No registrado";
+  }
+  const nombreCompleto = [productor.firstName, productor.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  return nombreCompleto || "No registrado";
 }
