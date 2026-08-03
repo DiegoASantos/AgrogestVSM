@@ -6,6 +6,7 @@ import { observacionesSanitariasRepository } from "../../observaciones-sanitaria
 import { HUMEDAD_SUELO_LABELS } from "../../riegos/types";
 import { riegosRepository } from "../../riegos/repositories/riegos.repository";
 import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
+import { getDatabase } from "../../../shared/database/connection";
 import type { VisitaRecetaCompleta, ConsolidacionHallazgo } from "../types";
 
 const NUTRITION_DESCRIPTION_PREFIX = "Nutricion -";
@@ -221,6 +222,40 @@ export const visitaRecetasService = {
     };
 
     return visitaRecetasRemote.save(visitaId, remoteData);
+  },
+
+  obtenerUltimoVolumenAplicacion(parcelaId: string): { fitosanidad: string; fertilizacion: string } {
+    const db = getDatabase();
+
+    const ultimaVisita = db.getFirstSync<{ id: string }>(
+      `SELECT id
+       FROM visitas_campo
+       WHERE parcela_id = ?
+         AND is_active = 1
+       ORDER BY visit_date DESC, created_at DESC
+       LIMIT 1 OFFSET 1`,
+      parcelaId
+    );
+
+    if (!ultimaVisita) {
+      return { fitosanidad: "", fertilizacion: "" };
+    }
+
+    const ultimaReceta = visitaRecetasRepository.getRecetaByVisitaLocalId(ultimaVisita.id);
+
+    if (!ultimaReceta) {
+      return { fitosanidad: "", fertilizacion: "" };
+    }
+
+    const volumenFito = ultimaReceta.fitosanidad.length > 0
+      ? (ultimaReceta.fitosanidad[0].volumenAplicacion?.toString() ?? "")
+      : "";
+
+    const volumenFert = ultimaReceta.fertilizacion.length > 0
+      ? (ultimaReceta.fertilizacion[0].volumenAplicacion?.toString() ?? "")
+      : "";
+
+    return { fitosanidad: volumenFito, fertilizacion: volumenFert };
   }
 };
 

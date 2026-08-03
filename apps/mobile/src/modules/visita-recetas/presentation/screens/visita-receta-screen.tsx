@@ -276,6 +276,8 @@ export function VisitaRecetaScreen() {
 
       setConsolidacion(localConsData);
 
+      let volumenPorDefecto = { fitosanidad: "", fertilizacion: "" };
+
       if (recetaData) {
         setRecetaData(recetaData);
         restoreFromReceta(
@@ -284,9 +286,14 @@ export function VisitaRecetaScreen() {
           catalogos.marcasProducto,
           catalogos.fertilizantes
         );
-      } else {
-        setRecetaData(null);
-        initFitosanidadFromConsolidacion(localConsData);
+      } else if (localConsData) {
+        if (parcela) {
+          volumenPorDefecto = visitaRecetasService.obtenerUltimoVolumenAplicacion(parcela.id);
+        }
+        initFitosanidadFromConsolidacion(localConsData, volumenPorDefecto.fitosanidad);
+        if (volumenPorDefecto.fertilizacion) {
+          setFertilizacion((prev) => ({ ...prev, volumenAplicacion: volumenPorDefecto.fertilizacion }));
+        }
       }
 
       setIsLoading(false);
@@ -417,19 +424,19 @@ export function VisitaRecetaScreen() {
     setLaborSelections(new Set(receta.labores.map((l) => l.labor)));
   }
 
-  function initFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo) {
-    setFitosanidadApps(buildFitosanidadFromConsolidacion(cons));
+  function initFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo, volumenPorDefecto = "") {
+    setFitosanidadApps(buildFitosanidadFromConsolidacion(cons, volumenPorDefecto));
   }
 
-  function buildFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo) {
+  function buildFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo, volumenPorDefecto = "") {
     const apps: AppFitosanidad[] = [];
     let num = 1;
 
     for (const plaga of cons.plagas) {
-      apps.push(createEmptyFitosanidad(num++, "plaga", plaga.nombre));
+      apps.push(createEmptyFitosanidad(num++, "plaga", plaga.nombre, volumenPorDefecto));
     }
     for (const enfermedad of cons.enfermedades) {
-      apps.push(createEmptyFitosanidad(num++, "enfermedad", enfermedad.nombre));
+      apps.push(createEmptyFitosanidad(num++, "enfermedad", enfermedad.nombre, volumenPorDefecto));
     }
 
     return apps;
@@ -438,7 +445,8 @@ export function VisitaRecetaScreen() {
   function createEmptyFitosanidad(
     numero: number,
     objetivo: "plaga" | "enfermedad",
-    objetivoNombre: string
+    objetivoNombre: string,
+    volumenPorDefecto = ""
   ): AppFitosanidad {
     return {
       localId: `new_${numero}_${Date.now()}`,
@@ -452,7 +460,7 @@ export function VisitaRecetaScreen() {
       ingredienteActivoId: "",
       ingredienteActivoNombre: "",
       dosisIa: "",
-      volumenAplicacion: "",
+      volumenAplicacion: volumenPorDefecto,
       cantidadTotalIa: "",
       marcaProductoNombre: "",
       concentracionProducto: "",

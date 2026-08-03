@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppMap,
@@ -53,6 +53,8 @@ type DetailCatalogs = {
 };
 
 type PdfAction = "diagnostico" | "receta";
+type PdfOperation = "preview" | "share";
+type ActivePdfAction = `${PdfAction}-${PdfOperation}` | null;
 
 const EMPTY_CATALOGS: DetailCatalogs = {
   cultivos: [],
@@ -73,7 +75,7 @@ export function VisitaCampoDetailScreen() {
   const [catalogs, setCatalogs] = useState<DetailCatalogs>(EMPTY_CATALOGS);
   const [isLoading, setIsLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [activePdfAction, setActivePdfAction] = useState<PdfAction | null>(null);
+  const [activePdfAction, setActivePdfAction] = useState<ActivePdfAction>(null);
   const [error, setError] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [syncSummary, setSyncSummary] = useState<VisitaSyncSummary | null>(null);
@@ -156,8 +158,11 @@ export function VisitaCampoDetailScreen() {
               catalogs={catalogs}
               detail={detail}
               isRetrying={isRetrying}
-              onOpenPdf={(action) => {
-                void handlePdfAction(action);
+              onPreviewPdf={(action) => {
+                void handlePreviewPdf(action);
+              }}
+              onSharePdf={(action) => {
+                void handleSharePdf(action);
               }}
               onRetrySync={() => {
                 void handleRetrySync();
@@ -526,56 +531,41 @@ export function VisitaCampoDetailScreen() {
     }
   }
 
-  async function handlePdfAction(action: PdfAction) {
-    if (!visitaId || activePdfAction) {
-      return;
-    }
+  async function handlePreviewPdf(action: PdfAction) {
+    if (!visitaId || activePdfAction) return;
 
     setPdfError(null);
-    setActivePdfAction(action);
+    const activeId: ActivePdfAction = `${action}-preview`;
+    setActivePdfAction(activeId);
 
     try {
       const service =
         action === "diagnostico" ? visitaPdfReportService : visitaRecetaPdfReportService;
 
-      if (action === "receta" && Platform.OS !== "web") {
-        await service.preview(visitaId);
-
-        Alert.alert(
-          "Receta",
-          "Desea compartir la receta?",
-          [
-            { text: "Cerrar", style: "cancel" },
-            {
-              text: "Compartir",
-              onPress: () => {
-                setActivePdfAction(action);
-                handleCompartirReceta(service);
-              }
-            }
-          ]
-        );
-      } else if (Platform.OS === "web") {
-        await service.preview(visitaId);
-      } else {
-        await service.share(visitaId);
-      }
+      await service.preview(visitaId);
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setPdfError(apiError.message || "No se pudo abrir el PDF. Intenta nuevamente.");
     } finally {
-      if (action !== "receta" || Platform.OS === "web") {
-        setActivePdfAction(null);
-      }
+      setActivePdfAction(null);
     }
   }
 
-  async function handleCompartirReceta(service: typeof visitaRecetaPdfReportService) {
+  async function handleSharePdf(action: PdfAction) {
+    if (!visitaId || activePdfAction) return;
+
+    setPdfError(null);
+    const activeId: ActivePdfAction = `${action}-share`;
+    setActivePdfAction(activeId);
+
     try {
-      await service.share(visitaId!);
-    } catch (shareError) {
-      const apiError = toApiError(shareError);
-      setPdfError(apiError.message || "No se pudo compartir la receta.");
+      const service =
+        action === "diagnostico" ? visitaPdfReportService : visitaRecetaPdfReportService;
+
+      await service.share(visitaId);
+    } catch (nextError) {
+      const apiError = toApiError(nextError);
+      setPdfError(apiError.message || "No se pudo compartir el PDF. Intenta nuevamente.");
     } finally {
       setActivePdfAction(null);
     }
@@ -591,11 +581,12 @@ type VisitMapPoint = {
 };
 
 type VisitDossierProps = {
-  activePdfAction: PdfAction | null;
+  activePdfAction: ActivePdfAction;
   catalogs: DetailCatalogs;
   detail: VisitaCampoFull;
   isRetrying: boolean;
-  onOpenPdf: (action: PdfAction) => void;
+  onPreviewPdf: (action: PdfAction) => void;
+  onSharePdf: (action: PdfAction) => void;
   onRetrySync: () => void;
   pdfError: string | null;
   router: ReturnType<typeof useRouter>;
@@ -609,7 +600,8 @@ function VisitDossier({
   catalogs,
   detail,
   isRetrying,
-  onOpenPdf,
+  onPreviewPdf,
+  onSharePdf,
   onRetrySync,
   pdfError,
   router,
@@ -690,20 +682,39 @@ function VisitDossier({
         <View style={styles.pdfActions}>
           <AppButton
             disabled={activePdfAction !== null}
-            icon="document-text-outline"
-            label={activePdfAction === "diagnostico" ? "Abriendo..." : "PDF diagnostico"}
-            loading={activePdfAction === "diagnostico"}
-            onPress={() => onOpenPdf("diagnostico")}
+            icon="eye-outline"
+            label="Ver diagnostico"
+            loading={activePdfAction === "diagnostico-preview"}
+            onPress={() => onPreviewPdf("diagnostico")}
             size="small"
+            variant="outline"
           />
           <AppButton
             disabled={activePdfAction !== null}
-            icon="receipt-outline"
-            label={activePdfAction === "receta" ? "Abriendo..." : "PDF receta"}
-            loading={activePdfAction === "receta"}
-            onPress={() => onOpenPdf("receta")}
+            icon="share-outline"
+            label="Compartir diagnostico"
+            loading={activePdfAction === "diagnostico-share"}
+            onPress={() => onSharePdf("diagnostico")}
             size="small"
-            variant="secondary"
+          />
+        </View>
+        <View style={styles.pdfActions}>
+          <AppButton
+            disabled={activePdfAction !== null}
+            icon="eye-outline"
+            label="Ver receta"
+            loading={activePdfAction === "receta-preview"}
+            onPress={() => onPreviewPdf("receta")}
+            size="small"
+            variant="outline"
+          />
+          <AppButton
+            disabled={activePdfAction !== null}
+            icon="share-outline"
+            label="Compartir receta"
+            loading={activePdfAction === "receta-share"}
+            onPress={() => onSharePdf("receta")}
+            size="small"
           />
           <AppButton
             icon="create-outline"

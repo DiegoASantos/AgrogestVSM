@@ -114,6 +114,12 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       color: #6b7a6f;
       margin-top: 2px;
     }
+    .header-text .productor {
+      font-size: 15px;
+      color: #1b4332;
+      font-weight: 700;
+      margin-top: 4px;
+    }
     h2 {
       font-size: 16px;
       color: #2d6a4f;
@@ -272,7 +278,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     ${iconBase64 ? `<img alt="AgroGest VSM" class="header-icon" src="${iconBase64}" />` : ""}
     <div class="header-text">
       <h1>Receta de recomendaciones tecnicas</h1>
-      <p>Productor: ${productorNombre}</p>
+      <p class="productor">Productor: ${productorNombre}</p>
       <p>AgroGest VSM - ${new Date().toLocaleDateString("es-PE")}</p>
     </div>
   </div>

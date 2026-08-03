@@ -150,8 +150,8 @@ async function buildVisitReportHtml(visitaId: string) {
       }
       .visit-title {
         margin: 18px 0 8px;
-        color: #2d6a4f;
-        font-size: 16px;
+        color: #1b4332;
+        font-size: 18px;
         font-weight: 700;
       }
       .meta {

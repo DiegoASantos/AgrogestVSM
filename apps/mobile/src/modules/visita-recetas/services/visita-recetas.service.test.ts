@@ -1,5 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("../../../shared/database/connection", () => ({
+  getDatabase: () => ({
+    runSync: vi.fn(),
+    execSync: vi.fn(),
+    getAllSync: vi.fn(() => []),
+    getFirstSync: vi.fn(() => null),
+    withTransactionSync: vi.fn((cb: () => void) => cb())
+  })
+}));
+
 import { visitaRecetasService } from "./visita-recetas.service";
 
 const mocks = vi.hoisted(() => ({
