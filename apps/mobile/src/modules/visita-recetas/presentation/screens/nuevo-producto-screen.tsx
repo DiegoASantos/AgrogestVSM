@@ -74,6 +74,12 @@ export function NuevoProductoScreen() {
     if (tipo === "marca" && !tipoProductoId) {
       return "El tipo de producto es obligatorio.";
     }
+    if ((tipo === "fertilizante" || tipo === "marca") && !concentracion.trim()) {
+      return "La concentracion es obligatoria.";
+    }
+    if ((tipo === "fertilizante" || tipo === "marca") && !unidadMedida.trim()) {
+      return "La unidad de medida es obligatoria.";
+    }
     return null;
   }
 
@@ -103,7 +109,7 @@ export function NuevoProductoScreen() {
         } else if (tipo === "fertilizante") {
           catalogoFertilizantesRepo.insertar({
             id, publicId: idPublico, name: nombre.trim(), type: tipoFertilizante,
-            concentracion: concentracion.trim() || null, unidadMedida: unidadMedida.trim() || null,
+            concentracion: concentracion.trim(), unidadMedida: unidadMedida.trim(),
             serverId: null, syncStatus: "pending", syncErrorMessage: null
           });
           insertSyncOutboxEntry(db, { entityType: "fertilizantes", entityLocalId: id, operation: "create", createdAt: ahora });
@@ -111,7 +117,7 @@ export function NuevoProductoScreen() {
           catalogoMarcasRepo.insertar({
             id, publicId: idPublico, name: nombre.trim(), tipoProductoId: tipoProductoId,
             ingredienteActivoId: ingredienteActivoId || null, ingredienteActivoNombre: null,
-            concentracion: concentracion.trim() || null, unidadMedida: unidadMedida.trim() || null,
+            concentracion: concentracion.trim(), unidadMedida: unidadMedida.trim(),
             serverId: null, syncStatus: "pending", syncErrorMessage: null
           });
           insertSyncOutboxEntry(db, { entityType: "marcas_producto", entityLocalId: id, operation: "create", createdAt: ahora });
@@ -194,8 +200,8 @@ export function NuevoProductoScreen() {
                 onToggle={() => setAbrirTipoFertilizante((p) => !p)}
                 onClose={() => setAbrirTipoFertilizante(false)}
               />
-              <AppInput label="Concentracion (opcional)" placeholder="Ej: 46" value={concentracion} onChangeText={setConcentracion} />
-              <AppInput label="Unidad de medida (opcional)" placeholder="Ej: %" value={unidadMedida} onChangeText={setUnidadMedida} />
+              <AppInput label="Concentracion *" placeholder="Ej: 46" value={concentracion} onChangeText={setConcentracion} />
+              <AppInput label="Unidad de medida *" placeholder="Ej: %" value={unidadMedida} onChangeText={setUnidadMedida} />
             </>
           ) : null}
 
@@ -214,8 +220,8 @@ export function NuevoProductoScreen() {
                 onToggle={() => setAbrirTipoProducto((p) => !p)}
                 onClose={() => setAbrirTipoProducto(false)}
               />
-              <AppInput label="Concentracion (opcional)" placeholder="Ej: 325" value={concentracion} onChangeText={setConcentracion} />
-              <AppInput label="Unidad de medida (opcional)" placeholder="Ej: g/L" value={unidadMedida} onChangeText={setUnidadMedida} />
+              <AppInput label="Concentracion *" placeholder="Ej: 325" value={concentracion} onChangeText={setConcentracion} />
+              <AppInput label="Unidad de medida *" placeholder="Ej: g/L" value={unidadMedida} onChangeText={setUnidadMedida} />
             </>
           ) : null}
         </AppCard>

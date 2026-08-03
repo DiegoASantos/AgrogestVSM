@@ -1134,8 +1134,8 @@ function FitosanidadCard({
       </View>
 
       <AddItemButton
-        accessibilityLabel={`Agregar otro ingrediente activo para ${value.objetivoNombre}`}
-        label="Agregar otro ingrediente activo"
+         accessibilityLabel={`Agregar otro producto para ${value.objetivoNombre}`}
+         label="Agregar otro producto"
         onPress={onAddIngrediente}
       />
 
