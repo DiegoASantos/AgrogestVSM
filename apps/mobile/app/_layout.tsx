@@ -156,6 +156,12 @@ function AppNavigation() {
             title: "Agregar parcela"
           }}
         />
+        <Stack.Screen
+          name="productos/nuevo"
+          options={{
+            title: "Nuevo producto"
+          }}
+        />
       </Stack>
       {showBottomNavigation ? <AppBottomNavigation /> : null}
     </View>
@@ -167,7 +173,7 @@ function isProtectedMobilePath(pathname: string | null) {
     return false;
   }
 
-  return pathname.startsWith("/home") || pathname.startsWith("/visitas-campo") || pathname.startsWith("/productores");
+  return pathname.startsWith("/home") || pathname.startsWith("/visitas-campo") || pathname.startsWith("/productores") || pathname.startsWith("/productos");
 }
 
 const styles = StyleSheet.create({
