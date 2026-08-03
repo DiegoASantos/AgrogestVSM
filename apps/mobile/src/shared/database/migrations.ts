@@ -1216,11 +1216,44 @@ const MIGRATIONS: Migration[] = [
         id INTEGER PRIMARY KEY NOT NULL,
         code TEXT NOT NULL,
         name TEXT NOT NULL
-      )`,
-      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
-    ]
-  }
-];
+       )`,
+       "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+     ]
+   },
+   {
+     version: 54,
+     run(db: SQLiteDatabase) {
+       addColumnIfMissing(db, "ingredientes_activos", "public_id", "TEXT NOT NULL DEFAULT ''");
+       addColumnIfMissing(db, "ingredientes_activos", "server_id", "TEXT");
+       addColumnIfMissing(db, "ingredientes_activos", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
+       addColumnIfMissing(db, "ingredientes_activos", "sync_error_message", "TEXT");
+       addColumnIfMissing(db, "fertilizantes", "public_id", "TEXT NOT NULL DEFAULT ''");
+       addColumnIfMissing(db, "fertilizantes", "server_id", "TEXT");
+       addColumnIfMissing(db, "fertilizantes", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
+       addColumnIfMissing(db, "fertilizantes", "sync_error_message", "TEXT");
+       addColumnIfMissing(db, "marcas_producto", "public_id", "TEXT NOT NULL DEFAULT ''");
+       addColumnIfMissing(db, "marcas_producto", "server_id", "TEXT");
+       addColumnIfMissing(db, "marcas_producto", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
+       addColumnIfMissing(db, "marcas_producto", "sync_error_message", "TEXT");
+
+       for (const table of ["ingredientes_activos", "fertilizantes", "marcas_producto"]) {
+         db.execSync(
+           `UPDATE ${table}
+            SET public_id = id
+            WHERE public_id = ''
+              AND server_id IS NOT NULL`
+         );
+         db.execSync(
+           `UPDATE ${table}
+            SET server_id = id
+            WHERE server_id IS NULL
+              AND sync_status = 'synced'`
+         );
+       }
+       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+     }
+   }
+ ];
 
 function isLegacyPendingCalificacionEligible(raw: string | null, modulo: string) {
   if (!raw) return false;

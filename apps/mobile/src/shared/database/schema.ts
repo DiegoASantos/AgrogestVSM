@@ -326,17 +326,25 @@ export const SQL_SCHEMA = [
   )`,
   `CREATE TABLE IF NOT EXISTS ingredientes_activos (
     id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL,
     name TEXT NOT NULL,
-    description TEXT
+    description TEXT,
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    sync_error_message TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS marcas_producto (
     id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL,
     name TEXT NOT NULL,
     tipo_producto_id TEXT,
     ingrediente_activo_id TEXT,
     concentracion TEXT,
     unidad_medida TEXT,
-    ingrediente_activo_nombre TEXT
+    ingrediente_activo_nombre TEXT,
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    sync_error_message TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS modos_accion (
     id TEXT PRIMARY KEY NOT NULL,
@@ -352,10 +360,14 @@ export const SQL_SCHEMA = [
   )`,
   `CREATE TABLE IF NOT EXISTS fertilizantes (
     id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL,
     name TEXT NOT NULL,
     type TEXT NOT NULL CHECK(type IN ('solido', 'liquido')),
     concentracion TEXT,
-    unidad_medida TEXT
+    unidad_medida TEXT,
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    sync_error_message TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS visita_recetas (
     local_id TEXT PRIMARY KEY NOT NULL,

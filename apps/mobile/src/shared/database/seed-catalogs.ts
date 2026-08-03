@@ -313,26 +313,85 @@ async function performCatalogDownload() {
         }
 
         for (const item of ingredientesActivos) {
+          const localId = resolveLocalCatalogId(db, "ingredientes_activos", item.id);
           db.runSync(
-            `INSERT OR REPLACE INTO ingredientes_activos (id, name, description)
-         VALUES (?, ?, ?)`,
-            item.id,
+            `INSERT INTO ingredientes_activos (
+          id, public_id, name, description, server_id, sync_status
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          public_id = excluded.public_id,
+          name = excluded.name,
+          description = excluded.description,
+          server_id = excluded.server_id,
+          sync_status = 'synced',
+          sync_error_message = NULL
+        WHERE ingredientes_activos.sync_status <> 'pending'`,
+            localId,
+            item.publicId,
             item.name,
-            item.description ?? null
+            item.description ?? null,
+            item.id,
+            "synced"
           );
         }
 
         for (const item of marcasProducto) {
+          const localId = resolveLocalCatalogId(db, "marcas_producto", item.id);
           db.runSync(
-            `INSERT OR REPLACE INTO marcas_producto (id, name, tipo_producto_id, ingrediente_activo_id, concentracion, unidad_medida, ingrediente_activo_nombre)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            item.id,
+            `INSERT INTO marcas_producto (
+          id, public_id, name, tipo_producto_id, ingrediente_activo_id,
+          ingrediente_activo_nombre, concentracion, unidad_medida,
+          server_id, sync_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          public_id = excluded.public_id,
+          name = excluded.name,
+          tipo_producto_id = excluded.tipo_producto_id,
+          ingrediente_activo_id = excluded.ingrediente_activo_id,
+          ingrediente_activo_nombre = excluded.ingrediente_activo_nombre,
+          concentracion = excluded.concentracion,
+          unidad_medida = excluded.unidad_medida,
+          server_id = excluded.server_id,
+          sync_status = 'synced',
+          sync_error_message = NULL
+        WHERE marcas_producto.sync_status <> 'pending'`,
+            localId,
+            item.publicId,
             item.name,
             item.tipoProductoId ?? null,
             item.ingredienteActivoId ?? null,
+            item.ingredienteActivoNombre ?? null,
             item.concentracionTexto ?? item.concentracion?.toString() ?? null,
             item.unidadMedida ?? null,
-            item.ingredienteActivoNombre ?? null
+            item.id,
+            "synced"
+          );
+        }
+
+        for (const item of fertilizantes) {
+          const localId = resolveLocalCatalogId(db, "fertilizantes", item.id);
+          db.runSync(
+            `INSERT INTO fertilizantes (
+          id, public_id, name, type, concentracion, unidad_medida, server_id, sync_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          public_id = excluded.public_id,
+          name = excluded.name,
+          type = excluded.type,
+          concentracion = excluded.concentracion,
+          unidad_medida = excluded.unidad_medida,
+          server_id = excluded.server_id,
+          sync_status = 'synced',
+          sync_error_message = NULL
+        WHERE fertilizantes.sync_status <> 'pending'`,
+            localId,
+            item.publicId,
+            item.name,
+            item.type,
+            item.concentracion,
+            item.unidadMedida,
+            item.id,
+            "synced"
           );
         }
 
@@ -669,7 +728,7 @@ export async function refreshCatalogsIfStale(): Promise<boolean> {
 
 function resolveLocalCatalogId(
   db: ReturnType<typeof initDatabase>,
-  table: "productores" | "sectores" | "subsectores" | "parcelas",
+  table: "productores" | "sectores" | "subsectores" | "parcelas" | "ingredientes_activos" | "fertilizantes" | "marcas_producto",
   serverId: string
 ) {
   const row = db.getFirstSync<{ id: string }>(

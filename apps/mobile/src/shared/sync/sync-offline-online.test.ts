@@ -41,10 +41,12 @@ vi.mock("../database/sync-outbox", () => ({
 
 const runSync = vi.fn();
 const getAllSync = vi.fn(() => []);
+const getFirstSync = vi.fn(() => null);
 vi.mock("../database/connection", () => ({
   getDatabase: () => ({
     runSync,
     getAllSync,
+    getFirstSync,
     withTransactionSync: (callback: () => void) => callback()
   })
 }));
@@ -56,6 +58,19 @@ vi.mock("../database/sync-failures", () => ({
 
 vi.mock("../database/sqlite-utils", () => ({
   getNowIsoString: () => now
+}));
+
+vi.mock("../../modules/productores/repositories/productores.repository", () => ({
+  productoresRepository: { getById: vi.fn(() => null), update: vi.fn(), insert: vi.fn() }
+}));
+vi.mock("../../modules/sectores/repositories/sectores.repository", () => ({
+  sectoresRepository: { getById: vi.fn(() => null), update: vi.fn(), insert: vi.fn() }
+}));
+vi.mock("../../modules/subsectores/repositories/subsectores.repository", () => ({
+  subsectoresRepository: { getById: vi.fn(() => null), update: vi.fn(), insert: vi.fn() }
+}));
+vi.mock("../../modules/parcelas/repositories/parcelas.repository", () => ({
+  parcelasRepository: { getById: vi.fn(() => null), update: vi.fn(), insert: vi.fn(), getByProductorAndSubsector: vi.fn(() => []) }
 }));
 
 const getApiToken = vi.fn(() => apiToken);
@@ -314,6 +329,19 @@ vi.mock("../../modules/visita-recetas/services/visita-recetas.remote", () => ({
   visitaRecetasRemote: {
     save: recetaRemoteSave
   }
+}));
+
+vi.mock("../../modules/productores/services/productores.remote", () => ({
+  productoresRemote: { create: vi.fn(), update: vi.fn(), remove: vi.fn() }
+}));
+vi.mock("../../modules/sectores/services/sectores.remote", () => ({
+  sectoresRemote: { create: vi.fn(), update: vi.fn(), remove: vi.fn() }
+}));
+vi.mock("../../modules/subsectores/services/subsectores.remote", () => ({
+  subsectoresRemote: { create: vi.fn(), update: vi.fn(), remove: vi.fn() }
+}));
+vi.mock("../../modules/parcelas/services/parcelas.remote", () => ({
+  parcelasRemote: { create: vi.fn(), getAll: vi.fn(() => []), getById: vi.fn() }
 }));
 
 const { processOutbox } = await import("./sync-engine");

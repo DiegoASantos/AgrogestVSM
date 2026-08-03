@@ -1,11 +1,11 @@
 ---
 title: Alta offline de productores con asociacion completa en mobile
-status: approved
+status: implemented
 numero: 026
 area: productores, sectores, subsectores, parcelas, mobile, api, sync, database
 created: 2026-08-02
 approved_by: usuario
-implemented_in:
+implemented_in: apps/mobile/src/shared/database/schema.ts; apps/mobile/src/shared/database/migrations.ts; apps/mobile/src/shared/database/seed-catalogs.ts; apps/mobile/src/shared/sync/sync-entities.ts; apps/mobile/src/shared/sync/sync-handlers.ts; apps/mobile/src/shared/sync/sync-engine.ts; apps/mobile/src/modules/productores; apps/mobile/src/modules/sectores; apps/mobile/src/modules/subsectores; apps/mobile/src/modules/parcelas; apps/api/src/modules/sectores; apps/api/src/modules/subsectores; apps/api/src/modules/parcelas; docs/specs/026-alta-offline-productores-mobile.md
 ---
 
 # Spec 026: Alta offline de productores con asociacion completa en mobile

@@ -11,14 +11,15 @@ import {
 } from "./visita-receta-selection";
 
 const ingredients: IngredienteActivoCatalogItem[] = [
-  { id: "ia-1", name: "Abamectina", description: null },
-  { id: "ia-2", name: "Azufre", description: null },
-  { id: "ia-3", name: "Cobre", description: null }
+  { id: "ia-1", publicId: "ia-1", name: "Abamectina", description: null },
+  { id: "ia-2", publicId: "ia-2", name: "Azufre", description: null },
+  { id: "ia-3", publicId: "ia-3", name: "Cobre", description: null }
 ];
 
 const brands: MarcaProductoCatalogItem[] = [
   {
     id: "brand-1",
+    publicId: "brand-1",
     name: "Abamex",
     tipoProductoId: "type-1",
     ingredienteActivoId: "ia-1",
@@ -29,6 +30,7 @@ const brands: MarcaProductoCatalogItem[] = [
   },
   {
     id: "brand-2",
+    publicId: "brand-2",
     name: "Aba Plus",
     tipoProductoId: "type-1",
     ingredienteActivoId: "ia-1",
@@ -39,6 +41,7 @@ const brands: MarcaProductoCatalogItem[] = [
   },
   {
     id: "brand-3",
+    publicId: "brand-3",
     name: "Azufre 80",
     tipoProductoId: "type-1",
     ingredienteActivoId: "ia-2",
@@ -49,6 +52,7 @@ const brands: MarcaProductoCatalogItem[] = [
   },
   {
     id: "brand-4",
+    publicId: "brand-4",
     name: "Cobre Solo",
     tipoProductoId: "type-2",
     ingredienteActivoId: "ia-3",

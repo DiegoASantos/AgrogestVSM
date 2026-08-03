@@ -49,12 +49,13 @@ describe("receta con multiples productos", () => {
         }
       ],
       [
-        { id: "ia-1", name: "Spinetoram", description: null },
-        { id: "ia-2", name: "Imidacloprid", description: null }
+        { id: "ia-1", publicId: "ia-1", name: "Spinetoram", description: null },
+        { id: "ia-2", publicId: "ia-2", name: "Imidacloprid", description: null }
       ],
       [
         {
           id: "marca-1",
+          publicId: "marca-1",
           name: "Producto A",
           tipoProductoId: "tipo-1",
           ingredienteActivoId: "ia-1",
@@ -65,6 +66,7 @@ describe("receta con multiples productos", () => {
         },
         {
           id: "marca-2",
+          publicId: "marca-2",
           name: "Producto B",
           tipoProductoId: "tipo-1",
           ingredienteActivoId: "ia-2",

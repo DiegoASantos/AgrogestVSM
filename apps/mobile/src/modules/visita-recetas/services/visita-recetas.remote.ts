@@ -101,5 +101,17 @@ export const visitaRecetasRemote = {
         ...context
       }
     );
+  },
+
+  crearIngredienteActivo(draft: Record<string, unknown>) {
+    return apiRequest<Record<string, unknown>>("/ingredientes-activos", { method: "POST", body: draft });
+  },
+
+  crearFertilizante(draft: Record<string, unknown>) {
+    return apiRequest<Record<string, unknown>>("/fertilizantes", { method: "POST", body: draft });
+  },
+
+  crearMarcaProducto(draft: Record<string, unknown>) {
+    return apiRequest<Record<string, unknown>>("/marcas-producto", { method: "POST", body: draft });
   }
 };

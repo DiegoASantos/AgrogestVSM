@@ -35,7 +35,6 @@ import {
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { ClimateDashboard } from "../../../clima/presentation/components/climate-dashboard";
 import { parcelasService } from "../../../parcelas/services/parcelas.service";
-import type { Parcela } from "../../../parcelas/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import type { RecentVisitaCampo } from "../../../visitas-campo/types";
 
@@ -60,7 +59,6 @@ export function HomeScreen() {
   const [isRetryingFailures, setIsRetryingFailures] = useState(false);
   const [isRefreshingCatalogs, setIsRefreshingCatalogs] = useState(false);
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
-  const [parcelas, setParcelas] = useState<Parcela[]>([]);
   const catalogStatus = useCatalogDownloadStatus();
   const heroHeight = Math.min(Math.max(width * 0.58, 218), 330);
 
@@ -77,7 +75,6 @@ export function HomeScreen() {
 
     if (!session.accessToken) {
       setRecentVisits([]);
-      setParcelas([]);
       return;
     }
 
@@ -85,11 +82,9 @@ export function HomeScreen() {
       setRecentVisits(visitasCampoService.getRecentByAccessToken(session.accessToken));
       void parcelasService
         .getAll()
-        .then(setParcelas)
-        .catch(() => setParcelas([]));
+        .catch(() => {});
     } catch {
       setRecentVisits([]);
-      setParcelas([]);
     }
   }, [loadSyncState, session.accessToken]);
 

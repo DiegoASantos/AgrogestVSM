@@ -20,6 +20,7 @@ import type {
 const DEFAULT_FERTILIZANTES: FertilizanteCatalogItem[] = [
   {
     id: "default-complejo-npk",
+    publicId: "",
     name: "Complejo N-P-K",
     type: "solido",
     concentracion: null,
@@ -27,6 +28,7 @@ const DEFAULT_FERTILIZANTES: FertilizanteCatalogItem[] = [
   },
   {
     id: "default-calcio-boro-zinc",
+    publicId: "",
     name: "Calcio-boro-zinc",
     type: "liquido",
     concentracion: null,
@@ -34,6 +36,7 @@ const DEFAULT_FERTILIZANTES: FertilizanteCatalogItem[] = [
   },
   {
     id: "default-acidos-fulvicos",
+    publicId: "",
     name: "ácidos fulvicos",
     type: "liquido",
     concentracion: null,
@@ -145,16 +148,18 @@ export const visitaRecetasRepository = {
     const db = getDatabase();
     const rows = db.getAllSync<{
       id: string;
+      public_id: string;
       name: string;
       description: string | null;
-    }>("SELECT id, name, description FROM ingredientes_activos ORDER BY name ASC");
-    return rows;
+    }>("SELECT id, public_id, name, description FROM ingredientes_activos ORDER BY name ASC");
+    return rows.map((r) => ({ id: r.id, publicId: r.public_id, name: r.name, description: r.description }));
   },
 
   getMarcasProducto(): MarcaProductoCatalogItem[] {
     const db = getDatabase();
     const rows = db.getAllSync<{
       id: string;
+      public_id: string;
       name: string;
       tipo_producto_id: string | null;
       ingrediente_activo_id: string | null;
@@ -162,11 +167,12 @@ export const visitaRecetasRepository = {
       unidad_medida: string | null;
       ingrediente_activo_nombre: string | null;
     }>(
-      `SELECT id, name, tipo_producto_id, ingrediente_activo_id, concentracion, unidad_medida, ingrediente_activo_nombre
+      `SELECT id, public_id, name, tipo_producto_id, ingrediente_activo_id, concentracion, unidad_medida, ingrediente_activo_nombre
        FROM marcas_producto ORDER BY name ASC`
     );
     return rows.map((r) => ({
       id: r.id,
+      publicId: r.public_id,
       name: r.name,
       tipoProductoId: r.tipo_producto_id,
       ingredienteActivoId: r.ingrediente_activo_id,
@@ -205,16 +211,18 @@ export const visitaRecetasRepository = {
     const db = getDatabase();
     const rows = db.getAllSync<{
       id: string;
+      public_id: string;
       name: string;
       type: "solido" | "liquido";
       concentracion: string | null;
       unidad_medida: string | null;
     }>(
-      "SELECT id, name, type, concentracion, unidad_medida FROM fertilizantes ORDER BY name ASC"
+      "SELECT id, public_id, name, type, concentracion, unidad_medida FROM fertilizantes ORDER BY name ASC"
     );
     return rows.length > 0
       ? rows.map((row) => ({
           id: row.id,
+          publicId: row.public_id,
           name: row.name,
           type: row.type,
           concentracion: row.concentracion,

@@ -59,6 +59,9 @@ const RECONCILABLE_SYNC_ENTITIES: Array<{
   { entityType: "sectores", table: "sectores" },
   { entityType: "subsectores", table: "subsectores" },
   { entityType: "parcelas", table: "parcelas" },
+  { entityType: "ingredientes_activos", table: "ingredientes_activos" },
+  { entityType: "fertilizantes", table: "fertilizantes" },
+  { entityType: "marcas_producto", table: "marcas_producto" },
   { entityType: "visitas_campo", table: "visitas_campo" },
   { entityType: "visita_evaluaciones", table: "visita_evaluaciones" },
   {
@@ -75,6 +78,9 @@ const RECONCILABLE_SYNC_ENTITIES: Array<{
 const ROOT_ENTITY_TYPES = new Set<string>([
   "productores",
   "sectores",
+  "ingredientes_activos",
+  "fertilizantes",
+  "marcas_producto",
   "visitas_campo"
 ]);
 
@@ -501,7 +507,7 @@ function reconcilePendingOutboxEntries() {
   `);
 
   for (const entity of RECONCILABLE_SYNC_ENTITIES) {
-    const isCatalogEntity = ["productores", "sectores", "subsectores", "parcelas"].includes(entity.entityType);
+    const isCatalogEntity = ["productores", "sectores", "subsectores", "parcelas", "ingredientes_activos", "fertilizantes", "marcas_producto"].includes(entity.entityType);
     const idColumn = isCatalogEntity ? "id" : "local_id";
 
     const rows =

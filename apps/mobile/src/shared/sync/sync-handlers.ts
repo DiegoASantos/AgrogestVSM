@@ -50,6 +50,7 @@ import { subsectoresRepository } from "../../modules/subsectores/repositories/su
 import { subsectoresRemote } from "../../modules/subsectores/services/subsectores.remote";
 import { parcelasRepository } from "../../modules/parcelas/repositories/parcelas.repository";
 import { parcelasRemote } from "../../modules/parcelas/services/parcelas.remote";
+import { catalogoIngredientesActivosRepo, catalogoFertilizantesRepo, catalogoMarcasRepo } from "../../modules/visita-recetas/repositories/catalogo-repository-helpers";
 
 export type SyncHandlerContext = {
   signal?: AbortSignal;
@@ -669,6 +670,91 @@ export async function handleParcela(
   return { status: "synced", serverId: response.id };
 }
 
+export async function handleIngredienteActivo(
+  entry: SyncOutboxItem
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    const serverId = getDeleteServerId(entry);
+    if (!serverId) return { status: "deleted_local" };
+    return { status: "synced", serverId };
+  }
+
+  const item = catalogoIngredientesActivosRepo.obtenerPorId(entry.entityLocalId);
+  if (!item) return { status: "deleted_local" };
+
+  const draft = { publicId: item.publicId, name: item.name, description: item.description };
+  const response = await visitaRecetasRemote.crearIngredienteActivo(draft);
+
+  catalogoIngredientesActivosRepo.actualizar(item.id, {
+    serverId: response.id as string,
+    syncStatus: "synced",
+    syncErrorMessage: null
+  });
+
+  return { status: "synced", serverId: response.id as string };
+}
+
+export async function handleFertilizante(
+  entry: SyncOutboxItem
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    const serverId = getDeleteServerId(entry);
+    if (!serverId) return { status: "deleted_local" };
+    return { status: "synced", serverId };
+  }
+
+  const item = catalogoFertilizantesRepo.obtenerPorId(entry.entityLocalId);
+  if (!item) return { status: "deleted_local" };
+
+  const draft = {
+    publicId: item.publicId,
+    name: item.name,
+    tipo: item.type,
+    concentracion: item.concentracion,
+    unidadMedida: item.unidadMedida
+  };
+  const response = await visitaRecetasRemote.crearFertilizante(draft);
+
+  catalogoFertilizantesRepo.actualizar(item.id, {
+    serverId: response.id as string,
+    syncStatus: "synced",
+    syncErrorMessage: null
+  });
+
+  return { status: "synced", serverId: response.id as string };
+}
+
+export async function handleMarcaProducto(
+  entry: SyncOutboxItem
+): Promise<SyncHandlerResult> {
+  if (entry.operation === "delete") {
+    const serverId = getDeleteServerId(entry);
+    if (!serverId) return { status: "deleted_local" };
+    return { status: "synced", serverId };
+  }
+
+  const item = catalogoMarcasRepo.obtenerPorId(entry.entityLocalId);
+  if (!item) return { status: "deleted_local" };
+
+  const draft = {
+    publicId: item.publicId,
+    name: item.name,
+    tipoProductoId: item.tipoProductoId,
+    ingredienteActivoId: item.ingredienteActivoId,
+    concentracion: item.concentracion,
+    unidadMedida: item.unidadMedida
+  };
+  const response = await visitaRecetasRemote.crearMarcaProducto(draft);
+
+  catalogoMarcasRepo.actualizar(item.id, {
+    serverId: response.id as string,
+    syncStatus: "synced",
+    syncErrorMessage: null
+  });
+
+  return { status: "synced", serverId: response.id as string };
+}
+
 export const entityHandlerMap: Record<
   SyncEntityType,
   (entry: SyncOutboxItem, context?: SyncHandlerContext) => Promise<SyncHandlerResult>
@@ -677,6 +763,9 @@ export const entityHandlerMap: Record<
   sectores: handleSector,
   subsectores: handleSubsector,
   parcelas: handleParcela,
+  ingredientes_activos: handleIngredienteActivo,
+  fertilizantes: handleFertilizante,
+  marcas_producto: handleMarcaProducto,
   visitas_campo: handleVisitaCampo,
   visita_evaluaciones: handleEvaluacion,
   visita_observaciones_sanitarias: handleObservacion,

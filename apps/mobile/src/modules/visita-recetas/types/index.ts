@@ -6,18 +6,20 @@ export type CoadyuvanteCatalogItem = {
 
 export type IngredienteActivoCatalogItem = {
   id: string;
+  publicId: string;
   name: string;
   description: string | null;
 };
 
 export type MarcaProductoCatalogItem = {
   id: string;
+  publicId: string;
   name: string;
   tipoProductoId: string | null;
   ingredienteActivoId: string | null;
   ingredienteActivoNombre: string | null;
-  concentracion: number | null;
-  concentracionTexto: string | null;
+  concentracion?: number | null;
+  concentracionTexto?: string | null;
   unidadMedida: string | null;
 };
 
@@ -38,6 +40,7 @@ export type TipoProductoFitosanitarioCatalogItem = {
 
 export type FertilizanteCatalogItem = {
   id: string;
+  publicId: string;
   name: string;
   type: "solido" | "liquido";
   concentracion: string | null;

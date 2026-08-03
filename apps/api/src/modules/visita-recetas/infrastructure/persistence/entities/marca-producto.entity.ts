@@ -15,6 +15,9 @@ export class MarcaProductoEntity {
   @PrimaryGeneratedColumn({ name: "id", type: "bigint" })
   id!: string;
 
+  @Column({ name: "public_id", type: "uuid", generated: "uuid" })
+  publicId!: string;
+
   @Column({ name: "nombre", type: "varchar", length: 150 })
   name!: string;
 
