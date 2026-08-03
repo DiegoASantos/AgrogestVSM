@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-01
+last_reviewed: 2026-08-03
 ---
 
 # Modelo del dominio
@@ -101,6 +101,19 @@ El catalogo `fertilizantes` tambien conserva concentracion textual y unidad de
 medida. Esos datos describen el producto seleccionado y son distintos de la
 dosis y su unidad de aplicacion guardadas en el detalle de la receta. Mobile los
 usa como informacion readonly y no los duplica en la receta historica.
+
+Una receta puede contener varios detalles fitosanitarios para el mismo objetivo
+y varios detalles de fertilizacion. En mobile, las filas fitosanitarias con el
+mismo numero, tipo y nombre de objetivo se presentan como una sola aplicacion
+con varios productos; al guardar, cada producto vuelve a persistirse como una
+fila independiente. Las relaciones 1:N existentes en SQLite y PostgreSQL son la
+fuente estructural de esta capacidad y no requieren una tabla adicional.
+
+Antes de finalizar, mobile contrasta de forma orientativa los ingredientes
+activos, nombres comerciales, coadyuvantes y fertilizantes seleccionados con un
+conjunto local de reglas de incompatibilidad. La advertencia no bloquea el
+guardado y no reemplaza etiquetas, prueba de compatibilidad ni criterio del
+profesional responsable.
 
 Las calificaciones de cumplimiento viven en `visita_calificaciones` y son hijas
 de una visita. Cada visita puede tener una calificación por módulo:

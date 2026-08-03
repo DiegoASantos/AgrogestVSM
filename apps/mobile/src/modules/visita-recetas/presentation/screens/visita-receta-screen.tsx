@@ -26,6 +26,10 @@ import { toApiError } from "../../../../shared/services";
 import { scheduleSync } from "../../../../shared/sync";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
+import {
+  construirMensajeAdvertencia,
+  validarMezcla
+} from "../../domain/validacion-mezclas";
 import { visitaRecetasService, type SaveRecetaData } from "../../services";
 import { visitaRecetaPdfReportService } from "../../services/visita-receta-pdf-report.service";
 import type {
@@ -50,20 +54,32 @@ import {
   buildTypeSelectionPatch,
   getCommercialOptions,
   getIngredientOptions,
-  resolveCommercialSelectionPatch,
-  resolveIngredientId
+  resolveCommercialSelectionPatch
 } from "./visita-receta-selection";
+import {
+  buildFertilizacionesForSave,
+  buildFitosanidadForSave,
+  calculateTotalProducto,
+  collectNomenclaturaMezcla,
+  createEmptyFertilizacion,
+  createEmptyIngrediente,
+  getUnidadDosis,
+  hasFertilizacionData,
+  hasFitosanidadData,
+  parsePositiveDecimal,
+  recalculateFertilizacion,
+  recalculateIngrediente,
+  restoreFertilizaciones,
+  restoreFitosanidadApps,
+  type AppFertilizacion,
+  type AppFitosanidad,
+  type AppIngrediente
+} from "./visita-receta-multiple-products";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
-
-function parsePositiveDecimal(value: string | number | null | undefined): number | null {
-  if (value === null || value === undefined) return null;
-  const parsed = Number(String(value).replace(",", "."));
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
 
 function resolveCalculationAreaHectares(
   parcelaArea: string | number | null | undefined,
@@ -72,38 +88,8 @@ function resolveCalculationAreaHectares(
   return parsePositiveDecimal(parcelaArea) ?? parsePositiveDecimal(visitaArea);
 }
 
-function getEffectiveCalculationArea(areaHectares: number | null) {
-  return areaHectares ?? 1;
-}
-
-function calculateTotalIa(
-  dosisIa: string | number | null | undefined,
-  volumenAplicacion: string | number | null | undefined,
-  areaHectares: number | null
-) {
-  const dosis = parsePositiveDecimal(dosisIa);
-  const volumen = parsePositiveDecimal(volumenAplicacion);
-
-  return dosis && volumen ? dosis * volumen * getEffectiveCalculationArea(areaHectares) : 0;
-}
-
-function calculateTotalProducto(
-  cantidadTotalIa: string | number | null | undefined,
-  concentracionProducto: string | number | null | undefined
-) {
-  const totalIa = parsePositiveDecimal(cantidadTotalIa);
-  const concentracion = parsePositiveDecimal(concentracionProducto);
-
-  return totalIa && concentracion ? totalIa / concentracion : 0;
-}
-
 function formatCompactDecimal(value: number) {
   return value.toFixed(2).replace(/\.?0+$/, "");
-}
-
-function formatCalculatedField(value: string | number | null | undefined) {
-  const parsed = parsePositiveDecimal(value);
-  return parsed ? parsed.toFixed(2) : "";
 }
 
 function formatCatalogConcentration(concentration: string, measurementUnit: string) {
@@ -134,9 +120,7 @@ export function VisitaRecetaScreen() {
   const [ingredientesActivos, setIngredientesActivos] = useState<
     IngredienteActivoCatalogItem[]
   >([]);
-  const [marcasProducto, setMarcasProducto] = useState<MarcaProductoCatalogItem[]>(
-    []
-  );
+  const [marcasProducto, setMarcasProducto] = useState<MarcaProductoCatalogItem[]>([]);
   const [modosAccion, setModosAccion] = useState<ModoAccionCatalogItem[]>([]);
   const [tiposControl, setTiposControl] = useState<TipoControlCatalogItem[]>([]);
   const [tiposProducto, setTiposProducto] = useState<
@@ -145,23 +129,16 @@ export function VisitaRecetaScreen() {
   const [fertilizantes, setFertilizantes] = useState<FertilizanteCatalogItem[]>([]);
 
   const [fitosanidadApps, setFitosanidadApps] = useState<AppFitosanidad[]>([]);
-  const [fertilizacion, setFertilizacion] = useState<AppFertilizacion>({
-    viaAplicacion: "edafica",
-    fertilizanteNombre: "",
-    tipoProducto: "solido",
-    concentracion: "",
-    unidadMedida: "",
-    dosis: "",
-    cantidadTotalPlantas: "",
-    volumenAplicacion: "",
-    cantidadTotalFertilizante: ""
-  });
+  const [fertilizaciones, setFertilizaciones] = useState<AppFertilizacion[]>(() => [
+    createEmptyFertilizacion()
+  ]);
   const [riegoSelection, setRiegoSelection] = useState<string | null>(null);
   const [laborSelections, setLaborSelections] = useState<Set<string>>(() => new Set());
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [ordenExchangeResetToken, setOrdenExchangeResetToken] = useState(0);
   const loadRequestRef = useRef(0);
+  const compatibilityAlertOpenRef = useRef(false);
   const catalogDownloadStatus = useCatalogDownloadStatus();
   const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
 
@@ -205,43 +182,50 @@ export function VisitaRecetaScreen() {
 
     setFitosanidadApps((currentApps) =>
       currentApps.map((current) => {
-        const selectionPatch = resolveCommercialSelectionPatch(
-          current.marcaProductoNombre,
-          catalogos.marcasProducto
-        );
-
-        if (!selectionPatch) return current;
-
-        const totalProducto = calculateTotalProducto(
-          current.cantidadTotalIa,
-          selectionPatch.concentracionProducto
-        );
-
         return {
           ...current,
-          ...selectionPatch,
-          cantidadTotalProducto: totalProducto ? totalProducto.toFixed(2) : ""
+          ingredientes: current.ingredientes.map((ingredient) => {
+            const selectionPatch = resolveCommercialSelectionPatch(
+              ingredient.marcaProductoNombre,
+              catalogos.marcasProducto
+            );
+
+            if (!selectionPatch) return ingredient;
+
+            const totalProducto = calculateTotalProducto(
+              ingredient.cantidadTotalIa,
+              selectionPatch.concentracionProducto
+            );
+
+            return {
+              ...ingredient,
+              ...selectionPatch,
+              cantidadTotalProducto: totalProducto ? totalProducto.toFixed(2) : ""
+            };
+          })
         };
       })
     );
 
-    setFertilizacion((current) => {
-      const selected = catalogos.fertilizantes.find(
-        (fertilizante) =>
-          fertilizante.name.trim().toLowerCase() ===
-          current.fertilizanteNombre.trim().toLowerCase()
-      );
+    setFertilizaciones((currentItems) =>
+      currentItems.map((current) => {
+        const selected = catalogos.fertilizantes.find(
+          (fertilizante) =>
+            fertilizante.name.trim().toLowerCase() ===
+            current.fertilizanteNombre.trim().toLowerCase()
+        );
 
-      return selected
-        ? {
-            ...current,
-            fertilizanteNombre: selected.name,
-            tipoProducto: selected.type,
-            concentracion: selected.concentracion ?? "",
-            unidadMedida: selected.unidadMedida ?? ""
-          }
-        : current;
-    });
+        return selected
+          ? {
+              ...current,
+              fertilizanteNombre: selected.name,
+              tipoProducto: selected.type,
+              concentracion: selected.concentracion ?? "",
+              unidadMedida: selected.unidadMedida ?? ""
+            }
+          : current;
+      })
+    );
   }, [catalogDownloadStatus.error, catalogDownloadStatus.isDownloading]);
 
   function isActiveLoad(requestId: number) {
@@ -288,16 +272,29 @@ export function VisitaRecetaScreen() {
         );
       } else if (localConsData) {
         if (parcela) {
-          volumenPorDefecto = visitaRecetasService.obtenerUltimoVolumenAplicacion(parcela.id);
+          volumenPorDefecto = visitaRecetasService.obtenerUltimoVolumenAplicacion(
+            parcela.id
+          );
         }
         initFitosanidadFromConsolidacion(localConsData, volumenPorDefecto.fitosanidad);
         if (volumenPorDefecto.fertilizacion) {
-          setFertilizacion((prev) => ({ ...prev, volumenAplicacion: volumenPorDefecto.fertilizacion }));
+          setFertilizaciones((prev) =>
+            prev.map((item, index) =>
+              index === 0
+                ? { ...item, volumenAplicacion: volumenPorDefecto.fertilizacion }
+                : item
+            )
+          );
         }
       }
 
       setIsLoading(false);
-      void refreshConsolidacionFromRemote(vId, localConsData, Boolean(recetaData), requestId);
+      void refreshConsolidacionFromRemote(
+        vId,
+        localConsData,
+        Boolean(recetaData),
+        requestId
+      );
     } catch (err) {
       if (!isActiveLoad(requestId)) {
         return;
@@ -360,62 +357,9 @@ export function VisitaRecetaScreen() {
     fertilizerCatalog: FertilizanteCatalogItem[]
   ) {
     setFitosanidadApps(
-      receta.fitosanidad.map((f) => {
-        const catalogProduct = commercialCatalog.find(
-          (product) => product.name === f.marcaProductoNombre
-        );
-
-        return {
-          localId: f.id,
-          numero: f.numero,
-          objetivo: f.objetivo,
-          objetivoNombre: f.objetivoNombre,
-          tipoControlId: f.tipoControlId ?? "",
-          tipoProductoId: f.tipoProductoId ?? "",
-          disolvente: f.disolvente,
-          modoAccionId: f.modoAccionId ?? "",
-          ingredienteActivoId: resolveIngredientId(
-            f.tipoProductoId ?? "",
-            f.ingredienteActivoNombre ?? "",
-            f.marcaProductoNombre ?? "",
-            ingredientCatalog,
-            commercialCatalog
-          ),
-          ingredienteActivoNombre: f.ingredienteActivoNombre ?? "",
-          dosisIa: f.dosisIa?.toString() ?? "",
-          volumenAplicacion: f.volumenAplicacion?.toString() ?? "",
-          cantidadTotalIa: formatCalculatedField(f.cantidadTotalIa),
-          marcaProductoNombre: f.marcaProductoNombre ?? "",
-          concentracionProducto:
-            catalogProduct?.concentracionTexto ??
-            catalogProduct?.concentracion?.toString() ??
-            f.concentracionProducto?.toString() ??
-            "",
-          unidadMedidaProducto: catalogProduct?.unidadMedida ?? "",
-          cantidadTotalProducto: formatCalculatedField(f.cantidadTotalProducto),
-          coadyuvantesIds: parseJsonArray(f.coadyuvantesIds),
-          ordenMezcla: parseJsonArray(f.ordenMezcla)
-        };
-      })
+      restoreFitosanidadApps(receta.fitosanidad, ingredientCatalog, commercialCatalog)
     );
-
-    if (receta.fertilizacion.length > 0) {
-      const first = receta.fertilizacion[0];
-      const catalogProduct = fertilizerCatalog.find(
-        (product) => product.name === first.fertilizanteNombre
-      );
-      setFertilizacion({
-        viaAplicacion: first.viaAplicacion,
-        fertilizanteNombre: first.fertilizanteNombre ?? "",
-        tipoProducto: first.tipoProducto ?? "solido",
-        concentracion: catalogProduct?.concentracion ?? "",
-        unidadMedida: catalogProduct?.unidadMedida ?? "",
-        dosis: first.dosis?.toString() ?? "",
-        cantidadTotalPlantas: first.cantidadTotalPlantas?.toString() ?? "",
-        volumenAplicacion: first.volumenAplicacion?.toString() ?? "",
-        cantidadTotalFertilizante: first.cantidadTotalFertilizante?.toString() ?? ""
-      });
-    }
+    setFertilizaciones(restoreFertilizaciones(receta.fertilizacion, fertilizerCatalog));
 
     if (receta.riego) {
       setRiegoSelection(receta.riego.tipoRecomendacion);
@@ -424,11 +368,17 @@ export function VisitaRecetaScreen() {
     setLaborSelections(new Set(receta.labores.map((l) => l.labor)));
   }
 
-  function initFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo, volumenPorDefecto = "") {
+  function initFitosanidadFromConsolidacion(
+    cons: ConsolidacionHallazgo,
+    volumenPorDefecto = ""
+  ) {
     setFitosanidadApps(buildFitosanidadFromConsolidacion(cons, volumenPorDefecto));
   }
 
-  function buildFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo, volumenPorDefecto = "") {
+  function buildFitosanidadFromConsolidacion(
+    cons: ConsolidacionHallazgo,
+    volumenPorDefecto = ""
+  ) {
     const apps: AppFitosanidad[] = [];
     let num = 1;
 
@@ -436,7 +386,9 @@ export function VisitaRecetaScreen() {
       apps.push(createEmptyFitosanidad(num++, "plaga", plaga.nombre, volumenPorDefecto));
     }
     for (const enfermedad of cons.enfermedades) {
-      apps.push(createEmptyFitosanidad(num++, "enfermedad", enfermedad.nombre, volumenPorDefecto));
+      apps.push(
+        createEmptyFitosanidad(num++, "enfermedad", enfermedad.nombre, volumenPorDefecto)
+      );
     }
 
     return apps;
@@ -454,20 +406,11 @@ export function VisitaRecetaScreen() {
       objetivo,
       objetivoNombre,
       tipoControlId: "",
-      tipoProductoId: "",
       disolvente: "Agua",
-      modoAccionId: "",
-      ingredienteActivoId: "",
-      ingredienteActivoNombre: "",
-      dosisIa: "",
       volumenAplicacion: volumenPorDefecto,
-      cantidadTotalIa: "",
-      marcaProductoNombre: "",
-      concentracionProducto: "",
-      unidadMedidaProducto: "",
-      cantidadTotalProducto: "",
       coadyuvantesIds: [],
-      ordenMezcla: []
+      ordenMezcla: [],
+      ingredientes: [createEmptyIngrediente()]
     };
   }
 
@@ -476,26 +419,14 @@ export function VisitaRecetaScreen() {
       const updated = [...prev];
       const current = { ...updated[index], ...patch };
 
-      if (patch.dosisIa !== undefined || patch.volumenAplicacion !== undefined) {
-        const totalIa = calculateTotalIa(
-          current.dosisIa,
-          current.volumenAplicacion,
-          calculationAreaHectares
+      if (patch.volumenAplicacion !== undefined) {
+        current.ingredientes = current.ingredientes.map((ingredient) =>
+          recalculateIngrediente(
+            ingredient,
+            current.volumenAplicacion,
+            calculationAreaHectares
+          )
         );
-        current.cantidadTotalIa = totalIa ? totalIa.toFixed(2) : "";
-      }
-
-      if (
-        patch.cantidadTotalIa !== undefined ||
-        patch.concentracionProducto !== undefined ||
-        patch.dosisIa !== undefined ||
-        patch.volumenAplicacion !== undefined
-      ) {
-        const totalProducto = calculateTotalProducto(
-          current.cantidadTotalIa,
-          current.concentracionProducto
-        );
-        current.cantidadTotalProducto = totalProducto ? totalProducto.toFixed(2) : "";
       }
 
       if (patch.coadyuvantesIds !== undefined) {
@@ -510,31 +441,98 @@ export function VisitaRecetaScreen() {
     });
   }
 
-  function updateFertilizacionCalculos(patch: Partial<AppFertilizacion>) {
-    setFertilizacion((prev) => {
-      const current = { ...prev, ...patch };
-
-      if (current.viaAplicacion === "edafica") {
-        const dosis = parseFloat(current.dosis) || 0;
-        const plantas = parseFloat(current.cantidadTotalPlantas) || 0;
-        current.cantidadTotalFertilizante =
-          dosis && plantas ? (dosis * plantas).toFixed(4) : "";
-      } else {
-        const dosis = parseFloat(current.dosis) || 0;
-        const vol = parseFloat(current.volumenAplicacion) || 0;
-        current.cantidadTotalFertilizante = dosis && vol ? (dosis * vol).toFixed(4) : "";
-      }
-
-      return current;
-    });
+  function addIngrediente(applicationIndex: number) {
+    closeDropdown();
+    setFitosanidadApps((prev) =>
+      prev.map((application, index) =>
+        index === applicationIndex
+          ? {
+              ...application,
+              ingredientes: [...application.ingredientes, createEmptyIngrediente()]
+            }
+          : application
+      )
+    );
   }
 
-  async function handleSave() {
-    if (!visitaId) return;
+  function removeIngrediente(applicationIndex: number, ingredientIndex: number) {
+    closeDropdown();
+    setFitosanidadApps((prev) =>
+      prev.map((application, index) =>
+        index === applicationIndex && application.ingredientes.length > 1
+          ? {
+              ...application,
+              ingredientes: application.ingredientes.filter(
+                (_, currentIndex) => currentIndex !== ingredientIndex
+              )
+            }
+          : application
+      )
+    );
+  }
+
+  function updateIngrediente(
+    applicationIndex: number,
+    ingredientIndex: number,
+    patch: Partial<AppIngrediente>
+  ) {
+    setFitosanidadApps((prev) =>
+      prev.map((application, currentApplicationIndex) => {
+        if (currentApplicationIndex !== applicationIndex) return application;
+
+        return {
+          ...application,
+          ingredientes: application.ingredientes.map(
+            (ingredient, currentIngredientIndex) =>
+              currentIngredientIndex === ingredientIndex
+                ? recalculateIngrediente(
+                    { ...ingredient, ...patch },
+                    application.volumenAplicacion,
+                    calculationAreaHectares
+                  )
+                : ingredient
+          )
+        };
+      })
+    );
+  }
+
+  function addFertilizacion() {
+    closeDropdown();
+    setFertilizaciones((prev) => [
+      ...prev,
+      createEmptyFertilizacion(prev[0]?.volumenAplicacion ?? "")
+    ]);
+  }
+
+  function removeFertilizacion(index: number) {
+    closeDropdown();
+    setFertilizaciones((prev) =>
+      prev.length > 1 ? prev.filter((_, currentIndex) => currentIndex !== index) : prev
+    );
+  }
+
+  function updateFertilizacion(index: number, patch: Partial<AppFertilizacion>) {
+    setFertilizaciones((prev) =>
+      prev.map((fertilizacion, currentIndex) => {
+        if (currentIndex !== index) return fertilizacion;
+
+        const current = { ...fertilizacion, ...patch };
+        if (patch.viaAplicacion !== undefined || patch.tipoProducto !== undefined) {
+          current.unidadDosis = getUnidadDosis(current);
+        }
+
+        return recalculateFertilizacion(current);
+      })
+    );
+  }
+
+  function handleSave() {
+    if (!visitaId || isSaving || compatibilityAlertOpenRef.current) return;
     resetOrdenExchangeState();
     const recetaValidation = validateRequiredRecipe(
       fitosanidadApps,
-      fertilizacion,
+      fertilizaciones,
       riegoSelection,
       laborSelections
     );
@@ -544,99 +542,82 @@ export function VisitaRecetaScreen() {
       return;
     }
 
+    const advertencias = validarMezcla(
+      collectNomenclaturaMezcla(fitosanidadApps, fertilizaciones, coadyuvantes)
+    );
+
+    if (advertencias.length > 0) {
+      compatibilityAlertOpenRef.current = true;
+      Alert.alert(
+        "Revisar compatibilidad de la mezcla",
+        construirMensajeAdvertencia(advertencias),
+        [
+          {
+            text: "Volver a editar",
+            style: "cancel",
+            onPress: () => {
+              compatibilityAlertOpenRef.current = false;
+            }
+          },
+          {
+            text: "Continuar de todos modos",
+            onPress: () => {
+              compatibilityAlertOpenRef.current = false;
+              void persistReceta(visitaId);
+            }
+          }
+        ],
+        {
+          cancelable: true,
+          onDismiss: () => {
+            compatibilityAlertOpenRef.current = false;
+          }
+        }
+      );
+      return;
+    }
+
+    void persistReceta(visitaId);
+  }
+
+  async function persistReceta(vId: string) {
     setIsSaving(true);
     setSubmitError(null);
 
     try {
       const data: SaveRecetaData = {
         etapaFenologica: consolidacion?.etapaFenologica ?? null,
-        fitosanidad: fitosanidadApps.map((app) => {
-          const computedIa = calculateTotalIa(
-            app.dosisIa,
-            app.volumenAplicacion,
-            calculationAreaHectares
-          );
-          const totalIa = computedIa || 0;
-          const totalProducto = calculateTotalProducto(
-            totalIa,
-            app.concentracionProducto
-          );
-
-          return {
-            numero: app.numero,
-            objetivo: app.objetivo,
-            objetivoNombre: app.objetivoNombre,
-            tipoControlId: app.tipoControlId || null,
-            tipoProductoId: app.tipoProductoId || null,
-            disolvente: app.disolvente,
-            modoAccionId: app.modoAccionId || null,
-            ingredienteActivoNombre: app.ingredienteActivoNombre || null,
-            dosisIa: parseFloat(app.dosisIa) || null,
-            volumenAplicacion: parseFloat(app.volumenAplicacion) || null,
-            cantidadTotalIa: totalIa || null,
-            marcaProductoNombre: app.marcaProductoNombre || null,
-            concentracionProducto: parsePositiveDecimal(app.concentracionProducto),
-            cantidadTotalProducto: totalProducto || null,
-            coadyuvantesIds:
-              app.coadyuvantesIds.length > 0 ? JSON.stringify(app.coadyuvantesIds) : null,
-            ordenMezcla:
-              app.ordenMezcla.length > 0 ? JSON.stringify(app.ordenMezcla) : null
-          };
-        }),
-        fertilizacion: [
-          {
-            viaAplicacion: fertilizacion.viaAplicacion,
-            fertilizanteNombre: fertilizacion.fertilizanteNombre || null,
-            tipoProducto: fertilizacion.tipoProducto,
-            dosis: parseFloat(fertilizacion.dosis) || null,
-            unidadDosis: getUnidadDosis(),
-            cantidadTotalPlantas:
-              parseInt(fertilizacion.cantidadTotalPlantas, 10) || null,
-            volumenAplicacion: parseFloat(fertilizacion.volumenAplicacion) || null,
-            cantidadTotalFertilizante:
-              parseFloat(fertilizacion.cantidadTotalFertilizante) || null
-          }
-        ],
+        fitosanidad: buildFitosanidadForSave(fitosanidadApps, calculationAreaHectares),
+        fertilizacion: buildFertilizacionesForSave(fertilizaciones),
         riego: riegoSelection ? { tipoRecomendacion: riegoSelection } : null,
         labores: Array.from(laborSelections)
       };
 
-      visitaRecetasService.save(visitaId, data);
+      visitaRecetasService.save(vId, data);
 
-      const updated = visitaRecetasService.getByVisitaId(visitaId);
+      const updated = visitaRecetasService.getByVisitaId(vId);
       setRecetaData(updated);
 
-      await visitaRecetaPdfReportService.preview(visitaId);
+      await visitaRecetaPdfReportService.preview(vId);
 
-      Alert.alert(
-        "Finalizar receta",
-        "Desea finalizar y enviar la receta?",
-        [
-          {
-            text: "Seguir editando",
-            style: "cancel"
-          },
-          {
-            text: "Enviar",
-            onPress: () => {
-              void scheduleSync({ immediate: true });
-              router.replace("/visitas-campo/historial");
-            }
+      Alert.alert("Finalizar receta", "Desea finalizar y enviar la receta?", [
+        {
+          text: "Seguir editando",
+          style: "cancel"
+        },
+        {
+          text: "Enviar",
+          onPress: () => {
+            void scheduleSync({ immediate: true });
+            router.replace("/visitas-campo/historial");
           }
-        ]
-      );
+        }
+      ]);
     } catch (err) {
       setSubmitError(toApiError(err).message || "No se pudo guardar la receta.");
     } finally {
       setIsSaving(false);
     }
-  }
-
-  function getUnidadDosis(): string {
-    if (fertilizacion.viaAplicacion === "edafica") {
-      return fertilizacion.tipoProducto === "liquido" ? "L/planta" : "Kg/planta";
-    }
-    return fertilizacion.tipoProducto === "liquido" ? "L/cilindro" : "Kg/cilindro";
   }
 
   function goBackToSteps() {
@@ -728,7 +709,10 @@ export function VisitaRecetaScreen() {
           <SectionHeader
             icon="flask"
             label="Fitosanidad"
-            subtitle="Aplicaciones fitosanitarias"
+            subtitle={`${fitosanidadApps.reduce(
+              (total, application) => total + application.ingredientes.length,
+              0
+            )} producto(s) en ${fitosanidadApps.length} aplicación(es)`}
           />
 
           {fitosanidadApps.length === 0 ? (
@@ -747,8 +731,15 @@ export function VisitaRecetaScreen() {
                 key={app.localId}
                 marcasProducto={marcasProducto}
                 modosAccion={modosAccion}
+                onAddIngrediente={() => addIngrediente(index)}
                 onChange={(patch) => updateFitosanidadApp(index, patch)}
+                onChangeIngrediente={(ingredientIndex, patch) =>
+                  updateIngrediente(index, ingredientIndex, patch)
+                }
                 onCloseDropdown={closeDropdown}
+                onRemoveIngrediente={(ingredientIndex) =>
+                  removeIngrediente(index, ingredientIndex)
+                }
                 openDropdown={openDropdown}
                 resetToken={ordenExchangeResetToken}
                 tiposControl={tiposControl}
@@ -761,18 +752,53 @@ export function VisitaRecetaScreen() {
 
           <SectionHeader
             icon="nutrition"
-            label="Fertilizacion"
-            subtitle="Recomendacion de fertilizantes"
+            label="Fertilización"
+            subtitle={`${fertilizaciones.length} fertilizante(s) recomendado(s)`}
           />
 
-          <FertilizacionCard
-            fertilizantes={fertilizantes}
-            onChange={updateFertilizacionCalculos}
-            onCloseDropdown={closeDropdown}
-            openDropdown={openDropdown}
-            toggleDropdown={toggleDropdown}
-            value={fertilizacion}
-          />
+          {fertilizaciones.length === 0 ? (
+            <View style={styles.emptyProductsCard}>
+              <Ionicons
+                color={theme.colors.textMuted}
+                name="nutrition-outline"
+                size={28}
+              />
+              <AppText style={styles.emptyProductsTitle} variant="label">
+                Aún no agregaste fertilizantes
+              </AppText>
+              <AppText style={styles.emptyProductsText} variant="muted">
+                Agrega el primer producto para completar esta recomendación.
+              </AppText>
+              <AddItemButton
+                accessibilityLabel="Agregar primer fertilizante"
+                label="Agregar fertilizante"
+                onPress={addFertilizacion}
+              />
+            </View>
+          ) : (
+            fertilizaciones.map((fertilizacion, index) => (
+              <FertilizacionCard
+                canRemove={fertilizaciones.length > 1}
+                fertilizantes={fertilizantes}
+                index={index}
+                key={fertilizacion.localId}
+                onChange={(patch) => updateFertilizacion(index, patch)}
+                onCloseDropdown={closeDropdown}
+                onRemove={() => removeFertilizacion(index)}
+                openDropdown={openDropdown}
+                toggleDropdown={toggleDropdown}
+                value={fertilizacion}
+              />
+            ))
+          )}
+
+          {fertilizaciones.length > 0 ? (
+            <AddItemButton
+              accessibilityLabel="Agregar otro fertilizante"
+              label="Agregar otro fertilizante"
+              onPress={addFertilizacion}
+            />
+          ) : null}
 
           <SectionHeader icon="water" label="Riego" subtitle="Recomendacion de riego" />
 
@@ -817,9 +843,11 @@ export function VisitaRecetaScreen() {
 
           <View style={styles.actions}>
             <Pressable
+              accessibilityLabel="Finalizar receta"
               accessibilityRole="button"
+              accessibilityState={{ disabled: isSaving }}
               disabled={isSaving}
-              onPress={() => void handleSave()}
+              onPress={handleSave}
               style={({ pressed }) => [
                 styles.continueButton,
                 pressed && styles.pressedButton
@@ -933,28 +961,6 @@ function ConsolidacionPanel({ data }: { data: ConsolidacionHallazgo }) {
   );
 }
 
-type AppFitosanidad = {
-  localId: string;
-  numero: number;
-  objetivo: "plaga" | "enfermedad";
-  objetivoNombre: string;
-  tipoControlId: string;
-  tipoProductoId: string;
-  disolvente: string;
-  modoAccionId: string;
-  ingredienteActivoId: string;
-  ingredienteActivoNombre: string;
-  dosisIa: string;
-  volumenAplicacion: string;
-  cantidadTotalIa: string;
-  marcaProductoNombre: string;
-  concentracionProducto: string;
-  unidadMedidaProducto: string;
-  cantidadTotalProducto: string;
-  coadyuvantesIds: string[];
-  ordenMezcla: string[];
-};
-
 function FitosanidadCard({
   value,
   index,
@@ -967,8 +973,11 @@ function FitosanidadCard({
   modosAccion,
   openDropdown,
   resetToken,
+  onAddIngrediente,
   onChange,
+  onChangeIngrediente,
   onCloseDropdown,
+  onRemoveIngrediente,
   toggleDropdown
 }: {
   value: AppFitosanidad;
@@ -982,8 +991,11 @@ function FitosanidadCard({
   modosAccion: ModoAccionCatalogItem[];
   openDropdown: string | null;
   resetToken: number;
+  onAddIngrediente: () => void;
   onChange: (patch: Partial<AppFitosanidad>) => void;
+  onChangeIngrediente: (index: number, patch: Partial<AppIngrediente>) => void;
   onCloseDropdown: () => void;
+  onRemoveIngrediente: (index: number) => void;
   toggleDropdown: (key: string) => void;
 }) {
   const prefix = `fito_${index}`;
@@ -998,16 +1010,6 @@ function FitosanidadCard({
     isSelectableOrdenItem(item)
   ).length;
   const canExchangeOrden = selectableOrdenCount >= 2;
-  const ingredienteActivoOptions = getIngredientOptions(
-    value.tipoProductoId,
-    ingredientesActivos,
-    marcasProducto
-  );
-  const nombreComercialOptions = getCommercialOptions(
-    value.tipoProductoId,
-    value.ingredienteActivoId,
-    marcasProducto
-  );
 
   useEffect(() => {
     setIsExchangeMode(false);
@@ -1056,35 +1058,6 @@ function FitosanidadCard({
     setSelectedOrdenIndex(null);
   }
 
-  function handleTipoProductoSelect(tipoProductoId: string) {
-    onChange(
-      buildTypeSelectionPatch(tipoProductoId, ingredientesActivos, marcasProducto)
-    );
-  }
-
-  function handleIngredienteActivoSelect(ingredienteActivoId: string) {
-    onChange(
-      buildIngredientSelectionPatch(
-        value.tipoProductoId,
-        ingredienteActivoId,
-        ingredientesActivos,
-        marcasProducto
-      )
-    );
-  }
-
-  function handleNombreComercialSelect(marcaProductoId: string) {
-    const selected = nombreComercialOptions.find(
-      (option) => option.id === marcaProductoId
-    );
-
-    if (!selected) {
-      return;
-    }
-
-    onChange(buildCommercialSelectionPatch(selected));
-  }
-
   return (
     <View style={styles.fitosanidadCard}>
       <View style={styles.fitoHeader}>
@@ -1096,6 +1069,9 @@ function FitosanidadCard({
         <View style={styles.fitoHeaderText}>
           <AppText variant="heading">
             {value.objetivoNombre} ({value.objetivo === "plaga" ? "Plaga" : "Enfermedad"})
+          </AppText>
+          <AppText variant="caption">
+            {value.ingredientes.length} ingrediente(s) activo(s)
           </AppText>
         </View>
       </View>
@@ -1112,82 +1088,10 @@ function FitosanidadCard({
         onSelect={(v) => onChange({ tipoControlId: v })}
       />
 
-      <AppSelectField
-        icon="flask"
-        label="Tipo de producto"
-        options={tiposProducto.map((c) => ({ value: c.id, label: c.name }))}
-        placeholder="Seleccionar producto"
-        selectedLabel={tiposProducto.find((c) => c.id === value.tipoProductoId)?.name}
-        isOpen={openDropdown === `${prefix}_producto`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_producto`)}
-        onSelect={handleTipoProductoSelect}
-      />
-
       <LabeledTextInput
         label="Disolvente"
         value={value.disolvente}
         onChangeText={(v) => onChange({ disolvente: v })}
-      />
-
-      <AppSelectField
-        icon="move"
-        label="Modo de accion"
-        options={modosAccion.map((c) => ({ value: c.id, label: c.name }))}
-        placeholder="Seleccionar modo"
-        selectedLabel={modosAccion.find((c) => c.id === value.modoAccionId)?.name}
-        isOpen={openDropdown === `${prefix}_modo`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_modo`)}
-        onSelect={(v) => onChange({ modoAccionId: v })}
-      />
-
-      <AppSelectField
-        disabled={!value.tipoProductoId}
-        emptyMessage="No hay ingredientes activos para el tipo seleccionado."
-        icon="leaf-outline"
-        label="Ingrediente activo (i.a.)"
-        options={ingredienteActivoOptions.map((ingrediente) => ({
-          value: ingrediente.id,
-          label: ingrediente.name
-        }))}
-        placeholder={
-          value.tipoProductoId
-            ? "Seleccionar ingrediente activo"
-            : "Selecciona primero tipo de producto"
-        }
-        selectedLabel={value.ingredienteActivoNombre || undefined}
-        isOpen={openDropdown === `${prefix}_ingrediente_activo`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_ingrediente_activo`)}
-        onSelect={handleIngredienteActivoSelect}
-      />
-
-      <AppSelectField
-        disabled={!value.ingredienteActivoId}
-        emptyMessage="No hay nombres comerciales para el ingrediente seleccionado."
-        icon="pricetag-outline"
-        label="Nombre comercial"
-        options={nombreComercialOptions.map((marca) => ({
-          value: marca.id,
-          label: marca.name
-        }))}
-        placeholder={
-          value.ingredienteActivoId
-            ? "Seleccionar nombre comercial"
-            : "Selecciona primero ingrediente activo"
-        }
-        selectedLabel={value.marcaProductoNombre || undefined}
-        isOpen={openDropdown === `${prefix}_nombre_comercial`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_nombre_comercial`)}
-        onSelect={handleNombreComercialSelect}
-      />
-
-      <LabeledNumericInput
-        label="Dosis (mg o mL/cilindro i.a.)"
-        value={value.dosisIa}
-        onChangeText={(v) => onChange({ dosisIa: v })}
       />
 
       <LabeledNumericInput
@@ -1202,28 +1106,32 @@ function FitosanidadCard({
         </AppText>
       ) : null}
 
-      <ReadonlyField
-        label="Cantidad total de i.a. (mg o mL)"
-        value={value.cantidadTotalIa}
-      />
+      <View style={styles.ingredientList}>
+        {value.ingredientes.map((ingredient, ingredientIndex) => (
+          <IngredienteCard
+            canRemove={value.ingredientes.length > 1}
+            index={ingredientIndex}
+            ingredientesActivos={ingredientesActivos}
+            key={ingredient.localId}
+            marcasProducto={marcasProducto}
+            modosAccion={modosAccion}
+            onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
+            onCloseDropdown={onCloseDropdown}
+            onRemove={() => onRemoveIngrediente(ingredientIndex)}
+            openDropdown={openDropdown}
+            prefix={`${prefix}_ingrediente_${ingredientIndex}`}
+            tiposProducto={tiposProducto}
+            toggleDropdown={toggleDropdown}
+            total={value.ingredientes.length}
+            value={ingredient}
+          />
+        ))}
+      </View>
 
-      <LabeledNumericInput
-        editable={false}
-        label="Concentracion comercial"
-        placeholder={
-          value.marcaProductoNombre
-            ? "Concentracion no disponible. Actualiza los catalogos."
-            : "Selecciona un nombre comercial"
-        }
-        value={formatCatalogConcentration(
-          value.concentracionProducto,
-          value.unidadMedidaProducto
-        )}
-      />
-
-      <ReadonlyField
-        label="Cantidad total de producto (L)"
-        value={value.cantidadTotalProducto}
+      <AddItemButton
+        accessibilityLabel={`Agregar otro ingrediente activo para ${value.objetivoNombre}`}
+        label="Agregar otro ingrediente activo"
+        onPress={onAddIngrediente}
       />
 
       <AppText variant="label" style={styles.fieldLabel}>
@@ -1234,6 +1142,9 @@ function FitosanidadCard({
           const selected = value.coadyuvantesIds.includes(c.id);
           return (
             <Pressable
+              accessibilityLabel={`${selected ? "Quitar" : "Agregar"} coadyuvante ${c.name}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
               key={c.id}
               onPress={() => {
                 const next = selected
@@ -1273,9 +1184,7 @@ function FitosanidadCard({
                 ]}
               >
                 <Ionicons
-                  color={
-                    isExchangeMode ? theme.colors.textInverse : theme.colors.primary
-                  }
+                  color={isExchangeMode ? theme.colors.textInverse : theme.colors.primary}
                   name={isExchangeMode ? "checkmark" : "swap-horizontal"}
                   size={16}
                 />
@@ -1350,33 +1259,195 @@ function FitosanidadCard({
   );
 }
 
+function IngredienteCard({
+  value,
+  index,
+  total,
+  prefix,
+  canRemove,
+  ingredientesActivos,
+  marcasProducto,
+  modosAccion,
+  tiposProducto,
+  openDropdown,
+  onChange,
+  onCloseDropdown,
+  onRemove,
+  toggleDropdown
+}: {
+  value: AppIngrediente;
+  index: number;
+  total: number;
+  prefix: string;
+  canRemove: boolean;
+  ingredientesActivos: IngredienteActivoCatalogItem[];
+  marcasProducto: MarcaProductoCatalogItem[];
+  modosAccion: ModoAccionCatalogItem[];
+  tiposProducto: TipoProductoFitosanitarioCatalogItem[];
+  openDropdown: string | null;
+  onChange: (patch: Partial<AppIngrediente>) => void;
+  onCloseDropdown: () => void;
+  onRemove: () => void;
+  toggleDropdown: (key: string) => void;
+}) {
+  const ingredienteActivoOptions = getIngredientOptions(
+    value.tipoProductoId,
+    ingredientesActivos,
+    marcasProducto
+  );
+  const nombreComercialOptions = getCommercialOptions(
+    value.tipoProductoId,
+    value.ingredienteActivoId,
+    marcasProducto
+  );
+
+  function handleNombreComercialSelect(marcaProductoId: string) {
+    const selected = nombreComercialOptions.find(
+      (option) => option.id === marcaProductoId
+    );
+    if (selected) onChange(buildCommercialSelectionPatch(selected));
+  }
+
+  return (
+    <View style={styles.ingredientCard}>
+      <View style={styles.itemCardHeader}>
+        <View style={styles.itemCardTitle}>
+          <Ionicons color={theme.colors.primary} name="leaf-outline" size={20} />
+          <AppText variant="label">
+            Ingrediente activo {index + 1} de {total}
+          </AppText>
+        </View>
+        {canRemove ? (
+          <RemoveItemButton
+            accessibilityLabel={`Quitar ingrediente activo ${index + 1}`}
+            label="Quitar"
+            onPress={onRemove}
+          />
+        ) : null}
+      </View>
+
+      <AppSelectField
+        icon="flask"
+        label="Tipo de producto"
+        options={tiposProducto.map((item) => ({ value: item.id, label: item.name }))}
+        placeholder="Seleccionar producto"
+        selectedLabel={
+          tiposProducto.find((item) => item.id === value.tipoProductoId)?.name
+        }
+        isOpen={openDropdown === `${prefix}_producto`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_producto`)}
+        onSelect={(tipoProductoId) =>
+          onChange(
+            buildTypeSelectionPatch(tipoProductoId, ingredientesActivos, marcasProducto)
+          )
+        }
+      />
+
+      <AppSelectField
+        icon="move"
+        label="Modo de accion"
+        options={modosAccion.map((item) => ({ value: item.id, label: item.name }))}
+        placeholder="Seleccionar modo"
+        selectedLabel={modosAccion.find((item) => item.id === value.modoAccionId)?.name}
+        isOpen={openDropdown === `${prefix}_modo`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_modo`)}
+        onSelect={(modoAccionId) => onChange({ modoAccionId })}
+      />
+
+      <AppSelectField
+        disabled={!value.tipoProductoId}
+        emptyMessage="No hay ingredientes activos para el tipo seleccionado."
+        icon="leaf-outline"
+        label="Ingrediente activo (i.a.)"
+        options={ingredienteActivoOptions.map((item) => ({
+          value: item.id,
+          label: item.name
+        }))}
+        placeholder={
+          value.tipoProductoId
+            ? "Seleccionar ingrediente activo"
+            : "Selecciona primero tipo de producto"
+        }
+        selectedLabel={value.ingredienteActivoNombre || undefined}
+        isOpen={openDropdown === `${prefix}_ingrediente_activo`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_ingrediente_activo`)}
+        onSelect={(ingredienteActivoId) =>
+          onChange(
+            buildIngredientSelectionPatch(
+              value.tipoProductoId,
+              ingredienteActivoId,
+              ingredientesActivos,
+              marcasProducto
+            )
+          )
+        }
+      />
+
+      <AppSelectField
+        disabled={!value.ingredienteActivoId}
+        emptyMessage="No hay nombres comerciales para el ingrediente seleccionado."
+        icon="pricetag-outline"
+        label="Nombre comercial"
+        options={nombreComercialOptions.map((item) => ({
+          value: item.id,
+          label: item.name
+        }))}
+        placeholder={
+          value.ingredienteActivoId
+            ? "Seleccionar nombre comercial"
+            : "Selecciona primero ingrediente activo"
+        }
+        selectedLabel={value.marcaProductoNombre || undefined}
+        isOpen={openDropdown === `${prefix}_nombre_comercial`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_nombre_comercial`)}
+        onSelect={handleNombreComercialSelect}
+      />
+
+      <LabeledNumericInput
+        label="Dosis (mg o mL/cilindro i.a.)"
+        value={value.dosisIa}
+        onChangeText={(dosisIa) => onChange({ dosisIa })}
+      />
+
+      <ReadonlyField
+        label="Cantidad total de i.a. (mg o mL)"
+        value={value.cantidadTotalIa}
+      />
+
+      <LabeledNumericInput
+        editable={false}
+        label="Concentracion comercial"
+        placeholder={
+          value.marcaProductoNombre
+            ? "Concentracion no disponible. Actualiza los catalogos."
+            : "Selecciona un nombre comercial"
+        }
+        value={formatCatalogConcentration(
+          value.concentracionProducto,
+          value.unidadMedidaProducto
+        )}
+      />
+
+      <ReadonlyField
+        label="Cantidad total de producto (L)"
+        value={value.cantidadTotalProducto}
+      />
+    </View>
+  );
+}
+
 function validateRequiredRecipe(
   fitosanidadApps: AppFitosanidad[],
-  fertilizacion: AppFertilizacion,
+  fertilizaciones: AppFertilizacion[],
   riegoSelection: string | null,
   laborSelections: Set<string>
 ) {
-  const hasFitosanidad = fitosanidadApps.some((app) =>
-    Boolean(
-      app.tipoControlId ||
-      app.tipoProductoId ||
-      app.modoAccionId ||
-      app.ingredienteActivoNombre.trim() ||
-      app.dosisIa.trim() ||
-      app.volumenAplicacion.trim() ||
-      app.marcaProductoNombre.trim() ||
-      app.concentracionProducto.trim() ||
-      app.coadyuvantesIds.length ||
-      app.ordenMezcla.length
-    )
-  );
-  const hasFertilizacion = Boolean(
-    fertilizacion.fertilizanteNombre.trim() ||
-      fertilizacion.dosis.trim() ||
-      fertilizacion.cantidadTotalPlantas.trim() ||
-      fertilizacion.volumenAplicacion.trim() ||
-      fertilizacion.cantidadTotalFertilizante.trim()
-  );
+  const hasFitosanidad = hasFitosanidadData(fitosanidadApps);
+  const hasFertilizacion = hasFertilizacionData(fertilizaciones);
   const hasRiego = Boolean(riegoSelection);
   const hasLabores = laborSelections.size > 0;
 
@@ -1387,44 +1458,50 @@ function validateRequiredRecipe(
   return null;
 }
 
-type AppFertilizacion = {
-  viaAplicacion: "edafica" | "foliar";
-  fertilizanteNombre: string;
-  tipoProducto: "solido" | "liquido";
-  concentracion: string;
-  unidadMedida: string;
-  dosis: string;
-  cantidadTotalPlantas: string;
-  volumenAplicacion: string;
-  cantidadTotalFertilizante: string;
-};
-
 function FertilizacionCard({
   value,
+  index,
+  canRemove,
   fertilizantes,
   openDropdown,
   onChange,
   onCloseDropdown,
+  onRemove,
   toggleDropdown
 }: {
   value: AppFertilizacion;
+  index: number;
+  canRemove: boolean;
   fertilizantes: FertilizanteCatalogItem[];
   openDropdown: string | null;
   onChange: (patch: Partial<AppFertilizacion>) => void;
   onCloseDropdown: () => void;
+  onRemove: () => void;
   toggleDropdown: (key: string) => void;
 }) {
-  const unidadDosis =
-    value.viaAplicacion === "edafica"
-      ? value.tipoProducto === "liquido"
-        ? "L/planta"
-        : "Kg/planta"
-      : value.tipoProducto === "liquido"
-        ? "L/cilindro"
-        : "Kg/cilindro";
+  const prefix = `fert_${index}`;
+  const unidadDosis = getUnidadDosis(value);
 
   return (
     <View style={styles.fertilizacionCard}>
+      <View style={styles.itemCardHeader}>
+        <View style={styles.itemCardTitle}>
+          <View style={styles.itemNumberBadge}>
+            <AppText style={styles.itemNumberText} variant="eyebrow">
+              {index + 1}
+            </AppText>
+          </View>
+          <AppText variant="heading">Fertilizante {index + 1}</AppText>
+        </View>
+        {canRemove ? (
+          <RemoveItemButton
+            accessibilityLabel={`Quitar fertilizante ${index + 1}`}
+            label="Quitar"
+            onPress={onRemove}
+          />
+        ) : null}
+      </View>
+
       <AppSelectField
         icon="leaf"
         label="Via de aplicacion"
@@ -1434,9 +1511,9 @@ function FertilizacionCard({
         ]}
         placeholder="Seleccionar via"
         selectedLabel={value.viaAplicacion === "edafica" ? "Edafica" : "Foliar"}
-        isOpen={openDropdown === "fert_via"}
+        isOpen={openDropdown === `${prefix}_via`}
         onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown("fert_via")}
+        onToggle={() => toggleDropdown(`${prefix}_via`)}
         onSelect={(v) => onChange({ viaAplicacion: v as "edafica" | "foliar" })}
       />
 
@@ -1450,9 +1527,9 @@ function FertilizacionCard({
         }))}
         placeholder="Seleccionar fertilizante"
         selectedLabel={value.fertilizanteNombre || undefined}
-        isOpen={openDropdown === "fert_fertilizante"}
+        isOpen={openDropdown === `${prefix}_fertilizante`}
         onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown("fert_fertilizante")}
+        onToggle={() => toggleDropdown(`${prefix}_fertilizante`)}
         onSelect={(v) => {
           const fert = fertilizantes.find((f) => f.name === v);
           onChange({
@@ -1484,9 +1561,9 @@ function FertilizacionCard({
         ]}
         placeholder="Seleccionar tipo"
         selectedLabel={value.tipoProducto === "solido" ? "Solido" : "Liquido"}
-        isOpen={openDropdown === "fert_tipo"}
+        isOpen={openDropdown === `${prefix}_tipo`}
         onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown("fert_tipo")}
+        onToggle={() => toggleDropdown(`${prefix}_tipo`)}
         onSelect={(v) => onChange({ tipoProducto: v as "solido" | "liquido" })}
       />
 
@@ -1523,6 +1600,55 @@ function FertilizacionCard({
         value={value.cantidadTotalFertilizante}
       />
     </View>
+  );
+}
+
+function AddItemButton({
+  label,
+  accessibilityLabel,
+  onPress
+}: {
+  label: string;
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.addItemButton, pressed && styles.pressedButton]}
+    >
+      <Ionicons color={theme.colors.primary} name="add-circle-outline" size={22} />
+      <AppText style={styles.addItemButtonText} variant="label">
+        {label}
+      </AppText>
+    </Pressable>
+  );
+}
+
+function RemoveItemButton({
+  label,
+  accessibilityLabel,
+  onPress
+}: {
+  label: string;
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      hitSlop={4}
+      onPress={onPress}
+      style={({ pressed }) => [styles.removeItemButton, pressed && styles.pressedButton]}
+    >
+      <Ionicons color={theme.colors.error} name="trash-outline" size={18} />
+      <AppText style={styles.removeItemButtonText} variant="caption">
+        {label}
+      </AppText>
+    </Pressable>
   );
 }
 
@@ -1695,6 +1821,7 @@ function LabeledTextInput({
         {label}
       </AppText>
       <TextInput
+        accessibilityLabel={label}
         onChangeText={onChangeText}
         placeholder={placeholder ?? label}
         placeholderTextColor={theme.colors.textMuted}
@@ -1724,6 +1851,7 @@ function LabeledNumericInput({
         {label}
       </AppText>
       <TextInput
+        accessibilityLabel={label}
         editable={editable}
         inputMode="decimal"
         keyboardType="decimal-pad"
@@ -1761,16 +1889,6 @@ function ReadonlyField({
       </View>
     </View>
   );
-}
-
-function parseJsonArray(value: string | null): string[] {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
 }
 
 const styles = StyleSheet.create({
@@ -1828,9 +1946,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.35)",
     borderRadius: theme.radius.full,
-    height: 40,
+    height: 44,
     justifyContent: "center",
-    width: 40
+    width: 44
   },
   body: {
     gap: 20,
@@ -1904,7 +2022,42 @@ const styles = StyleSheet.create({
     color: theme.colors.textInverse
   },
   fitoHeaderText: {
-    flex: 1
+    flex: 1,
+    gap: 2
+  },
+  ingredientList: {
+    gap: 12
+  },
+  ingredientCard: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 12,
+    padding: 14
+  },
+  itemCardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between"
+  },
+  itemCardTitle: {
+    alignItems: "center",
+    flex: 1,
+    flexDirection: "row",
+    gap: 8
+  },
+  itemNumberBadge: {
+    alignItems: "center",
+    backgroundColor: theme.colors.primaryMuted,
+    borderRadius: theme.radius.full,
+    height: 32,
+    justifyContent: "center",
+    width: 32
+  },
+  itemNumberText: {
+    color: theme.colors.primaryDark
   },
   fieldWrapper: {
     gap: 6
@@ -1949,10 +2102,13 @@ const styles = StyleSheet.create({
     gap: 8
   },
   chip: {
+    alignItems: "center",
     backgroundColor: theme.colors.background,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.full,
     borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 44,
     paddingHorizontal: 14,
     paddingVertical: 8
   },
@@ -1986,7 +2142,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: "row",
     gap: 6,
-    minHeight: 32,
+    minHeight: 44,
     paddingHorizontal: 10,
     paddingVertical: 6
   },
@@ -2038,6 +2194,56 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 16,
     ...theme.shadow.sm
+  },
+  addItemButton: {
+    alignItems: "center",
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.md,
+    borderStyle: "dashed",
+    borderWidth: 1.5,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 10
+  },
+  addItemButtonText: {
+    color: theme.colors.primaryDark
+  },
+  removeItemButton: {
+    alignItems: "center",
+    borderColor: theme.colors.error,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 8
+  },
+  removeItemButtonText: {
+    color: theme.colors.error,
+    fontWeight: "600"
+  },
+  emptyProductsCard: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    gap: 8,
+    padding: 20
+  },
+  emptyProductsTitle: {
+    color: theme.colors.text
+  },
+  emptyProductsText: {
+    marginBottom: 4,
+    textAlign: "center"
   },
   riegoCard: {
     backgroundColor: theme.colors.surface,

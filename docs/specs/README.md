@@ -70,4 +70,5 @@ en la raíz.
 - [Spec 024: Concentraciones y unidades de productos en receta mobile](024-concentraciones-unidades-receta.md)
 - [Spec 025: Reparación y recarga de concentraciones en receta mobile](025-reparacion-recarga-concentraciones-receta.md)
 - [Spec 026: Alta offline de productores con asociacion completa en mobile](026-alta-offline-productores-mobile.md)
+- [Spec 027: Múltiples productos por recomendación y validación de incompatibilidades en receta](027-multiples-productos-receta-validacion-incompatibilidades.md)
 - [Plantilla](TEMPLATE.md)

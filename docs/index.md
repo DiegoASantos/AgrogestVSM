@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-19
+last_reviewed: 2026-08-03
 ---
 
 # Documentación de AgroGest VSM
@@ -72,6 +72,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Concentraciones y unidades de productos en receta mobile](specs/024-concentraciones-unidades-receta.md)
 - [Reparación y recarga de concentraciones en receta mobile](specs/025-reparacion-recarga-concentraciones-receta.md)
 - [Alta offline de productores con asociación completa en mobile](specs/026-alta-offline-productores-mobile.md)
+- [Múltiples productos por recomendación y validación de incompatibilidades en receta](specs/027-multiples-productos-receta-validacion-incompatibilidades.md)
 
 ## Runbooks
 
