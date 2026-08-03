@@ -75,12 +75,11 @@ export function useReportSharing({ onError }: UseReportSharingOptions) {
         const uris = await capturerRef.current.capture(html);
 
         try {
-          const dialogTitle = `Compartir ${REPORT_LABELS[report]} como imagen${uris.length > 1 ? ` (1/${uris.length})` : ""}`;
-
-          for (let i = 0; i < uris.length; i++) {
-            const subtitulo = uris.length > 1 ? ` (${i + 1}/${uris.length})` : "";
-            await Sharing.shareAsync(uris[i], {
-              dialogTitle: `${dialogTitle}${subtitulo}`,
+          if (uris.length > 1) {
+            await compartirMultiplesImagenes(uris, REPORT_LABELS[report]);
+          } else {
+            await Sharing.shareAsync(uris[0], {
+              dialogTitle: `Compartir ${REPORT_LABELS[report]} como imagen`,
               mimeType: "image/png",
               UTI: "public.png"
             });
@@ -170,4 +169,27 @@ export function isReportActionActive(
     action.report === report &&
     (operation === undefined || action.operation === operation)
   );
+}
+
+async function compartirMultiplesImagenes(uris: string[], label: string) {
+  const { default: IntentLauncher } = await import("expo-intent-launcher");
+
+  const urisFormateadas = uris.map(normalizarUriAndroid);
+
+  const extras: Array<{ key: string; value: unknown }> = [
+    { key: "android.intent.extra.SUBJECT", value: `Compartir ${label} como imagen` },
+    { key: "android.intent.extra.STREAM", value: urisFormateadas }
+  ];
+
+  await IntentLauncher.startActivityAsync("android.intent.action.SEND_MULTIPLE", {
+    type: "image/png",
+    flags: 1,
+    extra: extras
+  });
+}
+
+function normalizarUriAndroid(uri: string): string {
+  if (uri.startsWith("file://")) return uri;
+  if (uri.startsWith("/")) return `file://${uri}`;
+  return uri;
 }

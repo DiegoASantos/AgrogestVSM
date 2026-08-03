@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
-  PixelRatio,
   ScrollView,
   StyleSheet,
   View
@@ -30,6 +29,7 @@ import {
 const CAPTURE_TIMEOUT_MS = 20_000;
 const CAPTURE_SETTLE_MS = 350;
 const MAX_IMAGE_PIXEL_AREA = 14_000_000;
+const ANCHO_RENDER = 720;
 const REPORT_SIZE_MESSAGE = "agrogest-report-size";
 
 export const REPORT_IMAGE_CAPTURE_CANCELLED_ERROR =
@@ -110,13 +110,11 @@ export const HtmlReportImageCapturer = forwardRef<
   const startedCaptureIdsRef = useRef(new Set<number>());
   const [request, setRequest] = useState<PendingCapture | null>(null);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
-  const [laidOutHeight, setLaidOutHeight] = useState(0);
 
   const screen = Dimensions.get("window");
-  const captureWidth = Math.max(1, Math.floor(screen.width));
-  const maxContentHeight = getMaxReportLogicalHeight(
-    captureWidth,
-    PixelRatio.get(),
+  const maxPageHeight = getMaxReportLogicalHeight(
+    ANCHO_RENDER,
+    1,
     MAX_IMAGE_PIXEL_AREA
   );
 
@@ -170,7 +168,6 @@ export const HtmlReportImageCapturer = forwardRef<
           };
           pendingRef.current = nextRequest;
           setContentHeight(null);
-          setLaidOutHeight(0);
           setRequest(nextRequest);
         });
       }
@@ -208,7 +205,6 @@ export const HtmlReportImageCapturer = forwardRef<
     if (
       !request ||
       !contentHeight ||
-      Math.abs(laidOutHeight - contentHeight) > 1 ||
       startedCaptureIdsRef.current.has(request.id)
     ) {
       return undefined;
@@ -240,8 +236,7 @@ export const HtmlReportImageCapturer = forwardRef<
               if (pendingRef.current?.id !== id) return;
             }
 
-            const pixelRatio = PixelRatio.get();
-            const uris = await capturarPaginas(alturaTotal, pixelRatio, id);
+            const uris = await capturarPaginas(alturaTotal, id);
 
             if (pendingRef.current?.id !== id) {
               uris.forEach(releaseCapture);
@@ -264,10 +259,10 @@ export const HtmlReportImageCapturer = forwardRef<
         startedCaptureIdsRef.current.delete(id);
       }
     }
-  }, [contentHeight, laidOutHeight, maxContentHeight, captureWidth, rejectPending, request, resolvePending]);
+  }, [contentHeight, maxPageHeight, rejectPending, request, resolvePending]);
 
-  async function capturarPaginas(alturaTotal: number, pixelRatio: number, id: number): Promise<string[]> {
-    const alturaPagina = Math.min(maxContentHeight, alturaTotal);
+  async function capturarPaginas(alturaTotal: number, id: number): Promise<string[]> {
+    const alturaPagina = Math.min(maxPageHeight, alturaTotal);
     const paginas = Math.ceil(alturaTotal / alturaPagina);
     const uris: string[] = [];
 
@@ -278,18 +273,27 @@ export const HtmlReportImageCapturer = forwardRef<
       }
 
       const offsetY = i * alturaPagina;
-
-      scrollRef.current?.scrollTo({ y: offsetY, animated: false });
-      await wait(CAPTURE_SETTLE_MS);
-
       const alturaRestante = alturaTotal - offsetY;
-      const altoCaptura = Math.min(alturaPagina, alturaRestante);
+      const altoPagina = Math.min(alturaPagina, alturaRestante);
+
+      const htmlPagina = inyectarOffsetCss(request!.html, offsetY);
+
+      setContentHeight(null);
+
+      setRequest((prev) => (prev?.id === id ? { ...prev, html: htmlPagina } : prev));
+
+      await wait(CAPTURE_SETTLE_MS * 2);
+
+      if (pendingRef.current?.id !== id) {
+        uris.forEach(releaseCapture);
+        throw new Error("Cancelado");
+      }
 
       const uri = await captureRef(scrollRef, {
         format: "png",
         result: "tmpfile",
-        width: captureWidth * pixelRatio,
-        height: altoCaptura * pixelRatio
+        width: ANCHO_RENDER,
+        height: altoPagina
       });
 
       if (!uri) {
@@ -300,14 +304,22 @@ export const HtmlReportImageCapturer = forwardRef<
       uris.push(uri);
     }
 
+    setRequest(request);
+
     return uris;
   }
 
-  if (!request) return null;
+  const paginaActual = request
+    ? Math.floor(
+        (contentHeight ? Math.min(contentHeight, maxPageHeight) * (captureSequenceRef.current % 100) : 0) /
+          Math.min(contentHeight || 1, maxPageHeight)
+      ) + 1
+    : 0;
+  const totalPaginas = contentHeight
+    ? Math.ceil(contentHeight / Math.min(maxPageHeight, contentHeight))
+    : 0;
 
-  const renderedHeight = contentHeight ?? 5000;
-
-  return (
+  return request ? (
     <Modal animationType="none" onRequestClose={cancelPending} transparent visible>
       <View style={styles.modalRoot}>
         <ScrollView
@@ -315,28 +327,21 @@ export const HtmlReportImageCapturer = forwardRef<
           pointerEvents="none"
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
-          style={{
-            width: captureWidth
-          }}
+          style={{ width: ANCHO_RENDER }}
         >
           <View
             collapsable={false}
-            onLayout={(event) => {
-              if (pendingRef.current?.id === request.id) {
-                setLaidOutHeight(event.nativeEvent.layout.height);
-              }
-            }}
             style={{
               backgroundColor: "#ffffff",
-              height: renderedHeight,
-              width: captureWidth
+              height: Math.min(contentHeight ?? 5000, screen.height),
+              width: ANCHO_RENDER
             }}
           >
             <WebView
               androidLayerType="software"
               injectedJavaScript={REPORT_MEASUREMENT_SCRIPT}
               javaScriptEnabled
-              key={request.id}
+              key={`${request.id}`}
               onError={() =>
                 rejectPending(
                   request.id,
@@ -349,8 +354,8 @@ export const HtmlReportImageCapturer = forwardRef<
               source={{ baseUrl: "about:blank", html: request.html }}
               style={{
                 backgroundColor: "#ffffff",
-                height: renderedHeight,
-                width: captureWidth
+                height: Math.min(contentHeight ?? 5000, screen.height),
+                width: ANCHO_RENDER
               }}
             />
           </View>
@@ -359,7 +364,7 @@ export const HtmlReportImageCapturer = forwardRef<
         <View style={styles.loadingOverlay}>
           <View style={styles.loadingCard}>
             <ActivityIndicator color={theme.colors.primary} size="large" />
-            <AppText variant="label">Generando imagen...</AppText>
+            <AppText variant="label">Generando imagen...{totalPaginas > 1 ? ` (${paginaActual}/${totalPaginas})` : ""}</AppText>
             <AppText style={styles.loadingHint} variant="caption">
               Los reportes extensos pueden tardar unos segundos.
             </AppText>
@@ -373,7 +378,7 @@ export const HtmlReportImageCapturer = forwardRef<
         </View>
       </View>
     </Modal>
-  );
+  ) : null;
 
   function handleMessage(requestId: number, event: WebViewMessageEvent) {
     if (pendingRef.current?.id !== requestId) return;
@@ -384,6 +389,18 @@ export const HtmlReportImageCapturer = forwardRef<
     setContentHeight(measuredHeight);
   }
 });
+
+function inyectarOffsetCss(html: string, offsetY: number): string {
+  if (offsetY <= 0) return html;
+
+  const estilo = `<style>body { transform: translateY(-${offsetY}px); }</style>`;
+
+  if (html.includes("</head>")) {
+    return html.replace("</head>", `${estilo}</head>`);
+  }
+
+  return `${estilo}${html}`;
+}
 
 function normalizeCaptureUri(uri: string) {
   return /^[a-z][a-z0-9+.-]*:\/\//iu.test(uri) ? uri : `file://${uri}`;

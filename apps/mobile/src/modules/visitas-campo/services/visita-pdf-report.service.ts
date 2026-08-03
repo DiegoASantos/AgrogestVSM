@@ -116,6 +116,7 @@ async function buildVisitReportHtml(visitaId: string) {
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>${escapeHtml(documentTitle)}</title>
     <style>
       * { box-sizing: border-box; }
