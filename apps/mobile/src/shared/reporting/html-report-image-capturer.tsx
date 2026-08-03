@@ -242,9 +242,11 @@ export const HtmlReportImageCapturer = forwardRef<
               if (pendingRef.current?.id !== requestId) return;
             }
 
+            const pixelRatio = PixelRatio.get();
             const uri = await captureRef(scrollRef, {
               format: "png",
               result: "tmpfile",
+              width: captureWidth * pixelRatio,
               snapshotContentContainer: true
             });
 
@@ -277,7 +279,7 @@ export const HtmlReportImageCapturer = forwardRef<
 
   if (!request) return null;
 
-  const renderedHeight = contentHeight ?? 1;
+  const renderedHeight = contentHeight ?? 5000;
 
   return (
     <Modal animationType="none" onRequestClose={cancelPending} transparent visible>
@@ -288,7 +290,6 @@ export const HtmlReportImageCapturer = forwardRef<
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
           style={{
-            height: Math.min(renderedHeight, screen.height),
             width: captureWidth
           }}
         >

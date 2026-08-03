@@ -261,7 +261,8 @@ export function NewVisitaSelectorScreen() {
                   params: {
                     id: selectedParcela.id,
                     parcelaCode: selectedParcela.code,
-                    parcelaName: selectedParcela.name
+                    parcelaName: selectedParcela.name,
+                    parcelaAreaHectares: selectedParcela.areaHectares ?? ""
                   }
                 });
               }}

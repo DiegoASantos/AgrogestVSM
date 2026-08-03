@@ -86,6 +86,7 @@ export function NewVisitaCampoScreen() {
     id?: string | string[];
     parcelaCode?: string | string[];
     parcelaName?: string | string[];
+    parcelaAreaHectares?: string | string[];
     visitaId?: string | string[];
   }>();
 
@@ -95,6 +96,7 @@ export function NewVisitaCampoScreen() {
   const isEditingVisita = !!existingVisitaId;
   const parcelaCode = toSingleParam(params.parcelaCode);
   const parcelaName = toSingleParam(params.parcelaName);
+  const parcelaAreaHectares = toSingleParam(params.parcelaAreaHectares) ?? "";
   const parcelaLabel = [parcelaCode, parcelaName].filter(Boolean).join(" - ");
   const isTwoColumnLayout = width >= 620;
   const isCompactProgress = width < 540;
@@ -133,7 +135,7 @@ export function NewVisitaCampoScreen() {
     parcelaLabel: parcelaLabel || parcelaId || "",
     campaign: "",
     plantsCount: "",
-    areaHectares: "",
+    areaHectares: parcelaAreaHectares,
     sowingDate: "",
     visitDate: today,
     startVisitTime: "",
@@ -145,7 +147,7 @@ export function NewVisitaCampoScreen() {
   }));
   const [defaultLockedFields, setDefaultLockedFields] = useState<DefaultLockedFields>({
     plantsCount: false,
-    areaHectares: false,
+    areaHectares: parcelaAreaHectares.length > 0,
     sowingDate: false
   });
   const [startVisitTimeInput, setStartVisitTimeInput] = useState("");
