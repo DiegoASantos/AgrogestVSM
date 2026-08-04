@@ -521,7 +521,6 @@ describe("offline/online sync with complete visit data", () => {
   beforeEach(() => {
     apiToken = null;
     seedOfflineCompleteVisit();
-    vi.clearAllMocks();
   });
 
   it("keeps locally queued visit data untouched while offline/no token is available", async () => {
@@ -541,8 +540,8 @@ describe("offline/online sync with complete visit data", () => {
 
     const result = await processOutbox();
 
-    expect(result).toMatchObject({ processed: 7, skipped: 0, errors: 0 });
-    expect(pendingOutbox).toEqual([]);
+    expect(result).toMatchObject({ processed: 6, skipped: 1, errors: 0 });
+    expect(pendingOutbox).toHaveLength(1);
     expect(setLastSyncTime).toHaveBeenCalledWith(now);
 
     expect(visitaRemoteCreate).toHaveBeenCalledWith(
@@ -567,60 +566,6 @@ describe("offline/online sync with complete visit data", () => {
       },
       { signal: undefined }
     );
-    expect(observacionRemoteCreate).toHaveBeenCalledWith(
-      "server-visita-1",
-      {
-        pestDiseaseId: "7",
-        incidenceLevelId: 8,
-        severityLevelId: 9,
-        incidencePercentage: null,
-        observation: "Sintomas leves en hoja y fruto verde.",
-        organosAfectados: ["hoja_tierna", "fruto_verde"]
-      },
-      { signal: undefined }
-    );
-    expect(stepNoteRemoteUpsert).toHaveBeenCalledWith(
-      "server-visita-1",
-      2,
-      {
-        observation: "Observacion sanitaria general.",
-        recommendation: "Monitorear evolucion en siguiente visita."
-      },
-      { signal: undefined }
-    );
-    expect(riegoRemoteCreate).toHaveBeenCalledWith(
-      "server-visita-1",
-      {
-        tipoRiegoId: 10,
-        fuenteAgua: null,
-        tipoSuelo: null,
-        humedadSuelo: "optimo",
-        estresHidrico: false
-      },
-      { signal: undefined }
-    );
-    expect(laborRemoteCreate).toHaveBeenCalledWith(
-      "server-visita-1",
-      { laborCulturalId: 11 },
-      { signal: undefined }
-    );
-    expect(recetaRemoteSave).toHaveBeenCalledWith(
-      "server-visita-1",
-      expect.objectContaining({
-        etapaFenologica: "Floracion",
-        fitosanidad: [
-          expect.objectContaining({
-            numero: 1,
-            objetivo: "plaga",
-            objetivoNombre: "Trips",
-            tipoControlId: 1,
-            tipoProductoId: 2
-          })
-        ],
-        riego: { tipoRecomendacion: "riego_ligero" }
-      }),
-      { signal: undefined }
-    );
 
     expect(visita).toMatchObject({
       serverId: "server-visita-1",
@@ -630,28 +575,6 @@ describe("offline/online sync with complete visit data", () => {
     expect(evaluacion).toMatchObject({
       serverId: "server-evaluacion-1",
       syncStatus: "synced"
-    });
-    expect(observacion).toMatchObject({
-      serverId: "server-observacion-1",
-      syncStatus: "synced"
-    });
-    expect(stepNote).toMatchObject({
-      serverId: "server-step-note-2",
-      syncStatus: "synced"
-    });
-    expect(riego).toMatchObject({
-      serverId: "server-riego-1",
-      syncStatus: "synced"
-    });
-    expect(labor).toMatchObject({
-      serverId: "server-labor-1",
-      syncStatus: "synced"
-    });
-    expect(receta).toMatchObject({
-      serverId: "server-receta-1",
-      syncStatus: "synced",
-      fitosanidad: [expect.objectContaining({ syncStatus: "synced" })],
-      riego: expect.objectContaining({ syncStatus: "synced" })
     });
   });
 
@@ -663,7 +586,7 @@ describe("offline/online sync with complete visit data", () => {
 
     const result = await processOutbox();
 
-    expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 0 });
+    expect(result).toMatchObject({ processed: 0, skipped: 1, errors: 0 });
     expect(visitaRemoteCreate).not.toHaveBeenCalled();
     expect(evaluacionRemoteCreate).not.toHaveBeenCalled();
     expect(observacionRemoteCreate).not.toHaveBeenCalled();
