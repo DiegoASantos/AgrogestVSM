@@ -72,67 +72,141 @@ jobs:
     needs: [typecheck, lint, test]
     runs-on: ubuntu-latest
     if: always()
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
       - name: Determinar estado
         id: status
         run: |
-          if [ "${{ needs.typecheck.result }}" = "success" ] &&
-             [ "${{ needs.lint.result }}" = "success" ] &&
-             [ "${{ needs.test.result }}" = "success" ]; then
-            echo "ESTADO=EXITO" >> $GITHUB_OUTPUT
+          TC="${{ needs.typecheck.result }}"
+          LI="${{ needs.lint.result }}"
+          TE="${{ needs.test.result }}"
+
+          emoji() {
+            case "$1" in
+              success) echo "✅" ;;
+              failure) echo "❌" ;;
+              cancelled) echo "⚪" ;;
+              skipped) echo "⏭️" ;;
+              *) echo "❓" ;;
+            esac
+          }
+
+          echo "TC_RESULT=${TC^^}" >> $GITHUB_OUTPUT
+          echo "LI_RESULT=${LI^^}" >> $GITHUB_OUTPUT
+          echo "TE_RESULT=${TE^^}" >> $GITHUB_OUTPUT
+          echo "TC_RESULT_RAW=$TC" >> $GITHUB_OUTPUT
+          echo "LI_RESULT_RAW=$LI" >> $GITHUB_OUTPUT
+          echo "TE_RESULT_RAW=$TE" >> $GITHUB_OUTPUT
+          echo "TC_EMOJI=$(emoji "$TC")" >> $GITHUB_OUTPUT
+          echo "LI_EMOJI=$(emoji "$LI")" >> $GITHUB_OUTPUT
+          echo "TE_EMOJI=$(emoji "$TE")" >> $GITHUB_OUTPUT
+
+          FAILED_JOBS=""
+          [ "$TC" != "success" ] && FAILED_JOBS="${FAILED_JOBS} Typecheck"
+          [ "$LI" != "success" ] && FAILED_JOBS="${FAILED_JOBS} Lint"
+          [ "$TE" != "success" ] && FAILED_JOBS="${FAILED_JOBS} Tests"
+          echo "FAILED_JOBS=${FAILED_JOBS# }" >> $GITHUB_OUTPUT
+
+          if [ "$TC" = "success" ] && [ "$LI" = "success" ] && [ "$TE" = "success" ]; then
+            echo "ESTADO=ÉXITO" >> $GITHUB_OUTPUT
             echo "EMOJI=✅" >> $GITHUB_OUTPUT
-            echo "MENSAJE=Todos los checks pasaron correctamente." >> $GITHUB_OUTPUT
           else
             echo "ESTADO=FRACASO" >> $GITHUB_OUTPUT
             echo "EMOJI=❌" >> $GITHUB_OUTPUT
-
-            DETALLES=""
-            [ "${{ needs.typecheck.result }}" != "success" ] && DETALLES="$DETALLES\n• Typecheck falló"
-            [ "${{ needs.lint.result }}" != "success" ] && DETALLES="$DETALLES\n• Lint falló"
-            [ "${{ needs.test.result }}" != "success" ] && DETALLES="$DETALLES\n• Tests fallaron"
-            echo "MENSAJE=Fallos detectados:$DETALLES" >> $GITHUB_OUTPUT
           fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "TRIGGER=Pull Request" >> $GITHUB_OUTPUT
+            echo "RAMA=PR #${{ github.event.pull_request.number }} (${{ github.head_ref }} → ${{ github.base_ref }})" >> $GITHUB_OUTPUT
+            echo "AUTOR=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
+            echo "COMMIT_MSG=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
+            echo "COMMITTER=${{ github.actor }}" >> $GITHUB_OUTPUT
+          else
+            echo "TRIGGER=Push" >> $GITHUB_OUTPUT
+            echo "RAMA=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "AUTOR=${{ github.event.head_commit.author.name }}" >> $GITHUB_OUTPUT
+            echo "COMMIT_MSG=${{ github.event.head_commit.message }}" >> $GITHUB_OUTPUT
+            echo "COMMITTER=${{ github.event.head_commit.author.name }}" >> $GITHUB_OUTPUT
+          fi
+
+          echo "SHA_SHORT=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
 
       - name: Notificar Telegram
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKE }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "Telegram no configurado. Saltando notificacion."
+            echo "Telegram no configurado. Saltando notificación."
             exit 0
           fi
 
-          TEXTO="${{ steps.status.outputs.EMOJI }} ${{ steps.status.outputs.ESTADO }}"
-          TEXTO="${TEXTO}%0ARepositorio: ${{ github.repository }}"
-          TEXTO="${TEXTO}%0ARama: ${{ github.ref_name }}"
-          TEXTO="${TEXTO}%0ACommit: ${{ github.event.head_commit.message }}"
-          TEXTO="${TEXTO}%0AAutor: ${{ github.event.head_commit.author.name }}"
-          TEXTO="${TEXTO}%0A${{ steps.status.outputs.MENSAJE }}"
-          TEXTO="${TEXTO}%0AVer: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TEXTO="<b>${{ steps.status.outputs.EMOJI }} CI AgroGest VSM — ${{ steps.status.outputs.ESTADO }}</b>"
+          TEXTO="${TEXTO}%0A%0A<b>📌 Evento:</b> ${{ steps.status.outputs.TRIGGER }}"
+          TEXTO="${TEXTO}%0A<b>🌿 Rama:</b> ${{ steps.status.outputs.RAMA }}"
+          TEXTO="${TEXTO}%0A<b>👤 Autor:</b> ${{ steps.status.outputs.AUTOR }}"
+          TEXTO="${TEXTO}%0A<b>🔖 Commit:</b> <code>${{ steps.status.outputs.SHA_SHORT }}</code>"
+          TEXTO="${TEXTO}%0A<b>💬 Mensaje:</b> ${{ steps.status.outputs.COMMIT_MSG }}"
+          TEXTO="${TEXTO}%0A%0A<b>📋 Resultados:</b>"
+          TEXTO="${TEXTO}%0A${{ steps.status.outputs.TC_EMOJI }} Typecheck: <b>${{ steps.status.outputs.TC_RESULT }}</b>"
+          TEXTO="${TEXTO}%0A${{ steps.status.outputs.LI_EMOJI }} Lint: <b>${{ steps.status.outputs.LI_RESULT }}</b>"
+          TEXTO="${TEXTO}%0A${{ steps.status.outputs.TE_EMOJI }} Tests: <b>${{ steps.status.outputs.TE_RESULT }}</b>"
+
+          if [ "${{ steps.status.outputs.ESTADO }}" = "FRACASO" ]; then
+            TEXTO="${TEXTO}%0A%0A⚠️ Falló:${{ steps.status.outputs.FAILED_JOBS }}"
+          fi
+
+          TEXTO="${TEXTO}%0A%0A🔗 <a href='${{ steps.status.outputs.RUN_URL }}'>Ver detalles en GitHub Actions</a>"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            -d "parse_mode=HTML" \
             --data-urlencode "text=${TEXTO}"
 
-      - name: Notificar Email (éxito o fracaso)
+      - name: Notificar Email
         uses: dawidd6/action-send-mail@v4
         with:
           server_address: smtp.gmail.com
           server_port: 587
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "${{ steps.status.outputs.EMOJI }} CI - AgroGest VSM - ${{ steps.status.outputs.ESTADO }}"
+          subject: "${{ steps.status.outputs.EMOJI }} CI AgroGest VSM — ${{ steps.status.outputs.ESTADO }}"
           to: santosvillasecad@gmail.com
           from: AgroGest CI
-          body: |
-            ${{ steps.status.outputs.EMOJI }} **${{ steps.status.outputs.ESTADO }}** en AgroGest VSM
+          html_body: |
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e1e4e8; border-radius: 8px;">
+              <h2 style="margin: 0 0 16px 0; font-size: 20px; color: #24292f;">${{ steps.status.outputs.EMOJI }} CI AgroGest VSM — ${{ steps.status.outputs.ESTADO }}</h2>
 
-            **Rama:** ${{ github.ref_name }}
-            **Commit:** ${{ github.event.head_commit.message }}
-            **Autor:** ${{ github.event.head_commit.author.name }}
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+                <tr>
+                  <td style="padding: 8px 12px; font-weight: 600; color: #57606a; white-space: nowrap; vertical-align: top; border-bottom: 1px solid #eaecef;">📌 Evento</td>
+                  <td style="padding: 8px 12px; color: #24292f; border-bottom: 1px solid #eaecef;">${{ steps.status.outputs.TRIGGER }}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; font-weight: 600; color: #57606a; white-space: nowrap; vertical-align: top; border-bottom: 1px solid #eaecef;">🌿 Rama</td>
+                  <td style="padding: 8px 12px; color: #24292f; border-bottom: 1px solid #eaecef;">${{ steps.status.outputs.RAMA }}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; font-weight: 600; color: #57606a; white-space: nowrap; vertical-align: top; border-bottom: 1px solid #eaecef;">👤 Autor</td>
+                  <td style="padding: 8px 12px; color: #24292f; border-bottom: 1px solid #eaecef;">${{ steps.status.outputs.AUTOR }}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; font-weight: 600; color: #57606a; white-space: nowrap; vertical-align: top; border-bottom: 1px solid #eaecef;">🔖 Commit</td>
+                  <td style="padding: 8px 12px; color: #24292f; border-bottom: 1px solid #eaecef;"><code style="background: #f6f8fa; padding: 2px 6px; border-radius: 4px; font-size: 13px;">${{ steps.status.outputs.SHA_SHORT }}</code></td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; font-weight: 600; color: #57606a; white-space: nowrap; vertical-align: top;">💬 Mensaje</td>
+                  <td style="padding: 8px 12px; color: #24292f;">${{ steps.status.outputs.COMMIT_MSG }}</td>
+                </tr>
+              </table>
 
-            ${{ steps.status.outputs.MENSAJE }}
+              <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #24292f;">📋 Resultados por job</h3>
+              <pre style="background: #f6f8fa; padding: 12px 16px; border-radius: 6px; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; border-left: 4px solid #${{ steps.status.outputs.ESTADO == 'ÉXITO' && '28a745' || 'cb2431' }};">${{ steps.status.outputs.TC_EMOJI }} Typecheck: <b>${{ steps.status.outputs.TC_RESULT }}</b>
+${{ steps.status.outputs.LI_EMOJI }} Lint: <b>${{ steps.status.outputs.LI_RESULT }}</b>
+${{ steps.status.outputs.TE_EMOJI }} Tests: <b>${{ steps.status.outputs.TE_RESULT }}</b></pre>
 
-            🔗 Ver detalles: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              <a href="${{ steps.status.outputs.RUN_URL }}" style="display: inline-block; padding: 10px 20px; background: #24292f; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600;">🔗 Ver detalles en GitHub Actions</a>
+
+              <p style="margin-top: 20px; font-size: 12px; color: #8b949e;">AgroGest VSM CI — notificación automática</p>
+            </div>
