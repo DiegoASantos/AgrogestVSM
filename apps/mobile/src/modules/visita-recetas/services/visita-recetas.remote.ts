@@ -20,6 +20,7 @@ export type SaveRecetaInput = {
     volumenAplicacion?: number | null;
     factor: number;
     factorEditable: boolean;
+    cantidadTotalProducto?: number | null;
     productos: Array<{
       objetivo: "plaga" | "enfermedad";
       objetivoNombre: string;

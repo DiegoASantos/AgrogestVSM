@@ -574,6 +574,10 @@ function renderFitosanidad(receta: VisitaRecetaCompleta): string {
     }
     html += `</table>`;
 
+    if (mezcla.cantidadTotalProducto) {
+      html += `<p style="font-size:13px;margin-top:8px;"><strong>Cantidad total a aplicar:</strong> <span class="calculated">${formatNumber(mezcla.cantidadTotalProducto)} mg o mL/ha</span></p>`;
+    }
+
     html += `</div>`;
   }
 

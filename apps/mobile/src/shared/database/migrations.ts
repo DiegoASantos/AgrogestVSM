@@ -1382,6 +1382,28 @@ const MIGRATIONS: Migration[] = [
         "CREATE INDEX IF NOT EXISTS idx_visita_receta_fitosanidad_mezcla ON visita_receta_fitosanidad(mezcla_local_id)"
       );
     }
+  },
+  {
+    version: 56,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(
+        db,
+        "visita_receta_mezcla",
+        "cantidad_total_producto",
+        "TEXT"
+      );
+      db.execSync(
+        `UPDATE visita_receta_mezcla
+         SET cantidad_total_producto = (
+           SELECT COALESCE(SUM(CAST(cantidad_total_producto AS REAL)), 0)
+           FROM visita_receta_fitosanidad
+           WHERE visita_receta_fitosanidad.mezcla_local_id = visita_receta_mezcla.local_id
+             AND visita_receta_fitosanidad.cantidad_total_producto IS NOT NULL
+             AND visita_receta_fitosanidad.cantidad_total_producto != ''
+         )
+         WHERE cantidad_total_producto IS NULL`
+      );
+    }
   }
 ];
 

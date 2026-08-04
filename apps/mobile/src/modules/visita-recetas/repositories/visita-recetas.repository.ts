@@ -96,6 +96,7 @@ type MezclaRow = {
   volumen_aplicacion: string | null;
   factor: string;
   factor_editable: number;
+  cantidad_total_producto: string | null;
   sync_status: SyncStatus;
   created_at: string;
   updated_at: string;
@@ -350,6 +351,7 @@ export const visitaRecetasRepository = {
         volumenAplicacion: number | null;
         factor: number;
         factorEditable: boolean;
+        cantidadTotalProducto: number | null;
         productos: Array<{
           objetivo: "plaga" | "enfermedad";
           objetivoNombre: string;
@@ -441,8 +443,8 @@ export const visitaRecetasRepository = {
         const stmtMezcla = db.prepareSync(
           `INSERT INTO visita_receta_mezcla
          (local_id, server_id, receta_local_id, numero, coadyuvantes_ids, orden_mezcla,
-          volumen_aplicacion, factor, factor_editable, sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+          volumen_aplicacion, factor, factor_editable, cantidad_total_producto, sync_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
         );
         const stmtFito = db.prepareSync(
           `INSERT INTO visita_receta_fitosanidad
@@ -464,6 +466,7 @@ export const visitaRecetasRepository = {
             mezcla.volumenAplicacion?.toString() ?? null,
             mezcla.factor.toString(),
             mezcla.factorEditable ? 1 : 0,
+            mezcla.cantidadTotalProducto?.toString() ?? null,
             timestamp,
             timestamp
           ]);
@@ -663,6 +666,7 @@ function mapMezclaRow(row: MezclaRow, productos: FitosanidadRow[]): RecetaMezcla
     volumenAplicacion: parseNullableNumeric(row.volumen_aplicacion),
     factor: parseNullableNumeric(row.factor) ?? 1,
     factorEditable: row.factor_editable === 1,
+    cantidadTotalProducto: parseNullableNumeric(row.cantidad_total_producto),
     productos: productos.map(mapFitosanidadRow),
     syncStatus: row.sync_status,
     createdAt: row.created_at,

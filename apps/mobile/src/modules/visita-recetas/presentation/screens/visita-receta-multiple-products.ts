@@ -44,6 +44,7 @@ export type AppMezcla = {
   ordenMezcla: string[];
   factor: string;
   factorEditable: boolean;
+  cantidadTotalProducto: string;
 };
 
 export type AppFertilizacion = {
@@ -88,7 +89,8 @@ export function createEmptyMezcla(numero: number, volumenAplicacion = ""): AppMe
     coadyuvantesIds: [],
     ordenMezcla: [],
     factor: "1",
-    factorEditable: false
+    factorEditable: false,
+    cantidadTotalProducto: ""
   };
 }
 
@@ -156,7 +158,8 @@ export function restoreMezclas(rows: RecetaMezcla[]): AppMezcla[] {
     coadyuvantesIds: parseJsonArray(row.coadyuvantesIds),
     ordenMezcla: parseJsonArray(row.ordenMezcla),
     factor: row.factor.toString(),
-    factorEditable: row.factorEditable
+    factorEditable: row.factorEditable,
+    cantidadTotalProducto: row.cantidadTotalProducto?.toString() ?? ""
   }));
 }
 
@@ -192,16 +195,8 @@ export function buildMezclasForSave(
   applications: AppFitosanidad[],
   mezclas: AppMezcla[]
 ): SaveRecetaData["mezclas"] {
-  return mezclas.map((mezcla) => ({
-    numero: mezcla.numero,
-    coadyuvantesIds:
-      mezcla.coadyuvantesIds.length > 0 ? JSON.stringify(mezcla.coadyuvantesIds) : null,
-    ordenMezcla:
-      mezcla.ordenMezcla.length > 0 ? JSON.stringify(mezcla.ordenMezcla) : null,
-    volumenAplicacion: parsePositiveDecimal(mezcla.volumenAplicacion),
-    factor: parsePositiveDecimal(mezcla.factor) ?? 1,
-    factorEditable: mezcla.factorEditable,
-    productos: applications.flatMap((application) =>
+  return mezclas.map((mezcla) => {
+    const productos = applications.flatMap((application) =>
       application.ingredientes
         .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
         .map((ingredient) => ({
@@ -222,8 +217,20 @@ export function buildMezclasForSave(
               mezcla.factor
             ) || null
         }))
-    )
-  }));
+    );
+    return {
+      numero: mezcla.numero,
+      coadyuvantesIds:
+        mezcla.coadyuvantesIds.length > 0 ? JSON.stringify(mezcla.coadyuvantesIds) : null,
+      ordenMezcla:
+        mezcla.ordenMezcla.length > 0 ? JSON.stringify(mezcla.ordenMezcla) : null,
+      volumenAplicacion: parsePositiveDecimal(mezcla.volumenAplicacion),
+      factor: parsePositiveDecimal(mezcla.factor) ?? 1,
+      factorEditable: mezcla.factorEditable,
+      cantidadTotalProducto: productos.reduce((sum, p) => sum + (p.cantidadTotalProducto ?? 0), 0) || null,
+      productos
+    };
+  });
 }
 
 export function buildFertilizacionesForSave(

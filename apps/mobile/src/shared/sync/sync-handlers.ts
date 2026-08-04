@@ -994,6 +994,7 @@ async function handleReceta(
         volumenAplicacion: mezcla.volumenAplicacion ?? undefined,
         factor: mezcla.factor,
         factorEditable: mezcla.factorEditable,
+        cantidadTotalProducto: mezcla.cantidadTotalProducto ?? undefined,
         productos: mezcla.productos.map((f) => ({
           objetivo: f.objetivo,
           objetivoNombre: f.objetivoNombre,

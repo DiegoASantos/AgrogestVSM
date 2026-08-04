@@ -79,6 +79,7 @@ export type RecetaMezcla = {
   volumenAplicacion: number | null;
   factor: number;
   factorEditable: boolean;
+  cantidadTotalProducto: number | null;
   productos: RecetaFitosanidad[];
   syncStatus: "pending" | "synced" | "error";
   createdAt: string;

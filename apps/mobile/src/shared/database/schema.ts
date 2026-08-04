@@ -392,6 +392,7 @@ export const SQL_SCHEMA = [
     volumen_aplicacion TEXT,
     factor TEXT NOT NULL DEFAULT '1',
     factor_editable INTEGER NOT NULL DEFAULT 0 CHECK(factor_editable IN (0, 1)),
+    cantidad_total_producto TEXT,
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,

@@ -44,6 +44,15 @@ export class VisitaRecetaMezclaEntity {
   @Column({ name: "factor_editable", type: "boolean", default: false })
   factorEditable!: boolean;
 
+  @Column({
+    name: "cantidad_total_producto",
+    type: "numeric",
+    precision: 14,
+    scale: 4,
+    nullable: true
+  })
+  cantidadTotalProducto!: number | null;
+
   @CreateDateColumn({ name: "creado_at", type: "timestamptz" })
   createdAt!: Date;
 

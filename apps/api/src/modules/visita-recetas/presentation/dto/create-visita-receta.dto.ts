@@ -179,6 +179,15 @@ export class MezclaDto {
   @IsBoolean()
   factorEditable!: boolean;
 
+  @ApiPropertyOptional({
+    example: 600,
+    description: "Cantidad total de producto comercial a aplicar por hectarea (mg o mL)."
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cantidadTotalProducto?: number;
+
   @ApiProperty({
     type: [FitosanidadProductoDto],
     description: "Productos comerciales que comparten el tanque."

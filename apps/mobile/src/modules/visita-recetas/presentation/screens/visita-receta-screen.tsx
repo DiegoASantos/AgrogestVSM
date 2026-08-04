@@ -59,6 +59,7 @@ import {
 import {
   buildFertilizacionesForSave,
   buildMezclasForSave,
+  calculateTotal,
   collectNomenclaturaPorMezcla,
   createEmptyMezcla,
   createEmptyFertilizacion,
@@ -500,9 +501,15 @@ export function VisitaRecetaScreen() {
           .map((ingredient) => ingredient.marcaProductoNombre)
           .filter(Boolean)
       );
+      const totalProductos = applications.reduce((sum, application) => {
+        return sum + application.ingredientes
+          .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
+          .reduce((acc, ing) => acc + (calculateTotal(ing.dosisProducto, mezcla.volumenAplicacion, mezcla.factor) || 0), 0);
+      }, 0);
       return {
         ...mezcla,
-        ordenMezcla: generateOrdenMezcla(coadyuvanteNames, commercialNames)
+        ordenMezcla: generateOrdenMezcla(coadyuvanteNames, commercialNames),
+        cantidadTotalProducto: totalProductos ? totalProductos.toFixed(2) : ""
       };
     });
   }
@@ -1350,20 +1357,6 @@ function IngredienteCard({
         onChangeText={(dosisProducto) => onChange({ dosisProducto })}
       />
 
-      <LabeledNumericInput
-        editable={false}
-        label="Concentracion comercial"
-        placeholder={
-          value.marcaProductoNombre
-            ? "Concentracion no disponible. Actualiza los catalogos."
-            : "Selecciona un nombre comercial"
-        }
-        value={formatCatalogConcentration(
-          value.concentracionProducto,
-          value.unidadMedidaProducto
-        )}
-      />
-
       <ReadonlyField
         label="Cantidad total de producto (mg o mL/ha)"
         value={value.cantidadTotalProducto}
@@ -1428,6 +1421,15 @@ function MezclaCard({
           ? "Incidencia grado 3: puede ajustar el factor."
           : "Factor calculado automáticamente según la mayor incidencia de la mezcla."}
       </AppText>
+
+      {value.cantidadTotalProducto ? (
+        <View style={styles.totalRow}>
+          <AppText variant="label">Cantidad total a aplicar (por ha)</AppText>
+          <AppText variant="heading">
+            {Number(value.cantidadTotalProducto).toFixed(2)} mg o mL
+          </AppText>
+        </View>
+      ) : null}
 
       <AppText variant="label" style={styles.fieldLabel}>
         Coadyuvantes
@@ -2274,6 +2276,12 @@ const styles = StyleSheet.create({
   },
   ordenItemFixed: {
     opacity: 0.72
+  },
+  totalRow: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderRadius: theme.radius.md,
+    marginTop: 10,
+    padding: 14
   },
   ordenItemText: {
     flex: 1

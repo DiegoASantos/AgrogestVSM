@@ -206,7 +206,8 @@ export class VisitaRecetasService {
           ordenMezcla: mezcla.ordenMezcla ?? null,
           volumenAplicacion: mezcla.volumenAplicacion ?? null,
           factor: mezcla.factor,
-          factorEditable: mezcla.factorEditable
+          factorEditable: mezcla.factorEditable,
+          cantidadTotalProducto: mezcla.cantidadTotalProducto ?? null
         })
       );
 
@@ -339,6 +340,7 @@ export class VisitaRecetasService {
           volumenAplicacion: mezcla.volumenAplicacion,
           factor: mezcla.factor,
           factorEditable: mezcla.factorEditable,
+          cantidadTotalProducto: mezcla.cantidadTotalProducto,
           productos: (mezcla.productos ?? []).map((producto) => ({
             id: producto.id,
             objetivo: producto.objetivo,

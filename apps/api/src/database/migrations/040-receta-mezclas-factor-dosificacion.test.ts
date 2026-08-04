@@ -7,6 +7,7 @@ describe("040 receta mezclas factor dosificacion", () => {
 
   it("crea mezclas y conserva columnas legacy", () => {
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS visita_receta_mezclas");
+    expect(sql).toContain("cantidad_total_producto");
     expect(sql).toContain("ADD COLUMN IF NOT EXISTS mezcla_id");
     expect(sql).toContain("ADD COLUMN IF NOT EXISTS dosis_producto");
     expect(sql).not.toContain("DROP COLUMN");

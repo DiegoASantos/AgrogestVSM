@@ -14,11 +14,15 @@ export const RECETA_MEZCLAS_FACTOR_DOSIFICACION_MIGRATION: DatabaseMigration = {
       volumen_aplicacion numeric(12, 4),
       factor numeric(6, 3) NOT NULL DEFAULT 1 CHECK (factor >= 1 AND factor <= 10),
       factor_editable boolean NOT NULL DEFAULT false,
+      cantidad_total_producto numeric(14, 4),
       creado_at timestamptz NOT NULL DEFAULT now(),
       actualizado_at timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT visita_receta_mezclas_receta_id_fkey
         FOREIGN KEY (receta_id) REFERENCES visita_recetas(id) ON DELETE CASCADE
     );
+
+    ALTER TABLE visita_receta_mezclas
+      ADD COLUMN IF NOT EXISTS cantidad_total_producto numeric(14, 4);
 
     ALTER TABLE visita_receta_fitosanidad
       ADD COLUMN IF NOT EXISTS mezcla_id bigint,
