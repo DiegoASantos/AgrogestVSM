@@ -450,7 +450,7 @@ export const visitaRecetasRepository = {
           disolvente, modo_accion_id, ingrediente_activo_nombre, dosis_ia, dosis_producto, volumen_aplicacion,
           cantidad_total_ia, marca_producto_nombre, concentracion_producto, cantidad_total_producto,
           coadyuvantes_ids, orden_mezcla, sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
         );
         for (const mezcla of data.mezclas) {
           const mezclaLocalId = generateLocalId();
