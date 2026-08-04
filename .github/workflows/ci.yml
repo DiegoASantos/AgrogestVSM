@@ -132,6 +132,12 @@ jobs:
           echo "SHA_SHORT=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
           echo "RUN_URL=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
 
+          if [ "$TC" = "success" ] && [ "$LI" = "success" ] && [ "$TE" = "success" ]; then
+            echo "BORDER_COLOR=28a745" >> $GITHUB_OUTPUT
+          else
+            echo "BORDER_COLOR=cb2431" >> $GITHUB_OUTPUT
+          fi
+
       - name: Notificar Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -202,7 +208,7 @@ jobs:
               </table>
 
               <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #24292f;">📋 Resultados por job</h3>
-              <pre style="background: #f6f8fa; padding: 12px 16px; border-radius: 6px; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; border-left: 4px solid #${{ steps.status.outputs.ESTADO == 'ÉXITO' && '28a745' || 'cb2431' }};">${{ steps.status.outputs.TC_EMOJI }} Typecheck: <b>${{ steps.status.outputs.TC_RESULT }}</b>
+              <pre style="background: #f6f8fa; padding: 12px 16px; border-radius: 6px; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; border-left: 4px solid #${{ steps.status.outputs.BORDER_COLOR }};">${{ steps.status.outputs.TC_EMOJI }} Typecheck: <b>${{ steps.status.outputs.TC_RESULT }}</b>
 ${{ steps.status.outputs.LI_EMOJI }} Lint: <b>${{ steps.status.outputs.LI_RESULT }}</b>
 ${{ steps.status.outputs.TE_EMOJI }} Tests: <b>${{ steps.status.outputs.TE_RESULT }}</b></pre>
 
