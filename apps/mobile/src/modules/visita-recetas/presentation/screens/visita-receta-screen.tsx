@@ -1149,6 +1149,7 @@ function FitosanidadCard({
               ingredientesActivos={ingredientesActivos}
               key={ingredient.localId}
               marcasProducto={marcasProducto}
+              mezclas={mezclas}
               modosAccion={modosAccion}
               onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
               onCloseDropdown={onCloseDropdown}
@@ -1200,6 +1201,7 @@ function IngredienteCard({
   marcasProducto: MarcaProductoCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
+  mezclas: AppMezcla[];
   openDropdown: string | null;
   onChange: (patch: Partial<AppIngrediente>) => void;
   onCloseDropdown: () => void;
