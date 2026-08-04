@@ -536,6 +536,19 @@ export function VisitaRecetaScreen() {
     );
   }
 
+  function asignarProductoMezcla(ingredientLocalId: string, mezclaNumero: number) {
+    setFitosanidadApps((prev) => {
+      const next = prev.map((app) => ({
+        ...app,
+        ingredientes: app.ingredientes.map((ing) =>
+          ing.localId === ingredientLocalId ? { ...ing, mezclaNumero } : ing
+        )
+      }));
+      setMezclas((currentMezclas) => deriveMezclaFactors(next, currentMezclas));
+      return next;
+    });
+  }
+
   function updateMezclaCount(value: string) {
     const parsed = Number.parseInt(value, 10);
     const count = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(20, parsed));
@@ -817,7 +830,6 @@ export function VisitaRecetaScreen() {
                   removeIngrediente(index, ingredientIndex)
                 }
                 openDropdown={openDropdown}
-                mezclas={mezclas}
                 tiposControl={tiposControl}
                 tiposProducto={tiposProducto}
                 toggleDropdown={toggleDropdown}
@@ -847,6 +859,7 @@ export function VisitaRecetaScreen() {
                   fitosanidadApps={fitosanidadApps}
                   key={mezcla.localId}
                   onChange={(patch) => updateMezcla(index, patch)}
+                  onAsignarProducto={asignarProductoMezcla}
                   resetToken={ordenExchangeResetToken}
                   value={mezcla}
                 />
@@ -1076,7 +1089,6 @@ function FitosanidadCard({
   tiposControl,
   tiposProducto,
   modosAccion,
-  mezclas,
   openDropdown,
   onAddIngrediente,
   onChange,
@@ -1093,7 +1105,6 @@ function FitosanidadCard({
   tiposControl: TipoControlCatalogItem[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
-  mezclas: AppMezcla[];
   openDropdown: string | null;
   onAddIngrediente: () => void;
   onChange: (patch: Partial<AppFitosanidad>) => void;
@@ -1149,7 +1160,6 @@ function FitosanidadCard({
               ingredientesActivos={ingredientesActivos}
               key={ingredient.localId}
               marcasProducto={marcasProducto}
-              mezclas={mezclas}
               modosAccion={modosAccion}
               onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
               onCloseDropdown={onCloseDropdown}
@@ -1183,7 +1193,6 @@ function IngredienteCard({
   ingredientesActivos,
   marcasProducto,
   modosAccion,
-  mezclas,
   tiposProducto,
   openDropdown,
   onChange,
@@ -1201,7 +1210,6 @@ function IngredienteCard({
   marcasProducto: MarcaProductoCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
-  mezclas: AppMezcla[];
   openDropdown: string | null;
   onChange: (patch: Partial<AppIngrediente>) => void;
   onCloseDropdown: () => void;
@@ -1351,45 +1359,60 @@ function IngredienteCard({
   );
 }
 
-function renderProductosMezcla(mezcla: AppMezcla, applications: AppFitosanidad[]) {
-  const productos = applications.flatMap((application) =>
+function renderProductosMezcla(
+  mezcla: AppMezcla,
+  applications: AppFitosanidad[],
+  onAsignarProducto: (ingredientLocalId: string, mezclaNumero: number) => void
+) {
+  const todos = applications.flatMap((application) =>
     application.ingredientes
-      .filter(
-        (ingredient) =>
-          ingredient.mezclaNumero === mezcla.numero &&
-          ingredient.dosisProducto.trim()
-      )
-      .map((ingredient) => {
-        const total = calculateTotal(
-          ingredient.dosisProducto,
-          mezcla.volumenAplicacion,
-          mezcla.factor
-        );
-        return {
-          key: ingredient.localId,
-          nombre: ingredient.marcaProductoNombre || ingredient.ingredienteActivoNombre || "Sin nombre",
-          total: total ? total.toFixed(2) : ""
-        };
-      })
+      .filter((ingredient) => ingredient.ingredienteActivoNombre || ingredient.marcaProductoNombre)
+      .map((ingredient) => ({
+        localId: ingredient.localId,
+        nombre: ingredient.marcaProductoNombre || ingredient.ingredienteActivoNombre || "Sin nombre",
+        objetivo: application.objetivoNombre || application.objetivo,
+        asignado: ingredient.mezclaNumero === mezcla.numero
+      }))
   );
 
-  if (productos.length === 0) return null;
+  if (todos.length === 0) return null;
 
-  const granTotal = productos.reduce((sum, p) => sum + (parsePositiveDecimal(p.total) ?? 0), 0);
+  const asignados = todos.filter((p) => p.asignado);
 
   return (
     <View style={styles.totalRow}>
-      <AppText variant="label">Productos asignados a esta mezcla</AppText>
-      {productos.map((p) => (
-        <View key={p.key} style={styles.productoTotalRow}>
-          <AppText variant="caption">{p.nombre}</AppText>
-          <AppText variant="caption">{p.total} mg o mL/ha</AppText>
-        </View>
+      <AppText variant="label">Productos en esta mezcla</AppText>
+      {todos.map((producto) => (
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: producto.asignado }}
+          key={producto.localId}
+          onPress={() => onAsignarProducto(producto.localId, mezcla.numero)}
+          style={[styles.productoCheckRow, producto.asignado && styles.productoCheckRowSelected]}
+        >
+          <Ionicons
+            color={producto.asignado ? theme.colors.primary : theme.colors.textMuted}
+            name={producto.asignado ? "checkbox" : "square-outline"}
+            size={20}
+          />
+          <View style={{ flex: 1 }}>
+            <AppText
+              style={producto.asignado ? { color: theme.colors.primary } : undefined}
+              variant="caption"
+            >
+              {producto.nombre}
+            </AppText>
+            <AppText variant="muted" style={{ fontSize: 11 }}>
+              {producto.objetivo}
+            </AppText>
+          </View>
+        </Pressable>
       ))}
-      {granTotal > 0 ? (
-        <View style={[styles.productoTotalRow, { borderTopWidth: 1, borderTopColor: theme.colors.primary, marginTop: 4, paddingTop: 4 }]}>
-          <AppText variant="label">Total</AppText>
-          <AppText variant="label">{granTotal.toFixed(2)} mg o mL</AppText>
+      {asignados.length > 0 ? (
+        <View style={{ marginTop: 8 }}>
+          <AppText variant="caption" style={{ color: theme.colors.textMuted }}>
+            {asignados.length} producto(s) asignado(s)
+          </AppText>
         </View>
       ) : null}
     </View>
@@ -1401,13 +1424,15 @@ function MezclaCard({
   coadyuvantes,
   resetToken,
   fitosanidadApps,
-  onChange
+  onChange,
+  onAsignarProducto
 }: {
   value: AppMezcla;
   coadyuvantes: CoadyuvanteCatalogItem[];
   resetToken: number;
   fitosanidadApps: AppFitosanidad[];
   onChange: (patch: Partial<AppMezcla>) => void;
+  onAsignarProducto: (ingredientLocalId: string, mezclaNumero: number) => void;
 }) {
   const [isExchangeMode, setIsExchangeMode] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -1455,7 +1480,7 @@ function MezclaCard({
           : "Factor calculado automáticamente según la mayor incidencia de la mezcla."}
       </AppText>
 
-      {renderProductosMezcla(value, fitosanidadApps)}
+      {renderProductosMezcla(value, fitosanidadApps, onAsignarProducto)}
 
       <AppText variant="label" style={styles.fieldLabel}>
         Coadyuvantes
@@ -2313,6 +2338,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 6
+  },
+  productoCheckRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.borderLight
+  },
+  productoCheckRowSelected: {
+    backgroundColor: theme.colors.primaryMuted
   },
   ordenItemText: {
     flex: 1
