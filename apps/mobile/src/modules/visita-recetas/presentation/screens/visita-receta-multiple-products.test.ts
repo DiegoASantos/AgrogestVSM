@@ -25,6 +25,7 @@ const mezcla: RecetaMezcla = {
   volumenAplicacion: 2,
   factor: 1.2,
   factorEditable: false,
+  cantidadTotalProducto: 600,
   syncStatus: "pending",
   createdAt: now,
   updatedAt: now,

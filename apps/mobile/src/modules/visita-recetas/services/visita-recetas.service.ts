@@ -251,8 +251,8 @@ export const visitaRecetasService = {
   } {
     const db = getDatabase();
 
-    const ultimaVisita = db.getFirstSync<{ id: string }>(
-      `SELECT id
+    const ultimaVisita = db.getFirstSync<{ local_id: string }>(
+      `SELECT local_id
        FROM visitas_campo
        WHERE parcela_id = ?
          AND is_active = 1
@@ -266,7 +266,7 @@ export const visitaRecetasService = {
     }
 
     const ultimaReceta = visitaRecetasRepository.getRecetaByVisitaLocalId(
-      ultimaVisita.id
+      ultimaVisita.local_id
     );
 
     if (!ultimaReceta) {

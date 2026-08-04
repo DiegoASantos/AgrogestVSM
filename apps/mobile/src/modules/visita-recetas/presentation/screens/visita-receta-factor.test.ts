@@ -101,8 +101,8 @@ describe("Spec 029 - factor de incidencia", () => {
         ingredientes: [{ localId: "i1", mezclaNumero: 2, tipoProductoId: "", modoAccionId: "", ingredienteActivoId: "", ingredienteActivoNombre: "", dosisProducto: "", marcaProductoNombre: "", concentracionProducto: "", unidadMedidaProducto: "", cantidadTotalProducto: "" }]
       };
       const mezclas: AppMezcla[] = [
-        { localId: "m1", numero: 1, volumenAplicacion: "2", coadyuvantesIds: [], ordenMezcla: [], factor: "1", factorEditable: false },
-        { localId: "m2", numero: 2, volumenAplicacion: "2", coadyuvantesIds: [], ordenMezcla: [], factor: "1", factorEditable: false }
+        { localId: "m1", numero: 1, volumenAplicacion: "2", coadyuvantesIds: [], ordenMezcla: [], factor: "1", factorEditable: false, cantidadTotalProducto: "" },
+        { localId: "m2", numero: 2, volumenAplicacion: "2", coadyuvantesIds: [], ordenMezcla: [], factor: "1", factorEditable: false, cantidadTotalProducto: "" }
       ];
       const result = deriveMezclaFactors([app], mezclas);
       expect(result[0].factor).toBe("1");
@@ -121,7 +121,7 @@ describe("Spec 029 - factor de incidencia", () => {
         ingredientes: [{ localId: "i1", mezclaNumero: 1, tipoProductoId: "", modoAccionId: "", ingredienteActivoId: "", ingredienteActivoNombre: "", dosisProducto: "", marcaProductoNombre: "", concentracionProducto: "", unidadMedidaProducto: "", cantidadTotalProducto: "" }]
       };
       const mezclas: AppMezcla[] = [
-        { localId: "m1", numero: 1, volumenAplicacion: "2", coadyuvantesIds: [], ordenMezcla: [], factor: "1", factorEditable: false }
+        { localId: "m1", numero: 1, volumenAplicacion: "2", coadyuvantesIds: [], ordenMezcla: [], factor: "1", factorEditable: false, cantidadTotalProducto: "" }
       ];
       const result = deriveMezclaFactors([app], mezclas);
       expect(result[0].factor).toBe("1.5");
@@ -140,7 +140,7 @@ describe("Spec 029 - factor de incidencia", () => {
         ingredientes: [{ localId: "i1", mezclaNumero: 1, tipoProductoId: "", modoAccionId: "", ingredienteActivoId: "", ingredienteActivoNombre: "", dosisProducto: "", marcaProductoNombre: "", concentracionProducto: "", unidadMedidaProducto: "", cantidadTotalProducto: "" }]
       };
       const mezclas: AppMezcla[] = [
-        { localId: "m1", numero: 1, volumenAplicacion: "2", coadyuvantesIds: [], ordenMezcla: [], factor: "2", factorEditable: true }
+        { localId: "m1", numero: 1, volumenAplicacion: "2", coadyuvantesIds: [], ordenMezcla: [], factor: "2", factorEditable: true, cantidadTotalProducto: "" }
       ];
       const result = deriveMezclaFactors([app], mezclas);
       expect(result[0].factor).toBe("2");
@@ -166,8 +166,8 @@ describe("collectNomenclaturaPorMezcla", () => {
       }
     ];
     const mezclas: AppMezcla[] = [
-      { localId: "m1", numero: 1, volumenAplicacion: "", coadyuvantesIds: ["coad-1"], ordenMezcla: [], factor: "1", factorEditable: false },
-      { localId: "m2", numero: 2, volumenAplicacion: "", coadyuvantesIds: [], ordenMezcla: [], factor: "1", factorEditable: false }
+      { localId: "m1", numero: 1, volumenAplicacion: "", coadyuvantesIds: ["coad-1"], ordenMezcla: [], factor: "1", factorEditable: false, cantidadTotalProducto: "" },
+      { localId: "m2", numero: 2, volumenAplicacion: "", coadyuvantesIds: [], ordenMezcla: [], factor: "1", factorEditable: false, cantidadTotalProducto: "" }
     ];
     const coadyuvantes = [{ id: "coad-1", name: "Adherente", description: null }];
 

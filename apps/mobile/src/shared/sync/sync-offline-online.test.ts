@@ -484,6 +484,7 @@ function seedOfflineCompleteVisit() {
         volumenAplicacion: 200,
         factor: 1,
         factorEditable: false,
+        cantidadTotalProducto: null,
         syncStatus: "pending",
         createdAt: now,
         updatedAt: now,

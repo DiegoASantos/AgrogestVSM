@@ -1,17 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../shared/database/connection", () => ({
-  getDatabase: () => ({
-    runSync: vi.fn(),
-    execSync: vi.fn(),
-    getAllSync: vi.fn(() => []),
-    getFirstSync: vi.fn(() => null),
-    withTransactionSync: vi.fn((cb: () => void) => cb())
-  })
-}));
-
-import { visitaRecetasService } from "./visita-recetas.service";
-
 const mocks = vi.hoisted(() => ({
   getById: vi.fn(),
   getPestDiseases: vi.fn(),
@@ -20,8 +8,22 @@ const mocks = vi.hoisted(() => ({
   getEvaluacionesByVisitaLocalId: vi.fn(() => []),
   getLaboresCatalog: vi.fn(() => []),
   getLaboresByVisitaLocalId: vi.fn(() => []),
-  getRiegoByVisitaLocalId: vi.fn(() => null)
+  getRiegoByVisitaLocalId: vi.fn(() => null),
+  dbGetFirstSync: vi.fn<(...args: unknown[]) => unknown>(() => null),
+  getRecetaByVisitaLocalId: vi.fn<(...args: unknown[]) => unknown>(() => null)
 }));
+
+vi.mock("../../../shared/database/connection", () => ({
+  getDatabase: () => ({
+    runSync: vi.fn(),
+    execSync: vi.fn(),
+    getAllSync: vi.fn(() => []),
+    getFirstSync: mocks.dbGetFirstSync,
+    withTransactionSync: vi.fn((cb: () => void) => cb())
+  })
+}));
+
+import { visitaRecetasService } from "./visita-recetas.service";
 
 vi.mock("../../evaluaciones/repositories/evaluaciones.repository", () => ({
   evaluacionesRepository: {
@@ -73,7 +75,7 @@ vi.mock("../repositories/visita-recetas.repository", () => ({
     getTiposControl: vi.fn(() => []),
     getTiposProducto: vi.fn(() => []),
     getFertilizantes: vi.fn(() => []),
-    getRecetaByVisitaLocalId: vi.fn(() => null),
+    getRecetaByVisitaLocalId: mocks.getRecetaByVisitaLocalId,
     saveReceta: vi.fn()
   }
 }));
@@ -164,5 +166,22 @@ describe("visitaRecetasService", () => {
         incidenceGrade: 2
       }
     ]);
+  });
+
+  it("reads the previous visit using the SQLite local_id column", () => {
+    mocks.dbGetFirstSync.mockReturnValue({ local_id: "visita-anterior" });
+    mocks.getRecetaByVisitaLocalId.mockReturnValue({
+      mezclas: [{ volumenAplicacion: 2 }],
+      fertilizacion: [{ volumenAplicacion: 3 }]
+    });
+
+    const result = visitaRecetasService.obtenerUltimoVolumenAplicacion("parcela-1");
+
+    expect(mocks.dbGetFirstSync).toHaveBeenCalledWith(
+      expect.stringContaining("SELECT local_id"),
+      "parcela-1"
+    );
+    expect(mocks.getRecetaByVisitaLocalId).toHaveBeenCalledWith("visita-anterior");
+    expect(result).toEqual({ fitosanidad: "2", fertilizacion: "3" });
   });
 });
