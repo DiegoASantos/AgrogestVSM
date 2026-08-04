@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-03
+last_reviewed: 2026-08-04
 ---
 
 # Modelo del dominio
@@ -102,18 +102,29 @@ medida. Esos datos describen el producto seleccionado y son distintos de la
 dosis y su unidad de aplicacion guardadas en el detalle de la receta. Mobile los
 usa como informacion readonly y no los duplica en la receta historica.
 
-Una receta puede contener varios detalles fitosanitarios para el mismo objetivo
-y varios detalles de fertilizacion. En mobile, las filas fitosanitarias con el
-mismo numero, tipo y nombre de objetivo se presentan como una sola aplicacion
-con varios productos; al guardar, cada producto vuelve a persistirse como una
-fila independiente. Las relaciones 1:N existentes en SQLite y PostgreSQL son la
-fuente estructural de esta capacidad y no requieren una tabla adicional.
+Una receta puede contener varias mezclas fitosanitarias y varios detalles de
+fertilizacion. Cada tanque se representa mediante `visita_receta_mezcla` en
+SQLite y `visita_receta_mezclas` en PostgreSQL. La mezcla es la cabecera de sus
+productos y concentra numero, coadyuvantes, orden de preparacion, volumen de
+aplicacion y factor de incidencia; cada producto conserva objetivo, seleccion
+comercial y `dosis_producto`. El total fitosanitario se recalcula como
+`dosis_producto * volumen_aplicacion * factor`, sin usar el area ni la
+concentracion comercial.
 
-Antes de finalizar, mobile contrasta de forma orientativa los ingredientes
-activos, nombres comerciales, coadyuvantes y fertilizantes seleccionados con un
-conjunto local de reglas de incompatibilidad. La advertencia no bloquea el
-guardado y no reemplaza etiquetas, prueba de compatibilidad ni criterio del
-profesional responsable.
+El factor se deriva del grado de incidencia: grados 0 y 1 usan 1, grado 2 usa
+1.2 y grado 3 parte de 1.5 y permite ajuste manual. Una mezcla con varios
+objetivos adopta el factor mayor. Fertilizacion persiste su propio factor y usa
+la misma formula con plantas totales para aplicacion edafica o cilindros para
+aplicacion foliar. Las columnas fitosanitarias anteriores se mantienen
+temporalmente pobladas para permitir rollback y clientes mobile anteriores;
+una migracion de contraccion futura requerira una spec y confirmacion de la
+adopcion de la version nueva.
+
+Antes de finalizar, mobile contrasta de forma orientativa y por cada mezcla los
+ingredientes activos, nombres comerciales y coadyuvantes que comparten tanque;
+los fertilizantes se contrastan con el conjunto aplicable de reglas. La
+advertencia no bloquea el guardado y no reemplaza etiquetas, prueba de
+compatibilidad ni criterio del profesional responsable.
 
 Las calificaciones de cumplimiento viven en `visita_calificaciones` y son hijas
 de una visita. Cada visita puede tener una calificación por módulo:

@@ -393,17 +393,26 @@ describe("API critical HTTP integration contract", () => {
       url: "/visitas-campo/7/receta",
       payload: {
         etapaFenologica: "Floracion",
-        fitosanidad: [
+        mezclas: [
           {
             numero: 1,
-            objetivo: "plaga",
-            objetivoNombre: "Trips"
+            volumenAplicacion: 2,
+            factor: 1.2,
+            factorEditable: false,
+            productos: [
+              {
+                objetivo: "plaga",
+                objetivoNombre: "Trips",
+                dosisProducto: 250
+              }
+            ]
           }
         ],
         fertilizacion: [
           {
             viaAplicacion: "foliar",
-            fertilizanteNombre: "Nitrato de potasio"
+            fertilizanteNombre: "Nitrato de potasio",
+            factor: 1
           }
         ],
         riego: {
@@ -428,8 +437,50 @@ describe("API critical HTTP integration contract", () => {
     expect(recetasService.save).toHaveBeenCalledWith(
       "7",
       expect.objectContaining({
-        fitosanidad: [expect.objectContaining({ objetivo: "plaga" })],
+        mezclas: [
+          expect.objectContaining({
+            productos: [expect.objectContaining({ objetivo: "plaga" })]
+          })
+        ],
         riego: expect.objectContaining({ tipoRecomendacion: "riego_ligero" })
+      })
+    );
+  });
+
+  it("accepts the temporary flat recipe contract from older mobile clients", async () => {
+    recetasService.save.mockResolvedValue(
+      createSuccessResponse({ id: "16", visitaId: "8", version: 1 })
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/visitas-campo/8/receta",
+      payload: {
+        fitosanidad: [
+          {
+            numero: 1,
+            objetivo: "plaga",
+            objetivoNombre: "Trips",
+            dosisIa: 250,
+            volumenAplicacion: 2
+          }
+        ],
+        fertilizacion: [
+          {
+            viaAplicacion: "foliar",
+            fertilizanteNombre: "Nitrato de potasio"
+          }
+        ],
+        labores: []
+      }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(recetasService.save).toHaveBeenCalledWith(
+      "8",
+      expect.objectContaining({
+        fitosanidad: [expect.objectContaining({ dosisIa: 250 })],
+        fertilizacion: [expect.not.objectContaining({ factor: expect.anything() })]
       })
     );
   });

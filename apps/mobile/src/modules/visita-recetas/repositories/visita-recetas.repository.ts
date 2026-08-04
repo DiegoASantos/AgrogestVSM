@@ -10,6 +10,7 @@ import type {
   TipoControlCatalogItem,
   TipoProductoFitosanitarioCatalogItem,
   FertilizanteCatalogItem,
+  RecetaMezcla,
   RecetaFitosanidad,
   RecetaFertilizacion,
   RecetaRiego,
@@ -62,6 +63,7 @@ type FitosanidadRow = {
   local_id: string;
   server_id: string | null;
   receta_local_id: string;
+  mezcla_local_id: string | null;
   numero: number;
   objetivo: "plaga" | "enfermedad";
   objetivo_nombre: string;
@@ -71,6 +73,7 @@ type FitosanidadRow = {
   modo_accion_id: string | null;
   ingrediente_activo_nombre: string | null;
   dosis_ia: string | null;
+  dosis_producto: string | null;
   volumen_aplicacion: string | null;
   cantidad_total_ia: string | null;
   marca_producto_nombre: string | null;
@@ -78,6 +81,21 @@ type FitosanidadRow = {
   cantidad_total_producto: string | null;
   coadyuvantes_ids: string | null;
   orden_mezcla: string | null;
+  sync_status: SyncStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+type MezclaRow = {
+  local_id: string;
+  server_id: string | null;
+  receta_local_id: string;
+  numero: number;
+  coadyuvantes_ids: string | null;
+  orden_mezcla: string | null;
+  volumen_aplicacion: string | null;
+  factor: string;
+  factor_editable: number;
   sync_status: SyncStatus;
   created_at: string;
   updated_at: string;
@@ -95,6 +113,7 @@ type FertilizacionRow = {
   cantidad_total_plantas: string | null;
   volumen_aplicacion: string | null;
   cantidad_total_fertilizante: string | null;
+  factor: string;
   sync_status: SyncStatus;
   created_at: string;
   updated_at: string;
@@ -151,8 +170,15 @@ export const visitaRecetasRepository = {
       public_id: string;
       name: string;
       description: string | null;
-    }>("SELECT id, public_id, name, description FROM ingredientes_activos ORDER BY name ASC");
-    return rows.map((r) => ({ id: r.id, publicId: r.public_id, name: r.name, description: r.description }));
+    }>(
+      "SELECT id, public_id, name, description FROM ingredientes_activos ORDER BY name ASC"
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      publicId: r.public_id,
+      name: r.name,
+      description: r.description
+    }));
   },
 
   getMarcasProducto(): MarcaProductoCatalogItem[] {
@@ -251,7 +277,11 @@ export const visitaRecetasRepository = {
     return recetaRow ? readRecetaFromRow(db, recetaRow) : null;
   },
 
-  markSynced(recetaLocalId: string, serverId: string | null) {
+  markSynced(
+    recetaLocalId: string,
+    serverId: string | null,
+    remoteMezclas: Array<{ id: string; numero: number }> = []
+  ) {
     const db = getDatabase();
     const timestamp = getNowIsoString();
 
@@ -263,6 +293,22 @@ export const visitaRecetasRepository = {
       timestamp,
       recetaLocalId
     );
+    db.runSync(
+      `UPDATE visita_receta_mezcla
+       SET sync_status = 'synced', updated_at = ?
+       WHERE receta_local_id = ?`,
+      timestamp,
+      recetaLocalId
+    );
+    for (const mezcla of remoteMezclas) {
+      db.runSync(
+        `UPDATE visita_receta_mezcla SET server_id = ?
+         WHERE receta_local_id = ? AND numero = ?`,
+        mezcla.id,
+        recetaLocalId,
+        mezcla.numero
+      );
+    }
     db.runSync(
       `UPDATE visita_receta_fitosanidad
        SET sync_status = 'synced', updated_at = ?
@@ -297,23 +343,26 @@ export const visitaRecetasRepository = {
     visitaLocalId: string,
     data: {
       etapaFenologica: string | null;
-      fitosanidad: Array<{
+      mezclas: Array<{
         numero: number;
-        objetivo: "plaga" | "enfermedad";
-        objetivoNombre: string;
-        tipoControlId: string | null;
-        tipoProductoId: string | null;
-        disolvente: string;
-        modoAccionId: string | null;
-        ingredienteActivoNombre: string | null;
-        dosisIa: number | null;
-        volumenAplicacion: number | null;
-        cantidadTotalIa: number | null;
-        marcaProductoNombre: string | null;
-        concentracionProducto: number | null;
-        cantidadTotalProducto: number | null;
         coadyuvantesIds: string | null;
         ordenMezcla: string | null;
+        volumenAplicacion: number | null;
+        factor: number;
+        factorEditable: boolean;
+        productos: Array<{
+          objetivo: "plaga" | "enfermedad";
+          objetivoNombre: string;
+          tipoControlId: string | null;
+          tipoProductoId: string | null;
+          disolvente: string;
+          modoAccionId: string | null;
+          ingredienteActivoNombre: string | null;
+          dosisProducto: number | null;
+          marcaProductoNombre: string | null;
+          concentracionProducto: number | null;
+          cantidadTotalProducto: number | null;
+        }>;
       }>;
       fertilizacion: Array<{
         viaAplicacion: "edafica" | "foliar";
@@ -324,6 +373,7 @@ export const visitaRecetasRepository = {
         cantidadTotalPlantas: number | null;
         volumenAplicacion: number | null;
         cantidadTotalFertilizante: number | null;
+        factor: number;
       }>;
       riego: {
         tipoRecomendacion: string;
@@ -333,160 +383,191 @@ export const visitaRecetasRepository = {
   ): VisitaRecetaCompleta {
     const db = getDatabase();
     const timestamp = getNowIsoString();
-
-    const existingReceta = db.getFirstSync<VisitaRecetaRow>(
-      "SELECT local_id, server_id, version FROM visita_recetas WHERE visita_local_id = ? LIMIT 1",
-      visitaLocalId
-    );
-
-    let recetaLocalId: string;
+    let recetaLocalId = "";
     let isNew = true;
 
-    if (existingReceta) {
-      recetaLocalId = existingReceta.local_id;
-      const newVersion = existingReceta.version + 1;
-      db.runSync(
-        `UPDATE visita_recetas SET etapa_fenologica = ?, version = ?, updated_at = ?, sync_status = 'pending' WHERE local_id = ?`,
-        data.etapaFenologica,
-        newVersion,
-        timestamp,
-        recetaLocalId
+    db.withTransactionSync(() => {
+      const existingReceta = db.getFirstSync<VisitaRecetaRow>(
+        "SELECT local_id, server_id, version FROM visita_recetas WHERE visita_local_id = ? LIMIT 1",
+        visitaLocalId
       );
-      db.runSync(
-        "DELETE FROM visita_receta_fitosanidad WHERE receta_local_id = ?",
-        recetaLocalId
-      );
-      db.runSync(
-        "DELETE FROM visita_receta_fertilizacion WHERE receta_local_id = ?",
-        recetaLocalId
-      );
-      db.runSync(
-        "DELETE FROM visita_receta_riego WHERE receta_local_id = ?",
-        recetaLocalId
-      );
-      db.runSync(
-        "DELETE FROM visita_receta_labores WHERE receta_local_id = ?",
-        recetaLocalId
-      );
-      isNew = false;
-    } else {
-      recetaLocalId = generateLocalId();
-      db.runSync(
-        `INSERT INTO visita_recetas (local_id, server_id, visita_local_id, etapa_fenologica, version, sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 1, 'pending', ?, ?)`,
-        recetaLocalId,
-        null,
-        visitaLocalId,
-        data.etapaFenologica,
-        timestamp,
-        timestamp
-      );
-    }
 
-    if (data.fitosanidad.length > 0) {
-      const stmtFito = db.prepareSync(
-        `INSERT INTO visita_receta_fitosanidad
-         (local_id, server_id, receta_local_id, numero, objetivo, objetivo_nombre, tipo_control_id, tipo_producto_id,
-          disolvente, modo_accion_id, ingrediente_activo_nombre, dosis_ia, volumen_aplicacion,
+      if (existingReceta) {
+        recetaLocalId = existingReceta.local_id;
+        const newVersion = existingReceta.version + 1;
+        db.runSync(
+          `UPDATE visita_recetas SET etapa_fenologica = ?, version = ?, updated_at = ?, sync_status = 'pending' WHERE local_id = ?`,
+          data.etapaFenologica,
+          newVersion,
+          timestamp,
+          recetaLocalId
+        );
+        db.runSync(
+          "DELETE FROM visita_receta_fitosanidad WHERE receta_local_id = ?",
+          recetaLocalId
+        );
+        db.runSync(
+          "DELETE FROM visita_receta_mezcla WHERE receta_local_id = ?",
+          recetaLocalId
+        );
+        db.runSync(
+          "DELETE FROM visita_receta_fertilizacion WHERE receta_local_id = ?",
+          recetaLocalId
+        );
+        db.runSync(
+          "DELETE FROM visita_receta_riego WHERE receta_local_id = ?",
+          recetaLocalId
+        );
+        db.runSync(
+          "DELETE FROM visita_receta_labores WHERE receta_local_id = ?",
+          recetaLocalId
+        );
+        isNew = false;
+      } else {
+        recetaLocalId = generateLocalId();
+        db.runSync(
+          `INSERT INTO visita_recetas (local_id, server_id, visita_local_id, etapa_fenologica, version, sync_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 1, 'pending', ?, ?)`,
+          recetaLocalId,
+          null,
+          visitaLocalId,
+          data.etapaFenologica,
+          timestamp,
+          timestamp
+        );
+      }
+
+      if (data.mezclas.length > 0) {
+        const stmtMezcla = db.prepareSync(
+          `INSERT INTO visita_receta_mezcla
+         (local_id, server_id, receta_local_id, numero, coadyuvantes_ids, orden_mezcla,
+          volumen_aplicacion, factor, factor_editable, sync_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+        );
+        const stmtFito = db.prepareSync(
+          `INSERT INTO visita_receta_fitosanidad
+         (local_id, server_id, receta_local_id, mezcla_local_id, numero, objetivo, objetivo_nombre, tipo_control_id, tipo_producto_id,
+          disolvente, modo_accion_id, ingrediente_activo_nombre, dosis_ia, dosis_producto, volumen_aplicacion,
           cantidad_total_ia, marca_producto_nombre, concentracion_producto, cantidad_total_producto,
           coadyuvantes_ids, orden_mezcla, sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
-      );
-      for (const f of data.fitosanidad) {
-        stmtFito.executeSync([
-          generateLocalId(),
-          null,
-          recetaLocalId,
-          f.numero,
-          f.objetivo,
-          f.objetivoNombre,
-          f.tipoControlId,
-          f.tipoProductoId,
-          f.disolvente,
-          f.modoAccionId,
-          f.ingredienteActivoNombre,
-          f.dosisIa?.toString() ?? null,
-          f.volumenAplicacion?.toString() ?? null,
-          f.cantidadTotalIa?.toString() ?? null,
-          f.marcaProductoNombre,
-          f.concentracionProducto?.toString() ?? null,
-          f.cantidadTotalProducto?.toString() ?? null,
-          f.coadyuvantesIds,
-          f.ordenMezcla,
-          timestamp,
-          timestamp
-        ]);
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+        );
+        for (const mezcla of data.mezclas) {
+          const mezclaLocalId = generateLocalId();
+          stmtMezcla.executeSync([
+            mezclaLocalId,
+            null,
+            recetaLocalId,
+            mezcla.numero,
+            mezcla.coadyuvantesIds,
+            mezcla.ordenMezcla,
+            mezcla.volumenAplicacion?.toString() ?? null,
+            mezcla.factor.toString(),
+            mezcla.factorEditable ? 1 : 0,
+            timestamp,
+            timestamp
+          ]);
+          for (const producto of mezcla.productos) {
+            stmtFito.executeSync([
+              generateLocalId(),
+              null,
+              recetaLocalId,
+              mezclaLocalId,
+              mezcla.numero,
+              producto.objetivo,
+              producto.objetivoNombre,
+              producto.tipoControlId,
+              producto.tipoProductoId,
+              producto.disolvente,
+              producto.modoAccionId,
+              producto.ingredienteActivoNombre,
+              producto.dosisProducto?.toString() ?? null,
+              producto.dosisProducto?.toString() ?? null,
+              mezcla.volumenAplicacion?.toString() ?? null,
+              null,
+              producto.marcaProductoNombre,
+              producto.concentracionProducto?.toString() ?? null,
+              producto.cantidadTotalProducto?.toString() ?? null,
+              mezcla.coadyuvantesIds,
+              mezcla.ordenMezcla,
+              timestamp,
+              timestamp
+            ]);
+          }
+        }
+        stmtMezcla.finalizeSync();
+        stmtFito.finalizeSync();
       }
-      stmtFito.finalizeSync();
-    }
 
-    if (data.fertilizacion.length > 0) {
-      const stmtFert = db.prepareSync(
-        `INSERT INTO visita_receta_fertilizacion
+      if (data.fertilizacion.length > 0) {
+        const stmtFert = db.prepareSync(
+          `INSERT INTO visita_receta_fertilizacion
          (local_id, server_id, receta_local_id, via_aplicacion, fertilizante_nombre, tipo_producto,
-          dosis, unidad_dosis, cantidad_total_plantas, volumen_aplicacion, cantidad_total_fertilizante,
+          dosis, unidad_dosis, cantidad_total_plantas, volumen_aplicacion, cantidad_total_fertilizante, factor,
           sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
-      );
-      for (const f of data.fertilizacion) {
-        stmtFert.executeSync([
-          generateLocalId(),
-          null,
-          recetaLocalId,
-          f.viaAplicacion,
-          f.fertilizanteNombre,
-          f.tipoProducto,
-          f.dosis?.toString() ?? null,
-          f.unidadDosis,
-          f.cantidadTotalPlantas?.toString() ?? null,
-          f.volumenAplicacion?.toString() ?? null,
-          f.cantidadTotalFertilizante?.toString() ?? null,
-          timestamp,
-          timestamp
-        ]);
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+        );
+        for (const f of data.fertilizacion) {
+          stmtFert.executeSync([
+            generateLocalId(),
+            null,
+            recetaLocalId,
+            f.viaAplicacion,
+            f.fertilizanteNombre,
+            f.tipoProducto,
+            f.dosis?.toString() ?? null,
+            f.unidadDosis,
+            f.cantidadTotalPlantas?.toString() ?? null,
+            f.volumenAplicacion?.toString() ?? null,
+            f.cantidadTotalFertilizante?.toString() ?? null,
+            f.factor.toString(),
+            timestamp,
+            timestamp
+          ]);
+        }
+        stmtFert.finalizeSync();
       }
-      stmtFert.finalizeSync();
-    }
 
-    if (data.riego) {
-      db.runSync(
-        `INSERT INTO visita_receta_riego
+      if (data.riego) {
+        db.runSync(
+          `INSERT INTO visita_receta_riego
          (local_id, server_id, receta_local_id, tipo_recomendacion, sync_status, created_at, updated_at)
          VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
-        generateLocalId(),
-        null,
-        recetaLocalId,
-        data.riego.tipoRecomendacion,
-        timestamp,
-        timestamp
-      );
-    }
-
-    if (data.labores.length > 0) {
-      const stmtLab = db.prepareSync(
-        `INSERT INTO visita_receta_labores
-         (local_id, server_id, receta_local_id, labor, sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'pending', ?, ?)`
-      );
-      for (const labor of data.labores) {
-        stmtLab.executeSync([
           generateLocalId(),
           null,
           recetaLocalId,
-          labor,
+          data.riego.tipoRecomendacion,
           timestamp,
           timestamp
-        ]);
+        );
       }
-      stmtLab.finalizeSync();
-    }
 
-    const operation = isNew ? "create" : "update";
-    insertSyncOutboxEntry(db, {
-      entityType: "visita_recetas",
-      entityLocalId: recetaLocalId,
-      operation,
-      createdAt: timestamp
+      if (data.labores.length > 0) {
+        const stmtLab = db.prepareSync(
+          `INSERT INTO visita_receta_labores
+         (local_id, server_id, receta_local_id, labor, sync_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'pending', ?, ?)`
+        );
+        for (const labor of data.labores) {
+          stmtLab.executeSync([
+            generateLocalId(),
+            null,
+            recetaLocalId,
+            labor,
+            timestamp,
+            timestamp
+          ]);
+        }
+        stmtLab.finalizeSync();
+      }
+
+      const operation = isNew ? "create" : "update";
+      insertSyncOutboxEntry(db, {
+        entityType: "visita_recetas",
+        entityLocalId: recetaLocalId,
+        operation,
+        createdAt: timestamp
+      });
     });
 
     const result = this.getRecetaByVisitaLocalId(visitaLocalId);
@@ -505,6 +586,10 @@ function readRecetaFromRow(
 
   const fitosanidadRows = db.getAllSync<FitosanidadRow>(
     `SELECT * FROM visita_receta_fitosanidad WHERE receta_local_id = ? ORDER BY numero ASC`,
+    recetaLocalId
+  );
+  const mezclaRows = db.getAllSync<MezclaRow>(
+    `SELECT * FROM visita_receta_mezcla WHERE receta_local_id = ? ORDER BY numero ASC`,
     recetaLocalId
   );
   const fertilizacionRows = db.getAllSync<FertilizacionRow>(
@@ -530,6 +615,12 @@ function readRecetaFromRow(
     syncErrorMessage: recetaRow.sync_error_message,
     createdAt: recetaRow.created_at,
     updatedAt: recetaRow.updated_at,
+    mezclas: mezclaRows.map((row) =>
+      mapMezclaRow(
+        row,
+        fitosanidadRows.filter((producto) => producto.mezcla_local_id === row.local_id)
+      )
+    ),
     fitosanidad: fitosanidadRows.map(mapFitosanidadRow),
     fertilizacion: fertilizacionRows.map(mapFertilizacionRow),
     riego: riegoRow ? mapRiegoRow(riegoRow) : null,
@@ -542,6 +633,7 @@ function mapFitosanidadRow(r: FitosanidadRow): RecetaFitosanidad {
     id: r.local_id,
     serverId: r.server_id,
     recetaLocalId: r.receta_local_id,
+    mezclaLocalId: r.mezcla_local_id,
     numero: r.numero,
     objetivo: r.objetivo,
     objetivoNombre: r.objetivo_nombre,
@@ -550,17 +642,31 @@ function mapFitosanidadRow(r: FitosanidadRow): RecetaFitosanidad {
     disolvente: r.disolvente,
     modoAccionId: r.modo_accion_id,
     ingredienteActivoNombre: r.ingrediente_activo_nombre,
-    dosisIa: parseNullableNumeric(r.dosis_ia),
-    volumenAplicacion: parseNullableNumeric(r.volumen_aplicacion),
-    cantidadTotalIa: parseNullableNumeric(r.cantidad_total_ia),
+    dosisProducto: parseNullableNumeric(r.dosis_producto ?? r.dosis_ia),
     marcaProductoNombre: r.marca_producto_nombre,
     concentracionProducto: parseNullableNumeric(r.concentracion_producto),
     cantidadTotalProducto: parseNullableNumeric(r.cantidad_total_producto),
-    coadyuvantesIds: r.coadyuvantes_ids,
-    ordenMezcla: r.orden_mezcla,
     syncStatus: r.sync_status,
     createdAt: r.created_at,
     updatedAt: r.updated_at
+  };
+}
+
+function mapMezclaRow(row: MezclaRow, productos: FitosanidadRow[]): RecetaMezcla {
+  return {
+    id: row.local_id,
+    serverId: row.server_id,
+    recetaLocalId: row.receta_local_id,
+    numero: row.numero,
+    coadyuvantesIds: row.coadyuvantes_ids,
+    ordenMezcla: row.orden_mezcla,
+    volumenAplicacion: parseNullableNumeric(row.volumen_aplicacion),
+    factor: parseNullableNumeric(row.factor) ?? 1,
+    factorEditable: row.factor_editable === 1,
+    productos: productos.map(mapFitosanidadRow),
+    syncStatus: row.sync_status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -579,6 +685,7 @@ function mapFertilizacionRow(r: FertilizacionRow): RecetaFertilizacion {
       : null,
     volumenAplicacion: parseNullableNumeric(r.volumen_aplicacion),
     cantidadTotalFertilizante: parseNullableNumeric(r.cantidad_total_fertilizante),
+    factor: parseNullableNumeric(r.factor) ?? 1,
     syncStatus: r.sync_status,
     createdAt: r.created_at,
     updatedAt: r.updated_at

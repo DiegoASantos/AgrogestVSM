@@ -70,7 +70,12 @@ vi.mock("../../modules/subsectores/repositories/subsectores.repository", () => (
   subsectoresRepository: { getById: vi.fn(() => null), update: vi.fn(), insert: vi.fn() }
 }));
 vi.mock("../../modules/parcelas/repositories/parcelas.repository", () => ({
-  parcelasRepository: { getById: vi.fn(() => null), update: vi.fn(), insert: vi.fn(), getByProductorAndSubsector: vi.fn(() => []) }
+  parcelasRepository: {
+    getById: vi.fn(() => null),
+    update: vi.fn(),
+    insert: vi.fn(),
+    getByProductorAndSubsector: vi.fn(() => [])
+  }
 }));
 
 const getApiToken = vi.fn(() => apiToken);
@@ -468,11 +473,29 @@ function seedOfflineCompleteVisit() {
     syncErrorMessage: null,
     createdAt: now,
     updatedAt: now,
+    mezclas: [
+      {
+        id: "mezcla-local-1",
+        serverId: null,
+        recetaLocalId: "receta-local-1",
+        numero: 1,
+        coadyuvantesIds: null,
+        ordenMezcla: '["Agua","Producto X"]',
+        volumenAplicacion: 200,
+        factor: 1,
+        factorEditable: false,
+        syncStatus: "pending",
+        createdAt: now,
+        updatedAt: now,
+        productos: []
+      }
+    ],
     fitosanidad: [
       {
         id: "receta-fito-local-1",
         serverId: null,
         recetaLocalId: "receta-local-1",
+        mezclaLocalId: "mezcla-local-1",
         numero: 1,
         objetivo: "plaga",
         objetivoNombre: "Trips",
@@ -481,14 +504,10 @@ function seedOfflineCompleteVisit() {
         disolvente: "agua",
         modoAccionId: "3",
         ingredienteActivoNombre: "Spinosad",
-        dosisIa: 0.15,
-        volumenAplicacion: 200,
-        cantidadTotalIa: 30,
+        dosisProducto: 0.15,
         marcaProductoNombre: "Producto X",
         concentracionProducto: 120,
         cantidadTotalProducto: 0.25,
-        coadyuvantesIds: null,
-        ordenMezcla: null,
         syncStatus: "pending",
         createdAt: now,
         updatedAt: now
@@ -506,6 +525,7 @@ function seedOfflineCompleteVisit() {
     },
     labores: []
   };
+  receta.mezclas[0]!.productos = receta.fitosanidad;
   pendingOutbox = [
     makeOutboxEntry(1, "visitas_campo", visita.id),
     makeOutboxEntry(2, "visita_evaluaciones", evaluacion.id),

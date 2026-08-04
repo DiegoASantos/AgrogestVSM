@@ -14,6 +14,7 @@ export const SYNC_ENTITY_TABLES = {
   visita_labores_culturales: "visita_labores_culturales",
   visita_recetas: "visita_recetas",
   visita_receta_fitosanidad: "visita_receta_fitosanidad",
+  visita_receta_mezcla: "visita_receta_mezcla",
   visita_receta_fertilizacion: "visita_receta_fertilizacion",
   visita_receta_riego: "visita_receta_riego",
   visita_receta_labores: "visita_receta_labores",

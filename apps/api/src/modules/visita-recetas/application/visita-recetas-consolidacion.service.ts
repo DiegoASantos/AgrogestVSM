@@ -8,6 +8,7 @@ import { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-san
 import { VisitaEvaluacionEntity } from "../../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
 import { VisitaRiegoEntity } from "../../visita-riegos/infrastructure/persistence/entities/visita-riego.entity";
 import { VisitaLaborCulturalEntity } from "../../visita-labores-culturales/infrastructure/persistence/entities/visita-labor-cultural.entity";
+import { resolveDiseaseIncidenceGrade } from "../../visita-observaciones-sanitarias/domain/disease-incidence";
 
 type ConsolidacionHallazgo = {
   etapaFenologica: string | null;
@@ -16,17 +17,20 @@ type ConsolidacionHallazgo = {
     incidencia: string;
     severidad: string;
     organos: string[];
+    incidenceGrade: number;
   }>;
   enfermedades: Array<{
     nombre: string;
     incidencia: string;
     severidad: string;
     organos: string[];
+    incidenceGrade: number;
   }>;
   nutricion: Array<{
     elemento: string;
     incidencia: string;
     severidad: string;
+    incidenceGrade: number;
   }>;
   riego: {
     humedadSuelo: string | null;
@@ -68,17 +72,17 @@ export class VisitaRecetasConsolidacionService {
         ? `${visita.etapaFenologica.name} - ${visita.subEtapa.name} (${visita.subEtapa.percentage ?? visita.subEtapaPercentage ?? ""})`
         : visita.etapaFenologica && visita.subEtapaPercentage !== null
           ? `${visita.etapaFenologica.name} (${visita.subEtapaPercentage})`
-          : visita.etapaFenologica?.name ?? null;
+          : (visita.etapaFenologica?.name ?? null);
 
     const [observaciones, evaluaciones, riego, labores] = await Promise.all([
       this.observacionSanitariaRepository.find({
-      where: { visitaId },
-      relations: [
-        "plagaEnfermedad",
-        "nivelIncidencia",
-        "nivelSeveridad",
-        "organosAfectados"
-      ]
+        where: { visitaId },
+        relations: [
+          "plagaEnfermedad",
+          "nivelIncidencia",
+          "nivelSeveridad",
+          "organosAfectados"
+        ]
       }),
       this.evaluacionRepository.find({
         where: { visitaId },
@@ -99,9 +103,8 @@ export class VisitaRecetasConsolidacionService {
         nombre: o.plagaEnfermedad?.name ?? "Desconocida",
         incidencia: o.nivelIncidencia?.name ?? "No especificada",
         severidad: o.nivelSeveridad?.name ?? "No especificada",
-        organos: (o.organosAfectados ?? []).map(
-          (oa) => oa.organo ?? "Sin especificar"
-        )
+        organos: (o.organosAfectados ?? []).map((oa) => oa.organo ?? "Sin especificar"),
+        incidenceGrade: o.nivelIncidencia?.grade ?? 0
       }));
 
     const enfermedades = observaciones
@@ -110,9 +113,8 @@ export class VisitaRecetasConsolidacionService {
         nombre: o.plagaEnfermedad?.name ?? "Desconocida",
         incidencia: o.nivelIncidencia?.name ?? "No especificada",
         severidad: o.nivelSeveridad?.name ?? "No especificada",
-        organos: (o.organosAfectados ?? []).map(
-          (oa) => oa.organo ?? "Sin especificar"
-        )
+        organos: (o.organosAfectados ?? []).map((oa) => oa.organo ?? "Sin especificar"),
+        incidenceGrade: resolveDiseaseIncidenceGrade(Number(o.incidencePercentage ?? 0))
       }));
 
     const nutricion = evaluaciones
@@ -124,9 +126,8 @@ export class VisitaRecetasConsolidacionService {
           incidencia: e.incidencePercentage
             ? `${e.incidencePercentage}%`
             : "No especificada",
-          severidad: e.percentage
-            ? `${e.percentage}%`
-            : "No especificada"
+          severidad: e.percentage ? `${e.percentage}%` : "No especificada",
+          incidenceGrade: resolveNutritionGrade(Number(e.incidencePercentage ?? 0))
         };
       });
 
@@ -147,4 +148,11 @@ export class VisitaRecetasConsolidacionService {
 
     return createSuccessResponse(result);
   }
+}
+
+function resolveNutritionGrade(percentage: number) {
+  if (percentage <= 0) return 0;
+  if (percentage <= 5) return 1;
+  if (percentage <= 20) return 2;
+  return 3;
 }

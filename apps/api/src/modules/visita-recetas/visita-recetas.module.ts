@@ -22,6 +22,7 @@ import { VisitaRecetaFertilizacionEntity } from "./infrastructure/persistence/en
 import { VisitaRecetaRiegoEntity } from "./infrastructure/persistence/entities/visita-receta-riego.entity";
 import { VisitaRecetaLaborEntity } from "./infrastructure/persistence/entities/visita-receta-labor.entity";
 import { VisitaRecetaHistorialEntity } from "./infrastructure/persistence/entities/visita-receta-historial.entity";
+import { VisitaRecetaMezclaEntity } from "./infrastructure/persistence/entities/visita-receta-mezcla.entity";
 import { VisitaCampoRecetasController } from "./presentation/visita-campo-recetas.controller";
 import { RecetasCatalogosController } from "./presentation/recetas-catalogos.controller";
 
@@ -45,7 +46,8 @@ import { RecetasCatalogosController } from "./presentation/recetas-catalogos.con
       VisitaRecetaFertilizacionEntity,
       VisitaRecetaRiegoEntity,
       VisitaRecetaLaborEntity,
-      VisitaRecetaHistorialEntity
+      VisitaRecetaHistorialEntity,
+      VisitaRecetaMezclaEntity
     ])
   ],
   controllers: [VisitaCampoRecetasController, RecetasCatalogosController],

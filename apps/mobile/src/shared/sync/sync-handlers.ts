@@ -50,7 +50,11 @@ import { subsectoresRepository } from "../../modules/subsectores/repositories/su
 import { subsectoresRemote } from "../../modules/subsectores/services/subsectores.remote";
 import { parcelasRepository } from "../../modules/parcelas/repositories/parcelas.repository";
 import { parcelasRemote } from "../../modules/parcelas/services/parcelas.remote";
-import { catalogoIngredientesActivosRepo, catalogoFertilizantesRepo, catalogoMarcasRepo } from "../../modules/visita-recetas/repositories/catalogo-repository-helpers";
+import {
+  catalogoIngredientesActivosRepo,
+  catalogoFertilizantesRepo,
+  catalogoMarcasRepo
+} from "../../modules/visita-recetas/repositories/catalogo-repository-helpers";
 
 export type SyncHandlerContext = {
   signal?: AbortSignal;
@@ -682,7 +686,11 @@ export async function handleIngredienteActivo(
   const item = catalogoIngredientesActivosRepo.obtenerPorId(entry.entityLocalId);
   if (!item) return { status: "deleted_local" };
 
-  const draft = { publicId: item.publicId, name: item.name, description: item.description };
+  const draft = {
+    publicId: item.publicId,
+    name: item.name,
+    description: item.description
+  };
   const response = await visitaRecetasRemote.crearIngredienteActivo(draft);
 
   catalogoIngredientesActivosRepo.actualizar(item.id, {
@@ -773,6 +781,7 @@ export const entityHandlerMap: Record<
   visita_riegos: handleRiego,
   visita_labores_culturales: handleLaborCultural,
   visita_recetas: handleReceta,
+  visita_receta_mezcla: skipSyncHandler(),
   visita_receta_fitosanidad: skipSyncHandler(),
   visita_receta_fertilizacion: skipSyncHandler(),
   visita_receta_riego: skipSyncHandler(),
@@ -808,9 +817,7 @@ function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft
   };
 }
 
-function buildVisitaCampoUpdateBody(
-  visita: VisitaCampo
-): UpdateVisitaCampoDraft {
+function buildVisitaCampoUpdateBody(visita: VisitaCampo): UpdateVisitaCampoDraft {
   return {
     cropId: visita.cropId,
     varietyId: visita.varietyId,
@@ -980,23 +987,26 @@ async function handleReceta(
     visitaPadre.serverId,
     {
       etapaFenologica: receta.etapaFenologica,
-      fitosanidad: receta.fitosanidad.map((f) => ({
-        numero: f.numero,
-        objetivo: f.objetivo,
-        objetivoNombre: f.objetivoNombre,
-        tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
-        tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
-        disolvente: f.disolvente,
-        modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
-        ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
-        dosisIa: f.dosisIa ?? undefined,
-        volumenAplicacion: f.volumenAplicacion ?? undefined,
-        cantidadTotalIa: f.cantidadTotalIa ?? undefined,
-        marcaProductoNombre: f.marcaProductoNombre ?? undefined,
-        concentracionProducto: f.concentracionProducto ?? undefined,
-        cantidadTotalProducto: f.cantidadTotalProducto ?? undefined,
-        coadyuvantesIds: f.coadyuvantesIds ?? undefined,
-        ordenMezcla: f.ordenMezcla ?? undefined
+      mezclas: receta.mezclas.map((mezcla) => ({
+        numero: mezcla.numero,
+        coadyuvantesIds: mezcla.coadyuvantesIds ?? undefined,
+        ordenMezcla: mezcla.ordenMezcla ?? undefined,
+        volumenAplicacion: mezcla.volumenAplicacion ?? undefined,
+        factor: mezcla.factor,
+        factorEditable: mezcla.factorEditable,
+        productos: mezcla.productos.map((f) => ({
+          objetivo: f.objetivo,
+          objetivoNombre: f.objetivoNombre,
+          tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
+          tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
+          disolvente: f.disolvente,
+          modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
+          ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
+          dosisProducto: f.dosisProducto ?? undefined,
+          marcaProductoNombre: f.marcaProductoNombre ?? undefined,
+          concentracionProducto: f.concentracionProducto ?? undefined,
+          cantidadTotalProducto: f.cantidadTotalProducto ?? undefined
+        }))
       })),
       fertilizacion: receta.fertilizacion.map((f) => ({
         viaAplicacion: f.viaAplicacion,
@@ -1006,7 +1016,8 @@ async function handleReceta(
         unidadDosis: f.unidadDosis ?? undefined,
         cantidadTotalPlantas: f.cantidadTotalPlantas ?? undefined,
         volumenAplicacion: f.volumenAplicacion ?? undefined,
-        cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined
+        cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined,
+        factor: f.factor
       })),
       riego: receta.riego
         ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
@@ -1016,7 +1027,7 @@ async function handleReceta(
     context
   );
 
-  visitaRecetasRepository.markSynced(receta.id, response.id);
+  visitaRecetasRepository.markSynced(receta.id, response.id, response.mezclas ?? []);
 
   return { status: "synced", serverId: response.id };
 }

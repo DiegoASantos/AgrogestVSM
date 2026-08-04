@@ -10,6 +10,7 @@ import type { VisitaRecetaFertilizacionEntity } from "../infrastructure/persiste
 import type { VisitaRecetaRiegoEntity } from "../infrastructure/persistence/entities/visita-receta-riego.entity";
 import type { VisitaRecetaLaborEntity } from "../infrastructure/persistence/entities/visita-receta-labor.entity";
 import type { VisitaRecetaHistorialEntity } from "../infrastructure/persistence/entities/visita-receta-historial.entity";
+import type { VisitaRecetaMezclaEntity } from "../infrastructure/persistence/entities/visita-receta-mezcla.entity";
 import type { CreateVisitaRecetaDto } from "../presentation/dto/create-visita-receta.dto";
 
 type RepoMock = {
@@ -39,6 +40,7 @@ function makeReceta(overrides: Partial<VisitaRecetaEntity> = {}): VisitaRecetaEn
     createdAt: new Date("2025-01-01"),
     updatedAt: new Date("2025-01-01"),
     fitosanidad: [],
+    mezclas: [],
     fertilizacion: [],
     riego: null,
     labores: [],
@@ -53,24 +55,29 @@ function makeVisita(): VisitaCampoEntity {
 function makeValidDto(): CreateVisitaRecetaDto {
   return {
     etapaFenologica: "Floracion (45%)",
-    fitosanidad: [
+    mezclas: [
       {
         numero: 1,
-        objetivo: "plaga",
-        objetivoNombre: "Thrips",
-        tipoControlId: 1,
-        tipoProductoId: 1,
-        disolvente: "Agua",
-        modoAccionId: 1,
-        ingredienteActivoNombre: "Abamectina",
-        dosisIa: 250,
-        volumenAplicacion: 2,
-        cantidadTotalIa: 500,
-        marcaProductoNombre: "Agrimec",
-        concentracionProducto: 18,
-        cantidadTotalProducto: 27.78,
         coadyuvantesIds: "[1, 4]",
-        ordenMezcla: '["Agua","Regulador de pH","Producto agroquimico","Adherente"]'
+        ordenMezcla: '["Agua","Agrimec"]',
+        volumenAplicacion: 2,
+        factor: 1.2,
+        factorEditable: false,
+        productos: [
+          {
+            objetivo: "plaga",
+            objetivoNombre: "Thrips",
+            tipoControlId: 1,
+            tipoProductoId: 1,
+            disolvente: "Agua",
+            modoAccionId: 1,
+            ingredienteActivoNombre: "Abamectina",
+            dosisProducto: 250,
+            marcaProductoNombre: "Agrimec",
+            concentracionProducto: 18,
+            cantidadTotalProducto: 600
+          }
+        ]
       }
     ],
     fertilizacion: [
@@ -82,7 +89,8 @@ function makeValidDto(): CreateVisitaRecetaDto {
         unidadDosis: "Kg/planta",
         cantidadTotalPlantas: 1500,
         volumenAplicacion: undefined,
-        cantidadTotalFertilizante: 750
+        cantidadTotalFertilizante: 750,
+        factor: 1
       }
     ],
     riego: { tipoRecomendacion: "riego_pesado" },
@@ -94,6 +102,7 @@ describe("VisitaRecetasService", () => {
   let recetaRepo: RepoMock;
   let visitaRepo: RepoMock;
   let fitosanidadRepo: RepoMock;
+  let mezclaRepo: RepoMock;
   let fertilizacionRepo: RepoMock;
   let riegoRepo: RepoMock;
   let laborRepo: RepoMock;
@@ -104,7 +113,12 @@ describe("VisitaRecetasService", () => {
     recetaRepo = makeRepo();
     visitaRepo = makeRepo();
     fitosanidadRepo = makeRepo();
+    fitosanidadRepo.create.mockImplementation((value) => value);
+    mezclaRepo = makeRepo();
+    mezclaRepo.create.mockImplementation((value) => value);
+    mezclaRepo.save.mockImplementation(async (value) => ({ ...value, id: "m1" }));
     fertilizacionRepo = makeRepo();
+    fertilizacionRepo.create.mockImplementation((value) => value);
     riegoRepo = makeRepo();
     laborRepo = makeRepo();
     historialRepo = makeRepo();
@@ -112,6 +126,7 @@ describe("VisitaRecetasService", () => {
       recetaRepo as unknown as Repository<VisitaRecetaEntity>,
       visitaRepo as unknown as Repository<VisitaCampoEntity>,
       fitosanidadRepo as unknown as Repository<VisitaRecetaFitosanidadEntity>,
+      mezclaRepo as unknown as Repository<VisitaRecetaMezclaEntity>,
       fertilizacionRepo as unknown as Repository<VisitaRecetaFertilizacionEntity>,
       riegoRepo as unknown as Repository<VisitaRecetaRiegoEntity>,
       laborRepo as unknown as Repository<VisitaRecetaLaborEntity>,
@@ -135,14 +150,18 @@ describe("VisitaRecetasService", () => {
       recetaRepo.save.mockResolvedValue(makeReceta());
       recetaRepo.findOne
         .mockResolvedValueOnce(null) // after create receta
-        .mockResolvedValueOnce(makeReceta({ fitosanidad: [], fertilizacion: [], labores: [] })) // after fitosanidad
-        .mockResolvedValueOnce(makeReceta({
-          id: "1",
-          fitosanidad: [{ id: "f1" } as VisitaRecetaFitosanidadEntity],
-          fertilizacion: [{ id: "fe1" } as VisitaRecetaFertilizacionEntity],
-          riego: { id: "r1" } as VisitaRecetaRiegoEntity,
-          labores: [{ id: "l1" }, { id: "l2" }] as VisitaRecetaLaborEntity[]
-        }));
+        .mockResolvedValueOnce(
+          makeReceta({ fitosanidad: [], fertilizacion: [], labores: [] })
+        ) // after fitosanidad
+        .mockResolvedValueOnce(
+          makeReceta({
+            id: "1",
+            fitosanidad: [{ id: "f1" } as VisitaRecetaFitosanidadEntity],
+            fertilizacion: [{ id: "fe1" } as VisitaRecetaFertilizacionEntity],
+            riego: { id: "r1" } as VisitaRecetaRiegoEntity,
+            labores: [{ id: "l1" }, { id: "l2" }] as VisitaRecetaLaborEntity[]
+          })
+        );
       historialRepo.create.mockReturnValue({});
       historialRepo.save.mockResolvedValue({});
 
@@ -150,6 +169,42 @@ describe("VisitaRecetasService", () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
+      expect(fitosanidadRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dosisProducto: 250,
+          volumenAplicacion: 2,
+          cantidadTotalProducto: 600
+        })
+      );
+      expect(fertilizacionRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ cantidadTotalFertilizante: 750, factor: 1 })
+      );
+    });
+
+    it("rejects duplicate mixture numbers", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      recetaRepo.findOne.mockResolvedValue(null);
+      recetaRepo.create.mockReturnValue(makeReceta());
+      recetaRepo.save.mockResolvedValue(makeReceta());
+      const dto = makeValidDto();
+      dto.mezclas!.push({ ...dto.mezclas![0], productos: [] });
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "El numero de mezcla 1 esta duplicado."
+      );
+    });
+
+    it("rejects malformed serialized mixture arrays", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      recetaRepo.findOne.mockResolvedValue(null);
+      recetaRepo.create.mockReturnValue(makeReceta());
+      recetaRepo.save.mockResolvedValue(makeReceta());
+      const dto = makeValidDto();
+      dto.mezclas![0].ordenMezcla = "not-json";
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "ordenMezcla debe contener un arreglo JSON valido."
+      );
     });
   });
 
@@ -157,9 +212,7 @@ describe("VisitaRecetasService", () => {
     it("throws NotFoundException when visita does not exist", async () => {
       visitaRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findByVisitaId("999")).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(service.findByVisitaId("999")).rejects.toThrow(NotFoundException);
     });
 
     it("returns null when no receta exists for the visita", async () => {
@@ -176,9 +229,21 @@ describe("VisitaRecetasService", () => {
       visitaRepo.findOne.mockResolvedValue(makeVisita());
       recetaRepo.findOne.mockResolvedValue(
         makeReceta({
-          fitosanidad: [{ id: "f1", numero: 1, objetivo: "plaga", objetivoNombre: "Thrips" } as VisitaRecetaFitosanidadEntity],
-          fertilizacion: [{ id: "fe1", viaAplicacion: "edafica" } as VisitaRecetaFertilizacionEntity],
-          riego: { id: "r1", tipoRecomendacion: "riego_pesado" } as VisitaRecetaRiegoEntity,
+          fitosanidad: [
+            {
+              id: "f1",
+              numero: 1,
+              objetivo: "plaga",
+              objetivoNombre: "Thrips"
+            } as VisitaRecetaFitosanidadEntity
+          ],
+          fertilizacion: [
+            { id: "fe1", viaAplicacion: "edafica" } as VisitaRecetaFertilizacionEntity
+          ],
+          riego: {
+            id: "r1",
+            tipoRecomendacion: "riego_pesado"
+          } as VisitaRecetaRiegoEntity,
           labores: [{ id: "l1", labor: "horqueteo" } as VisitaRecetaLaborEntity]
         })
       );
@@ -207,8 +272,18 @@ describe("VisitaRecetasService", () => {
     it("returns version history ordered ascending", async () => {
       recetaRepo.findOne.mockResolvedValue(makeReceta({ id: "1" }));
       historialRepo.find.mockResolvedValue([
-        { id: "h1", version: 1, snapshot: { etapaFenologica: "v1" }, createdAt: new Date("2025-01-01") },
-        { id: "h2", version: 2, snapshot: { etapaFenologica: "v2" }, createdAt: new Date("2025-01-02") }
+        {
+          id: "h1",
+          version: 1,
+          snapshot: { etapaFenologica: "v1" },
+          createdAt: new Date("2025-01-01")
+        },
+        {
+          id: "h2",
+          version: 2,
+          snapshot: { etapaFenologica: "v2" },
+          createdAt: new Date("2025-01-02")
+        }
       ]);
 
       const result = await service.getHistorial("10");

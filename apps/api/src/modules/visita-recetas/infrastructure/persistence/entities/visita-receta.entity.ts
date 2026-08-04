@@ -13,6 +13,7 @@ import { VisitaRecetaFitosanidadEntity } from "./visita-receta-fitosanidad.entit
 import { VisitaRecetaFertilizacionEntity } from "./visita-receta-fertilizacion.entity";
 import { VisitaRecetaRiegoEntity } from "./visita-receta-riego.entity";
 import { VisitaRecetaLaborEntity } from "./visita-receta-labor.entity";
+import { VisitaRecetaMezclaEntity } from "./visita-receta-mezcla.entity";
 
 @Entity({ name: "visita_recetas" })
 export class VisitaRecetaEntity {
@@ -38,12 +39,13 @@ export class VisitaRecetaEntity {
   @JoinColumn({ name: "visita_id", referencedColumnName: "id" })
   visita!: VisitaCampoEntity;
 
-  @OneToMany(
-    () => VisitaRecetaFitosanidadEntity,
-    (fitosanidad) => fitosanidad.receta,
-    { cascade: true }
-  )
+  @OneToMany(() => VisitaRecetaFitosanidadEntity, (fitosanidad) => fitosanidad.receta, {
+    cascade: true
+  })
   fitosanidad!: VisitaRecetaFitosanidadEntity[];
+
+  @OneToMany(() => VisitaRecetaMezclaEntity, (mezcla) => mezcla.receta, { cascade: true })
+  mezclas!: VisitaRecetaMezclaEntity[];
 
   @OneToMany(
     () => VisitaRecetaFertilizacionEntity,
@@ -52,17 +54,9 @@ export class VisitaRecetaEntity {
   )
   fertilizacion!: VisitaRecetaFertilizacionEntity[];
 
-  @OneToOne(
-    () => VisitaRecetaRiegoEntity,
-    (riego) => riego.receta,
-    { cascade: true }
-  )
+  @OneToOne(() => VisitaRecetaRiegoEntity, (riego) => riego.receta, { cascade: true })
   riego!: VisitaRecetaRiegoEntity | null;
 
-  @OneToMany(
-    () => VisitaRecetaLaborEntity,
-    (labor) => labor.receta,
-    { cascade: true }
-  )
+  @OneToMany(() => VisitaRecetaLaborEntity, (labor) => labor.receta, { cascade: true })
   labores!: VisitaRecetaLaborEntity[];
 }

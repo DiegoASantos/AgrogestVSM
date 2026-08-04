@@ -47,6 +47,7 @@ const SYNC_ENTITY_LABELS: Record<SyncEntityType, string> = {
   visita_labores_culturales: "Labores culturales",
   visita_recetas: "Receta",
   visita_receta_fitosanidad: "Receta - fitosanidad",
+  visita_receta_mezcla: "Receta - mezcla",
   visita_receta_fertilizacion: "Receta - fertilizacion",
   visita_receta_riego: "Receta - riego",
   visita_receta_labores: "Receta - labores",

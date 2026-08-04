@@ -58,39 +58,32 @@ import {
 } from "./visita-receta-selection";
 import {
   buildFertilizacionesForSave,
-  buildFitosanidadForSave,
-  calculateTotalProducto,
-  collectNomenclaturaMezcla,
+  buildMezclasForSave,
+  collectNomenclaturaPorMezcla,
+  createEmptyMezcla,
   createEmptyFertilizacion,
   createEmptyIngrediente,
   getUnidadDosis,
   hasFertilizacionData,
   hasFitosanidadData,
   parsePositiveDecimal,
+  deriveMezclaFactors,
+  factorFromGrade,
   recalculateFertilizacion,
   recalculateIngrediente,
   restoreFertilizaciones,
   restoreFitosanidadApps,
+  restoreMezclas,
   type AppFertilizacion,
   type AppFitosanidad,
-  type AppIngrediente
+  type AppIngrediente,
+  type AppMezcla
 } from "./visita-receta-multiple-products";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
-
-function resolveCalculationAreaHectares(
-  parcelaArea: string | number | null | undefined,
-  visitaArea: string | number | null | undefined
-) {
-  return parsePositiveDecimal(parcelaArea) ?? parsePositiveDecimal(visitaArea);
-}
-
-function formatCompactDecimal(value: number) {
-  return value.toFixed(2).replace(/\.?0+$/, "");
-}
 
 function formatCatalogConcentration(concentration: string, measurementUnit: string) {
   return [concentration.trim(), measurementUnit.trim()].filter(Boolean).join(" ");
@@ -112,9 +105,6 @@ export function VisitaRecetaScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [consolidacion, setConsolidacion] = useState<ConsolidacionHallazgo | null>(null);
   const [recetaData, setRecetaData] = useState<VisitaRecetaCompleta | null>(null);
-  const [calculationAreaHectares, setCalculationAreaHectares] = useState<number | null>(
-    null
-  );
 
   const [coadyuvantes, setCoadyuvantes] = useState<CoadyuvanteCatalogItem[]>([]);
   const [ingredientesActivos, setIngredientesActivos] = useState<
@@ -129,6 +119,7 @@ export function VisitaRecetaScreen() {
   const [fertilizantes, setFertilizantes] = useState<FertilizanteCatalogItem[]>([]);
 
   const [fitosanidadApps, setFitosanidadApps] = useState<AppFitosanidad[]>([]);
+  const [mezclas, setMezclas] = useState<AppMezcla[]>([]);
   const [fertilizaciones, setFertilizaciones] = useState<AppFertilizacion[]>(() => [
     createEmptyFertilizacion()
   ]);
@@ -192,15 +183,9 @@ export function VisitaRecetaScreen() {
 
             if (!selectionPatch) return ingredient;
 
-            const totalProducto = calculateTotalProducto(
-              ingredient.cantidadTotalIa,
-              selectionPatch.concentracionProducto
-            );
-
             return {
               ...ingredient,
-              ...selectionPatch,
-              cantidadTotalProducto: totalProducto ? totalProducto.toFixed(2) : ""
+              ...selectionPatch
             };
           })
         };
@@ -247,10 +232,6 @@ export function VisitaRecetaScreen() {
 
       const visita = visitasCampoRepository.getById(vId);
       const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
-      setCalculationAreaHectares(
-        resolveCalculationAreaHectares(parcela?.areaHectares, visita?.areaHectares)
-      );
-
       const localConsData = visitaRecetasService.getConsolidacionLocal(vId);
       const recetaData = visitaRecetasService.getByVisitaId(vId);
 
@@ -277,15 +258,20 @@ export function VisitaRecetaScreen() {
           );
         }
         initFitosanidadFromConsolidacion(localConsData, volumenPorDefecto.fitosanidad);
-        if (volumenPorDefecto.fertilizacion) {
-          setFertilizaciones((prev) =>
-            prev.map((item, index) =>
-              index === 0
-                ? { ...item, volumenAplicacion: volumenPorDefecto.fertilizacion }
-                : item
-            )
-          );
-        }
+        setFertilizaciones((prev) =>
+          prev.map((item, index) => {
+            const grade = localConsData.nutricion[index]?.incidenceGrade ?? 0;
+            return recalculateFertilizacion({
+              ...item,
+              volumenAplicacion:
+                index === 0 && volumenPorDefecto.fertilizacion
+                  ? volumenPorDefecto.fertilizacion
+                  : item.volumenAplicacion,
+              factor: factorFromGrade(grade).toString(),
+              factorEditable: grade === 3
+            });
+          })
+        );
       }
 
       setIsLoading(false);
@@ -326,9 +312,17 @@ export function VisitaRecetaScreen() {
       setConsolidacion(resolvedConsData);
 
       if (!hasSavedReceta && hasFitosanidadFindings(resolvedConsData)) {
-        setFitosanidadApps((prev) =>
-          prev.length > 0 ? prev : buildFitosanidadFromConsolidacion(resolvedConsData)
-        );
+        setFitosanidadApps((prev) => {
+          if (prev.length > 0) return prev;
+          const apps = buildFitosanidadFromConsolidacion(resolvedConsData);
+          setMezclas(
+            deriveMezclaFactors(
+              apps,
+              apps.map((_, index) => createEmptyMezcla(index + 1))
+            )
+          );
+          return apps;
+        });
       }
     } catch {
       // La receta ya funciona con datos locales; la red no debe bloquear esta vista.
@@ -357,8 +351,9 @@ export function VisitaRecetaScreen() {
     fertilizerCatalog: FertilizanteCatalogItem[]
   ) {
     setFitosanidadApps(
-      restoreFitosanidadApps(receta.fitosanidad, ingredientCatalog, commercialCatalog)
+      restoreFitosanidadApps(receta.mezclas, ingredientCatalog, commercialCatalog)
     );
+    setMezclas(restoreMezclas(receta.mezclas));
     setFertilizaciones(restoreFertilizaciones(receta.fertilizacion, fertilizerCatalog));
 
     if (receta.riego) {
@@ -372,22 +367,33 @@ export function VisitaRecetaScreen() {
     cons: ConsolidacionHallazgo,
     volumenPorDefecto = ""
   ) {
-    setFitosanidadApps(buildFitosanidadFromConsolidacion(cons, volumenPorDefecto));
+    const apps = buildFitosanidadFromConsolidacion(cons);
+    setFitosanidadApps(apps);
+    setMezclas(
+      deriveMezclaFactors(
+        apps,
+        apps.map((_, index) => createEmptyMezcla(index + 1, volumenPorDefecto))
+      )
+    );
   }
 
-  function buildFitosanidadFromConsolidacion(
-    cons: ConsolidacionHallazgo,
-    volumenPorDefecto = ""
-  ) {
+  function buildFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo) {
     const apps: AppFitosanidad[] = [];
     let num = 1;
 
     for (const plaga of cons.plagas) {
-      apps.push(createEmptyFitosanidad(num++, "plaga", plaga.nombre, volumenPorDefecto));
+      apps.push(
+        createEmptyFitosanidad(num++, "plaga", plaga.nombre, plaga.incidenceGrade)
+      );
     }
     for (const enfermedad of cons.enfermedades) {
       apps.push(
-        createEmptyFitosanidad(num++, "enfermedad", enfermedad.nombre, volumenPorDefecto)
+        createEmptyFitosanidad(
+          num++,
+          "enfermedad",
+          enfermedad.nombre,
+          enfermedad.incidenceGrade
+        )
       );
     }
 
@@ -398,19 +404,17 @@ export function VisitaRecetaScreen() {
     numero: number,
     objetivo: "plaga" | "enfermedad",
     objetivoNombre: string,
-    volumenPorDefecto = ""
+    incidenceGrade: number
   ): AppFitosanidad {
     return {
       localId: `new_${numero}_${Date.now()}`,
       numero,
       objetivo,
       objetivoNombre,
+      incidenceGrade,
       tipoControlId: "",
       disolvente: "Agua",
-      volumenAplicacion: volumenPorDefecto,
-      coadyuvantesIds: [],
-      ordenMezcla: [],
-      ingredientes: [createEmptyIngrediente()]
+      ingredientes: [createEmptyIngrediente(numero)]
     };
   }
 
@@ -419,23 +423,6 @@ export function VisitaRecetaScreen() {
       const updated = [...prev];
       const current = { ...updated[index], ...patch };
 
-      if (patch.volumenAplicacion !== undefined) {
-        current.ingredientes = current.ingredientes.map((ingredient) =>
-          recalculateIngrediente(
-            ingredient,
-            current.volumenAplicacion,
-            calculationAreaHectares
-          )
-        );
-      }
-
-      if (patch.coadyuvantesIds !== undefined) {
-        const nombres = current.coadyuvantesIds
-          .map((id) => coadyuvantes.find((c) => c.id === id)?.name ?? "")
-          .filter(Boolean);
-        current.ordenMezcla = generateOrdenMezcla(nombres);
-      }
-
       updated[index] = current;
       return updated;
     });
@@ -443,32 +430,35 @@ export function VisitaRecetaScreen() {
 
   function addIngrediente(applicationIndex: number) {
     closeDropdown();
-    setFitosanidadApps((prev) =>
-      prev.map((application, index) =>
-        index === applicationIndex
-          ? {
-              ...application,
-              ingredientes: [...application.ingredientes, createEmptyIngrediente()]
-            }
-          : application
-      )
+    const projected = fitosanidadApps.map((application, index) =>
+      index === applicationIndex
+        ? {
+            ...application,
+            ingredientes: [
+              ...application.ingredientes,
+              createEmptyIngrediente(mezclas[0]?.numero ?? 1)
+            ]
+          }
+        : application
     );
+    setFitosanidadApps(projected);
+    setMezclas((current) => regenerateMezclas(current, projected));
   }
 
   function removeIngrediente(applicationIndex: number, ingredientIndex: number) {
     closeDropdown();
-    setFitosanidadApps((prev) =>
-      prev.map((application, index) =>
-        index === applicationIndex && application.ingredientes.length > 1
-          ? {
-              ...application,
-              ingredientes: application.ingredientes.filter(
-                (_, currentIndex) => currentIndex !== ingredientIndex
-              )
-            }
-          : application
-      )
+    const projected = fitosanidadApps.map((application, index) =>
+      index === applicationIndex && application.ingredientes.length > 1
+        ? {
+            ...application,
+            ingredientes: application.ingredientes.filter(
+              (_, currentIndex) => currentIndex !== ingredientIndex
+            )
+          }
+        : application
     );
+    setFitosanidadApps(projected);
+    setMezclas((current) => regenerateMezclas(current, projected));
   }
 
   function updateIngrediente(
@@ -476,33 +466,101 @@ export function VisitaRecetaScreen() {
     ingredientIndex: number,
     patch: Partial<AppIngrediente>
   ) {
-    setFitosanidadApps((prev) =>
-      prev.map((application, currentApplicationIndex) => {
-        if (currentApplicationIndex !== applicationIndex) return application;
+    const projected = fitosanidadApps.map((application, currentApplicationIndex) => {
+      if (currentApplicationIndex !== applicationIndex) return application;
 
-        return {
-          ...application,
-          ingredientes: application.ingredientes.map(
-            (ingredient, currentIngredientIndex) =>
-              currentIngredientIndex === ingredientIndex
-                ? recalculateIngrediente(
-                    { ...ingredient, ...patch },
-                    application.volumenAplicacion,
-                    calculationAreaHectares
+      return {
+        ...application,
+        ingredientes: application.ingredientes.map(
+          (ingredient, currentIngredientIndex) =>
+            currentIngredientIndex === ingredientIndex
+              ? recalculateIngrediente(
+                  { ...ingredient, ...patch },
+                  mezclas.find(
+                    (mezcla) =>
+                      mezcla.numero === (patch.mezclaNumero ?? ingredient.mezclaNumero)
                   )
-                : ingredient
-          )
-        };
-      })
+                )
+              : ingredient
+        )
+      };
+    });
+    setFitosanidadApps(projected);
+    setMezclas((current) => regenerateMezclas(current, projected));
+  }
+
+  function regenerateMezclas(current: AppMezcla[], applications: AppFitosanidad[]) {
+    return deriveMezclaFactors(applications, current).map((mezcla) => {
+      const coadyuvanteNames = mezcla.coadyuvantesIds
+        .map((id) => coadyuvantes.find((item) => item.id === id)?.name ?? "")
+        .filter(Boolean);
+      const commercialNames = applications.flatMap((application) =>
+        application.ingredientes
+          .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
+          .map((ingredient) => ingredient.marcaProductoNombre)
+          .filter(Boolean)
+      );
+      return {
+        ...mezcla,
+        ordenMezcla: generateOrdenMezcla(coadyuvanteNames, commercialNames)
+      };
+    });
+  }
+
+  function updateMezcla(index: number, patch: Partial<AppMezcla>) {
+    const next = mezclas.map((mezcla, currentIndex) =>
+      currentIndex === index ? { ...mezcla, ...patch } : mezcla
     );
+    const resolved =
+      patch.coadyuvantesIds !== undefined
+        ? regenerateMezclas(next, fitosanidadApps)
+        : deriveMezclaFactors(fitosanidadApps, next);
+    setMezclas(resolved);
+    setFitosanidadApps((applications) =>
+      applications.map((application) => ({
+        ...application,
+        ingredientes: application.ingredientes.map((ingredient) =>
+          recalculateIngrediente(
+            ingredient,
+            resolved.find((mezcla) => mezcla.numero === ingredient.mezclaNumero)
+          )
+        )
+      }))
+    );
+  }
+
+  function updateMezclaCount(value: string) {
+    const count = Math.max(1, Math.min(20, Number.parseInt(value, 10) || 1));
+    const next = Array.from(
+      { length: count },
+      (_, index) =>
+        mezclas[index] ??
+        createEmptyMezcla(index + 1, mezclas[0]?.volumenAplicacion ?? "")
+    );
+    const projected = fitosanidadApps.map((application) => ({
+      ...application,
+      ingredientes: application.ingredientes.map((ingredient) => ({
+        ...ingredient,
+        mezclaNumero: Math.min(ingredient.mezclaNumero, count)
+      }))
+    }));
+    setFitosanidadApps(projected);
+    setMezclas(regenerateMezclas(next, projected));
   }
 
   function addFertilizacion() {
     closeDropdown();
-    setFertilizaciones((prev) => [
-      ...prev,
-      createEmptyFertilizacion(prev[0]?.volumenAplicacion ?? "")
-    ]);
+    setFertilizaciones((prev) => {
+      const grade = consolidacion?.nutricion[prev.length]?.incidenceGrade ?? 0;
+      return [
+        ...prev,
+        {
+          ...createEmptyFertilizacion(prev[0]?.volumenAplicacion ?? ""),
+          factor: factorFromGrade(grade).toString(),
+          factorEditable: grade === 3
+        }
+      ];
+    });
   }
 
   function removeFertilizacion(index: number) {
@@ -532,6 +590,7 @@ export function VisitaRecetaScreen() {
     resetOrdenExchangeState();
     const recetaValidation = validateRequiredRecipe(
       fitosanidadApps,
+      mezclas,
       fertilizaciones,
       riegoSelection,
       laborSelections
@@ -542,8 +601,15 @@ export function VisitaRecetaScreen() {
       return;
     }
 
-    const advertencias = validarMezcla(
-      collectNomenclaturaMezcla(fitosanidadApps, fertilizaciones, coadyuvantes)
+    const advertencias = collectNomenclaturaPorMezcla(
+      fitosanidadApps,
+      mezclas,
+      coadyuvantes
+    ).flatMap(({ numero, nombres }) =>
+      validarMezcla(nombres).map((advertencia) => ({
+        ...advertencia,
+        mezclaNumero: numero
+      }))
     );
 
     if (advertencias.length > 0) {
@@ -587,7 +653,7 @@ export function VisitaRecetaScreen() {
     try {
       const data: SaveRecetaData = {
         etapaFenologica: consolidacion?.etapaFenologica ?? null,
-        fitosanidad: buildFitosanidadForSave(fitosanidadApps, calculationAreaHectares),
+        mezclas: buildMezclasForSave(fitosanidadApps, mezclas),
         fertilizacion: buildFertilizacionesForSave(fertilizaciones),
         riego: riegoSelection ? { tipoRecomendacion: riegoSelection } : null,
         labores: Array.from(laborSelections)
@@ -724,8 +790,6 @@ export function VisitaRecetaScreen() {
           ) : (
             fitosanidadApps.map((app, index) => (
               <FitosanidadCard
-                coadyuvantes={coadyuvantes}
-                calculationAreaHectares={calculationAreaHectares}
                 index={index}
                 ingredientesActivos={ingredientesActivos}
                 key={app.localId}
@@ -741,15 +805,41 @@ export function VisitaRecetaScreen() {
                   removeIngrediente(index, ingredientIndex)
                 }
                 openDropdown={openDropdown}
-                resetToken={ordenExchangeResetToken}
+                mezclas={mezclas}
                 tiposControl={tiposControl}
                 tiposProducto={tiposProducto}
                 toggleDropdown={toggleDropdown}
-                onNavegarCatalogo={(tipo) => router.push(`/productos/nuevo?tipoPredefinido=${tipo}`)}
+                onNavegarCatalogo={(tipo) =>
+                  router.push(`/productos/nuevo?tipoPredefinido=${tipo}`)
+                }
                 value={app}
               />
             ))
           )}
+
+          {fitosanidadApps.length > 0 ? (
+            <>
+              <SectionHeader
+                icon="beaker"
+                label="Mezclas"
+                subtitle={`${mezclas.length} tanque(s) de preparación`}
+              />
+              <LabeledNumericInput
+                label="¿Cuántas mezclas va a preparar?"
+                value={String(mezclas.length || 1)}
+                onChangeText={updateMezclaCount}
+              />
+              {mezclas.map((mezcla, index) => (
+                <MezclaCard
+                  coadyuvantes={coadyuvantes}
+                  key={mezcla.localId}
+                  onChange={(patch) => updateMezcla(index, patch)}
+                  resetToken={ordenExchangeResetToken}
+                  value={mezcla}
+                />
+              ))}
+            </>
+          ) : null}
 
           <SectionHeader
             icon="nutrition"
@@ -788,7 +878,9 @@ export function VisitaRecetaScreen() {
                 onRemove={() => removeFertilizacion(index)}
                 openDropdown={openDropdown}
                 toggleDropdown={toggleDropdown}
-                onNavegarCatalogo={(tipo) => router.push(`/productos/nuevo?tipoPredefinido=${tipo}`)}
+                onNavegarCatalogo={(tipo) =>
+                  router.push(`/productos/nuevo?tipoPredefinido=${tipo}`)
+                }
                 value={fertilizacion}
               />
             ))
@@ -966,15 +1058,13 @@ function ConsolidacionPanel({ data }: { data: ConsolidacionHallazgo }) {
 function FitosanidadCard({
   value,
   index,
-  coadyuvantes,
-  calculationAreaHectares,
   ingredientesActivos,
   marcasProducto,
   tiposControl,
   tiposProducto,
   modosAccion,
+  mezclas,
   openDropdown,
-  resetToken,
   onAddIngrediente,
   onChange,
   onChangeIngrediente,
@@ -985,15 +1075,13 @@ function FitosanidadCard({
 }: {
   value: AppFitosanidad;
   index: number;
-  coadyuvantes: CoadyuvanteCatalogItem[];
-  calculationAreaHectares: number | null;
   ingredientesActivos: IngredienteActivoCatalogItem[];
   marcasProducto: MarcaProductoCatalogItem[];
   tiposControl: TipoControlCatalogItem[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
+  mezclas: AppMezcla[];
   openDropdown: string | null;
-  resetToken: number;
   onAddIngrediente: () => void;
   onChange: (patch: Partial<AppFitosanidad>) => void;
   onChangeIngrediente: (index: number, patch: Partial<AppIngrediente>) => void;
@@ -1003,64 +1091,6 @@ function FitosanidadCard({
   onNavegarCatalogo: (tipo: string) => void;
 }) {
   const prefix = `fito_${index}`;
-  const [isExchangeMode, setIsExchangeMode] = useState(false);
-  const [selectedOrdenIndex, setSelectedOrdenIndex] = useState<number | null>(null);
-  const selectedCoadyuvanteNames = new Set(
-    value.coadyuvantesIds
-      .map((id) => coadyuvantes.find((c) => c.id === id)?.name ?? "")
-      .filter(Boolean)
-  );
-  const selectableOrdenCount = value.ordenMezcla.filter((item) =>
-    isSelectableOrdenItem(item)
-  ).length;
-  const canExchangeOrden = selectableOrdenCount >= 2;
-
-  useEffect(() => {
-    setIsExchangeMode(false);
-    setSelectedOrdenIndex(null);
-  }, [resetToken, value.coadyuvantesIds]);
-
-  useEffect(() => {
-    if (!canExchangeOrden) {
-      setIsExchangeMode(false);
-    }
-    setSelectedOrdenIndex(null);
-  }, [canExchangeOrden, value.ordenMezcla]);
-
-  function isSelectableOrdenItem(item: string) {
-    return selectedCoadyuvanteNames.has(item) && !isOrdenMezclaFixedItem(item);
-  }
-
-  function toggleExchangeMode() {
-    setIsExchangeMode((prev) => {
-      const next = !prev;
-      if (!next) {
-        setSelectedOrdenIndex(null);
-      }
-      return next;
-    });
-  }
-
-  function handleOrdenItemPress(item: string, itemIndex: number) {
-    if (!isExchangeMode || !isSelectableOrdenItem(item)) {
-      return;
-    }
-
-    if (selectedOrdenIndex === null) {
-      setSelectedOrdenIndex(itemIndex);
-      return;
-    }
-
-    if (selectedOrdenIndex === itemIndex) {
-      setSelectedOrdenIndex(null);
-      return;
-    }
-
-    onChange({
-      ordenMezcla: swapOrdenMezclaItems(value.ordenMezcla, selectedOrdenIndex, itemIndex)
-    });
-    setSelectedOrdenIndex(null);
-  }
 
   return (
     <View style={styles.fitosanidadCard}>
@@ -1098,18 +1128,6 @@ function FitosanidadCard({
         onChangeText={(v) => onChange({ disolvente: v })}
       />
 
-      <LabeledNumericInput
-        label="Volumen de aplicacion (cilindros/ha)"
-        value={value.volumenAplicacion}
-        onChangeText={(v) => onChange({ volumenAplicacion: v })}
-      />
-
-      {calculationAreaHectares !== null ? (
-        <AppText style={styles.calculationAreaHint} variant="caption">
-          Area usada para el calculo: {formatCompactDecimal(calculationAreaHectares)} ha
-        </AppText>
-      ) : null}
-
       <View style={styles.ingredientList}>
         {value.ingredientes.map((ingredient, ingredientIndex) => (
           <IngredienteCard
@@ -1119,147 +1137,26 @@ function FitosanidadCard({
             key={ingredient.localId}
             marcasProducto={marcasProducto}
             modosAccion={modosAccion}
+            mezclas={mezclas}
             onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
             onCloseDropdown={onCloseDropdown}
             onRemove={() => onRemoveIngrediente(ingredientIndex)}
             openDropdown={openDropdown}
             prefix={`${prefix}_ingrediente_${ingredientIndex}`}
             tiposProducto={tiposProducto}
-             toggleDropdown={toggleDropdown}
-             onNavegarCatalogo={onNavegarCatalogo}
-             total={value.ingredientes.length}
+            toggleDropdown={toggleDropdown}
+            onNavegarCatalogo={onNavegarCatalogo}
+            total={value.ingredientes.length}
             value={ingredient}
           />
         ))}
       </View>
 
       <AddItemButton
-         accessibilityLabel={`Agregar otro producto para ${value.objetivoNombre}`}
-         label="Agregar otro producto"
+        accessibilityLabel={`Agregar otro producto para ${value.objetivoNombre}`}
+        label="Agregar otro producto"
         onPress={onAddIngrediente}
       />
-
-      <AppText variant="label" style={styles.fieldLabel}>
-        Coadyuvantes
-      </AppText>
-      <View style={styles.chipContainer}>
-        {coadyuvantes.map((c) => {
-          const selected = value.coadyuvantesIds.includes(c.id);
-          return (
-            <Pressable
-              accessibilityLabel={`${selected ? "Quitar" : "Agregar"} coadyuvante ${c.name}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              key={c.id}
-              onPress={() => {
-                const next = selected
-                  ? value.coadyuvantesIds.filter((id) => id !== c.id)
-                  : [...value.coadyuvantesIds, c.id];
-                onChange({ coadyuvantesIds: next });
-              }}
-              style={[styles.chip, selected && styles.chipSelected]}
-            >
-              <AppText
-                style={[styles.chipText, selected && styles.chipTextSelected]}
-                variant="caption"
-              >
-                {selected ? "✓ " : ""}
-                {c.name}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {value.ordenMezcla.length > 0 ? (
-        <View style={styles.ordenContainer}>
-          <View style={styles.ordenHeader}>
-            <AppText variant="label">Orden de mezcla</AppText>
-            {canExchangeOrden ? (
-              <Pressable
-                accessibilityLabel={
-                  isExchangeMode ? "Finalizar intercambio" : "Intercambiar orden"
-                }
-                accessibilityRole="button"
-                onPress={toggleExchangeMode}
-                style={({ pressed }) => [
-                  styles.ordenExchangeButton,
-                  isExchangeMode && styles.ordenExchangeButtonActive,
-                  pressed && styles.pressedButton
-                ]}
-              >
-                <Ionicons
-                  color={isExchangeMode ? theme.colors.textInverse : theme.colors.primary}
-                  name={isExchangeMode ? "checkmark" : "swap-horizontal"}
-                  size={16}
-                />
-                <AppText
-                  style={[
-                    styles.ordenExchangeButtonText,
-                    isExchangeMode && styles.ordenExchangeButtonTextActive
-                  ]}
-                  variant="caption"
-                >
-                  {isExchangeMode ? "Listo" : "Intercambiar"}
-                </AppText>
-              </Pressable>
-            ) : null}
-          </View>
-
-          {value.ordenMezcla.map((item, i) => {
-            const selectable = isSelectableOrdenItem(item);
-            const selected = selectedOrdenIndex === i;
-            const content = (
-              <>
-                <AppText
-                  style={[styles.ordenItemText, selected && styles.ordenItemTextSelected]}
-                  variant="muted"
-                >
-                  {i + 1}°: {item}
-                </AppText>
-                {isExchangeMode && selectable ? (
-                  <Ionicons
-                    color={selected ? theme.colors.primary : theme.colors.textMuted}
-                    name={selected ? "radio-button-on" : "ellipse-outline"}
-                    size={18}
-                  />
-                ) : null}
-              </>
-            );
-
-            if (!isExchangeMode || !selectable) {
-              return (
-                <View
-                  key={`${item}_${i}`}
-                  style={[
-                    styles.ordenItem,
-                    isExchangeMode && !selectable && styles.ordenItemFixed
-                  ]}
-                >
-                  {content}
-                </View>
-              );
-            }
-
-            return (
-              <Pressable
-                accessibilityLabel={`Seleccionar ${item} para intercambio`}
-                accessibilityRole="button"
-                key={`${item}_${i}`}
-                onPress={() => handleOrdenItemPress(item, i)}
-                style={({ pressed }) => [
-                  styles.ordenItem,
-                  styles.ordenItemSelectable,
-                  selected && styles.ordenItemSelected,
-                  pressed && styles.pressedButton
-                ]}
-              >
-                {content}
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -1273,6 +1170,7 @@ function IngredienteCard({
   ingredientesActivos,
   marcasProducto,
   modosAccion,
+  mezclas,
   tiposProducto,
   openDropdown,
   onChange,
@@ -1289,6 +1187,7 @@ function IngredienteCard({
   ingredientesActivos: IngredienteActivoCatalogItem[];
   marcasProducto: MarcaProductoCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
+  mezclas: AppMezcla[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   openDropdown: string | null;
   onChange: (patch: Partial<AppIngrediente>) => void;
@@ -1332,6 +1231,21 @@ function IngredienteCard({
           />
         ) : null}
       </View>
+
+      <AppSelectField
+        icon="beaker-outline"
+        label="Mezcla asignada"
+        options={mezclas.map((mezcla) => ({
+          value: String(mezcla.numero),
+          label: `Mezcla ${mezcla.numero}`
+        }))}
+        placeholder="Seleccionar mezcla"
+        selectedLabel={`Mezcla ${value.mezclaNumero}`}
+        isOpen={openDropdown === `${prefix}_mezcla`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_mezcla`)}
+        onSelect={(mezclaNumero) => onChange({ mezclaNumero: Number(mezclaNumero) })}
+      />
 
       <AppSelectField
         icon="flask"
@@ -1431,14 +1345,9 @@ function IngredienteCard({
       />
 
       <LabeledNumericInput
-        label="Dosis (mg o mL/cilindro i.a.)"
-        value={value.dosisIa}
-        onChangeText={(dosisIa) => onChange({ dosisIa })}
-      />
-
-      <ReadonlyField
-        label="Cantidad total de i.a. (mg o mL)"
-        value={value.cantidadTotalIa}
+        label="Dosis de producto comercial (mg o mL/cilindro)"
+        value={value.dosisProducto}
+        onChangeText={(dosisProducto) => onChange({ dosisProducto })}
       />
 
       <LabeledNumericInput
@@ -1456,15 +1365,146 @@ function IngredienteCard({
       />
 
       <ReadonlyField
-        label="Cantidad total de producto (L)"
+        label="Cantidad total de producto (mg o mL/ha)"
         value={value.cantidadTotalProducto}
       />
     </View>
   );
 }
 
+function MezclaCard({
+  value,
+  coadyuvantes,
+  resetToken,
+  onChange
+}: {
+  value: AppMezcla;
+  coadyuvantes: CoadyuvanteCatalogItem[];
+  resetToken: number;
+  onChange: (patch: Partial<AppMezcla>) => void;
+}) {
+  const [isExchangeMode, setIsExchangeMode] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setIsExchangeMode(false);
+    setSelectedIndex(null);
+  }, [resetToken, value.coadyuvantesIds]);
+
+  const movableCount = value.ordenMezcla.filter(
+    (item) => !isOrdenMezclaFixedItem(item)
+  ).length;
+
+  function exchange(index: number) {
+    if (!isExchangeMode || isOrdenMezclaFixedItem(value.ordenMezcla[index] ?? "")) {
+      return;
+    }
+    if (selectedIndex === null) {
+      setSelectedIndex(index);
+      return;
+    }
+    onChange({
+      ordenMezcla: swapOrdenMezclaItems(value.ordenMezcla, selectedIndex, index)
+    });
+    setSelectedIndex(null);
+  }
+
+  return (
+    <View style={styles.fitosanidadCard}>
+      <AppText variant="heading">Mezcla {value.numero}</AppText>
+      <LabeledNumericInput
+        label="Volumen de aplicación (cilindros/ha)"
+        value={value.volumenAplicacion}
+        onChangeText={(volumenAplicacion) => onChange({ volumenAplicacion })}
+      />
+      <LabeledNumericInput
+        editable={value.factorEditable}
+        label="Factor de incidencia"
+        value={value.factor}
+        onChangeText={(factor) => onChange({ factor })}
+      />
+      <AppText variant="caption">
+        {value.factorEditable
+          ? "Incidencia grado 3: puede ajustar el factor."
+          : "Factor calculado automáticamente según la mayor incidencia de la mezcla."}
+      </AppText>
+
+      <AppText variant="label" style={styles.fieldLabel}>
+        Coadyuvantes
+      </AppText>
+      <View style={styles.chipContainer}>
+        {coadyuvantes.map((coadyuvante) => {
+          const selected = value.coadyuvantesIds.includes(coadyuvante.id);
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              key={coadyuvante.id}
+              onPress={() =>
+                onChange({
+                  coadyuvantesIds: selected
+                    ? value.coadyuvantesIds.filter((id) => id !== coadyuvante.id)
+                    : [...value.coadyuvantesIds, coadyuvante.id]
+                })
+              }
+              style={[styles.chip, selected && styles.chipSelected]}
+            >
+              <AppText
+                style={[styles.chipText, selected && styles.chipTextSelected]}
+                variant="caption"
+              >
+                {selected ? "✓ " : ""}
+                {coadyuvante.name}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {value.ordenMezcla.length > 0 ? (
+        <View style={styles.ordenContainer}>
+          <View style={styles.ordenHeader}>
+            <AppText variant="label">Orden de mezcla</AppText>
+            {movableCount >= 2 ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setIsExchangeMode((current) => !current);
+                  setSelectedIndex(null);
+                }}
+                style={styles.ordenExchangeButton}
+              >
+                <AppText variant="caption">
+                  {isExchangeMode ? "Listo" : "Intercambiar"}
+                </AppText>
+              </Pressable>
+            ) : null}
+          </View>
+          {value.ordenMezcla.map((item, index) => (
+            <Pressable
+              accessibilityRole="button"
+              disabled={!isExchangeMode || isOrdenMezclaFixedItem(item)}
+              key={`${item}_${index}`}
+              onPress={() => exchange(index)}
+              style={[
+                styles.ordenItem,
+                selectedIndex === index && styles.ordenItemSelected
+              ]}
+            >
+              <AppText variant="muted">
+                {index + 1}°: {item}
+              </AppText>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function validateRequiredRecipe(
   fitosanidadApps: AppFitosanidad[],
+  mezclas: AppMezcla[],
   fertilizaciones: AppFertilizacion[],
   riegoSelection: string | null,
   laborSelections: Set<string>
@@ -1476,6 +1516,22 @@ function validateRequiredRecipe(
 
   if (!hasFitosanidad && !hasFertilizacion && !hasRiego && !hasLabores) {
     return "La receta es obligatoria. Registra al menos una recomendacion tecnica antes de finalizar.";
+  }
+
+  if (hasFitosanidad) {
+    const assigned = new Set(
+      fitosanidadApps.flatMap((application) =>
+        application.ingredientes.map((ingredient) => ingredient.mezclaNumero)
+      )
+    );
+    const empty = mezclas.find((mezcla) => !assigned.has(mezcla.numero));
+    if (empty) return `Asigna al menos un producto a la mezcla ${empty.numero}.`;
+    const missingVolume = mezclas.find(
+      (mezcla) => !parsePositiveDecimal(mezcla.volumenAplicacion)
+    );
+    if (missingVolume) {
+      return `Ingresa el volumen de aplicación de la mezcla ${missingVolume.numero}.`;
+    }
   }
 
   return null;
@@ -1604,6 +1660,13 @@ function FertilizacionCard({
         label={`Dosis (${unidadDosis})`}
         value={value.dosis}
         onChangeText={(v) => onChange({ dosis: v })}
+      />
+
+      <LabeledNumericInput
+        editable={value.factorEditable}
+        label="Factor de incidencia"
+        value={value.factor}
+        onChangeText={(factor) => onChange({ factor })}
       />
 
       {value.viaAplicacion === "edafica" ? (

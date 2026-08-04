@@ -8,28 +8,33 @@ import { riegosRepository } from "../../riegos/repositories/riegos.repository";
 import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
 import { getDatabase } from "../../../shared/database/connection";
 import type { VisitaRecetaCompleta, ConsolidacionHallazgo } from "../types";
+import { resolveDiseaseIncidenceGrade } from "../../observaciones-sanitarias/domain/disease-incidence";
+import { resolveNutritionIncidence } from "../../evaluaciones/domain/nutrition-incidence";
 
 const NUTRITION_DESCRIPTION_PREFIX = "Nutricion -";
 
 export type SaveRecetaData = {
   etapaFenologica: string | null;
-  fitosanidad: Array<{
+  mezclas: Array<{
     numero: number;
-    objetivo: "plaga" | "enfermedad";
-    objetivoNombre: string;
-    tipoControlId: string | null;
-    tipoProductoId: string | null;
-    disolvente: string;
-    modoAccionId: string | null;
-    ingredienteActivoNombre: string | null;
-    dosisIa: number | null;
-    volumenAplicacion: number | null;
-    cantidadTotalIa: number | null;
-    marcaProductoNombre: string | null;
-    concentracionProducto: number | null;
-    cantidadTotalProducto: number | null;
     coadyuvantesIds: string | null;
     ordenMezcla: string | null;
+    volumenAplicacion: number | null;
+    factor: number;
+    factorEditable: boolean;
+    productos: Array<{
+      objetivo: "plaga" | "enfermedad";
+      objetivoNombre: string;
+      tipoControlId: string | null;
+      tipoProductoId: string | null;
+      disolvente: string;
+      modoAccionId: string | null;
+      ingredienteActivoNombre: string | null;
+      dosisProducto: number | null;
+      marcaProductoNombre: string | null;
+      concentracionProducto: number | null;
+      cantidadTotalProducto: number | null;
+    }>;
   }>;
   fertilizacion: Array<{
     viaAplicacion: "edafica" | "foliar";
@@ -40,6 +45,7 @@ export type SaveRecetaData = {
     cantidadTotalPlantas: number | null;
     volumenAplicacion: number | null;
     cantidadTotalFertilizante: number | null;
+    factor: number;
   }>;
   riego: { tipoRecomendacion: string } | null;
   labores: string[];
@@ -105,7 +111,13 @@ export const visitaRecetasService = {
           (observacion.severityLevelId
             ? levelById.get(observacion.severityLevelId)?.name
             : null) ?? "No especificada",
-        organos: observacion.organosAfectados
+        organos: observacion.organosAfectados,
+        incidenceGrade:
+          pest.type === "enfermedad"
+            ? resolveDiseaseIncidenceGrade(Number(observacion.incidencePercentage ?? 0))
+            : ((observacion.incidenceLevelId
+                ? levelById.get(observacion.incidenceLevelId)?.grade
+                : 0) ?? 0)
       };
 
       if (pest.type === "enfermedad") {
@@ -127,7 +139,10 @@ export const visitaRecetasService = {
           incidencia: evaluacion.incidencePercentage
             ? `${evaluacion.incidencePercentage}%`
             : "No especificada",
-          severidad: parsed.severidad ?? "No especificada"
+          severidad: parsed.severidad ?? "No especificada",
+          incidenceGrade: resolveNutritionIncidence(
+            Number(evaluacion.incidencePercentage ?? 0)
+          ).grade
         };
       });
 
@@ -189,23 +204,26 @@ export const visitaRecetasService = {
   ): Promise<VisitaRecetaCompleta> {
     const remoteData = {
       etapaFenologica: data.etapaFenologica ?? undefined,
-      fitosanidad: data.fitosanidad.map((f) => ({
-        numero: f.numero,
-        objetivo: f.objetivo,
-        objetivoNombre: f.objetivoNombre,
-        tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
-        tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
-        disolvente: f.disolvente,
-        modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
-        ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
-        dosisIa: f.dosisIa ?? undefined,
-        volumenAplicacion: f.volumenAplicacion ?? undefined,
-        cantidadTotalIa: f.cantidadTotalIa ?? undefined,
-        marcaProductoNombre: f.marcaProductoNombre ?? undefined,
-        concentracionProducto: f.concentracionProducto ?? undefined,
-        cantidadTotalProducto: f.cantidadTotalProducto ?? undefined,
-        coadyuvantesIds: f.coadyuvantesIds ?? undefined,
-        ordenMezcla: f.ordenMezcla ?? undefined
+      mezclas: data.mezclas.map((mezcla) => ({
+        numero: mezcla.numero,
+        coadyuvantesIds: mezcla.coadyuvantesIds ?? undefined,
+        ordenMezcla: mezcla.ordenMezcla ?? undefined,
+        volumenAplicacion: mezcla.volumenAplicacion ?? undefined,
+        factor: mezcla.factor,
+        factorEditable: mezcla.factorEditable,
+        productos: mezcla.productos.map((f) => ({
+          objetivo: f.objetivo,
+          objetivoNombre: f.objetivoNombre,
+          tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
+          tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
+          disolvente: f.disolvente,
+          modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
+          ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
+          dosisProducto: f.dosisProducto ?? undefined,
+          marcaProductoNombre: f.marcaProductoNombre ?? undefined,
+          concentracionProducto: f.concentracionProducto ?? undefined,
+          cantidadTotalProducto: f.cantidadTotalProducto ?? undefined
+        }))
       })),
       fertilizacion: data.fertilizacion.map((f) => ({
         viaAplicacion: f.viaAplicacion,
@@ -215,7 +233,8 @@ export const visitaRecetasService = {
         unidadDosis: f.unidadDosis ?? undefined,
         cantidadTotalPlantas: f.cantidadTotalPlantas ?? undefined,
         volumenAplicacion: f.volumenAplicacion ?? undefined,
-        cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined
+        cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined,
+        factor: f.factor
       })),
       riego: data.riego ?? undefined,
       labores: data.labores.map((l) => ({ labor: l }))
@@ -224,7 +243,10 @@ export const visitaRecetasService = {
     return visitaRecetasRemote.save(visitaId, remoteData);
   },
 
-  obtenerUltimoVolumenAplicacion(parcelaId: string): { fitosanidad: string; fertilizacion: string } {
+  obtenerUltimoVolumenAplicacion(parcelaId: string): {
+    fitosanidad: string;
+    fertilizacion: string;
+  } {
     const db = getDatabase();
 
     const ultimaVisita = db.getFirstSync<{ id: string }>(
@@ -241,19 +263,23 @@ export const visitaRecetasService = {
       return { fitosanidad: "", fertilizacion: "" };
     }
 
-    const ultimaReceta = visitaRecetasRepository.getRecetaByVisitaLocalId(ultimaVisita.id);
+    const ultimaReceta = visitaRecetasRepository.getRecetaByVisitaLocalId(
+      ultimaVisita.id
+    );
 
     if (!ultimaReceta) {
       return { fitosanidad: "", fertilizacion: "" };
     }
 
-    const volumenFito = ultimaReceta.fitosanidad.length > 0
-      ? (ultimaReceta.fitosanidad[0].volumenAplicacion?.toString() ?? "")
-      : "";
+    const volumenFito =
+      ultimaReceta.mezclas.length > 0
+        ? (ultimaReceta.mezclas[0].volumenAplicacion?.toString() ?? "")
+        : "";
 
-    const volumenFert = ultimaReceta.fertilizacion.length > 0
-      ? (ultimaReceta.fertilizacion[0].volumenAplicacion?.toString() ?? "")
-      : "";
+    const volumenFert =
+      ultimaReceta.fertilizacion.length > 0
+        ? (ultimaReceta.fertilizacion[0].volumenAplicacion?.toString() ?? "")
+        : "";
 
     return { fitosanidad: volumenFito, fertilizacion: volumenFert };
   }

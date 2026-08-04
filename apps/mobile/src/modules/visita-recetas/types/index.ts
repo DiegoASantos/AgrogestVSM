@@ -51,6 +51,7 @@ export type RecetaFitosanidad = {
   id: string;
   serverId: string | null;
   recetaLocalId: string;
+  mezclaLocalId: string | null;
   numero: number;
   objetivo: "plaga" | "enfermedad";
   objetivoNombre: string;
@@ -59,14 +60,26 @@ export type RecetaFitosanidad = {
   disolvente: string;
   modoAccionId: string | null;
   ingredienteActivoNombre: string | null;
-  dosisIa: number | null;
-  volumenAplicacion: number | null;
-  cantidadTotalIa: number | null;
+  dosisProducto: number | null;
   marcaProductoNombre: string | null;
   concentracionProducto: number | null;
   cantidadTotalProducto: number | null;
+  syncStatus: "pending" | "synced" | "error";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RecetaMezcla = {
+  id: string;
+  serverId: string | null;
+  recetaLocalId: string;
+  numero: number;
   coadyuvantesIds: string | null;
   ordenMezcla: string | null;
+  volumenAplicacion: number | null;
+  factor: number;
+  factorEditable: boolean;
+  productos: RecetaFitosanidad[];
   syncStatus: "pending" | "synced" | "error";
   createdAt: string;
   updatedAt: string;
@@ -84,6 +97,7 @@ export type RecetaFertilizacion = {
   cantidadTotalPlantas: number | null;
   volumenAplicacion: number | null;
   cantidadTotalFertilizante: number | null;
+  factor: number;
   syncStatus: "pending" | "synced" | "error";
   createdAt: string;
   updatedAt: string;
@@ -93,11 +107,7 @@ export type RecetaRiego = {
   id: string;
   serverId: string | null;
   recetaLocalId: string;
-  tipoRecomendacion:
-    | "riego_pesado"
-    | "riego_ligero"
-    | "inicio_agoste"
-    | "ruptura_agoste";
+  tipoRecomendacion: "riego_pesado" | "riego_ligero" | "inicio_agoste" | "ruptura_agoste";
   syncStatus: "pending" | "synced" | "error";
   createdAt: string;
   updatedAt: string;
@@ -132,6 +142,7 @@ export type VisitaReceta = {
 };
 
 export type VisitaRecetaCompleta = VisitaReceta & {
+  mezclas: RecetaMezcla[];
   fitosanidad: RecetaFitosanidad[];
   fertilizacion: RecetaFertilizacion[];
   riego: RecetaRiego | null;
@@ -145,17 +156,20 @@ export type ConsolidacionHallazgo = {
     incidencia: string;
     severidad: string;
     organos: string[];
+    incidenceGrade: number;
   }>;
   enfermedades: Array<{
     nombre: string;
     incidencia: string;
     severidad: string;
     organos: string[];
+    incidenceGrade: number;
   }>;
   nutricion: Array<{
     elemento: string;
     incidencia: string;
     severidad: string;
+    incidenceGrade: number;
   }>;
   riego: {
     humedadSuelo: string | null;
@@ -181,8 +195,7 @@ export const RIEGO_RECOMENDACION_DESCRIPTIONS: Record<
   RecetaRiego["tipoRecomendacion"],
   string
 > = {
-  riego_pesado:
-    "Aplicar grandes volumenes de agua sobre la superficie del terreno.",
+  riego_pesado: "Aplicar grandes volumenes de agua sobre la superficie del terreno.",
   riego_ligero:
     "Aplicar una lamina de agua de bajo volumen para humedecer superficialmente.",
   inicio_agoste:
@@ -191,10 +204,7 @@ export const RIEGO_RECOMENDACION_DESCRIPTIONS: Record<
     "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo."
 };
 
-export const LABOR_RECOMENDACION_LABELS: Record<
-  RecetaLabor["labor"],
-  string
-> = {
+export const LABOR_RECOMENDACION_LABELS: Record<RecetaLabor["labor"], string> = {
   limpieza_maleza_pala: "Limpieza de maleza con pala",
   limpieza_maleza_motoguadana: "Limpieza de maleza con motoguadana",
   horqueteo: "Horqueteo",
@@ -203,12 +213,8 @@ export const LABOR_RECOMENDACION_LABELS: Record<
   trampas_mosca: "Colocacion de trampas de mosca de la fruta"
 };
 
-export const LABOR_RECOMENDACION_DESCRIPTIONS: Record<
-  RecetaLabor["labor"],
-  string
-> = {
-  limpieza_maleza_pala:
-    "Eliminacion de hierbas con herramienta de campo.",
+export const LABOR_RECOMENDACION_DESCRIPTIONS: Record<RecetaLabor["labor"], string> = {
+  limpieza_maleza_pala: "Eliminacion de hierbas con herramienta de campo.",
   limpieza_maleza_motoguadana:
     "Eliminacion de hierbas con herramienta mecanizada de rapido avance.",
   horqueteo:
@@ -217,6 +223,5 @@ export const LABOR_RECOMENDACION_DESCRIPTIONS: Record<
     "Amarrar y asegurar las ramas principales hacia el centro para evitar que el peso quiebre las ramas.",
   recoleccion_frutos:
     "Evitar que plagas y enfermedades completen su ciclo biologico en el suelo.",
-  trampas_mosca:
-    "Monitoreo y captura masiva de mosca de la fruta."
+  trampas_mosca: "Monitoreo y captura masiva de mosca de la fruta."
 };

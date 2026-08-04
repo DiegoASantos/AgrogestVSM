@@ -1,27 +1,27 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  MaxLength,
   Min,
   ValidateNested
 } from "class-validator";
 
-export class FitosanidadDto {
+export class FitosanidadProductoDto {
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @IsInt()
   @Min(1)
   id?: number;
-
-  @ApiProperty({ example: 1, description: "Numero de aplicacion (01, 02...)." })
-  @IsInt()
-  @Min(1)
-  numero!: number;
 
   @ApiProperty({
     example: "plaga",
@@ -32,6 +32,7 @@ export class FitosanidadDto {
 
   @ApiProperty({ example: "Thrips", description: "Nombre de la plaga o enfermedad." })
   @IsString()
+  @MaxLength(150)
   objetivoNombre!: string;
 
   @ApiPropertyOptional({ example: 1 })
@@ -49,6 +50,7 @@ export class FitosanidadDto {
   @ApiPropertyOptional({ example: "Agua" })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   disolvente?: string;
 
   @ApiPropertyOptional({ example: 1 })
@@ -60,29 +62,22 @@ export class FitosanidadDto {
   @ApiPropertyOptional({ example: "Abamectina" })
   @IsOptional()
   @IsString()
+  @MaxLength(150)
   ingredienteActivoNombre?: string;
 
-  @ApiPropertyOptional({ example: 250 })
+  @ApiPropertyOptional({
+    example: 250,
+    description: "Dosis de producto comercial en mg o mL por cilindro."
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
-  dosisIa?: number;
-
-  @ApiPropertyOptional({ example: 2 })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  volumenAplicacion?: number;
-
-  @ApiPropertyOptional({ example: 500 })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  cantidadTotalIa?: number;
+  dosisProducto?: number;
 
   @ApiPropertyOptional({ example: "Agrimec" })
   @IsOptional()
   @IsString()
+  @MaxLength(150)
   marcaProductoNombre?: string;
 
   @ApiPropertyOptional({ example: 18 })
@@ -96,21 +91,104 @@ export class FitosanidadDto {
   @IsNumber()
   @Min(0)
   cantidadTotalProducto?: number;
+}
 
-  @ApiPropertyOptional({
-    example: "[1, 4]",
-    description: "JSON string de ids de coadyuvantes seleccionados."
-  })
+export class LegacyFitosanidadDto extends FitosanidadProductoDto {
+  @ApiProperty({ example: 1, description: "Numero de aplicacion legacy." })
+  @IsInt()
+  @Min(1)
+  numero!: number;
+
+  @ApiPropertyOptional({ example: 250, deprecated: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  dosisIa?: number;
+
+  @ApiPropertyOptional({ example: 2, deprecated: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  volumenAplicacion?: number;
+
+  @ApiPropertyOptional({ example: 500, deprecated: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  cantidadTotalIa?: number;
+
+  @ApiPropertyOptional({ example: "[1, 4]", deprecated: true })
   @IsOptional()
   @IsString()
+  @MaxLength(4000)
   coadyuvantesIds?: string;
 
   @ApiPropertyOptional({
-    example: '["Agua","Regulador de pH","Producto agroquimico","Adherente"]'
+    example: '["Agua","Producto agroquimico"]',
+    deprecated: true
   })
   @IsOptional()
   @IsString()
+  @MaxLength(4000)
   ordenMezcla?: string;
+}
+
+export class MezclaDto {
+  @ApiProperty({ example: 1, description: "Numero correlativo de la mezcla." })
+  @IsInt()
+  @Min(1)
+  numero!: number;
+
+  @ApiPropertyOptional({
+    example: "[1, 4]",
+    description: "JSON string de ids de coadyuvantes de la mezcla."
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  coadyuvantesIds?: string;
+
+  @ApiPropertyOptional({
+    example: '["Agua","Corrector de pH","Agrimec","Adherente"]',
+    description: "JSON string con el orden de preparacion de la mezcla."
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  ordenMezcla?: string;
+
+  @ApiPropertyOptional({
+    example: 2,
+    description: "Volumen de aplicacion expresado en cilindros por hectarea."
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  volumenAplicacion?: number;
+
+  @ApiProperty({ example: 1.2, description: "Factor derivado de la incidencia." })
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  factor!: number;
+
+  @ApiProperty({
+    example: false,
+    description: "Indica si el factor puede ajustarse por incidencia de grado 3."
+  })
+  @IsBoolean()
+  factorEditable!: boolean;
+
+  @ApiProperty({
+    type: [FitosanidadProductoDto],
+    description: "Productos comerciales que comparten el tanque."
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => FitosanidadProductoDto)
+  productos!: FitosanidadProductoDto[];
 }
 
 export class FertilizacionDto {
@@ -130,6 +208,7 @@ export class FertilizacionDto {
   @ApiPropertyOptional({ example: "Nitrato de potasio" })
   @IsOptional()
   @IsString()
+  @MaxLength(150)
   fertilizanteNombre?: string;
 
   @ApiPropertyOptional({
@@ -152,6 +231,7 @@ export class FertilizacionDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(30)
   unidadDosis?: string;
 
   @ApiPropertyOptional({ example: 1500 })
@@ -171,6 +251,16 @@ export class FertilizacionDto {
   @IsNumber()
   @Min(0)
   cantidadTotalFertilizante?: number;
+
+  @ApiPropertyOptional({
+    example: 1.2,
+    description: "Factor derivado de la incidencia; usa 1 para clientes legacy."
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  factor?: number;
 }
 
 export class RiegoDto {
@@ -186,10 +276,7 @@ export class RiegoDto {
   })
   @IsIn(["riego_pesado", "riego_ligero", "inicio_agoste", "ruptura_agoste"])
   tipoRecomendacion!:
-    | "riego_pesado"
-    | "riego_ligero"
-    | "inicio_agoste"
-    | "ruptura_agoste";
+    "riego_pesado" | "riego_ligero" | "inicio_agoste" | "ruptura_agoste";
 }
 
 export class LaborDto {
@@ -227,22 +314,35 @@ export class CreateVisitaRecetaDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(150)
   etapaFenologica?: string;
 
-  @ApiProperty({
-    type: [FitosanidadDto],
-    description: "Aplicaciones fitosanitarias."
-  })
+  @ApiPropertyOptional({ type: [MezclaDto], description: "Tanques de preparacion." })
+  @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @ValidateNested({ each: true })
-  @Type(() => FitosanidadDto)
-  fitosanidad!: FitosanidadDto[];
+  @Type(() => MezclaDto)
+  mezclas?: MezclaDto[];
+
+  @ApiPropertyOptional({
+    type: [LegacyFitosanidadDto],
+    description: "Contrato plano temporal para clientes mobile anteriores.",
+    deprecated: true
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => LegacyFitosanidadDto)
+  fitosanidad?: LegacyFitosanidadDto[];
 
   @ApiProperty({
     type: [FertilizacionDto],
     description: "Recomendaciones de fertilizacion."
   })
   @IsArray()
+  @ArrayMaxSize(100)
   @ValidateNested({ each: true })
   @Type(() => FertilizacionDto)
   fertilizacion!: FertilizacionDto[];
@@ -261,6 +361,7 @@ export class CreateVisitaRecetaDto {
     description: "Recomendaciones de labores."
   })
   @IsArray()
+  @ArrayMaxSize(6)
   @ValidateNested({ each: true })
   @Type(() => LaborDto)
   labores!: LaborDto[];

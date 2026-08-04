@@ -160,3 +160,12 @@ No hay cambios en contratos de API ni en tipos compartidos. El contrato `string
 - [x] Runbook — sin cambios.
 - [x] ADR — sin cambios.
 - [x] Variables o despliegue — sin cambios.
+
+## Extensión por Spec 029
+
+La [Spec 029](./029-mezclas-factor-dosificacion-receta.md) traslada el orden y
+los coadyuvantes desde cada producto a la cabecera de mezcla. El intercambio
+se aplica ahora a todos los elementos no fijos del tanque, incluidos los
+nombres comerciales reales de sus productos; únicamente Agua permanece fija
+en la primera posición. El orden se regenera cuando cambia la asignación de
+productos o coadyuvantes.

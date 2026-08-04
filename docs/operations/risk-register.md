@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-02
+last_reviewed: 2026-08-04
 ---
 
 # Registro de riesgos
@@ -30,6 +30,8 @@ last_reviewed: 2026-08-02
 | R-018 | Clientes mobile anteriores no almacenan el grado explícito del catálogo de incidencia | Media | Mitigado | Migración SQLite 45 agrega grado, invalida caché y fuerza descarga del catálogo |
 | R-019 | Clientes mobile anteriores identifican las evaluaciones nutricionales solo por texto y una recarga podría cambiar el ID del catálogo | Media | Mitigado | API mantiene lectura compatible; migraciones PostgreSQL 036 y SQLite 46 agregan identidad estable; mobile remapea IDs con UPSERT transaccional y preserva borrados pendientes antes de finalizar |
 | R-020 | Una instalacion mobile muy antigua puede atravesar migraciones SQLite historicas que reconstruyen o eliminan datos antes de llegar a la version vigente | Alta | Abierto | Confirmar `user_version = 53` en la cohorte productiva y aprobar una prueba de actualizacion in-place con datos sinteticos antes de distribuir nuevos APK; diseñar ruta preservadora separada para cohortes antiguas |
+
+| R-021 | Las columnas legacy de receta deben mantenerse durante la ventana de compatibilidad con clientes mobile anteriores | Media | Mitigado | API y SQLite siguen poblándolas; monitorear adopción, respaldar y aprobar una spec de contracción separada antes de eliminarlas |
 
 ## Revisión
 

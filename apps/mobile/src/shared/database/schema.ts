@@ -382,10 +382,26 @@ export const SQL_SCHEMA = [
     FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
     UNIQUE (visita_local_id)
   )`,
+  `CREATE TABLE IF NOT EXISTS visita_receta_mezcla (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    server_id TEXT,
+    receta_local_id TEXT NOT NULL,
+    numero INTEGER NOT NULL CHECK(numero > 0),
+    coadyuvantes_ids TEXT,
+    orden_mezcla TEXT,
+    volumen_aplicacion TEXT,
+    factor TEXT NOT NULL DEFAULT '1',
+    factor_editable INTEGER NOT NULL DEFAULT 0 CHECK(factor_editable IN (0, 1)),
+    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE
+  )`,
   `CREATE TABLE IF NOT EXISTS visita_receta_fitosanidad (
     local_id TEXT PRIMARY KEY NOT NULL,
     server_id TEXT,
     receta_local_id TEXT NOT NULL,
+    mezcla_local_id TEXT,
     numero INTEGER NOT NULL DEFAULT 1,
     objetivo TEXT NOT NULL CHECK(objetivo IN ('plaga', 'enfermedad')),
     objetivo_nombre TEXT NOT NULL,
@@ -395,6 +411,7 @@ export const SQL_SCHEMA = [
     modo_accion_id TEXT,
     ingrediente_activo_nombre TEXT,
     dosis_ia TEXT,
+    dosis_producto TEXT,
     volumen_aplicacion TEXT,
     cantidad_total_ia TEXT,
     marca_producto_nombre TEXT,
@@ -405,7 +422,8 @@ export const SQL_SCHEMA = [
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE
+    FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE,
+    FOREIGN KEY (mezcla_local_id) REFERENCES visita_receta_mezcla(local_id) ON DELETE CASCADE
   )`,
   `CREATE TABLE IF NOT EXISTS visita_receta_fertilizacion (
     local_id TEXT PRIMARY KEY NOT NULL,
@@ -419,6 +437,7 @@ export const SQL_SCHEMA = [
     cantidad_total_plantas TEXT,
     volumen_aplicacion TEXT,
     cantidad_total_fertilizante TEXT,
+    factor TEXT NOT NULL DEFAULT '1',
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,

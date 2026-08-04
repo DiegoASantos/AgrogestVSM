@@ -1173,13 +1173,23 @@ const MIGRATIONS: Migration[] = [
     version: 51,
     run(db: SQLiteDatabase) {
       addColumnIfMissing(db, "productores", "server_id", "TEXT");
-      addColumnIfMissing(db, "productores", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
+      addColumnIfMissing(
+        db,
+        "productores",
+        "sync_status",
+        "TEXT NOT NULL DEFAULT 'synced'"
+      );
       addColumnIfMissing(db, "productores", "sync_error_message", "TEXT");
       addColumnIfMissing(db, "sectores", "server_id", "TEXT");
       addColumnIfMissing(db, "sectores", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
       addColumnIfMissing(db, "sectores", "sync_error_message", "TEXT");
       addColumnIfMissing(db, "subsectores", "server_id", "TEXT");
-      addColumnIfMissing(db, "subsectores", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
+      addColumnIfMissing(
+        db,
+        "subsectores",
+        "sync_status",
+        "TEXT NOT NULL DEFAULT 'synced'"
+      );
       addColumnIfMissing(db, "subsectores", "sync_error_message", "TEXT");
       addColumnIfMissing(db, "parcelas", "server_id", "TEXT");
       addColumnIfMissing(db, "parcelas", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
@@ -1217,43 +1227,163 @@ const MIGRATIONS: Migration[] = [
         code TEXT NOT NULL,
         name TEXT NOT NULL
        )`,
-       "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
-     ]
-   },
-   {
-     version: 54,
-     run(db: SQLiteDatabase) {
-       addColumnIfMissing(db, "ingredientes_activos", "public_id", "TEXT NOT NULL DEFAULT ''");
-       addColumnIfMissing(db, "ingredientes_activos", "server_id", "TEXT");
-       addColumnIfMissing(db, "ingredientes_activos", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
-       addColumnIfMissing(db, "ingredientes_activos", "sync_error_message", "TEXT");
-       addColumnIfMissing(db, "fertilizantes", "public_id", "TEXT NOT NULL DEFAULT ''");
-       addColumnIfMissing(db, "fertilizantes", "server_id", "TEXT");
-       addColumnIfMissing(db, "fertilizantes", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
-       addColumnIfMissing(db, "fertilizantes", "sync_error_message", "TEXT");
-       addColumnIfMissing(db, "marcas_producto", "public_id", "TEXT NOT NULL DEFAULT ''");
-       addColumnIfMissing(db, "marcas_producto", "server_id", "TEXT");
-       addColumnIfMissing(db, "marcas_producto", "sync_status", "TEXT NOT NULL DEFAULT 'synced'");
-       addColumnIfMissing(db, "marcas_producto", "sync_error_message", "TEXT");
+      "DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"
+    ]
+  },
+  {
+    version: 54,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(
+        db,
+        "ingredientes_activos",
+        "public_id",
+        "TEXT NOT NULL DEFAULT ''"
+      );
+      addColumnIfMissing(db, "ingredientes_activos", "server_id", "TEXT");
+      addColumnIfMissing(
+        db,
+        "ingredientes_activos",
+        "sync_status",
+        "TEXT NOT NULL DEFAULT 'synced'"
+      );
+      addColumnIfMissing(db, "ingredientes_activos", "sync_error_message", "TEXT");
+      addColumnIfMissing(db, "fertilizantes", "public_id", "TEXT NOT NULL DEFAULT ''");
+      addColumnIfMissing(db, "fertilizantes", "server_id", "TEXT");
+      addColumnIfMissing(
+        db,
+        "fertilizantes",
+        "sync_status",
+        "TEXT NOT NULL DEFAULT 'synced'"
+      );
+      addColumnIfMissing(db, "fertilizantes", "sync_error_message", "TEXT");
+      addColumnIfMissing(db, "marcas_producto", "public_id", "TEXT NOT NULL DEFAULT ''");
+      addColumnIfMissing(db, "marcas_producto", "server_id", "TEXT");
+      addColumnIfMissing(
+        db,
+        "marcas_producto",
+        "sync_status",
+        "TEXT NOT NULL DEFAULT 'synced'"
+      );
+      addColumnIfMissing(db, "marcas_producto", "sync_error_message", "TEXT");
 
-       for (const table of ["ingredientes_activos", "fertilizantes", "marcas_producto"]) {
-         db.execSync(
-           `UPDATE ${table}
+      for (const table of ["ingredientes_activos", "fertilizantes", "marcas_producto"]) {
+        db.execSync(
+          `UPDATE ${table}
             SET public_id = id
             WHERE public_id = ''
               AND server_id IS NOT NULL`
-         );
-         db.execSync(
-           `UPDATE ${table}
+        );
+        db.execSync(
+          `UPDATE ${table}
             SET server_id = id
             WHERE server_id IS NULL
               AND sync_status = 'synced'`
-         );
-       }
-       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
-     }
-   }
- ];
+        );
+      }
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
+  },
+  {
+    version: 55,
+    run(db: SQLiteDatabase) {
+      db.execSync(`CREATE TABLE IF NOT EXISTS visita_receta_mezcla (
+         local_id TEXT PRIMARY KEY NOT NULL,
+         server_id TEXT,
+         receta_local_id TEXT NOT NULL,
+         numero INTEGER NOT NULL CHECK(numero > 0),
+         coadyuvantes_ids TEXT,
+         orden_mezcla TEXT,
+         volumen_aplicacion TEXT,
+         factor TEXT NOT NULL DEFAULT '1',
+         factor_editable INTEGER NOT NULL DEFAULT 0 CHECK(factor_editable IN (0, 1)),
+         sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+         created_at TEXT NOT NULL,
+         updated_at TEXT NOT NULL,
+         FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE
+       )`);
+      addColumnIfMissing(db, "visita_receta_fitosanidad", "mezcla_local_id", "TEXT");
+      addColumnIfMissing(db, "visita_receta_fitosanidad", "dosis_producto", "TEXT");
+      addColumnIfMissing(
+        db,
+        "visita_receta_fertilizacion",
+        "factor",
+        "TEXT NOT NULL DEFAULT '1'"
+      );
+      db.execSync(
+        "UPDATE visita_receta_fitosanidad SET dosis_producto = dosis_ia WHERE dosis_producto IS NULL"
+      );
+
+      const rows = db.getAllSync<{
+        local_id: string;
+        receta_local_id: string;
+        numero: number;
+        objetivo: string;
+        objetivo_nombre: string;
+        coadyuvantes_ids: string | null;
+        orden_mezcla: string | null;
+        volumen_aplicacion: string | null;
+        sync_status: string;
+        created_at: string;
+        updated_at: string;
+      }>(`SELECT local_id, receta_local_id, numero, objetivo, objetivo_nombre,
+                  coadyuvantes_ids, orden_mezcla, volumen_aplicacion, sync_status,
+                  created_at, updated_at
+           FROM visita_receta_fitosanidad
+           WHERE mezcla_local_id IS NULL
+           ORDER BY receta_local_id, numero, local_id`);
+      const grouped = new Map<string, (typeof rows)[number]>();
+
+      for (const row of rows) {
+        const key = [
+          row.receta_local_id,
+          row.numero,
+          row.objetivo,
+          row.objetivo_nombre
+        ].join("::");
+        if (!grouped.has(key)) grouped.set(key, row);
+      }
+
+      for (const [key, row] of grouped) {
+        const mezclaLocalId = `mezcla_${row.local_id}`;
+        db.runSync(
+          `INSERT OR IGNORE INTO visita_receta_mezcla
+            (local_id, server_id, receta_local_id, numero, coadyuvantes_ids,
+             orden_mezcla, volumen_aplicacion, factor, factor_editable,
+             sync_status, created_at, updated_at)
+            VALUES (?, NULL, ?, ?, ?, ?, ?, '1', 0, ?, ?, ?)`,
+          mezclaLocalId,
+          row.receta_local_id,
+          row.numero,
+          row.coadyuvantes_ids,
+          row.orden_mezcla,
+          row.volumen_aplicacion,
+          row.sync_status,
+          row.created_at,
+          row.updated_at
+        );
+        const [recetaLocalId, numero, objetivo, objetivoNombre] = key.split("::");
+        db.runSync(
+          `UPDATE visita_receta_fitosanidad
+            SET mezcla_local_id = ?
+            WHERE receta_local_id = ? AND numero = ? AND objetivo = ?
+              AND objetivo_nombre = ? AND mezcla_local_id IS NULL`,
+          mezclaLocalId,
+          recetaLocalId,
+          Number(numero),
+          objetivo,
+          objetivoNombre
+        );
+      }
+
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_visita_receta_mezcla_receta ON visita_receta_mezcla(receta_local_id)"
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_visita_receta_fitosanidad_mezcla ON visita_receta_fitosanidad(mezcla_local_id)"
+      );
+    }
+  }
+];
 
 function isLegacyPendingCalificacionEligible(raw: string | null, modulo: string) {
   if (!raw) return false;

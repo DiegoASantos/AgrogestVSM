@@ -42,9 +42,7 @@ export const visitaRecetaPdfReportService = {
     const isSharingAvailable = await Sharing.isAvailableAsync();
 
     if (!isSharingAvailable) {
-      throw new Error(
-        "El dispositivo no permite compartir archivos en este momento."
-      );
+      throw new Error("El dispositivo no permite compartir archivos en este momento.");
     }
 
     const html = await buildRecetaReportHtml(visitaId);
@@ -72,10 +70,6 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
   const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
   const productor = parcela ? productoresRepository.getById(parcela.productorId) : null;
   const productorNombre = construirNombreProductor(productor);
-  const calculationAreaHectares = resolveCalculationAreaHectares(
-    parcela?.areaHectares,
-    visita?.areaHectares
-  );
   const consolidacion = visitaRecetasService.getConsolidacionLocal(visitaId);
   const iconBase64 = await getReportIconUri();
 
@@ -287,7 +281,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     </div>
   </div>
   ${renderDatosVisita(visita, receta, consolidacion)}
-  ${renderFitosanidad(receta, calculationAreaHectares)}
+  ${renderFitosanidad(receta)}
   ${renderFertilizacion(receta)}
   ${renderRiego(receta)}
   ${renderLabores(receta)}
@@ -307,38 +301,6 @@ function parsePositiveDecimal(value: string | number | null | undefined): number
   if (value === null || value === undefined) return null;
   const parsed = Number(String(value).replace(",", "."));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function resolveCalculationAreaHectares(
-  parcelaArea: string | number | null | undefined,
-  visitaArea: string | number | null | undefined
-) {
-  return parsePositiveDecimal(parcelaArea) ?? parsePositiveDecimal(visitaArea);
-}
-
-function getEffectiveCalculationArea(areaHectares: number | null) {
-  return areaHectares ?? 1;
-}
-
-function calculateTotalIa(
-  dosisIa: string | number | null | undefined,
-  volumenAplicacion: string | number | null | undefined,
-  areaHectares: number | null
-) {
-  const dosis = parsePositiveDecimal(dosisIa);
-  const volumen = parsePositiveDecimal(volumenAplicacion);
-
-  return dosis && volumen ? dosis * volumen * getEffectiveCalculationArea(areaHectares) : null;
-}
-
-function calculateTotalProducto(
-  cantidadTotalIa: string | number | null | undefined,
-  concentracionProducto: string | number | null | undefined
-) {
-  const totalIa = parsePositiveDecimal(cantidadTotalIa);
-  const concentracion = parsePositiveDecimal(concentracionProducto);
-
-  return totalIa && concentracion ? totalIa / concentracion : null;
 }
 
 function formatNumber(value: string | number | null | undefined, decimals = 2) {
@@ -361,7 +323,9 @@ function renderDatosVisita(
   const etapaNombre =
     (visita?.phenologicalStageId
       ? findById(etapas, visita.phenologicalStageId)?.name
-      : null) ?? receta.etapaFenologica ?? null;
+      : null) ??
+    receta.etapaFenologica ??
+    null;
 
   const subEtapaNombre = visita?.subEtapaId
     ? (findById(subEtapas, visita.subEtapaId)?.name ?? null)
@@ -564,50 +528,27 @@ function formatOrgano(organo: string) {
   return labels[organo] ?? organo;
 }
 
-function renderFitosanidad(
-  receta: VisitaRecetaCompleta,
-  calculationAreaHectares: number | null
-): string {
-  if (receta.fitosanidad.length === 0) return "";
+function renderFitosanidad(receta: VisitaRecetaCompleta): string {
+  if (receta.mezclas.length === 0) return "";
 
-  let html = "<h2>Aplicaciones fitosanitarias</h2>";
+  let html = "<h2>Mezclas fitosanitarias</h2>";
 
-  for (const app of receta.fitosanidad) {
-    const calculatedTotalIa =
-      calculateTotalIa(app.dosisIa, app.volumenAplicacion, calculationAreaHectares) ??
-      app.cantidadTotalIa;
-    const calculatedTotalProducto =
-      calculateTotalProducto(calculatedTotalIa, app.concentracionProducto) ??
-      app.cantidadTotalProducto;
-
+  for (const mezcla of receta.mezclas) {
     html += `
     <div class="section-card">
-      <h3>
-        <span class="badge">${String(app.numero).padStart(2, "0")}</span>
-        ${escapeHtml(app.objetivoNombre)} (${app.objetivo === "plaga" ? "Plaga" : "Enfermedad"})
-      </h3>
+      <h3><span class="badge">${String(mezcla.numero).padStart(2, "0")}</span> Mezcla ${mezcla.numero}</h3>
       <table>
         <tr><th>Campo</th><th>Valor</th></tr>
-        <tr><td>Disolvente</td><td>${escapeHtml(app.disolvente)}</td></tr>
-        <tr><td>Ingrediente activo</td><td>${escapeHtml(app.ingredienteActivoNombre ?? "-")}</td></tr>
-        <tr><td>Dosis i.a.</td><td>${app.dosisIa ?? "-"} mg o mL/cilindro</td></tr>
-        <tr><td>Volumen aplicacion</td><td>${app.volumenAplicacion ?? "-"} cilindros/ha</td></tr>
-        <tr><td class="calculated">Cantidad total i.a.</td><td class="calculated">${formatNumber(calculatedTotalIa)} mg o mL</td></tr>
-        <tr><td>Nombre comercial</td><td>${escapeHtml(app.marcaProductoNombre ?? "-")}</td></tr>
-        <tr><td>Concentracion en producto</td><td>${app.concentracionProducto ?? "-"} mg o mL i.a./L</td></tr>
-        <tr><td class="calculated">Cantidad total producto</td><td class="calculated">${formatNumber(calculatedTotalProducto)} L</td></tr>
+        <tr><td>Volumen aplicacion</td><td>${mezcla.volumenAplicacion ?? "-"} cilindros/ha</td></tr>
+        <tr><td>Factor de incidencia</td><td>${mezcla.factor}</td></tr>
       </table>`;
 
-    if (calculationAreaHectares !== null) {
-      html += `<p class="calc-hint">Area usada para el calculo: ${formatNumber(calculationAreaHectares)} ha.</p>`;
+    if (mezcla.coadyuvantesIds) {
+      html += `<p style="font-size:11px;margin-top:6px;"><strong>Coadyuvantes:</strong> ${renderCoadyuvantesFromIds(mezcla.coadyuvantesIds)}</p>`;
     }
 
-    if (app.coadyuvantesIds) {
-      html += `<p style="font-size:11px;margin-top:6px;"><strong>Coadyuvantes:</strong> ${renderCoadyuvantesFromIds(app.coadyuvantesIds)}</p>`;
-    }
-
-    if (app.ordenMezcla) {
-      const mezclaItems = parseJsonArray(app.ordenMezcla);
+    if (mezcla.ordenMezcla) {
+      const mezclaItems = parseJsonArray(mezcla.ordenMezcla);
       if (mezclaItems.length > 0) {
         html += `<div class="mezcla-box"><h4>Orden de mezcla</h4>`;
         mezclaItems.forEach((item, i) => {
@@ -616,6 +557,22 @@ function renderFitosanidad(
         html += `</div>`;
       }
     }
+
+    html += `<table><tr><th>Objetivo / producto</th><th>Dosis comercial</th><th>Total por ha</th></tr>`;
+    for (const producto of mezcla.productos) {
+      const total =
+        calculateRecipeTotal(
+          producto.dosisProducto,
+          mezcla.volumenAplicacion,
+          mezcla.factor
+        ) ?? producto.cantidadTotalProducto;
+      html += `<tr>
+        <td>${escapeHtml(producto.objetivoNombre)} / ${escapeHtml(producto.marcaProductoNombre ?? producto.ingredienteActivoNombre ?? "-")}</td>
+        <td>${producto.dosisProducto ?? "-"} mg o mL/cilindro</td>
+        <td class="calculated">${formatNumber(total)} mg o mL/ha</td>
+      </tr>`;
+    }
+    html += `</table>`;
 
     html += `</div>`;
   }
@@ -645,6 +602,15 @@ function renderFertilizacion(receta: VisitaRecetaCompleta): string {
   for (const fert of receta.fertilizacion) {
     const viaLabel = fert.viaAplicacion === "edafica" ? "Edafica" : "Foliar";
     const tipoLabel = fert.tipoProducto === "liquido" ? "Liquido" : "Solido";
+    const total =
+      calculateRecipeTotal(
+        fert.dosis,
+        fert.viaAplicacion === "edafica"
+          ? fert.cantidadTotalPlantas
+          : fert.volumenAplicacion,
+        fert.factor
+      ) ?? fert.cantidadTotalFertilizante;
+    const unidadTotal = fert.unidadDosis?.split("/")[0] ?? "";
     html += `
     <div class="section-card">
       <table>
@@ -653,9 +619,10 @@ function renderFertilizacion(receta: VisitaRecetaCompleta): string {
         <tr><td>Fertilizante</td><td>${escapeHtml(fert.fertilizanteNombre ?? "-")}</td></tr>
         <tr><td>Tipo de producto</td><td>${tipoLabel}</td></tr>
         <tr><td>Dosis</td><td>${fert.dosis ?? "-"} ${escapeHtml(fert.unidadDosis ?? "")}</td></tr>
+        <tr><td>Factor de incidencia</td><td>${fert.factor}</td></tr>
         ${fert.cantidadTotalPlantas ? `<tr><td>Cantidad total plantas</td><td>${fert.cantidadTotalPlantas}</td></tr>` : ""}
         ${fert.volumenAplicacion ? `<tr><td>Volumen aplicacion</td><td>${fert.volumenAplicacion}</td></tr>` : ""}
-        <tr><td class="calculated">Cantidad total fertilizante</td><td class="calculated">${fert.cantidadTotalFertilizante ?? "-"}</td></tr>
+        <tr><td class="calculated">Cantidad total fertilizante</td><td class="calculated">${formatNumber(total)} ${escapeHtml(unidadTotal)}</td></tr>
       </table>
     </div>`;
   }
@@ -674,9 +641,12 @@ function renderRiego(receta: VisitaRecetaCompleta): string {
   };
   const descriptions: Record<string, string> = {
     riego_pesado: "Aplicar grandes volumenes de agua sobre la superficie del terreno.",
-    riego_ligero: "Aplicar una lamina de agua de bajo volumen para humedecer superficialmente.",
-    inicio_agoste: "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo.",
-    ruptura_agoste: "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo."
+    riego_ligero:
+      "Aplicar una lamina de agua de bajo volumen para humedecer superficialmente.",
+    inicio_agoste:
+      "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo.",
+    ruptura_agoste:
+      "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo."
   };
 
   return `
@@ -699,7 +669,7 @@ function renderLabores(receta: VisitaRecetaCompleta): string {
     trampas_mosca: "Colocacion de trampas de mosca de la fruta"
   };
 
-  let html = "<h2>Recomendacion de labores</h2><div class=\"section-card\">";
+  let html = '<h2>Recomendacion de labores</h2><div class="section-card">';
 
   for (const labor of receta.labores) {
     html += `<p><span class="chip">${escapeHtml(labels[labor.labor] ?? labor.labor)}</span></p>`;
@@ -711,7 +681,7 @@ function renderLabores(receta: VisitaRecetaCompleta): string {
 }
 
 function renderResumenProductor(receta: VisitaRecetaCompleta): string {
-  if (receta.fitosanidad.length === 0 && receta.fertilizacion.length === 0) {
+  if (receta.mezclas.length === 0 && receta.fertilizacion.length === 0) {
     return "";
   }
 
@@ -724,7 +694,7 @@ function renderResumenProductor(receta: VisitaRecetaCompleta): string {
 }
 
 function renderResumenFitosanitario(receta: VisitaRecetaCompleta): string {
-  if (receta.fitosanidad.length === 0) {
+  if (receta.mezclas.length === 0) {
     return "";
   }
 
@@ -732,7 +702,8 @@ function renderResumenFitosanitario(receta: VisitaRecetaCompleta): string {
     <h3>Productos fitosanitarios</h3>
     <table>
       <tr><th>Objetivo</th><th>Nombre comercial</th><th>Dosis</th></tr>
-      ${receta.fitosanidad
+      ${receta.mezclas
+        .flatMap((mezcla) => mezcla.productos)
         .map(
           (item) => `
             <tr>
@@ -753,7 +724,7 @@ function renderResumenFertilizacion(receta: VisitaRecetaCompleta): string {
   return `
     <h3>Fertilizantes</h3>
     <table>
-      <tr><th>Fertilizante</th><th>Via</th><th>Dosis</th></tr>
+      <tr><th>Fertilizante</th><th>Via</th><th>Dosis</th><th>Factor</th><th>Total</th></tr>
       ${receta.fertilizacion
         .map(
           (item) => `
@@ -761,6 +732,8 @@ function renderResumenFertilizacion(receta: VisitaRecetaCompleta): string {
               <td>${escapeHtml(item.fertilizanteNombre ?? "-")}</td>
               <td>${escapeHtml(item.viaAplicacion === "edafica" ? "Edafica" : "Foliar")}</td>
               <td>${escapeHtml(formatFertilizacionDosis(item))}</td>
+              <td>${item.factor}</td>
+              <td>${item.cantidadTotalFertilizante ?? "-"} ${item.tipoProducto === "liquido" ? "L" : "Kg"}</td>
             </tr>`
         )
         .join("")}
@@ -768,22 +741,33 @@ function renderResumenFertilizacion(receta: VisitaRecetaCompleta): string {
 }
 
 function formatFitosanidadDosis(
-  item: VisitaRecetaCompleta["fitosanidad"][number]
+  item: VisitaRecetaCompleta["mezclas"][number]["productos"][number]
 ) {
   if (item.cantidadTotalProducto !== null && item.cantidadTotalProducto !== undefined) {
-    return `${item.cantidadTotalProducto} L`;
+    return `${item.cantidadTotalProducto} mg o mL/ha`;
   }
 
-  if (item.dosisIa !== null && item.dosisIa !== undefined) {
-    return `${item.dosisIa} mg o mL/cilindro`;
+  if (item.dosisProducto !== null && item.dosisProducto !== undefined) {
+    return `${item.dosisProducto} mg o mL/cilindro`;
   }
 
   return "-";
 }
 
-function formatFertilizacionDosis(
-  item: VisitaRecetaCompleta["fertilizacion"][number]
+function calculateRecipeTotal(
+  dosis: number | null | undefined,
+  volumen: number | null | undefined,
+  factor: number
 ) {
+  return dosis !== null &&
+    dosis !== undefined &&
+    volumen !== null &&
+    volumen !== undefined
+    ? dosis * volumen * factor
+    : null;
+}
+
+function formatFertilizacionDosis(item: VisitaRecetaCompleta["fertilizacion"][number]) {
   const parts = [item.dosis, item.unidadDosis].filter(Boolean);
 
   return parts.length > 0 ? parts.join(" ") : "-";

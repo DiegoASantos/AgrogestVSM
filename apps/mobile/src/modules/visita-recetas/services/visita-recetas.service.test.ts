@@ -110,7 +110,7 @@ describe("visitaRecetasService", () => {
       }
     ]);
     mocks.getIncidenceLevels.mockReturnValue([
-      { id: "inc-1", name: "Baja", sortOrder: 1, type: "incidencia" },
+      { id: "inc-1", name: "Baja", grade: 1, sortOrder: 1, type: "incidencia" },
       { id: "sev-1", name: "Leve", sortOrder: 1, type: "severidad" }
     ]);
     mocks.getByVisitaLocalId.mockReturnValue([
@@ -151,7 +151,8 @@ describe("visitaRecetasService", () => {
         nombre: "Trips",
         incidencia: "Baja",
         severidad: "Leve",
-        organos: ["hoja_tierna"]
+        organos: ["hoja_tierna"],
+        incidenceGrade: 1
       }
     ]);
     expect(result.enfermedades).toEqual([
@@ -159,7 +160,8 @@ describe("visitaRecetasService", () => {
         nombre: "Oidio",
         incidencia: "12%",
         severidad: "Leve",
-        organos: ["hoja_madura"]
+        organos: ["hoja_madura"],
+        incidenceGrade: 2
       }
     ]);
   });

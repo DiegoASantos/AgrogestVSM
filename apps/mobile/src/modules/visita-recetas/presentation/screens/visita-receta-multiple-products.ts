@@ -1,22 +1,24 @@
+import { resolveNutritionIncidence } from "../../../evaluaciones/domain/nutrition-incidence";
+import { resolveDiseaseIncidenceGrade } from "../../../observaciones-sanitarias/domain/disease-incidence";
 import type { SaveRecetaData } from "../../services";
 import type {
   CoadyuvanteCatalogItem,
   FertilizanteCatalogItem,
   IngredienteActivoCatalogItem,
   MarcaProductoCatalogItem,
-  RecetaFitosanidad,
-  RecetaFertilizacion
+  RecetaFertilizacion,
+  RecetaMezcla
 } from "../../types";
 import { resolveIngredientId } from "./visita-receta-selection";
 
 export type AppIngrediente = {
   localId: string;
+  mezclaNumero: number;
   tipoProductoId: string;
   modoAccionId: string;
   ingredienteActivoId: string;
   ingredienteActivoNombre: string;
-  dosisIa: string;
-  cantidadTotalIa: string;
+  dosisProducto: string;
   marcaProductoNombre: string;
   concentracionProducto: string;
   unidadMedidaProducto: string;
@@ -28,12 +30,20 @@ export type AppFitosanidad = {
   numero: number;
   objetivo: "plaga" | "enfermedad";
   objetivoNombre: string;
+  incidenceGrade: number;
   tipoControlId: string;
   disolvente: string;
+  ingredientes: AppIngrediente[];
+};
+
+export type AppMezcla = {
+  localId: string;
+  numero: number;
   volumenAplicacion: string;
   coadyuvantesIds: string[];
   ordenMezcla: string[];
-  ingredientes: AppIngrediente[];
+  factor: string;
+  factorEditable: boolean;
 };
 
 export type AppFertilizacion = {
@@ -47,24 +57,38 @@ export type AppFertilizacion = {
   unidadDosis: string;
   cantidadTotalPlantas: string;
   volumenAplicacion: string;
+  factor: string;
+  factorEditable: boolean;
   cantidadTotalFertilizante: string;
 };
 
 let transientIdSequence = 0;
 
-export function createEmptyIngrediente(): AppIngrediente {
+export function createEmptyIngrediente(mezclaNumero = 1): AppIngrediente {
   return {
     localId: createTransientId("ingrediente"),
+    mezclaNumero,
     tipoProductoId: "",
     modoAccionId: "",
     ingredienteActivoId: "",
     ingredienteActivoNombre: "",
-    dosisIa: "",
-    cantidadTotalIa: "",
+    dosisProducto: "",
     marcaProductoNombre: "",
     concentracionProducto: "",
     unidadMedidaProducto: "",
     cantidadTotalProducto: ""
+  };
+}
+
+export function createEmptyMezcla(numero: number, volumenAplicacion = ""): AppMezcla {
+  return {
+    localId: createTransientId("mezcla"),
+    numero,
+    volumenAplicacion,
+    coadyuvantesIds: [],
+    ordenMezcla: [],
+    factor: "1",
+    factorEditable: false
   };
 }
 
@@ -80,42 +104,60 @@ export function createEmptyFertilizacion(volumenAplicacion = ""): AppFertilizaci
     unidadDosis: "",
     cantidadTotalPlantas: "",
     volumenAplicacion,
+    factor: "1",
+    factorEditable: false,
     cantidadTotalFertilizante: ""
   };
 }
 
 export function restoreFitosanidadApps(
-  rows: RecetaFitosanidad[],
+  mezclas: RecetaMezcla[],
   ingredientCatalog: IngredienteActivoCatalogItem[],
   commercialCatalog: MarcaProductoCatalogItem[]
 ): AppFitosanidad[] {
   const groups = new Map<string, AppFitosanidad>();
 
-  for (const row of rows) {
-    const key = [row.numero, row.objetivo, normalizeName(row.objetivoNombre)].join("::");
-    const ingredient = restoreIngrediente(row, ingredientCatalog, commercialCatalog);
-    const existing = groups.get(key);
+  for (const mezcla of mezclas) {
+    for (const row of mezcla.productos) {
+      const key = [row.objetivo, normalizeName(row.objetivoNombre)].join("::");
+      const ingredient = restoreIngrediente(
+        row,
+        mezcla.numero,
+        ingredientCatalog,
+        commercialCatalog
+      );
+      const existing = groups.get(key);
 
-    if (existing) {
-      existing.ingredientes.push(ingredient);
-      continue;
+      if (existing) {
+        existing.ingredientes.push(ingredient);
+      } else {
+        groups.set(key, {
+          localId: `fito_${row.id}`,
+          numero: groups.size + 1,
+          objetivo: row.objetivo,
+          objetivoNombre: row.objetivoNombre,
+          incidenceGrade: factorToGrade(mezcla.factor),
+          tipoControlId: row.tipoControlId ?? "",
+          disolvente: row.disolvente,
+          ingredientes: [ingredient]
+        });
+      }
     }
-
-    groups.set(key, {
-      localId: `fito_${row.id}`,
-      numero: row.numero,
-      objetivo: row.objetivo,
-      objetivoNombre: row.objetivoNombre,
-      tipoControlId: row.tipoControlId ?? "",
-      disolvente: row.disolvente,
-      volumenAplicacion: row.volumenAplicacion?.toString() ?? "",
-      coadyuvantesIds: parseJsonArray(row.coadyuvantesIds),
-      ordenMezcla: parseJsonArray(row.ordenMezcla),
-      ingredientes: [ingredient]
-    });
   }
 
-  return Array.from(groups.values());
+  return [...groups.values()];
+}
+
+export function restoreMezclas(rows: RecetaMezcla[]): AppMezcla[] {
+  return rows.map((row) => ({
+    localId: `mezcla_${row.id}`,
+    numero: row.numero,
+    volumenAplicacion: row.volumenAplicacion?.toString() ?? "",
+    coadyuvantesIds: parseJsonArray(row.coadyuvantesIds),
+    ordenMezcla: parseJsonArray(row.ordenMezcla),
+    factor: row.factor.toString(),
+    factorEditable: row.factorEditable
+  }));
 }
 
 export function restoreFertilizaciones(
@@ -139,53 +181,49 @@ export function restoreFertilizaciones(
       unidadDosis: row.unidadDosis ?? "",
       cantidadTotalPlantas: row.cantidadTotalPlantas?.toString() ?? "",
       volumenAplicacion: row.volumenAplicacion?.toString() ?? "",
+      factor: row.factor.toString(),
+      factorEditable: row.factor >= 1.5,
       cantidadTotalFertilizante: formatCalculatedField(row.cantidadTotalFertilizante)
     };
   });
 }
 
-export function buildFitosanidadForSave(
+export function buildMezclasForSave(
   applications: AppFitosanidad[],
-  areaHectares: number | null
-): SaveRecetaData["fitosanidad"] {
-  return applications.flatMap((application) =>
-    application.ingredientes.map((ingredient) => {
-      const totalIa = calculateTotalIa(
-        ingredient.dosisIa,
-        application.volumenAplicacion,
-        areaHectares
-      );
-      const totalProducto = calculateTotalProducto(
-        totalIa,
-        ingredient.concentracionProducto
-      );
-
-      return {
-        numero: application.numero,
-        objetivo: application.objetivo,
-        objetivoNombre: application.objetivoNombre,
-        tipoControlId: application.tipoControlId || null,
-        tipoProductoId: ingredient.tipoProductoId || null,
-        disolvente: application.disolvente,
-        modoAccionId: ingredient.modoAccionId || null,
-        ingredienteActivoNombre: ingredient.ingredienteActivoNombre || null,
-        dosisIa: parsePositiveDecimal(ingredient.dosisIa),
-        volumenAplicacion: parsePositiveDecimal(application.volumenAplicacion),
-        cantidadTotalIa: totalIa || null,
-        marcaProductoNombre: ingredient.marcaProductoNombre || null,
-        concentracionProducto: parsePositiveDecimal(ingredient.concentracionProducto),
-        cantidadTotalProducto: totalProducto || null,
-        coadyuvantesIds:
-          application.coadyuvantesIds.length > 0
-            ? JSON.stringify(application.coadyuvantesIds)
-            : null,
-        ordenMezcla:
-          application.ordenMezcla.length > 0
-            ? JSON.stringify(application.ordenMezcla)
-            : null
-      };
-    })
-  );
+  mezclas: AppMezcla[]
+): SaveRecetaData["mezclas"] {
+  return mezclas.map((mezcla) => ({
+    numero: mezcla.numero,
+    coadyuvantesIds:
+      mezcla.coadyuvantesIds.length > 0 ? JSON.stringify(mezcla.coadyuvantesIds) : null,
+    ordenMezcla:
+      mezcla.ordenMezcla.length > 0 ? JSON.stringify(mezcla.ordenMezcla) : null,
+    volumenAplicacion: parsePositiveDecimal(mezcla.volumenAplicacion),
+    factor: parsePositiveDecimal(mezcla.factor) ?? 1,
+    factorEditable: mezcla.factorEditable,
+    productos: applications.flatMap((application) =>
+      application.ingredientes
+        .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
+        .map((ingredient) => ({
+          objetivo: application.objetivo,
+          objetivoNombre: application.objetivoNombre,
+          tipoControlId: application.tipoControlId || null,
+          tipoProductoId: ingredient.tipoProductoId || null,
+          disolvente: application.disolvente,
+          modoAccionId: ingredient.modoAccionId || null,
+          ingredienteActivoNombre: ingredient.ingredienteActivoNombre || null,
+          dosisProducto: parsePositiveDecimal(ingredient.dosisProducto),
+          marcaProductoNombre: ingredient.marcaProductoNombre || null,
+          concentracionProducto: parsePositiveDecimal(ingredient.concentracionProducto),
+          cantidadTotalProducto:
+            calculateTotal(
+              ingredient.dosisProducto,
+              mezcla.volumenAplicacion,
+              mezcla.factor
+            ) || null
+        }))
+    )
+  }));
 }
 
 export function buildFertilizacionesForSave(
@@ -199,90 +237,105 @@ export function buildFertilizacionesForSave(
     unidadDosis: fertilizacion.unidadDosis || getUnidadDosis(fertilizacion),
     cantidadTotalPlantas: toPositiveInteger(fertilizacion.cantidadTotalPlantas),
     volumenAplicacion: parsePositiveDecimal(fertilizacion.volumenAplicacion),
+    factor: parsePositiveDecimal(fertilizacion.factor) ?? 1,
     cantidadTotalFertilizante: parsePositiveDecimal(
       fertilizacion.cantidadTotalFertilizante
     )
   }));
 }
 
-export function collectNomenclaturaMezcla(
+export function collectNomenclaturaPorMezcla(
   applications: AppFitosanidad[],
-  fertilizaciones: AppFertilizacion[],
+  mezclas: AppMezcla[],
   coadyuvantes: CoadyuvanteCatalogItem[]
 ) {
   const coadyuvanteById = new Map(coadyuvantes.map((item) => [item.id, item.name]));
-  const names = [
-    ...applications.flatMap((application) => [
-      ...application.ingredientes.flatMap((ingredient) => [
-        ingredient.ingredienteActivoNombre,
-        ingredient.marcaProductoNombre
-      ]),
-      ...application.coadyuvantesIds.map((id) => coadyuvanteById.get(id) ?? "")
-    ]),
-    ...fertilizaciones.map((fertilizacion) => fertilizacion.fertilizanteNombre)
-  ];
-  const unique = new Map<string, string>();
 
-  for (const name of names) {
-    const normalized = normalizeName(name);
-    if (normalized && !unique.has(normalized)) {
-      unique.set(normalized, name.trim());
-    }
-  }
-
-  return Array.from(unique.values());
+  return mezclas.map((mezcla) => ({
+    numero: mezcla.numero,
+    nombres: uniqueNames([
+      ...applications.flatMap((application) =>
+        application.ingredientes
+          .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
+          .flatMap((ingredient) => [
+            ingredient.ingredienteActivoNombre,
+            ingredient.marcaProductoNombre
+          ])
+      ),
+      ...mezcla.coadyuvantesIds.map((id) => coadyuvanteById.get(id) ?? "")
+    ])
+  }));
 }
 
 export function recalculateIngrediente(
   ingredient: AppIngrediente,
-  volumenAplicacion: string,
-  areaHectares: number | null
+  mezcla: AppMezcla | undefined
 ): AppIngrediente {
-  const totalIa = calculateTotalIa(ingredient.dosisIa, volumenAplicacion, areaHectares);
-  const totalProducto = calculateTotalProducto(totalIa, ingredient.concentracionProducto);
-
-  return {
-    ...ingredient,
-    cantidadTotalIa: totalIa ? totalIa.toFixed(2) : "",
-    cantidadTotalProducto: totalProducto ? totalProducto.toFixed(2) : ""
-  };
+  const total = mezcla
+    ? calculateTotal(ingredient.dosisProducto, mezcla.volumenAplicacion, mezcla.factor)
+    : 0;
+  return { ...ingredient, cantidadTotalProducto: total ? total.toFixed(2) : "" };
 }
 
 export function recalculateFertilizacion(
   fertilizacion: AppFertilizacion
 ): AppFertilizacion {
-  const dosis = parsePositiveDecimal(fertilizacion.dosis) ?? 0;
-  const factor =
+  const volumen =
     fertilizacion.viaAplicacion === "edafica"
-      ? (parsePositiveDecimal(fertilizacion.cantidadTotalPlantas) ?? 0)
-      : (parsePositiveDecimal(fertilizacion.volumenAplicacion) ?? 0);
-
+      ? fertilizacion.cantidadTotalPlantas
+      : fertilizacion.volumenAplicacion;
+  const total = calculateTotal(fertilizacion.dosis, volumen, fertilizacion.factor);
   return {
     ...fertilizacion,
-    cantidadTotalFertilizante: dosis && factor ? (dosis * factor).toFixed(4) : ""
+    cantidadTotalFertilizante: total ? total.toFixed(4) : ""
   };
 }
 
+export function deriveMezclaFactors(
+  applications: AppFitosanidad[],
+  mezclas: AppMezcla[]
+) {
+  return mezclas.map((mezcla) => {
+    const maxGrade = applications.reduce((current, application) => {
+      const assigned = application.ingredientes.some(
+        (ingredient) => ingredient.mezclaNumero === mezcla.numero
+      );
+      return assigned ? Math.max(current, application.incidenceGrade) : current;
+    }, 0);
+    const factor = factorFromGrade(maxGrade);
+    return {
+      ...mezcla,
+      factor: mezcla.factorEditable && maxGrade === 3 ? mezcla.factor : factor.toString(),
+      factorEditable: maxGrade === 3
+    };
+  });
+}
+
+export function factorFromGrade(grade: number) {
+  if (grade >= 3) return 1.5;
+  if (grade === 2) return 1.2;
+  return 1;
+}
+
+export function diseaseFactorFromPercentage(percentage: number) {
+  return factorFromGrade(resolveDiseaseIncidenceGrade(percentage));
+}
+
+export function nutritionFactorFromPercentage(percentage: number) {
+  return factorFromGrade(resolveNutritionIncidence(percentage).grade);
+}
+
 export function hasFitosanidadData(applications: AppFitosanidad[]) {
-  return applications.some(
-    (application) =>
+  return applications.some((application) =>
+    application.ingredientes.some((ingredient) =>
       Boolean(
-        application.tipoControlId ||
-        application.disolvente.trim() !== "Agua" ||
-        application.volumenAplicacion.trim() ||
-        application.coadyuvantesIds.length ||
-        application.ordenMezcla.length
-      ) ||
-      application.ingredientes.some((ingredient) =>
-        Boolean(
-          ingredient.tipoProductoId ||
-          ingredient.modoAccionId ||
-          ingredient.ingredienteActivoNombre.trim() ||
-          ingredient.dosisIa.trim() ||
-          ingredient.marcaProductoNombre.trim() ||
-          ingredient.concentracionProducto.trim()
-        )
+        ingredient.tipoProductoId ||
+        ingredient.modoAccionId ||
+        ingredient.ingredienteActivoNombre.trim() ||
+        ingredient.dosisProducto.trim() ||
+        ingredient.marcaProductoNombre.trim()
       )
+    )
   );
 }
 
@@ -292,8 +345,7 @@ export function hasFertilizacionData(fertilizaciones: AppFertilizacion[]) {
       fertilizacion.fertilizanteNombre.trim() ||
       fertilizacion.dosis.trim() ||
       fertilizacion.cantidadTotalPlantas.trim() ||
-      fertilizacion.volumenAplicacion.trim() ||
-      fertilizacion.cantidadTotalFertilizante.trim()
+      fertilizacion.volumenAplicacion.trim()
     )
   );
 }
@@ -306,26 +358,15 @@ export function parsePositiveDecimal(
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function calculateTotalIa(
-  dosisIa: string | number | null | undefined,
-  volumenAplicacion: string | number | null | undefined,
-  areaHectares: number | null
+export function calculateTotal(
+  dosis: string | number | null | undefined,
+  volumen: string | number | null | undefined,
+  factor: string | number | null | undefined
 ) {
-  const dosis = parsePositiveDecimal(dosisIa);
-  const volumen = parsePositiveDecimal(volumenAplicacion);
-  const area = areaHectares ?? 1;
-
-  return dosis && volumen ? dosis * volumen * area : 0;
-}
-
-export function calculateTotalProducto(
-  cantidadTotalIa: string | number | null | undefined,
-  concentracionProducto: string | number | null | undefined
-) {
-  const totalIa = parsePositiveDecimal(cantidadTotalIa);
-  const concentracion = parsePositiveDecimal(concentracionProducto);
-
-  return totalIa && concentracion ? totalIa / concentracion : 0;
+  const parsedDosis = parsePositiveDecimal(dosis);
+  const parsedVolumen = parsePositiveDecimal(volumen);
+  const parsedFactor = parsePositiveDecimal(factor) ?? 1;
+  return parsedDosis && parsedVolumen ? parsedDosis * parsedVolumen * parsedFactor : 0;
 }
 
 export function getUnidadDosis(fertilizacion: AppFertilizacion) {
@@ -336,7 +377,8 @@ export function getUnidadDosis(fertilizacion: AppFertilizacion) {
 }
 
 function restoreIngrediente(
-  row: RecetaFitosanidad,
+  row: RecetaMezcla["productos"][number],
+  mezclaNumero: number,
   ingredientCatalog: IngredienteActivoCatalogItem[],
   commercialCatalog: MarcaProductoCatalogItem[]
 ): AppIngrediente {
@@ -344,9 +386,9 @@ function restoreIngrediente(
     (product) =>
       normalizeName(product.name) === normalizeName(row.marcaProductoNombre ?? "")
   );
-
   return {
     localId: `ingrediente_${row.id}`,
+    mezclaNumero,
     tipoProductoId: row.tipoProductoId ?? "",
     modoAccionId: row.modoAccionId ?? "",
     ingredienteActivoId: resolveIngredientId(
@@ -357,8 +399,7 @@ function restoreIngrediente(
       commercialCatalog
     ),
     ingredienteActivoNombre: row.ingredienteActivoNombre ?? "",
-    dosisIa: row.dosisIa?.toString() ?? "",
-    cantidadTotalIa: formatCalculatedField(row.cantidadTotalIa),
+    dosisProducto: row.dosisProducto?.toString() ?? "",
     marcaProductoNombre: row.marcaProductoNombre ?? "",
     concentracionProducto:
       catalogProduct?.concentracionTexto ??
@@ -368,6 +409,21 @@ function restoreIngrediente(
     unidadMedidaProducto: catalogProduct?.unidadMedida ?? "",
     cantidadTotalProducto: formatCalculatedField(row.cantidadTotalProducto)
   };
+}
+
+function factorToGrade(factor: number) {
+  if (factor >= 1.5) return 3;
+  if (factor >= 1.2) return 2;
+  return 1;
+}
+
+function uniqueNames(names: string[]) {
+  const unique = new Map<string, string>();
+  for (const name of names) {
+    const normalized = normalizeName(name);
+    if (normalized && !unique.has(normalized)) unique.set(normalized, name.trim());
+  }
+  return [...unique.values()];
 }
 
 function formatCalculatedField(value: string | number | null | undefined) {

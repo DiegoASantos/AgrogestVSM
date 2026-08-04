@@ -8,6 +8,7 @@ import {
   UpdateDateColumn
 } from "typeorm";
 import { VisitaRecetaEntity } from "./visita-receta.entity";
+import { VisitaRecetaMezclaEntity } from "./visita-receta-mezcla.entity";
 
 @Entity({ name: "visita_receta_fitosanidad" })
 export class VisitaRecetaFitosanidadEntity {
@@ -16,6 +17,9 @@ export class VisitaRecetaFitosanidadEntity {
 
   @Column({ name: "receta_id", type: "bigint" })
   recetaId!: string;
+
+  @Column({ name: "mezcla_id", type: "bigint", nullable: true })
+  mezclaId!: string | null;
 
   @Column({ name: "numero", type: "integer", default: 1 })
   numero!: number;
@@ -63,6 +67,15 @@ export class VisitaRecetaFitosanidadEntity {
     nullable: true
   })
   dosisIa!: number | null;
+
+  @Column({
+    name: "dosis_producto",
+    type: "numeric",
+    precision: 12,
+    scale: 4,
+    nullable: true
+  })
+  dosisProducto!: number | null;
 
   @Column({
     name: "volumen_aplicacion",
@@ -125,4 +138,11 @@ export class VisitaRecetaFitosanidadEntity {
   })
   @JoinColumn({ name: "receta_id", referencedColumnName: "id" })
   receta!: VisitaRecetaEntity;
+
+  @ManyToOne(() => VisitaRecetaMezclaEntity, (mezcla) => mezcla.productos, {
+    onDelete: "CASCADE",
+    nullable: true
+  })
+  @JoinColumn({ name: "mezcla_id", referencedColumnName: "id" })
+  mezcla!: VisitaRecetaMezclaEntity | null;
 }

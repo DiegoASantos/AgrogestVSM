@@ -9,14 +9,17 @@ const COADYUVANTE_ORDER: Record<string, number> = {
 
 const FIXED_ORDEN_MEZCLA_ITEMS = new Set(["Agua"]);
 
-export function generateOrdenMezcla(coadyuvanteNombres: string[]): string[] {
+export function generateOrdenMezcla(
+  coadyuvanteNombres: string[],
+  nombresComerciales: string[] = []
+): string[] {
   const orden: string[] = ["Agua"];
   const sortedAdyuvantes = [...coadyuvanteNombres].sort(
     (a, b) => (COADYUVANTE_ORDER[a] ?? 99) - (COADYUVANTE_ORDER[b] ?? 99)
   );
   const pHItem = sortedAdyuvantes.find((n) => n === "Corrector de pH");
   if (pHItem) orden.push(pHItem);
-  orden.push("Producto agroquimico");
+  orden.push(...nombresComerciales.filter((name) => name.trim().length > 0));
   for (const name of sortedAdyuvantes) {
     if (name !== "Corrector de pH") {
       orden.push(name);

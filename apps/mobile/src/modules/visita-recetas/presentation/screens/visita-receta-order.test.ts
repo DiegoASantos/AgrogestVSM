@@ -9,8 +9,18 @@ import {
 describe("visita receta orden de mezcla", () => {
   it("genera el orden automatico desde los coadyuvantes seleccionados", () => {
     expect(
-      generateOrdenMezcla(["Antiespumante", "Corrector de pH", "Adherente"])
-    ).toEqual(["Agua", "Corrector de pH", "Producto agroquimico", "Adherente", "Antiespumante"]);
+      generateOrdenMezcla(
+        ["Antiespumante", "Corrector de pH", "Adherente"],
+        ["Agrimec", "Score"]
+      )
+    ).toEqual([
+      "Agua",
+      "Corrector de pH",
+      "Agrimec",
+      "Score",
+      "Adherente",
+      "Antiespumante"
+    ]);
   });
 
   it("intercambia dos posiciones sin mutar el orden original", () => {

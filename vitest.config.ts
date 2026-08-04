@@ -36,10 +36,10 @@ export default defineConfig({
         "**/.next/**"
       ],
       thresholds: {
-        statements: 15,
-        branches: 10,
-        functions: 10,
-        lines: 15
+        statements: 25,
+        branches: 25,
+        functions: 25,
+        lines: 25
       }
     }
   }

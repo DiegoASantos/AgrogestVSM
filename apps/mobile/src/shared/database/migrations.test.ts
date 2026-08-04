@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 54;
+const LATEST_MIGRATION_VERSION = 55;
 
 type FakeDatabase = {
   currentVersion: number;
   executedStatements: string[];
+  executedRuns: Array<{ statement: string; parameters: unknown[] }>;
   productorColumns: Set<string>;
   productorNotNullColumns: Set<string>;
   productorNextColumns: Set<string>;
@@ -29,7 +30,21 @@ type FakeDatabase = {
   }>;
   organosNextRows: FakeDatabase["organosRows"];
   organosTableUsesNewConstraint: boolean;
+  visitaRecetaFitosanidadRows: Array<{
+    local_id: string;
+    receta_local_id: string;
+    numero: number;
+    objetivo: string;
+    objetivo_nombre: string;
+    coadyuvantes_ids: string | null;
+    orden_mezcla: string | null;
+    volumen_aplicacion: string | null;
+    sync_status: string;
+    created_at: string;
+    updated_at: string;
+  }>;
   execSync: (statement: string) => void;
+  runSync: (statement: string, ...parameters: unknown[]) => void;
   getAllSync: <T>(statement: string) => T[];
   getFirstSync: <T>(statement: string) => T | null;
   withTransactionSync: (callback: () => void) => void;
@@ -48,6 +63,7 @@ function createFakeDatabase(
   return {
     currentVersion,
     executedStatements: [],
+    executedRuns: [],
     productorColumns: new Set(productorColumns),
     productorNotNullColumns: new Set([
       "id",
@@ -77,6 +93,7 @@ function createFakeDatabase(
     organosRows: [],
     organosNextRows: [],
     organosTableUsesNewConstraint: false,
+    visitaRecetaFitosanidadRows: [],
     execSync(statement) {
       this.executedStatements.push(statement);
       const normalizedStatement = statement.replace(/\s+/gu, " ").trim();
@@ -583,7 +600,17 @@ function createFakeDatabase(
         return Array.from(this.fertilizanteColumns, (name) => ({ name })) as T[];
       }
 
+      if (
+        statement.includes("FROM visita_receta_fitosanidad") &&
+        statement.includes("WHERE mezcla_local_id IS NULL")
+      ) {
+        return this.visitaRecetaFitosanidadRows as T[];
+      }
+
       return [];
+    },
+    runSync(statement, ...parameters) {
+      this.executedRuns.push({ statement, parameters });
     },
     getFirstSync<T>(statement: string) {
       if (statement === "PRAGMA user_version") {
@@ -1391,5 +1418,81 @@ describe("runMigrations", () => {
         )
       ).toBe(true);
     }
+  });
+
+  it("reconstructs historical recipe mixtures by objective group", () => {
+    const db = createFakeDatabase(54);
+    db.visitaRecetaFitosanidadRows = [
+      {
+        local_id: "producto-1",
+        receta_local_id: "receta-1",
+        numero: 1,
+        objetivo: "plaga",
+        objetivo_nombre: "Trips",
+        coadyuvantes_ids: "[1]",
+        orden_mezcla: '["Agua","Marca A"]',
+        volumen_aplicacion: "2",
+        sync_status: "synced",
+        created_at: "2026-08-01T10:00:00.000Z",
+        updated_at: "2026-08-01T10:00:00.000Z"
+      },
+      {
+        local_id: "producto-2",
+        receta_local_id: "receta-1",
+        numero: 1,
+        objetivo: "plaga",
+        objetivo_nombre: "Trips",
+        coadyuvantes_ids: "[2]",
+        orden_mezcla: '["Agua","Marca B"]',
+        volumen_aplicacion: "3",
+        sync_status: "synced",
+        created_at: "2026-08-01T10:01:00.000Z",
+        updated_at: "2026-08-01T10:01:00.000Z"
+      },
+      {
+        local_id: "producto-3",
+        receta_local_id: "receta-1",
+        numero: 2,
+        objetivo: "enfermedad",
+        objetivo_nombre: "Oidiosis",
+        coadyuvantes_ids: null,
+        orden_mezcla: '["Agua","Marca C"]',
+        volumen_aplicacion: "1",
+        sync_status: "pending",
+        created_at: "2026-08-01T10:02:00.000Z",
+        updated_at: "2026-08-01T10:02:00.000Z"
+      }
+    ];
+
+    runMigrations(db as never);
+
+    const inserts = db.executedRuns.filter((run) =>
+      run.statement.includes("INSERT OR IGNORE INTO visita_receta_mezcla")
+    );
+    const updates = db.executedRuns.filter((run) =>
+      run.statement.includes("SET mezcla_local_id = ?")
+    );
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(inserts).toHaveLength(2);
+    expect(inserts[0].parameters).toEqual([
+      "mezcla_producto-1",
+      "receta-1",
+      1,
+      "[1]",
+      '["Agua","Marca A"]',
+      "2",
+      "synced",
+      "2026-08-01T10:00:00.000Z",
+      "2026-08-01T10:00:00.000Z"
+    ]);
+    expect(updates).toHaveLength(2);
+    expect(updates[0].parameters).toEqual([
+      "mezcla_producto-1",
+      "receta-1",
+      1,
+      "plaga",
+      "Trips"
+    ]);
   });
 });

@@ -314,3 +314,11 @@ ingeniero agrónomo. Este módulo es **orientativo**.
   `git diff --check`: correctos.
 - La inspección visual manual en dispositivo queda como validación humana previa a
   publicar la OTA; no condiciona la completitud del código de esta spec.
+
+## Extensión por Spec 029
+
+La [Spec 029](./029-mezclas-factor-dosificacion-receta.md) introduce cabeceras
+de mezcla explícitas. Las 12 reglas declarativas se conservan, pero la
+validación se ejecuta de forma independiente para los productos y
+coadyuvantes que comparten cada tanque, evitando advertencias entre productos
+que se preparan en mezclas distintas.

@@ -13,23 +13,26 @@ import type {
 
 export type SaveRecetaInput = {
   etapaFenologica?: string | null;
-  fitosanidad: Array<{
+  mezclas: Array<{
     numero: number;
-    objetivo: "plaga" | "enfermedad";
-    objetivoNombre: string;
-    tipoControlId?: number | null;
-    tipoProductoId?: number | null;
-    disolvente?: string;
-    modoAccionId?: number | null;
-    ingredienteActivoNombre?: string | null;
-    dosisIa?: number | null;
-    volumenAplicacion?: number | null;
-    cantidadTotalIa?: number | null;
-    marcaProductoNombre?: string | null;
-    concentracionProducto?: number | null;
-    cantidadTotalProducto?: number | null;
     coadyuvantesIds?: string | null;
     ordenMezcla?: string | null;
+    volumenAplicacion?: number | null;
+    factor: number;
+    factorEditable: boolean;
+    productos: Array<{
+      objetivo: "plaga" | "enfermedad";
+      objetivoNombre: string;
+      tipoControlId?: number | null;
+      tipoProductoId?: number | null;
+      disolvente?: string;
+      modoAccionId?: number | null;
+      ingredienteActivoNombre?: string | null;
+      dosisProducto?: number | null;
+      marcaProductoNombre?: string | null;
+      concentracionProducto?: number | null;
+      cantidadTotalProducto?: number | null;
+    }>;
   }>;
   fertilizacion: Array<{
     viaAplicacion: "edafica" | "foliar";
@@ -40,6 +43,7 @@ export type SaveRecetaInput = {
     cantidadTotalPlantas?: number | null;
     volumenAplicacion?: number | null;
     cantidadTotalFertilizante?: number | null;
+    factor: number;
   }>;
   riego?: {
     tipoRecomendacion: string;
@@ -81,9 +85,7 @@ export const visitaRecetasRemote = {
   },
 
   getByVisitaId(visitaId: string) {
-    return apiRequest<VisitaRecetaCompleta | null>(
-      `/visitas-campo/${visitaId}/receta`
-    );
+    return apiRequest<VisitaRecetaCompleta | null>(`/visitas-campo/${visitaId}/receta`);
   },
 
   getConsolidacion(visitaId: string) {
@@ -93,25 +95,31 @@ export const visitaRecetasRemote = {
   },
 
   save(visitaId: string, input: SaveRecetaInput, context: ApiRequestContext = {}) {
-    return apiRequest<VisitaRecetaCompleta>(
-      `/visitas-campo/${visitaId}/receta`,
-      {
-        method: "POST",
-        body: input,
-        ...context
-      }
-    );
+    return apiRequest<VisitaRecetaCompleta>(`/visitas-campo/${visitaId}/receta`, {
+      method: "POST",
+      body: input,
+      ...context
+    });
   },
 
   crearIngredienteActivo(draft: Record<string, unknown>) {
-    return apiRequest<Record<string, unknown>>("/ingredientes-activos", { method: "POST", body: draft });
+    return apiRequest<Record<string, unknown>>("/ingredientes-activos", {
+      method: "POST",
+      body: draft
+    });
   },
 
   crearFertilizante(draft: Record<string, unknown>) {
-    return apiRequest<Record<string, unknown>>("/fertilizantes", { method: "POST", body: draft });
+    return apiRequest<Record<string, unknown>>("/fertilizantes", {
+      method: "POST",
+      body: draft
+    });
   },
 
   crearMarcaProducto(draft: Record<string, unknown>) {
-    return apiRequest<Record<string, unknown>>("/marcas-producto", { method: "POST", body: draft });
+    return apiRequest<Record<string, unknown>>("/marcas-producto", {
+      method: "POST",
+      body: draft
+    });
   }
 };

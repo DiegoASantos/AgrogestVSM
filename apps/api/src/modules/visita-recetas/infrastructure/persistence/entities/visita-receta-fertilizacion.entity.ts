@@ -82,6 +82,9 @@ export class VisitaRecetaFertilizacionEntity {
   })
   cantidadTotalFertilizante!: number | null;
 
+  @Column({ name: "factor", type: "numeric", precision: 6, scale: 3, default: 1 })
+  factor!: number;
+
   @CreateDateColumn({ name: "creado_at", type: "timestamptz" })
   createdAt!: Date;
 

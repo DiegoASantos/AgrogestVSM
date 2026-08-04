@@ -2,12 +2,13 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-03
+last_reviewed: 2026-08-04
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
   - apps/mobile/src/shared/services/api
   - apps/mobile/src/modules/auth
+  - apps/mobile/src/modules/visita-recetas
 ---
 
 # Sincronización mobile offline
@@ -26,6 +27,21 @@ la API cuando vuelva a tener conectividad.
 5. El ID del servidor se guarda junto al ID local.
 6. Se sincronizan evaluaciones, sanidad, notas, riego, labores y receta.
 7. Los registros pasan a `synced`, quedan `pending` o terminan en `error`.
+
+### Recetas con mezclas
+
+La receta es la unica unidad de outbox de su agregado. Sus mezclas,
+fitosanitarios, fertilizaciones, riego y labores usan handlers `skipSync` y
+viajan anidados en el payload de `visita_recetas`. La tabla
+`visita_receta_mezcla` conserva un `local_id` estable por tanque; cada producto
+referencia `mezcla_local_id`. El guardado local reemplaza el agregado completo
+dentro de una transaccion SQLite para no dejar una receta parcialmente escrita.
+
+El handler envia `mezclas[]` con `productos[]`. Tras la confirmacion de API,
+`markSynced` guarda el ID remoto de cada mezcla, usando su numero dentro de la
+receta, y confirma en conjunto todos los detalles. Un reintento conserva una
+sola operacion padre: no crea outbox independientes para las mezclas ni para
+sus productos.
 
 ## Disparadores
 

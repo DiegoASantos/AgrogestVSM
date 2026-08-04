@@ -74,6 +74,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Alta offline de productores con asociación completa en mobile](specs/026-alta-offline-productores-mobile.md)
 - [Múltiples productos por recomendación y validación de incompatibilidades en receta](specs/027-multiples-productos-receta-validacion-incompatibilidades.md)
 - [Compatibilidad de Home con tablas de sync sin updated_at](specs/028-home-sync-tablas-sin-updated-at.md)
+- [Mezclas, factor de incidencia y nueva dosificación en receta](specs/029-mezclas-factor-dosificacion-receta.md)
 
 ## Runbooks
 
