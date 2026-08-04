@@ -537,7 +537,12 @@ export function VisitaRecetaScreen() {
   }
 
   function updateMezclaCount(value: string) {
-    const count = Math.max(1, Math.min(20, Number.parseInt(value, 10) || 1));
+    const parsed = Number.parseInt(value, 10);
+    const count = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(20, parsed));
+    if (count === 0) {
+      setMezclas([]);
+      return;
+    }
     const next = Array.from(
       { length: count },
       (_, index) =>
@@ -833,12 +838,13 @@ export function VisitaRecetaScreen() {
               />
               <LabeledNumericInput
                 label="¿Cuántas mezclas va a preparar?"
-                value={String(mezclas.length || 1)}
+                value={String(mezclas.length)}
                 onChangeText={updateMezclaCount}
               />
               {mezclas.map((mezcla, index) => (
                 <MezclaCard
                   coadyuvantes={coadyuvantes}
+                  fitosanidadApps={fitosanidadApps}
                   key={mezcla.localId}
                   onChange={(patch) => updateMezcla(index, patch)}
                   resetToken={ordenExchangeResetToken}
@@ -1137,16 +1143,15 @@ function FitosanidadCard({
 
       <View style={styles.ingredientList}>
         {value.ingredientes.map((ingredient, ingredientIndex) => (
-          <IngredienteCard
-            canRemove={value.ingredientes.length > 1}
-            index={ingredientIndex}
-            ingredientesActivos={ingredientesActivos}
-            key={ingredient.localId}
-            marcasProducto={marcasProducto}
-            modosAccion={modosAccion}
-            mezclas={mezclas}
-            onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
-            onCloseDropdown={onCloseDropdown}
+            <IngredienteCard
+              canRemove={value.ingredientes.length > 1}
+              index={ingredientIndex}
+              ingredientesActivos={ingredientesActivos}
+              key={ingredient.localId}
+              marcasProducto={marcasProducto}
+              modosAccion={modosAccion}
+              onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
+              onCloseDropdown={onCloseDropdown}
             onRemove={() => onRemoveIngrediente(ingredientIndex)}
             openDropdown={openDropdown}
             prefix={`${prefix}_ingrediente_${ingredientIndex}`}
@@ -1194,7 +1199,6 @@ function IngredienteCard({
   ingredientesActivos: IngredienteActivoCatalogItem[];
   marcasProducto: MarcaProductoCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
-  mezclas: AppMezcla[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   openDropdown: string | null;
   onChange: (patch: Partial<AppIngrediente>) => void;
@@ -1238,21 +1242,6 @@ function IngredienteCard({
           />
         ) : null}
       </View>
-
-      <AppSelectField
-        icon="beaker-outline"
-        label="Mezcla asignada"
-        options={mezclas.map((mezcla) => ({
-          value: String(mezcla.numero),
-          label: `Mezcla ${mezcla.numero}`
-        }))}
-        placeholder="Seleccionar mezcla"
-        selectedLabel={`Mezcla ${value.mezclaNumero}`}
-        isOpen={openDropdown === `${prefix}_mezcla`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_mezcla`)}
-        onSelect={(mezclaNumero) => onChange({ mezclaNumero: Number(mezclaNumero) })}
-      />
 
       <AppSelectField
         icon="flask"
@@ -1356,11 +1345,51 @@ function IngredienteCard({
         value={value.dosisProducto}
         onChangeText={(dosisProducto) => onChange({ dosisProducto })}
       />
+    </View>
+  );
+}
 
-      <ReadonlyField
-        label="Cantidad total de producto (mg o mL/ha)"
-        value={value.cantidadTotalProducto}
-      />
+function renderProductosMezcla(mezcla: AppMezcla, applications: AppFitosanidad[]) {
+  const productos = applications.flatMap((application) =>
+    application.ingredientes
+      .filter(
+        (ingredient) =>
+          ingredient.mezclaNumero === mezcla.numero &&
+          ingredient.dosisProducto.trim()
+      )
+      .map((ingredient) => {
+        const total = calculateTotal(
+          ingredient.dosisProducto,
+          mezcla.volumenAplicacion,
+          mezcla.factor
+        );
+        return {
+          key: ingredient.localId,
+          nombre: ingredient.marcaProductoNombre || ingredient.ingredienteActivoNombre || "Sin nombre",
+          total: total ? total.toFixed(2) : ""
+        };
+      })
+  );
+
+  if (productos.length === 0) return null;
+
+  const granTotal = productos.reduce((sum, p) => sum + (parsePositiveDecimal(p.total) ?? 0), 0);
+
+  return (
+    <View style={styles.totalRow}>
+      <AppText variant="label">Productos asignados a esta mezcla</AppText>
+      {productos.map((p) => (
+        <View key={p.key} style={styles.productoTotalRow}>
+          <AppText variant="caption">{p.nombre}</AppText>
+          <AppText variant="caption">{p.total} mg o mL/ha</AppText>
+        </View>
+      ))}
+      {granTotal > 0 ? (
+        <View style={[styles.productoTotalRow, { borderTopWidth: 1, borderTopColor: theme.colors.primary, marginTop: 4, paddingTop: 4 }]}>
+          <AppText variant="label">Total</AppText>
+          <AppText variant="label">{granTotal.toFixed(2)} mg o mL</AppText>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1369,11 +1398,13 @@ function MezclaCard({
   value,
   coadyuvantes,
   resetToken,
+  fitosanidadApps,
   onChange
 }: {
   value: AppMezcla;
   coadyuvantes: CoadyuvanteCatalogItem[];
   resetToken: number;
+  fitosanidadApps: AppFitosanidad[];
   onChange: (patch: Partial<AppMezcla>) => void;
 }) {
   const [isExchangeMode, setIsExchangeMode] = useState(false);
@@ -1422,14 +1453,7 @@ function MezclaCard({
           : "Factor calculado automáticamente según la mayor incidencia de la mezcla."}
       </AppText>
 
-      {value.cantidadTotalProducto ? (
-        <View style={styles.totalRow}>
-          <AppText variant="label">Cantidad total a aplicar (por ha)</AppText>
-          <AppText variant="heading">
-            {Number(value.cantidadTotalProducto).toFixed(2)} mg o mL
-          </AppText>
-        </View>
-      ) : null}
+      {renderProductosMezcla(value, fitosanidadApps)}
 
       <AppText variant="label" style={styles.fieldLabel}>
         Coadyuvantes
@@ -2282,6 +2306,11 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     marginTop: 10,
     padding: 14
+  },
+  productoTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 6
   },
   ordenItemText: {
     flex: 1
