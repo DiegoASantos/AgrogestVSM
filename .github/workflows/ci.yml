@@ -180,39 +180,20 @@ jobs:
           subject: "${{ steps.status.outputs.EMOJI }} CI AgroGest VSM — ${{ steps.status.outputs.ESTADO }}"
           to: santosvillasecad@gmail.com
           from: AgroGest CI
-          html_body: |
-            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid rgb(225,228,232); border-radius: 8px;">
-              <h2 style="margin: 0 0 16px 0; font-size: 20px; color: rgb(36,41,47);">${{ steps.status.outputs.EMOJI }} CI AgroGest VSM — ${{ steps.status.outputs.ESTADO }}</h2>
+          body: |
+            ${{ steps.status.outputs.EMOJI }}  CI AgroGest VSM — ${{ steps.status.outputs.ESTADO }}
 
-              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-                <tr>
-                  <td style="padding: 8px 12px; font-weight: 600; color: rgb(87,96,106); white-space: nowrap; vertical-align: top; border-bottom: 1px solid rgb(234,236,239);">📌 Evento</td>
-                  <td style="padding: 8px 12px; color: rgb(36,41,47); border-bottom: 1px solid rgb(234,236,239);">${{ steps.status.outputs.TRIGGER }}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 12px; font-weight: 600; color: rgb(87,96,106); white-space: nowrap; vertical-align: top; border-bottom: 1px solid rgb(234,236,239);">🌿 Rama</td>
-                  <td style="padding: 8px 12px; color: rgb(36,41,47); border-bottom: 1px solid rgb(234,236,239);">${{ steps.status.outputs.RAMA }}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 12px; font-weight: 600; color: rgb(87,96,106); white-space: nowrap; vertical-align: top; border-bottom: 1px solid rgb(234,236,239);">👤 Autor</td>
-                  <td style="padding: 8px 12px; color: rgb(36,41,47); border-bottom: 1px solid rgb(234,236,239);">${{ steps.status.outputs.AUTOR }}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 12px; font-weight: 600; color: rgb(87,96,106); white-space: nowrap; vertical-align: top; border-bottom: 1px solid rgb(234,236,239);">🔖 Commit</td>
-                  <td style="padding: 8px 12px; color: rgb(36,41,47); border-bottom: 1px solid rgb(234,236,239);"><code style="background: rgb(246,248,250); padding: 2px 6px; border-radius: 4px; font-size: 13px;">${{ steps.status.outputs.SHA_SHORT }}</code></td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 12px; font-weight: 600; color: rgb(87,96,106); white-space: nowrap; vertical-align: top;">💬 Mensaje</td>
-                  <td style="padding: 8px 12px; color: rgb(36,41,47);">${{ steps.status.outputs.COMMIT_MSG }}</td>
-                </tr>
-              </table>
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+             Evento : ${{ steps.status.outputs.TRIGGER }}
+             Rama   : ${{ steps.status.outputs.RAMA }}
+             Autor  : ${{ steps.status.outputs.AUTOR }}
+             Commit : ${{ steps.status.outputs.SHA_SHORT }}
+             Mensaje: ${{ steps.status.outputs.COMMIT_MSG }}
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-              <h3 style="margin: 0 0 8px 0; font-size: 16px; color: rgb(36,41,47);">📋 Resultados por job</h3>
-              <pre style="background: rgb(246,248,250); padding: 12px 16px; border-radius: 6px; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0; border-left: 4px solid ${{ steps.status.outputs.BORDER_COLOR }};">${{ steps.status.outputs.TC_EMOJI }} Typecheck: <b>${{ steps.status.outputs.TC_RESULT }}</b>
-${{ steps.status.outputs.LI_EMOJI }} Lint: <b>${{ steps.status.outputs.LI_RESULT }}</b>
-${{ steps.status.outputs.TE_EMOJI }} Tests: <b>${{ steps.status.outputs.TE_RESULT }}</b></pre>
+             RESULTADOS POR JOB
+             ${{ steps.status.outputs.TC_EMOJI }} Typecheck : ${{ steps.status.outputs.TC_RESULT }}
+             ${{ steps.status.outputs.LI_EMOJI }} Lint      : ${{ steps.status.outputs.LI_RESULT }}
+             ${{ steps.status.outputs.TE_EMOJI }} Tests     : ${{ steps.status.outputs.TE_RESULT }}
 
-              <a href="${{ steps.status.outputs.RUN_URL }}" style="display: inline-block; padding: 10px 20px; background: rgb(36,41,47); color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600;">🔗 Ver detalles en GitHub Actions</a>
-
-              <p style="margin-top: 20px; font-size: 12px; color: rgb(139,148,158);">AgroGest VSM CI — notificación automática</p>
-            </div>
+            Ver detalles: ${{ steps.status.outputs.RUN_URL }}
