@@ -1,0 +1,38 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "apps/api/src/main.ts",
+    "packages/contracts/src/index.ts",
+    "packages/validation/src/index.ts",
+    "packages/utils/src/index.ts"
+  ],
+  "project": [
+    "apps/api/src/**/*.ts",
+    "apps/mobile/app/**/*.{ts,tsx}",
+    "apps/mobile/src/**/*.{ts,tsx}",
+    "apps/admin-web/src/**/*.{ts,tsx}",
+    "packages/contracts/src/**/*.ts",
+    "packages/validation/src/**/*.ts",
+    "packages/utils/src/**/*.ts"
+  ],
+  "ignore": [
+    "**/dist/**",
+    "**/.next/**",
+    "**/node_modules/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/e2e/**",
+    "**/__tests__/**",
+    "**/migrations/**",
+    "tools/**"
+  ],
+  "ignoreDependencies": [
+    "eslint",
+    "prettier",
+    "typescript",
+    "@types/node",
+    "@types/react",
+    "@types/react-dom",
+    "@types/leaflet"
+  ]
+}

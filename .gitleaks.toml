@@ -1,0 +1,22 @@
+# AgroGest VSM - Gitleaks configuration
+# Escanea solo el working tree actual (--no-git).
+# Exclusiones para evitar falsos positivos en archivos de ejemplo,
+# documentacion y dependencias.
+
+title = "AgroGest VSM"
+
+[allowlist]
+  description = "Archivos y patrones excluidos del escaneo"
+  paths = [
+    '''pnpm-lock.yaml''',
+    '''.*lock.*''',
+    '''.*\.example$''',
+    '''.*\.sample$''',
+    '''dist/.*''',
+    '''\.next/.*''',
+    '''coverage/.*''',
+    '''node_modules/.*''',
+    '''tools/.*\.ps1$''',
+    '''docs/.*\.md$''',
+    '''.*\.snap$''',
+  ]
