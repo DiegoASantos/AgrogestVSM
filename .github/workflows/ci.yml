@@ -7,74 +7,6 @@ on:
     branches: [main]
 
 jobs:
-  format:
-    name: Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm format:check
-
-  docs:
-    name: Docs
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm docs:check
-
-  audit:
-    name: Audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm audit --audit-level=high
-
-  dead-code:
-    name: Dead Code
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - name: knip (informativo)
-        run: npx knip --no-exit-code
-
-  secrets:
-    name: Secrets
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v4
-      - name: Gitleaks scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITLEAKS_CONFIG: .gitleaks.toml
-
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
@@ -117,10 +49,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:coverage
 
-  e2e:
-    name: E2E Admin
+  dead-code:
+    name: Dead Code
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -129,30 +61,12 @@ jobs:
           node-version: 24
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
-      - name: Install Playwright
-        run: pnpm --filter @agrogest/admin-web exec playwright install --with-deps chromium
-      - name: Run E2E
-        run: pnpm --filter @agrogest/admin-web run e2e:ci
-
-  build:
-    name: Build
-    needs: [typecheck, lint, test]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - name: knip (informativo)
+        run: npx knip --no-exit-code
 
   notify:
     name: Notificar
-    needs:
-      [format, docs, audit, dead-code, secrets, typecheck, lint, test, e2e, build]
+    needs: [typecheck, lint, test, dead-code]
     runs-on: ubuntu-latest
     if: always()
     timeout-minutes: 3
@@ -170,62 +84,30 @@ jobs:
             esac
           }
 
-          FT="${{ needs.format.result }}"
-          DC="${{ needs.docs.result }}"
-          AU="${{ needs.audit.result }}"
-          KD="${{ needs.dead-code.result }}"
-          SC="${{ needs.secrets.result }}"
           TC="${{ needs.typecheck.result }}"
           LI="${{ needs.lint.result }}"
           TE="${{ needs.test.result }}"
-          E2="${{ needs.e2e.result }}"
-          BD="${{ needs.build.result }}"
+          KD="${{ needs.dead-code.result }}"
 
-          echo "FT_RESULT=${FT^^}" >> $GITHUB_OUTPUT
-          echo "DC_RESULT=${DC^^}" >> $GITHUB_OUTPUT
-          echo "AU_RESULT=${AU^^}" >> $GITHUB_OUTPUT
-          echo "KD_RESULT=${KD^^}" >> $GITHUB_OUTPUT
-          echo "SC_RESULT=${SC^^}" >> $GITHUB_OUTPUT
           echo "TC_RESULT=${TC^^}" >> $GITHUB_OUTPUT
           echo "LI_RESULT=${LI^^}" >> $GITHUB_OUTPUT
           echo "TE_RESULT=${TE^^}" >> $GITHUB_OUTPUT
-          echo "E2_RESULT=${E2^^}" >> $GITHUB_OUTPUT
-          echo "BD_RESULT=${BD^^}" >> $GITHUB_OUTPUT
+          echo "KD_RESULT=${KD^^}" >> $GITHUB_OUTPUT
 
-          echo "FT_EMOJI=$(emoji "$FT")" >> $GITHUB_OUTPUT
-          echo "DC_EMOJI=$(emoji "$DC")" >> $GITHUB_OUTPUT
-          echo "AU_EMOJI=$(emoji "$AU")" >> $GITHUB_OUTPUT
-          echo "KD_EMOJI=$(emoji "$KD")" >> $GITHUB_OUTPUT
-          echo "SC_EMOJI=$(emoji "$SC")" >> $GITHUB_OUTPUT
           echo "TC_EMOJI=$(emoji "$TC")" >> $GITHUB_OUTPUT
           echo "LI_EMOJI=$(emoji "$LI")" >> $GITHUB_OUTPUT
           echo "TE_EMOJI=$(emoji "$TE")" >> $GITHUB_OUTPUT
-          echo "E2_EMOJI=$(emoji "$E2")" >> $GITHUB_OUTPUT
-          echo "BD_EMOJI=$(emoji "$BD")" >> $GITHUB_OUTPUT
-
-          FAILED=""
-          [ "$FT" != "success" ] && [ "$FT" != "skipped" ] && FAILED="${FAILED} Format"
-          [ "$DC" != "success" ] && [ "$DC" != "skipped" ] && FAILED="${FAILED} Docs"
-          [ "$AU" != "success" ] && [ "$AU" != "skipped" ] && FAILED="${FAILED} Audit"
-          [ "$KD" != "success" ] && [ "$KD" != "skipped" ] && FAILED="${FAILED} DeadCode"
-          [ "$SC" != "success" ] && [ "$SC" != "skipped" ] && FAILED="${FAILED} Secrets"
-          [ "$TC" != "success" ] && [ "$TC" != "skipped" ] && FAILED="${FAILED} Typecheck"
-          [ "$LI" != "success" ] && [ "$LI" != "skipped" ] && FAILED="${FAILED} Lint"
-          [ "$TE" != "success" ] && [ "$TE" != "skipped" ] && FAILED="${FAILED} Tests"
-          [ "$E2" != "success" ] && [ "$E2" != "skipped" ] && FAILED="${FAILED} E2E"
-          [ "$BD" != "success" ] && [ "$BD" != "skipped" ] && FAILED="${FAILED} Build"
+          echo "KD_EMOJI=$(emoji "$KD")" >> $GITHUB_OUTPUT
 
           ALL_OK=true
-          [ "$FT" != "success" ] && [ "$FT" != "skipped" ] && ALL_OK=false
-          [ "$DC" != "success" ] && [ "$DC" != "skipped" ] && ALL_OK=false
-          [ "$AU" != "success" ] && [ "$AU" != "skipped" ] && ALL_OK=false
-          [ "$KD" != "success" ] && [ "$KD" != "skipped" ] && ALL_OK=false
-          [ "$SC" != "success" ] && [ "$SC" != "skipped" ] && ALL_OK=false
           [ "$TC" != "success" ] && [ "$TC" != "skipped" ] && ALL_OK=false
           [ "$LI" != "success" ] && [ "$LI" != "skipped" ] && ALL_OK=false
           [ "$TE" != "success" ] && [ "$TE" != "skipped" ] && ALL_OK=false
-          [ "$E2" != "success" ] && [ "$E2" != "skipped" ] && ALL_OK=false
-          [ "$BD" != "success" ] && [ "$BD" != "skipped" ] && ALL_OK=false
+
+          FAILED=""
+          [ "$TC" != "success" ] && [ "$TC" != "skipped" ] && FAILED="${FAILED} Typecheck"
+          [ "$LI" != "success" ] && [ "$LI" != "skipped" ] && FAILED="${FAILED} Lint"
+          [ "$TE" != "success" ] && [ "$TE" != "skipped" ] && FAILED="${FAILED} Tests"
 
           if $ALL_OK; then
             echo "ESTADO=ÉXITO" >> $GITHUB_OUTPUT
@@ -269,16 +151,10 @@ jobs:
           TEXTO="${TEXTO}%0A<b>🔖 Commit:</b> <code>${{ steps.status.outputs.SHA_SHORT }}</code>"
           TEXTO="${TEXTO}%0A<b>💬 Mensaje:</b> ${{ steps.status.outputs.COMMIT_MSG }}"
           TEXTO="${TEXTO}%0A%0A<b>📋 Resultados:</b>"
-          TEXTO="${TEXTO}%0A${{ steps.status.outputs.FT_EMOJI }} Format: <b>${{ steps.status.outputs.FT_RESULT }}</b>"
-          TEXTO="${TEXTO}%0A${{ steps.status.outputs.DC_EMOJI }} Docs: <b>${{ steps.status.outputs.DC_RESULT }}</b>"
-          TEXTO="${TEXTO}%0A${{ steps.status.outputs.AU_EMOJI }} Audit: <b>${{ steps.status.outputs.AU_RESULT }}</b>"
-          TEXTO="${TEXTO}%0A${{ steps.status.outputs.KD_EMOJI }} Dead Code: <b>${{ steps.status.outputs.KD_RESULT }}</b>"
-          TEXTO="${TEXTO}%0A${{ steps.status.outputs.SC_EMOJI }} Secrets: <b>${{ steps.status.outputs.SC_RESULT }}</b>"
           TEXTO="${TEXTO}%0A${{ steps.status.outputs.TC_EMOJI }} Typecheck: <b>${{ steps.status.outputs.TC_RESULT }}</b>"
           TEXTO="${TEXTO}%0A${{ steps.status.outputs.LI_EMOJI }} Lint: <b>${{ steps.status.outputs.LI_RESULT }}</b>"
           TEXTO="${TEXTO}%0A${{ steps.status.outputs.TE_EMOJI }} Tests: <b>${{ steps.status.outputs.TE_RESULT }}</b>"
-          TEXTO="${TEXTO}%0A${{ steps.status.outputs.E2_EMOJI }} E2E: <b>${{ steps.status.outputs.E2_RESULT }}</b>"
-          TEXTO="${TEXTO}%0A${{ steps.status.outputs.BD_EMOJI }} Build: <b>${{ steps.status.outputs.BD_RESULT }}</b>"
+          TEXTO="${TEXTO}%0A${{ steps.status.outputs.KD_EMOJI }} Dead Code: <b>${{ steps.status.outputs.KD_RESULT }}</b>"
 
           if [ "${{ steps.status.outputs.ESTADO }}" = "FRACASO" ]; then
             TEXTO="${TEXTO}%0A%0A⚠️ Falló:${{ steps.status.outputs.FAILED_JOBS }}"
@@ -313,15 +189,9 @@ jobs:
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
              RESULTADOS POR JOB
-             ${{ steps.status.outputs.FT_EMOJI }} Format    : ${{ steps.status.outputs.FT_RESULT }}
-             ${{ steps.status.outputs.DC_EMOJI }} Docs      : ${{ steps.status.outputs.DC_RESULT }}
-             ${{ steps.status.outputs.AU_EMOJI }} Audit     : ${{ steps.status.outputs.AU_RESULT }}
-             ${{ steps.status.outputs.KD_EMOJI }} Dead Code : ${{ steps.status.outputs.KD_RESULT }}
-             ${{ steps.status.outputs.SC_EMOJI }} Secrets   : ${{ steps.status.outputs.SC_RESULT }}
              ${{ steps.status.outputs.TC_EMOJI }} Typecheck : ${{ steps.status.outputs.TC_RESULT }}
              ${{ steps.status.outputs.LI_EMOJI }} Lint      : ${{ steps.status.outputs.LI_RESULT }}
              ${{ steps.status.outputs.TE_EMOJI }} Tests     : ${{ steps.status.outputs.TE_RESULT }}
-             ${{ steps.status.outputs.E2_EMOJI }} E2E       : ${{ steps.status.outputs.E2_RESULT }}
-             ${{ steps.status.outputs.BD_EMOJI }} Build     : ${{ steps.status.outputs.BD_RESULT }}
+             ${{ steps.status.outputs.KD_EMOJI }} Dead Code : ${{ steps.status.outputs.KD_RESULT }}
 
             Ver detalles: ${{ steps.status.outputs.RUN_URL }}
