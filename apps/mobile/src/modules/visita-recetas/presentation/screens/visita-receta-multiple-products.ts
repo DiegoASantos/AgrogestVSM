@@ -65,7 +65,7 @@ export type AppFertilizacion = {
 
 let transientIdSequence = 0;
 
-export function createEmptyIngrediente(mezclaNumero = 1): AppIngrediente {
+export function createEmptyIngrediente(mezclaNumero = 0): AppIngrediente {
   return {
     localId: createTransientId("ingrediente"),
     mezclaNumero,

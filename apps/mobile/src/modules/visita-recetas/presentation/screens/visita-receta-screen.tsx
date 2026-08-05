@@ -31,7 +31,6 @@ import {
   validarMezcla
 } from "../../domain/validacion-mezclas";
 import { visitaRecetasService, type SaveRecetaData } from "../../services";
-import { visitaRecetaPdfReportService } from "../../services/visita-receta-pdf-report.service";
 import type {
   ConsolidacionHallazgo,
   CoadyuvanteCatalogItem,
@@ -415,7 +414,7 @@ export function VisitaRecetaScreen() {
       incidenceGrade,
       tipoControlId: "",
       disolvente: "Agua",
-      ingredientes: [createEmptyIngrediente(numero)]
+      ingredientes: [createEmptyIngrediente(0)]
     };
   }
 
@@ -437,7 +436,7 @@ export function VisitaRecetaScreen() {
             ...application,
             ingredientes: [
               ...application.ingredientes,
-              createEmptyIngrediente(mezclas[0]?.numero ?? 1)
+              createEmptyIngrediente(0)
             ]
           }
         : application
@@ -540,9 +539,11 @@ export function VisitaRecetaScreen() {
     setFitosanidadApps((prev) => {
       const next = prev.map((app) => ({
         ...app,
-        ingredientes: app.ingredientes.map((ing) =>
-          ing.localId === ingredientLocalId ? { ...ing, mezclaNumero } : ing
-        )
+        ingredientes: app.ingredientes.map((ing) => {
+          if (ing.localId !== ingredientLocalId) return ing;
+          const estaAsignado = ing.mezclaNumero === mezclaNumero;
+          return { ...ing, mezclaNumero: estaAsignado ? 0 : mezclaNumero };
+        })
       }));
       setMezclas((currentMezclas) => deriveMezclaFactors(next, currentMezclas));
       return next;
@@ -689,8 +690,6 @@ export function VisitaRecetaScreen() {
       const updated = visitaRecetasService.getByVisitaId(vId);
       setRecetaData(updated);
 
-      await visitaRecetaPdfReportService.preview(vId);
-
       Alert.alert("Finalizar receta", "Desea finalizar y enviar la receta?", [
         {
           text: "Seguir editando",
@@ -819,6 +818,7 @@ export function VisitaRecetaScreen() {
                 ingredientesActivos={ingredientesActivos}
                 key={app.localId}
                 marcasProducto={marcasProducto}
+                mezclas={mezclas}
                 modosAccion={modosAccion}
                 onAddIngrediente={() => addIngrediente(index)}
                 onChange={(patch) => updateFitosanidadApp(index, patch)}
@@ -1089,6 +1089,7 @@ function FitosanidadCard({
   tiposControl,
   tiposProducto,
   modosAccion,
+  mezclas,
   openDropdown,
   onAddIngrediente,
   onChange,
@@ -1105,6 +1106,7 @@ function FitosanidadCard({
   tiposControl: TipoControlCatalogItem[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
+  mezclas: AppMezcla[];
   openDropdown: string | null;
   onAddIngrediente: () => void;
   onChange: (patch: Partial<AppFitosanidad>) => void;
@@ -1160,6 +1162,7 @@ function FitosanidadCard({
               ingredientesActivos={ingredientesActivos}
               key={ingredient.localId}
               marcasProducto={marcasProducto}
+              mezclas={mezclas}
               modosAccion={modosAccion}
               onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
               onCloseDropdown={onCloseDropdown}
@@ -1193,6 +1196,7 @@ function IngredienteCard({
   ingredientesActivos,
   marcasProducto,
   modosAccion,
+  mezclas,
   tiposProducto,
   openDropdown,
   onChange,
@@ -1209,6 +1213,7 @@ function IngredienteCard({
   ingredientesActivos: IngredienteActivoCatalogItem[];
   marcasProducto: MarcaProductoCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
+  mezclas: AppMezcla[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   openDropdown: string | null;
   onChange: (patch: Partial<AppIngrediente>) => void;
@@ -1252,6 +1257,25 @@ function IngredienteCard({
           />
         ) : null}
       </View>
+
+      <AppSelectField
+        icon="beaker"
+        label="Mezcla"
+        options={[
+          { value: "0", label: "Sin asignar" },
+          ...mezclas.map((m) => ({ value: String(m.numero), label: `Mezcla ${m.numero}` }))
+        ]}
+        placeholder="Asignar a una mezcla"
+        selectedLabel={
+          value.mezclaNumero === 0
+            ? "Sin asignar"
+            : `Mezcla ${value.mezclaNumero}`
+        }
+        isOpen={openDropdown === `${prefix}_mezcla`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_mezcla`)}
+        onSelect={(v) => onChange({ mezclaNumero: Number(v) })}
+      />
 
       <AppSelectField
         icon="flask"
@@ -1371,13 +1395,15 @@ function renderProductosMezcla(
         localId: ingredient.localId,
         nombre: ingredient.marcaProductoNombre || ingredient.ingredienteActivoNombre || "Sin nombre",
         objetivo: application.objetivoNombre || application.objetivo,
-        asignado: ingredient.mezclaNumero === mezcla.numero
+        asignado: ingredient.mezclaNumero === mezcla.numero,
+        sinAsignar: ingredient.mezclaNumero === 0
       }))
   );
 
   if (todos.length === 0) return null;
 
   const asignados = todos.filter((p) => p.asignado);
+  const sinAsignar = todos.filter((p) => p.sinAsignar);
 
   return (
     <View style={styles.totalRow}>
@@ -1388,22 +1414,27 @@ function renderProductosMezcla(
           accessibilityState={{ checked: producto.asignado }}
           key={producto.localId}
           onPress={() => onAsignarProducto(producto.localId, mezcla.numero)}
-          style={[styles.productoCheckRow, producto.asignado && styles.productoCheckRowSelected]}
+          style={[
+            styles.productoCheckRow,
+            producto.asignado && styles.productoCheckRowSelected,
+            producto.sinAsignar && styles.productoCheckRowUnassigned
+          ]}
         >
           <Ionicons
-            color={producto.asignado ? theme.colors.primary : theme.colors.textMuted}
+            color={producto.asignado ? theme.colors.primary : producto.sinAsignar ? theme.colors.warning : theme.colors.textMuted}
             name={producto.asignado ? "checkbox" : "square-outline"}
             size={20}
           />
           <View style={{ flex: 1 }}>
             <AppText
-              style={producto.asignado ? { color: theme.colors.primary } : undefined}
+              style={producto.asignado ? { color: theme.colors.primary } : producto.sinAsignar ? { color: theme.colors.warning } : undefined}
               variant="caption"
             >
               {producto.nombre}
             </AppText>
             <AppText variant="muted" style={{ fontSize: 11 }}>
               {producto.objetivo}
+              {producto.sinAsignar ? " — Sin mezcla asignada" : ""}
             </AppText>
           </View>
         </Pressable>
@@ -1412,6 +1443,13 @@ function renderProductosMezcla(
         <View style={{ marginTop: 8 }}>
           <AppText variant="caption" style={{ color: theme.colors.textMuted }}>
             {asignados.length} producto(s) asignado(s)
+          </AppText>
+        </View>
+      ) : null}
+      {sinAsignar.length > 0 ? (
+        <View style={{ marginTop: 4 }}>
+          <AppText variant="caption" style={{ color: theme.colors.warning }}>
+            {sinAsignar.length} producto(s) sin asignar
           </AppText>
         </View>
       ) : null}
@@ -1517,7 +1555,10 @@ function MezclaCard({
       {value.ordenMezcla.length > 0 ? (
         <View style={styles.ordenContainer}>
           <View style={styles.ordenHeader}>
-            <AppText variant="label">Orden de mezcla</AppText>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Ionicons color={theme.colors.warning} name="swap-vertical-outline" size={18} />
+              <AppText variant="label">Orden de mezcla</AppText>
+            </View>
             {movableCount >= 2 ? (
               <Pressable
                 accessibilityRole="button"
@@ -1525,30 +1566,95 @@ function MezclaCard({
                   setIsExchangeMode((current) => !current);
                   setSelectedIndex(null);
                 }}
-                style={styles.ordenExchangeButton}
+                style={[
+                  styles.ordenExchangeButton,
+                  isExchangeMode && styles.ordenExchangeButtonActive
+                ]}
               >
-                <AppText variant="caption">
-                  {isExchangeMode ? "Listo" : "Intercambiar"}
+                <Ionicons
+                  color={isExchangeMode ? theme.colors.textInverse : theme.colors.primary}
+                  name="swap-horizontal"
+                  size={16}
+                />
+                <AppText
+                  style={
+                    isExchangeMode
+                      ? styles.ordenExchangeButtonTextActive
+                      : styles.ordenExchangeButtonText
+                  }
+                  variant="caption"
+                >
+                  {isExchangeMode ? "Listo" : "Reordenar"}
                 </AppText>
               </Pressable>
             ) : null}
           </View>
-          {value.ordenMezcla.map((item, index) => (
-            <Pressable
-              accessibilityRole="button"
-              disabled={!isExchangeMode || isOrdenMezclaFixedItem(item)}
-              key={`${item}_${index}`}
-              onPress={() => exchange(index)}
-              style={[
-                styles.ordenItem,
-                selectedIndex === index && styles.ordenItemSelected
-              ]}
-            >
-              <AppText variant="muted">
-                {index + 1}°: {item}
-              </AppText>
-            </Pressable>
-          ))}
+          {movableCount >= 2 && !isExchangeMode ? (
+            <AppText variant="muted" style={{ fontSize: 12, marginTop: -4 }}>
+              Toca "Reordenar" para intercambiar posiciones
+            </AppText>
+          ) : null}
+          {isExchangeMode && selectedIndex !== null ? (
+            <AppText variant="caption" style={{ color: theme.colors.primary, fontStyle: "italic" }}>
+              Ahora toca el item con el que quieres intercambiar
+            </AppText>
+          ) : null}
+          {value.ordenMezcla.map((item, index) => {
+            const isFixed = isOrdenMezclaFixedItem(item);
+            return (
+              <Pressable
+                accessibilityRole="button"
+                disabled={!isExchangeMode || isFixed}
+                key={`${item}_${index}`}
+                onPress={() => exchange(index)}
+                style={[
+                  styles.ordenItem,
+                  isExchangeMode && !isFixed && styles.ordenItemSelectable,
+                  selectedIndex === index && styles.ordenItemSelected,
+                  isFixed && styles.ordenItemFixed
+                ]}
+              >
+                <View style={styles.ordenItemNumberBadge}>
+                  <AppText
+                    style={[
+                      { color: isFixed ? theme.colors.textMuted : theme.colors.primary, fontSize: 12, fontWeight: "700" },
+                      selectedIndex === index && { color: theme.colors.primaryDark }
+                    ]}
+                  >
+                    {index + 1}°
+                  </AppText>
+                </View>
+                <AppText
+                  style={[
+                    styles.ordenItemText,
+                    isFixed && { color: theme.colors.textMuted },
+                    !isFixed && { fontWeight: "500" },
+                    selectedIndex === index && styles.ordenItemTextSelected
+                  ]}
+                  variant="muted"
+                >
+                  {item}
+                </AppText>
+                {isFixed ? (
+                  <Ionicons color={theme.colors.textMuted} name="lock-closed-outline" size={14} />
+                ) : isExchangeMode ? (
+                  <View style={styles.ordenSwapIndicator}>
+                    <Ionicons
+                      color={selectedIndex === index ? theme.colors.primary : theme.colors.textMuted}
+                      name="swap-horizontal"
+                      size={18}
+                    />
+                  </View>
+                ) : (
+                  <Ionicons
+                    color={theme.colors.borderLight}
+                    name="reorder-three-outline"
+                    size={16}
+                  />
+                )}
+              </Pressable>
+            );
+          })}
         </View>
       ) : null}
     </View>
@@ -1572,6 +1678,15 @@ function validateRequiredRecipe(
   }
 
   if (hasFitosanidad) {
+    const hasUnassigned = fitosanidadApps.some((application) =>
+      application.ingredientes.some(
+        (ingredient) =>
+          (ingredient.ingredienteActivoNombre || ingredient.marcaProductoNombre) &&
+          ingredient.mezclaNumero === 0
+      )
+    );
+    if (hasUnassigned) return "Asigna todos los productos con nombre a una mezcla.";
+
     const assigned = new Set(
       fitosanidadApps.flatMap((application) =>
         application.ingredientes.map((ingredient) => ingredient.mezclaNumero)
@@ -2307,26 +2422,46 @@ const styles = StyleSheet.create({
   },
   ordenItem: {
     alignItems: "center",
-    borderColor: "transparent",
+    borderColor: theme.colors.borderLight,
     borderRadius: theme.radius.sm,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 8,
-    minHeight: 36,
-    paddingHorizontal: 8,
-    paddingVertical: 6
+    gap: 10,
+    minHeight: 40,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: theme.colors.surface
   },
   ordenItemSelectable: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.primary,
-    borderStyle: "dashed"
+    borderStyle: "dashed",
+    borderWidth: 1.5
   },
   ordenItemSelected: {
     backgroundColor: theme.colors.primaryMuted,
-    borderStyle: "solid"
+    borderStyle: "solid",
+    borderColor: theme.colors.primary,
+    borderWidth: 2
   },
   ordenItemFixed: {
-    opacity: 0.72
+    opacity: 0.65
+  },
+  ordenSwapIndicator: {
+    alignItems: "center",
+    backgroundColor: theme.colors.primaryMuted,
+    borderRadius: theme.radius.full,
+    height: 28,
+    justifyContent: "center",
+    width: 28
+  },
+  ordenItemNumberBadge: {
+    alignItems: "center",
+    backgroundColor: theme.colors.warningMuted,
+    borderRadius: theme.radius.full,
+    height: 26,
+    justifyContent: "center",
+    width: 26
   },
   totalRow: {
     backgroundColor: theme.colors.primaryMuted,
@@ -2350,6 +2485,9 @@ const styles = StyleSheet.create({
   },
   productoCheckRowSelected: {
     backgroundColor: theme.colors.primaryMuted
+  },
+  productoCheckRowUnassigned: {
+    backgroundColor: theme.colors.warningMuted
   },
   ordenItemText: {
     flex: 1
