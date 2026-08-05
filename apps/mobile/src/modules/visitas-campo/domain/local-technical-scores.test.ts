@@ -16,6 +16,7 @@ function buildInput(
     sanitaryObservations: [],
     nutritionObservations: [],
     riego: null,
+    labores: [],
     ...overrides
   };
 }
@@ -28,7 +29,8 @@ describe("calculo local de scores tecnicos", () => {
       detallePlagas: null,
       detalleEnfermedades: null,
       detalleNutricion: null,
-      detalleRiego: null
+      detalleRiego: null,
+      detalleLabores: null
     });
   });
 

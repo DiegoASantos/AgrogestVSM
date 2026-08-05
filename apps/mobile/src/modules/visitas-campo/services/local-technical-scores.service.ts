@@ -1,6 +1,7 @@
 import { getDatabase } from "../../../shared/database/connection";
 import { nutricionRepository } from "../../nutricion/repositories/nutricion.repository";
 import { evaluacionesRemote } from "../../evaluaciones/services/evaluaciones.remote";
+import { laboresCulturalesVisitaRepository } from "../../labores-culturales-visita/repositories/labores-culturales-visita.repository";
 import { observacionesSanitariasRepository } from "../../observaciones-sanitarias/repositories/observaciones-sanitarias.repository";
 import { observacionesSanitariasRemote } from "../../observaciones-sanitarias/services/observaciones-sanitarias.remote";
 import { parcelasRepository } from "../../parcelas/repositories/parcelas.repository";
@@ -88,7 +89,20 @@ export const localTechnicalScoresService = {
               humedadSuelo: detail.riego.humedadSuelo,
               estresHidrico: detail.riego.estresHidrico
             }
-          : null
+          : null,
+        labores: laboresCulturalesVisitaRepository
+          .getLaboresCulturales()
+          .filter((catalog) =>
+            detail.laboresCulturales.some(
+              (vlc) => vlc.laborCulturalId === catalog.id
+            )
+          )
+          .map((catalog) => ({
+            categoryCode: catalog.categoryCode,
+            categoryName: catalog.categoryName,
+            optionCode: catalog.optionCode,
+            optionName: catalog.optionLabel
+          }))
       }),
       pendingSync:
         hasPendingTechnicalData(detail, recipe, nutritionEvaluations) ||
@@ -157,7 +171,8 @@ export function pickMobileTechnicalScoreDetails(
     detallePlagas: scores.detallePlagas,
     detalleEnfermedades: scores.detalleEnfermedades,
     detalleNutricion: scores.detalleNutricion,
-    detalleRiego: scores.detalleRiego
+    detalleRiego: scores.detalleRiego,
+    detalleLabores: scores.detalleLabores
   };
 }
 

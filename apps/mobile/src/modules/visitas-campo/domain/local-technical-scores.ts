@@ -2,6 +2,7 @@ import { resolveDiseaseIncidenceGrade } from "../../observaciones-sanitarias/dom
 import { resolveNutritionIncidence } from "../../evaluaciones/domain/nutrition-incidence";
 import type {
   DiseaseModuleTechnicalDetail,
+  LaborModuleTechnicalDetail,
   MobileTechnicalScoreDetails,
   NutritionModuleTechnicalDetail,
   PestModuleTechnicalDetail,
@@ -37,6 +38,12 @@ export type LocalTechnicalScoreInput = {
     humedadSuelo: string | null;
     estresHidrico: boolean | null;
   } | null;
+  labores: Array<{
+    categoryCode: string | null;
+    categoryName: string | null;
+    optionCode: string | null;
+    optionName: string | null;
+  }>;
 };
 
 const PEST_DEFINITIONS = [
@@ -83,7 +90,8 @@ export function calculateLocalTechnicalScores(
     detallePlagas: calculatePestDetail(input),
     detalleEnfermedades: calculateDiseaseDetail(input),
     detalleNutricion: calculateNutritionDetail(input),
-    detalleRiego: calculateRiegoDetail(input)
+    detalleRiego: calculateRiegoDetail(input),
+    detalleLabores: calculateLaborDetail(input)
   };
 }
 
@@ -358,6 +366,93 @@ function resolveNutritionSemaphore(score: number) {
     status: "Fundo Nutrito / Salud Fuerte",
     message:
       "Estado nutricional óptimo o bajo control preventivo. Continuar con el calendario de fertirriego regular."
+  };
+}
+
+const LABOR_WEIGHTS: Record<string, number> = {
+  weed_infestation: 10,
+  soil_sanitary_status: 20,
+  unproductive_branch_density: 10,
+  branch_break_risk: 25,
+  canopy_status: 15,
+  load_balance: 20
+};
+const LABOR_POINTS: Record<string, Record<string, number>> = {
+  weed_infestation: { clean: 3, low: 2, high: 1 },
+  soil_sanitary_status: { clean: 3, mild: 2, critical: 0 },
+  unproductive_branch_density: { low: 3, moderate: 2, high: 1 },
+  branch_break_risk: { low: 3, critical: 0 },
+  canopy_status: { good: 3, shaded: 1 },
+  load_balance: { balanced: 3, low_volume: 1, excessive: 1 }
+};
+
+function calculateLaborDetail(
+  input: LocalTechnicalScoreInput
+): LaborModuleTechnicalDetail | null {
+  if (!input.isActive || (!input.hasRecipe && !input.finalizedSteps.includes(6))) {
+    return null;
+  }
+  const selected = new Map(
+    input.labores
+      .filter((l) => l.categoryCode)
+      .map((l) => [l.categoryCode!, l])
+  );
+  if (Object.keys(LABOR_WEIGHTS).some((category) => !selected.has(category))) return null;
+
+  const laborScores = Object.entries(LABOR_WEIGHTS).map(([category, weight]) => {
+    const labor = selected.get(category);
+    const optionCode = labor?.optionCode ?? "";
+    const score = LABOR_POINTS[category]?.[optionCode] ?? 0;
+    return {
+      categoryCode: category,
+      categoryName: labor?.categoryName ?? "",
+      optionCode,
+      optionName: labor?.optionName ?? "",
+      score,
+      weight
+    };
+  });
+  const moduleScore =
+    Object.entries(LABOR_WEIGHTS).reduce((total, [category, weight]) => {
+      const option = selected.get(category)?.optionCode ?? "";
+      return total + (LABOR_POINTS[category][option] ?? 0) * weight;
+    }, 0) / 100;
+  const rounded = Math.round((moduleScore + Number.EPSILON) * 100) / 100;
+  const semaphore = resolveLaborSemaphore(rounded);
+  return {
+    moduleScore: rounded,
+    modulePercentage: percentage(rounded),
+    semaphore,
+    ...resolveLaborStatusAndMessage(rounded),
+    laborScores
+  };
+}
+
+function resolveLaborSemaphore(score: number) {
+  if (score <= 1) return "rojo" as const;
+  if (score === 2) return "amarillo" as const;
+  return "verde" as const;
+}
+
+function resolveLaborStatusAndMessage(score: number) {
+  if (score <= 1) {
+    return {
+      status: "Lote en estado critico de manejo cultural",
+      message:
+        "El lote requiere intervencion inmediata. Hay riesgos estructurales o fitosanitarios que ponen en peligro la cosecha."
+    };
+  }
+  if (score === 2) {
+    return {
+      status: "Lote en estado intermedio de manejo",
+      message:
+        "El lote esta bajo control, pero acumula labores retrasadas que afectaran el potencial optimo si no se programan esta semana."
+    };
+  }
+  return {
+    status: "Lote en excelente condicion agronomica",
+    message:
+      "El lote se encuentra en optimas condiciones de manejo cultural. Continuar con el plan de trabajo estandar."
   };
 }
 

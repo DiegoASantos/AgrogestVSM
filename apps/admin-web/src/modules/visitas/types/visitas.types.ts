@@ -180,6 +180,24 @@ export type RiegoModuleTechnicalDetail = {
   message: string;
 };
 
+export type LaborTechnicalScoreItem = {
+  categoryCode: string;
+  categoryName: string;
+  optionCode: string;
+  optionName: string;
+  score: number;
+  weight: number;
+};
+
+export type LaborModuleTechnicalDetail = {
+  moduleScore: number;
+  modulePercentage: number;
+  semaphore: "verde" | "amarillo" | "rojo";
+  status: string;
+  message: string;
+  laborScores: LaborTechnicalScoreItem[];
+};
+
 export type TechnicalVisitScores = {
   visitaId: string;
   scoreTecnicoGeneral: number | null;
@@ -190,6 +208,7 @@ export type TechnicalVisitScores = {
   detalleEnfermedades: DiseaseModuleTechnicalDetail | null;
   detalleNutricion: NutritionModuleTechnicalDetail | null;
   detalleRiego: RiegoModuleTechnicalDetail | null;
+  detalleLabores: LaborModuleTechnicalDetail | null;
 };
 
 export type ProductorCalificacion = {

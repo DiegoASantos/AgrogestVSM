@@ -27,6 +27,21 @@ type RiegoModuleScoreDetail = {
   status: string;
   message: string;
 };
+type LaborModuleScoreDetail = {
+  moduleScore: number;
+  modulePercentage: number;
+  semaphore: "verde" | "amarillo" | "rojo";
+  status: string;
+  message: string;
+  laborScores: Array<{
+    categoryCode: string;
+    categoryName: string;
+    optionCode: string;
+    optionName: string;
+    score: number;
+    weight: number;
+  }>;
+};
 type TechnicalScores = Record<TechnicalModule, TechnicalModuleScore>;
 
 const TECHNICAL_MODULES: TechnicalModule[] = [
@@ -136,13 +151,17 @@ export class TechnicalScoresService {
             ...resolveRiegoSemaphore(riegoScore.score)
           }
         : null;
+    const laborResult = laborScore(visit);
     const scores: TechnicalScores = {
       plagas: moduleScore(pest.score, "plagas"),
       enfermedades: moduleScore(disease.score, "enfermedades"),
       nutricion: moduleScore(nutrition.score, "nutricion"),
       riego: riegoScore,
-      labores: laborScore(visit)
+      labores: laborResult
     };
+    const laborDetail: LaborModuleScoreDetail | null = laborResult.score !== null
+      ? resolveLaborDetail(visit, laborResult.score, laborResult.percentage!, laborResult.semaphore as "verde" | "amarillo" | "rojo")
+      : null;
     const weights = resolveStageWeights(visit.etapaFenologica?.name);
     const available = TECHNICAL_MODULES.filter((module) => scores[module].score !== null);
     const scoreTecnicoGeneral =
@@ -165,7 +184,8 @@ export class TechnicalScoresService {
       detallePlagas: pest.detail ?? null,
       detalleEnfermedades: disease.detail ?? null,
       detalleNutricion: nutrition.detail ?? null,
-      detalleRiego: riegoDetail
+      detalleRiego: riegoDetail,
+      detalleLabores: laborDetail
     };
   }
 }
@@ -199,6 +219,54 @@ function laborScore(visit: VisitaCampoEntity): TechnicalModuleScore {
       return total + (LABOR_POINTS[category][option] ?? 0) * weight;
     }, 0) / 100;
   return moduleScore(round(score), "labores");
+}
+
+function resolveLaborDetail(
+  visit: VisitaCampoEntity,
+  moduleScore: number,
+  modulePercentage: number,
+  semaphore: "verde" | "amarillo" | "rojo"
+): LaborModuleScoreDetail {
+  const selected = new Map(
+    visit.labores.map((item) => [item.laborCultural?.categoryCode, item.laborCultural])
+  );
+  const laborScores = Object.entries(LABOR_WEIGHTS).map(([category, weight]) => {
+    const labor = selected.get(category);
+    const optionCode = labor?.optionCode ?? "";
+    const score = LABOR_POINTS[category]?.[optionCode] ?? 0;
+    return {
+      categoryCode: category,
+      categoryName: labor?.categoryName ?? "",
+      optionCode,
+      optionName: labor?.optionLabel ?? "",
+      score,
+      weight
+    };
+  });
+  const { status, message } = resolveLaborSemaphore(moduleScore);
+  return { moduleScore, modulePercentage, semaphore, status, message, laborScores };
+}
+
+function resolveLaborSemaphore(score: number) {
+  if (score <= 1) {
+    return {
+      status: "Lote en estado critico de manejo cultural",
+      message:
+        "El lote requiere intervencion inmediata. Hay riesgos estructurales o fitosanitarios que ponen en peligro la cosecha."
+    };
+  }
+  if (score === 2) {
+    return {
+      status: "Lote en estado intermedio de manejo",
+      message:
+        "El lote esta bajo control, pero acumula labores retrasadas que afectaran el potencial optimo si no se programan esta semana."
+    };
+  }
+  return {
+    status: "Lote en excelente condicion agronomica",
+    message:
+      "El lote se encuentra en optimas condiciones de manejo cultural. Continuar con el plan de trabajo estandar."
+  };
 }
 
 function moduleScore(

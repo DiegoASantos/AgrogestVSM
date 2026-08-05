@@ -34,6 +34,7 @@ import { visitasService } from "../services/visitas.service";
 import type {
   DiseaseModuleTechnicalDetail,
   IncidenceLevelLookupItem,
+  LaborModuleTechnicalDetail,
   NutritionModuleTechnicalDetail,
   PestDiseaseLookupItem,
   PestModuleTechnicalDetail,
@@ -251,27 +252,9 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
             <RiegoTechnicalScoreCard
               detail={detail.technicalScores.detalleRiego}
             />
-            <div className="visit-dossier__compact-grid">
-              {Object.entries(detail.technicalScores.scorePorModulo)
-                .filter(
-                  ([module]) =>
-                    module !== "plagas" &&
-                    module !== "enfermedades" &&
-                    module !== "nutricion" &&
-                    module !== "riego"
-                )
-                .map(([module, score]) => (
-                  <DetailPill
-                    key={module}
-                    label={getModuloLabel(module as VisitaCalificacion["modulo"])}
-                    value={
-                      score.percentage === null
-                        ? "Sin datos"
-                        : `${score.percentage.toFixed(2)}%`
-                    }
-                  />
-                ))}
-            </div>
+            <LaborTechnicalScoreCard
+              detail={detail.technicalScores.detalleLabores}
+            />
           </div>
         ) : null}
 
@@ -859,6 +842,99 @@ function RiegoTechnicalScoreCard({
       <div className="pest-score-card__formula">
         <span>Formula de score de riego</span>
         <code>ScoreRiego = Nriego</code>
+      </div>
+    </section>
+  );
+}
+
+function LaborTechnicalScoreCard({
+  detail
+}: {
+  detail: LaborModuleTechnicalDetail | null;
+}) {
+  if (!detail) {
+    return (
+      <section
+        className="pest-score-card pest-score-card--pending"
+        aria-label="Score técnico de Labores culturales"
+      >
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Wrench aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score de manejo cultural</span>
+            <h3>Labores culturales</h3>
+          </div>
+        </div>
+        <p className="pest-score-card__pending">
+          Pendiente de registrar las labores culturales.
+        </p>
+      </section>
+    );
+  }
+
+  const SEMAFORO_MAP: Record<string, string> = {
+    verde: "Puntaje bueno",
+    amarillo: "Puntaje intermedio",
+    rojo: "Puntaje bajo"
+  };
+
+  return (
+    <section
+      className={`pest-score-card pest-score-card--${detail.semaphore}`}
+      aria-labelledby="labor-score-title"
+    >
+      <div className="pest-score-card__summary">
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <Wrench aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Macro-score de manejo cultural</span>
+            <h3 id="labor-score-title">Labores culturales</h3>
+          </div>
+        </div>
+        <div className="pest-score-card__result">
+          <strong>
+            {detail.moduleScore}
+            <span> / 3</span>
+          </strong>
+          <small>{detail.modulePercentage.toFixed(2)}%</small>
+        </div>
+        <div className="pest-score-card__status">
+          <span className="pest-score-card__traffic-light">{detail.semaphore}</span>
+          <strong>{detail.status}</strong>
+          <p>{detail.message}</p>
+        </div>
+      </div>
+
+      <div className="pest-score-card__formula">
+        <span>Media ponderada de los 6 factores de manejo</span>
+        <code>Σ(puntaje × peso) ÷ 100</code>
+      </div>
+
+      <div
+        className="pest-score-card__pests"
+        aria-label="Puntajes individuales de los factores de manejo cultural"
+      >
+        {detail.laborScores.map((labor) => (
+          <article className="pest-score-item" key={labor.categoryCode}>
+            <div className="pest-score-item__header">
+              <div>
+                <strong>{labor.categoryName}</strong>
+                <span>
+                  {labor.optionName} · Peso {labor.weight}%
+                </span>
+              </div>
+              <b>{labor.score}</b>
+            </div>
+            <code>
+              {labor.score} × {labor.weight}% ={" "}
+              {((labor.score * labor.weight) / 100).toFixed(2)}
+            </code>
+          </article>
+        ))}
       </div>
     </section>
   );

@@ -636,6 +636,7 @@ function VisitDossier({
           <DiseaseTechnicalScorePanel detail={technicalScores.detalleEnfermedades} />
           <NutritionTechnicalScorePanel detail={technicalScores.detalleNutricion} />
           <RiegoTechnicalScorePanel detail={technicalScores.detalleRiego} />
+          <LaborTechnicalScorePanel detail={technicalScores.detalleLabores} />
         </>
       ) : null}
 
@@ -1164,6 +1165,85 @@ function RiegoTechnicalScorePanel({
             variant="heading"
           >
             {detail.moduleScore} / 3
+          </AppText>
+        </View>
+      </View>
+      <View style={[styles.technicalStatus, { borderLeftColor: colors.accent }]}>
+        <AppText
+          style={[styles.technicalStatusTitle, { color: colors.accent }]}
+          variant="label"
+        >
+          {detail.status}
+        </AppText>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          {detail.message}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+function LaborTechnicalScorePanel({
+  detail
+}: {
+  detail: MobileTechnicalScoreView["detalleLabores"];
+}) {
+  if (!detail) {
+    return (
+      <View style={styles.technicalPanel}>
+        <View style={styles.technicalHeader}>
+          <View style={styles.technicalIcon}>
+            <Ionicons color={theme.colors.textMuted} name="construct-outline" size={20} />
+          </View>
+          <View style={styles.headerText}>
+            <AppText style={styles.technicalEyebrow} variant="eyebrow">
+              Scores técnicos por módulo
+            </AppText>
+            <AppText style={styles.technicalTitle} variant="label">
+              Labores culturales
+            </AppText>
+          </View>
+        </View>
+        <AppText style={styles.technicalSubtitle} variant="caption">
+          Pendiente de registrar las labores culturales.
+        </AppText>
+      </View>
+    );
+  }
+
+  const colors = getPestSemaphoreColors(detail.semaphore);
+
+  return (
+    <View
+      style={[
+        styles.technicalPanel,
+        { backgroundColor: colors.background, borderColor: colors.accent }
+      ]}
+    >
+      <View style={styles.technicalHeader}>
+        <View style={[styles.technicalIcon, { backgroundColor: colors.iconBackground }]}>
+          <Ionicons color={colors.accent} name="construct-outline" size={20} />
+        </View>
+        <View style={styles.headerText}>
+          <AppText
+            style={[styles.technicalEyebrow, { color: colors.accent }]}
+            variant="eyebrow"
+          >
+            Scores técnicos por módulo
+          </AppText>
+          <AppText style={styles.technicalTitle} variant="label">
+            Labores culturales
+          </AppText>
+        </View>
+        <View style={styles.technicalResult}>
+          <AppText
+            style={[styles.technicalValue, { color: colors.accent }]}
+            variant="heading"
+          >
+            {detail.moduleScore} / 3
+          </AppText>
+          <AppText style={styles.technicalPercentage} variant="caption">
+            {detail.modulePercentage.toFixed(2)}%
           </AppText>
         </View>
       </View>
