@@ -422,18 +422,6 @@ async function performCatalogDownload() {
           );
         }
 
-        for (const item of fertilizantes) {
-          db.runSync(
-            `INSERT OR REPLACE INTO fertilizantes (id, name, type, concentracion, unidad_medida)
-         VALUES (?, ?, ?, ?, ?)`,
-            item.id,
-            item.name,
-            item.type,
-            item.concentracion ?? null,
-            item.unidadMedida ?? null
-          );
-        }
-
         for (const productor of productores) {
           const localProductorId = resolveLocalCatalogId(
             db,
