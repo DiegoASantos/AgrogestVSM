@@ -48,6 +48,14 @@ vi.mock("../../evaluaciones/services/evaluaciones.remote", () => ({
 vi.mock("../../riegos/services/riegos.remote", () => ({
   riegosRemote: { getByVisitaId: mocks.getRemoteRiego }
 }));
+vi.mock(
+  "../../labores-culturales-visita/repositories/labores-culturales-visita.repository",
+  () => ({
+    laboresCulturalesVisitaRepository: {
+      getLaboresCulturales: () => []
+    }
+  })
+);
 
 import type { VisitaCampoFull } from "../types";
 import {

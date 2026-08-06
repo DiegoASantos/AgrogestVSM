@@ -874,12 +874,6 @@ function LaborTechnicalScoreCard({
     );
   }
 
-  const SEMAFORO_MAP: Record<string, string> = {
-    verde: "Puntaje bueno",
-    amarillo: "Puntaje intermedio",
-    rojo: "Puntaje bajo"
-  };
-
   return (
     <section
       className={`pest-score-card pest-score-card--${detail.semaphore}`}
