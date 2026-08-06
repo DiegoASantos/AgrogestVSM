@@ -31,7 +31,7 @@ const CAPTURE_TIMEOUT_MS = 20_000;
 const CAPTURE_SETTLE_MS = 500;
 const MAX_IMAGE_PIXEL_AREA = 28_000_000;
 const pixelRatio = PixelRatio.get();
-const PAGE_TARGET_COUNT = 2;
+const PAGE_TARGET_COUNT = 4;
 const REPORT_SIZE_MESSAGE = "agrogest-report-size";
 
 export const REPORT_IMAGE_CAPTURE_CANCELLED_ERROR =
