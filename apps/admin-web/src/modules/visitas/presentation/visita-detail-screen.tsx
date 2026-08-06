@@ -39,6 +39,7 @@ import type {
   PestDiseaseLookupItem,
   PestModuleTechnicalDetail,
   RiegoModuleTechnicalDetail,
+  TechnicalVisitScores,
   VisitaCalificacion,
   VisitaDetailData,
   VisitaLaborCultural,
@@ -225,17 +226,9 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
                 : `${scoreAverage.toFixed(1)} / 3`
             }
           />
-          <FactCard
-            icon={<ShieldAlert aria-hidden="true" size={18} />}
-            label="Score técnico"
-            value={
-              detail.technicalScores?.scoreTecnicoGeneral === null ||
-              !detail.technicalScores
-                ? "Sin datos técnicos"
-                : `${detail.technicalScores.scoreTecnicoGeneral.toFixed(2)}%`
-            }
-          />
         </div>
+
+        <GlobalTechnicalScoreCard technicalScores={detail.technicalScores} />
 
         {detail.technicalScores ? (
           <div className="visit-dossier__block">
@@ -494,6 +487,78 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
       setActivePdfAction(null);
     }
   }
+}
+
+function GlobalTechnicalScoreCard({
+  technicalScores
+}: {
+  technicalScores: TechnicalVisitScores | null | undefined;
+}) {
+  if (!technicalScores || technicalScores.scoreTecnicoGeneralEscala === null) {
+    return (
+      <section
+        className="pest-score-card pest-score-card--pending"
+        aria-label="Score técnico global"
+      >
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <ShieldAlert aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Score técnico global de la visita</span>
+            <h3>Score general</h3>
+          </div>
+        </div>
+        <p className="pest-score-card__pending">
+          No hay datos suficientes para calcular el score global.
+        </p>
+      </section>
+    );
+  }
+
+  const { scoreTecnicoGeneral, scoreTecnicoGeneralEscala, globalSemaphore } =
+    technicalScores;
+
+  return (
+    <section
+      className={`pest-score-card pest-score-card--${globalSemaphore}`}
+      aria-labelledby="global-score-title"
+    >
+      <div className="pest-score-card__summary">
+        <div className="pest-score-card__heading">
+          <span className="pest-score-card__icon">
+            <ShieldAlert aria-hidden="true" size={20} />
+          </span>
+          <div>
+            <span>Score técnico global de la visita</span>
+            <h3 id="global-score-title">Score general</h3>
+          </div>
+        </div>
+        <div className="pest-score-card__result">
+          <strong>
+            {scoreTecnicoGeneralEscala}
+            <span> / 3</span>
+          </strong>
+          <small>{scoreTecnicoGeneral}%</small>
+        </div>
+        <div className="pest-score-card__status">
+          <span className="pest-score-card__traffic-light">
+            {globalSemaphore}
+          </span>
+          <strong>
+            {globalSemaphore === "verde"
+              ? "Estado óptimo"
+              : globalSemaphore === "amarillo"
+                ? "Requiere atención"
+                : "Estado crítico"}
+          </strong>
+          <p>
+            Puntaje ponderado según los pesos de la etapa fenológica seleccionada.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function FactCard({

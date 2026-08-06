@@ -13,7 +13,7 @@ Construir un entorno de trabajo seguro y sostenible para que un único
 desarrollador pueda mantener y evolucionar AgroGest VSM con asistencia de IA,
 sin depender de un proveedor concreto.
 
-El sistema de trabajo debe: Probando
+El sistema de trabajo debe:
 
 - conservar el conocimiento técnico dentro del repositorio;
 - reducir errores en cambios de base de datos, sincronización y seguridad;

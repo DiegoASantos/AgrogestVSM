@@ -61,6 +61,8 @@ describe("TechnicalScoresService", () => {
       labores: { score: 3, percentage: 100 }
     });
     expect(response.data.scoreTecnicoGeneral).toBe(81.67);
+    expect(response.data.scoreTecnicoGeneralEscala).toBe(2.45);
+    expect(response.data.globalSemaphore).toBe("verde");
     expect(response.data.modulosFaltantes).toEqual([]);
   });
 
@@ -93,6 +95,8 @@ describe("TechnicalScoresService", () => {
     const response = await service.byVisit("1");
 
     expect(response.data.scoreTecnicoGeneral).toBe(100);
+    expect(response.data.scoreTecnicoGeneralEscala).toBe(3);
+    expect(response.data.globalSemaphore).toBe("verde");
     expect(response.data.modulosIncluidos).toEqual(["riego"]);
     expect(response.data.modulosFaltantes).toHaveLength(4);
   });
@@ -226,5 +230,38 @@ describe("TechnicalScoresService", () => {
 
     expect(response.data.scorePorModulo.nutricion.semaphore).toBe(semaphore);
     expect(response.data.detalleNutricion).toBe(detail);
+  });
+
+  it.each([
+    [0, "rojo"],
+    [1, "amarillo"],
+    [2, "verde"],
+    [3, "verde"]
+  ] as const)("mapea el score global del semáforo con módulos de score %d a %s", async (score, semaphore) => {
+    const visits = {
+      findOne: vi.fn().mockResolvedValue(
+        buildVisit({ riego: [], labores: [] })
+      )
+    };
+    const pestScores = {
+      resolveVisitScore: vi.fn().mockResolvedValue({ score, detail: null as never })
+    };
+    const diseaseScores = {
+      resolveVisitScore: vi.fn().mockResolvedValue({ score, detail: null as never })
+    };
+    const nutritionScores = {
+      resolveVisitScore: vi.fn().mockResolvedValue({ score, detail: null as never })
+    };
+    const service = new TechnicalScoresService(
+      visits as never,
+      pestScores as never,
+      diseaseScores as never,
+      nutritionScores as never,
+      buildRecipeRepository() as never
+    );
+
+    const response = await service.byVisit("1");
+
+    expect(response.data.globalSemaphore).toBe(semaphore);
   });
 });

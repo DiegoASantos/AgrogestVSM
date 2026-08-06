@@ -175,9 +175,21 @@ export class TechnicalScoresService {
               available.reduce((total, module) => total + weights[module], 0)) *
               100
           );
+    const scoreTecnicoGeneralEscala =
+      !weights || available.length === 0
+        ? null
+        : round(
+            available.reduce(
+              (total, module) => total + scores[module].score! * weights[module],
+              0
+            ) / available.reduce((total, module) => total + weights[module], 0)
+          );
+    const globalSemaphore = resolveGlobalSemaphore(scoreTecnicoGeneralEscala);
     return {
       visitaId: visit.id,
       scoreTecnicoGeneral,
+      scoreTecnicoGeneralEscala,
+      globalSemaphore,
       modulosIncluidos: available,
       modulosFaltantes: TECHNICAL_MODULES.filter((module) => !available.includes(module)),
       scorePorModulo: scores,
@@ -287,6 +299,12 @@ function moduleScore(
           ? "amarillo"
           : "verde";
   return { score, percentage: round((score / 3) * 100), semaphore };
+}
+function resolveGlobalSemaphore(score: number | null): "verde" | "amarillo" | "rojo" | null {
+  if (score === null) return null;
+  if (score >= 2) return "verde";
+  if (score >= 1) return "amarillo";
+  return "rojo";
 }
 function resolveRiegoSemaphore(score: number) {
   if (score === 0 || score === 1) {

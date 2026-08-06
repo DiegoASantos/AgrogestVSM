@@ -201,6 +201,8 @@ export type LaborModuleTechnicalDetail = {
 export type TechnicalVisitScores = {
   visitaId: string;
   scoreTecnicoGeneral: number | null;
+  scoreTecnicoGeneralEscala: number | null;
+  globalSemaphore: "verde" | "amarillo" | "rojo" | null;
   modulosIncluidos: CalificacionModulo[];
   modulosFaltantes: CalificacionModulo[];
   scorePorModulo: Record<CalificacionModulo, TechnicalModuleScore>;

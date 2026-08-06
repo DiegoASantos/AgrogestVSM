@@ -60,7 +60,10 @@ export const STAGE_WEIGHTS: Record<string, StageWeights> = {
 const STAGE_ALIASES: Record<string, string> = {
   maduracion_brote: "maduracion_del_brote",
   amarre_cuajado: "amarre_y_cuajado",
-  desarrollo_fruto: "desarrollo_de_fruto"
+  desarrollo_fruto: "desarrollo_de_fruto",
+  postcosecha_y_poda: "poda",
+  cuajado_y_amarre: "amarre_y_cuajado",
+  postcosecha_poda: "poda"
 };
 
 export function normalizeStageName(value: string | null | undefined) {
