@@ -172,20 +172,60 @@ export function isReportActionActive(
 }
 
 async function compartirMultiplesImagenes(uris: string[], label: string) {
-  const { default: IntentLauncher } = await import("expo-intent-launcher");
+  const { Platform } = await import("react-native");
 
-  const urisFormateadas = uris.map(normalizarUriAndroid);
+  if (Platform.OS === "android") {
+    await compartirMultiplesAndroid(uris, label);
+  } else {
+    const Sharing = await import("expo-sharing");
+    for (const uri of uris) {
+      await Sharing.shareAsync(uri, {
+        dialogTitle: `Compartir ${label} como imagen`,
+        mimeType: "image/png",
+        UTI: "public.png"
+      });
+    }
+  }
+}
 
-  const extras: Array<{ key: string; value: unknown }> = [
-    { key: "android.intent.extra.SUBJECT", value: `Compartir ${label} como imagen` },
-    { key: "android.intent.extra.STREAM", value: urisFormateadas }
-  ];
+async function compartirMultiplesAndroid(uris: string[], label: string) {
+  const { default: FileSystem } = await import("expo-file-system");
 
-  await IntentLauncher.startActivityAsync("android.intent.action.SEND_MULTIPLE", {
-    type: "image/png",
-    flags: 1,
-    extra: extras
-  });
+  const contentUris = await Promise.all(
+    uris.map(async (uri) => {
+      try {
+        return await FileSystem.getContentUriAsync(uri);
+      } catch {
+        return normalizarUriAndroid(uri);
+      }
+    })
+  );
+
+  try {
+    const { default: IntentLauncher } = await import("expo-intent-launcher");
+
+    const extras: Array<{ key: string; value: unknown }> = [
+      { key: "android.intent.extra.SUBJECT", value: `Compartir ${label} como imagen` },
+      { key: "android.intent.extra.STREAM", value: contentUris }
+    ];
+
+    await IntentLauncher.startActivityAsync("android.intent.action.SEND_MULTIPLE", {
+      type: "image/png",
+      flags: 1,
+      extra: extras
+    });
+  } catch {
+    const Sharing = await import("expo-sharing");
+    for (const uri of contentUris) {
+      try {
+        await Sharing.shareAsync(uri, {
+          dialogTitle: `Compartir ${label} como imagen`,
+          mimeType: "image/png",
+          UTI: "public.png"
+        });
+      } catch { /* continue to next image */ }
+    }
+  }
 }
 
 function normalizarUriAndroid(uri: string): string {

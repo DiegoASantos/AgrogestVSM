@@ -280,12 +280,12 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       <p>AgroGest VSM - ${new Date().toLocaleDateString("es-PE")}</p>
     </div>
   </div>
+  ${renderResumenProductor(receta)}
   ${renderDatosVisita(visita, receta, consolidacion)}
   ${renderFitosanidad(receta)}
   ${renderFertilizacion(receta)}
   ${renderRiego(receta)}
   ${renderLabores(receta)}
-  ${renderResumenProductor(receta)}
   <div class="footer">
     Generado automaticamente por AgroGest VSM
   </div>

@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
+  PixelRatio,
   ScrollView,
   StyleSheet,
   View
@@ -28,8 +29,10 @@ import {
 
 const CAPTURE_TIMEOUT_MS = 20_000;
 const CAPTURE_SETTLE_MS = 350;
-const MAX_IMAGE_PIXEL_AREA = 14_000_000;
-const ANCHO_RENDER = 720;
+const MAX_IMAGE_PIXEL_AREA = 28_000_000;
+const screen = Dimensions.get("window");
+const pixelRatio = PixelRatio.get();
+const ANCHO_RENDER = screen.width;
 const REPORT_SIZE_MESSAGE = "agrogest-report-size";
 
 export const REPORT_IMAGE_CAPTURE_CANCELLED_ERROR =
@@ -111,10 +114,9 @@ export const HtmlReportImageCapturer = forwardRef<
   const [request, setRequest] = useState<PendingCapture | null>(null);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
 
-  const screen = Dimensions.get("window");
   const maxPageHeight = getMaxReportLogicalHeight(
     ANCHO_RENDER,
-    1,
+    pixelRatio,
     MAX_IMAGE_PIXEL_AREA
   );
 
