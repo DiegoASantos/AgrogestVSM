@@ -29,7 +29,7 @@ function apiResponse(data: unknown, status = 200, meta?: Record<string, unknown>
 function expectGetRequest(fetchMock: ReturnType<typeof vi.fn>, expectedPath: string) {
   const calls = fetchMock.mock.calls;
   const found = calls.some(
-    ([url]: [string]) => String(url) === `http://127.0.0.1:3001${expectedPath}`
+    (call: unknown[]) => String(call[0]) === `http://127.0.0.1:3001${expectedPath}`
   );
   expect(found).toBe(true);
 }

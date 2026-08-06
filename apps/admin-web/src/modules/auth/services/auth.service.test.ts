@@ -31,7 +31,7 @@ function expectPostRequest(
 ) {
   const calls = fetchMock.mock.calls;
   const found = calls.find(
-    ([url]: [string]) => String(url) === `http://127.0.0.1:3001${expectedPath}`
+    (call: unknown[]) => String(call[0]) === `http://127.0.0.1:3001${expectedPath}`
   );
   expect(found).toBeDefined();
   const [, init] = found!;

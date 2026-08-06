@@ -16,8 +16,8 @@ type MockPopup = PrintablePdfWindow & {
 };
 
 function makeMockPopup(): MockPopup {
-  const popup: MockPopup = {
-    _written: [],
+  const popup = {
+    _written: [] as string[],
     _title: "",
     _focused: false,
     _printed: false,
@@ -31,7 +31,7 @@ function makeMockPopup(): MockPopup {
     } as unknown as Document,
     focus: vi.fn(() => { popup._focused = true; }),
     print: vi.fn(() => { popup._printed = true; })
-  };
+  } as unknown as MockPopup;
 
   return popup;
 }
@@ -40,6 +40,7 @@ function makeDiagnosticDetail(overrides: Record<string, unknown> = {}) {
   const base = {
     visita: {
       id: "v1",
+      publicId: "pub-v1",
       visitDate: "2026-06-15",
       startVisitTime: "08:00",
       endVisitTime: "10:30",
@@ -55,7 +56,11 @@ function makeDiagnosticDetail(overrides: Record<string, unknown> = {}) {
       sowingDate: "2025-09-01",
       generalObservation: null,
       agronomistUserId: "u1",
-      nroFicha: "F-001"
+      nroFicha: "F-001",
+      synchronizedAt: null,
+      isActive: true,
+      createdAt: "2026-06-15T00:00:00.000Z",
+      updatedAt: "2026-06-15T00:00:00.000Z"
     },
     evaluaciones: [],
     observacionesSanitarias: [],
@@ -67,7 +72,7 @@ function makeDiagnosticDetail(overrides: Record<string, unknown> = {}) {
     lookups: {
       agronomist: { id: "u1", name: "Carlos Lopez" },
       crop: { id: "c1", name: "Banano", code: "BAN", isActive: true },
-      variety: { id: "var1", name: "Criolla", cultivoId: "c1" },
+      variety: { id: "var1", name: "Criolla", code: "CRI", cultivoId: "c1" },
       parcela: {
         id: "p1",
         productorId: "prod1",
@@ -78,14 +83,15 @@ function makeDiagnosticDetail(overrides: Record<string, unknown> = {}) {
       },
       productor: {
         id: "prod1",
+        entityType: "persona" as const,
         firstName: "Juan",
         lastName: "Perez",
         documentNumber: "12345678",
         publicId: "pub-prod1",
         email: null
       },
-      campaign: { id: "camp1", name: "Campania 2026" },
-      phenologicalStage: { id: "stage1", name: "Floracion", cultivoId: "c1", isActive: true },
+      campaign: { id: "camp1", name: "Campania 2026", cultivoId: "c1", startDate: "2026-01-01", endDate: "2026-12-31" },
+      phenologicalStage: { id: "stage1", name: "Floracion", cultivoId: "c1", description: "Etapa de floracion", isActive: true },
       subEtapas: [],
       pestDiseases: [],
       incidenceLevels: [],
@@ -100,34 +106,9 @@ function makeDiagnosticDetail(overrides: Record<string, unknown> = {}) {
   return { ...base, ...overrides };
 }
 
-function makeRecetaData() {
-  return {
-    id: "r1",
-    visitaId: "v1",
-    mezclas: [],
-    tipoRecomendacion: "preventivo" as const,
-    coadyuvantes: [],
-    fertilizantes: [],
-    fitosanidad: [],
-    riego: null,
-    laboresCulturales: [],
-    observaciones: [],
-    productor: {
-      id: "prod1",
-      firstName: "Juan",
-      lastName: "Perez",
-      documentNumber: "12345678",
-      publicId: "pub-prod1",
-      email: null
-    },
-    resumenProductor: {},
-    nombreComercial: "Receta Test"
-  };
-}
-
 function makeConsolidacion() {
   return {
-    hallazgos: [],
+    etapaFenologica: null,
     plagas: [],
     enfermedades: [],
     nutricion: [],
