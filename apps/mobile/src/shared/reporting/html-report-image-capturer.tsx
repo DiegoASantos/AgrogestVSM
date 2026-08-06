@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   PixelRatio,
+  Platform,
   ScrollView,
   StyleSheet,
   View
@@ -294,9 +295,13 @@ export const HtmlReportImageCapturer = forwardRef<
         break;
       }
 
+      const pixelScale = Platform.OS === "android" ? pixelRatio : 1;
+
       const uri = await captureRef(scrollRef, {
         format: "png",
-        result: "tmpfile"
+        result: "tmpfile",
+        width: REPORT_IMAGE_WIDTH * pixelScale,
+        height: altoPagina * pixelScale
       });
 
       if (!uri) {
