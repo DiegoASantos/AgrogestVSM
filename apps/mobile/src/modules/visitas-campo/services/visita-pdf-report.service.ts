@@ -10,6 +10,7 @@ import {
 } from "../../riegos/types";
 import { visitasCampoRepository } from "../repositories/visitas-campo.repository";
 import { visitasCampoService } from "./visitas-campo.service";
+import { REPORT_IMAGE_WIDTH } from "../../../shared/reporting/report-config";
 
 declare const process:
   | {
@@ -116,7 +117,7 @@ async function buildVisitReportHtml(visitaId: string) {
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta content="width=720, initial-scale=1.0" name="viewport" />
+    <meta content="width=${REPORT_IMAGE_WIDTH}, initial-scale=1.0" name="viewport" />
     <title>${escapeHtml(documentTitle)}</title>
     <style>
       * { box-sizing: border-box; }
