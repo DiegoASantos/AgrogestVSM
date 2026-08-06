@@ -279,7 +279,7 @@ export const HtmlReportImageCapturer = forwardRef<
       const alturaRestante = alturaTotal - offsetY;
       const altoPagina = Math.min(alturaPagina, alturaRestante);
 
-      const htmlPagina = inyectarOffsetCss(request!.html, offsetY);
+      const htmlPagina = inyectarOffsetCss(request!.html, offsetY, altoPagina);
 
       pageHeightRef.current = altoPagina;
       setContentHeight(null);
@@ -395,10 +395,10 @@ export const HtmlReportImageCapturer = forwardRef<
   }
 });
 
-function inyectarOffsetCss(html: string, offsetY: number): string {
+function inyectarOffsetCss(html: string, offsetY: number, pageHeight: number): string {
   if (offsetY <= 0) return html;
 
-  const estilo = `<style>body { transform: translateY(-${offsetY}px); }</style>`;
+  const estilo = `<style>html{height:${pageHeight}px;overflow:hidden}body{margin-top:-${offsetY}px}</style>`;
 
   if (html.includes("</head>")) {
     return html.replace("</head>", `${estilo}</head>`);
