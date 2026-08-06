@@ -112,6 +112,7 @@ export const HtmlReportImageCapturer = forwardRef<
   const startedCaptureIdsRef = useRef(new Set<number>());
   const [request, setRequest] = useState<PendingCapture | null>(null);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
+  const pageHeightRef = useRef<number | null>(null);
 
   const maxPageHeight = getMaxReportLogicalHeight(
     REPORT_IMAGE_WIDTH,
@@ -280,6 +281,7 @@ export const HtmlReportImageCapturer = forwardRef<
 
       const htmlPagina = inyectarOffsetCss(request!.html, offsetY);
 
+      pageHeightRef.current = altoPagina;
       setContentHeight(null);
 
       setRequest((prev) => (prev?.id === id ? { ...prev, html: htmlPagina } : prev));
@@ -288,7 +290,8 @@ export const HtmlReportImageCapturer = forwardRef<
 
       if (pendingRef.current?.id !== id) {
         uris.forEach(releaseCapture);
-        throw new Error("Cancelado");
+        pageHeightRef.current = null;
+        break;
       }
 
       const uri = await captureRef(scrollRef, {
@@ -300,12 +303,14 @@ export const HtmlReportImageCapturer = forwardRef<
 
       if (!uri) {
         uris.forEach(releaseCapture);
+        pageHeightRef.current = null;
         throw new Error("La captura no devolvio un archivo.");
       }
 
       uris.push(uri);
     }
 
+    pageHeightRef.current = null;
     setRequest(request);
 
     return uris;
@@ -335,7 +340,7 @@ export const HtmlReportImageCapturer = forwardRef<
             collapsable={false}
             style={{
               backgroundColor: "#ffffff",
-              height: contentHeight ?? 5000,
+              height: pageHeightRef.current ?? (contentHeight ?? 5000),
               width: REPORT_IMAGE_WIDTH
             }}
           >
@@ -356,7 +361,7 @@ export const HtmlReportImageCapturer = forwardRef<
               source={{ baseUrl: "about:blank", html: request.html }}
               style={{
                 backgroundColor: "#ffffff",
-                height: contentHeight ?? 5000,
+                height: pageHeightRef.current ?? (contentHeight ?? 5000),
                 width: REPORT_IMAGE_WIDTH
               }}
             />
