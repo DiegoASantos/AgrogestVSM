@@ -77,7 +77,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <meta content="width=720, initial-scale=1.0" name="viewport">
   <title>Receta de Visita</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
