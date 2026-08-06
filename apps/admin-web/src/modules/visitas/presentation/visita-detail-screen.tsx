@@ -494,7 +494,7 @@ function GlobalTechnicalScoreCard({
 }: {
   technicalScores: TechnicalVisitScores | null | undefined;
 }) {
-  if (!technicalScores || technicalScores.scoreTecnicoGeneralEscala === null) {
+  if (!technicalScores || technicalScores.scoreTecnicoGeneralEscala == null) {
     return (
       <section
         className="pest-score-card pest-score-card--pending"
