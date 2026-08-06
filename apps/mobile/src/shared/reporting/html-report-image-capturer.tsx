@@ -8,7 +8,6 @@ import {
 } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Modal,
   PixelRatio,
   ScrollView,
@@ -31,7 +30,6 @@ import { REPORT_IMAGE_WIDTH } from "./report-config";
 const CAPTURE_TIMEOUT_MS = 20_000;
 const CAPTURE_SETTLE_MS = 500;
 const MAX_IMAGE_PIXEL_AREA = 28_000_000;
-const { height: screenHeight } = Dimensions.get("window");
 const pixelRatio = PixelRatio.get();
 const PAGE_TARGET_COUNT = 3;
 const REPORT_SIZE_MESSAGE = "agrogest-report-size";
@@ -296,8 +294,8 @@ export const HtmlReportImageCapturer = forwardRef<
       const uri = await captureRef(scrollRef, {
         format: "png",
         result: "tmpfile",
-        width: REPORT_IMAGE_WIDTH,
-        height: altoPagina
+        width: REPORT_IMAGE_WIDTH * pixelRatio,
+        height: altoPagina * pixelRatio
       });
 
       if (!uri) {
@@ -337,7 +335,7 @@ export const HtmlReportImageCapturer = forwardRef<
             collapsable={false}
             style={{
               backgroundColor: "#ffffff",
-              height: Math.min(contentHeight ?? 5000, screenHeight),
+              height: contentHeight ?? 5000,
               width: REPORT_IMAGE_WIDTH
             }}
           >
@@ -358,7 +356,7 @@ export const HtmlReportImageCapturer = forwardRef<
               source={{ baseUrl: "about:blank", html: request.html }}
               style={{
                 backgroundColor: "#ffffff",
-                height: Math.min(contentHeight ?? 5000, screenHeight),
+                height: contentHeight ?? 5000,
                 width: REPORT_IMAGE_WIDTH
               }}
             />
