@@ -296,9 +296,7 @@ export const HtmlReportImageCapturer = forwardRef<
 
       const uri = await captureRef(scrollRef, {
         format: "png",
-        result: "tmpfile",
-        width: REPORT_IMAGE_WIDTH * pixelRatio,
-        height: altoPagina * pixelRatio
+        result: "tmpfile"
       });
 
       if (!uri) {
