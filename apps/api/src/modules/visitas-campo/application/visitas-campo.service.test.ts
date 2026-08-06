@@ -1,5 +1,4 @@
 import { NotFoundException } from "@nestjs/common";
-import type { Repository, SelectQueryBuilder } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { VisitaCampoEntity } from "../infrastructure/persistence/entities/visita-campo.entity";
@@ -23,10 +22,6 @@ function makeRepo(): RepoMock {
     merge: vi.fn(),
     createQueryBuilder: vi.fn()
   };
-}
-
-function asRepo<T>(repo: RepoMock): Repository<T> {
-  return repo as unknown as Repository<T>;
 }
 
 function makeQueryBuilder<T>(result: T[], count: number) {
@@ -107,11 +102,11 @@ describe("VisitasCampoService", () => {
     vi.clearAllMocks();
     repo = makeRepo();
     service = new VisitasCampoService(
-      asRepo<VisitaCampoEntity>(repo),
-      asRepo(repo), asRepo(repo), asRepo(repo), asRepo(repo),
-      asRepo(repo), asRepo(repo), asRepo(repo), asRepo(repo),
-      asRepo(repo), asRepo(repo), asRepo(repo), asRepo(repo),
-      asRepo(repo)
+      repo as never,
+      repo as never, repo as never, repo as never, repo as never,
+      repo as never, repo as never, repo as never, repo as never,
+      repo as never, repo as never, repo as never, repo as never,
+      repo as never
     );
   });
 
@@ -137,7 +132,7 @@ describe("VisitasCampoService", () => {
       const result = await service.findAll(makeFindQuery());
 
       expect(result.data).toEqual([]);
-      expect(result.meta.totalPages).toBe(0);
+      expect(result.meta?.totalPages).toBe(0);
     });
   });
 
