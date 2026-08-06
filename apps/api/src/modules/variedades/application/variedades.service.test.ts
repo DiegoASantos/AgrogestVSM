@@ -84,8 +84,8 @@ describe("VariedadesService", () => {
       const result = await service.findAll(makePagination());
 
       expect(result.data).toEqual([]);
-      expect(result.meta.total).toBe(0);
-      expect(result.meta.totalPages).toBe(0);
+      expect(result.meta!.total).toBe(0);
+      expect(result.meta!.totalPages).toBe(0);
     });
 
     it("should apply correct skip and take for paginated query", async () => {

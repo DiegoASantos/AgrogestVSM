@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException
 } from "@nestjs/common";
-import type { Repository } from "typeorm";
+import type { ObjectLiteral, Repository } from "typeorm";
 import { QueryFailedError } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,7 +44,7 @@ function makeSimpleRepo(): SimpleRepoMock {
   };
 }
 
-function asRepo<T>(repo: Record<string, ReturnType<typeof vi.fn>>): Repository<T> {
+function asRepo<T extends ObjectLiteral>(repo: Record<string, ReturnType<typeof vi.fn>>): Repository<T> {
   return repo as unknown as Repository<T>;
 }
 
@@ -233,7 +233,7 @@ describe("VisitaLaboresCulturalesService", () => {
         order: { id: "ASC" }
       });
       expect(result.data).toHaveLength(1);
-      expect(result.data[0].laborCultural.name).toBe("Riego");
+      expect(result.data[0].laborCultural!.name).toBe("Riego");
       expect(result.meta).toEqual({ count: 1 });
     });
 

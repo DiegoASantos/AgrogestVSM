@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException
 } from "@nestjs/common";
-import type { Repository } from "typeorm";
+import type { ObjectLiteral, Repository } from "typeorm";
 import { QueryFailedError } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -32,7 +32,7 @@ function makeRepo(): RepoMock {
   };
 }
 
-function asRepo<T>(repo: RepoMock): Repository<T> {
+function asRepo<T extends ObjectLiteral>(repo: RepoMock): Repository<T> {
   return repo as unknown as Repository<T>;
 }
 
@@ -139,7 +139,7 @@ describe("NutritionCatalogsService", () => {
       const result = await service.findAllNutrients(makePagination());
 
       expect(result.data).toEqual([]);
-      expect(result.meta.total).toBe(0);
+      expect(result.meta!.total).toBe(0);
     });
   });
 
@@ -331,7 +331,7 @@ describe("NutritionCatalogsService", () => {
       });
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
-      expect(result.meta.total).toBe(1);
+      expect(result.meta!.total).toBe(1);
     });
 
     it("should return an empty array with zero meta when no details exist", async () => {
@@ -340,7 +340,7 @@ describe("NutritionCatalogsService", () => {
       const result = await service.findAllDetails(makePagination());
 
       expect(result.data).toEqual([]);
-      expect(result.meta.totalPages).toBe(0);
+      expect(result.meta!.totalPages).toBe(0);
     });
   });
 

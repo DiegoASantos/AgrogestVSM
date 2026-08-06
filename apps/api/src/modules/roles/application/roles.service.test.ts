@@ -163,8 +163,8 @@ describe("RolesService", () => {
       const result = await service.findAllAdmin(makePagination());
 
       expect(result.data).toEqual([]);
-      expect(result.meta.total).toBe(0);
-      expect(result.meta.totalPages).toBe(0);
+      expect(result.meta!.total).toBe(0);
+      expect(result.meta!.totalPages).toBe(0);
     });
 
     it("should apply correct skip and take for pagination", async () => {

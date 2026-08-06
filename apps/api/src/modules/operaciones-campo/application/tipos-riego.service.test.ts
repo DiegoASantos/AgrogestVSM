@@ -164,7 +164,7 @@ describe("TiposRiegoService", () => {
     it("should return unchanged when already inactive", async () => {
       repo.findOne.mockResolvedValue(makeTipoRiego({ id: "5", isActive: false }));
 
-      const result = await service.remove("5");
+      await service.remove("5");
 
       expect(repo.save).not.toHaveBeenCalled();
     });

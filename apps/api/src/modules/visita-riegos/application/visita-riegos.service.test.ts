@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException
 } from "@nestjs/common";
-import type { Repository } from "typeorm";
+import type { ObjectLiteral, Repository } from "typeorm";
 import { QueryFailedError } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,7 +36,7 @@ function makeSimpleRepo(): SimpleRepoMock {
   return { findOne: vi.fn() };
 }
 
-function asRepo<T>(repo: Record<string, ReturnType<typeof vi.fn>>): Repository<T> {
+function asRepo<T extends ObjectLiteral>(repo: Record<string, ReturnType<typeof vi.fn>>): Repository<T> {
   return repo as unknown as Repository<T>;
 }
 
@@ -212,7 +212,7 @@ describe("VisitaRiegosService", () => {
       expect(visitasCampoRepo.findOne).toHaveBeenCalledWith({ where: { id: "100" } });
       expect(visitaRiegosRepo.findOne).toHaveBeenCalledWith({ where: { visitaId: "100" } });
       expect(result.success).toBe(true);
-      expect(result.data.id).toBe("5");
+      expect(result.data!.id).toBe("5");
     });
 
     it("should return null data when no riego record exists for the visita", async () => {

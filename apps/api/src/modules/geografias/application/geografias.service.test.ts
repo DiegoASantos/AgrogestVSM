@@ -1,5 +1,5 @@
 import { NotFoundException } from "@nestjs/common";
-import type { Repository } from "typeorm";
+import type { ObjectLiteral, Repository } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DepartamentoEntity } from "../infrastructure/persistence/entities/departamento.entity";
@@ -19,7 +19,7 @@ function makeRepo(): RepoMock {
   };
 }
 
-function asRepo<T>(repo: RepoMock): Repository<T> {
+function asRepo<T extends ObjectLiteral>(repo: RepoMock): Repository<T> {
   return repo as unknown as Repository<T>;
 }
 

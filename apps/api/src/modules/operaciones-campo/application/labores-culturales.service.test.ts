@@ -125,7 +125,7 @@ describe("LaboresCulturalesService", () => {
       );
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
-      expect(result.meta.total).toBe(1);
+      expect(result.meta!.total).toBe(1);
     });
 
     it("should return empty array when no records exist", async () => {
@@ -134,7 +134,7 @@ describe("LaboresCulturalesService", () => {
       const result = await service.findAll(makePagination());
 
       expect(result.data).toEqual([]);
-      expect(result.meta.totalPages).toBe(0);
+      expect(result.meta!.totalPages).toBe(0);
     });
   });
 

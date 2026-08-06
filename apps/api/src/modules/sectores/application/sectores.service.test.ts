@@ -3,7 +3,7 @@ import {
   ConflictException,
   NotFoundException
 } from "@nestjs/common";
-import type { Repository } from "typeorm";
+import type { ObjectLiteral, Repository } from "typeorm";
 import { QueryFailedError } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,7 +34,7 @@ function makeRepo(): RepoMock {
   };
 }
 
-function asRepo<T>(repo: RepoMock): Repository<T> {
+function asRepo<T extends ObjectLiteral>(repo: RepoMock): Repository<T> {
   return repo as unknown as Repository<T>;
 }
 
@@ -79,7 +79,7 @@ function makeProductor(overrides: Partial<ProductorEntity> = {}): ProductorEntit
     isActive: true,
     createdAt: new Date("2026-01-01"),
     updatedAt: new Date("2026-01-01"),
-    tipoDocumento: undefined as unknown as ProductorEntity["tipoDocumento"],
+    documentTypeId: undefined as unknown as ProductorEntity["documentTypeId"],
     parcelas: [],
     ...overrides
   } as ProductorEntity;
@@ -228,7 +228,7 @@ describe("SectoresService", () => {
       });
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
-      expect(result.meta.total).toBe(1);
+      expect(result.meta!.total).toBe(1);
     });
 
     it("should filter by distrito_id when provided", async () => {
@@ -257,7 +257,7 @@ describe("SectoresService", () => {
       const result = await service.findAll(makeFindSectoresQuery({ distrito_id: 999 }));
 
       expect(result.data).toEqual([]);
-      expect(result.meta.total).toBe(0);
+      expect(result.meta!.total).toBe(0);
     });
   });
 
