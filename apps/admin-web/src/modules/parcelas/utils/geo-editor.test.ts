@@ -3,9 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   calculatePolygonAreaHectares,
   calculateRingAreaHectares,
-  formatAreaHectares
+  formatAreaHectares,
+  validateParcelaGeodata,
+  cloneGeodata,
+  areGeodataEqual,
+  polygonFromRing,
+  getGeometryBounds
 } from "./geo-editor";
-import type { GeoJsonMultiPolygon } from "../types/parcelas.types";
+import type { GeoJsonMultiPolygon, GeoJsonPoint } from "../types/parcelas.types";
 
 const ONE_DEGREE_EQUATOR_SQUARE: number[][] = [
   [0, 0],
@@ -82,3 +87,97 @@ function buildPolygon(ring: number[][]): GeoJsonMultiPolygon {
 function offsetRing(ring: number[][], longitudeOffset: number) {
   return ring.map(([longitude, latitude]) => [longitude + longitudeOffset, latitude]);
 }
+
+describe("validateParcelaGeodata", () => {
+  const point: GeoJsonPoint = { type: "Point", coordinates: [0.5, 0.5] };
+  const polygon = buildPolygon(ONE_DEGREE_EQUATOR_SQUARE);
+
+  it("should report EMPTY error when both point and polygon are null", () => {
+    const result = validateParcelaGeodata({ referencePoint: null, geometry: null, neighbors: [] });
+    expect(result.issues.some((i) => i.code === "EMPTY")).toBe(true);
+    expect(result.canSave).toBe(false);
+  });
+
+  it("should allow save with only a reference point", () => {
+    const result = validateParcelaGeodata({ referencePoint: point, geometry: null, neighbors: [] });
+    expect(result.canSave).toBe(true);
+  });
+
+  it("should detect invalid polygon", () => {
+    const result = validateParcelaGeodata({
+      referencePoint: null,
+      geometry: { type: "MultiPolygon", coordinates: [[[[0, 0], [1, 1]]]] } as GeoJsonMultiPolygon,
+      neighbors: []
+    });
+    expect(result.issues.some((i) => i.code === "INVALID_POLYGON")).toBe(true);
+  });
+
+  it("should pass validation for valid polygon with point inside", () => {
+    const result = validateParcelaGeodata({ referencePoint: point, geometry: polygon, neighbors: [] });
+    expect(result.canSave).toBe(true);
+  });
+
+  it("should warn when point is outside polygon", () => {
+    const result = validateParcelaGeodata({
+      referencePoint: { type: "Point", coordinates: [10, 10] },
+      geometry: polygon,
+      neighbors: []
+    });
+    expect(result.issues.some((i) => i.code === "POINT_OUTSIDE_POLYGON")).toBe(true);
+  });
+});
+
+describe("cloneGeodata", () => {
+  it("should return null for null input", () => {
+    expect(cloneGeodata(null)).toBeNull();
+  });
+
+  it("should deep-clone a point", () => {
+    const point: GeoJsonPoint = { type: "Point", coordinates: [1, 2] };
+    const cloned = cloneGeodata(point);
+    expect(cloned).toEqual(point);
+    expect(cloned).not.toBe(point);
+  });
+});
+
+describe("areGeodataEqual", () => {
+  it("should return true for both null", () => {
+    expect(areGeodataEqual(null, null)).toBe(true);
+  });
+
+  it("should return false when one is null", () => {
+    const point: GeoJsonPoint = { type: "Point", coordinates: [1, 2] };
+    expect(areGeodataEqual(point, null)).toBe(false);
+  });
+
+  it("should return true for equal points", () => {
+    const a: GeoJsonPoint = { type: "Point", coordinates: [1, 2] };
+    const b: GeoJsonPoint = { type: "Point", coordinates: [1, 2] };
+    expect(areGeodataEqual(a, b)).toBe(true);
+  });
+});
+
+describe("polygonFromRing", () => {
+  it("should return MultiPolygon from valid ring", () => {
+    const result = polygonFromRing(ONE_DEGREE_EQUATOR_SQUARE.map(([lng, lat]) => [lng as number, lat as number] as [number, number]));
+    expect(result?.type).toBe("MultiPolygon");
+    expect(result?.coordinates).toHaveLength(1);
+  });
+
+  it("should return null for ring with less than 3 vertices", () => {
+    expect(polygonFromRing([[0, 0], [1, 1]] as [number, number][])).toBeNull();
+  });
+});
+
+describe("getGeometryBounds", () => {
+  it("should return empty array for empty geometries", () => {
+    expect(getGeometryBounds([])).toEqual([]);
+  });
+
+  it("should collect coordinates from points", () => {
+    const pt: GeoJsonPoint = { type: "Point", coordinates: [-77, -12] };
+    const bounds = getGeometryBounds([pt]);
+    expect(bounds.length).toBeGreaterThan(0);
+    expect(bounds[0][0]).toBe(-77);
+  });
+});

@@ -166,11 +166,12 @@ vi.mock(
 
 const handlerVisita = vi.fn();
 const handlerEvaluacion = vi.fn();
+const handlerObservacion = vi.fn();
 vi.mock("./sync-handlers", () => ({
   entityHandlerMap: {
     visitas_campo: (entry: unknown) => handlerVisita(entry),
-    visita_evaluaciones: (entry: unknown) => handlerEvaluacion(entry)
-    // Intentionally omits some entity types to test orphan handling.
+    visita_evaluaciones: (entry: unknown) => handlerEvaluacion(entry),
+    visita_observaciones_sanitarias: (entry: unknown) => handlerObservacion(entry)
   }
 }));
 
@@ -429,6 +430,60 @@ describe("processOutbox", () => {
 
     expect(handlerEvaluacion).toHaveBeenCalledOnce();
     expect(deleteOutboxEntry).toHaveBeenCalledWith(30);
+    expect(result.processed).toBe(1);
+  });
+
+  it("stops processing on auth error and sets stoppedByAuth flag", async () => {
+    getPendingOutboxEntries.mockReturnValue([
+      makeEntry({ id: 40 }),
+      makeEntry({ id: 41, entityLocalId: "local-2" })
+    ]);
+    handlerVisita.mockRejectedValue(new ApiError("Unauthorized", 401));
+
+    const result = await processOutbox();
+
+    expect(result.stoppedByAuth).toBe(true);
+    expect(result.unattempted).toBe(1);
+  });
+
+  it("stops processing on abort signal", async () => {
+    const controller = new AbortController();
+    getPendingOutboxEntries.mockReturnValue([
+      makeEntry({ id: 50 }),
+      makeEntry({ id: 51 })
+    ]);
+    controller.abort();
+
+    const result = await processOutbox({ signal: controller.signal });
+
+    expect(result.aborted).toBe(true);
+    expect(result.unattempted).toBe(2);
+  });
+
+  it("counts permanent failure when conflict has no remote identity", async () => {
+    getPendingOutboxEntries.mockReturnValue([makeEntry({ id: 60 })]);
+    handlerVisita.mockRejectedValue(new ApiError("conflict", 409));
+
+    const result = await processOutbox();
+
+    expect(storeSyncFailure).toHaveBeenCalled();
+    expect(result.permanentFailures).toBe(1);
+  });
+
+  it("allows child create when getChildVisitaLocalId returns null (no parent to check)", async () => {
+    observacionesGetById.mockReturnValue(null);
+    getPendingOutboxEntries.mockReturnValue([
+      makeEntry({
+        id: 70,
+        entityType: "visita_observaciones_sanitarias",
+        entityLocalId: "obs-1",
+        operation: "create"
+      })
+    ]);
+    handlerObservacion.mockResolvedValue({ status: "synced" });
+
+    const result = await processOutbox();
+
     expect(result.processed).toBe(1);
   });
 });

@@ -1,4 +1,5 @@
 import { NotFoundException } from "@nestjs/common";
+import { QueryFailedError } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { VisitaCampoEntity } from "../infrastructure/persistence/entities/visita-campo.entity";
@@ -40,6 +41,8 @@ function makeQueryBuilder<T>(result: T[], count: number) {
     getOne: vi.fn().mockResolvedValue(result[0] ?? null)
   };
 }
+
+function makeUQ(constraint: string) { return new QueryFailedError("insert", [], { code: "23505", constraint } as unknown as Error); }
 
 function makeVisita(overrides: Partial<VisitaCampoEntity> = {}): VisitaCampoEntity {
   return {
@@ -181,6 +184,35 @@ describe("VisitasCampoService", () => {
       repo.findOne.mockResolvedValue(null);
 
       await expect(service.remove("999")).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("#create", () => {
+    const validDto = {
+      cropId: "10", varietyId: "20", parcelaId: "30", campaignId: "40",
+      agronomistUserId: "u1", visitDate: "2026-06-15", startVisitTime: "08:00",
+      phenologicalStageId: "50"
+    };
+
+    it("should reject when parcela not found", async () => {
+      repo.findOne.mockResolvedValue(null);
+      await expect(service.create(validDto)).rejects.toThrow();
+    });
+
+    it("should handle duplicate nroFicha via ConflictException", async () => {
+      repo.findOne.mockResolvedValueOnce(null);
+      repo.findOne.mockResolvedValueOnce(null);
+      repo.findOne.mockResolvedValueOnce(null);
+      repo.findOne.mockResolvedValueOnce({ id: "10" } as never);
+      repo.findOne.mockResolvedValueOnce({ id: "20" } as never);
+      repo.findOne.mockResolvedValueOnce({ id: "30" } as never);
+      repo.findOne.mockResolvedValueOnce({ id: "40" } as never);
+      repo.findOne.mockResolvedValueOnce({ id: "u1" } as never);
+      repo.findOne.mockResolvedValueOnce({ id: "50", type: "Etapa" } as never);
+      repo.findOne.mockResolvedValueOnce(null);
+      repo.create.mockReturnValue(makeVisita());
+      repo.save.mockRejectedValue(makeUQ("visitas_campo_nro_ficha_key"));
+      await expect(service.create({ ...validDto, nroFicha: "F-001" })).rejects.toThrow();
     });
   });
 });
