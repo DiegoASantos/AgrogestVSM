@@ -5,10 +5,7 @@ numero: 021
 area: clima, api, mobile, sqlite, seguridad
 created: 2026-07-30
 approved_by: usuario, 2026-07-30
-implemented_in:
-  - apps/api/src/modules/clima
-  - apps/mobile/src/modules/clima
-  - apps/mobile/src/shared/database
+implemented_in: apps/api/src/modules/clima, apps/mobile/src/modules/clima, apps/mobile/src/shared/database
 ---
 
 # Spec 021: Clima general móvil por distrito

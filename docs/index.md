@@ -13,6 +13,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 ## Inicio
 
 - [Plan de implementación](PLAN_IMPLEMENTACION.md)
+- [Plan módulo clima](plan_modulo_clima_agrogest_vsm.md)
 - [Política documental](governance/documentation-policy.md)
 - [Plantilla de handoff de IA](governance/ai-handoff-template.md)
 - [Plantilla de revisión de IA](governance/ai-review-template.md)
@@ -59,6 +60,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 014: Exportacion protegida para Cost-Build](specs/014-exportacion-cost-build-api-key.md)
 - [Spec 015: Sincronizacion robusta en redes inestables y recuperacion de sesion online](specs/015-sync-robusto-redes-inestables.md)
 - [Spec 016: Ajustes UX de formularios y valores iniciales de labores culturales](specs/016-ajustes-ux-formularios-y-labores-culturales.md)
+- [Spec 016: Asignación de parcelas a agrónomos](specs/016-asignacion-parcelas-agronomos.md)
 - [Spec 017: Calificacion de cumplimiento solo para modulos recomendados](specs/017-calificacion-solo-modulos-recomendados.md)
 - [Spec 018: Score sanitario independiente para Plagas](specs/018-score-sanitario-plagas.md)
 - [Spec 019: Scores técnicos independientes por módulo para mango](specs/019-scores-tecnicos-independientes-mango.md)

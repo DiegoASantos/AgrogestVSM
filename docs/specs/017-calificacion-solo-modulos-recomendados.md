@@ -59,3 +59,10 @@ El cumplimiento solo puede medirse cuando la receta de la visita anterior a la m
 - RNF-001: La elegibilidad se calcula en API y se cachea con la receta; mobile no debe inferirla de campos opcionales.
 - RNF-002: El calculo agregado no debe introducir una consulta de receta por cada visita; debe cargar o agrupar la informacion de manera acotada.
 - RNF-003: Se mantiene idempotencia del UPSERT y el orden padre-hijo del outbox. No se agregan secretos, datos personales ni logs de observaciones.
+
+## Impacto documental
+
+- [x] Arquitectura: actualizado flujo de scores en visita-calificaciones.
+- [x] Dominio: documentada la renormalización de pesos.
+- [x] Runbook: no aplica.
+- [x] ADR: no aplica.

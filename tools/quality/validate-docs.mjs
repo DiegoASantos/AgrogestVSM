@@ -59,11 +59,13 @@ function readFile(file) {
 }
 
 function parseFrontmatter(content) {
-  if (!content.startsWith("---\n")) {
+  const normalized = content.replace(/\r\n/g, "\n");
+
+  if (!normalized.startsWith("---\n")) {
     return null;
   }
 
-  const endIndex = content.indexOf("\n---", 4);
+  const endIndex = normalized.indexOf("\n---", 4);
 
   if (endIndex === -1) {
     return null;
