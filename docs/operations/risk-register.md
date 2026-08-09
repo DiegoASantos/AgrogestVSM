@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-08
+last_reviewed: 2026-08-09
 ---
 
 # Registro de riesgos
@@ -33,6 +33,8 @@ last_reviewed: 2026-08-08
 
 | R-021 | Las columnas legacy de receta deben mantenerse durante la ventana de compatibilidad con clientes mobile anteriores | Media | Mitigado | API y SQLite siguen poblándolas; monitorear adopción, respaldar y aprobar una spec de contracción separada antes de eliminarlas |
 | R-022 | Mobile nuevo puede enviar `parcelReferencePoint` antes de que la API compatible esté desplegada | Media | Mitigado | Desplegar migración 042 y API antes de la OTA/APK; el outbox preserva la parcela pendiente para reintento |
+| R-023 | El catálogo productivo puede no tener exactamente un Mango activo o un nivel único por tipo y grado 0..3 | Alta | Mitigado | La migración 043 valida cardinalidades dentro de la transacción y aborta sin carga parcial; ejecutar preflight y backup antes del deploy |
+| R-024 | Un dispositivo con catálogos descargados hace menos de 24 horas puede conservar temporalmente las relaciones sanitarias anteriores | Media | Mitigado | Forzar actualización de catálogos en el smoke y comunicarla a dispositivos piloto; instalaciones nuevas descargan el conjunto completo |
 
 ## Revisión
 

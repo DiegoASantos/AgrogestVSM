@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-08
+last_reviewed: 2026-08-09
 ---
 
 # Modelo del dominio
@@ -166,6 +166,12 @@ y Mosca de la fruta. La ausencia de registro equivale en el cálculo a grados
 score del módulo es el mínimo de las seis notas. El contrato devuelve el
 desglose y el semáforo para que web y mobile presenten el mismo resultado.
 
+El universo de captura sanitaria de mango no se restringe por etapa: todas las
+plagas y enfermedades activas se relacionan con todas las etapas y labores
+activas del cultivo. Cada combinación ofrece los cuatro grados globales de
+incidencia y los cuatro de severidad. Esta disponibilidad de captura es distinta
+del universo fijo que utiliza cada macro-score.
+
 Mobile también deriva en lectura el detalle de estos cuatro módulos desde las
 capturas SQLite, sin persistir el resultado ni esperar un `serverId`. El valor
 local tiene precedencia mientras existan insumos técnicos pendientes o fallidos;
@@ -177,7 +183,8 @@ transición.
 Para Enfermedades, el porcentaje entero de árboles enfermos (0–100) es la fuente
 de la incidencia: 0%→grado 0, 1–5%→grado 1, 6–20%→grado 2 y 21–100%→grado 3.
 Los cuatro grados de incidencia son globales porque los determina el porcentaje;
-la severidad continúa restringida por enfermedad y etapa fenológica.
+los cuatro grados de severidad también están disponibles para cada enfermedad,
+etapa y labor activa de mango. Con incidencia grado 0 no se captura severidad.
 Una visita elegible consolida siempre Oidium, Antracnosis, Muerte regresiva y
 Alternaria; una enfermedad sin registro aporta porcentaje 0, incidencia 0,
 severidad 0 y nota 3, sin persistencia artificial. Cada nota usa

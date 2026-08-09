@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-08
+last_reviewed: 2026-08-09
 ---
 
 # Especificaciones
@@ -74,4 +74,5 @@ en la raíz.
 - [Spec 028: Compatibilidad de Home con tablas de sync sin updated_at](028-home-sync-tablas-sin-updated-at.md)
 - [Spec 029: Mezclas, factor de incidencia y nueva dosificación en receta](029-mezclas-factor-dosificacion-receta.md)
 - [Spec 030: Punto interno de referencia de parcela en mobile](030-punto-interno-parcela-mobile.md)
+- [Spec 031: Catálogo sanitario global para etapas y labores de mango](031-catalogo-sanitario-global-mango.md)
 - [Plantilla](TEMPLATE.md)

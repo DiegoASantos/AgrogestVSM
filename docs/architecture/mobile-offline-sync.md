@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-08
+last_reviewed: 2026-08-09
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -208,6 +208,14 @@ Para sostener la identificación offline, `pest_diseases.code` conserva en SQLit
 el código estable recibido del catálogo. La migración aditiva 48 rellena los
 códigos conocidos y elimina la marca `catalogs_downloaded_at` para provocar una
 recarga posterior sin borrar observaciones ni operaciones pendientes.
+
+La migración PostgreSQL 043 completa para mango todas las relaciones entre el
+catálogo sanitario activo, sus etapas y labores activas y los grados 0 a 3 de
+incidencia y severidad. No requiere cambio de SQLite: una instalación nueva las
+recibe en la descarga inicial y una instalación existente las obtiene al forzar
+la actualización de catálogos o en la recarga automática posterior a 24 horas.
+La descarga conserva observaciones y outbox porque estas relaciones son
+catálogos de solo lectura.
 
 ## Cambios críticos
 
