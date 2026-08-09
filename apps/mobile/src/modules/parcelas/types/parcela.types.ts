@@ -14,6 +14,7 @@ export type Parcela = {
   areaHectares: string | null;
   description: string | null;
   referencePoint: GeoJsonPointGeometry | null;
+  parcelReferencePoint: GeoJsonPointGeometry | null;
   geometry: GeoJsonMultiPolygonGeometry | null;
   isActive: boolean;
   createdAt: string;
@@ -31,4 +32,5 @@ export type CreateParcelaDraft = {
   areaHectares: string | null;
   description: string | null;
   referencePoint: GeoJsonPointGeometry | null;
+  parcelReferencePoint?: GeoJsonPointGeometry | null;
 };

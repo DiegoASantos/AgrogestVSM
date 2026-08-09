@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const database = vi.hoisted(() => ({
   getAllSync: vi.fn(() => []),
   getFirstSync: vi.fn(),
-  runSync: vi.fn<(statement: string, ...params: unknown[]) => { changes: number }>().mockReturnValue({ changes: 1 })
+  runSync: vi
+    .fn<(statement: string, ...params: unknown[]) => { changes: number }>()
+    .mockReturnValue({ changes: 1 })
 }));
 
 vi.mock("../../../shared/database/connection", () => ({
@@ -13,11 +15,24 @@ vi.mock("../../../shared/database/connection", () => ({
 import { parcelasRepository } from "./parcelas.repository";
 
 const row = {
-  id: "p1", public_id: "pub-p1", productor_id: "prod1", subsector_id: "sub1",
-  sector_id: "sec1", code: "P-001", name: "Parcela Norte", area_hectares: "2.5",
-  description: null, reference_point: '{"type":"Point","coordinates":[-77,-12]}',
-  geometry: null, is_active: 1, created_at: "2026-01-01", updated_at: "2026-01-01",
-  server_id: "srv-1", sync_status: "synced" as const, sync_error_message: null
+  id: "p1",
+  public_id: "pub-p1",
+  productor_id: "prod1",
+  subsector_id: "sub1",
+  sector_id: "sec1",
+  code: "P-001",
+  name: "Parcela Norte",
+  area_hectares: "2.5",
+  description: null,
+  reference_point: '{"type":"Point","coordinates":[-77,-12]}',
+  parcel_reference_point: '{"type":"Point","coordinates":[-77.01,-12.01]}',
+  geometry: null,
+  is_active: 1,
+  created_at: "2026-01-01",
+  updated_at: "2026-01-01",
+  server_id: "srv-1",
+  sync_status: "synced" as const,
+  sync_error_message: null
 };
 
 function sqlOf(calls: unknown[]): string[] {
@@ -37,10 +52,18 @@ describe("parcelasRepository", () => {
 
       const result = parcelasRepository.getAll();
 
-      expect(sqlOf(database.getAllSync.mock.calls).some((s) => s.includes("INNER JOIN subsectores"))).toBe(true);
+      expect(
+        sqlOf(database.getAllSync.mock.calls).some((s) =>
+          s.includes("INNER JOIN subsectores")
+        )
+      ).toBe(true);
       expect(result).toHaveLength(1);
       expect(result[0].code).toBe("P-001");
       expect(result[0].isActive).toBe(true);
+      expect(result[0].parcelReferencePoint).toEqual({
+        type: "Point",
+        coordinates: [-77.01, -12.01]
+      });
     });
 
     it("should return empty array when no parcelas", () => {
@@ -71,7 +94,11 @@ describe("parcelasRepository", () => {
 
       const result = parcelasRepository.getDepartmentCodeById("p1");
 
-      expect(sqlOf(database.getFirstSync.mock.calls).some((s) => s.includes("departamentos.code"))).toBe(true);
+      expect(
+        sqlOf(database.getFirstSync.mock.calls).some((s) =>
+          s.includes("departamentos.code")
+        )
+      ).toBe(true);
       expect(result).toBe("15");
     });
 
@@ -86,7 +113,11 @@ describe("parcelasRepository", () => {
 
       const result = parcelasRepository.getBySectorId("sec1");
 
-      expect(sqlOf(database.getAllSync.mock.calls).some((s) => s.includes("subsectores.sector_id"))).toBe(true);
+      expect(
+        sqlOf(database.getAllSync.mock.calls).some((s) =>
+          s.includes("subsectores.sector_id")
+        )
+      ).toBe(true);
       expect(result).toHaveLength(1);
     });
   });
@@ -97,21 +128,43 @@ describe("parcelasRepository", () => {
 
       parcelasRepository.getByProductorId("prod1");
 
-      expect(sqlOf(database.getAllSync.mock.calls).some((s) => s.includes("parcelas.productor_id"))).toBe(true);
+      expect(
+        sqlOf(database.getAllSync.mock.calls).some((s) =>
+          s.includes("parcelas.productor_id")
+        )
+      ).toBe(true);
     });
   });
 
   describe("#insert", () => {
     it("should insert with all fields", () => {
       parcelasRepository.insert({
-        id: "p2", publicId: "pub-p2", productorId: "prod1", subsectorId: "sub1",
-        sectorId: "sec1", code: "P-002", name: "Sur", areaHectares: "3.0",
-        description: null, referencePoint: null, geometry: null, isActive: true,
-        createdAt: "2026-01-01", updatedAt: "2026-01-01", serverId: null,
-        syncStatus: "pending" as const, syncErrorMessage: null
+        id: "p2",
+        publicId: "pub-p2",
+        productorId: "prod1",
+        subsectorId: "sub1",
+        sectorId: "sec1",
+        code: "P-002",
+        name: "Sur",
+        areaHectares: "3.0",
+        description: null,
+        referencePoint: null,
+        parcelReferencePoint: { type: "Point", coordinates: [-77.02, -12.02] },
+        geometry: null,
+        isActive: true,
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+        serverId: null,
+        syncStatus: "pending" as const,
+        syncErrorMessage: null
       });
 
-      expect(sqlOf(database.runSync.mock.calls).some((s) => s.includes("INSERT INTO parcelas"))).toBe(true);
+      expect(
+        sqlOf(database.runSync.mock.calls).some((s) => s.includes("INSERT INTO parcelas"))
+      ).toBe(true);
+      expect(database.runSync.mock.calls[0][10]).toBe(
+        '{"type":"Point","coordinates":[-77.02,-12.02]}'
+      );
     });
   });
 
@@ -119,8 +172,12 @@ describe("parcelasRepository", () => {
     it("should update syncStatus and serverId", () => {
       parcelasRepository.update("p1", { serverId: "srv-2", syncStatus: "synced" });
 
-      expect(sqlOf(database.runSync.mock.calls).some((s) => s.includes("UPDATE parcelas"))).toBe(true);
-      expect(sqlOf(database.runSync.mock.calls).some((s) => s.includes("server_id = ?"))).toBe(true);
+      expect(
+        sqlOf(database.runSync.mock.calls).some((s) => s.includes("UPDATE parcelas"))
+      ).toBe(true);
+      expect(
+        sqlOf(database.runSync.mock.calls).some((s) => s.includes("server_id = ?"))
+      ).toBe(true);
     });
   });
 });

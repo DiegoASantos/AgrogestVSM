@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-04
+last_reviewed: 2026-08-08
 ---
 
 # Modelo del dominio
@@ -17,8 +17,11 @@ Productor ───────────────────────�
                                       └→ Visita de campo
 ```
 
-Una parcela pertenece a un productor y a un sector. Puede tener punto de
-referencia y geometría MultiPolygon. Un productor puede representar una
+Una parcela pertenece a un productor y a un sector. Puede tener dos puntos
+GeoJSON independientes: `referencePoint` identifica el acceso principal al
+predio y `parcelReferencePoint` identifica la ubicación interna de la parcela.
+Ambos son opcionales, pueden coincidir y no sustituyen la geometría
+MultiPolygon. Un productor puede representar una
 persona, un fundo o una cooperativa. Las personas requieren `nombres` y
 `apellidos`; el tipo y numero de documento son opcionales y deben registrarse
 juntos cuando se informan. Fundos y cooperativas usan `nombres` como nombre de

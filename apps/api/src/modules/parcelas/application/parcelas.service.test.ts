@@ -17,6 +17,7 @@ function buildParcela(overrides: Partial<ParcelaEntity> = {}): ParcelaEntity {
     areaHectares: null,
     description: null,
     referencePoint: null,
+    parcelReferencePoint: null,
     geometry: null,
     isActive: true,
     createdAt: now,
@@ -38,6 +39,7 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
     addOrderBy: vi.fn(() => queryBuilder),
     skip: vi.fn(() => queryBuilder),
     take: vi.fn(() => queryBuilder),
+    getMany: vi.fn(async () => [buildParcela()]),
     getManyAndCount: vi.fn(async () => [[buildParcela()], 1]),
     getOne: vi.fn(async (): Promise<ParcelaEntity | null> => null)
   };
@@ -113,6 +115,55 @@ describe("ParcelasService", () => {
         subsectorId: "10",
         sectorId: "1"
       });
+    });
+
+    it("persists and returns access and internal parcel points independently", async () => {
+      const { parcelasRepository, service } = buildService([1]);
+      const point = {
+        type: "Point" as const,
+        coordinates: [-80.6321, -5.1942] as [number, number]
+      };
+
+      const result = await service.create({
+        productorId: "1",
+        subsectorId: "10",
+        referencePoint: point,
+        parcelReferencePoint: point
+      });
+
+      expect(parcelasRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          referencePoint: point,
+          parcelReferencePoint: point
+        })
+      );
+      expect(result.data).toMatchObject({
+        referencePoint: point,
+        parcelReferencePoint: point,
+        geo: {
+          point,
+          parcelPoint: point,
+          hasGeodata: true
+        }
+      });
+    });
+
+    it("rejects an invalid internal parcel point", async () => {
+      const { parcelasRepository, service } = buildService([1]);
+
+      await expect(
+        service.create({
+          productorId: "1",
+          subsectorId: "10",
+          parcelReferencePoint: {
+            type: "Point",
+            coordinates: [999, -5.1942]
+          }
+        })
+      ).rejects.toThrow(
+        "parcelReferencePoint must be a valid GeoJSON Point with longitude and latitude in SRID 4326."
+      );
+      expect(parcelasRepository.save).not.toHaveBeenCalled();
     });
 
     it("assigns a new parcela to an agronomist-only user", async () => {
@@ -248,15 +299,34 @@ describe("ParcelasService", () => {
         take: 20
       } as never);
 
-      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
-        "subsector.sectorId",
-        "ASC"
-      );
-      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
-        "parcela.subsectorId",
-        "ASC"
-      );
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith("subsector.sectorId", "ASC");
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith("parcela.subsectorId", "ASC");
       expect(queryBuilder.addOrderBy).toHaveBeenCalledWith("parcela.code", "ASC");
+    });
+  });
+
+  describe("findMap", () => {
+    it("publishes the internal point with a distinct geometry role", async () => {
+      const { queryBuilder, service } = buildService();
+      const parcelReferencePoint = {
+        type: "Point" as const,
+        coordinates: [-80.6321, -5.1942] as [number, number]
+      };
+      queryBuilder.getMany.mockResolvedValueOnce([
+        buildParcela({ parcelReferencePoint })
+      ]);
+
+      const result = await service.findMap({} as never);
+
+      expect(result.data.features).toContainEqual(
+        expect.objectContaining({
+          id: "parcela-1-parcel-reference-point",
+          geometry: parcelReferencePoint,
+          properties: expect.objectContaining({
+            geometryRole: "parcel_reference_point"
+          })
+        })
+      );
     });
   });
 });

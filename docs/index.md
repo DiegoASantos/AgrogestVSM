@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-03
+last_reviewed: 2026-08-08
 ---
 
 # Documentación de AgroGest VSM
@@ -77,6 +77,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Múltiples productos por recomendación y validación de incompatibilidades en receta](specs/027-multiples-productos-receta-validacion-incompatibilidades.md)
 - [Compatibilidad de Home con tablas de sync sin updated_at](specs/028-home-sync-tablas-sin-updated-at.md)
 - [Mezclas, factor de incidencia y nueva dosificación en receta](specs/029-mezclas-factor-dosificacion-receta.md)
+- [Punto interno de referencia de parcela en mobile](specs/030-punto-interno-parcela-mobile.md)
 
 ## Runbooks
 

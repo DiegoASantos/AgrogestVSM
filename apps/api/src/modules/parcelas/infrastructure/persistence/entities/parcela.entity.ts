@@ -101,6 +101,15 @@ export class ParcelaEntity {
   referencePoint!: PointGeometry | null;
 
   @Column({
+    name: "punto_referencia_parcela",
+    type: "geometry",
+    spatialFeatureType: "Point",
+    srid: 4326,
+    nullable: true
+  })
+  parcelReferencePoint!: PointGeometry | null;
+
+  @Column({
     name: "geometria",
     type: "geometry",
     spatialFeatureType: "MultiPolygon",

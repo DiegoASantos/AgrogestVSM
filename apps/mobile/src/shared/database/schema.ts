@@ -185,6 +185,7 @@ export const SQL_SCHEMA = [
     area_hectares TEXT,
     description TEXT,
     reference_point TEXT,
+    parcel_reference_point TEXT,
     geometry TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,

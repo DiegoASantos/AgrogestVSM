@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 56;
+const LATEST_MIGRATION_VERSION = 57;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1494,5 +1494,21 @@ describe("runMigrations", () => {
       "plaga",
       "Trips"
     ]);
+  });
+
+  it("adds the internal parcel point without deleting offline data", () => {
+    const db = createFakeDatabase(56);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE parcelas ADD COLUMN parcel_reference_point TEXT"
+    );
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(parcelas|sync_outbox)/iu.test(statement)
+      )
+    ).toBe(false);
   });
 });

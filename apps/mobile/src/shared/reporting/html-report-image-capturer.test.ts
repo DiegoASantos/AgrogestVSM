@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   getMaxReportLogicalHeight,
+  getReportPageSlices,
   getReportCaptureStartError,
+  parseReportPageReadyMessage,
   parseReportHeightMessage
 } from "./report-image-sizing";
 
@@ -35,5 +37,40 @@ describe("HTML report image sizing", () => {
     expect(getReportCaptureStartError(false, 1)).toContain(
       "captura anterior sigue finalizando"
     );
+  });
+
+  it("covers the full report without adding a blank trailing page", () => {
+    expect(getReportPageSlices(3000, 1500)).toEqual([
+      { height: 1500, offsetY: 0 },
+      { height: 1500, offsetY: 1500 }
+    ]);
+    expect(getReportPageSlices(3001, 1500)).toEqual([
+      { height: 1500, offsetY: 0 },
+      { height: 1500, offsetY: 1500 },
+      { height: 1, offsetY: 3000 }
+    ]);
+    expect(getReportPageSlices(0, 1500)).toEqual([]);
+  });
+
+  it("accepts page readiness only for a concrete render", () => {
+    expect(
+      parseReportPageReadyMessage(
+        JSON.stringify({
+          type: "agrogest-report-page-ready",
+          renderId: 3,
+          hasContent: true
+        })
+      )
+    ).toEqual({ renderId: 3, hasContent: true });
+    expect(
+      parseReportPageReadyMessage(
+        JSON.stringify({
+          type: "agrogest-report-page-ready",
+          renderId: 0,
+          hasContent: true
+        })
+      )
+    ).toBeNull();
+    expect(parseReportPageReadyMessage("not-json")).toBeNull();
   });
 });

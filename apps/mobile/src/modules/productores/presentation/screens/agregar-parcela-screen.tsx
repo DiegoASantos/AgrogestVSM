@@ -1,12 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  View
-} from "react-native";
+import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import * as Location from "expo-location";
 
 import {
@@ -30,12 +25,7 @@ import { generatePublicId } from "../../../../shared/utils/local-id";
 type FilaDistrito = { id: string; name: string };
 
 type CatalogoAbierto =
-  | "distrito"
-  | "sector"
-  | "subsector"
-  | "crear-sector"
-  | "crear-subsector"
-  | null;
+  "distrito" | "sector" | "subsector" | "crear-sector" | "crear-subsector" | null;
 
 export function AgregarParcelaScreen() {
   const router = useRouter();
@@ -55,12 +45,21 @@ export function AgregarParcelaScreen() {
   const [nombreParcela, setNombreParcela] = useState("");
   const [areaHectareas, setAreaHectareas] = useState("");
   const [descripcionParcela, setDescripcionParcela] = useState("");
-  const [puntoReferencia, setPuntoReferencia] = useState<GeoJsonPointGeometry | null>(null);
-  const [capturandoUbicacion, setCapturandoUbicacion] = useState(false);
+  const [accessReferencePoint, setAccessReferencePoint] =
+    useState<GeoJsonPointGeometry | null>(null);
+  const [parcelReferencePoint, setParcelReferencePoint] =
+    useState<GeoJsonPointGeometry | null>(null);
+  const [capturingPoint, setCapturingPoint] = useState<"access" | "parcel" | null>(null);
 
-  const [opcionesDistrito, setOpcionesDistrito] = useState<Array<{ value: string; label: string }>>([]);
-  const [opcionesSector, setOpcionesSector] = useState<Array<{ value: string; label: string }>>([]);
-  const [opcionesSubsector, setOpcionesSubsector] = useState<Array<{ value: string; label: string }>>([]);
+  const [opcionesDistrito, setOpcionesDistrito] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [opcionesSector, setOpcionesSector] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [opcionesSubsector, setOpcionesSubsector] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
 
   const [mostrandoCrearSector, setMostrandoCrearSector] = useState(false);
   const [mostrandoCrearSubsector, setMostrandoCrearSubsector] = useState(false);
@@ -200,13 +199,15 @@ export function AgregarParcelaScreen() {
     cargarSubsectores(sectorId);
   }
 
-  async function capturarUbicacion() {
-    setCapturandoUbicacion(true);
+  async function capturarUbicacion(target: "access" | "parcel") {
+    setCapturingPoint(target);
     setError(null);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        setError("No se pudo acceder a la ubicacion. Verifica los permisos del dispositivo.");
+        setError(
+          "No se pudo acceder a la ubicacion. Verifica los permisos del dispositivo."
+        );
         return;
       }
       const ubicacion = await Location.getCurrentPositionAsync({
@@ -216,12 +217,26 @@ export function AgregarParcelaScreen() {
         type: "Point",
         coordinates: [ubicacion.coords.longitude, ubicacion.coords.latitude]
       };
-      setPuntoReferencia(punto);
+      if (target === "access") {
+        setAccessReferencePoint(punto);
+      } else {
+        setParcelReferencePoint(punto);
+      }
     } catch {
       setError("Error al obtener la ubicacion GPS.");
     } finally {
-      setCapturandoUbicacion(false);
+      setCapturingPoint(null);
     }
+  }
+
+  function usarPuntoAccesoComoParcela() {
+    if (!accessReferencePoint) return;
+
+    setParcelReferencePoint({
+      type: "Point",
+      coordinates: [...accessReferencePoint.coordinates]
+    });
+    setError(null);
   }
 
   function validar(): string | null {
@@ -259,13 +274,20 @@ export function AgregarParcelaScreen() {
       return;
     }
 
-    if (!puntoReferencia) {
+    if (!accessReferencePoint || !parcelReferencePoint) {
+      const puntosFaltantes = [
+        !accessReferencePoint ? "el acceso al predio" : null,
+        !parcelReferencePoint ? "la ubicación interna de la parcela" : null
+      ].filter((value): value is string => value !== null);
+
       Alert.alert(
-        "Punto de referencia",
-        "La parcela no tiene punto de referencia. Se recomienda capturarlo en la entrada del predio.",
+        "Puntos GPS incompletos",
+        `Falta registrar ${puntosFaltantes.join(
+          " y "
+        )}. Puedes volver para capturarlo o guardar la parcela de todas formas.`,
         [
           { text: "Volver", style: "cancel" },
-          { text: "Guardar sin punto", onPress: () => ejecutarGuardado() }
+          { text: "Guardar de todas formas", onPress: () => ejecutarGuardado() }
         ]
       );
       return;
@@ -297,7 +319,8 @@ export function AgregarParcelaScreen() {
           name: nombreParcela.trim(),
           areaHectares: areaHectareas.trim(),
           description: descripcionParcela.trim() || null,
-          referencePoint: puntoReferencia,
+          referencePoint: accessReferencePoint,
+          parcelReferencePoint,
           geometry: null,
           isActive: true,
           createdAt: ahora,
@@ -342,7 +365,8 @@ export function AgregarParcelaScreen() {
           Agregar parcela
         </AppText>
         <AppText variant="body" style={estilos.subtitulo}>
-          Completa la ubicacion y los datos de la parcela. Los campos marcados con * son obligatorios.
+          Completa la ubicacion y los datos de la parcela. Los campos marcados con * son
+          obligatorios.
         </AppText>
 
         <AppCard style={estilos.tarjeta}>
@@ -513,34 +537,82 @@ export function AgregarParcelaScreen() {
 
           <View style={estilos.separador} />
 
-          <AppText variant="label">Punto de referencia GPS</AppText>
+          <AppText variant="label">Acceso al predio</AppText>
           <AppText variant="caption" style={estilos.textoAyuda}>
-            Capture el punto GPS en la entrada del predio.
+            Captura el punto GPS en la entrada principal del predio.
           </AppText>
 
-          {puntoReferencia ? (
+          {accessReferencePoint ? (
             <AppCard style={estilos.tarjetaGps}>
               <AppText variant="body">
-                Lat: {puntoReferencia.coordinates[1].toFixed(6)} | Lon: {puntoReferencia.coordinates[0].toFixed(6)}
+                Lat: {accessReferencePoint.coordinates[1].toFixed(6)} | Lon:{" "}
+                {accessReferencePoint.coordinates[0].toFixed(6)}
               </AppText>
               <AppButton
                 label="Volver a capturar"
-                onPress={capturarUbicacion}
+                onPress={() => capturarUbicacion("access")}
                 variant="outline"
                 size="small"
                 icon="location-outline"
-                loading={capturandoUbicacion}
+                loading={capturingPoint === "access"}
+                disabled={capturingPoint === "parcel"}
               />
             </AppCard>
           ) : (
             <AppButton
               label="Capturar ubicacion (entrada del predio)"
-              onPress={capturarUbicacion}
+              onPress={() => capturarUbicacion("access")}
               variant="outline"
               icon="location-outline"
-              loading={capturandoUbicacion}
+              loading={capturingPoint === "access"}
+              disabled={capturingPoint === "parcel"}
             />
           )}
+
+          <View style={estilos.separador} />
+
+          <AppText variant="label">Ubicación interna de la parcela</AppText>
+          <AppText variant="caption" style={estilos.textoAyuda}>
+            Captura el punto GPS donde se encuentra la parcela propiamente dicha.
+          </AppText>
+
+          {parcelReferencePoint ? (
+            <AppCard style={estilos.tarjetaGps}>
+              <AppText variant="body">
+                Lat: {parcelReferencePoint.coordinates[1].toFixed(6)} | Lon:{" "}
+                {parcelReferencePoint.coordinates[0].toFixed(6)}
+              </AppText>
+              <AppButton
+                label="Volver a capturar"
+                onPress={() => capturarUbicacion("parcel")}
+                variant="outline"
+                size="small"
+                icon="location-outline"
+                loading={capturingPoint === "parcel"}
+                disabled={capturingPoint === "access"}
+              />
+            </AppCard>
+          ) : (
+            <AppButton
+              label="Capturar ubicación de la parcela"
+              onPress={() => capturarUbicacion("parcel")}
+              variant="outline"
+              icon="location-outline"
+              loading={capturingPoint === "parcel"}
+              disabled={capturingPoint === "access"}
+            />
+          )}
+
+          {accessReferencePoint ? (
+            <AppButton
+              label="Usar el mismo punto del acceso"
+              onPress={usarPuntoAccesoComoParcela}
+              variant="outline"
+              size="small"
+              icon="copy-outline"
+              disabled={capturingPoint !== null}
+            />
+          ) : null}
         </AppCard>
 
         {error ? (
@@ -558,11 +630,7 @@ export function AgregarParcelaScreen() {
             loading={guardando}
             icon="save-outline"
           />
-          <AppButton
-            label="Cancelar"
-            onPress={() => router.back()}
-            variant="outline"
-          />
+          <AppButton label="Cancelar" onPress={() => router.back()} variant="outline" />
         </View>
       </ScrollView>
     </ScreenContainer>

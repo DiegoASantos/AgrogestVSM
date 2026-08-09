@@ -83,6 +83,7 @@ export interface Parcela {
   areaHectares: string | null;
   description: string | null;
   referencePoint?: unknown;
+  parcelReferencePoint?: unknown;
   geometry?: unknown;
   isActive: boolean;
   createdAt: ISODateString;

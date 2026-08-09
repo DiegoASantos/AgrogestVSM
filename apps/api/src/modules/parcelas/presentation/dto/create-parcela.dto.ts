@@ -95,6 +95,18 @@ export class CreateParcelaDto {
 
   @ApiPropertyOptional({
     example: {
+      type: "Point",
+      coordinates: [-78.4998, -7.1634]
+    },
+    description:
+      "GeoJSON Point en SRID 4326 de la ubicación interna de la parcela. Puede coincidir con referencePoint."
+  })
+  @IsOptional()
+  @IsObject()
+  parcelReferencePoint?: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({
+    example: {
       type: "MultiPolygon",
       coordinates: [
         [

@@ -245,6 +245,10 @@ describe("API critical HTTP integration contract", () => {
         referencePoint: {
           type: "Point",
           coordinates: [-80.05, -5.05]
+        },
+        parcelReferencePoint: {
+          type: "Point",
+          coordinates: [-80.04, -5.04]
         }
       }
     });
@@ -263,7 +267,8 @@ describe("API critical HTTP integration contract", () => {
     expect(parcelasService.create).toHaveBeenCalledWith(
       expect.objectContaining({
         geometry: expect.objectContaining({ type: "MultiPolygon" }),
-        referencePoint: expect.objectContaining({ type: "Point" })
+        referencePoint: expect.objectContaining({ type: "Point" }),
+        parcelReferencePoint: expect.objectContaining({ type: "Point" })
       })
     );
   });

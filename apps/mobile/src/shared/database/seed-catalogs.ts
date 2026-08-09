@@ -423,11 +423,7 @@ async function performCatalogDownload() {
         }
 
         for (const productor of productores) {
-          const localProductorId = resolveLocalCatalogId(
-            db,
-            "productores",
-            productor.id
-          );
+          const localProductorId = resolveLocalCatalogId(db, "productores", productor.id);
           db.runSync(
             `INSERT INTO productores (
           id,
@@ -548,16 +544,8 @@ async function performCatalogDownload() {
         }
 
         for (const subsector of subsectores) {
-          const localSubsectorId = resolveLocalCatalogId(
-            db,
-            "subsectores",
-            subsector.id
-          );
-          const localSectorId = resolveLocalCatalogId(
-            db,
-            "sectores",
-            subsector.sectorId
-          );
+          const localSubsectorId = resolveLocalCatalogId(db, "subsectores", subsector.id);
+          const localSectorId = resolveLocalCatalogId(db, "sectores", subsector.sectorId);
           db.runSync(
             `INSERT INTO subsectores (
           id,
@@ -640,13 +628,14 @@ async function performCatalogDownload() {
           area_hectares,
           description,
           reference_point,
+          parcel_reference_point,
           geometry,
           is_active,
           created_at,
           updated_at,
           server_id,
           sync_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           public_id = excluded.public_id,
           productor_id = excluded.productor_id,
@@ -656,6 +645,7 @@ async function performCatalogDownload() {
           area_hectares = excluded.area_hectares,
           description = excluded.description,
           reference_point = excluded.reference_point,
+          parcel_reference_point = excluded.parcel_reference_point,
           geometry = excluded.geometry,
           is_active = excluded.is_active,
           updated_at = excluded.updated_at,
@@ -672,6 +662,7 @@ async function performCatalogDownload() {
             parcela.areaHectares,
             parcela.description,
             stringifyNullableJson(parcela.referencePoint),
+            stringifyNullableJson(parcela.parcelReferencePoint),
             stringifyNullableJson(parcela.geometry),
             toSqliteBoolean(parcela.isActive),
             parcela.createdAt,
@@ -716,7 +707,14 @@ export async function refreshCatalogsIfStale(): Promise<boolean> {
 
 function resolveLocalCatalogId(
   db: ReturnType<typeof initDatabase>,
-  table: "productores" | "sectores" | "subsectores" | "parcelas" | "ingredientes_activos" | "fertilizantes" | "marcas_producto",
+  table:
+    | "productores"
+    | "sectores"
+    | "subsectores"
+    | "parcelas"
+    | "ingredientes_activos"
+    | "fertilizantes"
+    | "marcas_producto",
   serverId: string
 ) {
   const row = db.getFirstSync<{ id: string }>(

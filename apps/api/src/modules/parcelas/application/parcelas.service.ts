@@ -7,7 +7,10 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { QueryFailedError, Repository } from "typeorm";
 
-import { createPaginatedMeta, createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
 import {
   createGeoJsonFeature,
   createGeoJsonFeatureCollection,
@@ -60,7 +63,9 @@ export class ParcelasService {
       });
 
       if (existing) {
-        existing.subsector = await this.ensureSubsectorExists(createParcelaDto.subsectorId);
+        existing.subsector = await this.ensureSubsectorExists(
+          createParcelaDto.subsectorId
+        );
 
         return createSuccessResponse(this.toResponse(existing));
       }
@@ -75,7 +80,14 @@ export class ParcelasService {
     );
     const code = await this.generateNextCode();
 
-    const referencePoint = validatePointGeometry(createParcelaDto.referencePoint);
+    const referencePoint = validatePointGeometry(
+      createParcelaDto.referencePoint,
+      "referencePoint"
+    );
+    const parcelReferencePoint = validatePointGeometry(
+      createParcelaDto.parcelReferencePoint,
+      "parcelReferencePoint"
+    );
     const geometry = validateMultiPolygonGeometry(createParcelaDto.geometry);
     const areaHectares = normalizeAreaHectares(createParcelaDto.areaHectares);
     await this.assertGeodataRules({
@@ -92,6 +104,7 @@ export class ParcelasService {
       areaHectares,
       description: createParcelaDto.description ?? null,
       referencePoint,
+      parcelReferencePoint,
       geometry,
       isActive: createParcelaDto.isActive ?? true
     });
@@ -119,7 +132,10 @@ export class ParcelasService {
   }
 
   async findMap(query: FindParcelasSummaryQueryDto, currentUser?: CurrentUserContext) {
-    const parcelas = await this.createFindEntitiesQueryBuilder(query, currentUser).getMany();
+    const parcelas = await this.createFindEntitiesQueryBuilder(
+      query,
+      currentUser
+    ).getMany();
     const featureCollection = createGeoJsonFeatureCollection(
       parcelas.flatMap((parcela) => this.toMapFeatures(parcela))
     );
@@ -195,12 +211,21 @@ export class ParcelasService {
         : {}),
       ...(updateParcelaDto.referencePoint !== undefined
         ? {
-            referencePoint: validatePointGeometry(updateParcelaDto.referencePoint)
+            referencePoint: validatePointGeometry(
+              updateParcelaDto.referencePoint,
+              "referencePoint"
+            )
           }
         : {}),
-      ...(updateParcelaDto.geometry !== undefined
-        ? { geometry: nextGeometry }
+      ...(updateParcelaDto.parcelReferencePoint !== undefined
+        ? {
+            parcelReferencePoint: validatePointGeometry(
+              updateParcelaDto.parcelReferencePoint,
+              "parcelReferencePoint"
+            )
+          }
         : {}),
+      ...(updateParcelaDto.geometry !== undefined ? { geometry: nextGeometry } : {}),
       ...(updateParcelaDto.isActive !== undefined
         ? { isActive: updateParcelaDto.isActive }
         : {}),
@@ -408,10 +433,7 @@ export class ParcelasService {
     return parcela;
   }
 
-  private async ensureSubsectorExists(
-    subsectorId: string,
-    useNotFoundException = false
-  ) {
+  private async ensureSubsectorExists(subsectorId: string, useNotFoundException = false) {
     const subsector = await this.subsectoresRepository.findOne({
       where: { id: subsectorId }
     });
@@ -548,8 +570,7 @@ export class ParcelasService {
 
       if (
         databaseError?.code === "23505" &&
-        (databaseError.constraint ===
-          "parcelas_productor_id_subsector_id_codigo_key" ||
+        (databaseError.constraint === "parcelas_productor_id_subsector_id_codigo_key" ||
           databaseError.constraint === "uq_parcelas_productor_subsector_codigo")
       ) {
         throw new ConflictException(
@@ -584,6 +605,7 @@ export class ParcelasService {
 
   private toResponse(parcela: ParcelaEntity) {
     const referencePoint = normalizeGeoJsonPoint(parcela.referencePoint);
+    const parcelReferencePoint = normalizeGeoJsonPoint(parcela.parcelReferencePoint);
     const geometry = normalizeGeoJsonMultiPolygon(parcela.geometry);
     const sectorId = this.getDerivedSectorId(parcela);
 
@@ -598,12 +620,15 @@ export class ParcelasService {
       areaHectares: parcela.areaHectares,
       description: parcela.description,
       referencePoint,
+      parcelReferencePoint,
       geometry,
       agronomoUsuarioId: parcela.agronomoUsuarioId ?? null,
       geo: {
         point: referencePoint,
+        parcelPoint: parcelReferencePoint,
         polygon: geometry,
-        hasGeodata: referencePoint !== null || geometry !== null
+        hasGeodata:
+          referencePoint !== null || parcelReferencePoint !== null || geometry !== null
       },
       isActive: parcela.isActive,
       createdAt: parcela.createdAt,
@@ -613,6 +638,7 @@ export class ParcelasService {
 
   private toMapFeatures(parcela: ParcelaEntity) {
     const referencePoint = normalizeGeoJsonPoint(parcela.referencePoint);
+    const parcelReferencePoint = normalizeGeoJsonPoint(parcela.parcelReferencePoint);
     const geometry = normalizeGeoJsonMultiPolygon(parcela.geometry);
     const sectorId = this.getDerivedSectorId(parcela);
     const baseProperties = {
@@ -643,6 +669,14 @@ export class ParcelasService {
           geometryRole: "reference_point"
         },
         `parcela-${parcela.id}-reference-point`
+      ),
+      createGeoJsonFeature(
+        parcelReferencePoint,
+        {
+          ...baseProperties,
+          geometryRole: "parcel_reference_point"
+        },
+        `parcela-${parcela.id}-parcel-reference-point`
       )
     ];
   }
@@ -710,7 +744,10 @@ function normalizeParcelaName(value: string | null | undefined): string {
     .toLowerCase();
 }
 
-function validatePointGeometry(value: unknown): PointGeometry | null {
+function validatePointGeometry(
+  value: unknown,
+  fieldName: "referencePoint" | "parcelReferencePoint"
+): PointGeometry | null {
   if (value === undefined || value === null) {
     return null;
   }
@@ -719,16 +756,14 @@ function validatePointGeometry(value: unknown): PointGeometry | null {
 
   if (!normalizedPoint) {
     throw new BadRequestException(
-      "referencePoint must be a valid GeoJSON Point with longitude and latitude in SRID 4326."
+      `${fieldName} must be a valid GeoJSON Point with longitude and latitude in SRID 4326.`
     );
   }
 
   return normalizedPoint;
 }
 
-function validateMultiPolygonGeometry(
-  value: unknown
-): MultiPolygonGeometry | null {
+function validateMultiPolygonGeometry(value: unknown): MultiPolygonGeometry | null {
   if (value === undefined || value === null) {
     return null;
   }

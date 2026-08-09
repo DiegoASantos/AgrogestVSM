@@ -2,12 +2,13 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-04
+last_reviewed: 2026-08-08
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
   - apps/mobile/src/shared/services/api
   - apps/mobile/src/modules/auth
+  - apps/mobile/src/modules/parcelas
   - apps/mobile/src/modules/visita-recetas
 ---
 
@@ -27,6 +28,19 @@ la API cuando vuelva a tener conectividad.
 5. El ID del servidor se guarda junto al ID local.
 6. Se sincronizan evaluaciones, sanidad, notas, riego, labores y receta.
 7. Los registros pasan a `synced`, quedan `pending` o terminan en `error`.
+
+### Parcelas con dos puntos de referencia
+
+El alta mobile de una parcela guarda en la misma transacción SQLite el punto de
+acceso al predio (`reference_point`) y la ubicación interna de la parcela
+(`parcel_reference_point`). Ambos son GeoJSON Point opcionales y pueden tener
+las mismas coordenadas. La creación conserva una sola entrada `parcelas` en la
+outbox; su handler resuelve primero los IDs remotos de productor y subsector y
+envía ambos puntos dentro del mismo payload idempotente.
+
+La migración SQLite 57 es aditiva y deja el punto interno en `NULL` para
+parcelas existentes. El UPSERT del catálogo descarga los dos valores, pero no
+sustituye una parcela local con `sync_status = 'pending'`.
 
 ### Recetas con mezclas
 

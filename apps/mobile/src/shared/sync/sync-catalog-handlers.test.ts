@@ -26,11 +26,7 @@ import { sectoresRepository } from "../../modules/sectores/repositories/sectores
 import { subsectoresRepository } from "../../modules/subsectores/repositories/subsectores.repository";
 import { subsectoresRemote } from "../../modules/subsectores/services/subsectores.remote";
 import type { SyncOutboxItem } from "../database/sync-outbox";
-import {
-  handleParcela,
-  handleProductor,
-  handleSubsector
-} from "./sync-handlers";
+import { handleParcela, handleProductor, handleSubsector } from "./sync-handlers";
 
 function makeEntry(overrides: Partial<SyncOutboxItem> = {}): SyncOutboxItem {
   return {
@@ -117,7 +113,8 @@ describe("catalog sync handlers", () => {
       name: "",
       areaHectares: null,
       description: null,
-      referencePoint: point
+      referencePoint: point,
+      parcelReferencePoint: point
     } as never);
     vi.spyOn(productoresRepository, "getById").mockReturnValue({
       id: "productor-local",
@@ -145,7 +142,8 @@ describe("catalog sync handlers", () => {
         name: null,
         areaHectares: null,
         description: null,
-        referencePoint: point
+        referencePoint: point,
+        parcelReferencePoint: point
       },
       {}
     );

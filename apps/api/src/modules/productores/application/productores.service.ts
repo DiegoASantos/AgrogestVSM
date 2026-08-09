@@ -7,7 +7,10 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { Brackets, QueryFailedError, Repository } from "typeorm";
 
-import { createPaginatedMeta, createSuccessResponse } from "../../../common/http/api-response";
+import {
+  createPaginatedMeta,
+  createSuccessResponse
+} from "../../../common/http/api-response";
 import { ParcelasService } from "../../parcelas/application/parcelas.service";
 import { ParcelaEntity } from "../../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { SectoresService } from "../../sectores/application/sectores.service";
@@ -67,11 +70,11 @@ export class ProductoresService {
     const productor = this.productoresRepository.create({
       entityType,
       documentTypeId:
-        entityType === "persona" ? createProductorDto.documentTypeId ?? null : null,
+        entityType === "persona" ? (createProductorDto.documentTypeId ?? null) : null,
       documentNumber:
-        entityType === "persona" ? createProductorDto.documentNumber ?? null : null,
+        entityType === "persona" ? (createProductorDto.documentNumber ?? null) : null,
       firstName: createProductorDto.firstName ?? null,
-      lastName: entityType === "persona" ? createProductorDto.lastName ?? null : null,
+      lastName: entityType === "persona" ? (createProductorDto.lastName ?? null) : null,
       phone: createProductorDto.phone ?? null,
       email: createProductorDto.email ?? null,
       address: createProductorDto.address ?? null,
@@ -183,9 +186,7 @@ export class ProductoresService {
         const currentSubsectores = accumulator[parcela.subsector.sectorId] ?? [];
 
         if (
-          !currentSubsectores.some(
-            (subsector) => subsector.id === parcela.subsectorId
-          )
+          !currentSubsectores.some((subsector) => subsector.id === parcela.subsectorId)
         ) {
           currentSubsectores.push(parcela.subsector);
         }
@@ -209,10 +210,7 @@ export class ProductoresService {
     });
   }
 
-  async getHistorialVisitas(
-    id: string,
-    query: FindHistorialVisitasProductorQueryDto
-  ) {
+  async getHistorialVisitas(id: string, query: FindHistorialVisitasProductorQueryDto) {
     return this.visitasCampoService.findHistoryByProductorId(id, query);
   }
 
@@ -293,8 +291,7 @@ export class ProductoresService {
     });
 
     try {
-      const savedProductor =
-        await this.productoresRepository.save(updatedProductor);
+      const savedProductor = await this.productoresRepository.save(updatedProductor);
 
       return createSuccessResponse(this.toResponse(savedProductor));
     } catch (error) {
@@ -342,9 +339,7 @@ export class ProductoresService {
     });
 
     if (existingProductor && existingProductor.id !== excludedId) {
-      throw new ConflictException(
-        "A productor with the same document already exists."
-      );
+      throw new ConflictException("A productor with the same document already exists.");
     }
   }
 
@@ -359,12 +354,9 @@ export class ProductoresService {
 
       if (
         databaseError?.code === "23505" &&
-        databaseError.constraint ===
-          "productores_tipo_documento_id_nro_documento_key"
+        databaseError.constraint === "productores_tipo_documento_id_nro_documento_key"
       ) {
-        throw new ConflictException(
-          "A productor with the same document already exists."
-        );
+        throw new ConflictException("A productor with the same document already exists.");
       }
 
       if (
@@ -398,9 +390,7 @@ export class ProductoresService {
 
     if (entityType === "persona") {
       if (!input.lastName) {
-        throw new BadRequestException(
-          "Los apellidos son obligatorios para personas."
-        );
+        throw new BadRequestException("Los apellidos son obligatorios para personas.");
       }
 
       if (
@@ -448,8 +438,7 @@ export class ProductoresService {
       createdAt: sector.createdAt,
       updatedAt: sector.updatedAt,
       parcelasCount: subsectores.reduce(
-        (total, subsector) =>
-          total + (parcelasBySubsectorId[subsector.id]?.length ?? 0),
+        (total, subsector) => total + (parcelasBySubsectorId[subsector.id]?.length ?? 0),
         0
       ),
       subsectores: subsectores.map((subsector) => ({
@@ -473,6 +462,7 @@ export class ProductoresService {
           areaHectares: parcela.areaHectares,
           description: parcela.description,
           referencePoint: parcela.referencePoint,
+          parcelReferencePoint: parcela.parcelReferencePoint,
           geometry: parcela.geometry,
           isActive: parcela.isActive,
           createdAt: parcela.createdAt,

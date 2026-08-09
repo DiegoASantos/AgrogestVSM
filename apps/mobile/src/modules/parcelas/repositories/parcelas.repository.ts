@@ -23,6 +23,7 @@ type ParcelaRow = {
   area_hectares: string | null;
   description: string | null;
   reference_point: string | null;
+  parcel_reference_point: string | null;
   geometry: string | null;
   is_active: number;
   created_at: string;
@@ -43,6 +44,7 @@ const PARCELA_COLUMNS = `
   parcelas.area_hectares AS area_hectares,
   parcelas.description AS description,
   parcelas.reference_point AS reference_point,
+  parcelas.parcel_reference_point AS parcel_reference_point,
   parcelas.geometry AS geometry,
   parcelas.is_active AS is_active,
   parcelas.created_at AS created_at,
@@ -172,10 +174,10 @@ export const parcelasRepository = {
     db.runSync(
       `INSERT INTO parcelas (
         id, public_id, productor_id, subsector_id, code, name,
-        area_hectares, description, reference_point, geometry,
+        area_hectares, description, reference_point, parcel_reference_point, geometry,
         is_active, created_at, updated_at,
         server_id, sync_status, sync_error_message
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       parcela.id,
       parcela.publicId,
       parcela.productorId,
@@ -185,6 +187,7 @@ export const parcelasRepository = {
       parcela.areaHectares,
       parcela.description,
       stringifyNullableJson(parcela.referencePoint),
+      stringifyNullableJson(parcela.parcelReferencePoint),
       stringifyNullableJson(parcela.geometry),
       1,
       parcela.createdAt,
@@ -195,7 +198,16 @@ export const parcelasRepository = {
     );
   },
 
-  update(id: string, data: { serverId?: string | null; syncStatus?: Parcela["syncStatus"]; syncErrorMessage?: string | null; code?: string; publicId?: string }) {
+  update(
+    id: string,
+    data: {
+      serverId?: string | null;
+      syncStatus?: Parcela["syncStatus"];
+      syncErrorMessage?: string | null;
+      code?: string;
+      publicId?: string;
+    }
+  ) {
     const db = getDatabase();
     const sets: string[] = [];
     const params: SQLiteBindValue[] = [];
@@ -241,6 +253,9 @@ function mapParcelaRow(row: ParcelaRow): Parcela {
     areaHectares: row.area_hectares,
     description: row.description,
     referencePoint: normalizeGeoJsonPoint(parseNullableJson(row.reference_point)),
+    parcelReferencePoint: normalizeGeoJsonPoint(
+      parseNullableJson(row.parcel_reference_point)
+    ),
     geometry: normalizeGeoJsonMultiPolygon(parseNullableJson(row.geometry)),
     isActive: fromSqliteBoolean(row.is_active),
     createdAt: row.created_at,

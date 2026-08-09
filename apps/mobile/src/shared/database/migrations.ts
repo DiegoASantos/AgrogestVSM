@@ -1386,12 +1386,7 @@ const MIGRATIONS: Migration[] = [
   {
     version: 56,
     run(db: SQLiteDatabase) {
-      addColumnIfMissing(
-        db,
-        "visita_receta_mezcla",
-        "cantidad_total_producto",
-        "TEXT"
-      );
+      addColumnIfMissing(db, "visita_receta_mezcla", "cantidad_total_producto", "TEXT");
       db.execSync(
         `UPDATE visita_receta_mezcla
          SET cantidad_total_producto = (
@@ -1403,6 +1398,12 @@ const MIGRATIONS: Migration[] = [
          )
          WHERE cantidad_total_producto IS NULL`
       );
+    }
+  },
+  {
+    version: 57,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "parcelas", "parcel_reference_point", "TEXT");
     }
   }
 ];

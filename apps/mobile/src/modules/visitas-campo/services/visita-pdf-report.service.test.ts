@@ -320,6 +320,7 @@ function buildParcela(overrides: Partial<Parcela> = {}): Parcela {
     areaHectares: "3.25",
     description: null,
     referencePoint: null,
+    parcelReferencePoint: null,
     geometry: null,
     isActive: true,
     createdAt: now,

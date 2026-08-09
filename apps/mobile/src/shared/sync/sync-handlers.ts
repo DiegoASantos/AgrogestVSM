@@ -656,7 +656,8 @@ export async function handleParcela(
     name: parcela.name || null,
     areaHectares: parcela.areaHectares,
     description: parcela.description,
-    referencePoint: parcela.referencePoint
+    referencePoint: parcela.referencePoint,
+    parcelReferencePoint: parcela.parcelReferencePoint
   };
   const response =
     entry.operation === "update" && parcela.serverId
