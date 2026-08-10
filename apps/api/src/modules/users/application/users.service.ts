@@ -12,6 +12,14 @@ import { UserEntity } from "../infrastructure/persistence/entities/user.entity";
 import { CreateUserDto } from "../presentation/dto/create-user.dto";
 import { UpdateUserDto } from "../presentation/dto/update-user.dto";
 
+export type SelfProfileUpdate = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  passwordHash?: string;
+};
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -121,6 +129,42 @@ export class UsersService {
       const persistedUser = await this.findAdminEntityById(id);
 
       return createSuccessResponse(this.toAdminResponse(persistedUser));
+    } catch (error) {
+      this.handlePersistenceError(error);
+    }
+  }
+
+  async updateSelfProfile(
+    publicId: string,
+    updateData: SelfProfileUpdate
+  ): Promise<UserEntity> {
+    const user = await this.findByPublicIdWithRoles(publicId);
+
+    if (!user) {
+      throw new NotFoundException("Usuario not found.");
+    }
+
+    const updatedUser = this.usersRepository.merge(user, {
+      firstName: updateData.firstName,
+      lastName: updateData.lastName,
+      email: updateData.email,
+      ...(updateData.phone !== undefined
+        ? { phone: updateData.phone }
+        : {}),
+      ...(updateData.passwordHash !== undefined
+        ? { passwordHash: updateData.passwordHash }
+        : {})
+    });
+
+    try {
+      await this.usersRepository.save(updatedUser);
+      const persistedUser = await this.findByPublicIdWithRoles(publicId);
+
+      if (!persistedUser) {
+        throw new NotFoundException("Usuario not found.");
+      }
+
+      return persistedUser;
     } catch (error) {
       this.handlePersistenceError(error);
     }

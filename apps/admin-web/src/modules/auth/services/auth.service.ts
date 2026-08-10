@@ -1,5 +1,5 @@
-import { apiRequest, ApiError } from "../../../shared/services";
-import type { AuthRole, AuthSession, AuthUser, LoginValues } from "../types/auth.types";
+import { apiRequest, ApiError, createAuthHeaders } from "../../../shared/services";
+import type { AuthRole, AuthSession, AuthUser, LoginValues, UpdateProfileValues } from "../types/auth.types";
 
 type LoginApiResponse = {
   accessToken: string;
@@ -73,6 +73,34 @@ export const authService = {
 
       throw error;
     }
+  },
+
+  async updateProfile(
+    session: AuthSession,
+    values: Omit<UpdateProfileValues, "confirmNewPassword">
+  ) {
+    const body: Record<string, string> = {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      email: values.email
+    };
+
+    if (values.phone) {
+      body.phone = values.phone;
+    }
+
+    if (values.currentPassword && values.newPassword) {
+      body.currentPassword = values.currentPassword;
+      body.newPassword = values.newPassword;
+    }
+
+    const response = await apiRequest<AuthUserApiResponse>("/auth/me", {
+      method: "PATCH",
+      body,
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+
+    return mapAuthUser(response);
   }
 };
 

@@ -1,8 +1,14 @@
 import { randomUUID } from "node:crypto";
 
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException
+} from "@nestjs/common";
 import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
-import { compare } from "bcrypt";
+import { compare, hash } from "bcrypt";
+
+import { UpdateProfileDto } from "../presentation/dto/update-profile.dto";
 
 type JwtExpiresIn = NonNullable<JwtSignOptions["expiresIn"]>;
 
@@ -158,6 +164,60 @@ export class AuthService {
     }
 
     return createSuccessResponse(toAuthenticatedUserProfile(user));
+  }
+
+  async updateAuthenticatedUser(
+    accessTokenPayload: AccessTokenPayload,
+    updateProfileDto: UpdateProfileDto
+  ) {
+    const user = await this.usersService.findByPublicIdWithRoles(
+      accessTokenPayload.sub
+    );
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException("Authentication is required.");
+    }
+
+    if (
+      updateProfileDto.newPassword !== undefined &&
+      updateProfileDto.newPassword !== null
+    ) {
+      if (
+        !updateProfileDto.currentPassword ||
+        updateProfileDto.currentPassword.trim().length === 0
+      ) {
+        throw new BadRequestException(
+          "Current password is required to change password."
+        );
+      }
+
+      const passwordMatches = await compare(
+        updateProfileDto.currentPassword,
+        user.passwordHash
+      );
+
+      if (!passwordMatches) {
+        throw new BadRequestException("Current password is incorrect.");
+      }
+    }
+
+    const updatedUser = await this.usersService.updateSelfProfile(
+      accessTokenPayload.sub,
+      {
+        firstName: updateProfileDto.firstName,
+        lastName: updateProfileDto.lastName,
+        email: updateProfileDto.email,
+        ...(updateProfileDto.phone !== undefined
+          ? { phone: updateProfileDto.phone ?? undefined }
+          : {}),
+        ...(updateProfileDto.newPassword !== undefined &&
+        updateProfileDto.newPassword !== null
+          ? { passwordHash: await hash(updateProfileDto.newPassword, 10) }
+          : {})
+      }
+    );
+
+    return createSuccessResponse(toAuthenticatedUserProfile(updatedUser));
   }
 
   private signAccessToken(payload: AccessTokenPayload): Promise<string> {

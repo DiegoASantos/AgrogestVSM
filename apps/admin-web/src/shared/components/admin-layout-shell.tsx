@@ -42,6 +42,7 @@ import {
   isAdminSession,
   isAnalystSession
 } from "../../modules/auth/utils/authorization";
+import { ProfileModal } from "../../modules/auth/components/profile-modal";
 import { useTheme } from "../hooks/use-theme";
 import { NotificationBell } from "./notification-bell";
 import {
@@ -106,6 +107,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const isAdmin = isAdminSession(session);
   const isAnalyst = isAnalystSession(session);
   const canAccessCurrentRoute = canAccessAdminPath(pathname, session);
@@ -138,7 +140,11 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
             </article>
           </section>
         </div>
-      </main>
+      <ProfileModal
+        open={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+      />
+    </main>
     );
   }
 
@@ -146,7 +152,11 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
     return null;
   }
 
-  const userInitials = getInitials(session.user.displayName);
+  const shortName = shortenName(
+    session.user.firstName,
+    session.user.lastName
+  );
+  const userInitials = getInitials(shortName);
 
   return (
     <main
@@ -255,7 +265,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
                 aria-haspopup="menu"
               >
                 <div className="topbar-user-pill__avatar">{userInitials}</div>
-                <span className="topbar-user-pill__name">{session.user.displayName}</span>
+                <span className="topbar-user-pill__name">{shortName}</span>
                 <ChevronDown
                   size={14}
                   className={`topbar-user-pill__chevron${
@@ -265,13 +275,15 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
               </button>
               {userMenuOpen ? (
                 <div className="topbar-user-dropdown" role="menu">
-                  <div className="topbar-user-dropdown__meta">
-                    <strong>{session.user.displayName}</strong>
-                    <span>
-                      {session.user.roles.map((role) => role.code).join(", ") ||
-                        "Sin roles"}
-                    </span>
-                  </div>
+                  <button
+                    className="topbar-user-dropdown__profile"
+                    onClick={handleOpenProfile}
+                    type="button"
+                    role="menuitem"
+                  >
+                    <User size={16} />
+                    <span>Perfil</span>
+                  </button>
                   <button
                     className="topbar-user-dropdown__logout"
                     onClick={handleLogout}
@@ -321,6 +333,11 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
   function handleLogout() {
     logout();
     router.replace(adminRoutes.login);
+  }
+
+  function handleOpenProfile() {
+    setUserMenuOpen(false);
+    setProfileModalOpen(true);
   }
 }
 
@@ -408,4 +425,11 @@ function getInitials(name: string) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+}
+
+function shortenName(firstName: string, lastName: string) {
+  const first = firstName.trim().split(" ")[0] ?? "";
+  const last = lastName.trim().split(" ")[0] ?? "";
+
+  return `${first} ${last}`.trim();
 }

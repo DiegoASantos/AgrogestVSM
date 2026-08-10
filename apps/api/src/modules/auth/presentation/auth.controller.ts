@@ -5,6 +5,7 @@ import {
   Header,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   UseGuards
 } from "@nestjs/common";
@@ -21,6 +22,7 @@ import {
 import { AuthService } from "../application/auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { CurrentAuthUser } from "./decorators/current-auth-user.decorator";
 import { Public } from "./decorators/public.decorator";
 import { Roles } from "./decorators/roles.decorator";
@@ -272,5 +274,30 @@ export class AuthController {
   @Header("Cache-Control", "no-store")
   getAuthenticatedUser(@CurrentAuthUser() accessTokenPayload: AccessTokenPayload) {
     return this.authService.getAuthenticatedUser(accessTokenPayload);
+  }
+
+  @Patch("me")
+  @ApiBearerAuth("access-token")
+  @ApiOperation({
+    summary:
+      "Actualiza los datos personales y/o contrasena del usuario autenticado."
+  })
+  @ApiBody({ type: UpdateProfileDto })
+  @ApiOkResponse({
+    description: "Perfil actualizado correctamente."
+  })
+  @ApiUnauthorizedResponse({
+    description: "Token ausente, invalido o expirado."
+  })
+  @Header("Cache-Control", "no-store")
+  @HttpCode(HttpStatus.OK)
+  updateAuthenticatedUser(
+    @CurrentAuthUser() accessTokenPayload: AccessTokenPayload,
+    @Body() updateProfileDto: UpdateProfileDto
+  ) {
+    return this.authService.updateAuthenticatedUser(
+      accessTokenPayload,
+      updateProfileDto
+    );
   }
 }

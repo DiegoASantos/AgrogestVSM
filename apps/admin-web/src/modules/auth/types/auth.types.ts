@@ -40,3 +40,13 @@ export type AuthContextValue = {
   logout: () => void;
   refreshUser: () => Promise<void>;
 };
+
+export type UpdateProfileValues = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+};
