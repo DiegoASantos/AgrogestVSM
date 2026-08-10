@@ -3600,6 +3600,125 @@ canvas {
   resize: vertical;
 }
 
+/* ---- Profile Form ---- */
+.profile-form {
+  display: grid;
+  gap: 24px;
+}
+
+.profile-section {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.profile-section--password {
+  border-color: rgba(234, 179, 8, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(234, 179, 8, 0.03) 0%,
+    transparent 50%
+  );
+}
+
+.profile-section__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-section__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.profile-section__badge--required {
+  color: var(--danger);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: var(--danger-soft);
+}
+
+.profile-section__badge--optional {
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+}
+
+.profile-section__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.profile-section__desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: -8px 0 0;
+}
+
+.profile-section__body {
+  display: grid;
+  gap: 14px;
+}
+
+.field-group--icon .field-group__input-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.field-group--icon .field-group__input-wrapper input {
+  padding-left: 38px;
+}
+
+.field-group__icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.profile-form__error {
+  padding: 10px 14px;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+}
+
+.profile-form__error .form-error {
+  margin: 0;
+}
+
+.profile-form__success {
+  padding: 10px 14px;
+  border: 1px solid rgba(22, 163, 74, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(22, 163, 74, 0.06);
+}
+
+.profile-form__success .form-success {
+  margin: 0;
+}
+
+.profile-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
 .searchable-select {
   position: relative;
 }

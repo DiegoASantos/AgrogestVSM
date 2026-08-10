@@ -89,8 +89,7 @@ export const authService = {
       body.phone = values.phone;
     }
 
-    if (values.currentPassword && values.newPassword) {
-      body.currentPassword = values.currentPassword;
+    if (values.newPassword) {
       body.newPassword = values.newPassword;
     }
 

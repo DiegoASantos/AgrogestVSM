@@ -46,7 +46,6 @@ export type UpdateProfileValues = {
   lastName: string;
   email: string;
   phone: string;
-  currentPassword: string;
   newPassword: string;
   confirmNewPassword: string;
 };

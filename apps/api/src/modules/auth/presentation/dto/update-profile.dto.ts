@@ -6,8 +6,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
-  MinLength,
-  ValidateIf
+  MinLength
 } from "class-validator";
 
 import {
@@ -53,23 +52,12 @@ export class UpdateProfileDto {
   phone?: string;
 
   @ApiPropertyOptional({
-    description: "Required when newPassword is provided",
-    example: "ClaveActual123"
-  })
-  @Transform(({ value }) => trimOptionalString(value))
-  @ValidateIf((dto) => dto.newPassword !== undefined && dto.newPassword !== null)
-  @IsString()
-  @IsNotEmpty()
-  currentPassword?: string;
-
-  @ApiPropertyOptional({
-    description: "New password (min 6 characters). Requires currentPassword.",
+    description: "New password (min 6 characters).",
     example: "NuevaClave456"
   })
   @Transform(({ value }) => trimOptionalString(value))
-  @ValidateIf((dto) => dto.currentPassword !== undefined && dto.currentPassword !== null)
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MinLength(6)
   newPassword?: string;
 }

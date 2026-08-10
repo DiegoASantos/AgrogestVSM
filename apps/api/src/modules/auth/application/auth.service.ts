@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  BadRequestException,
   Injectable,
   UnauthorizedException
 } from "@nestjs/common";
@@ -178,29 +177,6 @@ export class AuthService {
       throw new UnauthorizedException("Authentication is required.");
     }
 
-    if (
-      updateProfileDto.newPassword !== undefined &&
-      updateProfileDto.newPassword !== null
-    ) {
-      if (
-        !updateProfileDto.currentPassword ||
-        updateProfileDto.currentPassword.trim().length === 0
-      ) {
-        throw new BadRequestException(
-          "Current password is required to change password."
-        );
-      }
-
-      const passwordMatches = await compare(
-        updateProfileDto.currentPassword,
-        user.passwordHash
-      );
-
-      if (!passwordMatches) {
-        throw new BadRequestException("Current password is incorrect.");
-      }
-    }
-
     const updatedUser = await this.usersService.updateSelfProfile(
       accessTokenPayload.sub,
       {
@@ -211,7 +187,8 @@ export class AuthService {
           ? { phone: updateProfileDto.phone ?? undefined }
           : {}),
         ...(updateProfileDto.newPassword !== undefined &&
-        updateProfileDto.newPassword !== null
+        updateProfileDto.newPassword !== null &&
+        updateProfileDto.newPassword.trim().length > 0
           ? { passwordHash: await hash(updateProfileDto.newPassword, 10) }
           : {})
       }
