@@ -8,6 +8,7 @@ export const siteConfig = {
 export const adminRoutes = {
   home: "/",
   login: "/login",
+  perfil: "/perfil",
   dashboard: "/dashboard",
   visitas: "/visitas",
   mapas: "/mapas",

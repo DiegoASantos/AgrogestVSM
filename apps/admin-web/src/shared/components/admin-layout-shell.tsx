@@ -42,7 +42,6 @@ import {
   isAdminSession,
   isAnalystSession
 } from "../../modules/auth/utils/authorization";
-import { ProfileModal } from "../../modules/auth/components/profile-modal";
 import { useTheme } from "../hooks/use-theme";
 import { NotificationBell } from "./notification-bell";
 import {
@@ -107,7 +106,6 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const isAdmin = isAdminSession(session);
   const isAnalyst = isAnalystSession(session);
   const canAccessCurrentRoute = canAccessAdminPath(pathname, session);
@@ -140,10 +138,6 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
             </article>
           </section>
         </div>
-      <ProfileModal
-        open={profileModalOpen}
-        onClose={() => setProfileModalOpen(false)}
-      />
     </main>
     );
   }
@@ -337,7 +331,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
 
   function handleOpenProfile() {
     setUserMenuOpen(false);
-    setProfileModalOpen(true);
+    router.push(adminRoutes.perfil);
   }
 }
 
