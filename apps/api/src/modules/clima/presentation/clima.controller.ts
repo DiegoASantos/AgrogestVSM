@@ -4,7 +4,7 @@ import { Roles } from '../../auth/presentation/decorators/roles.decorator';
 import { ClimaService } from '../application/clima.service';
 
 @ApiTags('Clima')
-@Roles('ADMIN')
+@Roles('ADMIN', 'ANALISTA')
 @Controller('clima')
 export class ClimaController {
   constructor(private readonly climaService: ClimaService) {}
