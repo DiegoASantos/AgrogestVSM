@@ -395,4 +395,159 @@ describe("UsersService", () => {
       await expect(service.removeAdmin("999")).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe("#updateSelfProfile", () => {
+    const publicId = "u1b2c3d4-e5f6-7890-abcd-ef1234567890";
+
+    it("should find user by publicId, merge fields, save, and re-query with roles", async () => {
+      const existing = makeUser({ firstName: "Old", lastName: "Name" });
+      const qbFind = makeAuthQueryBuilder(existing);
+      const qbRequery = makeAuthQueryBuilder(
+        makeUser({ firstName: "New", lastName: "Profile" })
+      );
+      repo.createQueryBuilder
+        .mockReturnValueOnce(qbFind)
+        .mockReturnValueOnce(qbRequery);
+      repo.merge.mockReturnValue(
+        makeUser({ firstName: "New", lastName: "Profile" })
+      );
+      repo.save.mockResolvedValue({});
+
+      const result = await service.updateSelfProfile(publicId, {
+        firstName: "New",
+        lastName: "Profile",
+        email: "updated@agrogest.pe"
+      });
+
+      expect(repo.createQueryBuilder).toHaveBeenCalledTimes(2);
+      expect(repo.merge).toHaveBeenCalledWith(
+        existing,
+        expect.objectContaining({
+          firstName: "New",
+          lastName: "Profile",
+          email: "updated@agrogest.pe"
+        })
+      );
+      expect(repo.save).toHaveBeenCalled();
+      expect(result.firstName).toBe("New");
+      expect(result.lastName).toBe("Profile");
+    });
+
+    it("should hash and update password when passwordHash is provided", async () => {
+      const existing = makeUser();
+      const qbFind = makeAuthQueryBuilder(existing);
+      const updatedUser = makeUser({ passwordHash: "$2b$hashed" });
+      const qbRequery = makeAuthQueryBuilder(updatedUser);
+      repo.createQueryBuilder
+        .mockReturnValueOnce(qbFind)
+        .mockReturnValueOnce(qbRequery);
+      repo.merge.mockReturnValue(updatedUser);
+      repo.save.mockResolvedValue({});
+
+      const result = await service.updateSelfProfile(publicId, {
+        firstName: "Juan",
+        lastName: "Perez",
+        email: "juan@agrogest.pe",
+        passwordHash: "$2b$hashed"
+      });
+
+      expect(repo.merge).toHaveBeenCalledWith(
+        existing,
+        expect.objectContaining({ passwordHash: "$2b$hashed" })
+      );
+      expect(result.passwordHash).toBe("$2b$hashed");
+    });
+
+    it("should set phone to a value when provided", async () => {
+      const existing = makeUser({ phone: null });
+      const qbFind = makeAuthQueryBuilder(existing);
+      const updatedUser = makeUser({ phone: "999888777" });
+      const qbRequery = makeAuthQueryBuilder(updatedUser);
+      repo.createQueryBuilder
+        .mockReturnValueOnce(qbFind)
+        .mockReturnValueOnce(qbRequery);
+      repo.merge.mockReturnValue(updatedUser);
+      repo.save.mockResolvedValue({});
+
+      const result = await service.updateSelfProfile(publicId, {
+        firstName: "Juan",
+        lastName: "Perez",
+        email: "juan@agrogest.pe",
+        phone: "999888777"
+      });
+
+      expect(repo.merge).toHaveBeenCalledWith(
+        existing,
+        expect.objectContaining({ phone: "999888777" })
+      );
+      expect(result.phone).toBe("999888777");
+    });
+
+    it("should not include phone in merge when undefined", async () => {
+      const existing = makeUser({ phone: "oldphone" });
+      const qbFind = makeAuthQueryBuilder(existing);
+      const qbRequery = makeAuthQueryBuilder(existing);
+      repo.createQueryBuilder
+        .mockReturnValueOnce(qbFind)
+        .mockReturnValueOnce(qbRequery);
+      repo.merge.mockReturnValue(existing);
+      repo.save.mockResolvedValue({});
+
+      await service.updateSelfProfile(publicId, {
+        firstName: "Juan",
+        lastName: "Perez",
+        email: "juan@agrogest.pe"
+      });
+
+      const mergedWith = repo.merge.mock.calls[0][1] as Record<string, unknown>;
+      expect(mergedWith).not.toHaveProperty("phone");
+    });
+
+    it("should throw NotFoundException when user not found by publicId", async () => {
+      const qb = makeAuthQueryBuilder(null);
+      repo.createQueryBuilder.mockReturnValue(qb);
+
+      await expect(
+        service.updateSelfProfile(publicId, {
+          firstName: "X",
+          lastName: "Y",
+          email: "x@test.com"
+        })
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("should throw ConflictException on unique email constraint", async () => {
+      const qb = makeAuthQueryBuilder(makeUser());
+      repo.createQueryBuilder
+        .mockReturnValueOnce(qb)
+        .mockReturnValueOnce(makeAuthQueryBuilder(makeUser()));
+      repo.merge.mockReturnValue(makeUser());
+      repo.save.mockRejectedValue(makeUniqueViolation("ux_usuarios_email_lower"));
+
+      await expect(
+        service.updateSelfProfile(publicId, {
+          firstName: "Juan",
+          lastName: "Perez",
+          email: "taken@agrogest.pe"
+        })
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("should re-throw non-unique-constraint errors", async () => {
+      const qb = makeAuthQueryBuilder(makeUser());
+      repo.createQueryBuilder
+        .mockReturnValueOnce(qb)
+        .mockReturnValueOnce(makeAuthQueryBuilder(makeUser()));
+      repo.merge.mockReturnValue(makeUser());
+      repo.save.mockRejectedValue(new Error("disk full"));
+
+      await expect(
+        service.updateSelfProfile(publicId, {
+          firstName: "Juan",
+          lastName: "Perez",
+          email: "juan@agrogest.pe"
+        })
+      ).rejects.toThrow("disk full");
+    });
+  });
 });

@@ -2,13 +2,14 @@ import { UnauthorizedException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthService } from "./auth.service";
-import type { RefreshTokenPayload } from "../types/auth.types";
+import type { AccessTokenPayload, RefreshTokenPayload } from "../types/auth.types";
 
 vi.mock("bcrypt", () => ({
-  compare: vi.fn()
+  compare: vi.fn(),
+  hash: vi.fn()
 }));
 
-import { compare } from "bcrypt";
+import { compare, hash } from "bcrypt";
 
 type JwtServiceMock = {
   signAsync: ReturnType<typeof vi.fn>;
@@ -19,6 +20,7 @@ type UsersServiceMock = {
   findByEmail: ReturnType<typeof vi.fn>;
   findByPublicIdWithRoles: ReturnType<typeof vi.fn>;
   isReady: ReturnType<typeof vi.fn>;
+  updateSelfProfile: ReturnType<typeof vi.fn>;
 };
 
 const ACCESS_SECRET = "test-access-secret-at-least-32-chars!!";
@@ -76,7 +78,8 @@ function buildService() {
   const users: UsersServiceMock = {
     findByEmail: vi.fn(),
     findByPublicIdWithRoles: vi.fn(),
-    isReady: vi.fn().mockReturnValue(true)
+    isReady: vi.fn().mockReturnValue(true),
+    updateSelfProfile: vi.fn()
   };
 
   const roles = { isReady: vi.fn().mockReturnValue(true) };
@@ -102,6 +105,7 @@ function buildService() {
 describe("AuthService", () => {
   beforeEach(() => {
     vi.mocked(compare).mockReset();
+    vi.mocked(hash).mockReset();
   });
 
   describe("login", () => {
@@ -296,6 +300,123 @@ describe("AuthService", () => {
 
       expect(response.data.revoked).toBe(true);
       expect(refreshSessions.revoke).toHaveBeenCalledWith("session-id-1");
+    });
+  });
+
+  describe("updateAuthenticatedUser", () => {
+    const accessPayload: AccessTokenPayload = {
+      sub: "public-id-1",
+      userId: "user-id-1",
+      email: "admin@agrogest.pe",
+      roles: ["ADMIN"]
+    };
+
+    function makeProfileDto(overrides: Record<string, string> = {}) {
+      return {
+        firstName: "Juan",
+        lastName: "Perez",
+        email: "juan@agrogest.pe",
+        ...overrides
+      };
+    }
+
+    it("updates profile fields without password change", async () => {
+      const { service, users } = buildService();
+      const user = makeUser();
+      users.findByPublicIdWithRoles.mockResolvedValue(user);
+      users.updateSelfProfile.mockResolvedValue({
+        ...user,
+        firstName: "Carlos",
+        lastName: "Lopez"
+      });
+
+      const response = await service.updateAuthenticatedUser(
+        accessPayload,
+        makeProfileDto({ firstName: "Carlos", lastName: "Lopez" })
+      );
+
+      expect(users.findByPublicIdWithRoles).toHaveBeenCalledWith("public-id-1");
+      expect(users.updateSelfProfile).toHaveBeenCalledWith(
+        "public-id-1",
+        expect.objectContaining({
+          firstName: "Carlos",
+          lastName: "Lopez",
+          email: "juan@agrogest.pe"
+        })
+      );
+      expect(hash).not.toHaveBeenCalled();
+      expect(response.success).toBe(true);
+      expect(response.data.firstName).toBe("Carlos");
+    });
+
+    it("hashes and updates password when newPassword is provided", async () => {
+      const { service, users } = buildService();
+      users.findByPublicIdWithRoles.mockResolvedValue(makeUser());
+      users.updateSelfProfile.mockResolvedValue(makeUser());
+      vi.mocked(hash).mockResolvedValue("$2b$10$newhash" as never);
+
+      const response = await service.updateAuthenticatedUser(
+        accessPayload,
+        makeProfileDto({ newPassword: "newpassword123" })
+      );
+
+      expect(hash).toHaveBeenCalledWith("newpassword123", 10);
+      expect(users.updateSelfProfile).toHaveBeenCalledWith(
+        "public-id-1",
+        expect.objectContaining({ passwordHash: "$2b$10$newhash" })
+      );
+      expect(response.success).toBe(true);
+    });
+
+    it("does not hash when newPassword is an empty string", async () => {
+      const { service, users } = buildService();
+      users.findByPublicIdWithRoles.mockResolvedValue(makeUser());
+      users.updateSelfProfile.mockResolvedValue(makeUser());
+
+      await service.updateAuthenticatedUser(
+        accessPayload,
+        makeProfileDto({ newPassword: "   " })
+      );
+
+      expect(hash).not.toHaveBeenCalled();
+    });
+
+    it("throws UnauthorizedException when user not found by sub", async () => {
+      const { service, users } = buildService();
+      users.findByPublicIdWithRoles.mockResolvedValue(null);
+
+      await expect(
+        service.updateAuthenticatedUser(accessPayload, makeProfileDto())
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it("throws UnauthorizedException when user is inactive", async () => {
+      const { service, users } = buildService();
+      users.findByPublicIdWithRoles.mockResolvedValue(
+        makeUser({ isActive: false })
+      );
+
+      await expect(
+        service.updateAuthenticatedUser(accessPayload, makeProfileDto())
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it("passes phone and omits passwordHash when not changing password", async () => {
+      const { service, users } = buildService();
+      users.findByPublicIdWithRoles.mockResolvedValue(makeUser());
+      users.updateSelfProfile.mockResolvedValue(makeUser());
+
+      await service.updateAuthenticatedUser(
+        accessPayload,
+        makeProfileDto({ phone: "999888777" })
+      );
+
+      expect(users.updateSelfProfile).toHaveBeenCalledWith(
+        "public-id-1",
+        expect.objectContaining({ phone: "999888777" })
+      );
+      const callArgs = users.updateSelfProfile.mock.calls[0][1];
+      expect(callArgs).not.toHaveProperty("passwordHash");
     });
   });
 });
