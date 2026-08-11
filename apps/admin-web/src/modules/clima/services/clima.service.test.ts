@@ -52,6 +52,26 @@ describe("climaService", () => {
     expect(fetchUrl()).toContain("/clima/historico?punto_id=p1");
   });
 
+  it("gets WeatherLink station history and status", async () => {
+    await climaService.getStationHistory(session, "station/1");
+    expect(fetchUrl()).toContain("/clima/historico?estacion_id=station%2F1");
+
+    await climaService.getWeatherLinkStatus(session);
+    expect(fetchUrl()).toContain("/clima/fuentes/weatherlink/estado");
+  });
+
+  it("starts sync and serializes station activation once", async () => {
+    await climaService.forceWeatherLinkSync(session);
+    expect(fetchOptions()).toMatchObject({ method: "POST" });
+
+    await climaService.updateWeatherLinkStation(session, "station-1", false);
+    expect(fetchUrl()).toContain("/clima/estaciones/station-1/activo");
+    expect(fetchOptions()).toMatchObject({
+      method: "PUT",
+      body: JSON.stringify({ isActive: false })
+    });
+  });
+
   it("getPoints calls /clima/puntos", async () => {
     await climaService.getPoints(session);
     expect(fetchUrl()).toContain("/clima/puntos");

@@ -20,6 +20,15 @@ export const appConfig = registerAs("app", (): AppRuntimeConfig => {
       ttlMs: environment.LOGIN_RATE_LIMIT_TTL_MS,
       max: environment.LOGIN_RATE_LIMIT_MAX,
       blockDurationMs: environment.LOGIN_RATE_LIMIT_BLOCK_MS
+    },
+    weatherLink: {
+      enabled: environment.WEATHERLINK_ENABLED,
+      apiKey: environment.WEATHERLINK_API_KEY,
+      apiSecret: environment.WEATHERLINK_API_SECRET,
+      dailySyncHour: environment.WEATHERLINK_DAILY_SYNC_HOUR,
+      timeZone: environment.WEATHERLINK_TIME_ZONE,
+      catchupMaxDays: environment.WEATHERLINK_CATCHUP_MAX_DAYS,
+      requestTimeoutMs: environment.WEATHERLINK_REQUEST_TIMEOUT_MS
     }
   };
 });

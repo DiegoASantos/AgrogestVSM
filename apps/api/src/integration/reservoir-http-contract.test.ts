@@ -17,6 +17,7 @@ import { createGlobalValidationPipe } from "../common/pipes/global-validation.pi
 import type { AuthenticatedRequest } from "../modules/auth/types/auth.types";
 import { RolesGuard } from "../modules/auth/presentation/guards/roles.guard";
 import { ClimaService } from "../modules/clima/application/clima.service";
+import { WeatherLinkSyncService } from "../modules/clima/application/weatherlink-sync.service";
 import { ClimaController } from "../modules/clima/presentation/clima.controller";
 
 const RESERVOIR_ID = "4ed1f98f-d2f3-4a3c-a936-6527263709a7";
@@ -29,6 +30,14 @@ const climaService = {
   createReservorioReading: vi.fn(),
   updateReservorioReading: vi.fn(),
   deleteReservorioReading: vi.fn()
+};
+const weatherLinkSync = {
+  triggerIfDue: vi.fn(() => true),
+  status: vi.fn(async () => ({ enabled: true, running: false, stations: [] })),
+  setStationActive: vi.fn(async (publicId: string, isActive: boolean) => ({
+    publicId,
+    isActive
+  }))
 };
 
 const testLogger = {
@@ -56,6 +65,7 @@ class TestAuthenticationGuard implements CanActivate {
   controllers: [ClimaController],
   providers: [
     { provide: ClimaService, useValue: climaService },
+    { provide: WeatherLinkSyncService, useValue: weatherLinkSync },
     { provide: APP_GUARD, useClass: TestAuthenticationGuard },
     { provide: APP_GUARD, useClass: RolesGuard }
   ]
@@ -86,6 +96,38 @@ describe("reservoir HTTP contract", () => {
       createSuccessResponse({ publicId: READING_ID })
     );
     climaService.deleteReservorioReading.mockResolvedValue(createSuccessResponse(null));
+  });
+
+  it.each(["ADMIN", "ANALISTA", "AGRONOMO"])(
+    "allows %s to read WeatherLink sync status",
+    async (role) => {
+      const response = await app.inject({
+        method: "GET",
+        url: "/clima/fuentes/weatherlink/estado",
+        headers: { "x-test-role": role }
+      });
+      expect(response.statusCode).toBe(200);
+    }
+  );
+
+  it("allows only ADMIN to activate and force WeatherLink synchronization", async () => {
+    const adminUpdate = await app.inject({
+      method: "PUT",
+      url: `/clima/estaciones/${RESERVOIR_ID}/activo`,
+      headers: { "x-test-role": "ADMIN" },
+      payload: { isActive: false }
+    });
+    expect(adminUpdate.statusCode).toBe(200);
+    expect(weatherLinkSync.setStationActive).toHaveBeenCalledWith(RESERVOIR_ID, false);
+
+    for (const role of ["ANALISTA", "AGRONOMO"]) {
+      const denied = await app.inject({
+        method: "POST",
+        url: "/clima/fuentes/weatherlink/sincronizar",
+        headers: { "x-test-role": role }
+      });
+      expect(denied.statusCode).toBe(403);
+    }
   });
 
   afterAll(async () => {

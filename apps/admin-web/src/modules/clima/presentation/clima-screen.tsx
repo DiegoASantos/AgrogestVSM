@@ -36,6 +36,8 @@ import {
   type ClimatePoint,
   type ClimateReading,
   type ClimateSource,
+  type ClimateStation,
+  type WeatherLinkStatus,
   type Reservoir,
   type ReservoirReading
 } from "../services/clima.service";
@@ -45,6 +47,7 @@ import {
   mergeHistoryByTimestamp
 } from "./clima-view.utils";
 import { ReservoirsView } from "./reservoirs-view";
+import { isAdminSession } from "../../auth/utils/authorization";
 
 export type ClimateSection =
   | "resumen"
@@ -69,6 +72,7 @@ type AlertItem = {
 };
 type Summary = {
   points: ClimatePoint[];
+  stations: ClimateStation[];
   alerts: AlertItem[];
   sources: ClimateSource[];
   reservorios: Reservoir[];
@@ -215,7 +219,10 @@ export function ClimaScreen({ section }: { section: ClimateSection }) {
         />
         <ClimateNotice />
         {section === "mapa" ? (
-          <ClimateMap points={data as ClimatePoint[]} session={session} />
+          <ClimateMap
+            points={data as Array<ClimatePoint | ClimateStation>}
+            session={session}
+          />
         ) : (
           <ClimateContent section={section} data={data} session={session} />
         )}
@@ -242,7 +249,7 @@ function ClimateContent({
   if (section === "historial")
     return <HistoryView points={data as ClimatePoint[]} session={session} />;
   if (section === "estaciones")
-    return <StationsView items={data as Array<Record<string, unknown>>} />;
+    return <StationsView initialItems={data as ClimateStation[]} session={session} />;
   if (section === "alertas") return <AlertsView items={data as AlertItem[]} />;
   return <SourcesView items={data as ClimateSource[]} />;
 }
@@ -260,16 +267,36 @@ function ClimateNotice() {
   );
 }
 
-function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Session }) {
+function ClimateMap({
+  points,
+  session
+}: {
+  points: Array<ClimatePoint | ClimateStation>;
+  session: Session;
+}) {
+  const climatePoints = points.filter(
+    (point): point is ClimatePoint => point.kind !== "station"
+  );
+  const stations = points.filter(
+    (point): point is ClimateStation => point.kind === "station"
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedKind, setSelectedKind] = useState<"clima" | "reservorio">("clima");
+  const [selectedKind, setSelectedKind] = useState<"clima" | "estacion" | "reservorio">(
+    "clima"
+  );
   const [forecast, setForecast] = useState<ClimateForecast[] | null>(null);
   const [forecastError, setForecastError] = useState<string | null>(null);
   const [loadingForecast, setLoadingForecast] = useState(false);
   const [reservorios, setReservorios] = useState<Reservoir[]>([]);
   const forecastRequest = useRef(0);
   const selected =
-    selectedKind === "clima" ? points.find((point) => point.id === selectedId) : null;
+    selectedKind === "clima"
+      ? climatePoints.find((point) => point.id === selectedId)
+      : null;
+  const selectedStation =
+    selectedKind === "estacion"
+      ? stations.find((station) => station.id === selectedId)
+      : null;
   const selectedReservoir =
     selectedKind === "reservorio"
       ? reservorios.find((reservoir) => reservoir.publicId === selectedId)
@@ -311,6 +338,14 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
     setLoadingForecast(false);
   }
 
+  function handleStationSelect(publicId: string) {
+    setSelectedId(publicId);
+    setSelectedKind("estacion");
+    setForecast(null);
+    setForecastError(null);
+    setLoadingForecast(false);
+  }
+
   function clearSelection() {
     forecastRequest.current += 1;
     setSelectedId(null);
@@ -321,7 +356,7 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
   }
 
   const mapPoints: AdminMapPoint[] = [
-    ...points.map((point) => ({
+    ...climatePoints.map((point) => ({
       id: point.id,
       geometry: {
         type: "Point" as const,
@@ -331,6 +366,18 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
       radius: selectedId === point.id && selectedKind === "clima" ? 10 : 8,
       isSelected: selectedId === point.id && selectedKind === "clima",
       onSelect: () => void handleSelect(point.id)
+    })),
+    ...stations.map((station) => ({
+      id: station.id,
+      geometry: {
+        type: "Point" as const,
+        coordinates: [station.longitude, station.latitude] as [number, number]
+      },
+      color:
+        selectedId === station.id && selectedKind === "estacion" ? "#15803d" : "#22c55e",
+      radius: selectedId === station.id && selectedKind === "estacion" ? 10 : 8,
+      isSelected: selectedId === station.id && selectedKind === "estacion",
+      onSelect: () => handleStationSelect(station.id)
     })),
     ...reservorios.map((reservoir) => ({
       id: reservoir.publicId,
@@ -353,7 +400,8 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
       <div className="climate-map-layout__map">
         <div className="climate-map-caption">
           <span>
-            <strong>{points.length}</strong> puntos climáticos{" "}
+            <strong>{climatePoints.length}</strong> puntos climáticos{" "}
+            <strong>{stations.length}</strong> estaciones Davis{" "}
             <strong>{reservorios.length}</strong> reservorios
           </span>
           <span>Seleccione un punto para consultar condiciones y pronóstico.</span>
@@ -381,7 +429,7 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
         </div>
       </div>
       <div
-        className={`climate-map-panel${selected || selectedReservoir ? " climate-map-panel--open" : ""}`}
+        className={`climate-map-panel${selected || selectedStation || selectedReservoir ? " climate-map-panel--open" : ""}`}
       >
         <div className="climate-map-panel__inner">
           {selected ? (
@@ -392,6 +440,8 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
               loading={loadingForecast}
               onClose={clearSelection}
             />
+          ) : selectedStation ? (
+            <StationMapPanel station={selectedStation} onClose={clearSelection} />
           ) : selectedReservoir ? (
             <ReservoirMapPanel
               reservoir={selectedReservoir}
@@ -402,6 +452,46 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
         </div>
       </div>
     </div>
+  );
+}
+
+function StationMapPanel({
+  station,
+  onClose
+}: {
+  station: ClimateStation;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="climate-map-panel__header">
+        <div>
+          <p className="eyebrow">WeatherLink Davis · observado</p>
+          <h3>{station.name}</h3>
+          <span>
+            {station.lastCompleteDay
+              ? `Datos hasta ${station.lastCompleteDay}`
+              : "Sin historico completo"}
+          </span>
+        </div>
+        <button
+          className="climate-map-panel__close"
+          onClick={onClose}
+          aria-label="Cerrar panel"
+          type="button"
+        >
+          <X aria-hidden="true" size={18} />
+        </button>
+      </div>
+      <div className="climate-map-panel__body">
+        {station.current?.length ? (
+          <MetricChartGrid readings={station.current} groups={CURRENT_GROUPS} compact />
+        ) : (
+          <div className="climate-map-panel__empty">Sin lecturas Davis importadas.</div>
+        )}
+        <small>Ultima comunicacion: {date(station.lastCommunicationAt ?? "")}</small>
+      </div>
+    </>
   );
 }
 
@@ -707,11 +797,50 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
         </section>
       ) : null}
 
+      <StationObservations stations={summary.stations ?? []} />
+
       <ReservoirStatusCard reservorios={summary.reservorios} />
 
       <TerritorialComparison points={summary.points} />
       <SummaryMiniForecast forecast={forecast} pointName={selected?.name ?? ""} />
     </div>
+  );
+}
+
+function StationObservations({ stations }: { stations: ClimateStation[] }) {
+  if (!stations.length) return null;
+  return (
+    <section className="climate-data-section">
+      <header>
+        <div>
+          <p className="eyebrow">WeatherLink Davis · observado</p>
+          <h3 className="title title--section">Estaciones meteorologicas</h3>
+        </div>
+        <span className="climate-badge">Actualizacion diaria desde las 08:00</span>
+      </header>
+      <div className="climate-grid">
+        {stations.map((station) => (
+          <article className="climate-chart-card" key={station.id}>
+            <header className="climate-chart-card__header">
+              <div>
+                <h4>{station.name}</h4>
+                <small>
+                  {station.lastCompleteDay
+                    ? `Datos completos hasta ${station.lastCompleteDay}`
+                    : "Esperando primera importacion"}
+                </small>
+              </div>
+              <Badge value={station.syncStatus ?? station.estado} />
+            </header>
+            <MetricChartGrid
+              readings={station.current ?? []}
+              groups={CURRENT_GROUPS}
+              compact
+            />
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1275,19 +1404,37 @@ function MultiLineChart({
 }
 
 function HistoryView({ points, session }: { points: ClimatePoint[]; session: Session }) {
-  const [selectedId, setSelectedId] = useState(points[0]?.id ?? "");
+  const [stations, setStations] = useState<ClimateStation[]>([]);
+  const [selectedId, setSelectedId] = useState(
+    points[0]?.id ? `point:${points[0].id}` : ""
+  );
   const [history, setHistory] = useState<{
-    point: ClimatePoint;
+    point?: ClimatePoint;
+    station?: ClimateStation;
     rows: ClimateReading[];
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    void climaService
+      .getStations(session)
+      .then((items) => {
+        setStations(items);
+        if (!selectedId && items[0]) setSelectedId(`station:${items[0].id}`);
+      })
+      .catch(() => setStations([]));
+  }, [selectedId, session]);
+
+  useEffect(() => {
     if (!selectedId) return;
     setHistory(null);
     setError(null);
-    void climaService
-      .getHistory(session, selectedId)
+    const [kind, id] = selectedId.split(":", 2);
+    const request =
+      kind === "station"
+        ? climaService.getStationHistory(session, id)
+        : climaService.getHistory(session, id);
+    void request
       .then(setHistory)
       .catch((reason: unknown) =>
         setError(
@@ -1300,7 +1447,28 @@ function HistoryView({ points, session }: { points: ClimatePoint[]; session: Ses
 
   return (
     <div className="climate-stack">
-      <PointSelector points={points} value={selectedId} onChange={setSelectedId} />
+      <label className="field-group">
+        <span>Punto o estacion</span>
+        <select
+          value={selectedId}
+          onChange={(event) => setSelectedId(event.target.value)}
+        >
+          <optgroup label="Puntos territoriales">
+            {points.map((point) => (
+              <option key={point.id} value={`point:${point.id}`}>
+                {point.name}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Estaciones WeatherLink Davis">
+            {stations.map((station) => (
+              <option key={station.id} value={`station:${station.id}`}>
+                {station.name}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+      </label>
       {!history ? (
         <LoadingState description="Cargando lecturas persistidas." />
       ) : (
@@ -1313,8 +1481,9 @@ function HistoryView({ points, session }: { points: ClimatePoint[]; session: Ses
 function HistoryExplorer({
   history
 }: {
-  history: { point: ClimatePoint; rows: ClimateReading[] };
+  history: { point?: ClimatePoint; station?: ClimateStation; rows: ClimateReading[] };
 }) {
+  const entityName = history.point?.name ?? history.station?.name ?? "Origen climatico";
   const available = useMemo(
     () =>
       Array.from(new Set(history.rows.map((row) => row.variable))).sort((left, right) =>
@@ -1340,7 +1509,7 @@ function HistoryExplorer({
       <section className="climate-chart-card climate-chart-card--featured">
         <header className="climate-chart-card__header">
           <div>
-            <p className="eyebrow">Serie histórica · {history.point.name}</p>
+            <p className="eyebrow">Serie histórica · {entityName}</p>
             <h3 className="title title--section">
               Evolución de {selected ? label(selected) : "la variable"}
             </h3>
@@ -1410,13 +1579,13 @@ function HistoryExplorer({
         <ClimateTable
           title="Lecturas persistidas"
           empty="Aún no hay lecturas históricas persistidas."
-          headers={["Variable", "Valor", "Tipo", "Fecha del dato", "Modelo"]}
+          headers={["Variable", "Valor", "Tipo", "Fecha del dato", "Fuente"]}
           rows={history.rows.map((row) => [
             label(row.variable),
             `${row.value} ${row.unit}`,
             <Badge key="type" value={row.type} />,
             date(row.dataAt),
-            row.model ?? "No informado"
+            row.source ?? row.model ?? "No informado"
           ])}
         />
       </details>
@@ -1424,23 +1593,111 @@ function HistoryExplorer({
   );
 }
 
-function StationsView({ items }: { items: Array<Record<string, unknown>> }) {
+function StationsView({
+  initialItems,
+  session
+}: {
+  initialItems: ClimateStation[];
+  session: Session;
+}) {
+  const [items, setItems] = useState(initialItems);
+  const [status, setStatus] = useState<WeatherLinkStatus | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const canManage = isAdminSession(session);
+
+  async function refreshStations() {
+    const [nextItems, nextStatus] = await Promise.all([
+      climaService.getStations(session),
+      climaService.getWeatherLinkStatus(session)
+    ]);
+    setItems(nextItems);
+    setStatus(nextStatus);
+  }
+
+  useEffect(() => {
+    void refreshStations().catch(() => undefined);
+  }, [session]);
+
+  useEffect(() => {
+    if (!status?.running) return;
+    const interval = window.setInterval(() => {
+      void refreshStations().catch(() => undefined);
+    }, 15_000);
+    return () => window.clearInterval(interval);
+  }, [status?.running, session]);
+
+  async function toggleStation(station: ClimateStation) {
+    setActionError(null);
+    try {
+      await climaService.updateWeatherLinkStation(session, station.id, !station.isActive);
+      await refreshStations();
+    } catch (reason) {
+      setActionError(reason instanceof Error ? reason.message : "No se pudo actualizar.");
+    }
+  }
+
+  async function forceSync() {
+    setActionError(null);
+    try {
+      await climaService.forceWeatherLinkSync(session);
+      await refreshStations();
+    } catch (reason) {
+      setActionError(
+        reason instanceof Error ? reason.message : "No se pudo sincronizar."
+      );
+    }
+  }
+
   return (
     <div className="climate-stack">
+      <section className="climate-notice" role="status">
+        <Database aria-hidden="true" size={18} />
+        <div>
+          <strong>
+            {!status?.enabled
+              ? "WeatherLink sin configurar"
+              : status.running
+                ? "Actualizando datos de ayer"
+                : "Sincronizacion diaria WeatherLink"}
+          </strong>
+          <div>Consulta oportunista desde las {status?.syncHour ?? 8}:00.</div>
+          {actionError ? <small>{actionError}</small> : null}
+        </div>
+        {canManage ? (
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => void forceSync()}
+          >
+            Sincronizar ahora
+          </button>
+        ) : null}
+      </section>
       <DistributionChart
         title="Estaciones por estado"
-        items={items.map((item) => String(item.estado ?? "SIN CONFIGURAR"))}
+        items={items.map((item) => item.syncStatus ?? item.estado)}
       />
       <ClimateTable
         title="Estaciones registradas"
         empty="No hay estaciones registradas."
         headers={["Nombre", "Código", "Tipo", "Estado", "Última comunicación"]}
         rows={items.map((item) => [
-          String(item.nombre ?? "-"),
-          String(item.codigo ?? "-"),
-          String(item.tipo ?? "-"),
-          <Badge key="status" value={String(item.estado ?? "SIN CONFIGURAR")} />,
-          date(String(item.lastCommunicationAt ?? ""))
+          item.name,
+          item.codigo,
+          item.lastCompleteDay ?? item.tipo,
+          <Badge key="status" value={item.syncStatus ?? item.estado} />,
+          <span key="communication">
+            {date(item.lastCommunicationAt ?? "")}
+            {canManage ? (
+              <button
+                type="button"
+                className="button button--secondary"
+                onClick={() => void toggleStation(item)}
+              >
+                {item.isActive ? "Desactivar" : "Activar"}
+              </button>
+            ) : null}
+          </span>
         ])}
       />
     </div>

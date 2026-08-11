@@ -27,6 +27,20 @@ function buildEnvironmentVariables(
 ): EnvironmentVariables {
   const nodeEnv = parseNodeEnvironment(source.NODE_ENV);
 
+  const weatherLinkEnabled = parseBoolean(
+    source.WEATHERLINK_ENABLED,
+    "WEATHERLINK_ENABLED",
+    false
+  );
+  const weatherLinkApiKey = getOptionalString(source.WEATHERLINK_API_KEY);
+  const weatherLinkApiSecret = getOptionalString(source.WEATHERLINK_API_SECRET);
+
+  if (weatherLinkEnabled && (!weatherLinkApiKey || !weatherLinkApiSecret)) {
+    throw new Error(
+      "WEATHERLINK_API_KEY and WEATHERLINK_API_SECRET are required when WEATHERLINK_ENABLED=true."
+    );
+  }
+
   return {
     NODE_ENV: nodeEnv,
     APP_HOST: getString(source.APP_HOST, DEFAULT_APP_HOST),
@@ -79,12 +93,66 @@ function buildEnvironmentVariables(
       source.LOGIN_RATE_LIMIT_BLOCK_MS,
       "LOGIN_RATE_LIMIT_BLOCK_MS",
       300_000
+    ),
+    WEATHERLINK_ENABLED: weatherLinkEnabled,
+    WEATHERLINK_API_KEY: weatherLinkApiKey,
+    WEATHERLINK_API_SECRET: weatherLinkApiSecret,
+    WEATHERLINK_DAILY_SYNC_HOUR: parseIntegerInRange(
+      source.WEATHERLINK_DAILY_SYNC_HOUR,
+      "WEATHERLINK_DAILY_SYNC_HOUR",
+      8,
+      0,
+      23
+    ),
+    WEATHERLINK_TIME_ZONE: parseIanaTimeZone(source.WEATHERLINK_TIME_ZONE),
+    WEATHERLINK_CATCHUP_MAX_DAYS: parseIntegerInRange(
+      source.WEATHERLINK_CATCHUP_MAX_DAYS,
+      "WEATHERLINK_CATCHUP_MAX_DAYS",
+      30,
+      1,
+      30
+    ),
+    WEATHERLINK_REQUEST_TIMEOUT_MS: parseIntegerInRange(
+      source.WEATHERLINK_REQUEST_TIMEOUT_MS,
+      "WEATHERLINK_REQUEST_TIMEOUT_MS",
+      8_000,
+      1_000,
+      30_000
     )
   };
 }
 
+function parseIntegerInRange(
+  value: unknown,
+  variableName: string,
+  defaultValue: number,
+  minimum: number,
+  maximum: number
+): number {
+  if (value === undefined || value === null || value === "") return defaultValue;
+  const parsedValue = Number(value);
+  if (!Number.isInteger(parsedValue) || parsedValue < minimum || parsedValue > maximum) {
+    throw new Error(
+      `${variableName} must be an integer between ${minimum} and ${maximum}.`
+    );
+  }
+  return parsedValue;
+}
+
+function parseIanaTimeZone(value: unknown): string {
+  const timeZone = getString(value, "America/Lima");
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone }).format();
+  } catch {
+    throw new Error("WEATHERLINK_TIME_ZONE must be a valid IANA time zone.");
+  }
+  return timeZone;
+}
+
 function parseLogLevel(value: unknown): string {
-  const normalizedValue = String(value ?? "").trim().toLowerCase();
+  const normalizedValue = String(value ?? "")
+    .trim()
+    .toLowerCase();
   const allowedLevels = new Set(["trace", "debug", "info", "warn", "error", "fatal"]);
 
   if (!normalizedValue) {

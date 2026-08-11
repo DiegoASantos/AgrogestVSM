@@ -218,6 +218,51 @@ describe("ClimaService", () => {
       )
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it("keeps stations from every source in the station inventory", async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("FROM clima.estaciones_meteorologicas e")) {
+        return [
+          {
+            id: "1",
+            publicId: "weatherlink-station",
+            nombre: "Davis",
+            codigo: "weatherlink:1",
+            tipo: "PROPIA",
+            latitude: -4,
+            longitude: -80,
+            estado: "OPERATIVA",
+            variables: [],
+            isActive: true,
+            source: "WeatherLink"
+          },
+          {
+            id: "2",
+            publicId: "senamhi-station",
+            nombre: "SENAMHI",
+            codigo: "senamhi:1",
+            tipo: "PUBLICA",
+            latitude: -5,
+            longitude: -81,
+            estado: "OPERATIVA",
+            variables: [],
+            isActive: true,
+            source: "SENAMHI"
+          }
+        ];
+      }
+      return [];
+    });
+    const service = new ClimaService({ query } as never);
+
+    const response = await service.stations();
+
+    expect(response.data).toHaveLength(2);
+    const inventorySql = query.mock.calls.find(([sql]) =>
+      sql.includes("FROM clima.estaciones_meteorologicas e")
+    )?.[0];
+    expect(inventorySql).not.toContain("f.codigo='weatherlink'");
+  });
 });
 
 const reservoirRow = {

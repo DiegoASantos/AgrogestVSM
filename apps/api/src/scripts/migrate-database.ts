@@ -130,6 +130,31 @@ async function run() {
     await assertTableExists(client, "clima", "pronosticos");
     await assertTableExists(client, "clima", "reservorios");
     await assertTableExists(client, "clima", "lecturas_reservorios");
+    await assertTableExists(client, "clima", "estaciones_estado_sincronizacion");
+    await assertCount(
+      client,
+      "SELECT COUNT(*)::text AS count FROM clima.fuentes_datos WHERE codigo='weatherlink'",
+      1,
+      "fuente WeatherLink"
+    );
+    await assertForeignKey(
+      client,
+      "clima",
+      "estaciones_estado_sincronizacion",
+      "fuente_id",
+      "clima",
+      "fuentes_datos",
+      "id"
+    );
+    await assertForeignKey(
+      client,
+      "clima",
+      "estaciones_estado_sincronizacion",
+      "estacion_id",
+      "clima",
+      "estaciones_meteorologicas",
+      "id"
+    );
     await assertForeignKey(
       client,
       "clima",

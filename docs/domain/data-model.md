@@ -229,6 +229,18 @@ La fuente `manual_reservorios` representa la carga humana. Poechos y San Lorenzo
 son datos semilla de la migración; las lecturas se incorporan posteriormente y
 no afectan al flujo offline mobile.
 
+WeatherLink Davis usa la fuente `weatherlink`. Sus estaciones se almacenan en
+`clima.estaciones_meteorologicas` y sus valores normalizados en `clima.lecturas`
+con `estacion_id`, tipo `OBSERVADO`, instante del proveedor y deduplicacion por
+fuente, estacion, variable, tipo e instante. La tabla
+`clima.estaciones_estado_sincronizacion` tiene PK bigint, `public_id` UUID y FKs
+a fuente y estacion; conserva el ultimo dia completo para reanudar importaciones
+sin repetir ni omitir dias.
+
+La primera consulta web posterior a las 08:00 de `America/Lima` puede iniciar en
+segundo plano la importacion del dia anterior. Cada ejecucion recupera hasta 30
+dias pendientes y no reemplaza los datos territoriales estimados de Open-Meteo.
+
 ## Seguridad
 
 - usuario;

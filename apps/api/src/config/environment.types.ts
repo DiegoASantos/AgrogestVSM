@@ -23,6 +23,13 @@ export type EnvironmentVariables = {
   LOGIN_RATE_LIMIT_TTL_MS: number;
   LOGIN_RATE_LIMIT_MAX: number;
   LOGIN_RATE_LIMIT_BLOCK_MS: number;
+  WEATHERLINK_ENABLED: boolean;
+  WEATHERLINK_API_KEY: string;
+  WEATHERLINK_API_SECRET: string;
+  WEATHERLINK_DAILY_SYNC_HOUR: number;
+  WEATHERLINK_TIME_ZONE: string;
+  WEATHERLINK_CATCHUP_MAX_DAYS: number;
+  WEATHERLINK_REQUEST_TIMEOUT_MS: number;
 };
 
 export type AppRuntimeConfig = {
@@ -38,6 +45,15 @@ export type AppRuntimeConfig = {
     ttlMs: number;
     max: number;
     blockDurationMs: number;
+  };
+  weatherLink: {
+    enabled: boolean;
+    apiKey: string;
+    apiSecret: string;
+    dailySyncHour: number;
+    timeZone: string;
+    catchupMaxDays: number;
+    requestTimeoutMs: number;
   };
 };
 

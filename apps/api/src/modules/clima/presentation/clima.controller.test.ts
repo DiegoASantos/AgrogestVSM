@@ -20,6 +20,7 @@ describe("ClimaController", () => {
     "stations",
     "alerts",
     "sources",
+    "weatherLinkStatus",
     "reservorios",
     "reservorioHistorico"
   ] as const)("allows the three climate roles to call %s", (handler) => {
@@ -27,6 +28,15 @@ describe("ClimaController", () => {
       Reflect.getMetadata(REQUIRED_ROLES_KEY, ClimaController.prototype[handler])
     ).toEqual(["ADMIN", "ANALISTA", "AGRONOMO"]);
   });
+
+  it.each(["forceWeatherLinkSync", "updateWeatherLinkStation"] as const)(
+    "restricts %s to ADMIN",
+    (handler) => {
+      expect(
+        Reflect.getMetadata(REQUIRED_ROLES_KEY, ClimaController.prototype[handler])
+      ).toEqual(["ADMIN"]);
+    }
+  );
 
   it.each([
     "createReservorioLectura",

@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-08
+last_reviewed: 2026-08-11
 ---
 
 # Línea base de seguridad operativa
@@ -56,6 +56,10 @@ preferida es instalar la CA correspondiente y activar verificación estricta.
 - `COST_BUILD_API_KEY` habilita lectura masiva de datos para integración
   externa; debe configurarse solo como secreto del entorno y rotarse si se
   comparte por canales no seguros.
+- `WEATHERLINK_API_KEY` y `WEATHERLINK_API_SECRET` se configuran exclusivamente
+  como secretos de Render. El navegador no los recibe y los errores persistidos
+  no incluyen URLs, headers ni payloads del proveedor. El Secret debe rotarse
+  ante cualquier exposicion.
 
 ## Permisos mínimos
 

@@ -34,6 +34,20 @@ services:
         sync: false
       - key: COST_BUILD_API_KEY
         sync: false
+      - key: WEATHERLINK_ENABLED
+        value: "false"
+      - key: WEATHERLINK_API_KEY
+        sync: false
+      - key: WEATHERLINK_API_SECRET
+        sync: false
+      - key: WEATHERLINK_DAILY_SYNC_HOUR
+        value: "8"
+      - key: WEATHERLINK_TIME_ZONE
+        value: America/Lima
+      - key: WEATHERLINK_CATCHUP_MAX_DAYS
+        value: "30"
+      - key: WEATHERLINK_REQUEST_TIMEOUT_MS
+        value: "8000"
       - key: DB_HOST
         value: aws-1-us-east-1.pooler.supabase.com
       - key: DB_PORT

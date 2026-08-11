@@ -2,7 +2,7 @@
 title: Deploy API en Render
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-08
+last_reviewed: 2026-08-11
 ---
 
 # Deploy API en Render para piloto
@@ -33,6 +33,8 @@ base PostgreSQL de Supabase que ya configuraste.
    - `CORS_ALLOWED_ORIGINS` del panel web
    - `COST_BUILD_API_KEY` si se habilita la exportacion protegida para
      Cost-Build
+   - `WEATHERLINK_API_KEY` y un `WEATHERLINK_API_SECRET` rotado si se habilita
+     la importacion diaria Davis
    - `SEED_ADMIN_PASSWORD` para el usuario admin inicial
 
 La base debe tener el esquema existente o haber sido preparada previamente con
@@ -51,6 +53,8 @@ bootstrap destructivo durante el arranque.
 7. Completa los valores que Render te pedira porque estan marcados como secretos:
    - `CORS_ALLOWED_ORIGINS`
    - `COST_BUILD_API_KEY`
+   - `WEATHERLINK_API_KEY`
+   - `WEATHERLINK_API_SECRET`
    - `DB_PASSWORD`
    - `SEED_ADMIN_PASSWORD`
 8. Crea el servicio.
@@ -63,6 +67,9 @@ bootstrap destructivo durante el arranque.
 - `LOG_LEVEL=info`
 - `COST_BUILD_API_KEY` queda como secreto manual cuando se usa la integracion
   Cost-Build
+- `WEATHERLINK_ENABLED=false` hasta verificar las credenciales rotadas;
+  WeatherLink se consulta al usar el panel despues de las 08:00 de Lima y no
+  requiere Cron Job
 - `DB_HOST=aws-1-us-east-1.pooler.supabase.com`
 - `DB_PORT=5432`
 - `DB_NAME=postgres`
@@ -132,6 +139,13 @@ APP_TRUST_PROXY=true
 LOG_LEVEL=info
 CORS_ALLOWED_ORIGINS=https://tu-admin-web.vercel.app
 COST_BUILD_API_KEY=<api_key_cost_build>
+WEATHERLINK_ENABLED=false
+WEATHERLINK_API_KEY=<api_key_weatherlink>
+WEATHERLINK_API_SECRET=<api_secret_weatherlink_rotado>
+WEATHERLINK_DAILY_SYNC_HOUR=8
+WEATHERLINK_TIME_ZONE=America/Lima
+WEATHERLINK_CATCHUP_MAX_DAYS=30
+WEATHERLINK_REQUEST_TIMEOUT_MS=8000
 DB_HOST=aws-1-us-east-1.pooler.supabase.com
 DB_PORT=5432
 DB_NAME=postgres

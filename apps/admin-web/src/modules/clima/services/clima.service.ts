@@ -10,6 +10,7 @@ export type ClimateReading = {
   dataAt: string;
   receivedAt: string;
   model?: string | null;
+  source?: string | null;
 };
 export type ClimatePoint = {
   id: string;
@@ -19,6 +20,43 @@ export type ClimatePoint = {
   latitude: number;
   longitude: number;
   current?: ClimateReading[];
+  kind?: "point";
+};
+export type ClimateStation = {
+  id: string;
+  publicId: string;
+  name: string;
+  codigo: string;
+  tipo: string;
+  latitude: number;
+  longitude: number;
+  estado: string;
+  variables: string[];
+  lastCommunicationAt: string | null;
+  isActive: boolean;
+  source: string | null;
+  syncStatus: string | null;
+  lastCompleteDay: string | null;
+  lastAttemptAt: string | null;
+  syncDetail: string | null;
+  kind: "station";
+  current?: ClimateReading[];
+};
+export type WeatherLinkStatus = {
+  enabled: boolean;
+  running: boolean;
+  syncHour: number;
+  timeZone: string;
+  stations: Array<{
+    stationId: string;
+    stationName: string;
+    isActive: boolean;
+    status: string | null;
+    lastCompleteDay: string | null;
+    lastAttemptAt: string | null;
+    lastSuccessAt: string | null;
+    detail: string | null;
+  }>;
 };
 export type ClimateSource = {
   codigo: string;
@@ -75,13 +113,17 @@ export const climaService = {
   getSummary(session: SessionInput) {
     return apiRequest<{
       points: ClimatePoint[];
+      stations: ClimateStation[];
       alerts: unknown[];
       sources: ClimateSource[];
       reservorios: Reservoir[];
     }>("/clima/resumen", headers(session));
   },
   getMap(session: SessionInput) {
-    return apiRequest<ClimatePoint[]>("/clima/mapa", headers(session));
+    return apiRequest<Array<ClimatePoint | ClimateStation>>(
+      "/clima/mapa",
+      headers(session)
+    );
   },
   getForecast(session: SessionInput, pointId?: string) {
     return apiRequest<ClimateForecast[]>(
@@ -95,20 +137,41 @@ export const climaService = {
       headers(session)
     );
   },
+  getStationHistory(session: SessionInput, stationId: string) {
+    return apiRequest<{ station: ClimateStation; rows: ClimateReading[] }>(
+      `/clima/historico?estacion_id=${encodeURIComponent(stationId)}`,
+      headers(session)
+    );
+  },
   getPoints(session: SessionInput) {
     return apiRequest<ClimatePoint[]>("/clima/puntos", headers(session));
   },
   getStations(session: SessionInput) {
-    return apiRequest<Array<Record<string, unknown>>>(
-      "/clima/estaciones",
-      headers(session)
-    );
+    return apiRequest<ClimateStation[]>("/clima/estaciones", headers(session));
   },
   getAlerts(session: SessionInput) {
     return apiRequest<Array<Record<string, unknown>>>("/clima/alertas", headers(session));
   },
   getSources(session: SessionInput) {
     return apiRequest<ClimateSource[]>("/clima/fuentes", headers(session));
+  },
+  getWeatherLinkStatus(session: SessionInput) {
+    return apiRequest<WeatherLinkStatus>(
+      "/clima/fuentes/weatherlink/estado",
+      headers(session)
+    );
+  },
+  forceWeatherLinkSync(session: SessionInput) {
+    return apiRequest<{ started: boolean }>("/clima/fuentes/weatherlink/sincronizar", {
+      ...headers(session),
+      method: "POST" as const
+    });
+  },
+  updateWeatherLinkStation(session: SessionInput, stationId: string, isActive: boolean) {
+    return apiRequest<{ publicId: string; isActive: boolean }>(
+      `/clima/estaciones/${encodeURIComponent(stationId)}/activo`,
+      { ...headers(session), method: "PUT" as const, body: { isActive } }
+    );
   },
 
   getReservorios(session: SessionInput) {

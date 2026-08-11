@@ -69,6 +69,7 @@ export class ClimaService {
     );
     return createSuccessResponse({
       points: conditions,
+      stations: await this.stationConditions(),
       alerts,
       sources: await this.sources(),
       reservorios: await this.getReservorios()
@@ -334,8 +335,26 @@ export class ClimaService {
     return createSuccessResponse(result);
   }
 
-  async history(pointId: string, start?: string, end?: string) {
-    const point = await this.point(pointId);
+  async history(pointId?: string, stationId?: string, start?: string, end?: string) {
+    if ((!pointId && !stationId) || (pointId && stationId)) {
+      throw new BadRequestException("Indique exactamente un punto_id o estacion_id.");
+    }
+    if (stationId) {
+      const station = await this.station(stationId);
+      const rows = await this.dataSource.query(
+        `SELECT l.variable,l.valor AS value,l.unidad AS unit,l.tipo AS type,
+          l.dato_at AS "dataAt",l.recibido_at AS "receivedAt",l.modelo AS model,
+          f.nombre AS source
+         FROM clima.lecturas l JOIN clima.fuentes_datos f ON f.id=l.fuente_id
+         WHERE l.estacion_id=$1
+           AND l.dato_at >= COALESCE($2::timestamptz,now()-interval '30 days')
+           AND l.dato_at <= COALESCE($3::timestamptz,now())
+         ORDER BY l.dato_at ASC,l.variable ASC`,
+        [station.id, start ?? null, end ?? null]
+      );
+      return createSuccessResponse({ station: toStation(station), rows });
+    }
+    const point = await this.point(pointId!);
     const rows = (
       await this.dataSource.query(
         'SELECT variable, valor AS value, unidad AS unit, tipo AS type, dato_at AS "dataAt", recibido_at AS "receivedAt", modelo AS model FROM clima.lecturas WHERE punto_climatico_id=$1 AND dato_at >= COALESCE($2::timestamptz, now()-interval \'30 days\') AND dato_at <= COALESCE($3::timestamptz, now()) ORDER BY dato_at ASC',
@@ -348,21 +367,17 @@ export class ClimaService {
   async map() {
     await this.syncCurrentIfNeeded();
     const points = await this.points();
-    return createSuccessResponse(
-      await Promise.all(
-        points.map(async (point) => ({
-          ...toPoint(point),
-          current: await this.latest(point.id)
-        }))
-      )
+    const pointItems = await Promise.all(
+      points.map(async (point) => ({
+        ...toPoint(point),
+        kind: "point" as const,
+        current: await this.latest(point.id)
+      }))
     );
+    return createSuccessResponse([...pointItems, ...(await this.stationConditions())]);
   }
   async stations() {
-    return createSuccessResponse(
-      await this.dataSource.query(
-        'SELECT public_id AS "publicId", nombre, codigo, tipo, latitud, longitud, estado, variables_json AS variables, ultima_comunicacion_at AS "lastCommunicationAt", activo AS "isActive" FROM clima.estaciones_meteorologicas ORDER BY nombre'
-      )
-    );
+    return createSuccessResponse(await this.stationConditions());
   }
   async alerts() {
     return createSuccessResponse(
@@ -510,6 +525,52 @@ export class ClimaService {
       [pointId]
     );
   }
+
+  private async stationConditions() {
+    const stations = await this.dataSource.query(
+      `SELECT e.id,e.public_id AS "publicId",e.nombre,e.codigo,e.tipo,
+        e.latitud::float AS latitude,e.longitud::float AS longitude,e.estado,
+        e.variables_json AS variables,e.ultima_comunicacion_at AS "lastCommunicationAt",
+        e.activo AS "isActive",f.nombre AS source,
+        s.estado AS "syncStatus",s.ultimo_dia_completo AS "lastCompleteDay",
+        s.ultimo_intento_at AS "lastAttemptAt",s.detalle AS "syncDetail"
+       FROM clima.estaciones_meteorologicas e
+       JOIN clima.fuentes_datos f ON f.id=e.fuente_id
+       LEFT JOIN clima.estaciones_estado_sincronizacion s
+         ON s.estacion_id=e.id AND s.fuente_id=e.fuente_id
+       ORDER BY e.nombre`
+    );
+    return Promise.all(
+      stations.map(async (station: Record<string, unknown> & { id: string }) => ({
+        ...toStation(station),
+        kind: "station" as const,
+        current: await this.stationLatest(station.id)
+      }))
+    );
+  }
+
+  private stationLatest(stationId: string) {
+    return this.dataSource.query(
+      `SELECT DISTINCT ON(l.variable) l.variable,l.valor AS value,l.unidad AS unit,
+        l.tipo AS type,l.dato_at AS "dataAt",l.recibido_at AS "receivedAt",
+        l.modelo AS model,f.nombre AS source
+       FROM clima.lecturas l JOIN clima.fuentes_datos f ON f.id=l.fuente_id
+       WHERE l.estacion_id=$1 ORDER BY l.variable,l.dato_at DESC`,
+      [stationId]
+    );
+  }
+
+  private async station(publicId: string) {
+    const rows = await this.dataSource.query(
+      `SELECT id,public_id AS "publicId",nombre,codigo,tipo,latitud::float AS latitude,
+        longitud::float AS longitude,estado,variables_json AS variables,
+        ultima_comunicacion_at AS "lastCommunicationAt",activo AS "isActive"
+       FROM clima.estaciones_meteorologicas WHERE public_id=$1`,
+      [publicId]
+    );
+    if (!rows[0]) throw new NotFoundException("Estacion meteorologica no encontrada.");
+    return rows[0];
+  }
   private async points(): Promise<Punto[]> {
     return this.dataSource.query(
       "SELECT id,public_id,nombre,departamento,distrito,latitud,longitud FROM clima.puntos_climaticos WHERE activo=true ORDER BY departamento,distrito"
@@ -603,5 +664,26 @@ function toPoint(point: Punto) {
     district: point.distrito,
     latitude: Number(point.latitud),
     longitude: Number(point.longitud)
+  };
+}
+
+function toStation(station: Record<string, unknown>) {
+  return {
+    id: String(station.publicId ?? ""),
+    publicId: String(station.publicId ?? ""),
+    name: String(station.nombre ?? ""),
+    codigo: String(station.codigo ?? ""),
+    tipo: String(station.tipo ?? ""),
+    latitude: Number(station.latitude),
+    longitude: Number(station.longitude),
+    estado: String(station.estado ?? "SIN_CONFIGURAR"),
+    variables: Array.isArray(station.variables) ? station.variables : [],
+    lastCommunicationAt: station.lastCommunicationAt ?? null,
+    isActive: station.isActive !== false,
+    source: station.source ?? null,
+    syncStatus: station.syncStatus ?? null,
+    lastCompleteDay: station.lastCompleteDay ?? null,
+    lastAttemptAt: station.lastAttemptAt ?? null,
+    syncDetail: station.syncDetail ?? null
   };
 }

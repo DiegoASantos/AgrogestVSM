@@ -76,4 +76,5 @@ en la raíz.
 - [Spec 030: Punto interno de referencia de parcela en mobile](030-punto-interno-parcela-mobile.md)
 - [Spec 031: Catálogo sanitario global para etapas y labores de mango](031-catalogo-sanitario-global-mango.md)
 - [Spec 032: Reservorios en el Entorno Agroclimático](032-reservorios-entorno-agroclimatico.md)
+- [Spec 033: Integracion diaria WeatherLink Davis](033-integracion-diaria-weatherlink-davis.md)
 - [Plantilla](TEMPLATE.md)

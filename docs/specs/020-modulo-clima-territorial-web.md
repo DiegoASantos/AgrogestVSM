@@ -10,6 +10,10 @@ implemented_in: apps/api/src/modules/clima; apps/admin-web/src/modules/clima; ap
 
 # Spec 020: Módulo clima territorial para el panel web
 
+> Ampliacion aprobada: la spec 033 incorpora estaciones Davis mediante
+> WeatherLink v2 como fuente observada diaria, sin modificar el proveedor de
+> pronostico ni los contratos mobile.
+
 ## Contexto
 
 AgroGest requiere un módulo climático administrativo, independiente de parcelas,

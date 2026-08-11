@@ -59,4 +59,34 @@ describe("validateEnvironment", () => {
       })
     ).toThrow("LOG_LEVEL must be one of trace, debug, info, warn, error or fatal.");
   });
+
+  it("keeps WeatherLink disabled by default and validates enabled credentials", () => {
+    const disabled = validateEnvironment(REQUIRED_ENV);
+    expect(disabled.WEATHERLINK_ENABLED).toBe(false);
+    expect(disabled.WEATHERLINK_DAILY_SYNC_HOUR).toBe(8);
+    expect(disabled.WEATHERLINK_CATCHUP_MAX_DAYS).toBe(30);
+
+    expect(() =>
+      validateEnvironment({ ...REQUIRED_ENV, WEATHERLINK_ENABLED: "true" })
+    ).toThrow(
+      "WEATHERLINK_API_KEY and WEATHERLINK_API_SECRET are required when WEATHERLINK_ENABLED=true."
+    );
+
+    const enabled = validateEnvironment({
+      ...REQUIRED_ENV,
+      WEATHERLINK_ENABLED: "true",
+      WEATHERLINK_API_KEY: "test-key",
+      WEATHERLINK_API_SECRET: "test-secret"
+    });
+    expect(enabled.WEATHERLINK_ENABLED).toBe(true);
+  });
+
+  it("rejects an invalid WeatherLink IANA time zone at startup", () => {
+    expect(() =>
+      validateEnvironment({
+        ...REQUIRED_ENV,
+        WEATHERLINK_TIME_ZONE: "Lima/not-a-zone"
+      })
+    ).toThrow("WEATHERLINK_TIME_ZONE must be a valid IANA time zone.");
+  });
 });

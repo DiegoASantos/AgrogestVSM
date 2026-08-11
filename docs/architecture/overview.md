@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-08
+last_reviewed: 2026-08-11
 related_code:
   - apps/api
   - apps/mobile
@@ -35,6 +35,8 @@ Mobile online ───┘
 - JWT de acceso y refresh sessions;
 - guards globales de autenticación y roles;
 - endpoint de integración externa Cost-Build protegido por API key dedicada;
+- adaptador WeatherLink v2 para observaciones Davis diarias, activado de forma
+  oportunista por el uso del panel y aislado de las credenciales del navegador;
 - rate limiting de login por IP;
 - Swagger solo en desarrollo.
 
