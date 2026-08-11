@@ -5413,3 +5413,392 @@ canvas {
     @apply font-sans;
   }
 }
+
+/* Climate observatory — chart-first visual system. */
+.climate-screen {
+  --climate-ink: #123b4a;
+  --climate-muted: #58727c;
+  --climate-grid: #d9e7eb;
+  --climate-surface: #ffffff;
+  --climate-surface-soft: #f5faf9;
+  --climate-teal: #0f766e;
+  --climate-blue: #2563eb;
+  --climate-amber: #d97706;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(14, 165, 233, 0.09), transparent 28rem),
+    radial-gradient(circle at 0% 16%, rgba(16, 185, 129, 0.07), transparent 24rem),
+    var(--surface, #fff);
+}
+
+.climate-screen .recharts-cartesian-grid line {
+  stroke: var(--climate-grid);
+}
+
+.climate-screen .recharts-text {
+  fill: var(--climate-muted);
+  font-size: 0.72rem;
+}
+
+.climate-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #b8e4d5;
+  border-left-width: 4px;
+  box-shadow: 0 8px 24px rgba(15, 118, 110, 0.06);
+}
+
+.climate-notice svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.climate-summary-hero {
+  position: relative;
+  min-height: 136px;
+  overflow: hidden;
+  padding: 26px 28px;
+  border: 1px solid #b9dfe7;
+  background:
+    linear-gradient(112deg, rgba(255, 255, 255, 0.78), rgba(236, 253, 245, 0.76)),
+    repeating-linear-gradient(90deg, transparent 0 52px, rgba(14, 116, 144, 0.06) 53px),
+    #e7f5f7;
+}
+
+.climate-summary-hero::after {
+  position: absolute;
+  right: -38px;
+  bottom: -74px;
+  width: 230px;
+  height: 230px;
+  border: 34px solid rgba(15, 118, 110, 0.08);
+  border-radius: 50%;
+  content: "";
+}
+
+.climate-summary-hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.climate-summary-hero__legend {
+  min-width: 150px;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.climate-summary-hero__legend svg {
+  color: var(--climate-teal);
+}
+
+.climate-summary-hero__legend div {
+  display: grid;
+}
+
+.climate-summary-hero__legend strong {
+  color: var(--climate-ink);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.climate-summary-hero__legend span {
+  color: var(--climate-muted);
+  font-size: 0.74rem;
+}
+
+.climate-data-section,
+.climate-chart-card,
+.climate-table-card {
+  border-color: var(--climate-grid);
+  background: color-mix(in srgb, var(--climate-surface) 96%, transparent);
+  box-shadow: 0 12px 34px rgba(18, 59, 74, 0.055);
+}
+
+.climate-chart-card {
+  min-height: 0;
+  padding: 20px;
+}
+
+.climate-chart-card--featured {
+  padding: 22px;
+  border-top: 3px solid var(--climate-teal);
+}
+
+.climate-chart-canvas {
+  min-width: 0;
+  min-height: 300px;
+}
+
+.climate-context-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #c7dfe5;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f0fdfa, #eff6ff);
+}
+
+.climate-context-strip > svg {
+  color: var(--climate-teal);
+}
+
+.climate-context-strip > div {
+  display: grid;
+  flex: 1;
+}
+
+.climate-context-strip strong {
+  color: var(--climate-ink);
+}
+
+.climate-context-strip span {
+  color: var(--climate-muted);
+  font-size: 0.8rem;
+}
+
+.climate-metric-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.climate-metric-chart {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--climate-grid);
+  border-radius: 12px;
+  background: var(--climate-surface-soft);
+}
+
+.climate-metric-chart > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--climate-grid);
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.08), transparent);
+}
+
+.climate-metric-chart h4 {
+  margin: 0;
+  color: var(--climate-ink);
+  font-size: 0.84rem;
+}
+
+.climate-metric-chart header span {
+  color: var(--climate-muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.climate-bullet-list {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.climate-bullet {
+  display: grid;
+  gap: 6px;
+}
+
+.climate-bullet__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.climate-bullet__label span {
+  overflow: hidden;
+  color: var(--climate-muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.climate-bullet__label strong {
+  color: var(--climate-ink);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.climate-bullet__track {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dce9eb;
+}
+
+.climate-bullet__track span {
+  display: block;
+  min-width: 3px;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--climate-teal), #38bdf8);
+}
+
+.climate-metric-charts--compact {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.climate-metric-charts--compact .climate-bullet-list {
+  gap: 9px;
+  padding: 11px;
+}
+
+.climate-map-panel--open,
+.climate-map-panel__inner {
+  width: 460px;
+}
+
+.climate-map-panel__dates button {
+  display: grid;
+  min-height: 50px;
+  place-content: center;
+}
+
+.climate-map-panel__dates button small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.65rem;
+  opacity: 0.78;
+}
+
+.climate-map-panel__close {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+}
+
+.climate-traceability {
+  overflow: hidden;
+  border: 1px solid var(--climate-grid);
+  border-radius: 12px;
+  background: var(--climate-surface);
+}
+
+.climate-traceability > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 16px;
+  color: var(--climate-ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.climate-traceability[open] > summary {
+  border-bottom: 1px solid var(--climate-grid);
+}
+
+.climate-traceability .climate-table-card {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+@media (max-width: 1100px) {
+  .climate-map-panel--open,
+  .climate-map-panel__inner {
+    width: 400px;
+  }
+}
+
+@media (max-width: 900px) {
+  .climate-map-panel--open,
+  .climate-map-panel__inner {
+    width: 100%;
+  }
+
+  .climate-metric-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .climate-summary-hero {
+    padding: 20px;
+  }
+
+  .climate-summary-hero__legend {
+    width: 100%;
+  }
+
+  .climate-context-strip {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .climate-chart-card,
+  .climate-data-section,
+  .climate-table-card {
+    padding: 14px;
+  }
+}
+
+[data-theme="dark"] .climate-screen {
+  --climate-ink: #e0f2fe;
+  --climate-muted: #9fb6c0;
+  --climate-grid: #33434a;
+  --climate-surface: #181d24;
+  --climate-surface-soft: #1d252a;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(14, 165, 233, 0.08), transparent 28rem),
+    radial-gradient(circle at 0% 16%, rgba(16, 185, 129, 0.06), transparent 24rem),
+    var(--surface);
+}
+
+[data-theme="dark"] .climate-summary-hero {
+  color: var(--climate-ink);
+  border-color: #315760;
+  background:
+    linear-gradient(112deg, rgba(20, 45, 49, 0.94), rgba(19, 39, 56, 0.92)),
+    #17252a;
+}
+
+[data-theme="dark"] .climate-summary-hero > div > span,
+[data-theme="dark"] .climate-summary-hero__legend span {
+  color: var(--climate-muted);
+}
+
+[data-theme="dark"] .climate-summary-hero__legend,
+[data-theme="dark"] .climate-context-strip {
+  border-color: #35535a;
+  background: rgba(18, 30, 36, 0.8);
+}
+
+[data-theme="dark"] .climate-notice {
+  border-color: #28665e;
+  background: #12332f;
+  color: #c5f2e6;
+}
+
+[data-theme="dark"] .climate-bullet__track {
+  background: #32434a;
+}
+
+[data-theme="dark"] .climate-empty,
+[data-theme="dark"] .climate-map-panel__dates button,
+[data-theme="dark"] .climate-map-panel__summary article {
+  border-color: var(--climate-grid);
+  background: #202830;
+  color: var(--climate-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .climate-map-panel,
+  .climate-bullet__track span {
+    transition: none;
+  }
+}

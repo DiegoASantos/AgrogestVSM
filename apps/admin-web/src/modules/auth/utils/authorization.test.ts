@@ -4,8 +4,11 @@ import type { AuthSession } from "../types/auth.types";
 import {
   canAccessAdminPath,
   hasRole,
+  isAgronomistSession,
   isAnalystSession,
   isAdminSession,
+  isClimatePath,
+  isClimateSession,
   isRestrictedAdminPath
 } from "./authorization";
 
@@ -64,6 +67,31 @@ describe("isAnalystSession", () => {
   });
 });
 
+describe("climate roles", () => {
+  it("matches AGRONOMO sessions", () => {
+    expect(isAgronomistSession(makeSession(["AGRONOMO"]))).toBe(true);
+    expect(isAgronomistSession(makeSession(["ANALISTA"]))).toBe(false);
+  });
+
+  it.each(["ADMIN", "ANALISTA", "AGRONOMO"])("allows %s to use climate views", (role) => {
+    expect(isClimateSession(makeSession([role]))).toBe(true);
+  });
+
+  it("rejects unrelated roles from climate views", () => {
+    expect(isClimateSession(makeSession(["VIEWER"]))).toBe(false);
+  });
+});
+
+describe("isClimatePath", () => {
+  it.each(["/clima", "/clima/resumen", "/clima/mapa/detalle"])("matches %s", (path) =>
+    expect(isClimatePath(path)).toBe(true)
+  );
+
+  it.each(["/dashboard", "/climatologia"])("does not match %s", (path) =>
+    expect(isClimatePath(path)).toBe(false)
+  );
+});
+
 describe("isRestrictedAdminPath", () => {
   it.each([
     "/mantenimiento",
@@ -87,10 +115,21 @@ describe("canAccessAdminPath", () => {
     expect(canAccessAdminPath("", null)).toBe(true);
   });
 
-  it("allows non-restricted paths for any session", () => {
+  it("allows ordinary non-restricted paths for any session", () => {
     expect(canAccessAdminPath("/dashboard", null)).toBe(true);
     expect(canAccessAdminPath("/visitas", makeSession(["VIEWER"]))).toBe(true);
-    expect(canAccessAdminPath("/clima/resumen", makeSession(["ANALISTA"]))).toBe(true);
+  });
+
+  it.each(["ADMIN", "ANALISTA", "AGRONOMO"])(
+    "allows %s to open climate routes",
+    (role) => {
+      expect(canAccessAdminPath("/clima/resumen", makeSession([role]))).toBe(true);
+    }
+  );
+
+  it("blocks climate routes for unrelated roles", () => {
+    expect(canAccessAdminPath("/clima/resumen", makeSession(["VIEWER"]))).toBe(false);
+    expect(canAccessAdminPath("/clima/mapa", null)).toBe(false);
   });
 
   it("blocks restricted paths for non-admin sessions", () => {
@@ -101,11 +140,9 @@ describe("canAccessAdminPath", () => {
   });
 
   it("allows restricted paths for admin sessions", () => {
-    expect(
-      canAccessAdminPath("/mantenimiento/cultivos", makeSession(["ADMIN"]))
-    ).toBe(true);
-    expect(canAccessAdminPath("/seguridad/usuarios", makeSession(["ADMIN"]))).toBe(
+    expect(canAccessAdminPath("/mantenimiento/cultivos", makeSession(["ADMIN"]))).toBe(
       true
     );
+    expect(canAccessAdminPath("/seguridad/usuarios", makeSession(["ADMIN"]))).toBe(true);
   });
 });

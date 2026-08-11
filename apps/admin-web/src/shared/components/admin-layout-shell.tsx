@@ -40,7 +40,8 @@ import { useAuthSession } from "../../modules/auth/hooks/use-auth-session";
 import {
   canAccessAdminPath,
   isAdminSession,
-  isAnalystSession
+  isClimatePath,
+  isClimateSession
 } from "../../modules/auth/utils/authorization";
 import { useTheme } from "../hooks/use-theme";
 import { NotificationBell } from "./notification-bell";
@@ -94,7 +95,12 @@ const climateNavIcons: Record<string, LucideIcon> = Object.fromEntries(
 );
 
 function getIconForHref(href: string): LucideIcon | undefined {
-  return mainNavIcons[href] ?? maintenanceNavIcons[href] ?? securityNavIcons[href] ?? climateNavIcons[href];
+  return (
+    mainNavIcons[href] ??
+    maintenanceNavIcons[href] ??
+    securityNavIcons[href] ??
+    climateNavIcons[href]
+  );
 }
 
 export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
@@ -107,10 +113,10 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const isAdmin = isAdminSession(session);
-  const isAnalyst = isAnalystSession(session);
+  const canAccessClimate = isClimateSession(session);
   const canAccessCurrentRoute = canAccessAdminPath(pathname, session);
   const maintenanceNavigation = isAdmin ? adminMaintenanceNavigation : [];
-  const climateNavigation = isAdmin || isAnalyst ? adminClimateNavigation : [];
+  const climateNavigation = canAccessClimate ? adminClimateNavigation : [];
   const securityNavigation = isAdmin ? adminSecurityNavigation : [];
 
   useEffect(() => {
@@ -138,7 +144,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
             </article>
           </section>
         </div>
-    </main>
+      </main>
     );
   }
 
@@ -146,10 +152,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
     return null;
   }
 
-  const shortName = shortenName(
-    session.user.firstName,
-    session.user.lastName
-  );
+  const shortName = shortenName(session.user.firstName, session.user.lastName);
   const userInitials = getInitials(shortName);
 
   return (
@@ -168,10 +171,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
       </button>
 
       {sidebarOpen && (
-        <div
-          className="sidebar-overlay"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
       <aside className={`admin-sidebar${sidebarOpen ? " admin-sidebar--open" : ""}`}>
@@ -179,7 +179,9 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
           className="admin-sidebar__brand"
           onClick={() => setSidebarCollapsed((isCollapsed) => !isCollapsed)}
           type="button"
-          aria-label={sidebarCollapsed ? "Expandir menu lateral" : "Colapsar menu lateral"}
+          aria-label={
+            sidebarCollapsed ? "Expandir menu lateral" : "Colapsar menu lateral"
+          }
           aria-expanded={!sidebarCollapsed}
           title={sidebarCollapsed ? "Expandir menu" : "Colapsar menu"}
         >
@@ -208,7 +210,15 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
             defaultOpen
             isCollapsed={sidebarCollapsed}
           />
-          {climateNavigation.length > 0 ? <SidebarGroup items={climateNavigation} pathname={pathname} title="Clima" icon={CloudSun} isCollapsed={sidebarCollapsed} /> : null}
+          {climateNavigation.length > 0 ? (
+            <SidebarGroup
+              items={climateNavigation}
+              pathname={pathname}
+              title="Clima"
+              icon={CloudSun}
+              isCollapsed={sidebarCollapsed}
+            />
+          ) : null}
           {maintenanceNavigation.length > 0 ? (
             <SidebarGroup
               items={maintenanceNavigation}
@@ -243,7 +253,9 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
                 className="theme-toggle"
                 onClick={toggleTheme}
                 type="button"
-                aria-label={theme === "light" ? "Activar modo oscuro" : "Activar modo claro"}
+                aria-label={
+                  theme === "light" ? "Activar modo oscuro" : "Activar modo claro"
+                }
                 title={theme === "light" ? "Modo oscuro" : "Modo claro"}
               >
                 {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
@@ -300,13 +312,22 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
             <section className="panel-grid">
               <article className="panel">
                 <p className="eyebrow">Acceso restringido</p>
-                <h2 className="title title--section">No tienes permisos para este modulo.</h2>
+                <h2 className="title title--section">
+                  No tienes permisos para este modulo.
+                </h2>
                 <p className="body-copy">
-                  Este espacio requiere el rol <strong>ADMIN</strong>. Puedes volver al
-                  dashboard o continuar con las vistas operativas habilitadas.
+                  Este espacio requiere el rol{" "}
+                  <strong>
+                    {isClimatePath(pathname) ? "ADMIN, ANALISTA o AGRONOMO" : "ADMIN"}
+                  </strong>
+                  . Puedes volver al dashboard o continuar con las vistas operativas
+                  habilitadas.
                 </p>
                 <div className="actions">
-                  <Link className="ui-button ui-button--secondary" href={adminRoutes.dashboard}>
+                  <Link
+                    className="ui-button ui-button--secondary"
+                    href={adminRoutes.dashboard}
+                  >
                     Ir a dashboard
                   </Link>
                   <Link className="ui-button ui-button--ghost" href={adminRoutes.visitas}>

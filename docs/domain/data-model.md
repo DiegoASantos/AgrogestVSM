@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-09
+last_reviewed: 2026-08-10
 ---
 
 # Modelo del dominio
@@ -218,8 +218,10 @@ forzarlo a `false` al cambiar o guardar una humedad distinta de `seco`.
 
 Los roles distinguen administración, trabajo técnico y consulta. `ANALISTA` usa
 el panel web en modo solo lectura (Dashboard, Visitas, Mapas y Clima), no puede
-acceder a Mantenimiento ni Seguridad y la API rechaza sus mutaciones. La
-aplicación móvil no admite sesiones con ese rol.
+acceder a Mantenimiento ni Seguridad y la API rechaza sus mutaciones.
+`AGRONOMO` también puede consultar las siete vistas territoriales de Clima desde
+el panel web, además de su acceso climático móvil. La aplicación móvil no admite
+sesiones con rol `ANALISTA`.
 
 ## Fuente estructural
 
