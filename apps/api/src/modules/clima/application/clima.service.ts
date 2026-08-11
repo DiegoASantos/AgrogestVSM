@@ -1,7 +1,17 @@
-import { Injectable, NotFoundException, ConflictException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException
+} from "@nestjs/common";
 import { DataSource } from "typeorm";
 
 import { createSuccessResponse } from "../../../common/http/api-response";
+import {
+  RESERVOIR_VARIABLE_UNITS,
+  type ReservoirReadingType,
+  type ReservoirVariable
+} from "./reservoir-reading.constants";
 
 type Punto = {
   id: string;
@@ -85,18 +95,23 @@ export class ClimaService {
         lr.dato_at AS "latestDataAt"
       FROM clima.reservorios r
       LEFT JOIN LATERAL (
-        SELECT DISTINCT ON (reservorio_id)
-          reservorio_id,
-          dato_at,
+        SELECT
           MAX(valor) FILTER (WHERE variable = 'cota_msnm') AS cota_msnm,
           MAX(valor) FILTER (WHERE variable = 'volumen_mmc') AS volumen_mmc,
           MAX(valor) FILTER (WHERE variable = 'caudal_entrada_m3s') AS caudal_entrada_m3s,
           MAX(valor) FILTER (WHERE variable = 'caudal_salida_m3s') AS caudal_salida_m3s,
-          MAX(valor) FILTER (WHERE variable = 'evaporacion_mm') AS evaporacion_mm
-        FROM clima.lecturas_reservorios
-        GROUP BY reservorio_id, dato_at
-        ORDER BY reservorio_id, dato_at DESC
-      ) lr ON lr.reservorio_id = r.id
+          MAX(valor) FILTER (WHERE variable = 'evaporacion_mm') AS evaporacion_mm,
+          MAX(dato_at) AS dato_at
+        FROM (
+          SELECT DISTINCT ON (variable)
+            variable,
+            valor,
+            dato_at
+          FROM clima.lecturas_reservorios
+          WHERE reservorio_id = r.id
+          ORDER BY variable, dato_at DESC, id DESC
+        ) latest_by_variable
+      ) lr ON true
       ORDER BY r.nombre`
     );
   }
@@ -108,6 +123,11 @@ export class ClimaService {
     end?: string
   ) {
     const reservoir = await this.getReservoir(publicId);
+    if (start && end && new Date(start).getTime() > new Date(end).getTime()) {
+      throw new BadRequestException(
+        "La fecha desde no puede ser posterior a la fecha hasta."
+      );
+    }
     const filters: string[] = ["reservorio_id = $1"];
     const params: unknown[] = [reservoir.id];
     let paramIndex = 2;
@@ -155,39 +175,42 @@ export class ClimaService {
   async createReservorioReading(
     publicId: string,
     data: {
-      variable: string;
+      variable: ReservoirVariable;
       valor: number;
       unidad: string;
-      tipo?: string;
+      tipo?: ReservoirReadingType;
       dato_at: string;
     },
     userId: string
   ) {
     const reservoir = await this.getReservoir(publicId);
-    const validVars = [
-      "cota_msnm", "volumen_mmc", "caudal_entrada_m3s",
-      "caudal_salida_m3s", "evaporacion_mm"
-    ];
-
-    if (!validVars.includes(data.variable)) {
-      throw new ConflictException(`Variable invalida: ${data.variable}`);
-    }
-
     const tipo = data.tipo ?? "OBSERVADO";
-    if (!["OBSERVADO", "ESTIMADO"].includes(tipo)) {
-      throw new ConflictException(`Tipo invalido: ${tipo}`);
-    }
+    this.assertReservoirUnit(data.variable, data.unidad);
 
     const [source] = await this.dataSource.query(
       "SELECT id FROM clima.fuentes_datos WHERE codigo='manual_reservorios'"
     );
+    if (!source?.id) {
+      throw new ServiceUnavailableException(
+        "La fuente de carga manual de reservorios no está configurada."
+      );
+    }
 
     const [row] = await this.dataSource.query(
       `INSERT INTO clima.lecturas_reservorios
         (reservorio_id, fuente_id, variable, valor, unidad, tipo, dato_at, creado_por)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING public_id AS "publicId", variable, valor::float AS value, unidad AS unit, tipo AS type, dato_at AS "dataAt", recibido_at AS "receivedAt"`,
-      [reservoir.id, source?.id ?? null, data.variable, data.valor, data.unidad, tipo, data.dato_at, userId]
+      [
+        reservoir.id,
+        source.id,
+        data.variable,
+        data.valor,
+        data.unidad,
+        tipo,
+        data.dato_at,
+        userId
+      ]
     );
 
     return createSuccessResponse(row);
@@ -197,40 +220,71 @@ export class ClimaService {
     reservorioId: string,
     lecturaId: string,
     data: {
-      variable?: string;
+      variable?: ReservoirVariable;
       valor?: number;
       unidad?: string;
-      tipo?: string;
+      tipo?: ReservoirReadingType;
       dato_at?: string;
     }
   ) {
-    await this.getReservoir(reservorioId);
-    const validVars = [
-      "cota_msnm", "volumen_mmc", "caudal_entrada_m3s",
-      "caudal_salida_m3s", "evaporacion_mm"
-    ];
-    if (data.variable && !validVars.includes(data.variable)) {
-      throw new ConflictException(`Variable invalida: ${data.variable}`);
-    }
-    if (data.tipo && !["OBSERVADO", "ESTIMADO"].includes(data.tipo)) {
-      throw new ConflictException(`Tipo invalido: ${data.tipo}`);
+    const reservoir = await this.getReservoir(reservorioId);
+    const current = await this.getReservoirReading(reservoir.id, lecturaId);
+    const variable = data.variable ?? current.variable;
+
+    if (data.unidad !== undefined) {
+      this.assertReservoirUnit(variable, data.unidad);
     }
 
     const sets: string[] = [];
     const params: unknown[] = [];
     let i = 1;
 
-    if (data.variable !== undefined) { sets.push(`variable = $${i}`); params.push(data.variable); i++; }
-    if (data.valor !== undefined) { sets.push(`valor = $${i}`); params.push(data.valor); i++; }
-    if (data.unidad !== undefined) { sets.push(`unidad = $${i}`); params.push(data.unidad); i++; }
-    if (data.tipo !== undefined) { sets.push(`tipo = $${i}`); params.push(data.tipo); i++; }
-    if (data.dato_at !== undefined) { sets.push(`dato_at = $${i}::timestamptz`); params.push(data.dato_at); i++; }
+    if (data.variable !== undefined) {
+      sets.push(`variable = $${i}`);
+      params.push(data.variable);
+      i++;
+      if (data.unidad === undefined) {
+        sets.push(`unidad = $${i}`);
+        params.push(RESERVOIR_VARIABLE_UNITS[data.variable]);
+        i++;
+      }
+    }
+    if (data.valor !== undefined) {
+      sets.push(`valor = $${i}`);
+      params.push(data.valor);
+      i++;
+    }
+    if (data.unidad !== undefined) {
+      sets.push(`unidad = $${i}`);
+      params.push(data.unidad);
+      i++;
+    }
+    if (data.tipo !== undefined) {
+      sets.push(`tipo = $${i}`);
+      params.push(data.tipo);
+      i++;
+    }
+    if (data.dato_at !== undefined) {
+      sets.push(`dato_at = $${i}::timestamptz`);
+      params.push(data.dato_at);
+      i++;
+    }
 
-    if (!sets.length) return createSuccessResponse(null);
+    if (!sets.length) {
+      throw new BadRequestException(
+        "Debe proporcionar al menos un campo para actualizar."
+      );
+    }
 
     params.push(lecturaId);
+    const lecturaParam = i;
+    i++;
+    params.push(reservoir.id);
     const [row] = await this.dataSource.query(
-      `UPDATE clima.lecturas_reservorios SET ${sets.join(", ")} WHERE public_id = $${i} RETURNING public_id AS "publicId", variable, valor::float AS value, unidad AS unit, tipo AS type, dato_at AS "dataAt"`,
+      `UPDATE clima.lecturas_reservorios
+       SET ${sets.join(", ")}
+       WHERE public_id = $${lecturaParam} AND reservorio_id = $${i}
+       RETURNING public_id AS "publicId", variable, valor::float AS value, unidad AS unit, tipo AS type, dato_at AS "dataAt", recibido_at AS "receivedAt"`,
       params
     );
 
@@ -239,11 +293,12 @@ export class ClimaService {
   }
 
   async deleteReservorioReading(reservorioId: string, lecturaId: string) {
-    await this.getReservoir(reservorioId);
-    await this.dataSource.query(
-      "DELETE FROM clima.lecturas_reservorios WHERE public_id = $1",
-      [lecturaId]
+    const reservoir = await this.getReservoir(reservorioId);
+    const rows = await this.dataSource.query(
+      "DELETE FROM clima.lecturas_reservorios WHERE public_id = $1 AND reservorio_id = $2 RETURNING id",
+      [lecturaId, reservoir.id]
     );
+    if (!rows[0]) throw new NotFoundException("Lectura no encontrada.");
     return createSuccessResponse(null);
   }
 
@@ -486,6 +541,25 @@ export class ClimaService {
       capacidad_max_mmc: number | null;
       cota_max_msnm: number | null;
     };
+  }
+
+  private async getReservoirReading(
+    reservoirId: string,
+    readingPublicId: string
+  ): Promise<{ variable: ReservoirVariable }> {
+    const rows = await this.dataSource.query(
+      "SELECT variable FROM clima.lecturas_reservorios WHERE public_id = $1 AND reservorio_id = $2",
+      [readingPublicId, reservoirId]
+    );
+    if (!rows[0]) throw new NotFoundException("Lectura no encontrada.");
+    return rows[0] as { variable: ReservoirVariable };
+  }
+
+  private assertReservoirUnit(variable: ReservoirVariable, unit: string) {
+    const expectedUnit = RESERVOIR_VARIABLE_UNITS[variable];
+    if (unit !== expectedUnit) {
+      throw new BadRequestException(`La unidad de ${variable} debe ser ${expectedUnit}.`);
+    }
   }
 }
 function numeric(value: unknown) {

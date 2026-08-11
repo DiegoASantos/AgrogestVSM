@@ -2,6 +2,7 @@ import "reflect-metadata";
 
 import { describe, expect, it } from "vitest";
 
+import { ALLOW_ANALYST_MUTATION_KEY } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { REQUIRED_ROLES_KEY } from "../../auth/presentation/decorators/roles.decorator";
 import { ClimaController } from "./clima.controller";
 
@@ -35,5 +36,8 @@ describe("ClimaController", () => {
     expect(
       Reflect.getMetadata(REQUIRED_ROLES_KEY, ClimaController.prototype[handler])
     ).toEqual(["ADMIN", "ANALISTA"]);
+    expect(
+      Reflect.getMetadata(ALLOW_ANALYST_MUTATION_KEY, ClimaController.prototype[handler])
+    ).toBe(true);
   });
 });

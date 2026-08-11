@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import {
   Area,
   AreaChart,
@@ -15,7 +16,14 @@ import {
   XAxis,
   YAxis
 } from "recharts";
-import { Activity, ChartNoAxesCombined, Database, Droplets, MapPinned, X } from "lucide-react";
+import {
+  Activity,
+  ChartNoAxesCombined,
+  Database,
+  Droplets,
+  MapPinned,
+  X
+} from "lucide-react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { AdminMap, type AdminMapPoint } from "../../../shared/components/admin-map";
@@ -36,9 +44,17 @@ import {
   limaDateKeyAtOffset,
   mergeHistoryByTimestamp
 } from "./clima-view.utils";
+import { ReservoirsView } from "./reservoirs-view";
 
 export type ClimateSection =
-  "resumen" | "mapa" | "pronostico" | "historial" | "estaciones" | "alertas" | "fuentes";
+  | "resumen"
+  | "reservorios"
+  | "mapa"
+  | "pronostico"
+  | "historial"
+  | "estaciones"
+  | "alertas"
+  | "fuentes";
 
 type Session = NonNullable<ReturnType<typeof useAuthSession>["session"]>;
 type AlertItem = {
@@ -62,7 +78,14 @@ const EMPTY_FORECAST_DAYS: ClimateForecast["days"] = [];
 const LINE_COLORS = ["#0f766e", "#2563eb", "#d97706", "#dc2626", "#7c3aed"];
 
 const titles: Record<ClimateSection, [string, string]> = {
-  resumen: ["Resumen Agroclimático", "Lectura territorial comparada y tendencias próximas."],
+  resumen: [
+    "Resumen Agroclimático",
+    "Lectura territorial comparada y tendencias próximas."
+  ],
+  reservorios: [
+    "Reservorios",
+    "Características fijas y registro manual de Poechos y San Lorenzo."
+  ],
   mapa: [
     "Mapa agroclimático",
     "Explore puntos territoriales y su pronóstico de tres días."
@@ -151,17 +174,19 @@ export function ClimaScreen({ section }: { section: ClimateSection }) {
     const load =
       section === "resumen"
         ? climaService.getSummary
-        : section === "mapa"
-          ? climaService.getMap
-          : section === "pronostico"
-            ? climaService.getForecast
-            : section === "estaciones"
-              ? climaService.getStations
-              : section === "alertas"
-                ? climaService.getAlerts
-                : section === "fuentes"
-                  ? climaService.getSources
-                  : climaService.getPoints;
+        : section === "reservorios"
+          ? climaService.getReservorios
+          : section === "mapa"
+            ? climaService.getMap
+            : section === "pronostico"
+              ? climaService.getForecast
+              : section === "estaciones"
+                ? climaService.getStations
+                : section === "alertas"
+                  ? climaService.getAlerts
+                  : section === "fuentes"
+                    ? climaService.getSources
+                    : climaService.getPoints;
 
     void load(session)
       .then(setData)
@@ -210,6 +235,8 @@ function ClimateContent({
 }) {
   if (section === "resumen")
     return <SummaryView summary={data as Summary} session={session} />;
+  if (section === "reservorios")
+    return <ReservoirsView initialReservoirs={data as Reservoir[]} session={session} />;
   if (section === "pronostico")
     return <ForecastView forecasts={data as ClimateForecast[]} />;
   if (section === "historial")
@@ -249,7 +276,10 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
       : null;
 
   useEffect(() => {
-    void climaService.getReservorios(session).then(setReservorios).catch(() => setReservorios([]));
+    void climaService
+      .getReservorios(session)
+      .then(setReservorios)
+      .catch(() => setReservorios([]));
   }, [session]);
 
   async function handleSelect(pointId: string) {
@@ -293,7 +323,10 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
   const mapPoints: AdminMapPoint[] = [
     ...points.map((point) => ({
       id: point.id,
-      geometry: { type: "Point" as const, coordinates: [point.longitude, point.latitude] as [number, number] },
+      geometry: {
+        type: "Point" as const,
+        coordinates: [point.longitude, point.latitude] as [number, number]
+      },
       color: selectedId === point.id && selectedKind === "clima" ? "#0f766e" : "#1d7a9b",
       radius: selectedId === point.id && selectedKind === "clima" ? 10 : 8,
       isSelected: selectedId === point.id && selectedKind === "clima",
@@ -301,8 +334,14 @@ function ClimateMap({ points, session }: { points: ClimatePoint[]; session: Sess
     })),
     ...reservorios.map((reservoir) => ({
       id: reservoir.publicId,
-      geometry: { type: "Point" as const, coordinates: [reservoir.longitude, reservoir.latitude] as [number, number] },
-      color: selectedId === reservoir.publicId && selectedKind === "reservorio" ? "#0369a1" : "#0284c7",
+      geometry: {
+        type: "Point" as const,
+        coordinates: [reservoir.longitude, reservoir.latitude] as [number, number]
+      },
+      color:
+        selectedId === reservoir.publicId && selectedKind === "reservorio"
+          ? "#0369a1"
+          : "#0284c7",
       radius: selectedId === reservoir.publicId && selectedKind === "reservorio" ? 10 : 8,
       isSelected: selectedId === reservoir.publicId && selectedKind === "reservorio",
       onSelect: () => handleReservoirSelect(reservoir.publicId)
@@ -460,9 +499,10 @@ function ReservoirMapPanel({
       .catch(() => setHistory([]));
   }, [reservoir.publicId, session]);
 
-  const pct = reservoir.capacityMaxMmc && reservoir.latestVolumeMmc != null
-    ? Math.round((reservoir.latestVolumeMmc / reservoir.capacityMaxMmc) * 100)
-    : null;
+  const pct =
+    reservoir.capacityMaxMmc && reservoir.latestVolumeMmc != null
+      ? Math.round((reservoir.latestVolumeMmc / reservoir.capacityMaxMmc) * 100)
+      : null;
 
   const chartData = [...history]
     .reverse()
@@ -494,7 +534,14 @@ function ReservoirMapPanel({
       <div className="climate-map-panel__body">
         {reservoir.latestDataAt ? (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "0.5rem",
+                marginBottom: "1rem"
+              }}
+            >
               {reservoir.latestVolumeMmc != null ? (
                 <div>
                   <small style={{ color: "var(--color-text-muted)" }}>Volumen</small>
@@ -502,7 +549,9 @@ function ReservoirMapPanel({
                     {reservoir.latestVolumeMmc.toFixed(1)} MMC
                   </strong>
                   {pct !== null ? (
-                    <span className={`climate-badge${pct < 30 ? " climate-badge--degrada" : ""}`}>
+                    <span
+                      className={`climate-badge${pct < 30 ? " climate-badge--degrada" : ""}`}
+                    >
                       {pct}%
                     </span>
                   ) : null}
@@ -511,25 +560,37 @@ function ReservoirMapPanel({
               {reservoir.latestCota != null ? (
                 <div>
                   <small style={{ color: "var(--color-text-muted)" }}>Cota</small>
-                  <strong style={{ display: "block" }}>{reservoir.latestCota.toFixed(2)} msnm</strong>
+                  <strong style={{ display: "block" }}>
+                    {reservoir.latestCota.toFixed(2)} msnm
+                  </strong>
                 </div>
               ) : null}
               {reservoir.latestInflowM3s != null ? (
                 <div>
-                  <small style={{ color: "var(--color-text-muted)" }}>Caudal entrada</small>
-                  <strong style={{ display: "block" }}>{reservoir.latestInflowM3s.toFixed(1)} m³/s</strong>
+                  <small style={{ color: "var(--color-text-muted)" }}>
+                    Caudal entrada
+                  </small>
+                  <strong style={{ display: "block" }}>
+                    {reservoir.latestInflowM3s.toFixed(1)} m³/s
+                  </strong>
                 </div>
               ) : null}
               {reservoir.latestOutflowM3s != null ? (
                 <div>
-                  <small style={{ color: "var(--color-text-muted)" }}>Caudal salida</small>
-                  <strong style={{ display: "block" }}>{reservoir.latestOutflowM3s.toFixed(1)} m³/s</strong>
+                  <small style={{ color: "var(--color-text-muted)" }}>
+                    Caudal salida
+                  </small>
+                  <strong style={{ display: "block" }}>
+                    {reservoir.latestOutflowM3s.toFixed(1)} m³/s
+                  </strong>
                 </div>
               ) : null}
               {reservoir.latestEvaporationMm != null ? (
                 <div>
                   <small style={{ color: "var(--color-text-muted)" }}>Evaporación</small>
-                  <strong style={{ display: "block" }}>{reservoir.latestEvaporationMm.toFixed(1)} mm</strong>
+                  <strong style={{ display: "block" }}>
+                    {reservoir.latestEvaporationMm.toFixed(1)} mm
+                  </strong>
                 </div>
               ) : null}
             </div>
@@ -539,14 +600,33 @@ function ReservoirMapPanel({
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="date" />
                   <YAxis unit=" MMC" />
-                  <Tooltip formatter={(value) => [`${formatValue(String(value))} MMC`, "Volumen"]} />
-                  <Line dataKey="value" stroke="#0284c7" strokeWidth={2.5} type="monotone" dot={false} />
+                  <Tooltip
+                    formatter={(value) => [
+                      `${formatValue(String(value))} MMC`,
+                      "Volumen"
+                    ]}
+                  />
+                  <Line
+                    dataKey="value"
+                    stroke="#0284c7"
+                    strokeWidth={2.5}
+                    type="monotone"
+                    dot={false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="climate-map-panel__empty">Sin datos históricos suficientes.</div>
+              <div className="climate-map-panel__empty">
+                Sin datos históricos suficientes.
+              </div>
             )}
-            <small style={{ display: "block", marginTop: "0.5rem", color: "var(--color-text-muted)" }}>
+            <small
+              style={{
+                display: "block",
+                marginTop: "0.5rem",
+                color: "var(--color-text-muted)"
+              }}
+            >
               Última lectura: {date(reservoir.latestDataAt)}
             </small>
           </>
@@ -818,12 +898,19 @@ function ReservoirStatusCard({ reservorios }: { reservorios: Reservoir[] }) {
             Estado de embalses <small>Poechos &middot; San Lorenzo</small>
           </h3>
         </div>
+        <Link
+          className="ui-button ui-button--secondary ui-button--compact"
+          href="/clima/reservorios"
+        >
+          Gestionar lecturas
+        </Link>
       </header>
       <div className="climate-chart-grid--two-col">
         {reservorios.map((reservoir) => {
-          const pct = reservoir.capacityMaxMmc && reservoir.latestVolumeMmc != null
-            ? Math.round((reservoir.latestVolumeMmc / reservoir.capacityMaxMmc) * 100)
-            : null;
+          const pct =
+            reservoir.capacityMaxMmc && reservoir.latestVolumeMmc != null
+              ? Math.round((reservoir.latestVolumeMmc / reservoir.capacityMaxMmc) * 100)
+              : null;
 
           return (
             <section className="climate-chart-card" key={reservoir.publicId}>
@@ -838,12 +925,34 @@ function ReservoirStatusCard({ reservorios }: { reservorios: Reservoir[] }) {
                   </small>
                 </div>
                 {pct !== null ? (
-                  <span className={`climate-badge${pct < 30 ? " climate-badge--degrada" : pct > 70 ? " climate-badge--operativa" : ""}`}>
+                  <span
+                    className={`climate-badge${pct < 30 ? " climate-badge--degrada" : pct > 70 ? " climate-badge--operativa" : ""}`}
+                  >
                     {pct}%
                   </span>
                 ) : null}
               </header>
               <div className="climate-bullet-list">
+                <div className="climate-bullet">
+                  <div className="climate-bullet__label">
+                    <span>Capacidad máxima · dato fijo</span>
+                    <strong>
+                      {reservoir.capacityMaxMmc != null
+                        ? `${reservoir.capacityMaxMmc.toFixed(1)} MMC`
+                        : "No configurada"}
+                    </strong>
+                  </div>
+                </div>
+                <div className="climate-bullet">
+                  <div className="climate-bullet__label">
+                    <span>Cota máxima · dato fijo</span>
+                    <strong>
+                      {reservoir.elevationMaxMasl != null
+                        ? `${reservoir.elevationMaxMasl.toFixed(2)} msnm`
+                        : "No configurada"}
+                    </strong>
+                  </div>
+                </div>
                 {reservoir.latestVolumeMmc != null ? (
                   <div className="climate-bullet">
                     <div className="climate-bullet__label">
@@ -851,8 +960,17 @@ function ReservoirStatusCard({ reservorios }: { reservorios: Reservoir[] }) {
                       <strong>{reservoir.latestVolumeMmc.toFixed(1)} MMC</strong>
                     </div>
                     {pct !== null ? (
-                      <div className="climate-bullet__track" role="img" aria-label={`Volumen ${pct}%`}>
-                        <span style={{ width: `${Math.max(2, pct)}%`, backgroundColor: pct < 30 ? "#dc2626" : "#0284c7" }} />
+                      <div
+                        className="climate-bullet__track"
+                        role="img"
+                        aria-label={`Volumen ${pct}%`}
+                      >
+                        <span
+                          style={{
+                            width: `${Math.max(2, pct)}%`,
+                            backgroundColor: pct < 30 ? "#dc2626" : "#0284c7"
+                          }}
+                        />
                       </div>
                     ) : null}
                   </div>
@@ -864,8 +982,17 @@ function ReservoirStatusCard({ reservorios }: { reservorios: Reservoir[] }) {
                       <strong>{reservoir.latestCota.toFixed(2)} msnm</strong>
                     </div>
                     {reservoir.elevationMaxMasl != null ? (
-                      <div className="climate-bullet__track" role="img" aria-label={`Cota`}>
-                        <span style={{ width: `${Math.max(2, Math.round((reservoir.latestCota / reservoir.elevationMaxMasl) * 100))}%`, backgroundColor: "#0891b2" }} />
+                      <div
+                        className="climate-bullet__track"
+                        role="img"
+                        aria-label={`Cota`}
+                      >
+                        <span
+                          style={{
+                            width: `${Math.max(2, Math.round((reservoir.latestCota / reservoir.elevationMaxMasl) * 100))}%`,
+                            backgroundColor: "#0891b2"
+                          }}
+                        />
                       </div>
                     ) : null}
                   </div>
@@ -896,11 +1023,23 @@ function ReservoirStatusCard({ reservorios }: { reservorios: Reservoir[] }) {
                 ) : null}
               </div>
               {reservoir.latestDataAt ? (
-                <small style={{ display: "block", marginTop: "0.5rem", color: "var(--color-text-muted)" }}>
+                <small
+                  style={{
+                    display: "block",
+                    marginTop: "0.5rem",
+                    color: "var(--color-text-muted)"
+                  }}
+                >
                   Última lectura: {date(reservoir.latestDataAt)}
                 </small>
               ) : (
-                <small style={{ display: "block", marginTop: "0.5rem", color: "var(--color-text-muted)" }}>
+                <small
+                  style={{
+                    display: "block",
+                    marginTop: "0.5rem",
+                    color: "var(--color-text-muted)"
+                  }}
+                >
                   Sin lecturas registradas
                 </small>
               )}

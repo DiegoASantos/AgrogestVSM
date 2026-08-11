@@ -222,11 +222,11 @@ EXISTS clima.reservorios; DELETE FROM clima.fuentes_datos WHERE codigo =
       con ícono de gota para los reservorios.
 - [ ] CA-004: Al seleccionar un reservorio en el mapa, el panel lateral muestra
       la última lectura de cota, volumen, caudales y evaporación.
-- [ ] CA-005: Un usuario ADMIN o ANALISTA puede crear una lectura desde un
+- [x] CA-005: Un usuario ADMIN o ANALISTA puede crear una lectura desde un
       formulario con campos: variable, valor, unidad, tipo, fecha del dato.
-- [ ] CA-006: Un usuario AGRONOMO no ve el formulario de carga ni botones de
+- [x] CA-006: Un usuario AGRONOMO no ve el formulario de carga ni botones de
       editar/eliminar en lecturas.
-- [ ] CA-007: La API rechaza con 403 cualquier mutación de lecturas hecha por un
+- [x] CA-007: La API rechaza con 403 cualquier mutación de lecturas hecha por un
       AGRONOMO.
 - [ ] CA-008: El Historial Agroclimático permite seleccionar un reservorio y
       graficar la evolución de volumen, cota o caudales en el tiempo.

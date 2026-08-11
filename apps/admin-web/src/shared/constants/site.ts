@@ -14,6 +14,7 @@ export const adminRoutes = {
   mapas: "/mapas",
   clima: {
     resumen: "/clima/resumen",
+    reservorios: "/clima/reservorios",
     mapa: "/clima/mapa",
     pronostico: "/clima/pronostico",
     historial: "/clima/historial",

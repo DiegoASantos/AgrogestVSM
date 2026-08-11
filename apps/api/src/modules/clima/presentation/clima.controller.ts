@@ -1,8 +1,23 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  Req
+} from "@nestjs/common";
 import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { ClimaService } from "../application/clima.service";
 import type { AuthenticatedRequest } from "../../auth/types/auth.types";
+import { CreateReservoirReadingDto } from "./dto/create-reservoir-reading.dto";
+import { FindReservoirHistoryQueryDto } from "./dto/find-reservoir-history-query.dto";
+import { UpdateReservoirReadingDto } from "./dto/update-reservoir-reading.dto";
 
 @ApiTags("Clima")
 @Roles("ADMIN")
@@ -66,39 +81,52 @@ export class ClimaController {
   @Get("reservorios/:id/historico")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
   reservorioHistorico(
-    @Param("id") id: string,
-    @Query("variable") variable?: string,
-    @Query("desde") desde?: string,
-    @Query("hasta") hasta?: string
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Query() query: FindReservoirHistoryQueryDto
   ) {
-    return this.climaService.getReservorioHistory(id, variable, desde, hasta);
+    return this.climaService.getReservorioHistory(
+      id,
+      query.variable,
+      query.desde,
+      query.hasta
+    );
   }
 
   @Post("reservorios/:id/lecturas")
   @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   createReservorioLectura(
-    @Param("id") id: string,
-    @Body() body: { variable: string; valor: number; unidad: string; tipo?: string; dato_at: string },
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() body: CreateReservoirReadingDto,
     @Req() req: AuthenticatedRequest
   ) {
-    return this.climaService.createReservorioReading(id, body, req.user.sub);
+    return this.climaService.createReservorioReading(
+      id,
+      { ...body, valor: Number(body.valor) },
+      req.user.sub
+    );
   }
 
   @Put("reservorios/:id/lecturas/:lecturaId")
   @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   updateReservorioLectura(
-    @Param("id") id: string,
-    @Param("lecturaId") lecturaId: string,
-    @Body() body: { variable?: string; valor?: number; unidad?: string; tipo?: string; dato_at?: string }
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Param("lecturaId", new ParseUUIDPipe()) lecturaId: string,
+    @Body() body: UpdateReservoirReadingDto
   ) {
-    return this.climaService.updateReservorioReading(id, lecturaId, body);
+    return this.climaService.updateReservorioReading(id, lecturaId, {
+      ...body,
+      valor: body.valor === undefined ? undefined : Number(body.valor)
+    });
   }
 
   @Delete("reservorios/:id/lecturas/:lecturaId")
   @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   deleteReservorioLectura(
-    @Param("id") id: string,
-    @Param("lecturaId") lecturaId: string
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Param("lecturaId", new ParseUUIDPipe()) lecturaId: string
   ) {
     return this.climaService.deleteReservorioReading(id, lecturaId);
   }

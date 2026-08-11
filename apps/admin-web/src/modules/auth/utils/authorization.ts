@@ -32,6 +32,10 @@ export function isClimateSession(session: SessionInput) {
   );
 }
 
+export function canManageReservoirReadings(session: SessionInput) {
+  return isAdminSession(session) || isAnalystSession(session);
+}
+
 export function canAccessAdminPath(pathname: string, session: SessionInput) {
   if (!pathname) {
     return true;

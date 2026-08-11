@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-10
+last_reviewed: 2026-08-11
 ---
 
 # Modelo del dominio
@@ -242,6 +242,12 @@ acceder a Mantenimiento ni Seguridad y la API rechaza sus mutaciones.
 `AGRONOMO` también puede consultar las siete vistas territoriales de Clima desde
 el panel web, además de su acceso climático móvil. La aplicación móvil no admite
 sesiones con rol `ANALISTA`.
+
+La única excepción de escritura para un usuario exclusivamente `ANALISTA` son
+las lecturas manuales de reservorios definidas por la spec 032. Los endpoints
+correspondientes requieren autorización explícita; el bloqueo global continúa
+aplicando a todas las demás mutaciones. `AGRONOMO` puede consultar reservorios e
+histórico, pero no crear, editar ni eliminar lecturas.
 
 ## Fuente estructural
 

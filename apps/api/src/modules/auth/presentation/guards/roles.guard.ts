@@ -7,6 +7,7 @@ import {
 import { Reflector } from "@nestjs/core";
 
 import type { AuthenticatedRequest } from "../../types/auth.types";
+import { ALLOW_ANALYST_MUTATION_KEY } from "../decorators/allow-analyst-mutation.decorator";
 import { REQUIRED_ROLES_KEY } from "../decorators/roles.decorator";
 
 const ANALYST_ROLE_CODE = "ANALISTA";
@@ -18,15 +19,25 @@ export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(
-      REQUIRED_ROLES_KEY,
-      [context.getHandler(), context.getClass()]
-    );
+    const requiredRoles = this.reflector.getAllAndOverride<string[]>(REQUIRED_ROLES_KEY, [
+      context.getHandler(),
+      context.getClass()
+    ]);
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const userRoles = request.user?.roles ?? [];
+    const allowAnalystMutation = this.reflector.getAllAndOverride<boolean>(
+      ALLOW_ANALYST_MUTATION_KEY,
+      [context.getHandler(), context.getClass()]
+    );
+    const isApprovedAnalystMutation =
+      allowAnalystMutation === true &&
+      requiredRoles?.includes(ANALYST_ROLE_CODE) === true;
 
-    if (isAnalystReadOnlyRequest(userRoles, request.method)) {
+    if (
+      !isApprovedAnalystMutation &&
+      isAnalystReadOnlyRequest(userRoles, request.method)
+    ) {
       throw new ForbiddenException(
         "El rol ANALISTA solo puede consultar informacion desde el panel web."
       );
@@ -40,9 +51,7 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    throw new ForbiddenException(
-      "You do not have permission to access this resource."
-    );
+    throw new ForbiddenException("You do not have permission to access this resource.");
   }
 }
 

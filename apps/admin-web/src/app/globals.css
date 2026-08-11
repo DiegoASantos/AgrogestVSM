@@ -901,6 +901,109 @@
   font-size: 0.85rem;
   font-weight: 500;
 }
+.reservoir-page {
+  margin-top: 18px;
+}
+.reservoir-fixed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.reservoir-fixed-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  color: var(--text-primary);
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.reservoir-fixed-card:hover,
+.reservoir-fixed-card--selected {
+  border-color: #0284c7;
+  background: #f0f9ff;
+  box-shadow: 0 0 0 2px rgb(2 132 199 / 10%);
+}
+.reservoir-fixed-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #075985;
+  font-size: 1rem;
+}
+.reservoir-fixed-card > span:not(.reservoir-fixed-card__title) {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+.reservoir-fixed-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.reservoir-fixed-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.reservoir-fixed-card dt {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.reservoir-fixed-card dd {
+  margin: 0;
+  font-weight: 700;
+}
+.reservoir-latest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.reservoir-latest-grid article {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-strong);
+}
+.reservoir-latest-grid span {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.reservoir-reading-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+  align-items: end;
+}
+.reservoir-reading-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+.reservoir-feedback {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.reservoir-feedback--success {
+  color: #166534;
+  background: #f0fdf4;
+}
+.reservoir-feedback--error {
+  color: #991b1b;
+  background: #fef2f2;
+}
+.reservoir-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .climate-reading-groups {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -3620,11 +3723,7 @@ canvas {
 
 .profile-section--password {
   border-color: rgba(234, 179, 8, 0.3);
-  background: linear-gradient(
-    135deg,
-    rgba(234, 179, 8, 0.03) 0%,
-    transparent 50%
-  );
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.03) 0%, transparent 50%);
 }
 
 .profile-section__header {
@@ -5766,8 +5865,7 @@ canvas {
   color: var(--climate-ink);
   border-color: #315760;
   background:
-    linear-gradient(112deg, rgba(20, 45, 49, 0.94), rgba(19, 39, 56, 0.92)),
-    #17252a;
+    linear-gradient(112deg, rgba(20, 45, 49, 0.94), rgba(19, 39, 56, 0.92)), #17252a;
 }
 
 [data-theme="dark"] .climate-summary-hero > div > span,

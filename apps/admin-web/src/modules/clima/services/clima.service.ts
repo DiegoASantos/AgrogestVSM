@@ -134,11 +134,17 @@ export const climaService = {
   createReservorioReading(
     session: SessionInput,
     id: string,
-    body: { variable: string; valor: number; unidad: string; tipo?: string; dato_at: string }
+    body: {
+      variable: string;
+      valor: number;
+      unidad: string;
+      tipo?: string;
+      dato_at: string;
+    }
   ) {
     return apiRequest<ReservoirReading>(
       `/clima/reservorios/${encodeURIComponent(id)}/lecturas`,
-      { ...headers(session), method: "POST" as const, body: JSON.stringify(body) }
+      { ...headers(session), method: "POST" as const, body }
     );
   },
 
@@ -146,19 +152,21 @@ export const climaService = {
     session: SessionInput,
     id: string,
     lecturaId: string,
-    body: { variable?: string; valor?: number; unidad?: string; tipo?: string; dato_at?: string }
+    body: {
+      variable?: string;
+      valor?: number;
+      unidad?: string;
+      tipo?: string;
+      dato_at?: string;
+    }
   ) {
     return apiRequest<ReservoirReading>(
       `/clima/reservorios/${encodeURIComponent(id)}/lecturas/${encodeURIComponent(lecturaId)}`,
-      { ...headers(session), method: "PUT" as const, body: JSON.stringify(body) }
+      { ...headers(session), method: "PUT" as const, body }
     );
   },
 
-  deleteReservorioReading(
-    session: SessionInput,
-    id: string,
-    lecturaId: string
-  ) {
+  deleteReservorioReading(session: SessionInput, id: string, lecturaId: string) {
     return apiRequest<null>(
       `/clima/reservorios/${encodeURIComponent(id)}/lecturas/${encodeURIComponent(lecturaId)}`,
       { ...headers(session), method: "DELETE" as const }

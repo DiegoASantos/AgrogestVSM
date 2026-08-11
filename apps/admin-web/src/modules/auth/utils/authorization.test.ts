@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AuthSession } from "../types/auth.types";
 import {
+  canManageReservoirReadings,
   canAccessAdminPath,
   hasRole,
   isAgronomistSession,
@@ -79,6 +80,14 @@ describe("climate roles", () => {
 
   it("rejects unrelated roles from climate views", () => {
     expect(isClimateSession(makeSession(["VIEWER"]))).toBe(false);
+  });
+
+  it.each(["ADMIN", "ANALISTA"])("allows %s to manage reservoir readings", (role) => {
+    expect(canManageReservoirReadings(makeSession([role]))).toBe(true);
+  });
+
+  it("keeps AGRONOMO reservoir access read-only", () => {
+    expect(canManageReservoirReadings(makeSession(["AGRONOMO"]))).toBe(false);
   });
 });
 

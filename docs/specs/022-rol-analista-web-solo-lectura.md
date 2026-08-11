@@ -68,3 +68,11 @@ El rol `ANALISTA` ya existe en la base de datos y necesita acceso de consulta al
 
 - [x] Actualizar el modelo de dominio y seguridad de roles.
 - [x] Spec implementada al cerrar el cambio.
+
+## Excepción posterior: lecturas de reservorios
+
+La [spec 032](032-reservorios-entorno-agroclimatico.md) autoriza a ANALISTA a
+crear, corregir y eliminar exclusivamente lecturas manuales de reservorios. La
+API exige una marca explícita en esos handlers además de `@Roles("ADMIN",
+"ANALISTA")`; el guard global mantiene el bloqueo de cualquier otra mutación.
+AGRONOMO conserva acceso de solo lectura.
