@@ -63,6 +63,8 @@ describe("climaService", () => {
   it("starts sync and serializes station activation once", async () => {
     await climaService.forceWeatherLinkSync(session);
     expect(fetchOptions()).toMatchObject({ method: "POST" });
+    expect(fetchOptions()).not.toHaveProperty("body");
+    expect(fetchOptions()?.headers).not.toHaveProperty("Content-Type");
 
     await climaService.updateWeatherLinkStation(session, "station-1", false);
     expect(fetchUrl()).toContain("/clima/estaciones/station-1/activo");

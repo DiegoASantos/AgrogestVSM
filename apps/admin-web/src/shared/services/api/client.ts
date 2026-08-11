@@ -23,10 +23,7 @@ type ApiFailureResponse = {
   };
 };
 
-export async function apiRequest<T>(
-  path: string,
-  options: ApiRequestOptions = {}
-) {
+export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}) {
   const success = await apiRequestEnvelope<T>(path, options);
 
   return success.data;
@@ -58,13 +55,11 @@ export async function apiRequestEnvelope<T>(
   const response = await fetch(buildApiUrl(path), {
     method: options.method ?? "GET",
     headers: {
-      "Content-Type": "application/json",
+      ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
       ...(options.headers ?? {})
     },
     cache: "no-store",
-    ...(options.body !== undefined
-      ? { body: JSON.stringify(options.body) }
-      : {})
+    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {})
   });
 
   const rawPayload = await response.text();

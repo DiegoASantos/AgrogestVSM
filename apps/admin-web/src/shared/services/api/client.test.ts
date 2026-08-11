@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchAllPaginated, setUnauthorizedHandler } from "./client";
+import { apiRequest, fetchAllPaginated, setUnauthorizedHandler } from "./client";
 
 type FetchResponse = {
   ok: boolean;
@@ -31,6 +31,41 @@ function failureEnvelope(message: string, statusCode: number) {
     error: { message, statusCode }
   };
 }
+
+describe("apiRequest headers", () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(jsonResponse(successEnvelope({ started: true })));
+    vi.stubGlobal("fetch", fetchMock);
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("does not declare JSON content for a bodyless POST", async () => {
+    await apiRequest("/clima/fuentes/weatherlink/sincronizar", {
+      method: "POST",
+      headers: { Authorization: "Bearer fixture-token" }
+    });
+
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      headers: { Authorization: "Bearer fixture-token" }
+    });
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty("Content-Type");
+    expect(fetchMock.mock.calls[0]?.[1]).not.toHaveProperty("body");
+  });
+
+  it("declares JSON content when a request has a body", async () => {
+    await apiRequest("/resource", { method: "POST", body: { value: 1 } });
+
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: 1 })
+    });
+  });
+});
 
 describe("fetchAllPaginated", () => {
   const fetchMock = vi.fn();
