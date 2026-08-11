@@ -1,4 +1,8 @@
-import type { ClimateForecast, ClimateReading } from "../services/clima.service";
+import type {
+  ClimateForecast,
+  ClimateReading,
+  ClimateStation
+} from "../services/clima.service";
 
 const DAY_IN_MS = 86_400_000;
 const LIMA_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
@@ -47,5 +51,29 @@ export function mergeHistoryByTimestamp(readings: ClimateReading[], variables: s
     (left, right) =>
       new Date(String(left.timestamp)).getTime() -
       new Date(String(right.timestamp)).getTime()
+  );
+}
+
+export function stationHasMapCoordinates(
+  station: Pick<ClimateStation, "latitude" | "longitude">
+) {
+  return (
+    typeof station.latitude === "number" &&
+    Number.isFinite(station.latitude) &&
+    typeof station.longitude === "number" &&
+    Number.isFinite(station.longitude)
+  );
+}
+
+export function filterWeatherLinkStations(
+  stations: ClimateStation[],
+  stationId = "all",
+  requireCoordinates = false
+) {
+  return stations.filter(
+    (station) =>
+      station.sourceCode === "weatherlink" &&
+      (stationId === "all" || station.id === stationId) &&
+      (!requireCoordinates || stationHasMapCoordinates(station))
   );
 }

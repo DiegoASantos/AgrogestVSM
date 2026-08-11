@@ -43,8 +43,10 @@ import {
 } from "../services/clima.service";
 import {
   forecastReadingsForDate,
+  filterWeatherLinkStations,
   limaDateKeyAtOffset,
-  mergeHistoryByTimestamp
+  mergeHistoryByTimestamp,
+  stationHasMapCoordinates
 } from "./clima-view.utils";
 import { ReservoirsView } from "./reservoirs-view";
 import { isAdminSession } from "../../auth/utils/authorization";
@@ -280,6 +282,11 @@ function ClimateMap({
   const stations = points.filter(
     (point): point is ClimateStation => point.kind === "station"
   );
+  const weatherLinkStations = filterWeatherLinkStations(stations);
+  const [mapSource, setMapSource] = useState<
+    "all" | "open_meteo" | "weatherlink" | "reservoirs"
+  >("all");
+  const [mapStationId, setMapStationId] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedKind, setSelectedKind] = useState<"clima" | "estacion" | "reservorio">(
     "clima"
@@ -355,8 +362,25 @@ function ClimateMap({
     setLoadingForecast(false);
   }
 
+  function handleMapSourceChange(value: typeof mapSource) {
+    clearSelection();
+    setMapSource(value);
+    setMapStationId("all");
+  }
+
+  const visibleClimatePoints =
+    mapSource === "all" || mapSource === "open_meteo" ? climatePoints : [];
+  const visibleStations =
+    mapSource === "all" || mapSource === "weatherlink"
+      ? mapSource === "weatherlink"
+        ? filterWeatherLinkStations(stations, mapStationId, true)
+        : stations.filter(stationHasMapCoordinates)
+      : [];
+  const visibleReservoirs =
+    mapSource === "all" || mapSource === "reservoirs" ? reservorios : [];
+
   const mapPoints: AdminMapPoint[] = [
-    ...climatePoints.map((point) => ({
+    ...visibleClimatePoints.map((point) => ({
       id: point.id,
       geometry: {
         type: "Point" as const,
@@ -367,11 +391,11 @@ function ClimateMap({
       isSelected: selectedId === point.id && selectedKind === "clima",
       onSelect: () => void handleSelect(point.id)
     })),
-    ...stations.map((station) => ({
+    ...visibleStations.map((station) => ({
       id: station.id,
       geometry: {
         type: "Point" as const,
-        coordinates: [station.longitude, station.latitude] as [number, number]
+        coordinates: [station.longitude!, station.latitude!] as [number, number]
       },
       color:
         selectedId === station.id && selectedKind === "estacion" ? "#15803d" : "#22c55e",
@@ -379,7 +403,7 @@ function ClimateMap({
       isSelected: selectedId === station.id && selectedKind === "estacion",
       onSelect: () => handleStationSelect(station.id)
     })),
-    ...reservorios.map((reservoir) => ({
+    ...visibleReservoirs.map((reservoir) => ({
       id: reservoir.publicId,
       geometry: {
         type: "Point" as const,
@@ -398,11 +422,47 @@ function ClimateMap({
   return (
     <div className="climate-map-layout">
       <div className="climate-map-layout__map">
+        <div className="climate-selector-row">
+          <label className="field-group climate-selector">
+            <span>Fuente</span>
+            <select
+              value={mapSource}
+              onChange={(event) =>
+                handleMapSourceChange(event.target.value as typeof mapSource)
+              }
+            >
+              <option value="all">Todas las fuentes</option>
+              <option value="open_meteo">Open-Meteo · estimado</option>
+              <option value="weatherlink">WeatherLink Davis · observado</option>
+              <option value="reservoirs">Reservorios · carga manual</option>
+            </select>
+          </label>
+          {mapSource === "weatherlink" ? (
+            <label className="field-group climate-selector">
+              <span>Estacion meteorologica</span>
+              <select
+                value={mapStationId}
+                onChange={(event) => {
+                  clearSelection();
+                  setMapStationId(event.target.value);
+                }}
+              >
+                <option value="all">Todas las estaciones con GPS</option>
+                {weatherLinkStations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                    {stationHasMapCoordinates(station) ? "" : " (sin GPS)"}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
         <div className="climate-map-caption">
           <span>
-            <strong>{climatePoints.length}</strong> puntos climáticos{" "}
-            <strong>{stations.length}</strong> estaciones Davis{" "}
-            <strong>{reservorios.length}</strong> reservorios
+            <strong>{visibleClimatePoints.length}</strong> puntos climáticos{" "}
+            <strong>{visibleStations.length}</strong> estaciones Davis con GPS{" "}
+            <strong>{visibleReservoirs.length}</strong> reservorios
           </span>
           <span>Seleccione un punto para consultar condiciones y pronóstico.</span>
           {selectedId ? (
@@ -729,13 +789,21 @@ function ReservoirMapPanel({
 }
 
 function SummaryView({ summary, session }: { summary: Summary; session: Session }) {
+  const weatherLinkStations = filterWeatherLinkStations(summary.stations);
+  const [sourceCode, setSourceCode] = useState<"open_meteo" | "weatherlink">(
+    "open_meteo"
+  );
   const [selectedId, setSelectedId] = useState(summary.points[0]?.id ?? "");
+  const [stationId, setStationId] = useState(weatherLinkStations[0]?.id ?? "");
   const [forecast, setForecast] = useState<ClimateForecast[] | null>(null);
   const selected =
     summary.points.find((point) => point.id === selectedId) ?? summary.points[0];
+  const selectedStation =
+    weatherLinkStations.find((station) => station.id === stationId) ??
+    weatherLinkStations[0];
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (sourceCode !== "open_meteo" || !selectedId) return;
     let ignore = false;
     setForecast(null);
     void climaService
@@ -749,7 +817,7 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
     return () => {
       ignore = true;
     };
-  }, [selectedId, session]);
+  }, [selectedId, session, sourceCode]);
 
   return (
     <div className="climate-stack">
@@ -772,13 +840,43 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
         </div>
       </section>
 
-      <PointSelector
-        points={summary.points}
-        value={selectedId}
-        onChange={setSelectedId}
-      />
+      <div className="climate-selector-row">
+        <label className="field-group climate-selector">
+          <span>Fuente de datos</span>
+          <select
+            value={sourceCode}
+            onChange={(event) =>
+              setSourceCode(event.target.value as "open_meteo" | "weatherlink")
+            }
+          >
+            <option value="open_meteo">Open-Meteo · estimado</option>
+            <option value="weatherlink">WeatherLink Davis · observado</option>
+          </select>
+        </label>
+        {sourceCode === "open_meteo" ? (
+          <PointSelector
+            points={summary.points}
+            value={selectedId}
+            onChange={setSelectedId}
+          />
+        ) : (
+          <label className="field-group climate-selector">
+            <span>Estacion meteorologica</span>
+            <select
+              value={stationId}
+              onChange={(event) => setStationId(event.target.value)}
+            >
+              {weatherLinkStations.map((station) => (
+                <option key={station.id} value={station.id}>
+                  {station.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
-      {selected ? (
+      {sourceCode === "open_meteo" && selected ? (
         <section className="climate-data-section">
           <header>
             <div>
@@ -797,12 +895,22 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
         </section>
       ) : null}
 
-      <StationObservations stations={summary.stations ?? []} />
+      {sourceCode === "weatherlink" ? (
+        selectedStation ? (
+          <StationObservations stations={[selectedStation]} />
+        ) : (
+          <Empty message="No hay estaciones WeatherLink sincronizadas." />
+        )
+      ) : null}
 
       <ReservoirStatusCard reservorios={summary.reservorios} />
 
-      <TerritorialComparison points={summary.points} />
-      <SummaryMiniForecast forecast={forecast} pointName={selected?.name ?? ""} />
+      {sourceCode === "open_meteo" ? (
+        <>
+          <TerritorialComparison points={summary.points} />
+          <SummaryMiniForecast forecast={forecast} pointName={selected?.name ?? ""} />
+        </>
+      ) : null}
     </div>
   );
 }
@@ -1405,9 +1513,10 @@ function MultiLineChart({
 
 function HistoryView({ points, session }: { points: ClimatePoint[]; session: Session }) {
   const [stations, setStations] = useState<ClimateStation[]>([]);
-  const [selectedId, setSelectedId] = useState(
-    points[0]?.id ? `point:${points[0].id}` : ""
+  const [sourceCode, setSourceCode] = useState<"open_meteo" | "weatherlink">(
+    points.length ? "open_meteo" : "weatherlink"
   );
+  const [selectedId, setSelectedId] = useState(points[0]?.id ?? "");
   const [history, setHistory] = useState<{
     point?: ClimatePoint;
     station?: ClimateStation;
@@ -1419,21 +1528,28 @@ function HistoryView({ points, session }: { points: ClimatePoint[]; session: Ses
     void climaService
       .getStations(session)
       .then((items) => {
-        setStations(items);
-        if (!selectedId && items[0]) setSelectedId(`station:${items[0].id}`);
+        const weatherLinkItems = filterWeatherLinkStations(items);
+        setStations(weatherLinkItems);
+        if (!points.length && weatherLinkItems[0]) setSelectedId(weatherLinkItems[0].id);
       })
       .catch(() => setStations([]));
-  }, [selectedId, session]);
+  }, [points.length, session]);
+
+  useEffect(() => {
+    const items = sourceCode === "weatherlink" ? stations : points;
+    if (!items.some((item) => item.id === selectedId)) {
+      setSelectedId(items[0]?.id ?? "");
+    }
+  }, [points, selectedId, sourceCode, stations]);
 
   useEffect(() => {
     if (!selectedId) return;
     setHistory(null);
     setError(null);
-    const [kind, id] = selectedId.split(":", 2);
     const request =
-      kind === "station"
-        ? climaService.getStationHistory(session, id)
-        : climaService.getHistory(session, id);
+      sourceCode === "weatherlink"
+        ? climaService.getStationHistory(session, selectedId)
+        : climaService.getHistory(session, selectedId);
     void request
       .then(setHistory)
       .catch((reason: unknown) =>
@@ -1441,35 +1557,55 @@ function HistoryView({ points, session }: { points: ClimatePoint[]; session: Ses
           reason instanceof Error ? reason.message : "No se pudo cargar el historial."
         )
       );
-  }, [selectedId, session]);
+  }, [selectedId, session, sourceCode]);
+
+  function handleSourceChange(value: "open_meteo" | "weatherlink") {
+    setSourceCode(value);
+    setHistory(null);
+    setError(null);
+    setSelectedId(
+      value === "weatherlink" ? (stations[0]?.id ?? "") : (points[0]?.id ?? "")
+    );
+  }
 
   if (error) return <ErrorState description={error} />;
 
   return (
     <div className="climate-stack">
-      <label className="field-group">
-        <span>Punto o estacion</span>
-        <select
-          value={selectedId}
-          onChange={(event) => setSelectedId(event.target.value)}
-        >
-          <optgroup label="Puntos territoriales">
-            {points.map((point) => (
-              <option key={point.id} value={`point:${point.id}`}>
-                {point.name}
+      <div className="climate-selector-row">
+        <label className="field-group climate-selector">
+          <span>Fuente de datos</span>
+          <select
+            value={sourceCode}
+            onChange={(event) =>
+              handleSourceChange(event.target.value as "open_meteo" | "weatherlink")
+            }
+          >
+            <option value="open_meteo">Open-Meteo · estimado</option>
+            <option value="weatherlink">WeatherLink Davis · observado</option>
+          </select>
+        </label>
+        <label className="field-group climate-selector">
+          <span>
+            {sourceCode === "weatherlink"
+              ? "Estacion meteorologica"
+              : "Punto territorial"}
+          </span>
+          <select
+            value={selectedId}
+            onChange={(event) => setSelectedId(event.target.value)}
+          >
+            {(sourceCode === "weatherlink" ? stations : points).map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
-          </optgroup>
-          <optgroup label="Estaciones WeatherLink Davis">
-            {stations.map((station) => (
-              <option key={station.id} value={`station:${station.id}`}>
-                {station.name}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </label>
-      {!history ? (
+          </select>
+        </label>
+      </div>
+      {!selectedId ? (
+        <Empty message="No hay elementos disponibles para la fuente seleccionada." />
+      ) : !history ? (
         <LoadingState description="Cargando lecturas persistidas." />
       ) : (
         <HistoryExplorer history={history} />

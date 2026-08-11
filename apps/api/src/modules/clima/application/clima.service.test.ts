@@ -229,12 +229,13 @@ describe("ClimaService", () => {
             nombre: "Davis",
             codigo: "weatherlink:1",
             tipo: "PROPIA",
-            latitude: -4,
-            longitude: -80,
+            latitude: null,
+            longitude: null,
             estado: "OPERATIVA",
             variables: [],
             isActive: true,
-            source: "WeatherLink"
+            source: "WeatherLink",
+            sourceCode: "weatherlink"
           },
           {
             id: "2",
@@ -258,10 +259,16 @@ describe("ClimaService", () => {
     const response = await service.stations();
 
     expect(response.data).toHaveLength(2);
+    expect(response.data[0]).toMatchObject({
+      latitude: null,
+      longitude: null,
+      sourceCode: "weatherlink"
+    });
     const inventorySql = query.mock.calls.find(([sql]) =>
       sql.includes("FROM clima.estaciones_meteorologicas e")
     )?.[0];
     expect(inventorySql).not.toContain("f.codigo='weatherlink'");
+    expect(inventorySql).toContain('f.codigo AS "sourceCode"');
   });
 });
 

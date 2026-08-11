@@ -35,7 +35,7 @@ last_reviewed: 2026-08-11
 | R-022 | Mobile nuevo puede enviar `parcelReferencePoint` antes de que la API compatible esté desplegada | Media | Mitigado | Desplegar migración 042 y API antes de la OTA/APK; el outbox preserva la parcela pendiente para reintento |
 | R-023 | El catálogo productivo puede no tener exactamente un Mango activo o un nivel único por tipo y grado 0..3 | Alta | Mitigado | La migración 043 valida cardinalidades dentro de la transacción y aborta sin carga parcial; ejecutar preflight y backup antes del deploy |
 | R-024 | Un dispositivo con catálogos descargados hace menos de 24 horas puede conservar temporalmente las relaciones sanitarias anteriores | Media | Mitigado | Forzar actualización de catálogos en el smoke y comunicarla a dispositivos piloto; instalaciones nuevas descargan el conjunto completo |
-| R-025 | Credenciales WeatherLink expuestas o importacion diaria incompleta por suspension de la instancia web | Alta | Mitigado | Rotar el API Secret antes de habilitar; secretos solo en Render; progreso persistente, advisory lock y recuperacion de hasta 30 dias durante el uso del panel |
+| R-025 | Credenciales WeatherLink expuestas, importacion diaria incompleta o estaciones compartidas sin GPS/historico autorizado | Alta | Mitigado | Rotar el API Secret expuesto y guardarlo solo en Render; progreso persistente y recuperacion de hasta 30 dias; conservar estaciones sin GPS fuera del mapa y aislar errores de permisos por estacion |
 
 ## Revisión
 

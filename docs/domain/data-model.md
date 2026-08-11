@@ -237,6 +237,13 @@ fuente, estacion, variable, tipo e instante. La tabla
 a fuente y estacion; conserva el ultimo dia completo para reanudar importaciones
 sin repetir ni omitir dias.
 
+El inventario conserva toda estacion WeatherLink con identificador valido. Las
+columnas `latitud` y `longitud` de `clima.estaciones_meteorologicas` aceptan
+`NULL` porque el proveedor puede omitir GPS en estaciones compartidas; estas
+estaciones siguen disponibles para resumen e historial, pero no se proyectan
+en el mapa hasta contar con ambas coordenadas. Las respuestas climaticas
+exponen `sourceCode` para filtrar sin depender del nombre visible de la fuente.
+
 La primera consulta web posterior a las 08:00 de `America/Lima` puede iniciar en
 segundo plano la importacion del dia anterior. Cada ejecucion recupera hasta 30
 dias pendientes y no reemplaza los datos territoriales estimados de Open-Meteo.

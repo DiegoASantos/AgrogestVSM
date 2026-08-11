@@ -67,9 +67,10 @@ bootstrap destructivo durante el arranque.
 - `LOG_LEVEL=info`
 - `COST_BUILD_API_KEY` queda como secreto manual cuando se usa la integracion
   Cost-Build
-- `WEATHERLINK_ENABLED=false` hasta verificar las credenciales rotadas;
-  WeatherLink se consulta al usar el panel despues de las 08:00 de Lima y no
-  requiere Cron Job
+- `WEATHERLINK_ENABLED=true` en el Blueprint; solo desplegarlo asi despues de
+  guardar credenciales rotadas validas. WeatherLink se consulta al usar el
+  panel despues de las 08:00 de Lima y no requiere Cron Job. Usar `false` como
+  interruptor operativo ante incidentes
 - `DB_HOST=aws-1-us-east-1.pooler.supabase.com`
 - `DB_PORT=5432`
 - `DB_NAME=postgres`
@@ -139,7 +140,7 @@ APP_TRUST_PROXY=true
 LOG_LEVEL=info
 CORS_ALLOWED_ORIGINS=https://tu-admin-web.vercel.app
 COST_BUILD_API_KEY=<api_key_cost_build>
-WEATHERLINK_ENABLED=false
+WEATHERLINK_ENABLED=true
 WEATHERLINK_API_KEY=<api_key_weatherlink>
 WEATHERLINK_API_SECRET=<api_secret_weatherlink_rotado>
 WEATHERLINK_DAILY_SYNC_HOUR=8
@@ -186,10 +187,17 @@ Después de cada deploy:
 4. revisar catálogos, parcelas y visitas;
 5. si `COST_BUILD_API_KEY` esta configurada, probar
    `/integraciones/cost-build/export` con y sin `x-api-key`;
-6. confirmar el panel desde el origen permitido.
+6. confirmar el panel desde el origen permitido;
+7. para un release WeatherLink, ejecutar una sincronizacion y confirmar que el
+   inventario incluye todas las estaciones accesibles; las estaciones sin GPS
+   deben aparecer en Resumen e Historial, no en el mapa;
+8. verificar los filtros Fuente y Estacion en Resumen, Mapa e Historial.
 
 Si falla, seguir [el runbook de rollback](rollback.md). Si el release cambia
-datos, confirmar primero la compatibilidad de la migración.
+datos, confirmar primero la compatibilidad de la migración. Para revertir la
+nulabilidad de coordenadas, desactivar primero las estaciones sin GPS y
+completar `latitud` y `longitud` antes de restaurar `NOT NULL`; no se deben
+eliminar las lecturas WeatherLink importadas.
 
 ## TLS
 

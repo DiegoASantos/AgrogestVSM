@@ -77,4 +77,5 @@ en la raíz.
 - [Spec 031: Catálogo sanitario global para etapas y labores de mango](031-catalogo-sanitario-global-mango.md)
 - [Spec 032: Reservorios en el Entorno Agroclimático](032-reservorios-entorno-agroclimatico.md)
 - [Spec 033: Integracion diaria WeatherLink Davis](033-integracion-diaria-weatherlink-davis.md)
+- [Spec 034: Filtros por fuente y estacion WeatherLink](034-filtros-fuente-estacion-weatherlink.md)
 - [Plantilla](TEMPLATE.md)

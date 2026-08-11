@@ -11,6 +11,7 @@ export type ClimateReading = {
   receivedAt: string;
   model?: string | null;
   source?: string | null;
+  sourceCode?: string | null;
 };
 export type ClimatePoint = {
   id: string;
@@ -28,13 +29,14 @@ export type ClimateStation = {
   name: string;
   codigo: string;
   tipo: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   estado: string;
   variables: string[];
   lastCommunicationAt: string | null;
   isActive: boolean;
   source: string | null;
+  sourceCode: string | null;
   syncStatus: string | null;
   lastCompleteDay: string | null;
   lastAttemptAt: string | null;

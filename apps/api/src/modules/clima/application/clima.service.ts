@@ -344,7 +344,7 @@ export class ClimaService {
       const rows = await this.dataSource.query(
         `SELECT l.variable,l.valor AS value,l.unidad AS unit,l.tipo AS type,
           l.dato_at AS "dataAt",l.recibido_at AS "receivedAt",l.modelo AS model,
-          f.nombre AS source
+          f.codigo AS "sourceCode",f.nombre AS source
          FROM clima.lecturas l JOIN clima.fuentes_datos f ON f.id=l.fuente_id
          WHERE l.estacion_id=$1
            AND l.dato_at >= COALESCE($2::timestamptz,now()-interval '30 days')
@@ -357,7 +357,14 @@ export class ClimaService {
     const point = await this.point(pointId!);
     const rows = (
       await this.dataSource.query(
-        'SELECT variable, valor AS value, unidad AS unit, tipo AS type, dato_at AS "dataAt", recibido_at AS "receivedAt", modelo AS model FROM clima.lecturas WHERE punto_climatico_id=$1 AND dato_at >= COALESCE($2::timestamptz, now()-interval \'30 days\') AND dato_at <= COALESCE($3::timestamptz, now()) ORDER BY dato_at ASC',
+        `SELECT l.variable,l.valor AS value,l.unidad AS unit,l.tipo AS type,
+          l.dato_at AS "dataAt",l.recibido_at AS "receivedAt",l.modelo AS model,
+          f.codigo AS "sourceCode",f.nombre AS source
+         FROM clima.lecturas l JOIN clima.fuentes_datos f ON f.id=l.fuente_id
+         WHERE l.punto_climatico_id=$1
+           AND l.dato_at >= COALESCE($2::timestamptz,now()-interval '30 days')
+           AND l.dato_at <= COALESCE($3::timestamptz,now())
+         ORDER BY l.dato_at ASC`,
         [point.id, start ?? null, end ?? null]
       )
     ).map(normalizeSunshine);
@@ -521,7 +528,11 @@ export class ClimaService {
   }
   private async latest(pointId: string) {
     return this.dataSource.query(
-      'SELECT DISTINCT ON(variable) variable,valor AS value,unidad AS unit,tipo AS type,dato_at AS "dataAt",recibido_at AS "receivedAt" FROM clima.lecturas WHERE punto_climatico_id=$1 ORDER BY variable,dato_at DESC',
+      `SELECT DISTINCT ON(l.variable) l.variable,l.valor AS value,l.unidad AS unit,
+        l.tipo AS type,l.dato_at AS "dataAt",l.recibido_at AS "receivedAt",
+        l.modelo AS model,f.codigo AS "sourceCode",f.nombre AS source
+       FROM clima.lecturas l JOIN clima.fuentes_datos f ON f.id=l.fuente_id
+       WHERE l.punto_climatico_id=$1 ORDER BY l.variable,l.dato_at DESC`,
       [pointId]
     );
   }
@@ -531,7 +542,7 @@ export class ClimaService {
       `SELECT e.id,e.public_id AS "publicId",e.nombre,e.codigo,e.tipo,
         e.latitud::float AS latitude,e.longitud::float AS longitude,e.estado,
         e.variables_json AS variables,e.ultima_comunicacion_at AS "lastCommunicationAt",
-        e.activo AS "isActive",f.nombre AS source,
+        e.activo AS "isActive",f.codigo AS "sourceCode",f.nombre AS source,
         s.estado AS "syncStatus",s.ultimo_dia_completo AS "lastCompleteDay",
         s.ultimo_intento_at AS "lastAttemptAt",s.detalle AS "syncDetail"
        FROM clima.estaciones_meteorologicas e
@@ -553,7 +564,7 @@ export class ClimaService {
     return this.dataSource.query(
       `SELECT DISTINCT ON(l.variable) l.variable,l.valor AS value,l.unidad AS unit,
         l.tipo AS type,l.dato_at AS "dataAt",l.recibido_at AS "receivedAt",
-        l.modelo AS model,f.nombre AS source
+        l.modelo AS model,f.codigo AS "sourceCode",f.nombre AS source
        FROM clima.lecturas l JOIN clima.fuentes_datos f ON f.id=l.fuente_id
        WHERE l.estacion_id=$1 ORDER BY l.variable,l.dato_at DESC`,
       [stationId]
@@ -562,10 +573,13 @@ export class ClimaService {
 
   private async station(publicId: string) {
     const rows = await this.dataSource.query(
-      `SELECT id,public_id AS "publicId",nombre,codigo,tipo,latitud::float AS latitude,
-        longitud::float AS longitude,estado,variables_json AS variables,
-        ultima_comunicacion_at AS "lastCommunicationAt",activo AS "isActive"
-       FROM clima.estaciones_meteorologicas WHERE public_id=$1`,
+      `SELECT e.id,e.public_id AS "publicId",e.nombre,e.codigo,e.tipo,
+        e.latitud::float AS latitude,e.longitud::float AS longitude,e.estado,
+        e.variables_json AS variables,e.ultima_comunicacion_at AS "lastCommunicationAt",
+        e.activo AS "isActive",f.codigo AS "sourceCode",f.nombre AS source
+       FROM clima.estaciones_meteorologicas e
+       JOIN clima.fuentes_datos f ON f.id=e.fuente_id
+       WHERE e.public_id=$1`,
       [publicId]
     );
     if (!rows[0]) throw new NotFoundException("Estacion meteorologica no encontrada.");
@@ -674,16 +688,23 @@ function toStation(station: Record<string, unknown>) {
     name: String(station.nombre ?? ""),
     codigo: String(station.codigo ?? ""),
     tipo: String(station.tipo ?? ""),
-    latitude: Number(station.latitude),
-    longitude: Number(station.longitude),
+    latitude: nullableNumber(station.latitude),
+    longitude: nullableNumber(station.longitude),
     estado: String(station.estado ?? "SIN_CONFIGURAR"),
     variables: Array.isArray(station.variables) ? station.variables : [],
     lastCommunicationAt: station.lastCommunicationAt ?? null,
     isActive: station.isActive !== false,
     source: station.source ?? null,
+    sourceCode: station.sourceCode ?? null,
     syncStatus: station.syncStatus ?? null,
     lastCompleteDay: station.lastCompleteDay ?? null,
     lastAttemptAt: station.lastAttemptAt ?? null,
     syncDetail: station.syncDetail ?? null
   };
+}
+
+function nullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }

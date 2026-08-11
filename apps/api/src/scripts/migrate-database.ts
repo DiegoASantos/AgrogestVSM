@@ -131,6 +131,8 @@ async function run() {
     await assertTableExists(client, "clima", "reservorios");
     await assertTableExists(client, "clima", "lecturas_reservorios");
     await assertTableExists(client, "clima", "estaciones_estado_sincronizacion");
+    await assertColumnNullable(client, "clima", "estaciones_meteorologicas", "latitud");
+    await assertColumnNullable(client, "clima", "estaciones_meteorologicas", "longitud");
     await assertCount(
       client,
       "SELECT COUNT(*)::text AS count FROM clima.fuentes_datos WHERE codigo='weatherlink'",
@@ -247,6 +249,29 @@ async function assertTableExists(
   )) as CountResult;
   if (Number(result.rows?.[0]?.count ?? 0) !== 1) {
     throw new Error(`Expected table ${schemaName}.${tableName} to exist.`);
+  }
+}
+
+async function assertColumnNullable(
+  client: PgClient,
+  schemaName: string,
+  tableName: string,
+  columnName: string
+) {
+  const result = (await client.query(
+    `SELECT COUNT(*)::text AS count
+     FROM information_schema.columns
+     WHERE table_schema = $1
+       AND table_name = $2
+       AND column_name = $3
+       AND is_nullable = 'YES'`,
+    [schemaName, tableName, columnName]
+  )) as CountResult;
+
+  if (Number(result.rows?.[0]?.count ?? 0) !== 1) {
+    throw new Error(
+      `Expected column ${schemaName}.${tableName}.${columnName} to be nullable.`
+    );
   }
 }
 

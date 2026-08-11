@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   forecastReadingsForDate,
+  filterWeatherLinkStations,
   limaDateKeyAtOffset,
-  mergeHistoryByTimestamp
+  mergeHistoryByTimestamp,
+  stationHasMapCoordinates
 } from "./clima-view.utils";
 
 describe("climate view utilities", () => {
@@ -77,5 +79,23 @@ describe("climate view utilities", () => {
       temperature_2m: 31,
       relative_humidity_2m: 70
     });
+  });
+
+  it("excludes WeatherLink stations without complete GPS coordinates from maps", () => {
+    expect(stationHasMapCoordinates({ latitude: -5.1, longitude: -80.6 })).toBe(true);
+    expect(stationHasMapCoordinates({ latitude: null, longitude: -80.6 })).toBe(false);
+    expect(stationHasMapCoordinates({ latitude: -5.1, longitude: null })).toBe(false);
+  });
+
+  it("filters by WeatherLink source and selected station", () => {
+    const stations = [
+      { id: "davis-a", sourceCode: "weatherlink", latitude: -5, longitude: -80 },
+      { id: "davis-b", sourceCode: "weatherlink", latitude: null, longitude: null },
+      { id: "other", sourceCode: "senamhi", latitude: -5, longitude: -80 }
+    ] as never[];
+
+    expect(filterWeatherLinkStations(stations, "all", false)).toHaveLength(2);
+    expect(filterWeatherLinkStations(stations, "davis-a", true)).toHaveLength(1);
+    expect(filterWeatherLinkStations(stations, "davis-b", true)).toHaveLength(0);
   });
 });

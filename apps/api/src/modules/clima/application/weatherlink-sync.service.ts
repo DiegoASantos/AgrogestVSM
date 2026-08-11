@@ -227,7 +227,7 @@ export class WeatherLinkSyncService {
     const externalId = String(remote.station_id_uuid ?? remote.station_id ?? "").trim();
     const latitude = finite(remote.latitude);
     const longitude = finite(remote.longitude);
-    if (!externalId || latitude === null || longitude === null) return;
+    if (!externalId) return;
     const name = String(remote.station_name ?? `Davis ${externalId}`)
       .trim()
       .slice(0, 150);

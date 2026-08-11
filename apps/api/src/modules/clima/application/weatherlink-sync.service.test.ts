@@ -75,7 +75,7 @@ describe("WeatherLinkSyncService orchestration", () => {
       },
       stations: vi.fn(async () => [
         { station_id_uuid: "a", station_name: "A", latitude: -4, longitude: -80 },
-        { station_id_uuid: "b", station_name: "B", latitude: -5, longitude: -81 }
+        { station_id_uuid: "b", station_name: "B" }
       ]),
       historic: vi.fn(async (stationId: string) => {
         if (stationId === "a") {
@@ -100,6 +100,15 @@ describe("WeatherLinkSyncService orchestration", () => {
     );
 
     expect(client.historic).toHaveBeenCalledTimes(2);
+    expect(
+      calls.some(
+        (call) =>
+          call.sql.includes("INSERT INTO clima.estaciones_meteorologicas") &&
+          call.params[1] === "weatherlink:b" &&
+          call.params[3] === null &&
+          call.params[4] === null
+      )
+    ).toBe(true);
     const completed = calls.filter((call) =>
       call.sql.includes("estado='COMPLETADA',ultimo_dia_completo")
     );
