@@ -247,6 +247,10 @@ exponen `sourceCode` para filtrar sin depender del nombre visible de la fuente.
 La primera consulta web posterior a las 08:00 de `America/Lima` puede iniciar en
 segundo plano la importacion del dia anterior. Cada ejecucion recupera hasta 30
 dias pendientes y no reemplaza los datos territoriales estimados de Open-Meteo.
+Un dia sin transmision se conserva como ausencia de lecturas: el cursor diario
+avanza sin interpolar valores y los registros parciales sin timestamp se
+descartan. Respuestas sin la estructura de sensores o rechazos HTTP permanecen
+como errores reintentables.
 
 ## Seguridad
 

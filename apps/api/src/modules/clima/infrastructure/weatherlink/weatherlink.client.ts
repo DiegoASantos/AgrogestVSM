@@ -89,23 +89,32 @@ export function validateHistoricPayload(payload: unknown): WeatherLinkHistoricPa
       "WeatherLink devolvio datos historicos incompletos."
     );
   }
-  for (const sensor of payload.sensors) {
-    if (!isRecord(sensor) || !Array.isArray(sensor.data)) {
+  const sensors = payload.sensors.map((sensor) => {
+    if (!isRecord(sensor)) {
       throw new WeatherLinkRequestError(
         null,
         "WeatherLink devolvio datos historicos incompletos."
       );
     }
-    for (const record of sensor.data) {
-      if (!isRecord(record) || !isFiniteNumber(record.ts)) {
-        throw new WeatherLinkRequestError(
-          null,
-          "WeatherLink devolvio datos historicos incompletos."
-        );
-      }
+    if (
+      sensor.data !== undefined &&
+      sensor.data !== null &&
+      !Array.isArray(sensor.data)
+    ) {
+      throw new WeatherLinkRequestError(
+        null,
+        "WeatherLink devolvio datos historicos incompletos."
+      );
     }
-  }
-  return payload as WeatherLinkHistoricPayload;
+    const data = Array.isArray(sensor.data)
+      ? sensor.data.filter(
+          (record): record is Record<string, unknown> =>
+            isRecord(record) && isFiniteNumber(record.ts)
+        )
+      : [];
+    return { ...sensor, data };
+  });
+  return { ...payload, sensors } as WeatherLinkHistoricPayload;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

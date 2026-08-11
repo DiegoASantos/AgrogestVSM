@@ -79,7 +79,7 @@ describe("WeatherLinkSyncService orchestration", () => {
       ]),
       historic: vi.fn(async (stationId: string) => {
         if (stationId === "a") {
-          return validateHistoricPayload({ sensors: [{ data: [{}] }] });
+          return validateHistoricPayload({});
         }
         return {
           sensors: [
@@ -143,5 +143,57 @@ describe("WeatherLinkSyncService orchestration", () => {
       new Date(1_723_500_000 * 1000).toISOString()
     );
     expect(runner.release).toHaveBeenCalledOnce();
+  });
+});
+
+describe("WeatherLink transmission gaps", () => {
+  it("advances the station cursor when a complete day has no observations", async () => {
+    const calls: Array<{ sql: string; params: unknown[] }> = [];
+    const runner = {
+      query: vi.fn(async (sql: string, params: unknown[] = []) => {
+        calls.push({ sql, params });
+        if (sql.includes("RETURNING ultimo_dia_completo")) {
+          return [{ lastCompleteDay: null }];
+        }
+        return [];
+      })
+    };
+    const client = {
+      config: { timeZone: "America/Lima", catchupMaxDays: 1 },
+      historic: vi.fn(async () => ({ sensors: [{ data: [] }] }))
+    };
+    const service = new WeatherLinkSyncService({} as never, client as never);
+
+    await (
+      service as unknown as {
+        syncStation(
+          runner: unknown,
+          sourceId: string,
+          station: {
+            id: string;
+            publicId: string;
+            externalId: string;
+            isActive: boolean;
+          },
+          targetDay: string
+        ): Promise<void>;
+      }
+    ).syncStation(
+      runner,
+      "source",
+      { id: "station", publicId: "public", externalId: "external", isActive: true },
+      "2026-08-10"
+    );
+
+    expect(
+      calls.some(
+        (call) =>
+          call.sql.includes("estado='COMPLETADA',ultimo_dia_completo") &&
+          call.params[2] === "2026-08-10"
+      )
+    ).toBe(true);
+    expect(calls.some((call) => call.sql.includes("INSERT INTO clima.lecturas("))).toBe(
+      false
+    );
   });
 });

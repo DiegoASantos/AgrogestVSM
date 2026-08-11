@@ -49,9 +49,8 @@ describe("WeatherLinkClient", () => {
 
   it.each([
     ["missing sensors", {}],
-    ["malformed sensor data", { sensors: [{ data: null }] }],
-    ["record without timestamp", { sensors: [{ data: [{}] }] }],
-    ["record with non-finite timestamp", { sensors: [{ data: [{ ts: NaN }] }] }]
+    ["malformed sensor", { sensors: [null] }],
+    ["malformed sensor data", { sensors: [{ data: "invalid" }] }]
   ])(
     "rejects incomplete historic payloads without advancing callers: %s",
     async (_, body) => {
@@ -75,5 +74,25 @@ describe("WeatherLinkClient", () => {
     const client = new WeatherLinkClient(config as never);
 
     await expect(client.historic("station-1", 1, 2)).resolves.toEqual({ sensors: [] });
+  });
+
+  it("treats missing reports as a gap and preserves valid records", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          sensors: [
+            { data: null },
+            { data: [{}, { ts: NaN }, { ts: 1_723_500_000, temp_out: 80 }] }
+          ]
+        })
+      })
+    );
+    const client = new WeatherLinkClient(config as never);
+
+    await expect(client.historic("station-1", 1, 2)).resolves.toEqual({
+      sensors: [{ data: [] }, { data: [{ ts: 1_723_500_000, temp_out: 80 }] }]
+    });
   });
 });
