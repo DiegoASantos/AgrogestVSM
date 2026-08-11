@@ -79,6 +79,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Mezclas, factor de incidencia y nueva dosificación en receta](specs/029-mezclas-factor-dosificacion-receta.md)
 - [Punto interno de referencia de parcela en mobile](specs/030-punto-interno-parcela-mobile.md)
 - [Catálogo sanitario global para etapas y labores de mango](specs/031-catalogo-sanitario-global-mango.md)
+- [Reservorios en el Entorno Agroclimático](specs/032-reservorios-entorno-agroclimatico.md)
 
 ## Runbooks
 

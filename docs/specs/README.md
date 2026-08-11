@@ -75,4 +75,5 @@ en la raíz.
 - [Spec 029: Mezclas, factor de incidencia y nueva dosificación en receta](029-mezclas-factor-dosificacion-receta.md)
 - [Spec 030: Punto interno de referencia de parcela en mobile](030-punto-interno-parcela-mobile.md)
 - [Spec 031: Catálogo sanitario global para etapas y labores de mango](031-catalogo-sanitario-global-mango.md)
+- [Spec 032: Reservorios en el Entorno Agroclimático](032-reservorios-entorno-agroclimatico.md)
 - [Plantilla](TEMPLATE.md)

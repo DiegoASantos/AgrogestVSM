@@ -128,6 +128,35 @@ async function run() {
     await assertTableExists(client, "clima", "puntos_climaticos");
     await assertTableExists(client, "clima", "lecturas");
     await assertTableExists(client, "clima", "pronosticos");
+    await assertTableExists(client, "clima", "reservorios");
+    await assertTableExists(client, "clima", "lecturas_reservorios");
+    await assertForeignKey(
+      client,
+      "clima",
+      "lecturas_reservorios",
+      "reservorio_id",
+      "clima",
+      "reservorios",
+      "id"
+    );
+    await assertForeignKey(
+      client,
+      "clima",
+      "lecturas_reservorios",
+      "fuente_id",
+      "clima",
+      "fuentes_datos",
+      "id"
+    );
+    await assertForeignKey(
+      client,
+      "clima",
+      "lecturas_reservorios",
+      "creado_por",
+      "public",
+      "usuarios",
+      "public_id"
+    );
     console.log("Database migrations validated successfully.");
   } finally {
     await client.query("SELECT pg_advisory_unlock(842017052026)");
@@ -182,13 +211,59 @@ async function assertColumnExists(
   }
 }
 
-async function assertTableExists(client: PgClient, schemaName: string, tableName: string) {
+async function assertTableExists(
+  client: PgClient,
+  schemaName: string,
+  tableName: string
+) {
   const result = (await client.query(
     `SELECT COUNT(*)::text AS count FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2`,
     [schemaName, tableName]
   )) as CountResult;
   if (Number(result.rows?.[0]?.count ?? 0) !== 1) {
     throw new Error(`Expected table ${schemaName}.${tableName} to exist.`);
+  }
+}
+
+async function assertForeignKey(
+  client: PgClient,
+  schemaName: string,
+  tableName: string,
+  columnName: string,
+  referencedSchemaName: string,
+  referencedTableName: string,
+  referencedColumnName: string
+) {
+  const result = (await client.query(
+    `SELECT COUNT(*)::text AS count
+     FROM information_schema.table_constraints constraint_info
+     INNER JOIN information_schema.key_column_usage source_column
+       ON source_column.constraint_schema = constraint_info.constraint_schema
+      AND source_column.constraint_name = constraint_info.constraint_name
+     INNER JOIN information_schema.constraint_column_usage target_column
+       ON target_column.constraint_schema = constraint_info.constraint_schema
+      AND target_column.constraint_name = constraint_info.constraint_name
+     WHERE constraint_info.constraint_type = 'FOREIGN KEY'
+       AND constraint_info.table_schema = $1
+       AND constraint_info.table_name = $2
+       AND source_column.column_name = $3
+       AND target_column.table_schema = $4
+       AND target_column.table_name = $5
+       AND target_column.column_name = $6`,
+    [
+      schemaName,
+      tableName,
+      columnName,
+      referencedSchemaName,
+      referencedTableName,
+      referencedColumnName
+    ]
+  )) as CountResult;
+
+  if (Number(result.rows?.[0]?.count ?? 0) !== 1) {
+    throw new Error(
+      `Expected foreign key ${schemaName}.${tableName}.${columnName} to reference ${referencedSchemaName}.${referencedTableName}.${referencedColumnName}.`
+    );
   }
 }
 

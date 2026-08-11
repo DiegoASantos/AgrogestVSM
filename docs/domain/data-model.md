@@ -209,6 +209,26 @@ calcula con la matriz técnica vigente. `estres_hidrico` se selecciona de forma
 independiente: mobile lo muestra y persiste para cualquier valor de humedad, sin
 forzarlo a `false` al cambiar o guardar una humedad distinta de `seco`.
 
+## Entorno Agroclimático
+
+El esquema PostgreSQL `clima` conserva las fuentes, puntos, estaciones,
+pronósticos y lecturas meteorológicas e incorpora dos tablas para la
+infraestructura hídrica:
+
+- `clima.reservorios` identifica cada reservorio mediante una PK `id` bigint y
+  un `public_id` UUID único. Conserva ubicación, coordenadas, capacidad máxima,
+  cota máxima y auditoría temporal;
+- `clima.lecturas_reservorios` registra series por variable y usa una PK `id`
+  bigint más un `public_id` UUID único. `reservorio_id` referencia al reservorio
+  sin borrado en cascada, `fuente_id` referencia a `clima.fuentes_datos` y
+  `creado_por` referencia al `public_id` del usuario autenticado. La eliminación
+  de una fuente o usuario conserva la lectura y establece la referencia en
+  `NULL`.
+
+La fuente `manual_reservorios` representa la carga humana. Poechos y San Lorenzo
+son datos semilla de la migración; las lecturas se incorporan posteriormente y
+no afectan al flujo offline mobile.
+
 ## Seguridad
 
 - usuario;

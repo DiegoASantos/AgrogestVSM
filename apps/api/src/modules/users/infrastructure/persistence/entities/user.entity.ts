@@ -1,10 +1,11 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 import { UserRoleEntity } from "../../../../auth/infrastructure/persistence/entities/user-role.entity";
 import { ParcelaEntity } from "../../../../parcelas/infrastructure/persistence/entities/parcela.entity";
 import { VisitaCampoEntity } from "../../../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 
 @Entity({ name: "usuarios" })
+@Index("uq_usuarios_public_id", ["publicId"], { unique: true })
 export class UserEntity {
   @PrimaryGeneratedColumn({
     name: "id",
@@ -78,10 +79,7 @@ export class UserEntity {
   @OneToMany(() => UserRoleEntity, (userRole) => userRole.user)
   userRoles!: UserRoleEntity[];
 
-  @OneToMany(
-    () => VisitaCampoEntity,
-    (visitaCampo) => visitaCampo.agronomoUsuario
-  )
+  @OneToMany(() => VisitaCampoEntity, (visitaCampo) => visitaCampo.agronomoUsuario)
   visitasCampoComoAgronomo!: VisitaCampoEntity[];
 
   @OneToMany(() => ParcelaEntity, (parcela) => parcela.agronomoUsuario)
