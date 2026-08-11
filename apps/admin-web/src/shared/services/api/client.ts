@@ -2,7 +2,7 @@ import { getApiBaseUrl } from "./config";
 import { ApiError } from "./errors";
 
 export type ApiRequestOptions = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   headers?: Record<string, string>;
 };

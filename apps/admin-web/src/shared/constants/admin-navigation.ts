@@ -103,10 +103,10 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
 ];
 
 export const adminClimateNavigation: AdminNavLink[] = [
-  { label: "Resumen climático", href: adminRoutes.clima.resumen, description: "Condiciones territoriales" },
+  { label: "Resumen Agroclimático", href: adminRoutes.clima.resumen, description: "Condiciones territoriales" },
   { label: "Mapa agroclimático", href: adminRoutes.clima.mapa, description: "Puntos y estaciones" },
   { label: "Pronóstico", href: adminRoutes.clima.pronostico, description: "Condiciones futuras" },
-  { label: "Historial climático", href: adminRoutes.clima.historial, description: "Series territoriales" },
+  { label: "Historial Agroclimático", href: adminRoutes.clima.historial, description: "Series territoriales" },
   { label: "Estaciones meteorológicas", href: adminRoutes.clima.estaciones, description: "Inventario de estaciones" },
   { label: "Alertas climáticas", href: adminRoutes.clima.alertas, description: "Eventos meteorológicos" },
   { label: "Estado de fuentes de datos", href: adminRoutes.clima.fuentes, description: "Salud de proveedores" }

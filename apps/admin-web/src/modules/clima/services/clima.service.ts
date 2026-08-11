@@ -39,6 +39,34 @@ export type ClimateForecast = ClimatePoint & {
   }>;
 };
 
+export type Reservoir = {
+  publicId: string;
+  name: string;
+  department: string;
+  province: string;
+  district: string;
+  latitude: number;
+  longitude: number;
+  capacityMaxMmc: number | null;
+  elevationMaxMasl: number | null;
+  latestCota: number | null;
+  latestVolumeMmc: number | null;
+  latestInflowM3s: number | null;
+  latestOutflowM3s: number | null;
+  latestEvaporationMm: number | null;
+  latestDataAt: string | null;
+};
+
+export type ReservoirReading = {
+  publicId: string;
+  variable: string;
+  value: number;
+  unit: string;
+  type: string;
+  dataAt: string;
+  receivedAt: string;
+};
+
 const headers = (session: SessionInput) => ({
   headers: createAuthHeaders(session.accessToken, session.tokenType)
 });
@@ -49,6 +77,7 @@ export const climaService = {
       points: ClimatePoint[];
       alerts: unknown[];
       sources: ClimateSource[];
+      reservorios: Reservoir[];
     }>("/clima/resumen", headers(session));
   },
   getMap(session: SessionInput) {
@@ -80,5 +109,59 @@ export const climaService = {
   },
   getSources(session: SessionInput) {
     return apiRequest<ClimateSource[]>("/clima/fuentes", headers(session));
+  },
+
+  getReservorios(session: SessionInput) {
+    return apiRequest<Reservoir[]>("/clima/reservorios", headers(session));
+  },
+
+  getReservorioHistory(
+    session: SessionInput,
+    id: string,
+    params?: { variable?: string; desde?: string; hasta?: string }
+  ) {
+    const qs = new URLSearchParams();
+    if (params?.variable) qs.set("variable", params.variable);
+    if (params?.desde) qs.set("desde", params.desde);
+    if (params?.hasta) qs.set("hasta", params.hasta);
+    const query = qs.toString();
+    return apiRequest<{ reservoir: Reservoir; rows: ReservoirReading[] }>(
+      `/clima/reservorios/${encodeURIComponent(id)}/historico${query ? `?${query}` : ""}`,
+      headers(session)
+    );
+  },
+
+  createReservorioReading(
+    session: SessionInput,
+    id: string,
+    body: { variable: string; valor: number; unidad: string; tipo?: string; dato_at: string }
+  ) {
+    return apiRequest<ReservoirReading>(
+      `/clima/reservorios/${encodeURIComponent(id)}/lecturas`,
+      { ...headers(session), method: "POST" as const, body: JSON.stringify(body) }
+    );
+  },
+
+  updateReservorioReading(
+    session: SessionInput,
+    id: string,
+    lecturaId: string,
+    body: { variable?: string; valor?: number; unidad?: string; tipo?: string; dato_at?: string }
+  ) {
+    return apiRequest<ReservoirReading>(
+      `/clima/reservorios/${encodeURIComponent(id)}/lecturas/${encodeURIComponent(lecturaId)}`,
+      { ...headers(session), method: "PUT" as const, body: JSON.stringify(body) }
+    );
+  },
+
+  deleteReservorioReading(
+    session: SessionInput,
+    id: string,
+    lecturaId: string
+  ) {
+    return apiRequest<null>(
+      `/clima/reservorios/${encodeURIComponent(id)}/lecturas/${encodeURIComponent(lecturaId)}`,
+      { ...headers(session), method: "DELETE" as const }
+    );
   }
 };

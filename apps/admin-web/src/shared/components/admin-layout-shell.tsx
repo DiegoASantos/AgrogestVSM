@@ -214,7 +214,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
             <SidebarGroup
               items={climateNavigation}
               pathname={pathname}
-              title="Clima"
+              title="Entorno Agroclimático"
               icon={CloudSun}
               isCollapsed={sidebarCollapsed}
             />
