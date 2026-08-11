@@ -35,7 +35,7 @@ services:
       - key: COST_BUILD_API_KEY
         sync: false
       - key: WEATHERLINK_ENABLED
-        value: "false"
+        value: "true"
       - key: WEATHERLINK_API_KEY
         sync: false
       - key: WEATHERLINK_API_SECRET
