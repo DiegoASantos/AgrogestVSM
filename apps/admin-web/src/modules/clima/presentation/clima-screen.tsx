@@ -468,22 +468,6 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
 
       <TerritorialComparison points={summary.points} />
       <SummaryMiniForecast forecast={forecast} pointName={selected?.name ?? ""} />
-
-      <section className="climate-split">
-        <ClimateTable
-          title="Alertas activas"
-          empty="No hay alertas climáticas activas."
-          headers={["Zona", "Condición", "Valor", "Severidad", "Inicio"]}
-          rows={summary.alerts.map((item) => [
-            item.pointName,
-            label(item.variable),
-            `${item.value} ${item.unit}`,
-            <Badge key="severity" value={item.severity} />,
-            date(item.startsAt)
-          ])}
-        />
-        <SourcesView items={summary.sources} compact />
-      </section>
     </div>
   );
 }
