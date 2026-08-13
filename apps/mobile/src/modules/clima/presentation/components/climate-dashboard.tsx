@@ -1,4 +1,5 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -19,6 +20,7 @@ import {
 } from "../../types/clima.types";
 
 export function ClimateDashboard({ isOnline }: { isOnline: boolean }) {
+  const router = useRouter();
   const [selectedDistrictCode, setSelectedDistrictCode] =
     useState<ClimateDistrictCode | null>(null);
   const [isSelectorVisible, setIsSelectorVisible] = useState(false);
@@ -77,7 +79,7 @@ export function ClimateDashboard({ isOnline }: { isOnline: boolean }) {
               Clima del campo
             </AppText>
             <AppText style={styles.subtitle} variant="caption">
-              Estimación meteorológica general para apoyar la operación.
+              Estimación meteorológica
             </AppText>
           </View>
         </View>
@@ -107,7 +109,10 @@ export function ClimateDashboard({ isOnline }: { isOnline: boolean }) {
       ) : null}
       {selectedDistrict && !isLoading && error ? <EmptyClimate message={error} /> : null}
       {selectedDistrict && !isLoading && result ? (
-        <ClimateContent result={result} />
+        <ClimateSummary
+          onOpenDetails={() => router.push("/clima/detalle")}
+          result={result}
+        />
       ) : null}
 
       <Modal
@@ -163,7 +168,13 @@ export function ClimateDashboard({ isOnline }: { isOnline: boolean }) {
   );
 }
 
-function ClimateContent({ result }: { result: ClimateLoadResult }) {
+function ClimateSummary({
+  onOpenDetails,
+  result
+}: {
+  onOpenDetails: () => void;
+  result: ClimateLoadResult;
+}) {
   const { climate } = result;
   return (
     <View style={styles.content}>
@@ -206,50 +217,18 @@ function ClimateContent({ result }: { result: ClimateLoadResult }) {
           value={format(climate.current.windSpeedKmh, " km/h")}
         />
       </View>
-      <AppText style={styles.fieldTitle} variant="label">
-        Variables para campo
-      </AppText>
-      <View style={styles.fieldGrid}>
-        <FieldMetric
-          label="Lluvia 24 h"
-          value={format(climate.field.rainfallLast24hMm, " mm")}
-        />
-        <FieldMetric label="ET₀ hoy" value={format(climate.field.et0TodayMm, " mm")} />
-        <FieldMetric
-          label="Humedad suelo 3–9 cm"
-          value={formatPercent(climate.field.soilMoisture3To9cmM3M3)}
-        />
-      </View>
-      <AppText style={styles.fieldTitle} variant="label">
-        Pronóstico de 7 días
-      </AppText>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.forecastRow}
+      <Pressable
+        accessibilityHint="Abre el detalle de estimación y estaciones Davis"
+        accessibilityLabel="Ver más del clima"
+        accessibilityRole="button"
+        onPress={onOpenDetails}
+        style={({ pressed }) => [styles.seeMoreButton, pressed && styles.pressed]}
       >
-        {climate.forecast.map((day) => (
-          <View key={day.date} style={styles.day}>
-            <AppText style={styles.dayDate} variant="label">
-              {formatDay(day.date)}
-            </AppText>
-            <Ionicons color="#2373a8" name={weatherIcon(day.weatherCode)} size={20} />
-            <AppText style={styles.dayTemp} variant="caption">
-              {format(day.temperatureMaxC, "°")} / {format(day.temperatureMinC, "°")}
-            </AppText>
-            <AppText style={styles.dayMeta} variant="caption">
-              {format(day.precipitationMm, " mm")}
-            </AppText>
-            <AppText style={styles.dayMeta} variant="caption">
-              ET₀ {format(day.et0Mm, " mm")}
-            </AppText>
-          </View>
-        ))}
-      </ScrollView>
-      <AppText style={styles.disclaimer} variant="caption">
-        Estimación territorial, no lectura de estación ni dato específico de un predio.
-        Actualizado: {formatDateTime(climate.source.fetchedAt)}.
-      </AppText>
+        <AppText style={styles.seeMoreText} variant="label">
+          Ver más
+        </AppText>
+        <Ionicons color="#08643f" name="arrow-forward" size={20} />
+      </Pressable>
     </View>
   );
 }
@@ -288,45 +267,8 @@ function Metric({
     </View>
   );
 }
-function FieldMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.fieldMetric}>
-      <AppText style={styles.fieldValue} variant="label">
-        {value}
-      </AppText>
-      <AppText style={styles.fieldLabel} variant="caption">
-        {label}
-      </AppText>
-    </View>
-  );
-}
 function format(value: number | null, unit: string) {
   return value === null ? "—" : `${Math.round(value * 10) / 10}${unit}`;
-}
-function formatPercent(value: number | null) {
-  return value === null ? "—" : `${Math.round(value * 100)} %`;
-}
-function formatDay(value: string) {
-  const date = new Date(`${value}T12:00:00`);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleDateString("es-PE", { weekday: "short", day: "numeric" });
-}
-function formatDateTime(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString("es-PE", {
-        hour: "numeric",
-        minute: "2-digit",
-        day: "numeric",
-        month: "short"
-      });
-}
-function weatherIcon(code: number | null): keyof typeof Ionicons.glyphMap {
-  if (code !== null && code >= 51) return "rainy-outline";
-  if (code !== null && code <= 1) return "sunny-outline";
-  return "partly-sunny-outline";
 }
 
 const styles = StyleSheet.create({
@@ -386,6 +328,15 @@ const styles = StyleSheet.create({
   sourceText: { color: "#4a715f" },
   staleText: { color: "#a95f00" },
   currentGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  seeMoreButton: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 2,
+    paddingHorizontal: 4
+  },
+  seeMoreText: { color: "#08643f" },
   metric: {
     width: "48%",
     gap: 2,

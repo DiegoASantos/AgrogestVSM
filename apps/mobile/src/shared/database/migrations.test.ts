@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 57;
+const LATEST_MIGRATION_VERSION = 58;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1508,6 +1508,24 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+(parcelas|sync_outbox)/iu.test(statement)
+      )
+    ).toBe(false);
+  });
+
+  it("adds the WeatherLink cache without altering the outbox", () => {
+    const db = createFakeDatabase(57);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("CREATE TABLE IF NOT EXISTS clima_estacion_cache")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+sync_outbox/iu.test(statement)
       )
     ).toBe(false);
   });

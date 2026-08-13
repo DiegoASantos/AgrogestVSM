@@ -77,6 +77,12 @@ function AppNavigation() {
           }}
         />
         <Stack.Screen
+          name="clima/detalle"
+          options={{
+            title: "Clima del campo"
+          }}
+        />
+        <Stack.Screen
           name="login"
           options={{
             headerShown: false,
@@ -173,7 +179,13 @@ function isProtectedMobilePath(pathname: string | null) {
     return false;
   }
 
-  return pathname.startsWith("/home") || pathname.startsWith("/visitas-campo") || pathname.startsWith("/productores") || pathname.startsWith("/productos");
+  return (
+    pathname.startsWith("/home") ||
+    pathname.startsWith("/clima") ||
+    pathname.startsWith("/visitas-campo") ||
+    pathname.startsWith("/productores") ||
+    pathname.startsWith("/productos")
+  );
 }
 
 const styles = StyleSheet.create({

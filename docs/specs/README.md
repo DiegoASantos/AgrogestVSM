@@ -79,4 +79,5 @@ en la raíz.
 - [Spec 033: Integracion diaria WeatherLink Davis](033-integracion-diaria-weatherlink-davis.md)
 - [Spec 034: Filtros por fuente y estacion WeatherLink](034-filtros-fuente-estacion-weatherlink.md)
 - [Spec 035: Brechas de transmision WeatherLink](035-brechas-transmision-weatherlink.md)
+- [Spec 036: Detalle de clima móvil y estaciones WeatherLink](036-detalle-clima-mobile-weatherlink.md)
 - [Plantilla](TEMPLATE.md)

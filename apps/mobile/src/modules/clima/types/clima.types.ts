@@ -50,3 +50,37 @@ export type ClimateLoadResult = {
   isCached: boolean;
   isStale: boolean;
 };
+
+export type WeatherLinkReading = {
+  variable: string;
+  value: number;
+  unit: string;
+  type: string;
+  dataAt: string;
+  receivedAt: string;
+};
+
+export type WeatherLinkStation = {
+  id: string;
+  name: string;
+  code: string;
+  type: string;
+  latitude: number | null;
+  longitude: number | null;
+  status: string;
+  variables: string[];
+  lastCommunicationAt: string | null;
+  isActive: boolean;
+  source: string | null;
+  sourceCode: string | null;
+  syncStatus: string | null;
+  lastCompleteDay: string | null;
+  syncDetail: string | null;
+  current: WeatherLinkReading[];
+};
+
+export type WeatherLinkStationsLoadResult = {
+  stations: WeatherLinkStation[];
+  isCached: boolean;
+  isStale: boolean;
+};

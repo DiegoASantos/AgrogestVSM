@@ -527,5 +527,12 @@ export const SQL_SCHEMA = [
     fetched_at TEXT NOT NULL,
     expires_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS clima_estacion_cache (
+    estacion_id TEXT PRIMARY KEY NOT NULL,
+    payload_json TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
   )`
 ] as const;

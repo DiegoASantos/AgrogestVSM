@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-09
+last_reviewed: 2026-08-12
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -184,6 +184,11 @@ parcela y consulta al proveedor externo.
 El clima general de Inicio usa `clima_distrito_cache`: una caché local de solo
 lectura por distrito, sin outbox ni cambios de datos operativos. La API resuelve
 el punto climático territorial; este flujo no usa geometría de parcelas.
+
+El detalle de clima puede consultar estaciones WeatherLink Davis ya persistidas
+por la API. `clima_estacion_cache` conserva la última consulta por estación y
+la elección del usuario se guarda en `app_meta`; ambas son cachés de solo
+lectura, no crean outbox y muestran su vigencia cuando se usan sin conexión.
 
 Los catálogos de receta `marcas_producto` y `fertilizantes` conservan localmente
 la concentración comercial textual y su unidad de medida. Son caché de solo

@@ -83,6 +83,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Integracion diaria WeatherLink Davis](specs/033-integracion-diaria-weatherlink-davis.md)
 - [Filtros por fuente y estacion WeatherLink](specs/034-filtros-fuente-estacion-weatherlink.md)
 - [Brechas de transmision WeatherLink](specs/035-brechas-transmision-weatherlink.md)
+- [Detalle de clima móvil y estaciones WeatherLink](specs/036-detalle-clima-mobile-weatherlink.md)
 
 ## Runbooks
 

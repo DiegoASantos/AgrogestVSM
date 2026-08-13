@@ -1405,6 +1405,18 @@ const MIGRATIONS: Migration[] = [
     run(db: SQLiteDatabase) {
       addColumnIfMissing(db, "parcelas", "parcel_reference_point", "TEXT");
     }
+  },
+  {
+    version: 58,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS clima_estacion_cache (
+        estacion_id TEXT PRIMARY KEY NOT NULL,
+        payload_json TEXT NOT NULL,
+        fetched_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`
+    ]
   }
 ];
 
