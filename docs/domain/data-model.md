@@ -230,12 +230,12 @@ son datos semilla de la migración; las lecturas se incorporan posteriormente y
 no afectan al flujo offline mobile.
 
 WeatherLink Davis usa la fuente `weatherlink`. Sus estaciones se almacenan en
-`clima.estaciones_meteorologicas` y sus valores normalizados en `clima.lecturas`
-con `estacion_id`, tipo `OBSERVADO`, instante del proveedor y deduplicacion por
-fuente, estacion, variable, tipo e instante. La tabla
-`clima.estaciones_estado_sincronizacion` tiene PK bigint, `public_id` UUID y FKs
-a fuente y estacion; conserva el ultimo dia completo para reanudar importaciones
-sin repetir ni omitir dias.
+`clima.estaciones_meteorologicas`, que conserva inventario, nombres,
+coordenadas y activacion. Las observaciones nuevas se consultan directamente a
+WeatherLink por rangos cerrados de hasta siete dias y no se persisten en
+PostgreSQL. `clima.lecturas` y `clima.estaciones_estado_sincronizacion`
+conservan el historial previo para auditoria y rollback, pero ya no representan
+el estado vigente del proveedor.
 
 El inventario conserva toda estacion WeatherLink con identificador valido. Las
 columnas `latitud` y `longitud` de `clima.estaciones_meteorologicas` aceptan
@@ -244,13 +244,12 @@ estaciones siguen disponibles para resumen e historial, pero no se proyectan
 en el mapa hasta contar con ambas coordenadas. Las respuestas climaticas
 exponen `sourceCode` para filtrar sin depender del nombre visible de la fuente.
 
-La primera consulta web posterior a las 08:00 de `America/Lima` puede iniciar en
-segundo plano la importacion del dia anterior. Cada ejecucion recupera hasta 30
-dias pendientes y no reemplaza los datos territoriales estimados de Open-Meteo.
-Un dia sin transmision se conserva como ausencia de lecturas: el cursor diario
-avanza sin interpolar valores y los registros parciales sin timestamp se
-descartan. Respuestas sin la estructura de sensores o rechazos HTTP permanecen
-como errores reintentables.
+Las consultas Davis requieren fecha inicial y final, terminan como maximo en el
+dia anterior de `America/Lima` y se ejecutan solo al pulsar `Consultar`. La API
+usa una cache efimera por estacion y dia; no existe una tarea diaria a las
+08:00. Un dia sin transmision se conserva como ausencia y los registros
+parciales sin timestamp se descartan, sin interpolar valores. Este flujo no
+reemplaza los datos territoriales estimados de Open-Meteo.
 
 ## Seguridad
 

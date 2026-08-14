@@ -6,9 +6,14 @@ area: clima, mobile, sqlite, ui-ux
 created: 2026-08-12
 approved_by: usuario mediante instrucción "Implement the plan", 2026-08-12
 implemented_in: apps/mobile/app/clima/detalle.tsx; apps/mobile/src/modules/clima; apps/mobile/src/shared/database
+amended_by: docs/specs/037-consulta-directa-weatherlink.md
 ---
 
 # Spec 036: Detalle de clima móvil y estaciones WeatherLink
+
+> La consulta por rango y el resumen diario Davis fueron agregados por la Spec
+> 037. Las exclusiones de historial de esta spec describen solo su entrega
+> original.
 
 ## Contexto
 

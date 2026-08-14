@@ -34,7 +34,7 @@ base PostgreSQL de Supabase que ya configuraste.
    - `COST_BUILD_API_KEY` si se habilita la exportacion protegida para
      Cost-Build
    - `WEATHERLINK_API_KEY` y un `WEATHERLINK_API_SECRET` rotado si se habilita
-     la importacion diaria Davis
+     la consulta directa Davis
    - `SEED_ADMIN_PASSWORD` para el usuario admin inicial
 
 La base debe tener el esquema existente o haber sido preparada previamente con
@@ -68,8 +68,8 @@ bootstrap destructivo durante el arranque.
 - `COST_BUILD_API_KEY` queda como secreto manual cuando se usa la integracion
   Cost-Build
 - `WEATHERLINK_ENABLED=true` en el Blueprint; solo desplegarlo asi despues de
-  guardar credenciales rotadas validas. WeatherLink se consulta al usar el
-  panel despues de las 08:00 de Lima y no requiere Cron Job. Usar `false` como
+  guardar credenciales rotadas validas. WeatherLink se consulta bajo demanda
+  por rangos de hasta siete dias y no requiere Cron Job. Usar `false` como
   interruptor operativo ante incidentes
 - `DB_HOST=aws-1-us-east-1.pooler.supabase.com`
 - `DB_PORT=5432`
@@ -143,6 +143,7 @@ COST_BUILD_API_KEY=<api_key_cost_build>
 WEATHERLINK_ENABLED=true
 WEATHERLINK_API_KEY=<api_key_weatherlink>
 WEATHERLINK_API_SECRET=<api_secret_weatherlink_rotado>
+# Compatibilidad heredada; estas dos variables no activan tareas diarias.
 WEATHERLINK_DAILY_SYNC_HOUR=8
 WEATHERLINK_TIME_ZONE=America/Lima
 WEATHERLINK_CATCHUP_MAX_DAYS=30
@@ -188,9 +189,9 @@ Después de cada deploy:
 5. si `COST_BUILD_API_KEY` esta configurada, probar
    `/integraciones/cost-build/export` con y sin `x-api-key`;
 6. confirmar el panel desde el origen permitido;
-7. para un release WeatherLink, ejecutar una sincronizacion y confirmar que el
-   inventario incluye todas las estaciones accesibles; las estaciones sin GPS
-   deben aparecer en Resumen e Historial, no en el mapa;
+7. para un release WeatherLink, actualizar el catalogo y consultar manualmente
+   ayer para cada estacion; confirmar que no se escriben lecturas y que las
+   estaciones sin GPS aparecen en Resumen e Historial, no en el mapa;
 8. verificar los filtros Fuente y Estacion en Resumen, Mapa e Historial.
 
 Si falla, seguir [el runbook de rollback](rollback.md). Si el release cambia

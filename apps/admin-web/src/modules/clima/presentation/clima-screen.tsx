@@ -38,6 +38,7 @@ import {
   type ClimateSource,
   type ClimateStation,
   type WeatherLinkStatus,
+  type WeatherLinkHistory,
   type Reservoir,
   type ReservoirReading
 } from "../services/clima.service";
@@ -1521,8 +1522,15 @@ function HistoryView({ points, session }: { points: ClimatePoint[]; session: Ses
     point?: ClimatePoint;
     station?: ClimateStation;
     rows: ClimateReading[];
+    range?: WeatherLinkHistory["range"];
+    fetchedAt?: string;
+    cache?: WeatherLinkHistory["cache"];
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const defaultRange = useMemo(() => weatherLinkDefaultRange(), []);
+  const [from, setFrom] = useState(defaultRange.desde);
+  const [to, setTo] = useState(defaultRange.hasta);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     void climaService
@@ -1543,21 +1551,41 @@ function HistoryView({ points, session }: { points: ClimatePoint[]; session: Ses
   }, [points, selectedId, sourceCode, stations]);
 
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || sourceCode === "weatherlink") return;
     setHistory(null);
     setError(null);
-    const request =
-      sourceCode === "weatherlink"
-        ? climaService.getStationHistory(session, selectedId)
-        : climaService.getHistory(session, selectedId);
-    void request
+    setIsLoading(true);
+    void climaService
+      .getHistory(session, selectedId)
       .then(setHistory)
       .catch((reason: unknown) =>
         setError(
           reason instanceof Error ? reason.message : "No se pudo cargar el historial."
         )
-      );
+      )
+      .finally(() => setIsLoading(false));
   }, [selectedId, session, sourceCode]);
+
+  async function queryWeatherLink() {
+    if (!selectedId) return;
+    setHistory(null);
+    setError(null);
+    setIsLoading(true);
+    try {
+      setHistory(
+        await climaService.getStationHistory(session, selectedId, {
+          desde: from,
+          hasta: to
+        })
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "No se pudo consultar WeatherLink."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   function handleSourceChange(value: "open_meteo" | "weatherlink") {
     setSourceCode(value);
@@ -1567,8 +1595,6 @@ function HistoryView({ points, session }: { points: ClimatePoint[]; session: Ses
       value === "weatherlink" ? (stations[0]?.id ?? "") : (points[0]?.id ?? "")
     );
   }
-
-  if (error) return <ErrorState description={error} />;
 
   return (
     <div className="climate-stack">
@@ -1602,11 +1628,46 @@ function HistoryView({ points, session }: { points: ClimatePoint[]; session: Ses
             ))}
           </select>
         </label>
+        {sourceCode === "weatherlink" ? (
+          <>
+            <label className="field-group climate-selector">
+              <span>Desde</span>
+              <input
+                max={weatherLinkYesterday()}
+                onChange={(event) => setFrom(event.target.value)}
+                type="date"
+                value={from}
+              />
+            </label>
+            <label className="field-group climate-selector">
+              <span>Hasta</span>
+              <input
+                max={weatherLinkYesterday()}
+                onChange={(event) => setTo(event.target.value)}
+                type="date"
+                value={to}
+              />
+            </label>
+            <button
+              className="button button--primary"
+              disabled={isLoading || !selectedId}
+              onClick={() => void queryWeatherLink()}
+              type="button"
+            >
+              {isLoading ? "Consultando..." : "Consultar"}
+            </button>
+          </>
+        ) : null}
       </div>
+      {error ? <ErrorState description={error} /> : null}
       {!selectedId ? (
         <Empty message="No hay elementos disponibles para la fuente seleccionada." />
+      ) : isLoading ? (
+        <LoadingState description="Consultando observaciones meteorologicas." />
+      ) : !history && sourceCode === "weatherlink" ? (
+        <Empty message="Selecciona un rango de hasta 7 dias y pulsa Consultar." />
       ) : !history ? (
-        <LoadingState description="Cargando lecturas persistidas." />
+        <LoadingState description="Cargando historial." />
       ) : (
         <HistoryExplorer history={history} />
       )}
@@ -1617,7 +1678,14 @@ function HistoryView({ points, session }: { points: ClimatePoint[]; session: Ses
 function HistoryExplorer({
   history
 }: {
-  history: { point?: ClimatePoint; station?: ClimateStation; rows: ClimateReading[] };
+  history: {
+    point?: ClimatePoint;
+    station?: ClimateStation;
+    rows: ClimateReading[];
+    range?: WeatherLinkHistory["range"];
+    fetchedAt?: string;
+    cache?: WeatherLinkHistory["cache"];
+  };
 }) {
   const entityName = history.point?.name ?? history.station?.name ?? "Origen climatico";
   const available = useMemo(
@@ -1639,6 +1707,7 @@ function HistoryExplorer({
   );
   const unit = history.rows.find((row) => row.variable === selected)?.unit ?? "";
   const isAccumulated = selected === "precipitation" || selected === "precipitation_sum";
+  const directRange = history.range;
 
   return (
     <>
@@ -1649,7 +1718,11 @@ function HistoryExplorer({
             <h3 className="title title--section">
               Evolución de {selected ? label(selected) : "la variable"}
             </h3>
-            <small>{rows.length} momentos registrados durante los últimos 30 días.</small>
+            <small>
+              {directRange
+                ? `${rows.length} momentos consultados del ${directRange.desde} al ${directRange.hasta}.`
+                : `${rows.length} momentos registrados durante los ultimos 30 dias.`}
+            </small>
           </div>
           <label className="field-group">
             <span>Variable</span>
@@ -1713,8 +1786,14 @@ function HistoryExplorer({
           <Database aria-hidden="true" size={17} /> Ver trazabilidad tabular
         </summary>
         <ClimateTable
-          title="Lecturas persistidas"
-          empty="Aún no hay lecturas históricas persistidas."
+          title={
+            directRange ? "Lecturas consultadas directamente" : "Lecturas persistidas"
+          }
+          empty={
+            directRange
+              ? "WeatherLink no devolvio lecturas para este rango."
+              : "Aun no hay lecturas historicas persistidas."
+          }
           headers={["Variable", "Valor", "Tipo", "Fecha del dato", "Fuente"]}
           rows={history.rows.map((row) => [
             label(row.variable),
@@ -1754,14 +1833,6 @@ function StationsView({
     void refreshStations().catch(() => undefined);
   }, [session]);
 
-  useEffect(() => {
-    if (!status?.running) return;
-    const interval = window.setInterval(() => {
-      void refreshStations().catch(() => undefined);
-    }, 15_000);
-    return () => window.clearInterval(interval);
-  }, [status?.running, session]);
-
   async function toggleStation(station: ClimateStation) {
     setActionError(null);
     try {
@@ -1772,14 +1843,14 @@ function StationsView({
     }
   }
 
-  async function forceSync() {
+  async function refreshCatalog() {
     setActionError(null);
     try {
-      await climaService.forceWeatherLinkSync(session);
+      await climaService.refreshWeatherLinkStations(session);
       await refreshStations();
     } catch (reason) {
       setActionError(
-        reason instanceof Error ? reason.message : "No se pudo sincronizar."
+        reason instanceof Error ? reason.message : "No se pudo actualizar el catalogo."
       );
     }
   }
@@ -1792,44 +1863,35 @@ function StationsView({
           <strong>
             {!status?.enabled
               ? "WeatherLink sin configurar"
-              : status.running
-                ? "Actualizando datos de ayer"
-                : "Sincronizacion diaria WeatherLink"}
+              : "Consulta directa WeatherLink"}
           </strong>
-          <div>Consulta oportunista desde las {status?.syncHour ?? 8}:00.</div>
+          <div>Las lecturas se solicitan por rango; no hay sincronizacion diaria.</div>
           {actionError ? <small>{actionError}</small> : null}
         </div>
         {canManage ? (
           <button
             type="button"
             className="button button--secondary"
-            onClick={() => void forceSync()}
+            onClick={() => void refreshCatalog()}
           >
-            Sincronizar ahora
+            Actualizar estaciones
           </button>
         ) : null}
       </section>
       <DistributionChart
-        title="Estaciones por estado"
-        items={items.map((item) => item.syncStatus ?? item.estado)}
+        title="Estaciones por disponibilidad"
+        items={items.map((item) => (item.isActive ? "ACTIVA" : "INACTIVA"))}
       />
       <ClimateTable
         title="Estaciones registradas"
         empty="No hay estaciones registradas."
-        headers={[
-          "Estación",
-          "Datos completos hasta",
-          "Estado",
-          "Último intento",
-          "Detalle"
-        ]}
+        headers={["Estación", "Modo", "Estado", "Ultima comunicacion", "Accion"]}
         rows={items.map((item) => [
           item.name,
-          item.lastCompleteDay ?? "Aún sin importación",
-          <Badge key="status" value={item.syncStatus ?? item.estado} />,
-          date(item.lastAttemptAt ?? ""),
+          "Consulta directa",
+          <Badge key="status" value={item.isActive ? "ACTIVA" : "INACTIVA"} />,
+          date(item.lastCommunicationAt ?? ""),
           <span key="communication">
-            {weatherLinkSyncDetail(item.syncDetail)}
             {canManage ? (
               <button
                 type="button"
@@ -1846,18 +1908,24 @@ function StationsView({
   );
 }
 
-function weatherLinkSyncDetail(detail: string | null) {
-  if (!detail) return "Sin incidentes";
-  if (detail.includes("estado 401") || detail.includes("estado 403")) {
-    return "WeatherLink rechazó el acceso. Revise los permisos de la estación.";
-  }
-  if (detail.includes("estado 429")) {
-    return "WeatherLink limitó temporalmente las consultas. Se reintentará después.";
-  }
-  if (detail.includes("no disponible")) {
-    return "WeatherLink no estuvo disponible. Se reintentará automáticamente.";
-  }
-  return detail;
+function weatherLinkYesterday() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Lima",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  const date = new Date(`${value("year")}-${value("month")}-${value("day")}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function weatherLinkDefaultRange() {
+  const hasta = weatherLinkYesterday();
+  const desdeDate = new Date(`${hasta}T12:00:00Z`);
+  desdeDate.setUTCDate(desdeDate.getUTCDate() - 6);
+  return { desde: desdeDate.toISOString().slice(0, 10), hasta };
 }
 
 function AlertsView({ items }: { items: AlertItem[] }) {

@@ -14,7 +14,7 @@ import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { ClimaService } from "../application/clima.service";
-import { WeatherLinkSyncService } from "../application/weatherlink-sync.service";
+import { WeatherLinkQueryService } from "../application/weatherlink-query.service";
 import type { AuthenticatedRequest } from "../../auth/types/auth.types";
 import { CreateReservoirReadingDto } from "./dto/create-reservoir-reading.dto";
 import { FindReservoirHistoryQueryDto } from "./dto/find-reservoir-history-query.dto";
@@ -27,26 +27,23 @@ import { UpdateWeatherLinkStationDto } from "./dto/update-weatherlink-station.dt
 export class ClimaController {
   constructor(
     private readonly climaService: ClimaService,
-    private readonly weatherLinkSync: WeatherLinkSyncService
+    private readonly weatherLinkQuery: WeatherLinkQueryService
   ) {}
   @Get("resumen")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
   @ApiOperation({ summary: "Resumen climático territorial." })
   @ApiOkResponse({ description: "Condiciones y alertas." })
   summary() {
-    this.weatherLinkSync.triggerIfDue();
     return this.climaService.summary();
   }
   @Get("mapa")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
   map() {
-    this.weatherLinkSync.triggerIfDue();
     return this.climaService.map();
   }
   @Get("pronostico")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
   forecast(@Query("punto_id") pointId?: string) {
-    this.weatherLinkSync.triggerIfDue();
     return this.climaService.forecast(pointId);
   }
   @Get("historico")
@@ -55,40 +52,35 @@ export class ClimaController {
     @Query("punto_id") pointId?: string,
     @Query("estacion_id") stationId?: string,
     @Query("desde") start?: string,
-    @Query("hasta") end?: string
+    @Query("hasta") end?: string,
+    @Req() req?: AuthenticatedRequest
   ) {
-    this.weatherLinkSync.triggerIfDue();
-    return this.climaService.history(pointId, stationId, start, end);
+    return this.climaService.history(pointId, stationId, start, end, req?.user.sub);
   }
   @Get("puntos")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
   points() {
-    this.weatherLinkSync.triggerIfDue();
     return this.climaService.pointsResponse();
   }
   @Get("estaciones")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
   stations() {
-    this.weatherLinkSync.triggerIfDue();
     return this.climaService.stations();
   }
   @Get("alertas")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
   alerts() {
-    this.weatherLinkSync.triggerIfDue();
     return this.climaService.alerts();
   }
   @Get("fuentes")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
   sources() {
-    this.weatherLinkSync.triggerIfDue();
     return this.climaService.sources().then((data) => ({ success: true, data }));
   }
 
   @Get("reservorios")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
   async reservorios() {
-    this.weatherLinkSync.triggerIfDue();
     const data = await this.climaService.getReservorios();
     return { success: true, data };
   }
@@ -99,7 +91,6 @@ export class ClimaController {
     @Param("id", new ParseUUIDPipe()) id: string,
     @Query() query: FindReservoirHistoryQueryDto
   ) {
-    this.weatherLinkSync.triggerIfDue();
     return this.climaService.getReservorioHistory(
       id,
       query.variable,
@@ -149,17 +140,25 @@ export class ClimaController {
 
   @Get("fuentes/weatherlink/estado")
   @Roles("ADMIN", "ANALISTA", "AGRONOMO")
-  @ApiOperation({ summary: "Estado de la sincronizacion diaria WeatherLink." })
+  @ApiOperation({ summary: "Estado del modo de consulta directa WeatherLink." })
   weatherLinkStatus() {
-    this.weatherLinkSync.triggerIfDue();
-    return this.weatherLinkSync.status().then((data) => ({ success: true, data }));
+    return { success: true, data: this.weatherLinkQuery.status() };
   }
 
   @Post("fuentes/weatherlink/sincronizar")
   @Roles("ADMIN")
-  @ApiOperation({ summary: "Inicia un reintento WeatherLink no bloqueante." })
+  @ApiOperation({ summary: "Compatibilidad: la sincronizacion diaria esta inactiva." })
   forceWeatherLinkSync() {
-    return { success: true, data: { started: this.weatherLinkSync.triggerIfDue(true) } };
+    return { success: true, data: { started: false, mode: "DIRECT_QUERY" } };
+  }
+
+  @Post("fuentes/weatherlink/estaciones/actualizar")
+  @Roles("ADMIN")
+  @ApiOperation({ summary: "Actualiza solo el catalogo de estaciones WeatherLink." })
+  refreshWeatherLinkStations() {
+    return this.weatherLinkQuery
+      .refreshStations()
+      .then((data) => ({ success: true, data }));
   }
 
   @Put("estaciones/:id/activo")
@@ -169,7 +168,7 @@ export class ClimaController {
     @Param("id", new ParseUUIDPipe()) id: string,
     @Body() body: UpdateWeatherLinkStationDto
   ) {
-    const data = await this.weatherLinkSync.setStationActive(id, body.isActive);
+    const data = await this.weatherLinkQuery.setStationActive(id, body.isActive);
     return { success: true, data };
   }
 }

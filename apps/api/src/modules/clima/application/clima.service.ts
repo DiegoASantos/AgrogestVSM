@@ -12,6 +12,7 @@ import {
   type ReservoirReadingType,
   type ReservoirVariable
 } from "./reservoir-reading.constants";
+import { WeatherLinkQueryService } from "./weatherlink-query.service";
 
 type Punto = {
   id: string;
@@ -53,7 +54,10 @@ const DAILY_FIELDS: Array<[string, string]> = [
 @Injectable()
 export class ClimaService {
   private syncing = false;
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly weatherLinkQuery: WeatherLinkQueryService
+  ) {}
 
   async summary() {
     await this.syncCurrentIfNeeded();
@@ -335,24 +339,20 @@ export class ClimaService {
     return createSuccessResponse(result);
   }
 
-  async history(pointId?: string, stationId?: string, start?: string, end?: string) {
+  async history(
+    pointId?: string,
+    stationId?: string,
+    start?: string,
+    end?: string,
+    requesterId = "system"
+  ) {
     if ((!pointId && !stationId) || (pointId && stationId)) {
       throw new BadRequestException("Indique exactamente un punto_id o estacion_id.");
     }
     if (stationId) {
-      const station = await this.station(stationId);
-      const rows = await this.dataSource.query(
-        `SELECT l.variable,l.valor AS value,l.unidad AS unit,l.tipo AS type,
-          l.dato_at AS "dataAt",l.recibido_at AS "receivedAt",l.modelo AS model,
-          f.codigo AS "sourceCode",f.nombre AS source
-         FROM clima.lecturas l JOIN clima.fuentes_datos f ON f.id=l.fuente_id
-         WHERE l.estacion_id=$1
-           AND l.dato_at >= COALESCE($2::timestamptz,now()-interval '30 days')
-           AND l.dato_at <= COALESCE($3::timestamptz,now())
-         ORDER BY l.dato_at ASC,l.variable ASC`,
-        [station.id, start ?? null, end ?? null]
+      return createSuccessResponse(
+        await this.weatherLinkQuery.history(stationId, start, end, requesterId)
       );
-      return createSuccessResponse({ station: toStation(station), rows });
     }
     const point = await this.point(pointId!);
     const rows = (
@@ -542,49 +542,19 @@ export class ClimaService {
       `SELECT e.id,e.public_id AS "publicId",e.nombre,e.codigo,e.tipo,
         e.latitud::float AS latitude,e.longitud::float AS longitude,e.estado,
         e.variables_json AS variables,e.ultima_comunicacion_at AS "lastCommunicationAt",
-        e.activo AS "isActive",f.codigo AS "sourceCode",f.nombre AS source,
-        s.estado AS "syncStatus",s.ultimo_dia_completo AS "lastCompleteDay",
-        s.ultimo_intento_at AS "lastAttemptAt",s.detalle AS "syncDetail"
-       FROM clima.estaciones_meteorologicas e
-       JOIN clima.fuentes_datos f ON f.id=e.fuente_id
-       LEFT JOIN clima.estaciones_estado_sincronizacion s
-         ON s.estacion_id=e.id AND s.fuente_id=e.fuente_id
-       ORDER BY e.nombre`
-    );
-    return Promise.all(
-      stations.map(async (station: Record<string, unknown> & { id: string }) => ({
-        ...toStation(station),
-        kind: "station" as const,
-        current: await this.stationLatest(station.id)
-      }))
-    );
-  }
-
-  private stationLatest(stationId: string) {
-    return this.dataSource.query(
-      `SELECT DISTINCT ON(l.variable) l.variable,l.valor AS value,l.unidad AS unit,
-        l.tipo AS type,l.dato_at AS "dataAt",l.recibido_at AS "receivedAt",
-        l.modelo AS model,f.codigo AS "sourceCode",f.nombre AS source
-       FROM clima.lecturas l JOIN clima.fuentes_datos f ON f.id=l.fuente_id
-       WHERE l.estacion_id=$1 ORDER BY l.variable,l.dato_at DESC`,
-      [stationId]
-    );
-  }
-
-  private async station(publicId: string) {
-    const rows = await this.dataSource.query(
-      `SELECT e.id,e.public_id AS "publicId",e.nombre,e.codigo,e.tipo,
-        e.latitud::float AS latitude,e.longitud::float AS longitude,e.estado,
-        e.variables_json AS variables,e.ultima_comunicacion_at AS "lastCommunicationAt",
         e.activo AS "isActive",f.codigo AS "sourceCode",f.nombre AS source
        FROM clima.estaciones_meteorologicas e
        JOIN clima.fuentes_datos f ON f.id=e.fuente_id
-       WHERE e.public_id=$1`,
-      [publicId]
+       ORDER BY e.nombre`
     );
-    if (!rows[0]) throw new NotFoundException("Estacion meteorologica no encontrada.");
-    return rows[0];
+    return stations.map((station: Record<string, unknown> & { id: string }) => ({
+      ...toStation(station),
+      kind: "station" as const,
+      queryMode: station.sourceCode === "weatherlink" ? "DIRECT_QUERY" : null,
+      current: []
+    }));
   }
+
   private async points(): Promise<Punto[]> {
     return this.dataSource.query(
       "SELECT id,public_id,nombre,departamento,distrito,latitud,longitud FROM clima.puntos_climaticos WHERE activo=true ORDER BY departamento,distrito"
@@ -713,7 +683,11 @@ export function weatherLinkDisplayName(name: unknown, code: unknown): string {
   const stationName = String(name ?? "").trim();
   const stationCode = String(code ?? "").trim();
   const technicalIdentifier = /^weatherlink:[0-9a-f-]+$/i;
-  if (!stationName || technicalIdentifier.test(stationName) || stationName === stationCode) {
+  if (
+    !stationName ||
+    technicalIdentifier.test(stationName) ||
+    stationName === stationCode
+  ) {
     return "Estación Davis";
   }
   return stationName;

@@ -80,6 +80,32 @@ export type WeatherLinkStation = {
   current: WeatherLinkReading[];
 };
 
+export type WeatherLinkDailySummary = {
+  date: string;
+  temperatureMinC: number | null;
+  temperatureMaxC: number | null;
+  relativeHumidityAveragePercent: number | null;
+  precipitationTotalMm: number | null;
+  windSpeedMaxKmh: number | null;
+  readingsCount: number;
+};
+
+export type WeatherLinkHistory = {
+  station: WeatherLinkStation;
+  range: { desde: string; hasta: string; timeZone: string };
+  fetchedAt: string;
+  cache: { hit: boolean; expiresAt: string };
+  rows: WeatherLinkReading[];
+  daily: WeatherLinkDailySummary[];
+};
+
+export type WeatherLinkHistoryLoadResult = {
+  history: WeatherLinkHistory;
+  isCached: boolean;
+  isStale: boolean;
+  requestedRangeMatches: boolean;
+};
+
 export type WeatherLinkStationsLoadResult = {
   stations: WeatherLinkStation[];
   isCached: boolean;

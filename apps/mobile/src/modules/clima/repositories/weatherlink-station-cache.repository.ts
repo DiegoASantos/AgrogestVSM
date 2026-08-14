@@ -1,5 +1,5 @@
 import { getDatabase } from "../../../shared/database/connection";
-import type { WeatherLinkStation } from "../types/clima.types";
+import type { WeatherLinkHistory, WeatherLinkStation } from "../types/clima.types";
 
 const SELECTED_STATION_KEY = "clima_estacion_weatherlink_seleccionada";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1_000;
@@ -9,6 +9,11 @@ type CachedStationRow = {
   payload_json: string;
   fetched_at: string;
   expires_at: string;
+};
+
+type CachedStationPayload = {
+  station: WeatherLinkStation;
+  history?: WeatherLinkHistory;
 };
 
 export const weatherLinkStationCacheRepository = {
@@ -23,7 +28,8 @@ export const weatherLinkStationCacheRepository = {
       try {
         return [
           {
-            station: JSON.parse(row.payload_json) as WeatherLinkStation,
+            station: parsePayload(row.payload_json).station,
+            history: parsePayload(row.payload_json).history,
             fetchedAt: row.fetched_at,
             expiresAt: row.expires_at
           }
@@ -41,6 +47,7 @@ export const weatherLinkStationCacheRepository = {
     const database = getDatabase();
 
     for (const station of stations) {
+      const existing = this.get(station.id);
       database.runSync(
         `INSERT INTO clima_estacion_cache (
           estacion_id, payload_json, fetched_at, expires_at, updated_at
@@ -51,12 +58,55 @@ export const weatherLinkStationCacheRepository = {
           expires_at = excluded.expires_at,
           updated_at = excluded.updated_at`,
         station.id,
-        JSON.stringify(station),
+        JSON.stringify({ station, history: existing?.history }),
         fetchedAt,
         expiresAt,
         new Date().toISOString()
       );
     }
+  },
+
+  get(stationId: string) {
+    const row = getDatabase().getFirstSync<CachedStationRow>(
+      `SELECT estacion_id, payload_json, fetched_at, expires_at
+       FROM clima_estacion_cache WHERE estacion_id = ? LIMIT 1`,
+      stationId
+    );
+    if (!row) return null;
+    try {
+      return {
+        ...parsePayload(row.payload_json),
+        fetchedAt: row.fetched_at,
+        expiresAt: row.expires_at
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  saveHistory(
+    station: WeatherLinkStation,
+    history: WeatherLinkHistory,
+    fetchedAt = new Date().toISOString()
+  ) {
+    const expiresAt = new Date(
+      new Date(fetchedAt).getTime() + CACHE_TTL_MS
+    ).toISOString();
+    getDatabase().runSync(
+      `INSERT INTO clima_estacion_cache (
+        estacion_id, payload_json, fetched_at, expires_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(estacion_id) DO UPDATE SET
+        payload_json = excluded.payload_json,
+        fetched_at = excluded.fetched_at,
+        expires_at = excluded.expires_at,
+        updated_at = excluded.updated_at`,
+      station.id,
+      JSON.stringify({ station, history }),
+      fetchedAt,
+      expiresAt,
+      new Date().toISOString()
+    );
   },
 
   getSelectedStationId() {
@@ -75,3 +125,9 @@ export const weatherLinkStationCacheRepository = {
     );
   }
 };
+
+function parsePayload(value: string): CachedStationPayload {
+  const parsed = JSON.parse(value) as CachedStationPayload | WeatherLinkStation;
+  if ("station" in parsed) return parsed;
+  return { station: parsed };
+}

@@ -54,7 +54,7 @@ describe("ClimaService", () => {
 
       return [];
     });
-    const service = new ClimaService({ query } as never);
+    const service = new ClimaService({ query } as never, {} as never);
 
     const response = await service.forecast("point-1");
 
@@ -76,7 +76,7 @@ describe("ClimaService", () => {
 
   it("queries the latest reading independently for each reservoir variable", async () => {
     const query = vi.fn().mockResolvedValue([]);
-    const service = new ClimaService({ query } as never);
+    const service = new ClimaService({ query } as never, {} as never);
 
     await service.getReservorios();
 
@@ -99,7 +99,7 @@ describe("ClimaService", () => {
       }
       return [];
     });
-    const service = new ClimaService({ query } as never);
+    const service = new ClimaService({ query } as never, {} as never);
 
     await service.createReservorioReading(
       reservoirRow.public_id,
@@ -134,7 +134,7 @@ describe("ClimaService", () => {
       }
       return [];
     });
-    const service = new ClimaService({ query } as never);
+    const service = new ClimaService({ query } as never, {} as never);
 
     await expect(
       service.createReservorioReading(
@@ -179,7 +179,7 @@ describe("ClimaService", () => {
       }
       return [];
     });
-    const service = new ClimaService({ query } as never);
+    const service = new ClimaService({ query } as never, {} as never);
 
     await service.updateReservorioReading(reservoirRow.public_id, "reading-1", {
       valor: 450
@@ -203,7 +203,7 @@ describe("ClimaService", () => {
       }
       return [];
     });
-    const service = new ClimaService({ query } as never);
+    const service = new ClimaService({ query } as never, {} as never);
 
     await expect(
       service.updateReservorioReading(reservoirRow.public_id, "other-reading", {
@@ -219,7 +219,7 @@ describe("ClimaService", () => {
     const query = vi.fn(async (sql: string) =>
       sql.includes("FROM clima.reservorios WHERE public_id") ? [reservoirRow] : []
     );
-    const service = new ClimaService({ query } as never);
+    const service = new ClimaService({ query } as never, {} as never);
 
     await expect(
       service.getReservorioHistory(
@@ -266,7 +266,7 @@ describe("ClimaService", () => {
       }
       return [];
     });
-    const service = new ClimaService({ query } as never);
+    const service = new ClimaService({ query } as never, {} as never);
 
     const response = await service.stations();
 

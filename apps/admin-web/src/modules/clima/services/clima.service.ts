@@ -47,18 +47,27 @@ export type ClimateStation = {
 export type WeatherLinkStatus = {
   enabled: boolean;
   running: boolean;
-  syncHour: number;
+  mode: "DIRECT_QUERY";
   timeZone: string;
-  stations: Array<{
-    stationId: string;
-    stationName: string;
-    isActive: boolean;
-    status: string | null;
-    lastCompleteDay: string | null;
-    lastAttemptAt: string | null;
-    lastSuccessAt: string | null;
-    detail: string | null;
-  }>;
+  maxRangeDays: number;
+  cacheTtlMs: number;
+};
+export type WeatherLinkDailySummary = {
+  date: string;
+  temperatureMinC: number | null;
+  temperatureMaxC: number | null;
+  relativeHumidityAveragePercent: number | null;
+  precipitationTotalMm: number | null;
+  windSpeedMaxKmh: number | null;
+  readingsCount: number;
+};
+export type WeatherLinkHistory = {
+  station: ClimateStation;
+  range: { desde: string; hasta: string; timeZone: string };
+  fetchedAt: string;
+  cache: { hit: boolean; expiresAt: string };
+  rows: ClimateReading[];
+  daily: WeatherLinkDailySummary[];
 };
 export type ClimateSource = {
   codigo: string;
@@ -139,9 +148,14 @@ export const climaService = {
       headers(session)
     );
   },
-  getStationHistory(session: SessionInput, stationId: string) {
-    return apiRequest<{ station: ClimateStation; rows: ClimateReading[] }>(
-      `/clima/historico?estacion_id=${encodeURIComponent(stationId)}`,
+  getStationHistory(
+    session: SessionInput,
+    stationId: string,
+    range: { desde: string; hasta: string }
+  ) {
+    const query = new URLSearchParams({ estacion_id: stationId, ...range });
+    return apiRequest<WeatherLinkHistory>(
+      `/clima/historico?${query.toString()}`,
       headers(session)
     );
   },
@@ -168,6 +182,12 @@ export const climaService = {
       ...headers(session),
       method: "POST" as const
     });
+  },
+  refreshWeatherLinkStations(session: SessionInput) {
+    return apiRequest<{ updated: number }>(
+      "/clima/fuentes/weatherlink/estaciones/actualizar",
+      { ...headers(session), method: "POST" as const }
+    );
   },
   updateWeatherLinkStation(session: SessionInput, stationId: string, isActive: boolean) {
     return apiRequest<{ publicId: string; isActive: boolean }>(

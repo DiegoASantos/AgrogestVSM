@@ -49,7 +49,7 @@ describe("weatherLinkStationCacheRepository", () => {
     expect(database.runSync.mock.calls[0][0]).not.toContain("sync_outbox");
     expect(database.runSync.mock.calls[0].slice(1, 3)).toEqual([
       "station-1",
-      JSON.stringify(station)
+      JSON.stringify({ station })
     ]);
   });
 
@@ -73,6 +73,27 @@ describe("weatherLinkStationCacheRepository", () => {
 
     expect(cached).toHaveLength(1);
     expect(cached[0]?.station.name).toBe("Davis Norte");
+  });
+
+  it("stores the last direct query in the read-only cache", () => {
+    const history = {
+      station,
+      range: { desde: "2026-08-13", hasta: "2026-08-13", timeZone: "America/Lima" },
+      fetchedAt: "2026-08-14T08:00:00.000Z",
+      cache: { hit: false, expiresAt: "2026-08-14T08:10:00.000Z" },
+      rows: [],
+      daily: []
+    };
+
+    weatherLinkStationCacheRepository.saveHistory(
+      station,
+      history,
+      "2026-08-14T08:00:00.000Z"
+    );
+
+    expect(database.runSync.mock.calls[0][0]).toContain("clima_estacion_cache");
+    expect(database.runSync.mock.calls[0][0]).not.toContain("sync_outbox");
+    expect(database.runSync.mock.calls[0][2]).toBe(JSON.stringify({ station, history }));
   });
 
   it("persists and restores the selected station id", () => {

@@ -29,14 +29,15 @@ describe("ClimaController", () => {
     ).toEqual(["ADMIN", "ANALISTA", "AGRONOMO"]);
   });
 
-  it.each(["forceWeatherLinkSync", "updateWeatherLinkStation"] as const)(
-    "restricts %s to ADMIN",
-    (handler) => {
-      expect(
-        Reflect.getMetadata(REQUIRED_ROLES_KEY, ClimaController.prototype[handler])
-      ).toEqual(["ADMIN"]);
-    }
-  );
+  it.each([
+    "forceWeatherLinkSync",
+    "refreshWeatherLinkStations",
+    "updateWeatherLinkStation"
+  ] as const)("restricts %s to ADMIN", (handler) => {
+    expect(
+      Reflect.getMetadata(REQUIRED_ROLES_KEY, ClimaController.prototype[handler])
+    ).toEqual(["ADMIN"]);
+  });
 
   it.each([
     "createReservorioLectura",

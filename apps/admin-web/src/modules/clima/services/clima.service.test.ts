@@ -53,8 +53,12 @@ describe("climaService", () => {
   });
 
   it("gets WeatherLink station history and status", async () => {
-    await climaService.getStationHistory(session, "station/1");
-    expect(fetchUrl()).toContain("/clima/historico?estacion_id=station%2F1");
+    await climaService.getStationHistory(session, "station/1", {
+      desde: "2026-08-07",
+      hasta: "2026-08-13"
+    });
+    expect(fetchUrl()).toContain("estacion_id=station%2F1");
+    expect(fetchUrl()).toContain("desde=2026-08-07");
 
     await climaService.getWeatherLinkStatus(session);
     expect(fetchUrl()).toContain("/clima/fuentes/weatherlink/estado");

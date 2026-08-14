@@ -185,10 +185,12 @@ El clima general de Inicio usa `clima_distrito_cache`: una caché local de solo
 lectura por distrito, sin outbox ni cambios de datos operativos. La API resuelve
 el punto climático territorial; este flujo no usa geometría de parcelas.
 
-El detalle de clima puede consultar estaciones WeatherLink Davis ya persistidas
-por la API. `clima_estacion_cache` conserva la última consulta por estación y
-la elección del usuario se guarda en `app_meta`; ambas son cachés de solo
-lectura, no crean outbox y muestran su vigencia cuando se usan sin conexión.
+El detalle de clima obtiene el inventario WeatherLink Davis desde la API y
+consulta directamente al proveedor un rango cerrado de hasta siete dias. La
+API no persiste esas lecturas en PostgreSQL. `clima_estacion_cache` conserva en
+su JSON la metadata y la ultima respuesta por estacion; la eleccion del usuario
+se guarda en `app_meta`. Ambas son caches de solo lectura, no crean outbox y
+muestran el rango y su vigencia cuando se usan sin conexion.
 
 Los catálogos de receta `marcas_producto` y `fertilizantes` conservan localmente
 la concentración comercial textual y su unidad de medida. Son caché de solo

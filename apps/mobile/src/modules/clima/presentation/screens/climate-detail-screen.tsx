@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,6 +21,8 @@ import {
   climateDistricts,
   type ClimateDistrictCode,
   type ClimateLoadResult,
+  type WeatherLinkHistoryLoadResult,
+  type WeatherLinkReading,
   type WeatherLinkStation,
   type WeatherLinkStationsLoadResult
 } from "../../types/clima.types";
@@ -191,6 +194,12 @@ function WeatherLinkStationDetail({ isOnline }: { isOnline: boolean }) {
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [isSelectorVisible, setIsSelectorVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const defaultRange = weatherLinkDefaultRange();
+  const [from, setFrom] = useState(defaultRange.desde);
+  const [to, setTo] = useState(defaultRange.hasta);
+  const [historyResult, setHistoryResult] = useState<WeatherLinkHistoryLoadResult | null>(
+    null
+  );
   const [error, setError] = useState<string | null>(null);
   const selectedStation =
     result?.stations.find((station) => station.id === selectedStationId) ?? null;
@@ -226,14 +235,33 @@ function WeatherLinkStationDetail({ isOnline }: { isOnline: boolean }) {
   function selectStation(station: WeatherLinkStation) {
     weatherLinkStationCacheRepository.saveSelectedStationId(station.id);
     setSelectedStationId(station.id);
+    setHistoryResult(null);
+    setError(null);
     setIsSelectorVisible(false);
+  }
+
+  async function queryHistory() {
+    if (!selectedStation) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      setHistoryResult(
+        await climaService.getWeatherLinkHistory(selectedStation, from, to, isOnline)
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "No se pudo consultar WeatherLink."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
     <View style={styles.panel}>
       <SectionHeading
         icon="speedometer-outline"
-        subtitle="Observaciones persistidas por WeatherLink Davis; selecciona una estación, no un distrito."
+        subtitle="Consulta observaciones Davis por estacion y por un rango de hasta 7 dias."
         title="Estación Davis"
       />
       {isLoading ? <LoadingState label="Consultando estaciones Davis..." /> : null}
@@ -248,7 +276,26 @@ function WeatherLinkStationDetail({ isOnline }: { isOnline: boolean }) {
             label={selectedStation.name}
             onPress={() => setIsSelectorVisible(true)}
           />
-          <StationContent result={result} station={selectedStation} />
+          <View style={styles.dateRangeRow}>
+            <DateField label="Desde" onChange={setFrom} value={from} />
+            <DateField label="Hasta" onChange={setTo} value={to} />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            disabled={isLoading}
+            onPress={() => void queryHistory()}
+            style={({ pressed }) => [
+              styles.queryButton,
+              pressed && styles.pressed,
+              isLoading && styles.queryButtonDisabled
+            ]}
+          >
+            <Ionicons color={theme.colors.textInverse} name="search-outline" size={19} />
+            <AppText style={styles.queryButtonText} variant="label">
+              {isLoading ? "Consultando..." : "Consultar"}
+            </AppText>
+          </Pressable>
+          {historyResult ? <StationHistoryContent result={historyResult} /> : null}
         </>
       ) : null}
 
@@ -266,6 +313,34 @@ function WeatherLinkStationDetail({ isOnline }: { isOnline: boolean }) {
           />
         ))}
       </SelectorModal>
+    </View>
+  );
+}
+
+function DateField({
+  label,
+  onChange,
+  value
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  return (
+    <View style={styles.dateField}>
+      <AppText style={styles.metadataLabel} variant="caption">
+        {label}
+      </AppText>
+      <TextInput
+        accessibilityLabel={`${label}, formato año-mes-dia`}
+        autoCapitalize="none"
+        keyboardType="numbers-and-punctuation"
+        maxLength={10}
+        onChangeText={onChange}
+        placeholder="AAAA-MM-DD"
+        style={styles.dateInput}
+        value={value}
+      />
     </View>
   );
 }
@@ -406,66 +481,96 @@ function EstimateContent({ result }: { result: ClimateLoadResult }) {
   );
 }
 
-function StationContent({
-  result,
-  station
-}: {
-  result: WeatherLinkStationsLoadResult;
-  station: WeatherLinkStation;
-}) {
-  const latestAt = station.current.reduce<string | null>((latest, reading) => {
-    if (!latest || new Date(reading.dataAt).getTime() > new Date(latest).getTime())
-      return reading.dataAt;
-    return latest;
-  }, null);
-
+function StationHistoryContent({ result }: { result: WeatherLinkHistoryLoadResult }) {
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const { history } = result;
   return (
     <View style={styles.detailContent}>
       <SourceStatus
         cached={result.isCached}
         stale={result.isStale}
         text={
-          result.isStale
-            ? "Lecturas guardadas; requieren actualización"
-            : result.isCached
-              ? "Última consulta guardada para uso sin conexión"
-              : "WeatherLink Davis · lectura observada"
+          !result.requestedRangeMatches
+            ? `Sin conexion: se muestra el rango guardado ${history.range.desde} a ${history.range.hasta}`
+            : result.isStale
+              ? "Consulta guardada; puede estar desactualizada"
+              : result.isCached
+                ? "WeatherLink Davis · respuesta reutilizada desde cache"
+                : "WeatherLink Davis · consulta directa"
         }
       />
       <View style={styles.stationMetadata}>
         <MetadataRow
-          icon="radio-outline"
-          label="Estado"
-          value={formatStationStatus(station.syncStatus)}
+          icon="calendar-outline"
+          label="Rango consultado"
+          value={`${history.range.desde} a ${history.range.hasta}`}
         />
         <MetadataRow
           icon="time-outline"
-          label="Última lectura"
-          value={latestAt ? formatDateTime(latestAt) : "Sin lecturas disponibles"}
+          label="Consulta realizada"
+          value={formatDateTime(history.fetchedAt)}
         />
-        {station.lastCommunicationAt ? (
-          <MetadataRow
-            icon="cellular-outline"
-            label="Última comunicación"
-            value={formatDateTime(station.lastCommunicationAt)}
-          />
-        ) : null}
       </View>
-      {station.current.length === 0 ? (
-        <StationWithoutReadings station={station} />
+      {history.daily.length === 0 ? (
+        <EmptyState message="WeatherLink no devolvio lecturas para este rango." />
       ) : (
-        <>
-          <AppText style={styles.groupTitle} variant="label">
-            Última lectura por variable
-          </AppText>
-          <MetricGrid
-            items={station.current.map((reading) => [
-              stationIcon(reading.variable),
-              stationVariableLabel(reading.variable),
-              `${round(reading.value)} ${reading.unit}`
-            ])}
-          />
-        </>
+        history.daily.map((day) => {
+          const expanded = expandedDay === day.date;
+          const dayRows = latestReadingsForDay(history.rows, day.date);
+          return (
+            <View key={day.date} style={styles.historyDayCard}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded }}
+                onPress={() => setExpandedDay(expanded ? null : day.date)}
+                style={styles.historyDayHeader}
+              >
+                <View>
+                  <AppText style={styles.dayDate} variant="label">
+                    {formatLongDay(day.date)}
+                  </AppText>
+                  <AppText style={styles.dayMeta} variant="caption">
+                    {day.readingsCount} observaciones normalizadas
+                  </AppText>
+                </View>
+                <Ionicons
+                  color={theme.colors.primary}
+                  name={expanded ? "chevron-up" : "chevron-down"}
+                  size={20}
+                />
+              </Pressable>
+              <MetricGrid
+                items={[
+                  [
+                    "thermometer-outline",
+                    "Temperatura",
+                    `${format(day.temperatureMinC, "°")} / ${format(day.temperatureMaxC, "°")}`
+                  ],
+                  [
+                    "water-outline",
+                    "Humedad prom.",
+                    format(day.relativeHumidityAveragePercent, "%")
+                  ],
+                  ["rainy-outline", "Lluvia", format(day.precipitationTotalMm, " mm")],
+                  [
+                    "speedometer-outline",
+                    "Viento max.",
+                    format(day.windSpeedMaxKmh, " km/h")
+                  ]
+                ]}
+              />
+              {expanded ? (
+                <MetricGrid
+                  items={dayRows.map((reading) => [
+                    stationIcon(reading.variable),
+                    stationVariableLabel(reading.variable),
+                    `${round(reading.value)} ${reading.unit}`
+                  ])}
+                />
+              ) : null}
+            </View>
+          );
+        })
       )}
     </View>
   );
@@ -571,29 +676,6 @@ function EmptyState({ message }: { message: string }) {
       <AppText style={styles.emptyText} variant="caption">
         {message}
       </AppText>
-    </View>
-  );
-}
-
-function StationWithoutReadings({ station }: { station: WeatherLinkStation }) {
-  const lastAttempt = station.lastAttemptAt
-    ? `Último intento: ${formatDateTime(station.lastAttemptAt)}.`
-    : "Aún no se ha registrado un intento de actualización.";
-  const detail = station.syncDetail
-    ? "La fuente no pudo actualizarse; se volverá a intentar automáticamente."
-    : "La fuente aún no ha enviado observaciones que podamos mostrar.";
-
-  return (
-    <View style={styles.stationNotice}>
-      <Ionicons color={theme.colors.warning} name="information-circle-outline" size={23} />
-      <View style={styles.stationNoticeCopy}>
-        <AppText style={styles.stationNoticeTitle} variant="label">
-          Aún no hay lecturas de esta estación
-        </AppText>
-        <AppText style={styles.stationNoticeText} variant="caption">
-          {detail} {lastAttempt}
-        </AppText>
-      </View>
     </View>
   );
 }
@@ -736,11 +818,47 @@ function stationVariableLabel(variable: string) {
   return labels[variable] ?? variable.replaceAll("_", " ");
 }
 
-function formatStationStatus(status: string | null) {
-  if (status === "ERROR") return "Con incidencias";
-  if (status === "SINCRONIZANDO") return "Actualizando";
-  if (status === "COMPLETADA") return "Actualizada";
-  return status ? status.replaceAll("_", " ") : "Sin estado";
+function latestReadingsForDay(rows: WeatherLinkReading[], day: string) {
+  const latest = new Map<string, WeatherLinkReading>();
+  for (const row of rows) {
+    if (weatherLinkDateKey(row.dataAt) !== day) continue;
+    const current = latest.get(row.variable);
+    if (!current || row.dataAt > current.dataAt) latest.set(row.variable, row);
+  }
+  return [...latest.values()].sort((left, right) =>
+    stationVariableLabel(left.variable).localeCompare(
+      stationVariableLabel(right.variable)
+    )
+  );
+}
+
+function weatherLinkDateKey(value: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Lima",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatLongDay(value: string) {
+  return new Date(`${value}T12:00:00-05:00`).toLocaleDateString("es-PE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  });
+}
+
+function weatherLinkDefaultRange() {
+  const limaNow = new Date(Date.now() - 5 * 60 * 60 * 1_000);
+  const yesterday = new Date(`${limaNow.toISOString().slice(0, 10)}T12:00:00.000Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const from = new Date(yesterday);
+  from.setUTCDate(from.getUTCDate() - 6);
+  return {
+    desde: from.toISOString().slice(0, 10),
+    hasta: yesterday.toISOString().slice(0, 10)
+  };
 }
 
 const styles = StyleSheet.create({
@@ -825,6 +943,28 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surfaceElevated
   },
   selectorText: { flex: 1, color: theme.colors.primaryDark },
+  dateRangeRow: { flexDirection: "row", gap: theme.spacing.sm },
+  dateField: { flex: 1, gap: 5 },
+  dateInput: {
+    minHeight: 48,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    color: theme.colors.primaryDark
+  },
+  queryButton: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing.sm,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.primary
+  },
+  queryButtonDisabled: { opacity: 0.55 },
+  queryButtonText: { color: theme.colors.textInverse },
   loading: {
     minHeight: 132,
     alignItems: "center",
@@ -840,16 +980,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg
   },
   emptyText: { color: theme.colors.textMuted, textAlign: "center" },
-  stationNotice: {
-    flexDirection: "row",
-    gap: theme.spacing.sm,
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.warningMuted
-  },
-  stationNoticeCopy: { flex: 1, gap: 3 },
-  stationNoticeTitle: { color: "#76520a" },
-  stationNoticeText: { color: "#76520a", lineHeight: 17 },
   detailContent: { gap: theme.spacing.md },
   sourceStatus: {
     alignSelf: "flex-start",
@@ -912,6 +1042,20 @@ const styles = StyleSheet.create({
   metadataCopy: { flex: 1 },
   metadataLabel: { color: theme.colors.textMuted },
   metadataValue: { color: theme.colors.primaryDark },
+  historyDayCard: {
+    gap: theme.spacing.sm,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface
+  },
+  historyDayHeader: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
   modalBackdrop: {
     flex: 1,
     justifyContent: "flex-end",

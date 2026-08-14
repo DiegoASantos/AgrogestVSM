@@ -3,6 +3,7 @@ import { weatherLinkStationCacheRepository } from "../repositories/weatherlink-s
 import type {
   ClimateDistrictCode,
   ClimateLoadResult,
+  WeatherLinkHistoryLoadResult,
   WeatherLinkStation,
   WeatherLinkStationsLoadResult
 } from "../types/clima.types";
@@ -59,6 +60,40 @@ export const climaService = {
       stations: cached.map(({ station }) => station),
       isCached: true,
       isStale: cached.some(({ expiresAt }) => new Date(expiresAt).getTime() <= Date.now())
+    };
+  },
+
+  async getWeatherLinkHistory(
+    station: WeatherLinkStation,
+    desde: string,
+    hasta: string,
+    isOnline: boolean
+  ): Promise<WeatherLinkHistoryLoadResult> {
+    if (isOnline) {
+      try {
+        const history = await climaRemote.getWeatherLinkHistory(station.id, desde, hasta);
+        weatherLinkStationCacheRepository.saveHistory(station, history);
+        return {
+          history,
+          isCached: history.cache.hit,
+          isStale: false,
+          requestedRangeMatches: true
+        };
+      } catch {
+        // The last direct query is the only WeatherLink fallback used by mobile.
+      }
+    }
+
+    const cached = weatherLinkStationCacheRepository.get(station.id);
+    if (!cached?.history) {
+      throw new Error("No hay una consulta WeatherLink guardada para esta estacion.");
+    }
+    return {
+      history: cached.history,
+      isCached: true,
+      isStale: new Date(cached.expiresAt).getTime() <= Date.now(),
+      requestedRangeMatches:
+        cached.history.range.desde === desde && cached.history.range.hasta === hasta
     };
   }
 };
