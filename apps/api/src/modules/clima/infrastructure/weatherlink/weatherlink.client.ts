@@ -8,6 +8,8 @@ import type {
   WeatherLinkStation
 } from "./weatherlink.types";
 
+const INCOMPLETE_HISTORIC_MESSAGE = "WeatherLink devolvio datos historicos incompletos.";
+
 export class WeatherLinkRequestError extends Error {
   constructor(
     readonly status: number | null,
@@ -35,14 +37,22 @@ export class WeatherLinkClient {
     startTimestamp: number,
     endTimestamp: number
   ): Promise<WeatherLinkHistoricPayload> {
-    const payload = await this.request<unknown>(
-      `historic/${encodeURIComponent(stationId)}`,
-      {
-        "start-timestamp": String(startTimestamp),
-        "end-timestamp": String(endTimestamp)
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const payload = await this.request<unknown>(
+        `historic/${encodeURIComponent(stationId)}`,
+        {
+          "start-timestamp": String(startTimestamp),
+          "end-timestamp": String(endTimestamp)
+        }
+      );
+      try {
+        return validateHistoricPayload(payload);
+      } catch (error) {
+        if (attempt === 0 && isIncompleteHistoricPayloadError(error)) continue;
+        throw error;
       }
-    );
-    return validateHistoricPayload(payload);
+    }
+    throw new WeatherLinkRequestError(null, INCOMPLETE_HISTORIC_MESSAGE);
   }
 
   private async request<T>(path: string, query: Record<string, string> = {}): Promise<T> {
@@ -84,27 +94,18 @@ export class WeatherLinkClient {
 
 export function validateHistoricPayload(payload: unknown): WeatherLinkHistoricPayload {
   if (!isRecord(payload) || !Array.isArray(payload.sensors)) {
-    throw new WeatherLinkRequestError(
-      null,
-      "WeatherLink devolvio datos historicos incompletos."
-    );
+    throw new WeatherLinkRequestError(null, INCOMPLETE_HISTORIC_MESSAGE);
   }
   const sensors = payload.sensors.map((sensor) => {
     if (!isRecord(sensor)) {
-      throw new WeatherLinkRequestError(
-        null,
-        "WeatherLink devolvio datos historicos incompletos."
-      );
+      throw new WeatherLinkRequestError(null, INCOMPLETE_HISTORIC_MESSAGE);
     }
     if (
       sensor.data !== undefined &&
       sensor.data !== null &&
       !Array.isArray(sensor.data)
     ) {
-      throw new WeatherLinkRequestError(
-        null,
-        "WeatherLink devolvio datos historicos incompletos."
-      );
+      throw new WeatherLinkRequestError(null, INCOMPLETE_HISTORIC_MESSAGE);
     }
     const data = Array.isArray(sensor.data)
       ? sensor.data.filter(
@@ -115,6 +116,13 @@ export function validateHistoricPayload(payload: unknown): WeatherLinkHistoricPa
     return { ...sensor, data };
   });
   return { ...payload, sensors } as WeatherLinkHistoricPayload;
+}
+
+function isIncompleteHistoricPayloadError(error: unknown) {
+  return (
+    error instanceof WeatherLinkRequestError &&
+    error.message === INCOMPLETE_HISTORIC_MESSAGE
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

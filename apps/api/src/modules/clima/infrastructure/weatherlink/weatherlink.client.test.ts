@@ -76,6 +76,25 @@ describe("WeatherLinkClient", () => {
     await expect(client.historic("station-1", 1, 2)).resolves.toEqual({ sensors: [] });
   });
 
+  it("retries one transient incomplete historic response", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sensors: [{ data: [{ ts: 1_723_500_000, temp_out: 80 }] }]
+        })
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new WeatherLinkClient(config as never);
+
+    await expect(client.historic("station-1", 1, 2)).resolves.toEqual({
+      sensors: [{ data: [{ ts: 1_723_500_000, temp_out: 80 }] }]
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("treats missing reports as a gap and preserves valid records", async () => {
     vi.stubGlobal(
       "fetch",

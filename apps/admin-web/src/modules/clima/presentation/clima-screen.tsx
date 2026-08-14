@@ -903,6 +903,10 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
   const selectedStation =
     weatherLinkStations.find((station) => station.id === stationId) ??
     weatherLinkStations[0];
+  const weatherLinkLatest = useMemo(
+    () => latestReadingsByVariable(weatherLinkHistory?.rows ?? []),
+    [weatherLinkHistory?.rows]
+  );
 
   useEffect(() => {
     if (sourceCode !== "open_meteo" || !selectedId) return;
@@ -1089,7 +1093,23 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
           <Empty message="WeatherLink no devolvió lecturas para este rango." />
         ) : (
           <>
-            <WeatherLinkDailyCards items={weatherLinkHistory.daily} />
+            <section className="climate-data-section">
+              <header>
+                <div>
+                  <p className="eyebrow">WeatherLink Davis · observado</p>
+                  <h3 className="title title--section">
+                    {weatherLinkHistory.station.name}{" "}
+                    <small>
+                      {weatherLinkHistory.range.desde}–{weatherLinkHistory.range.hasta}
+                    </small>
+                  </h3>
+                </div>
+                <span className="climate-badge">
+                  Observado {latestDate(weatherLinkLatest)}
+                </span>
+              </header>
+              <MetricChartGrid readings={weatherLinkLatest} groups={CURRENT_GROUPS} />
+            </section>
             <HistoryExplorer history={weatherLinkHistory} />
           </>
         )
