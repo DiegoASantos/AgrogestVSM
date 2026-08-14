@@ -47,4 +47,22 @@ describe("normalizeWeatherLinkPayload", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ variable: "temperature_2m", value: 25 });
   });
+
+  it("ignores malformed timestamps and values that cannot fit in climate storage", () => {
+    const rows = normalizeWeatherLinkPayload({
+      sensors: [
+        {
+          data: [
+            { ts: 1e18, temp_out: 80 },
+            { ts: 1_723_456_789, solar_rad: 1e20 },
+            { ts: 1_723_456_789, hum_out: 64 }
+          ]
+        }
+      ]
+    });
+
+    expect(rows).toEqual([
+      expect.objectContaining({ variable: "relative_humidity_2m", value: 64 })
+    ]);
+  });
 });

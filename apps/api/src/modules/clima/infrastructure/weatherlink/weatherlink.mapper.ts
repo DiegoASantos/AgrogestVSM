@@ -10,6 +10,9 @@ const mphToKmh = (value: number) => round(value * 1.609344);
 const inchesToMm = (value: number) => round(value * 25.4);
 const inHgToHpa = (value: number) => round(value * 33.8638866667);
 const identity = (value: number) => value;
+const MIN_WEATHERLINK_TIMESTAMP = Date.parse("2000-01-01T00:00:00.000Z") / 1000;
+const MAX_WEATHERLINK_TIMESTAMP = Date.parse("2100-01-01T00:00:00.000Z") / 1000;
+const MAX_DATABASE_VALUE = 9_999_999_999.9999;
 
 const FIELD_MAPPINGS: Record<string, Mapping> = {
   temp_out: { variable: "temperature_2m", unit: "°C", convert: fahrenheitToCelsius },
@@ -41,14 +44,15 @@ export function normalizeWeatherLinkPayload(
 
   for (const sensor of payload.sensors ?? []) {
     for (const record of sensor.data ?? []) {
-      const timestamp = number(record.ts);
+      const timestamp = validTimestamp(record.ts);
       if (timestamp === null) continue;
       for (const [field, raw] of Object.entries(record)) {
         const mapping = FIELD_MAPPINGS[field] ?? dynamicMapping(field);
         const value = number(raw);
         if (!mapping || value === null) continue;
         const normalized = (mapping.convert ?? identity)(value);
-        if (!Number.isFinite(normalized)) continue;
+        if (!Number.isFinite(normalized) || Math.abs(normalized) > MAX_DATABASE_VALUE)
+          continue;
         const key = `${mapping.variable}:${timestamp}`;
         if (seen.has(key)) continue;
         seen.add(key);
@@ -88,6 +92,18 @@ function dynamicMapping(field: string): Mapping | null {
 function number(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return value;
+}
+
+function validTimestamp(value: unknown): number | null {
+  const timestamp = number(value);
+  if (
+    timestamp === null ||
+    timestamp < MIN_WEATHERLINK_TIMESTAMP ||
+    timestamp > MAX_WEATHERLINK_TIMESTAMP
+  ) {
+    return null;
+  }
+  return timestamp;
 }
 
 function round(value: number): number {
