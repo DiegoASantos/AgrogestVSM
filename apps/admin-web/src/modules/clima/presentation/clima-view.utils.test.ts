@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   forecastReadingsForDate,
   filterWeatherLinkStations,
+  latestReadingsByVariable,
   limaDateKeyAtOffset,
   mergeHistoryByTimestamp,
   stationHasMapCoordinates
@@ -79,6 +80,51 @@ describe("climate view utilities", () => {
       temperature_2m: 31,
       relative_humidity_2m: 70
     });
+  });
+
+  it("selects the newest valid WeatherLink reading for each variable", () => {
+    const readings = latestReadingsByVariable([
+      {
+        variable: "temperature_2m",
+        value: 31,
+        unit: "°C",
+        type: "OBSERVADO",
+        dataAt: "2026-08-13T18:00:00Z",
+        receivedAt: "2026-08-14T15:00:00Z"
+      },
+      {
+        variable: "relative_humidity_2m",
+        value: 68,
+        unit: "%",
+        type: "OBSERVADO",
+        dataAt: "2026-08-13T20:00:00Z",
+        receivedAt: "2026-08-14T15:00:00Z"
+      },
+      {
+        variable: "temperature_2m",
+        value: 29,
+        unit: "°C",
+        type: "OBSERVADO",
+        dataAt: "2026-08-13T22:00:00Z",
+        receivedAt: "2026-08-14T15:00:00Z"
+      },
+      {
+        variable: "temperature_2m",
+        value: 99,
+        unit: "°C",
+        type: "OBSERVADO",
+        dataAt: "fecha-invalida",
+        receivedAt: "2026-08-14T15:00:00Z"
+      }
+    ]);
+
+    expect(readings).toHaveLength(2);
+    expect(readings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ variable: "temperature_2m", value: 29 }),
+        expect.objectContaining({ variable: "relative_humidity_2m", value: 68 })
+      ])
+    );
   });
 
   it("excludes WeatherLink stations without complete GPS coordinates from maps", () => {

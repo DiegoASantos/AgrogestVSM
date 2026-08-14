@@ -37,6 +37,7 @@ import {
   type ClimateReading,
   type ClimateSource,
   type ClimateStation,
+  type WeatherLinkDailySummary,
   type WeatherLinkStatus,
   type WeatherLinkHistory,
   type Reservoir,
@@ -45,6 +46,7 @@ import {
 import {
   forecastReadingsForDate,
   filterWeatherLinkStations,
+  latestReadingsByVariable,
   limaDateKeyAtOffset,
   mergeHistoryByTimestamp,
   stationHasMapCoordinates
@@ -133,7 +135,13 @@ const CURRENT_GROUPS: Array<{ title: string; variables: string[] }> = [
   },
   {
     title: "Lluvia y atmósfera",
-    variables: ["precipitation", "cloud_cover", "surface_pressure"]
+    variables: [
+      "precipitation",
+      "precipitation_rate",
+      "et0_fao_evapotranspiration",
+      "cloud_cover",
+      "surface_pressure"
+    ]
   },
   {
     title: "Viento y radiación",
@@ -141,7 +149,8 @@ const CURRENT_GROUPS: Array<{ title: string; variables: string[] }> = [
       "wind_speed_10m",
       "wind_gusts_10m",
       "wind_direction_10m",
-      "shortwave_radiation"
+      "shortwave_radiation",
+      "uv_index"
     ]
   }
 ];
@@ -502,7 +511,12 @@ function ClimateMap({
               onClose={clearSelection}
             />
           ) : selectedStation ? (
-            <StationMapPanel station={selectedStation} onClose={clearSelection} />
+            <StationMapPanel
+              key={selectedStation.id}
+              station={selectedStation}
+              session={session}
+              onClose={clearSelection}
+            />
           ) : selectedReservoir ? (
             <ReservoirMapPanel
               reservoir={selectedReservoir}
@@ -518,22 +532,60 @@ function ClimateMap({
 
 function StationMapPanel({
   station,
+  session,
   onClose
 }: {
   station: ClimateStation;
+  session: Session;
   onClose: () => void;
 }) {
+  const [queryDate, setQueryDate] = useState(weatherLinkYesterday);
+  const [history, setHistory] = useState<WeatherLinkHistory | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const request = useRef(0);
+  const latest = useMemo(
+    () => latestReadingsByVariable(history?.rows ?? []),
+    [history?.rows]
+  );
+
+  function handleDateChange(value: string) {
+    request.current += 1;
+    setQueryDate(value);
+    setHistory(null);
+    setError(null);
+    setIsLoading(false);
+  }
+
+  async function queryWeatherLinkDay() {
+    const requestId = ++request.current;
+    setHistory(null);
+    setError(null);
+    setIsLoading(true);
+    try {
+      const nextHistory = await climaService.getStationHistory(session, station.id, {
+        desde: queryDate,
+        hasta: queryDate
+      });
+      if (requestId === request.current) setHistory(nextHistory);
+    } catch (reason) {
+      if (requestId === request.current) {
+        setError(
+          reason instanceof Error ? reason.message : "No se pudo consultar WeatherLink."
+        );
+      }
+    } finally {
+      if (requestId === request.current) setIsLoading(false);
+    }
+  }
+
   return (
     <>
       <div className="climate-map-panel__header">
         <div>
           <p className="eyebrow">WeatherLink Davis · observado</p>
           <h3>{station.name}</h3>
-          <span>
-            {station.lastCompleteDay
-              ? `Datos hasta ${station.lastCompleteDay}`
-              : "Sin historico completo"}
-          </span>
+          <span>Consulta directa · sin importación</span>
         </div>
         <button
           className="climate-map-panel__close"
@@ -545,12 +597,52 @@ function StationMapPanel({
         </button>
       </div>
       <div className="climate-map-panel__body">
-        {station.current?.length ? (
-          <MetricChartGrid readings={station.current} groups={CURRENT_GROUPS} compact />
+        <div className="climate-direct-query climate-direct-query--compact">
+          <label className="field-group">
+            <span>Fecha observada</span>
+            <input
+              max={weatherLinkYesterday()}
+              onChange={(event) => handleDateChange(event.target.value)}
+              type="date"
+              value={queryDate}
+            />
+          </label>
+          <button
+            className="button button--primary"
+            disabled={isLoading || !queryDate}
+            onClick={() => void queryWeatherLinkDay()}
+            type="button"
+          >
+            {isLoading ? "Consultando..." : "Consultar"}
+          </button>
+        </div>
+        {error ? (
+          <div className="climate-query-error" role="alert">
+            {error}
+          </div>
+        ) : isLoading ? (
+          <div className="climate-map-panel__loading">Consultando observaciones...</div>
+        ) : !history ? (
+          <div className="climate-map-panel__empty">
+            Elige un día completo y pulsa Consultar.
+          </div>
+        ) : history.rows.length === 0 ? (
+          <div className="climate-map-panel__empty">
+            WeatherLink no devolvió lecturas para esta fecha.
+          </div>
         ) : (
-          <div className="climate-map-panel__empty">Sin lecturas Davis importadas.</div>
+          <>
+            <WeatherLinkDailyCards items={history.daily} compact />
+            <MetricChartGrid readings={latest} groups={CURRENT_GROUPS} compact />
+            <div className="climate-query-meta">
+              <span>Lecturas más recientes por variable</span>
+              <small>Consultado {date(history.fetchedAt)}</small>
+            </div>
+          </>
         )}
-        <small>Ultima comunicacion: {date(station.lastCommunicationAt ?? "")}</small>
+        <small className="climate-station-communication">
+          Última comunicación de la estación: {date(station.lastCommunicationAt ?? "")}
+        </small>
       </div>
     </>
   );
@@ -797,6 +889,15 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
   const [selectedId, setSelectedId] = useState(summary.points[0]?.id ?? "");
   const [stationId, setStationId] = useState(weatherLinkStations[0]?.id ?? "");
   const [forecast, setForecast] = useState<ClimateForecast[] | null>(null);
+  const defaultRange = useMemo(() => weatherLinkDefaultRange(), []);
+  const [weatherLinkFrom, setWeatherLinkFrom] = useState(defaultRange.desde);
+  const [weatherLinkTo, setWeatherLinkTo] = useState(defaultRange.hasta);
+  const [weatherLinkHistory, setWeatherLinkHistory] = useState<WeatherLinkHistory | null>(
+    null
+  );
+  const [weatherLinkError, setWeatherLinkError] = useState<string | null>(null);
+  const [isQueryingWeatherLink, setIsQueryingWeatherLink] = useState(false);
+  const weatherLinkRequest = useRef(0);
   const selected =
     summary.points.find((point) => point.id === selectedId) ?? summary.points[0];
   const selectedStation =
@@ -819,6 +920,53 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
       ignore = true;
     };
   }, [selectedId, session, sourceCode]);
+
+  function clearWeatherLinkQuery() {
+    weatherLinkRequest.current += 1;
+    setWeatherLinkHistory(null);
+    setWeatherLinkError(null);
+    setIsQueryingWeatherLink(false);
+  }
+
+  function handleSourceChange(value: "open_meteo" | "weatherlink") {
+    setSourceCode(value);
+    clearWeatherLinkQuery();
+  }
+
+  function handleStationChange(value: string) {
+    setStationId(value);
+    clearWeatherLinkQuery();
+  }
+
+  function handleWeatherLinkDateChange(setter: (value: string) => void, value: string) {
+    setter(value);
+    clearWeatherLinkQuery();
+  }
+
+  async function queryWeatherLinkSummary() {
+    if (!stationId) return;
+    const requestId = ++weatherLinkRequest.current;
+    setWeatherLinkHistory(null);
+    setWeatherLinkError(null);
+    setIsQueryingWeatherLink(true);
+    try {
+      const nextHistory = await climaService.getStationHistory(session, stationId, {
+        desde: weatherLinkFrom,
+        hasta: weatherLinkTo
+      });
+      if (requestId === weatherLinkRequest.current) {
+        setWeatherLinkHistory(nextHistory);
+      }
+    } catch (reason) {
+      if (requestId === weatherLinkRequest.current) {
+        setWeatherLinkError(
+          reason instanceof Error ? reason.message : "No se pudo consultar WeatherLink."
+        );
+      }
+    } finally {
+      if (requestId === weatherLinkRequest.current) setIsQueryingWeatherLink(false);
+    }
+  }
 
   return (
     <div className="climate-stack">
@@ -847,7 +995,7 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
           <select
             value={sourceCode}
             onChange={(event) =>
-              setSourceCode(event.target.value as "open_meteo" | "weatherlink")
+              handleSourceChange(event.target.value as "open_meteo" | "weatherlink")
             }
           >
             <option value="open_meteo">Open-Meteo · estimado</option>
@@ -861,19 +1009,51 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
             onChange={setSelectedId}
           />
         ) : (
-          <label className="field-group climate-selector">
-            <span>Estacion meteorologica</span>
-            <select
-              value={stationId}
-              onChange={(event) => setStationId(event.target.value)}
+          <>
+            <label className="field-group climate-selector">
+              <span>Estación meteorológica</span>
+              <select
+                value={stationId}
+                onChange={(event) => handleStationChange(event.target.value)}
+              >
+                {weatherLinkStations.map((station) => (
+                  <option key={station.id} value={station.id}>
+                    {station.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field-group climate-selector climate-selector--date">
+              <span>Desde</span>
+              <input
+                max={weatherLinkYesterday()}
+                onChange={(event) =>
+                  handleWeatherLinkDateChange(setWeatherLinkFrom, event.target.value)
+                }
+                type="date"
+                value={weatherLinkFrom}
+              />
+            </label>
+            <label className="field-group climate-selector climate-selector--date">
+              <span>Hasta</span>
+              <input
+                max={weatherLinkYesterday()}
+                onChange={(event) =>
+                  handleWeatherLinkDateChange(setWeatherLinkTo, event.target.value)
+                }
+                type="date"
+                value={weatherLinkTo}
+              />
+            </label>
+            <button
+              className="button button--primary"
+              disabled={isQueryingWeatherLink || !stationId}
+              onClick={() => void queryWeatherLinkSummary()}
+              type="button"
             >
-              {weatherLinkStations.map((station) => (
-                <option key={station.id} value={station.id}>
-                  {station.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              {isQueryingWeatherLink ? "Consultando..." : "Consultar"}
+            </button>
+          </>
         )}
       </div>
 
@@ -897,10 +1077,21 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
       ) : null}
 
       {sourceCode === "weatherlink" ? (
-        selectedStation ? (
-          <StationObservations stations={[selectedStation]} />
+        !selectedStation ? (
+          <Empty message="No hay estaciones WeatherLink disponibles para consulta." />
+        ) : weatherLinkError ? (
+          <ErrorState description={weatherLinkError} />
+        ) : isQueryingWeatherLink ? (
+          <LoadingState description="Consultando observaciones WeatherLink." />
+        ) : !weatherLinkHistory ? (
+          <Empty message="Selecciona un rango de hasta 7 días y pulsa Consultar." />
+        ) : weatherLinkHistory.rows.length === 0 ? (
+          <Empty message="WeatherLink no devolvió lecturas para este rango." />
         ) : (
-          <Empty message="No hay estaciones WeatherLink sincronizadas." />
+          <>
+            <WeatherLinkDailyCards items={weatherLinkHistory.daily} />
+            <HistoryExplorer history={weatherLinkHistory} />
+          </>
         )
       ) : null}
 
@@ -916,40 +1107,71 @@ function SummaryView({ summary, session }: { summary: Summary; session: Session 
   );
 }
 
-function StationObservations({ stations }: { stations: ClimateStation[] }) {
-  if (!stations.length) return null;
+function WeatherLinkDailyCards({
+  items,
+  compact = false
+}: {
+  items: WeatherLinkDailySummary[];
+  compact?: boolean;
+}) {
+  if (!items.length) return null;
   return (
-    <section className="climate-data-section">
+    <section
+      className={`climate-data-section climate-weatherlink-summary${compact ? " climate-weatherlink-summary--compact" : ""}`}
+    >
       <header>
         <div>
           <p className="eyebrow">WeatherLink Davis · observado</p>
-          <h3 className="title title--section">Estaciones meteorologicas</h3>
+          <h3 className="title title--section">Resumen diario consultado</h3>
         </div>
-        <span className="climate-badge">Actualizacion diaria desde las 08:00</span>
+        <span className="climate-badge">Consulta directa</span>
       </header>
-      <div className="climate-grid">
-        {stations.map((station) => (
-          <article className="climate-chart-card" key={station.id}>
-            <header className="climate-chart-card__header">
-              <div>
-                <h4>{station.name}</h4>
-                <small>
-                  {station.lastCompleteDay
-                    ? `Datos completos hasta ${station.lastCompleteDay}`
-                    : "Esperando primera importacion"}
-                </small>
-              </div>
-              <Badge value={station.syncStatus ?? station.estado} />
+      <div
+        className={`climate-weatherlink-days${compact ? " climate-weatherlink-days--compact" : ""}`}
+      >
+        {items.map((item) => (
+          <article key={item.date}>
+            <header>
+              <strong>{shortDate(item.date)}</strong>
+              <small>{item.readingsCount} lecturas</small>
             </header>
-            <MetricChartGrid
-              readings={station.current ?? []}
-              groups={CURRENT_GROUPS}
-              compact
-            />
+            <dl>
+              <WeatherLinkDailyMetric
+                label="Temperatura"
+                value={rangeValue(item.temperatureMinC, item.temperatureMaxC, "°C")}
+              />
+              <WeatherLinkDailyMetric
+                label="Humedad promedio"
+                value={metricValue(item.relativeHumidityAveragePercent, "%")}
+              />
+              <WeatherLinkDailyMetric
+                label="Precipitación"
+                value={metricValue(item.precipitationTotalMm, "mm")}
+              />
+              <WeatherLinkDailyMetric
+                label="Viento máximo"
+                value={metricValue(item.windSpeedMaxKmh, "km/h")}
+              />
+            </dl>
           </article>
         ))}
       </div>
     </section>
+  );
+}
+
+function WeatherLinkDailyMetric({
+  label: name,
+  value
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <dt>{name}</dt>
+      <dd>{value}</dd>
+    </div>
   );
 }
 
@@ -2255,6 +2477,17 @@ function formatValue(value: number | string) {
   return Number.isFinite(numeric) ? numeric.toFixed(1) : "Sin dato";
 }
 
+function metricValue(value: number | null, unit: string) {
+  return value === null ? "Sin dato" : `${formatValue(value)} ${unit}`;
+}
+
+function rangeValue(minimum: number | null, maximum: number | null, unit: string) {
+  if (minimum === null && maximum === null) return "Sin dato";
+  if (minimum === null) return metricValue(maximum, unit);
+  if (maximum === null) return metricValue(minimum, unit);
+  return `${formatValue(minimum)}–${formatValue(maximum)} ${unit}`;
+}
+
 function label(variable: string) {
   return (
     (
@@ -2267,6 +2500,7 @@ function label(variable: string) {
         relative_humidity_2m: "Humedad relativa",
         vapour_pressure_deficit: "VPD (déficit de presión de vapor)",
         precipitation: "Precipitación",
+        precipitation_rate: "Intensidad de precipitación",
         precipitation_sum: "Precipitación acumulada",
         precipitation_probability_max: "Probabilidad de lluvia",
         wind_speed_10m: "Viento a 10 m",
@@ -2275,6 +2509,7 @@ function label(variable: string) {
         wind_gusts_10m: "Ráfagas",
         wind_gusts_10m_max: "Ráfagas máximas",
         shortwave_radiation: "Radiación solar",
+        uv_index: "Índice UV",
         shortwave_radiation_sum: "Radiación acumulada",
         sunshine_duration: "Horas de sol",
         cloud_cover: "Nubosidad",

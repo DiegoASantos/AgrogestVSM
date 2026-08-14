@@ -5764,6 +5764,138 @@ canvas {
   padding: 11px;
 }
 
+.climate-selector--date {
+  width: min(100%, 180px);
+}
+
+.climate-direct-query {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #c7dfe5;
+  border-left: 3px solid var(--climate-teal);
+  border-radius: 10px;
+  background: linear-gradient(90deg, #f0fdfa, #eff6ff);
+}
+
+.climate-direct-query .field-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.climate-direct-query--compact .button {
+  flex: 0 0 auto;
+}
+
+.climate-query-error {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.82rem;
+}
+
+.climate-query-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--climate-grid);
+  color: var(--climate-muted);
+  font-size: 0.72rem;
+}
+
+.climate-station-communication {
+  display: block;
+  margin-top: 14px;
+  color: var(--climate-muted);
+}
+
+.climate-weatherlink-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.climate-weatherlink-days > article {
+  overflow: hidden;
+  border: 1px solid var(--climate-grid);
+  border-radius: 11px;
+  background: var(--climate-surface-soft);
+}
+
+.climate-weatherlink-days > article > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--climate-grid);
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.09), transparent);
+}
+
+.climate-weatherlink-days header strong {
+  color: var(--climate-ink);
+  font-size: 0.82rem;
+}
+
+.climate-weatherlink-days header small {
+  color: var(--climate-muted);
+  font-size: 0.68rem;
+}
+
+.climate-weatherlink-days dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 11px 12px;
+}
+
+.climate-weatherlink-days dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.climate-weatherlink-days dt {
+  color: var(--climate-muted);
+  font-size: 0.7rem;
+}
+
+.climate-weatherlink-days dd {
+  margin: 0;
+  color: var(--climate-ink);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.climate-weatherlink-summary--compact {
+  margin-bottom: 12px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.climate-weatherlink-summary--compact > header {
+  align-items: flex-start;
+}
+
+.climate-weatherlink-summary--compact > header .title {
+  font-size: 0.9rem;
+}
+
+.climate-weatherlink-days--compact {
+  grid-template-columns: 1fr;
+}
+
 .climate-map-panel--open,
 .climate-map-panel__inner {
   width: 460px;
@@ -5853,6 +5985,19 @@ canvas {
   .climate-table-card {
     padding: 14px;
   }
+
+  .climate-selector--date {
+    width: calc(50% - 8px);
+  }
+
+  .climate-direct-query {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .climate-direct-query .button {
+    width: 100%;
+  }
 }
 
 [data-theme="dark"] .climate-screen {
@@ -5901,6 +6046,18 @@ canvas {
   border-color: var(--climate-grid);
   background: #202830;
   color: var(--climate-muted);
+}
+
+[data-theme="dark"] .climate-direct-query,
+[data-theme="dark"] .climate-weatherlink-days > article {
+  border-color: var(--climate-grid);
+  background: #202830;
+}
+
+[data-theme="dark"] .climate-query-error {
+  border-color: #7f1d1d;
+  background: #3f1d24;
+  color: #fecaca;
 }
 
 @media (prefers-reduced-motion: reduce) {

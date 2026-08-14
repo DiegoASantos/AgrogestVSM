@@ -54,6 +54,23 @@ export function mergeHistoryByTimestamp(readings: ClimateReading[], variables: s
   );
 }
 
+export function latestReadingsByVariable(readings: ClimateReading[]) {
+  const latest = new Map<string, { reading: ClimateReading; timestamp: number }>();
+
+  for (const reading of readings) {
+    const timestamp = new Date(reading.dataAt).getTime();
+    if (!Number.isFinite(timestamp)) continue;
+    const previous = latest.get(reading.variable);
+    if (!previous || timestamp > previous.timestamp) {
+      latest.set(reading.variable, { reading, timestamp });
+    }
+  }
+
+  return Array.from(latest.values())
+    .sort((left, right) => left.reading.variable.localeCompare(right.reading.variable))
+    .map(({ reading }) => reading);
+}
+
 export function stationHasMapCoordinates(
   station: Pick<ClimateStation, "latitude" | "longitude">
 ) {
