@@ -267,7 +267,8 @@ export class WeatherLinkSyncService {
     try {
       await this.syncStationReadings(runner, sourceId, station, targetDay);
     } catch (error) {
-      if (error instanceof WeatherLinkRequestError) throw error;
+      if (error instanceof WeatherLinkRequestError || error instanceof WeatherLinkSyncError)
+        throw error;
       throw new WeatherLinkSyncError(weatherLinkPersistenceDetail(error, "lecturas"));
     }
   }
@@ -278,21 +279,25 @@ export class WeatherLinkSyncService {
     station: StoredStation,
     targetDay: string
   ): Promise<void> {
-    const state = await runner.query(
-      `INSERT INTO clima.estaciones_estado_sincronizacion(fuente_id,estacion_id,estado)
+    const state = await persistenceStage(runner, "preparar progreso", () =>
+      runner.query(
+        `INSERT INTO clima.estaciones_estado_sincronizacion(fuente_id,estacion_id,estado)
        VALUES($1,$2,'PENDIENTE')
        ON CONFLICT(fuente_id,estacion_id) DO UPDATE SET ultimo_intento_at=now(),actualizado_at=now()
        RETURNING ultimo_dia_completo AS "lastCompleteDay"`,
-      [sourceId, station.id]
+        [sourceId, station.id]
+      )
     );
     const firstDay = state[0]?.lastCompleteDay
       ? addIsoDays(String(state[0].lastCompleteDay).slice(0, 10), 1)
       : addIsoDays(targetDay, -(this.client.config.catchupMaxDays - 1));
     const days = isoDayRange(firstDay, targetDay, this.client.config.catchupMaxDays);
     if (days.length === 0) return;
-    await runner.query(
-      "UPDATE clima.estaciones_estado_sincronizacion SET estado='SINCRONIZANDO',ultimo_intento_at=now(),detalle=NULL,actualizado_at=now() WHERE fuente_id=$1 AND estacion_id=$2",
-      [sourceId, station.id]
+    await persistenceStage(runner, "marcar sincronización", () =>
+      runner.query(
+        "UPDATE clima.estaciones_estado_sincronizacion SET estado='SINCRONIZANDO',ultimo_intento_at=now(),detalle=NULL,actualizado_at=now() WHERE fuente_id=$1 AND estacion_id=$2",
+        [sourceId, station.id]
+      )
     );
 
     for (const day of days) {
@@ -304,20 +309,26 @@ export class WeatherLinkSyncService {
       );
       const readings = normalizeWeatherLinkPayload(payload);
       for (const reading of readings) {
-        await runner.query(
-          `INSERT INTO clima.lecturas(
+        try {
+          await runner.query(
+            `INSERT INTO clima.lecturas(
             fuente_id,estacion_id,variable,valor,unidad,tipo,dato_at,calidad,modelo
           ) VALUES($1,$2,$3,$4,$5,'OBSERVADO',$6,'VALIDO','WeatherLink v2')
           ON CONFLICT DO NOTHING`,
-          [
-            sourceId,
-            station.id,
-            reading.variable,
-            reading.value,
-            reading.unit,
-            reading.dataAt
-          ]
-        );
+            [
+              sourceId,
+              station.id,
+              reading.variable,
+              reading.value,
+              reading.unit,
+              reading.dataAt
+            ]
+          );
+        } catch (error) {
+          if (!isDiscardableReadingError(error)) {
+            throw persistenceError("insertar lectura", error);
+          }
+        }
       }
       const variables = [...new Set(readings.map((reading) => reading.variable))];
       const lastDataAt = readings.reduce<string | null>(
@@ -325,20 +336,24 @@ export class WeatherLinkSyncService {
           !latest || reading.dataAt > latest ? reading.dataAt : latest,
         null
       );
-      await runner.query(
-        `UPDATE clima.estaciones_meteorologicas SET
+      await persistenceStage(runner, "actualizar resumen", () =>
+        runner.query(
+          `UPDATE clima.estaciones_meteorologicas SET
           variables_json=COALESCE((SELECT jsonb_agg(DISTINCT value ORDER BY value)
             FROM jsonb_array_elements_text(COALESCE(variables_json,'[]'::jsonb) || $2::jsonb)
             AS value),'[]'::jsonb),
           ultima_comunicacion_at=COALESCE(GREATEST(ultima_comunicacion_at,$3::timestamptz),$3::timestamptz),
           actualizado_at=now() WHERE id=$1`,
-        [station.id, JSON.stringify(variables), lastDataAt]
+          [station.id, JSON.stringify(variables), lastDataAt]
+        )
       );
-      await runner.query(
-        `UPDATE clima.estaciones_estado_sincronizacion SET
+      await persistenceStage(runner, "cerrar día", () =>
+        runner.query(
+          `UPDATE clima.estaciones_estado_sincronizacion SET
           estado='COMPLETADA',ultimo_dia_completo=$3::date,ultimo_exito_at=now(),
           detalle=NULL,actualizado_at=now() WHERE fuente_id=$1 AND estacion_id=$2`,
-        [sourceId, station.id, day]
+          [sourceId, station.id, day]
+        )
       );
     }
   }
@@ -476,6 +491,42 @@ export function weatherLinkPersistenceDetail(
     default:
       return `No se pudieron guardar las ${resource} WeatherLink.`;
   }
+}
+
+async function persistenceStage<T>(
+  _runner: QueryRunner,
+  stage: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    throw persistenceError(stage, error);
+  }
+}
+
+function persistenceError(stage: string, error: unknown): WeatherLinkSyncError {
+  const code = databaseErrorCode(error);
+  const suffix = code ? ` Código PostgreSQL ${code}.` : "";
+  return new WeatherLinkSyncError(
+    `No se pudieron guardar las lecturas WeatherLink al ${stage}.${suffix}`
+  );
+}
+
+function isDiscardableReadingError(error: unknown): boolean {
+  return ["22001", "22003", "22007", "22008", "22P02", "23514"].includes(
+    databaseErrorCode(error) ?? ""
+  );
+}
+
+function databaseErrorCode(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) return null;
+  const candidate = error as {
+    code?: unknown;
+    driverError?: { code?: unknown };
+  };
+  const code = candidate.driverError?.code ?? candidate.code;
+  return typeof code === "string" && /^[0-9A-Z]{5}$/.test(code) ? code : null;
 }
 
 function finite(value: unknown): number | null {

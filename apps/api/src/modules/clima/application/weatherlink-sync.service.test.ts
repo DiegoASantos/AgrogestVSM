@@ -216,4 +216,96 @@ describe("WeatherLink transmission gaps", () => {
       false
     );
   });
+
+  it("discards one invalid database reading without blocking the station day", async () => {
+    const calls: string[] = [];
+    const runner = {
+      query: vi.fn(async (sql: string) => {
+        calls.push(sql);
+        if (sql.includes("RETURNING ultimo_dia_completo")) {
+          return [{ lastCompleteDay: null }];
+        }
+        if (sql.includes("INSERT INTO clima.lecturas(")) {
+          throw new QueryFailedError(
+            sql,
+            [],
+            { code: "22003" } as unknown as Error
+          );
+        }
+        return [];
+      })
+    };
+    const client = {
+      config: { timeZone: "America/Lima", catchupMaxDays: 1 },
+      historic: vi.fn(async () => ({
+        sensors: [{ data: [{ ts: 1_723_500_000, temp_out: 80 }] }]
+      }))
+    };
+    const service = new WeatherLinkSyncService({} as never, client as never);
+
+    await (
+      service as unknown as {
+        syncStation(
+          runner: unknown,
+          sourceId: string,
+          station: {
+            id: string;
+            publicId: string;
+            externalId: string;
+            isActive: boolean;
+          },
+          targetDay: string
+        ): Promise<void>;
+      }
+    ).syncStation(
+      runner,
+      "source",
+      { id: "station", publicId: "public", externalId: "external", isActive: true },
+      "2026-08-10"
+    );
+
+    expect(calls.some((sql) => sql.includes("estado='COMPLETADA'"))).toBe(true);
+  });
+
+  it("reports the exact persistence stage and safe PostgreSQL code", async () => {
+    const runner = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("RETURNING ultimo_dia_completo")) {
+          throw { code: "23503" };
+        }
+        return [];
+      })
+    };
+    const client = {
+      config: { timeZone: "America/Lima", catchupMaxDays: 1 }
+    };
+    const service = new WeatherLinkSyncService({} as never, client as never);
+
+    const error = await (
+      service as unknown as {
+        syncStation(
+          runner: unknown,
+          sourceId: string,
+          station: {
+            id: string;
+            publicId: string;
+            externalId: string;
+            isActive: boolean;
+          },
+          targetDay: string
+        ): Promise<void>;
+      }
+    )
+      .syncStation(
+        runner,
+        "source",
+        { id: "station", publicId: "public", externalId: "external", isActive: true },
+        "2026-08-10"
+      )
+      .catch((reason: unknown) => reason);
+
+    expect(safeWeatherLinkError(error)).toBe(
+      "No se pudieron guardar las lecturas WeatherLink al preparar progreso. Código PostgreSQL 23503."
+    );
+  });
 });
