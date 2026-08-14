@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { QueryRunner } from "typeorm";
-import { DataSource } from "typeorm";
+import { DataSource, QueryFailedError } from "typeorm";
 
 import {
   WeatherLinkClient,
@@ -152,10 +152,8 @@ export class WeatherLinkSyncService {
       for (const remote of remoteStations) {
         try {
           await this.upsertStation(runner, source.id, remote);
-        } catch {
-          throw new WeatherLinkSyncError(
-            "No se pudo actualizar el registro de estaciones WeatherLink."
-          );
+        } catch (error) {
+          throw new WeatherLinkSyncError(weatherLinkPersistenceDetail(error, "estaciones"));
         }
       }
       const stations = (await runner.query(
@@ -270,7 +268,7 @@ export class WeatherLinkSyncService {
       await this.syncStationReadings(runner, sourceId, station, targetDay);
     } catch (error) {
       if (error instanceof WeatherLinkRequestError) throw error;
-      throw new WeatherLinkSyncError("No se pudieron guardar las lecturas WeatherLink.");
+      throw new WeatherLinkSyncError(weatherLinkPersistenceDetail(error, "lecturas"));
     }
   }
 
@@ -453,6 +451,31 @@ export function safeWeatherLinkError(error: unknown): string {
   if (error instanceof WeatherLinkRequestError) return error.message.slice(0, 500);
   if (error instanceof WeatherLinkSyncError) return error.message;
   return "Fallo interno durante la sincronizacion WeatherLink.";
+}
+
+export function weatherLinkPersistenceDetail(
+  error: unknown,
+  resource: "estaciones" | "lecturas"
+): string {
+  if (!(error instanceof QueryFailedError)) {
+    return `No se pudieron guardar las ${resource} WeatherLink.`;
+  }
+
+  const databaseError = error.driverError as { code?: unknown };
+  switch (String(databaseError.code ?? "")) {
+    case "42P01":
+    case "42703":
+      return "La base de datos no tiene la estructura WeatherLink requerida. Aplique las migraciones.";
+    case "23502":
+      return `WeatherLink devolvió ${resource} incompletas que la base de datos no puede guardar.`;
+    case "23514":
+    case "22003":
+      return `WeatherLink devolvió un valor fuera del rango permitido en ${resource}.`;
+    case "22001":
+      return `WeatherLink devolvió un texto demasiado largo en ${resource}.`;
+    default:
+      return `No se pudieron guardar las ${resource} WeatherLink.`;
+  }
 }
 
 function finite(value: unknown): number | null {

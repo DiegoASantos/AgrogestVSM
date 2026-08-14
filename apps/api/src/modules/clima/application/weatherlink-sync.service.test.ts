@@ -1,3 +1,4 @@
+import { QueryFailedError } from "typeorm";
 import { describe, expect, it, vi } from "vitest";
 
 import { validateHistoricPayload } from "../infrastructure/weatherlink/weatherlink.client";
@@ -6,6 +7,7 @@ import {
   isoDayRange,
   safeWeatherLinkError,
   WeatherLinkSyncService,
+  weatherLinkPersistenceDetail,
   weatherLinkDayContext,
   zonedMidnightEpochSeconds
 } from "./weatherlink-sync.service";
@@ -14,6 +16,17 @@ describe("WeatherLink daily windows", () => {
   it("keeps persistence failures actionable without exposing provider secrets", () => {
     expect(safeWeatherLinkError(new Error("database failure"))).toBe(
       "Fallo interno durante la sincronizacion WeatherLink."
+    );
+  });
+
+  it("classifies a missing WeatherLink schema without exposing database internals", () => {
+    const error = new QueryFailedError(
+      "query",
+      [],
+      { code: "42P01", message: "relation clima.lecturas does not exist" } as unknown as Error
+    );
+    expect(weatherLinkPersistenceDetail(error, "lecturas")).toBe(
+      "La base de datos no tiene la estructura WeatherLink requerida. Aplique las migraciones."
     );
   });
 
