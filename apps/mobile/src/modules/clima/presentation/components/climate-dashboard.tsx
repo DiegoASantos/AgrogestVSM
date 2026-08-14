@@ -79,7 +79,7 @@ export function ClimateDashboard({ isOnline }: { isOnline: boolean }) {
               Clima del campo
             </AppText>
             <AppText style={styles.subtitle} variant="caption">
-              Estimación meteorológica
+              Modelo meteorológico
             </AppText>
           </View>
         </View>
@@ -226,7 +226,7 @@ function ClimateSummary({
       >
         <View style={styles.seeMoreCopy}>
           <AppText style={styles.seeMoreEyebrow} variant="caption">
-            ESTIMACIÓN Y ESTACIÓN DAVIS
+            MODELO METEOROLÓGICO Y ESTACIÓN DAVIS
           </AppText>
           <AppText style={styles.seeMoreText} variant="label">
             Ver clima completo

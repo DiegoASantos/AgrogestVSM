@@ -4,12 +4,19 @@ import { validateHistoricPayload } from "../infrastructure/weatherlink/weatherli
 
 import {
   isoDayRange,
+  safeWeatherLinkError,
   WeatherLinkSyncService,
   weatherLinkDayContext,
   zonedMidnightEpochSeconds
 } from "./weatherlink-sync.service";
 
 describe("WeatherLink daily windows", () => {
+  it("keeps persistence failures actionable without exposing provider secrets", () => {
+    expect(safeWeatherLinkError(new Error("database failure"))).toBe(
+      "Fallo interno durante la sincronizacion WeatherLink."
+    );
+  });
+
   it("does not run before 08:00 in Lima and targets yesterday afterwards", () => {
     expect(
       weatherLinkDayContext(new Date("2026-08-11T12:59:59Z"), "America/Lima", 8)

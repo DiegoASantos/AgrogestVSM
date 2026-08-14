@@ -45,7 +45,7 @@ export function ClimateDetailScreen() {
               Clima del campo
             </AppText>
             <AppText style={styles.subtitle} variant="body">
-              Estimación territorial y observaciones de la estación Davis.
+              Compara un modelo territorial con las observaciones de la estación Davis.
             </AppText>
           </View>
         </View>
@@ -54,7 +54,7 @@ export function ClimateDetailScreen() {
           <TabButton
             active={activeTab === "estimate"}
             icon="partly-sunny-outline"
-            label="Estimación"
+            label="Modelo"
             onPress={() => setActiveTab("estimate")}
           />
           <TabButton
@@ -98,7 +98,7 @@ function TabButton({
       ]}
     >
       <Ionicons
-        color={active ? theme.colors.primary : theme.colors.textMuted}
+        color={active ? theme.colors.textInverse : theme.colors.textMuted}
         name={icon}
         size={19}
       />
@@ -152,8 +152,8 @@ function DistrictEstimateDetail({ isOnline }: { isOnline: boolean }) {
     <View style={styles.panel}>
       <SectionHeading
         icon="partly-sunny-outline"
-        subtitle="Estimación territorial de Open-Meteo; no es una lectura de estación ni de predio."
-        title="Estimación meteorológica"
+        subtitle="Modelo territorial de Open-Meteo; no es una lectura directa de estación ni de predio."
+        title="Modelo meteorológico"
       />
       <SelectButton
         accessibilityLabel="Elegir distrito climático"
@@ -785,13 +785,18 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: theme.radius.sm
   },
-  tabActive: { backgroundColor: theme.colors.primaryMuted },
+  tabActive: {
+    backgroundColor: theme.colors.primary,
+    ...theme.shadow.sm
+  },
   tabText: { color: theme.colors.textMuted, fontSize: 13 },
-  tabTextActive: { color: theme.colors.primaryDark },
+  tabTextActive: { color: theme.colors.textInverse },
   panel: {
     gap: theme.spacing.md,
     padding: theme.spacing.md,
     borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
     backgroundColor: theme.colors.surface,
     ...theme.shadow.sm
   },
@@ -846,7 +851,16 @@ const styles = StyleSheet.create({
   stationNoticeTitle: { color: "#76520a" },
   stationNoticeText: { color: "#76520a", lineHeight: 17 },
   detailContent: { gap: theme.spacing.md },
-  sourceStatus: { flexDirection: "row", alignItems: "center", gap: 6 },
+  sourceStatus: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.successMuted
+  },
   sourceText: { flex: 1, color: theme.colors.primary },
   staleText: { color: "#a95f00" },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: theme.spacing.sm },
@@ -855,6 +869,8 @@ const styles = StyleSheet.create({
     gap: 3,
     padding: 12,
     borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: "#d4e7f2",
     backgroundColor: theme.colors.infoMuted
   },
   metricValue: { color: theme.colors.primaryDark },
@@ -888,6 +904,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
     padding: 12,
     borderRadius: theme.radius.md,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.primary,
     backgroundColor: theme.colors.surfaceElevated
   },
   metadataRow: { flexDirection: "row", alignItems: "center", gap: theme.spacing.sm },

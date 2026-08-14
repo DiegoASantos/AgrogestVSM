@@ -18,6 +18,8 @@ type StoredStation = {
   isActive: boolean;
 };
 
+class WeatherLinkSyncError extends Error {}
+
 @Injectable()
 export class WeatherLinkSyncService {
   private running = false;
@@ -148,7 +150,13 @@ export class WeatherLinkSyncService {
     try {
       const remoteStations = await this.client.stations();
       for (const remote of remoteStations) {
-        await this.upsertStation(runner, source.id, remote);
+        try {
+          await this.upsertStation(runner, source.id, remote);
+        } catch {
+          throw new WeatherLinkSyncError(
+            "No se pudo actualizar el registro de estaciones WeatherLink."
+          );
+        }
       }
       const stations = (await runner.query(
         `SELECT e.id, e.public_id AS "publicId",
@@ -237,8 +245,10 @@ export class WeatherLinkSyncService {
       ) VALUES($1,$2,'PROPIA',$3,$4,$5,$6,'OPERATIVA',true)
       ON CONFLICT(codigo) DO UPDATE SET
         nombre=EXCLUDED.nombre, fuente_id=EXCLUDED.fuente_id,
-        latitud=EXCLUDED.latitud, longitud=EXCLUDED.longitud,
-        altitud_m=EXCLUDED.altitud_m, estado='OPERATIVA', actualizado_at=now()`,
+        latitud=COALESCE(EXCLUDED.latitud,clima.estaciones_meteorologicas.latitud),
+        longitud=COALESCE(EXCLUDED.longitud,clima.estaciones_meteorologicas.longitud),
+        altitud_m=COALESCE(EXCLUDED.altitud_m,clima.estaciones_meteorologicas.altitud_m),
+        estado='OPERATIVA', actualizado_at=now()`,
       [
         name,
         `weatherlink:${externalId}`,
@@ -251,6 +261,20 @@ export class WeatherLinkSyncService {
   }
 
   private async syncStation(
+    runner: QueryRunner,
+    sourceId: string,
+    station: StoredStation,
+    targetDay: string
+  ): Promise<void> {
+    try {
+      await this.syncStationReadings(runner, sourceId, station, targetDay);
+    } catch (error) {
+      if (error instanceof WeatherLinkRequestError) throw error;
+      throw new WeatherLinkSyncError("No se pudieron guardar las lecturas WeatherLink.");
+    }
+  }
+
+  private async syncStationReadings(
     runner: QueryRunner,
     sourceId: string,
     station: StoredStation,
@@ -425,8 +449,9 @@ function zonedParts(date: Date, timeZone: string) {
   };
 }
 
-function safeWeatherLinkError(error: unknown): string {
+export function safeWeatherLinkError(error: unknown): string {
   if (error instanceof WeatherLinkRequestError) return error.message.slice(0, 500);
+  if (error instanceof WeatherLinkSyncError) return error.message;
   return "Fallo interno durante la sincronizacion WeatherLink.";
 }
 
