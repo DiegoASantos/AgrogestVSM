@@ -219,15 +219,22 @@ function ClimateSummary({
       </View>
       <Pressable
         accessibilityHint="Abre el detalle de estimación y estaciones Davis"
-        accessibilityLabel="Ver más del clima"
+        accessibilityLabel="Ver el clima completo"
         accessibilityRole="button"
         onPress={onOpenDetails}
         style={({ pressed }) => [styles.seeMoreButton, pressed && styles.pressed]}
       >
-        <AppText style={styles.seeMoreText} variant="label">
-          Ver más
-        </AppText>
-        <Ionicons color="#08643f" name="arrow-forward" size={20} />
+        <View style={styles.seeMoreCopy}>
+          <AppText style={styles.seeMoreEyebrow} variant="caption">
+            ESTIMACIÓN Y ESTACIÓN DAVIS
+          </AppText>
+          <AppText style={styles.seeMoreText} variant="label">
+            Ver clima completo
+          </AppText>
+        </View>
+        <View style={styles.seeMoreIcon}>
+          <Ionicons color="#ffffff" name="arrow-forward" size={20} />
+        </View>
       </Pressable>
     </View>
   );
@@ -329,14 +336,33 @@ const styles = StyleSheet.create({
   staleText: { color: "#a95f00" },
   currentGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   seeMoreButton: {
-    minHeight: 44,
+    minHeight: 62,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 2,
-    paddingHorizontal: 4
+    marginTop: 4,
+    paddingVertical: 9,
+    paddingLeft: 14,
+    paddingRight: 10,
+    borderRadius: 14,
+    backgroundColor: "#08643f"
   },
-  seeMoreText: { color: "#08643f" },
+  seeMoreCopy: { gap: 2 },
+  seeMoreEyebrow: {
+    color: "#c9ead6",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.65
+  },
+  seeMoreText: { color: "#ffffff", fontSize: 15 },
+  seeMoreIcon: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 18,
+    backgroundColor: "#237952"
+  },
   metric: {
     width: "48%",
     gap: 2,

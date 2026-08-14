@@ -37,13 +37,17 @@ export function ClimateDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.intro}>
-          <AppText style={styles.title} variant="title">
-            Clima del campo
-          </AppText>
-          <AppText style={styles.subtitle} variant="body">
-            Consulta una estimación territorial o la última lectura observada por una
-            estación Davis.
-          </AppText>
+          <View style={styles.introIcon}>
+            <Ionicons color={theme.colors.primary} name="leaf-outline" size={24} />
+          </View>
+          <View style={styles.introCopy}>
+            <AppText style={styles.title} variant="title">
+              Clima del campo
+            </AppText>
+            <AppText style={styles.subtitle} variant="body">
+              Estimación territorial y observaciones de la estación Davis.
+            </AppText>
+          </View>
         </View>
 
         <View accessibilityRole="tablist" style={styles.tabs}>
@@ -448,7 +452,7 @@ function StationContent({
         ) : null}
       </View>
       {station.current.length === 0 ? (
-        <EmptyState message="Esta estación aún no tiene lecturas disponibles." />
+        <StationWithoutReadings station={station} />
       ) : (
         <>
           <AppText style={styles.groupTitle} variant="label">
@@ -567,6 +571,29 @@ function EmptyState({ message }: { message: string }) {
       <AppText style={styles.emptyText} variant="caption">
         {message}
       </AppText>
+    </View>
+  );
+}
+
+function StationWithoutReadings({ station }: { station: WeatherLinkStation }) {
+  const lastAttempt = station.lastAttemptAt
+    ? `Último intento: ${formatDateTime(station.lastAttemptAt)}.`
+    : "Aún no se ha registrado un intento de actualización.";
+  const detail = station.syncDetail
+    ? "La fuente no pudo actualizarse; se volverá a intentar automáticamente."
+    : "La fuente aún no ha enviado observaciones que podamos mostrar.";
+
+  return (
+    <View style={styles.stationNotice}>
+      <Ionicons color={theme.colors.warning} name="information-circle-outline" size={23} />
+      <View style={styles.stationNoticeCopy}>
+        <AppText style={styles.stationNoticeTitle} variant="label">
+          Aún no hay lecturas de esta estación
+        </AppText>
+        <AppText style={styles.stationNoticeText} variant="caption">
+          {detail} {lastAttempt}
+        </AppText>
+      </View>
     </View>
   );
 }
@@ -723,7 +750,23 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.xxl
   },
-  intro: { gap: theme.spacing.xs },
+  intro: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.lg,
+    backgroundColor: "#e9f5ed"
+  },
+  introIcon: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surface
+  },
+  introCopy: { flex: 1, gap: 2 },
   title: { color: theme.colors.primaryDark },
   subtitle: { color: theme.colors.textMuted },
   tabs: {
@@ -792,6 +835,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg
   },
   emptyText: { color: theme.colors.textMuted, textAlign: "center" },
+  stationNotice: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.warningMuted
+  },
+  stationNoticeCopy: { flex: 1, gap: 3 },
+  stationNoticeTitle: { color: "#76520a" },
+  stationNoticeText: { color: "#76520a", lineHeight: 17 },
   detailContent: { gap: theme.spacing.md },
   sourceStatus: { flexDirection: "row", alignItems: "center", gap: 6 },
   sourceText: { flex: 1, color: theme.colors.primary },

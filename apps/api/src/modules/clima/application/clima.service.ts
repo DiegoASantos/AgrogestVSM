@@ -685,7 +685,7 @@ function toStation(station: Record<string, unknown>) {
   return {
     id: String(station.publicId ?? ""),
     publicId: String(station.publicId ?? ""),
-    name: String(station.nombre ?? ""),
+    name: weatherLinkDisplayName(station.nombre, station.codigo),
     codigo: String(station.codigo ?? ""),
     tipo: String(station.tipo ?? ""),
     latitude: nullableNumber(station.latitude),
@@ -707,4 +707,14 @@ function nullableNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function weatherLinkDisplayName(name: unknown, code: unknown): string {
+  const stationName = String(name ?? "").trim();
+  const stationCode = String(code ?? "").trim();
+  const technicalIdentifier = /^weatherlink:[0-9a-f-]+$/i;
+  if (!stationName || technicalIdentifier.test(stationName) || stationName === stationCode) {
+    return "Estación Davis";
+  }
+  return stationName;
 }

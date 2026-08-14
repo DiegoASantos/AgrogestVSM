@@ -75,6 +75,7 @@ export type WeatherLinkStation = {
   sourceCode: string | null;
   syncStatus: string | null;
   lastCompleteDay: string | null;
+  lastAttemptAt: string | null;
   syncDetail: string | null;
   current: WeatherLinkReading[];
 };

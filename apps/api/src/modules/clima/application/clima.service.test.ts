@@ -5,9 +5,21 @@ import {
 } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
-import { ClimaService } from "./clima.service";
+import { ClimaService, weatherLinkDisplayName } from "./clima.service";
 
 describe("ClimaService", () => {
+  it("hides WeatherLink technical identifiers when a station has no usable name", () => {
+    expect(
+      weatherLinkDisplayName(
+        "weatherlink:eaba96f2-8903-43e3-a87f-9aaf31657bdf",
+        "weatherlink:eaba96f2-8903-43e3-a87f-9aaf31657bdf"
+      )
+    ).toBe("Estación Davis");
+    expect(weatherLinkDisplayName("Estación Fundo Norte", "weatherlink:123")).toBe(
+      "Estación Fundo Norte"
+    );
+  });
+
   it("returns only the latest future forecast emission for a point", async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes("max(ultima_consulta_exitosa_at)")) {

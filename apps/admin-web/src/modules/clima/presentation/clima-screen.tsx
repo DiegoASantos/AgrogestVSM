@@ -1816,14 +1816,20 @@ function StationsView({
       <ClimateTable
         title="Estaciones registradas"
         empty="No hay estaciones registradas."
-        headers={["Nombre", "Código", "Tipo", "Estado", "Última comunicación"]}
+        headers={[
+          "Estación",
+          "Datos completos hasta",
+          "Estado",
+          "Último intento",
+          "Detalle"
+        ]}
         rows={items.map((item) => [
           item.name,
-          item.codigo,
-          item.lastCompleteDay ?? item.tipo,
+          item.lastCompleteDay ?? "Aún sin importación",
           <Badge key="status" value={item.syncStatus ?? item.estado} />,
+          date(item.lastAttemptAt ?? ""),
           <span key="communication">
-            {date(item.lastCommunicationAt ?? "")}
+            {weatherLinkSyncDetail(item.syncDetail)}
             {canManage ? (
               <button
                 type="button"
@@ -1838,6 +1844,20 @@ function StationsView({
       />
     </div>
   );
+}
+
+function weatherLinkSyncDetail(detail: string | null) {
+  if (!detail) return "Sin incidentes";
+  if (detail.includes("estado 401") || detail.includes("estado 403")) {
+    return "WeatherLink rechazó el acceso. Revise los permisos de la estación.";
+  }
+  if (detail.includes("estado 429")) {
+    return "WeatherLink limitó temporalmente las consultas. Se reintentará después.";
+  }
+  if (detail.includes("no disponible")) {
+    return "WeatherLink no estuvo disponible. Se reintentará automáticamente.";
+  }
+  return detail;
 }
 
 function AlertsView({ items }: { items: AlertItem[] }) {

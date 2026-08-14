@@ -24,6 +24,7 @@ describe("climaRemote.getWeatherLinkStations", () => {
         sourceCode: "weatherlink",
         syncStatus: "COMPLETADA",
         lastCompleteDay: "2026-08-11",
+        lastAttemptAt: "2026-08-12T08:00:00.000Z",
         syncDetail: null,
         current: []
       }
