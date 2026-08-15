@@ -42,6 +42,8 @@ export type WeatherLinkDailySummary = {
   relativeHumidityAveragePercent: number | null;
   precipitationTotalMm: number | null;
   windSpeedMaxKmh: number | null;
+  evapotranspirationTotalMm: number | null;
+  solarRadiationAverageWm2: number | null;
   readingsCount: number;
 };
 
@@ -298,6 +300,8 @@ export function summarizeWeatherLinkDay(
   const humidities = values(readings, "relative_humidity_2m");
   const precipitation = values(readings, "precipitation");
   const winds = values(readings, "wind_speed_10m");
+  const evapotranspiration = values(readings, "et0_fao_evapotranspiration");
+  const solarRadiation = values(readings, "shortwave_radiation");
   return {
     date,
     temperatureMinC: minimum(temperatures),
@@ -305,6 +309,8 @@ export function summarizeWeatherLinkDay(
     relativeHumidityAveragePercent: average(humidities),
     precipitationTotalMm: sumOrNull(precipitation),
     windSpeedMaxKmh: maximum(winds),
+    evapotranspirationTotalMm: sumOrNull(evapotranspiration),
+    solarRadiationAverageWm2: average(solarRadiation),
     readingsCount: readings.length
   };
 }

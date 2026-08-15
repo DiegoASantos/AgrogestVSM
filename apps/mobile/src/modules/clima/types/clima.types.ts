@@ -31,6 +31,7 @@ export type DistrictClimate = {
   field: {
     rainfallLast24hMm: number | null;
     et0TodayMm: number | null;
+    solarRadiationTodayMjM2?: number | null;
     soilMoisture3To9cmM3M3: number | null;
   };
   forecast: Array<{
@@ -40,6 +41,7 @@ export type DistrictClimate = {
     precipitationMm: number | null;
     precipitationProbabilityPercent: number | null;
     et0Mm: number | null;
+    solarRadiationMjM2?: number | null;
     windSpeedMaxKmh: number | null;
     weatherCode: number | null;
   }>;
@@ -86,6 +88,8 @@ export type WeatherLinkDailySummary = {
   temperatureMaxC: number | null;
   relativeHumidityAveragePercent: number | null;
   precipitationTotalMm: number | null;
+  evapotranspirationTotalMm?: number | null;
+  solarRadiationAverageWm2?: number | null;
   windSpeedMaxKmh: number | null;
   readingsCount: number;
 };

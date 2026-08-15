@@ -440,6 +440,10 @@ function EstimateContent({ result }: { result: ClimateLoadResult }) {
         />
         <FieldMetric label="ET₀ hoy" value={format(climate.field.et0TodayMm, " mm")} />
         <FieldMetric
+          label="Radiación solar hoy"
+          value={format(climate.field.solarRadiationTodayMjM2 ?? null, " MJ/m²")}
+        />
+        <FieldMetric
           label="Humedad suelo 3–9 cm"
           value={formatPercent(climate.field.soilMoisture3To9cmM3M3)}
         />
@@ -470,6 +474,9 @@ function EstimateContent({ result }: { result: ClimateLoadResult }) {
             </AppText>
             <AppText style={styles.dayMeta} variant="caption">
               ET₀ {format(day.et0Mm, " mm")}
+            </AppText>
+            <AppText style={styles.dayMeta} variant="caption">
+              Radiación {format(day.solarRadiationMjM2 ?? null, " MJ/m²")}
             </AppText>
           </View>
         ))}
@@ -552,6 +559,16 @@ function StationHistoryContent({ result }: { result: WeatherLinkHistoryLoadResul
                     format(day.relativeHumidityAveragePercent, "%")
                   ],
                   ["rainy-outline", "Lluvia", format(day.precipitationTotalMm, " mm")],
+                  [
+                    "leaf-outline",
+                    "Evapotranspiración",
+                    format(day.evapotranspirationTotalMm ?? null, " mm")
+                  ],
+                  [
+                    "sunny-outline",
+                    "Radiación prom.",
+                    format(day.solarRadiationAverageWm2 ?? null, " W/m²")
+                  ],
                   [
                     "speedometer-outline",
                     "Viento max.",

@@ -24,6 +24,7 @@ function openMeteoPayload() {
       precipitation_sum: [4.8, 0],
       precipitation_probability_max: [35, 10],
       et0_fao_evapotranspiration: [2.4, 2.7],
+      shortwave_radiation_sum: [18.6, 19.1],
       wind_speed_10m_max: [21, 19],
       weather_code: [2, 1]
     }
@@ -51,8 +52,21 @@ describe("MobileClimaService", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(first.data).toMatchObject({
       district: { code: "tambogrande", name: "Tambogrande" },
-      field: { rainfallLast24hMm: 4.8, et0TodayMm: 2.4, soilMoisture3To9cmM3M3: 0.19 }
+      field: {
+        rainfallLast24hMm: 4.8,
+        et0TodayMm: 2.4,
+        solarRadiationTodayMjM2: 18.6,
+        soilMoisture3To9cmM3M3: 0.19
+      }
     });
+    expect(first.data.forecast[0]).toMatchObject({
+      date: "2026-07-30",
+      et0Mm: 2.4,
+      solarRadiationMjM2: 18.6
+    });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "shortwave_radiation_sum"
+    );
     expect(second.data.current.temperatureC).toBe(24.2);
     vi.unstubAllGlobals();
   });

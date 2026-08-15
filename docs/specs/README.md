@@ -82,4 +82,6 @@ en la raíz.
 - [Spec 036: Detalle de clima móvil y estaciones WeatherLink](036-detalle-clima-mobile-weatherlink.md)
 - [Spec 037: Consulta directa WeatherLink por rango](037-consulta-directa-weatherlink.md)
 - [Spec 038: Relacion de marcas mobile con ingrediente activo](038-marcas-mobile-ingrediente-activo.md)
+- [Spec 039: Hora de fin al finalizar receta mobile](039-hora-fin-receta-mobile.md)
+- [Spec 040: Evapotranspiracion y radiacion diaria en clima mobile](040-et-radiacion-clima-mobile.md)
 - [Plantilla](TEMPLATE.md)

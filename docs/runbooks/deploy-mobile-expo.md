@@ -124,3 +124,9 @@ El entorno EAS `production` contiene:
 ```env
 EXPO_PUBLIC_API_URL=https://agrogest-vsm-api.onrender.com
 ```
+
+Cuando un OTA mobile consume campos aditivos nuevos de la API, desplegar y
+verificar primero la API de produccion. En particular, para los resúmenes de
+ET0 y radiacion solar se debe confirmar la respuesta de Open-Meteo y Davis antes
+de publicar el update EAS. La app tolera temporalmente una API o cache anterior
+mostrando `—`, pero el orden API → OTA evita una experiencia incompleta.

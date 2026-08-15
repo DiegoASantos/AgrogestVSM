@@ -96,7 +96,11 @@ describe("WeatherLink daily summary", () => {
       reading("precipitation", 1.2),
       reading("precipitation", 0.8),
       reading("wind_speed_10m", 11),
-      reading("wind_speed_10m", 17)
+      reading("wind_speed_10m", 17),
+      reading("et0_fao_evapotranspiration", 0.15),
+      reading("et0_fao_evapotranspiration", 0.25),
+      reading("shortwave_radiation", 300),
+      reading("shortwave_radiation", 500)
     ];
 
     expect(summarizeWeatherLinkDay("2026-08-13", rows)).toEqual({
@@ -106,7 +110,16 @@ describe("WeatherLink daily summary", () => {
       relativeHumidityAveragePercent: 70,
       precipitationTotalMm: 2,
       windSpeedMaxKmh: 17,
-      readingsCount: 8
+      evapotranspirationTotalMm: 0.4,
+      solarRadiationAverageWm2: 400,
+      readingsCount: 12
+    });
+  });
+
+  it("returns null when the Davis station has no ET or radiation sensor", () => {
+    expect(summarizeWeatherLinkDay("2026-08-13", [])).toMatchObject({
+      evapotranspirationTotalMm: null,
+      solarRadiationAverageWm2: null
     });
   });
 });

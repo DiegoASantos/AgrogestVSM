@@ -46,9 +46,11 @@ import type {
 import { getSubEtapaImageSource } from "../../utils/sub-etapa-images";
 import {
   formatEditable12HourInput,
-  isComplete12HourInput
+  isComplete12HourInput,
+  type TimePeriod
 } from "../../domain/time-input";
 import { validateRequiredPhenologicalStage } from "../../domain/required-phenological-stage";
+import { Time12HourInput } from "../components/time-12-hour-input";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
@@ -59,8 +61,6 @@ type DefaultLockedFields = {
   areaHectares: boolean;
   sowingDate: boolean;
 };
-type TimePeriod = "AM" | "PM";
-
 type WizardStep = {
   index: number;
   title: string;
@@ -1476,84 +1476,6 @@ function IconTextInput({
             <Ionicons color="#064b31" name="pencil-outline" size={20} />
           </Pressable>
         ) : null}
-      </View>
-      {error ? (
-        <AppText style={styles.localErrorText} variant="caption">
-          {error}
-        </AppText>
-      ) : null}
-    </View>
-  );
-}
-
-type Time12HourInputProps = {
-  label: string;
-  value: string;
-  period: TimePeriod;
-  error?: string | null;
-  onChangeText: (value: string) => void;
-  onEndEditing: () => void;
-  onPeriodChange: (period: TimePeriod) => void;
-};
-
-function Time12HourInput({
-  label,
-  value,
-  period,
-  error,
-  onChangeText,
-  onEndEditing,
-  onPeriodChange
-}: Time12HourInputProps) {
-  return (
-    <View style={styles.localFieldWrapper}>
-      <AppText style={styles.localFieldLabel} variant="label">
-        {label}
-      </AppText>
-      <View style={[styles.inputFrame, error && styles.localFieldError]}>
-        <View style={styles.localFieldIcon}>
-          <Ionicons color="#064b31" name="time-outline" size={22} />
-        </View>
-        <TextInput
-          accessibilityLabel={`${label} en formato 12 horas`}
-          keyboardType="number-pad"
-          onChangeText={onChangeText}
-          onEndEditing={onEndEditing}
-          placeholder="HH:MM"
-          placeholderTextColor={theme.colors.textMuted}
-          style={styles.iconInput}
-          value={value}
-        />
-        <View style={styles.periodToggle}>
-          {(["AM", "PM"] as const).map((option) => {
-            const isSelected = period === option;
-
-            return (
-              <Pressable
-                accessibilityLabel={`${label} ${option}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                key={option}
-                onPress={() => onPeriodChange(option)}
-                style={({ pressed }) => [
-                  styles.periodButton,
-                  isSelected && styles.periodButtonSelected,
-                  pressed && styles.pressed
-                ]}
-              >
-                <AppText
-                  style={[
-                    styles.periodButtonText,
-                    isSelected && styles.periodButtonTextSelected
-                  ]}
-                  variant="caption"
-                >
-                  {option}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
       </View>
       {error ? (
         <AppText style={styles.localErrorText} variant="caption">

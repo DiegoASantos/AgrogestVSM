@@ -25,7 +25,18 @@ import { useCatalogDownloadStatus } from "../../../../shared/database/catalog-do
 import { toApiError } from "../../../../shared/services";
 import { scheduleSync } from "../../../../shared/sync";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
+import {
+  formatEditable12HourInput,
+  formatTimeFor12HourInput,
+  normalize12HourTimeForApi,
+  normalizeTyped12HourInput,
+  resolveInitialEndVisitTime,
+  validateVisitEndTime,
+  type TimePeriod
+} from "../../../visitas-campo/domain/time-input";
+import { Time12HourInput } from "../../../visitas-campo/presentation/components/time-12-hour-input";
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
+import { visitasCampoService } from "../../../visitas-campo/services/visitas-campo.service";
 import {
   construirMensajeAdvertencia,
   validarMezcla
@@ -103,6 +114,10 @@ export function VisitaRecetaScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [startVisitTime, setStartVisitTime] = useState("");
+  const [endVisitTimeInput, setEndVisitTimeInput] = useState("");
+  const [endVisitTimePeriod, setEndVisitTimePeriod] = useState<TimePeriod>("AM");
+  const [endVisitTimeError, setEndVisitTimeError] = useState<string | null>(null);
   const [consolidacion, setConsolidacion] = useState<ConsolidacionHallazgo | null>(null);
   const [recetaData, setRecetaData] = useState<VisitaRecetaCompleta | null>(null);
 
@@ -249,6 +264,17 @@ export function VisitaRecetaScreen() {
       }
 
       setConsolidacion(localConsData);
+
+      if (visita) {
+        const resolvedEndVisitTime = resolveInitialEndVisitTime(
+          visita.endVisitTime,
+          new Date()
+        );
+        const displayEndVisitTime = formatTimeFor12HourInput(resolvedEndVisitTime);
+        setStartVisitTime(visita.startVisitTime);
+        setEndVisitTimeInput(displayEndVisitTime.time);
+        setEndVisitTimePeriod(displayEndVisitTime.period);
+      }
 
       let volumenPorDefecto = { fitosanidad: "", fertilizacion: "" };
 
@@ -623,6 +649,21 @@ export function VisitaRecetaScreen() {
   function handleSave() {
     if (!visitaId || isSaving || compatibilityAlertOpenRef.current) return;
     resetOrdenExchangeState();
+    const normalizedEndVisitTime = normalize12HourTimeForApi(
+      endVisitTimeInput,
+      endVisitTimePeriod
+    );
+    const visitEndTimeValidation = validateVisitEndTime(
+      startVisitTime,
+      normalizedEndVisitTime
+    );
+    setEndVisitTimeError(visitEndTimeValidation);
+
+    if (visitEndTimeValidation) {
+      setSubmitError(visitEndTimeValidation);
+      return;
+    }
+
     const recetaValidation = validateRequiredRecipe(
       fitosanidadApps,
       mezclas,
@@ -664,7 +705,7 @@ export function VisitaRecetaScreen() {
             text: "Continuar de todos modos",
             onPress: () => {
               compatibilityAlertOpenRef.current = false;
-              void persistReceta(visitaId);
+              void persistReceta(visitaId, normalizedEndVisitTime);
             }
           }
         ],
@@ -678,10 +719,10 @@ export function VisitaRecetaScreen() {
       return;
     }
 
-    void persistReceta(visitaId);
+    void persistReceta(visitaId, normalizedEndVisitTime);
   }
 
-  async function persistReceta(vId: string) {
+  async function persistReceta(vId: string, normalizedEndVisitTime: string) {
     setIsSaving(true);
     setSubmitError(null);
 
@@ -707,8 +748,7 @@ export function VisitaRecetaScreen() {
         {
           text: "Enviar",
           onPress: () => {
-            void scheduleSync({ immediate: true });
-            router.replace("/visitas-campo/historial");
+            void finalizeVisitAndSend(vId, normalizedEndVisitTime);
           }
         }
       ]);
@@ -717,6 +757,47 @@ export function VisitaRecetaScreen() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function finalizeVisitAndSend(vId: string, normalizedEndVisitTime: string) {
+    setIsSaving(true);
+    setSubmitError(null);
+    try {
+      await visitasCampoService.update(vId, {
+        endVisitTime: normalizedEndVisitTime
+      });
+      void scheduleSync({ immediate: true });
+      router.replace("/visitas-campo/historial");
+    } catch (reason) {
+      setSubmitError(
+        toApiError(reason).message || "No se pudo guardar la hora de fin."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function handleEndVisitTimeChange(value: string) {
+    const nextValue = formatEditable12HourInput(endVisitTimeInput, value);
+    setEndVisitTimeInput(nextValue);
+    setEndVisitTimeError(null);
+    setSubmitError(null);
+  }
+
+  function handleEndVisitTimeEndEditing() {
+    const normalizedValue = normalizeTyped12HourInput(endVisitTimeInput);
+    const apiValue = normalize12HourTimeForApi(
+      normalizedValue,
+      endVisitTimePeriod
+    );
+    setEndVisitTimeInput(normalizedValue);
+    setEndVisitTimeError(validateVisitEndTime(startVisitTime, apiValue));
+  }
+
+  function handleEndVisitTimePeriodChange(period: TimePeriod) {
+    setEndVisitTimePeriod(period);
+    const apiValue = normalize12HourTimeForApi(endVisitTimeInput, period);
+    setEndVisitTimeError(validateVisitEndTime(startVisitTime, apiValue));
   }
 
   function goBackToSteps() {
@@ -965,6 +1046,26 @@ export function VisitaRecetaScreen() {
             }}
             selected={laborSelections}
           />
+
+          <SectionHeader
+            icon="time"
+            label="Cierre de visita"
+            subtitle="Confirma la hora real en que termino la atencion"
+          />
+          <AppCard style={styles.endVisitTimeCard}>
+            <Time12HourInput
+              error={endVisitTimeError}
+              label="Hora de fin"
+              onChangeText={handleEndVisitTimeChange}
+              onEndEditing={handleEndVisitTimeEndEditing}
+              onPeriodChange={handleEndVisitTimePeriodChange}
+              period={endVisitTimePeriod}
+              value={endVisitTimeInput}
+            />
+            <AppText style={styles.endVisitTimeHint} variant="caption">
+              Se guardara al confirmar Enviar y puede corregirse antes de finalizar.
+            </AppText>
+          </AppCard>
 
           {submitError ? (
             <View style={styles.errorBanner}>
@@ -2634,6 +2735,13 @@ const styles = StyleSheet.create({
   submitErrorText: {
     color: theme.colors.error,
     textAlign: "center"
+  },
+  endVisitTimeCard: {
+    padding: 16,
+    gap: 8
+  },
+  endVisitTimeHint: {
+    color: theme.colors.textMuted
   },
   actions: {
     paddingVertical: 16

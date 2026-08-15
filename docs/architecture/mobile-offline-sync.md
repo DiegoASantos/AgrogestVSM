@@ -57,6 +57,12 @@ receta, y confirma en conjunto todos los detalles. Un reintento conserva una
 sola operacion padre: no crea outbox independientes para las mezclas ni para
 sus productos.
 
+Al confirmar `Enviar` al final de Receta, mobile actualiza `endVisitTime` de la
+visita con la hora propuesta por el dispositivo o corregida por el tecnico. El
+update reutiliza la operacion de `visitas_campo` y se registra antes de programar
+la sincronizacion; `Seguir editando` no cambia la visita. La receta conserva su
+propia operacion padre y ambas quedan recuperables si no hay conexion.
+
 ## Disparadores
 
 - nueva entrada de outbox;
@@ -191,6 +197,13 @@ API no persiste esas lecturas en PostgreSQL. `clima_estacion_cache` conserva en
 su JSON la metadata y la ultima respuesta por estacion; la eleccion del usuario
 se guarda en `app_meta`. Ambas son caches de solo lectura, no crean outbox y
 muestran el rango y su vigencia cuando se usan sin conexion.
+
+Los resúmenes diarios Davis incluyen, cuando el sensor las entrega,
+evapotranspiracion total en milimetros y radiacion solar promedio en `W/m²`.
+La estimacion territorial Open-Meteo incluye ET0 diaria en milimetros y
+radiacion acumulada en `MJ/m²`. Los campos nuevos son aditivos y opcionales en
+mobile para que una cache JSON anterior siga siendo legible y muestre ausencia
+en lugar de cero.
 
 Los catálogos de receta `ingredientes_activos`, `marcas_producto` y
 `fertilizantes` se descargan desde la API, pero también admiten altas offline

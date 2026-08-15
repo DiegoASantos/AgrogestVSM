@@ -45,6 +45,7 @@ export type DistrictClimateResponse = {
   field: {
     rainfallLast24hMm: number | null;
     et0TodayMm: number | null;
+    solarRadiationTodayMjM2: number | null;
     soilMoisture3To9cmM3M3: number | null;
   };
   forecast: Array<{
@@ -54,6 +55,7 @@ export type DistrictClimateResponse = {
     precipitationMm: number | null;
     precipitationProbabilityPercent: number | null;
     et0Mm: number | null;
+    solarRadiationMjM2: number | null;
     windSpeedMaxKmh: number | null;
     weatherCode: number | null;
   }>;
@@ -114,7 +116,7 @@ export class MobileClimaService {
         "temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m",
       hourly: "precipitation,et0_fao_evapotranspiration,soil_moisture_3_to_9cm",
       daily:
-        "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,et0_fao_evapotranspiration,wind_speed_10m_max"
+        "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,et0_fao_evapotranspiration,shortwave_radiation_sum,wind_speed_10m_max"
     }).toString();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), OPEN_METEO_TIMEOUT_MS);
@@ -158,6 +160,7 @@ function mapPayload(
   const precipitation = numericArray(hourly.precipitation);
   const hourlyEt0 = numericArray(hourly.et0_fao_evapotranspiration);
   const dailyEt0 = numericArray(daily.et0_fao_evapotranspiration);
+  const dailySolarRadiation = numericArray(daily.shortwave_radiation_sum);
   const soilMoisture = numericArray(hourly.soil_moisture_3_to_9cm);
   const dates = stringArray(daily.time);
 
@@ -181,6 +184,7 @@ function mapPayload(
     field: {
       rainfallLast24hMm: sum(precipitation.slice(0, 24)),
       et0TodayMm: dailyEt0[0] ?? sum(hourlyEt0.slice(0, 24)),
+      solarRadiationTodayMjM2: dailySolarRadiation[0] ?? null,
       soilMoisture3To9cmM3M3: latest(soilMoisture)
     },
     forecast: dates.map((date, index) => ({
@@ -191,6 +195,7 @@ function mapPayload(
       precipitationProbabilityPercent:
         numericArray(daily.precipitation_probability_max)[index] ?? null,
       et0Mm: dailyEt0[index] ?? null,
+      solarRadiationMjM2: dailySolarRadiation[index] ?? null,
       windSpeedMaxKmh: numericArray(daily.wind_speed_10m_max)[index] ?? null,
       weatherCode: numericArray(daily.weather_code)[index] ?? null
     }))

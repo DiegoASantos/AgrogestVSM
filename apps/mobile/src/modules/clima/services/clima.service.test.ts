@@ -89,7 +89,17 @@ describe("climaService.getWeatherLinkHistory", () => {
     fetchedAt: "2026-08-14T10:00:00.000Z",
     cache: { hit: false, expiresAt: "2026-08-14T10:10:00.000Z" },
     rows: [],
-    daily: []
+    daily: [
+      {
+        date: "2026-08-13",
+        temperatureMinC: 19,
+        temperatureMaxC: 30,
+        relativeHumidityAveragePercent: 68,
+        precipitationTotalMm: 0,
+        windSpeedMaxKmh: 12,
+        readingsCount: 6
+      }
+    ]
   };
 
   beforeEach(() => {
@@ -129,5 +139,7 @@ describe("climaService.getWeatherLinkHistory", () => {
     expect(result.isCached).toBe(true);
     expect(result.isStale).toBe(true);
     expect(result.requestedRangeMatches).toBe(false);
+    expect(result.history.daily[0]?.evapotranspirationTotalMm).toBeUndefined();
+    expect(result.history.daily[0]?.solarRadiationAverageWm2).toBeUndefined();
   });
 });

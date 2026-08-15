@@ -6,9 +6,10 @@ const database = vi.hoisted(() => ({
   runSync: vi.fn<(statement: string, ...params: unknown[]) => { changes: number }>().mockReturnValue({ changes: 1 }),
   withTransactionSync: vi.fn((cb: () => void) => cb())
 }));
+const insertSyncOutboxEntry = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../shared/database/connection", () => ({ getDatabase: () => database }));
-vi.mock("../../../shared/database/sync-outbox", () => ({ insertSyncOutboxEntry: vi.fn() }));
+vi.mock("../../../shared/database/sync-outbox", () => ({ insertSyncOutboxEntry }));
 vi.mock("../../../shared/utils/local-id", () => ({ generateLocalId: vi.fn(() => "local-1"), generatePublicId: vi.fn(() => "pub-1") }));
 
 import { visitasCampoRepository } from "./visitas-campo.repository";
@@ -113,6 +114,37 @@ describe("visitasCampoRepository", () => {
     it("should return recent visitas for agronomist", () => {
       database.getAllSync.mockReturnValue([visitaRow] as never);
       expect(visitasCampoRepository.getRecentByAgronomistUserId("u1", 3)).toHaveLength(1);
+    });
+  });
+
+  describe("#update", () => {
+    it("guarda la hora de fin y deja la visita pendiente en outbox", () => {
+      database.getFirstSync.mockReturnValue({
+        ...visitaRow,
+        end_visit_time: "11:45",
+        sync_status: "pending"
+      });
+
+      visitasCampoRepository.update("v1", { endVisitTime: "11:45" });
+
+      expect(database.runSync).toHaveBeenCalledWith(
+        expect.stringContaining("end_visit_time = ?"),
+        "11:45",
+        expect.any(String),
+        "v1"
+      );
+      expect(database.runSync).toHaveBeenCalledWith(
+        expect.stringContaining("sync_status = 'pending'"),
+        "v1"
+      );
+      expect(insertSyncOutboxEntry).toHaveBeenCalledWith(
+        database,
+        expect.objectContaining({
+          entityType: "visitas_campo",
+          entityLocalId: "v1",
+          operation: "update"
+        })
+      );
     });
   });
 });

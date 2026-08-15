@@ -86,6 +86,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Detalle de clima móvil y estaciones WeatherLink](specs/036-detalle-clima-mobile-weatherlink.md)
 - [Consulta directa WeatherLink por rango](specs/037-consulta-directa-weatherlink.md)
 - [Relacion de marcas mobile con ingrediente activo](specs/038-marcas-mobile-ingrediente-activo.md)
+- [Hora de fin al finalizar receta mobile](specs/039-hora-fin-receta-mobile.md)
+- [Evapotranspiracion y radiacion diaria en clima mobile](specs/040-et-radiacion-clima-mobile.md)
 
 ## Runbooks
 

@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-11
+last_reviewed: 2026-08-15
 ---
 
 # Modelo del dominio
@@ -250,6 +250,13 @@ usa una cache efimera por estacion y dia; no existe una tarea diaria a las
 08:00. Un dia sin transmision se conserva como ausencia y los registros
 parciales sin timestamp se descartan, sin interpolar valores. Este flujo no
 reemplaza los datos territoriales estimados de Open-Meteo.
+
+El resumen diario Davis deriva de las lecturas normalizadas: suma
+`et0_fao_evapotranspiration` en `mm` y promedia `shortwave_radiation` en `W/m²`.
+Una estación que no entrega la variable conserva `NULL`. La estimacion
+territorial Open-Meteo expone ET0 diaria en `mm` y
+`shortwave_radiation_sum` en `MJ/m²` para hoy y el pronostico; estos datos son
+de consulta y no agregan persistencia al dominio.
 
 ## Seguridad
 
