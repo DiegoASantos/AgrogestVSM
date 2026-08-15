@@ -2,7 +2,7 @@
 title: Deploy mobile Android con Expo EAS
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-02
+last_reviewed: 2026-08-15
 ---
 
 # Deploy mobile Android con Expo EAS
@@ -40,6 +40,24 @@ npx eas-cli@latest update --platform android --channel production --environment 
 
 La actualizacion se descarga al abrir la app y normalmente se aplica en el
 siguiente reinicio.
+
+## Aviso de actualizacion dentro de la app
+
+Inicio comprueba actualizaciones compatibles cuando obtiene el foco. La
+comprobacion y la descarga son silenciosas: un fallo de red no bloquea Inicio
+ni los flujos offline. Cuando la descarga termina, Inicio muestra el aviso
+`Nueva version disponible` con el boton `Actualizar ahora`.
+
+El boton recarga el bundle mediante `expo-updates`; no reinstala el APK, no
+limpia SQLite y no modifica la outbox. La app no fuerza la recarga dentro de
+formularios para evitar perder datos aun no guardados. Si el usuario ignora el
+aviso o cierra la app, la actualizacion descargada queda lista para el siguiente
+arranque.
+
+La primera OTA que incorpora este mecanismo conserva el ciclo anterior: los
+usuarios deben recibirla y arrancarla antes de que futuras actualizaciones
+puedan mostrar el aviso en Inicio. Este flujo solo funciona en builds release
+con canal, plataforma y `runtimeVersion` compatibles.
 
 ## Cuando generar otro APK
 

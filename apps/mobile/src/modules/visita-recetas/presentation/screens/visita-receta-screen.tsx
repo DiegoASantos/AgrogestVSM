@@ -842,8 +842,14 @@ export function VisitaRecetaScreen() {
                 tiposControl={tiposControl}
                 tiposProducto={tiposProducto}
                 toggleDropdown={toggleDropdown}
-                onNavegarCatalogo={(tipo) =>
-                  router.push(`/productos/nuevo?tipoPredefinido=${tipo}`)
+                onNavegarCatalogo={(tipo, ingredienteActivoId) =>
+                  router.push(
+                    `/productos/nuevo?tipoPredefinido=${tipo}${
+                      ingredienteActivoId
+                        ? `&ingredienteActivoId=${encodeURIComponent(ingredienteActivoId)}`
+                        : ""
+                    }`
+                  )
                 }
                 value={app}
               />
@@ -913,8 +919,14 @@ export function VisitaRecetaScreen() {
                 onRemove={() => removeFertilizacion(index)}
                 openDropdown={openDropdown}
                 toggleDropdown={toggleDropdown}
-                onNavegarCatalogo={(tipo) =>
-                  router.push(`/productos/nuevo?tipoPredefinido=${tipo}`)
+                onNavegarCatalogo={(tipo, ingredienteActivoId) =>
+                  router.push(
+                    `/productos/nuevo?tipoPredefinido=${tipo}${
+                      ingredienteActivoId
+                        ? `&ingredienteActivoId=${encodeURIComponent(ingredienteActivoId)}`
+                        : ""
+                    }`
+                  )
                 }
                 value={fertilizacion}
               />
@@ -1123,7 +1135,7 @@ function FitosanidadCard({
   onCloseDropdown: () => void;
   onRemoveIngrediente: (index: number) => void;
   toggleDropdown: (key: string) => void;
-  onNavegarCatalogo: (tipo: string) => void;
+  onNavegarCatalogo: (tipo: string, ingredienteActivoId?: string) => void;
 }) {
   const prefix = `fito_${index}`;
 
@@ -1229,7 +1241,7 @@ function IngredienteCard({
   onCloseDropdown: () => void;
   onRemove: () => void;
   toggleDropdown: (key: string) => void;
-  onNavegarCatalogo: (tipo: string) => void;
+  onNavegarCatalogo: (tipo: string, ingredienteActivoId?: string) => void;
 }) {
   const ingredienteActivoOptions = getIngredientOptions(
     value.tipoProductoId,
@@ -1378,7 +1390,7 @@ function IngredienteCard({
       <AppButton
         icon="add-circle-outline"
         label="Nueva marca"
-        onPress={() => onNavegarCatalogo("marca")}
+        onPress={() => onNavegarCatalogo("marca", value.ingredienteActivoId)}
         size="small"
         variant="outline"
       />
@@ -1735,7 +1747,7 @@ function FertilizacionCard({
   onCloseDropdown: () => void;
   onRemove: () => void;
   toggleDropdown: (key: string) => void;
-  onNavegarCatalogo: (tipo: string) => void;
+  onNavegarCatalogo: (tipo: string, ingredienteActivoId?: string) => void;
 }) {
   const prefix = `fert_${index}`;
   const unidadDosis = getUnidadDosis(value);

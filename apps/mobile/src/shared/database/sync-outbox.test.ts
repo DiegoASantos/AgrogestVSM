@@ -44,9 +44,7 @@ const entryBase = {
 };
 
 function getStatements(): string[] {
-  return database.runSync.mock.calls.map(
-    (call: unknown[]) => String(call[0])
-  );
+  return database.runSync.mock.calls.map((call: unknown[]) => String(call[0]));
 }
 
 describe("sync-outbox", () => {
@@ -125,15 +123,17 @@ describe("sync-outbox", () => {
 
   describe("getPendingOutboxEntries", () => {
     it("should return mapped entries from sync_outbox table", () => {
-      database.getAllSync.mockReturnValue([{
-        id: 1,
-        entity_type: "visitas_campo",
-        entity_local_id: "local-1",
-        operation: "create",
-        payload: '{"id":"1"}',
-        retry_count: 0,
-        created_at: "2026-01-01"
-      }] as never);
+      database.getAllSync.mockReturnValue([
+        {
+          id: 1,
+          entity_type: "visitas_campo",
+          entity_local_id: "local-1",
+          operation: "create",
+          payload: '{"id":"1"}',
+          retry_count: 0,
+          created_at: "2026-01-01"
+        }
+      ] as never);
 
       const result = getPendingOutboxEntries(50);
 
@@ -153,6 +153,17 @@ describe("sync-outbox", () => {
 
       expect(result).toEqual([]);
     });
+
+    it("orders active ingredients before dependent brands", () => {
+      database.getAllSync.mockReturnValue([]);
+
+      getPendingOutboxEntries();
+
+      const calls = database.getAllSync.mock.calls as unknown as unknown[][];
+      const query = String(calls.at(-1)?.[0]);
+      expect(query).toContain("WHEN entity_type = 'ingredientes_activos' THEN 0");
+      expect(query).toContain("WHEN entity_type = 'marcas_producto' THEN 1");
+    });
   });
 
   describe("deleteOutboxEntry", () => {
@@ -170,7 +181,9 @@ describe("sync-outbox", () => {
       incrementOutboxRetryCount(7);
 
       const statements = getStatements();
-      expect(statements.some((s) => s.includes("SET retry_count = retry_count + 1"))).toBe(true);
+      expect(
+        statements.some((s) => s.includes("SET retry_count = retry_count + 1"))
+      ).toBe(true);
       expect(notifySyncStatusChanged).toHaveBeenCalled();
     });
   });

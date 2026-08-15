@@ -22,11 +22,21 @@ import { parcelasRepository } from "../../modules/parcelas/repositories/parcelas
 import { parcelasRemote } from "../../modules/parcelas/services/parcelas.remote";
 import { productoresRepository } from "../../modules/productores/repositories/productores.repository";
 import { productoresRemote } from "../../modules/productores/services/productores.remote";
+import {
+  catalogoIngredientesActivosRepo,
+  catalogoMarcasRepo
+} from "../../modules/visita-recetas/repositories/catalogo-repository-helpers";
+import { visitaRecetasRemote } from "../../modules/visita-recetas/services/visita-recetas.remote";
 import { sectoresRepository } from "../../modules/sectores/repositories/sectores.repository";
 import { subsectoresRepository } from "../../modules/subsectores/repositories/subsectores.repository";
 import { subsectoresRemote } from "../../modules/subsectores/services/subsectores.remote";
 import type { SyncOutboxItem } from "../database/sync-outbox";
-import { handleParcela, handleProductor, handleSubsector } from "./sync-handlers";
+import {
+  handleMarcaProducto,
+  handleParcela,
+  handleProductor,
+  handleSubsector
+} from "./sync-handlers";
 
 function makeEntry(overrides: Partial<SyncOutboxItem> = {}): SyncOutboxItem {
   return {
@@ -171,5 +181,88 @@ describe("catalog sync handlers", () => {
 
     expect(remove).toHaveBeenCalledWith("501", {});
     expect(result).toEqual({ status: "synced", serverId: "501" });
+  });
+
+  it("resolves the active ingredient server id before creating a brand", async () => {
+    vi.spyOn(catalogoMarcasRepo, "obtenerPorId").mockReturnValue({
+      id: "marca-local",
+      publicId: "marca-publica",
+      name: "Marca Potasio",
+      tipoProductoId: "2",
+      ingredienteActivoId: "ingrediente-local",
+      ingredienteActivoNombre: "Nitrato de potasio",
+      concentracion: "46",
+      unidadMedida: "%",
+      serverId: null,
+      syncStatus: "pending",
+      syncErrorMessage: null
+    });
+    vi.spyOn(catalogoIngredientesActivosRepo, "obtenerPorId").mockReturnValue({
+      id: "ingrediente-local",
+      publicId: "ingrediente-publico",
+      name: "Nitrato de potasio",
+      description: null,
+      serverId: "701",
+      syncStatus: "synced",
+      syncErrorMessage: null
+    });
+    const create = vi.spyOn(visitaRecetasRemote, "crearMarcaProducto").mockResolvedValue({
+      id: "801"
+    });
+    const update = vi
+      .spyOn(catalogoMarcasRepo, "actualizar")
+      .mockImplementation(() => {});
+
+    const result = await handleMarcaProducto(
+      makeEntry({ entityType: "marcas_producto", entityLocalId: "marca-local" })
+    );
+
+    expect(create).toHaveBeenCalledWith({
+      publicId: "marca-publica",
+      name: "Marca Potasio",
+      tipoProductoId: "2",
+      ingredienteActivoId: "701",
+      concentracion: "46",
+      unidadMedida: "%"
+    });
+    expect(update).toHaveBeenCalledWith("marca-local", {
+      serverId: "801",
+      syncStatus: "synced",
+      syncErrorMessage: null
+    });
+    expect(result).toEqual({ status: "synced", serverId: "801" });
+  });
+
+  it("keeps a brand pending while its active ingredient has no server id", async () => {
+    vi.spyOn(catalogoMarcasRepo, "obtenerPorId").mockReturnValue({
+      id: "marca-local",
+      publicId: "marca-publica",
+      name: "Marca Potasio",
+      tipoProductoId: "2",
+      ingredienteActivoId: "ingrediente-local",
+      ingredienteActivoNombre: "Nitrato de potasio",
+      concentracion: "46",
+      unidadMedida: "%",
+      serverId: null,
+      syncStatus: "pending",
+      syncErrorMessage: null
+    });
+    vi.spyOn(catalogoIngredientesActivosRepo, "obtenerPorId").mockReturnValue({
+      id: "ingrediente-local",
+      publicId: "ingrediente-publico",
+      name: "Nitrato de potasio",
+      description: null,
+      serverId: null,
+      syncStatus: "pending",
+      syncErrorMessage: null
+    });
+    const create = vi.spyOn(visitaRecetasRemote, "crearMarcaProducto");
+
+    const result = await handleMarcaProducto(
+      makeEntry({ entityType: "marcas_producto", entityLocalId: "marca-local" })
+    );
+
+    expect(create).not.toHaveBeenCalled();
+    expect(result).toEqual({ status: "skipped" });
   });
 });

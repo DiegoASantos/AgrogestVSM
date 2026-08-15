@@ -85,6 +85,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Brechas de transmision WeatherLink](specs/035-brechas-transmision-weatherlink.md)
 - [Detalle de clima móvil y estaciones WeatherLink](specs/036-detalle-clima-mobile-weatherlink.md)
 - [Consulta directa WeatherLink por rango](specs/037-consulta-directa-weatherlink.md)
+- [Relacion de marcas mobile con ingrediente activo](specs/038-marcas-mobile-ingrediente-activo.md)
 
 ## Runbooks
 

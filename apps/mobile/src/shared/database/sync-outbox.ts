@@ -37,12 +37,7 @@ export type SyncOutboxItem = {
 };
 
 export function insertSyncOutboxEntry(db: SQLiteDatabase, entry: SyncOutboxEntry) {
-  deleteSyncFailureForEntity(
-    db,
-    entry.entityType,
-    entry.entityLocalId,
-    "transient"
-  );
+  deleteSyncFailureForEntity(db, entry.entityType, entry.entityLocalId, "transient");
   const existingEntries = db.getAllSync<Pick<SyncOutboxRow, "id" | "operation">>(
     `SELECT id, operation
      FROM sync_outbox
@@ -103,7 +98,7 @@ export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
        WHEN entity_type = 'sectores' THEN 0
        WHEN entity_type = 'ingredientes_activos' THEN 0
        WHEN entity_type = 'fertilizantes' THEN 0
-       WHEN entity_type = 'marcas_producto' THEN 0
+       WHEN entity_type = 'marcas_producto' THEN 1
        WHEN entity_type = 'subsectores' THEN 1
        WHEN entity_type = 'parcelas' THEN 2
        WHEN entity_type = 'visitas_campo' THEN 3

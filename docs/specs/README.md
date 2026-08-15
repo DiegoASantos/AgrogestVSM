@@ -81,4 +81,5 @@ en la raíz.
 - [Spec 035: Brechas de transmision WeatherLink](035-brechas-transmision-weatherlink.md)
 - [Spec 036: Detalle de clima móvil y estaciones WeatherLink](036-detalle-clima-mobile-weatherlink.md)
 - [Spec 037: Consulta directa WeatherLink por rango](037-consulta-directa-weatherlink.md)
+- [Spec 038: Relacion de marcas mobile con ingrediente activo](038-marcas-mobile-ingrediente-activo.md)
 - [Plantilla](TEMPLATE.md)

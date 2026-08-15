@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-12
+last_reviewed: 2026-08-15
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -192,12 +192,20 @@ su JSON la metadata y la ultima respuesta por estacion; la eleccion del usuario
 se guarda en `app_meta`. Ambas son caches de solo lectura, no crean outbox y
 muestran el rango y su vigencia cuando se usan sin conexion.
 
-Los catálogos de receta `marcas_producto` y `fertilizantes` conservan localmente
-la concentración comercial textual y su unidad de medida. Son caché de solo
-lectura y no generan outbox. La migración aditiva 49 agrega las columnas
-necesarias y la correctiva 50 vuelve a invalidar `catalogs_downloaded_at` para
-forzar la descarga posterior a la reparación del backend. Cuando esa descarga
-termina, una receta abierta relee SQLite y completa concentración y unidad de la
+Los catálogos de receta `ingredientes_activos`, `marcas_producto` y
+`fertilizantes` se descargan desde la API, pero también admiten altas offline
+desde mobile. Cada alta se guarda con `sync_status = 'pending'` y genera una
+entrada propia en outbox. En una marca, `ingrediente_activo_id` conserva la
+identidad local y `ingrediente_activo_nombre` la etiqueta visible; el handler
+espera a que el ingrediente tenga `server_id` y envía esa identidad remota a la
+API. Por ello, el outbox prioriza ingredientes antes que marcas y nunca confirma
+una marca mientras su dependencia siga pendiente.
+
+Las marcas y los fertilizantes conservan además la concentración comercial
+textual y su unidad de medida. La migración aditiva 49 agregó esas columnas y
+la correctiva 50 volvió a invalidar `catalogs_downloaded_at` para forzar la
+descarga posterior a la reparación del backend. Cuando una descarga termina,
+una receta abierta relee SQLite y completa concentración y unidad de la
 selección existente, sin borrar recetas, catálogos ni operaciones pendientes.
 
 El detalle de visita deriva directamente desde SQLite los scores técnicos de

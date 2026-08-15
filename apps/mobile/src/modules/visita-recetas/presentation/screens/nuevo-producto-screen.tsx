@@ -18,11 +18,19 @@ import { insertSyncOutboxEntry } from "../../../../shared/database/sync-outbox";
 import { getDatabase } from "../../../../shared/database/connection";
 import { generatePublicId } from "../../../../shared/utils/local-id";
 import { visitaRecetasRepository } from "../../repositories/visita-recetas.repository";
-import { catalogoIngredientesActivosRepo, catalogoFertilizantesRepo, catalogoMarcasRepo } from "../../repositories/catalogo-repository-helpers";
+import {
+  catalogoIngredientesActivosRepo,
+  catalogoFertilizantesRepo,
+  catalogoMarcasRepo
+} from "../../repositories/catalogo-repository-helpers";
+import type { IngredienteActivoCatalogItem } from "../../types";
+import {
+  findSelectedIngredient,
+  validateNuevoProducto,
+  type TipoProductoNuevo
+} from "./nuevo-producto-form";
 
 type TipoProductoCatalog = { id: string; name: string };
-
-type TipoProductoNuevo = "ingrediente" | "fertilizante" | "marca";
 
 const OPCIONES_TIPO: AppSelectOption[] = [
   { value: "ingrediente", label: "Ingrediente activo" },
@@ -32,7 +40,11 @@ const OPCIONES_TIPO: AppSelectOption[] = [
 
 export function NuevoProductoScreen() {
   const router = useRouter();
-  const { tipoPredefinido } = useLocalSearchParams<{ tipoPredefinido?: string }>();
+  const { tipoPredefinido, ingredienteActivoId: ingredienteActivoIdPredefinido } =
+    useLocalSearchParams<{
+      tipoPredefinido?: string;
+      ingredienteActivoId?: string;
+    }>();
 
   const [tipo, setTipo] = useState<TipoProductoNuevo>(
     (tipoPredefinido as TipoProductoNuevo) || "ingrediente"
@@ -50,37 +62,39 @@ export function NuevoProductoScreen() {
   const [tiposProducto, setTiposProducto] = useState<TipoProductoCatalog[]>([]);
   const [tipoProductoId, setTipoProductoId] = useState("");
   const [abrirTipoProducto, setAbrirTipoProducto] = useState(false);
-  const [ingredienteActivoId, setIngredienteActivoId] = useState("");
+  const [ingredientesActivos, setIngredientesActivos] = useState<
+    IngredienteActivoCatalogItem[]
+  >([]);
+  const [ingredienteActivoId, setIngredienteActivoId] = useState(
+    ingredienteActivoIdPredefinido ?? ""
+  );
+  const [abrirIngredienteActivo, setAbrirIngredienteActivo] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    if (tipo === "marca") cargarTiposProducto();
+    if (tipo === "marca") cargarCatalogosMarca();
   }, [tipo]);
 
-  function cargarTiposProducto() {
-    const items = visitaRecetasRepository.getTiposProducto();
-    setTiposProducto(items);
+  function cargarCatalogosMarca() {
+    setTiposProducto(visitaRecetasRepository.getTiposProducto());
+    setIngredientesActivos(visitaRecetasRepository.getIngredientesActivos());
   }
 
   function validar(): string | null {
-    if (!nombre.trim()) {
-      return "El nombre es obligatorio.";
-    }
-    if (tipo === "fertilizante" && !tipoFertilizante) {
-      return "El tipo de fertilizante es obligatorio.";
-    }
-    if (tipo === "marca" && !tipoProductoId) {
-      return "El tipo de producto es obligatorio.";
-    }
-    if ((tipo === "fertilizante" || tipo === "marca") && !concentracion.trim()) {
-      return "La concentracion es obligatoria.";
-    }
-    if ((tipo === "fertilizante" || tipo === "marca") && !unidadMedida.trim()) {
-      return "La unidad de medida es obligatoria.";
-    }
-    return null;
+    return validateNuevoProducto(
+      {
+        tipo,
+        nombre,
+        tipoFertilizante,
+        tipoProductoId,
+        ingredienteActivoId,
+        concentracion,
+        unidadMedida
+      },
+      ingredientesActivos
+    );
   }
 
   async function guardar() {
@@ -102,25 +116,67 @@ export function NuevoProductoScreen() {
       db.withTransactionSync(() => {
         if (tipo === "ingrediente") {
           catalogoIngredientesActivosRepo.insertar({
-            id, publicId: idPublico, name: nombre.trim(), description: descripcion.trim() || null,
-            serverId: null, syncStatus: "pending", syncErrorMessage: null
+            id,
+            publicId: idPublico,
+            name: nombre.trim(),
+            description: descripcion.trim() || null,
+            serverId: null,
+            syncStatus: "pending",
+            syncErrorMessage: null
           });
-          insertSyncOutboxEntry(db, { entityType: "ingredientes_activos", entityLocalId: id, operation: "create", createdAt: ahora });
+          insertSyncOutboxEntry(db, {
+            entityType: "ingredientes_activos",
+            entityLocalId: id,
+            operation: "create",
+            createdAt: ahora
+          });
         } else if (tipo === "fertilizante") {
           catalogoFertilizantesRepo.insertar({
-            id, publicId: idPublico, name: nombre.trim(), type: tipoFertilizante,
-            concentracion: concentracion.trim(), unidadMedida: unidadMedida.trim(),
-            serverId: null, syncStatus: "pending", syncErrorMessage: null
+            id,
+            publicId: idPublico,
+            name: nombre.trim(),
+            type: tipoFertilizante,
+            concentracion: concentracion.trim(),
+            unidadMedida: unidadMedida.trim(),
+            serverId: null,
+            syncStatus: "pending",
+            syncErrorMessage: null
           });
-          insertSyncOutboxEntry(db, { entityType: "fertilizantes", entityLocalId: id, operation: "create", createdAt: ahora });
+          insertSyncOutboxEntry(db, {
+            entityType: "fertilizantes",
+            entityLocalId: id,
+            operation: "create",
+            createdAt: ahora
+          });
         } else {
+          const ingredienteSeleccionado = findSelectedIngredient(
+            ingredienteActivoId,
+            ingredientesActivos
+          );
+
+          if (!ingredienteSeleccionado) {
+            throw new Error("Ingrediente activo no encontrado.");
+          }
+
           catalogoMarcasRepo.insertar({
-            id, publicId: idPublico, name: nombre.trim(), tipoProductoId: tipoProductoId,
-            ingredienteActivoId: ingredienteActivoId || null, ingredienteActivoNombre: null,
-            concentracion: concentracion.trim(), unidadMedida: unidadMedida.trim(),
-            serverId: null, syncStatus: "pending", syncErrorMessage: null
+            id,
+            publicId: idPublico,
+            name: nombre.trim(),
+            tipoProductoId: tipoProductoId,
+            ingredienteActivoId: ingredienteSeleccionado.id,
+            ingredienteActivoNombre: ingredienteSeleccionado.name,
+            concentracion: concentracion.trim(),
+            unidadMedida: unidadMedida.trim(),
+            serverId: null,
+            syncStatus: "pending",
+            syncErrorMessage: null
           });
-          insertSyncOutboxEntry(db, { entityType: "marcas_producto", entityLocalId: id, operation: "create", createdAt: ahora });
+          insertSyncOutboxEntry(db, {
+            entityType: "marcas_producto",
+            entityLocalId: id,
+            operation: "create",
+            createdAt: ahora
+          });
         }
       });
 
@@ -135,6 +191,10 @@ export function NuevoProductoScreen() {
   const etiquetaTipo = OPCIONES_TIPO.find((o) => o.value === tipo)?.label ?? "";
   const etiquetaTipoFert = tipoFertilizante === "solido" ? "Sólido" : "Líquido";
   const etiquetaTipoProducto = tiposProducto.find((t) => t.id === tipoProductoId)?.name;
+  const etiquetaIngredienteActivo = findSelectedIngredient(
+    ingredienteActivoId,
+    ingredientesActivos
+  )?.name;
 
   return (
     <ScreenContainer contentStyle={estilos.contenedor}>
@@ -159,8 +219,12 @@ export function NuevoProductoScreen() {
             onSelect={(valor) => {
               setTipo(valor as TipoProductoNuevo);
               setAbrirTipo(false);
-              setNombre(""); setDescripcion(""); setConcentracion(""); setUnidadMedida("");
-              setTipoProductoId(""); setIngredienteActivoId("");
+              setNombre("");
+              setDescripcion("");
+              setConcentracion("");
+              setUnidadMedida("");
+              setTipoProductoId("");
+              setIngredienteActivoId("");
               setError(null);
             }}
             onToggle={() => setAbrirTipo((p) => !p)}
@@ -171,7 +235,13 @@ export function NuevoProductoScreen() {
 
           <AppInput
             label={tipo === "marca" ? "Nombre comercial *" : "Nombre *"}
-            placeholder={tipo === "ingrediente" ? "Ej: Azoxystrobin" : tipo === "fertilizante" ? "Ej: Nitrato de Potasio" : "Ej: Amistar Top"}
+            placeholder={
+              tipo === "ingrediente"
+                ? "Ej: Azoxystrobin"
+                : tipo === "fertilizante"
+                  ? "Ej: Nitrato de Potasio"
+                  : "Ej: Amistar Top"
+            }
             value={nombre}
             onChangeText={setNombre}
           />
@@ -192,16 +262,32 @@ export function NuevoProductoScreen() {
                 label="Tipo *"
                 icon="options-outline"
                 placeholder="Seleccionar tipo"
-                options={[{ value: "solido", label: "Sólido" }, { value: "liquido", label: "Líquido" }]}
+                options={[
+                  { value: "solido", label: "Sólido" },
+                  { value: "liquido", label: "Líquido" }
+                ]}
                 isOpen={abrirTipoFertilizante}
                 isLoading={false}
                 selectedLabel={etiquetaTipoFert}
-                onSelect={(v) => { setTipoFertilizante(v); setAbrirTipoFertilizante(false); }}
+                onSelect={(v) => {
+                  setTipoFertilizante(v);
+                  setAbrirTipoFertilizante(false);
+                }}
                 onToggle={() => setAbrirTipoFertilizante((p) => !p)}
                 onClose={() => setAbrirTipoFertilizante(false)}
               />
-              <AppInput label="Concentracion *" placeholder="Ej: 46" value={concentracion} onChangeText={setConcentracion} />
-              <AppInput label="Unidad de medida *" placeholder="Ej: %" value={unidadMedida} onChangeText={setUnidadMedida} />
+              <AppInput
+                label="Concentracion *"
+                placeholder="Ej: 46"
+                value={concentracion}
+                onChangeText={setConcentracion}
+              />
+              <AppInput
+                label="Unidad de medida *"
+                placeholder="Ej: %"
+                value={unidadMedida}
+                onChangeText={setUnidadMedida}
+              />
             </>
           ) : null}
 
@@ -216,19 +302,56 @@ export function NuevoProductoScreen() {
                 isLoading={false}
                 emptyMessage="No hay tipos de producto. Sincroniza los catalogos."
                 selectedLabel={etiquetaTipoProducto}
-                onSelect={(v) => { setTipoProductoId(v); setAbrirTipoProducto(false); }}
+                onSelect={(v) => {
+                  setTipoProductoId(v);
+                  setAbrirTipoProducto(false);
+                }}
                 onToggle={() => setAbrirTipoProducto((p) => !p)}
                 onClose={() => setAbrirTipoProducto(false)}
               />
-              <AppInput label="Concentracion *" placeholder="Ej: 325" value={concentracion} onChangeText={setConcentracion} />
-              <AppInput label="Unidad de medida *" placeholder="Ej: g/L" value={unidadMedida} onChangeText={setUnidadMedida} />
+              <AppSelectField
+                label="Ingrediente activo *"
+                icon="leaf-outline"
+                placeholder="Seleccionar ingrediente activo"
+                options={ingredientesActivos.map((item) => ({
+                  value: item.id,
+                  label: item.name
+                }))}
+                isOpen={abrirIngredienteActivo}
+                isLoading={false}
+                emptyMessage="No hay ingredientes activos. Sincroniza los catalogos."
+                selectedLabel={etiquetaIngredienteActivo}
+                searchable
+                searchPlaceholder="Buscar ingrediente activo"
+                onSelect={(value) => {
+                  setIngredienteActivoId(value);
+                  setAbrirIngredienteActivo(false);
+                  setError(null);
+                }}
+                onToggle={() => setAbrirIngredienteActivo((previous) => !previous)}
+                onClose={() => setAbrirIngredienteActivo(false)}
+              />
+              <AppInput
+                label="Concentracion *"
+                placeholder="Ej: 325"
+                value={concentracion}
+                onChangeText={setConcentracion}
+              />
+              <AppInput
+                label="Unidad de medida *"
+                placeholder="Ej: g/L"
+                value={unidadMedida}
+                onChangeText={setUnidadMedida}
+              />
             </>
           ) : null}
         </AppCard>
 
         {error ? (
           <View style={estilos.bannerError}>
-            <AppText variant="caption" style={estilos.textoError}>{error}</AppText>
+            <AppText variant="caption" style={estilos.textoError}>
+              {error}
+            </AppText>
           </View>
         ) : null}
 
@@ -255,8 +378,11 @@ const estilos = StyleSheet.create({
   tarjeta: { padding: 16, gap: 14, backgroundColor: theme.colors.surface },
   separador: { height: 1, backgroundColor: theme.colors.borderLight },
   bannerError: {
-    padding: 12, borderWidth: 1, borderColor: theme.colors.error,
-    borderRadius: theme.radius.md, backgroundColor: theme.colors.errorMuted
+    padding: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.errorMuted
   },
   textoError: { color: theme.colors.error },
   acciones: { gap: 10 }

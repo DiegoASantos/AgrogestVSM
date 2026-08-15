@@ -745,11 +745,22 @@ export async function handleMarcaProducto(
   const item = catalogoMarcasRepo.obtenerPorId(entry.entityLocalId);
   if (!item) return { status: "deleted_local" };
 
+  let ingredienteActivoServerId: string | null = null;
+  if (item.ingredienteActivoId) {
+    const ingredienteActivo = catalogoIngredientesActivosRepo.obtenerPorId(
+      item.ingredienteActivoId
+    );
+    if (!ingredienteActivo?.serverId) {
+      return { status: "skipped" };
+    }
+    ingredienteActivoServerId = ingredienteActivo.serverId;
+  }
+
   const draft = {
     publicId: item.publicId,
     name: item.name,
     tipoProductoId: item.tipoProductoId,
-    ingredienteActivoId: item.ingredienteActivoId,
+    ingredienteActivoId: ingredienteActivoServerId,
     concentracion: item.concentracion,
     unidadMedida: item.unidadMedida
   };

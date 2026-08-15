@@ -1,7 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useUpdates } from "expo-updates";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -32,6 +33,7 @@ import {
   type SyncPendingDetail,
   type SyncRunResult
 } from "../../../../shared/sync";
+import { appUpdateService } from "../../../../shared/updates/app-update.service";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { ClimateDashboard } from "../../../clima/presentation/components/climate-dashboard";
 import { parcelasService } from "../../../parcelas/services/parcelas.service";
@@ -47,7 +49,10 @@ export function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { isOnline } = useIsOnline();
+  const { isUpdatePending } = useUpdates();
   const { isAuthenticated, onlineSessionStatus, session, signOut } = useAuthSession();
+  const updateCheckInFlightRef = useRef(false);
+  const updateReadyRef = useRef(false);
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
   const [syncErrors, setSyncErrors] = useState<SyncErrorDetail[]>([]);
   const [syncPending, setSyncPending] = useState<SyncPendingDetail[]>([]);
@@ -58,6 +63,9 @@ export function HomeScreen() {
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [isRetryingFailures, setIsRetryingFailures] = useState(false);
   const [isRefreshingCatalogs, setIsRefreshingCatalogs] = useState(false);
+  const [isAppUpdateReady, setIsAppUpdateReady] = useState(false);
+  const [isApplyingAppUpdate, setIsApplyingAppUpdate] = useState(false);
+  const [appUpdateError, setAppUpdateError] = useState<string | null>(null);
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
   const catalogStatus = useCatalogDownloadStatus();
   const heroHeight = Math.min(Math.max(width * 0.58, 218), 330);
@@ -90,7 +98,45 @@ export function HomeScreen() {
 
   useFocusEffect(loadDashboard);
 
+  const checkForAppUpdate = useCallback(() => {
+    if (!isOnline || updateCheckInFlightRef.current || updateReadyRef.current) {
+      return;
+    }
+
+    updateCheckInFlightRef.current = true;
+
+    void appUpdateService
+      .prepare()
+      .then((result) => {
+        if (result !== "ready") {
+          return;
+        }
+
+        updateReadyRef.current = true;
+        setAppUpdateError(null);
+        setIsAppUpdateReady(true);
+      })
+      .catch(() => {
+        // La comprobacion OTA no debe bloquear Inicio ni los flujos offline.
+      })
+      .finally(() => {
+        updateCheckInFlightRef.current = false;
+      });
+  }, [isOnline]);
+
+  useFocusEffect(checkForAppUpdate);
+
   useEffect(() => subscribeToSyncStatus(loadSyncState), [loadSyncState]);
+
+  useEffect(() => {
+    if (!isUpdatePending) {
+      return;
+    }
+
+    updateReadyRef.current = true;
+    setAppUpdateError(null);
+    setIsAppUpdateReady(true);
+  }, [isUpdatePending]);
 
   const syncStatus = useMemo(() => getSyncStatus(syncCounts), [syncCounts]);
   const goToHistory = useCallback(() => {
@@ -154,6 +200,27 @@ export function HomeScreen() {
     }
   }, [isOnline, isRefreshingCatalogs, catalogStatus.isDownloading, loadDashboard]);
 
+  const handleApplyAppUpdate = useCallback(async () => {
+    if (isApplyingAppUpdate) {
+      return;
+    }
+
+    setIsApplyingAppUpdate(true);
+    setAppUpdateError(null);
+
+    try {
+      const willReload = await appUpdateService.applyDownloadedUpdate();
+
+      if (!willReload) {
+        setAppUpdateError("La actualizacion no esta disponible en esta compilacion.");
+        setIsApplyingAppUpdate(false);
+      }
+    } catch {
+      setAppUpdateError("No se pudo aplicar la actualizacion. Intenta nuevamente.");
+      setIsApplyingAppUpdate(false);
+    }
+  }, [isApplyingAppUpdate]);
+
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <StatusBar backgroundColor="#fbfcf9" style="dark" />
@@ -190,6 +257,53 @@ export function HomeScreen() {
             </Pressable>
           ) : null}
         </View>
+
+        {isAppUpdateReady ? (
+          <View style={styles.appUpdateBanner}>
+            <View style={styles.appUpdateHeader}>
+              <View style={styles.appUpdateIcon}>
+                <Ionicons color="#08643f" name="rocket-outline" size={24} />
+              </View>
+              <View style={styles.appUpdateCopy}>
+                <AppText style={styles.appUpdateTitle} variant="heading">
+                  Nueva version disponible
+                </AppText>
+                <AppText
+                  style={[
+                    styles.appUpdateDescription,
+                    appUpdateError && styles.appUpdateError
+                  ]}
+                  variant="caption"
+                >
+                  {appUpdateError ||
+                    "La mejora ya esta descargada. Actualiza cuando estes en Inicio."}
+                </AppText>
+              </View>
+            </View>
+            <Pressable
+              accessibilityHint="Reinicia AgroGest y aplica la version descargada"
+              accessibilityRole="button"
+              disabled={isApplyingAppUpdate}
+              onPress={() => {
+                void handleApplyAppUpdate();
+              }}
+              style={({ pressed }) => [
+                styles.appUpdateButton,
+                pressed && styles.pressed,
+                isApplyingAppUpdate && styles.manualSyncButtonDisabled
+              ]}
+            >
+              {isApplyingAppUpdate ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <Ionicons color="#ffffff" name="refresh-outline" size={20} />
+              )}
+              <AppText style={styles.appUpdateButtonText} variant="label">
+                {isApplyingAppUpdate ? "Actualizando..." : "Actualizar ahora"}
+              </AppText>
+            </Pressable>
+          </View>
+        ) : null}
 
         {catalogStatus.isDownloading || catalogStatus.error ? (
           <View
@@ -963,6 +1077,58 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: 1,
     color: "#66706b",
+    fontSize: 15
+  },
+  appUpdateBanner: {
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#9bc783",
+    borderRadius: 16,
+    backgroundColor: "#edf6e6"
+  },
+  appUpdateHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11
+  },
+  appUpdateIcon: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: "#d9edca"
+  },
+  appUpdateCopy: {
+    minWidth: 0,
+    flex: 1,
+    gap: 2
+  },
+  appUpdateTitle: {
+    color: "#064b31",
+    fontSize: 17
+  },
+  appUpdateDescription: {
+    color: "#466052",
+    lineHeight: 18
+  },
+  appUpdateError: {
+    color: "#9d3d35"
+  },
+  appUpdateButton: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 13,
+    backgroundColor: "#08643f"
+  },
+  appUpdateButtonText: {
+    color: "#ffffff",
     fontSize: 15
   },
   logoutButton: {
