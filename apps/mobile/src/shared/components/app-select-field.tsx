@@ -113,7 +113,7 @@ export function AppSelectField({
 
       {isOpen ? (
         <View style={styles.optionsContainer}>
-          {searchable && !isLoading && !error && options.length > 0 ? (
+          {searchable && !isLoading && options.length > 0 ? (
             <TextInput
               accessibilityLabel={`Buscar ${label.toLowerCase()}`}
               autoCapitalize="none"
@@ -132,19 +132,19 @@ export function AppSelectField({
             </AppText>
           ) : null}
 
-          {!isLoading && !error && options.length === 0 ? (
+          {!isLoading && options.length === 0 ? (
             <AppText variant="muted" style={styles.optionMessage}>
               {emptyMessage}
             </AppText>
           ) : null}
 
-          {!isLoading && !error && options.length > 0 && filteredOptions.length === 0 ? (
+          {!isLoading && options.length > 0 && filteredOptions.length === 0 ? (
             <AppText variant="muted" style={styles.optionMessage}>
               No hay coincidencias para la busqueda.
             </AppText>
           ) : null}
 
-          {!isLoading && !error && filteredOptions.length > 0
+          {!isLoading && filteredOptions.length > 0
             ? filteredOptions.map((option) => (
                 <Pressable
                   key={option.value}

@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useRef, useState, type ComponentProps } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import {
   Alert,
   ImageBackground,
@@ -132,6 +132,15 @@ export function VisitaRecetaScreen() {
   const compatibilityAlertOpenRef = useRef(false);
   const catalogDownloadStatus = useCatalogDownloadStatus();
   const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
+
+  useFocusEffect(
+    useCallback(() => {
+      const catalogos = visitaRecetasService.getCatalogos();
+      setIngredientesActivos(catalogos.ingredientesActivos);
+      setMarcasProducto(catalogos.marcasProducto);
+      setFertilizantes(catalogos.fertilizantes);
+    }, [])
+  );
 
   useEffect(() => {
     if (!visitaId) {
