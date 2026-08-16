@@ -154,8 +154,11 @@ export class ParcelasController {
   @ApiOkResponse({
     description: "Resumen agregado de parcelas."
   })
-  getParcelasSummary(@Query() query: FindParcelasSummaryQueryDto) {
-    return this.parcelasService.getSummary(query);
+  getParcelasSummary(
+    @Query() query: FindParcelasSummaryQueryDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.parcelasService.getSummary(query, currentUser);
   }
 
   @Get(":id/historial-visitas")
@@ -175,9 +178,10 @@ export class ParcelasController {
   })
   getParcelaVisitHistory(
     @Param("id", ParseEntityIdPipe) id: string,
-    @Query() pagination: PaginationQueryDto
+    @Query() pagination: PaginationQueryDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
   ) {
-    return this.parcelasService.getHistorialVisitas(id, pagination);
+    return this.parcelasService.getHistorialVisitas(id, pagination, currentUser);
   }
 
   @Get(":id")
@@ -193,8 +197,11 @@ export class ParcelasController {
   @ApiNotFoundResponse({
     description: "La parcela no existe."
   })
-  getParcelaById(@Param("id", ParseEntityIdPipe) id: string) {
-    return this.parcelasService.findById(id);
+  getParcelaById(
+    @Param("id", ParseEntityIdPipe) id: string,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.parcelasService.findById(id, currentUser);
   }
 
   @Patch(":id")
@@ -219,9 +226,10 @@ export class ParcelasController {
   })
   updateParcela(
     @Param("id", ParseEntityIdPipe) id: string,
-    @Body() updateParcelaDto: UpdateParcelaDto
+    @Body() updateParcelaDto: UpdateParcelaDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
   ) {
-    return this.parcelasService.update(id, updateParcelaDto);
+    return this.parcelasService.update(id, updateParcelaDto, currentUser);
   }
 
   @Patch(":id/agronomo")
@@ -243,9 +251,14 @@ export class ParcelasController {
   })
   updateParcelaAgronomo(
     @Param("id", ParseEntityIdPipe) id: string,
-    @Body() updateParcelaAgronomoDto: UpdateParcelaAgronomoDto
+    @Body() updateParcelaAgronomoDto: UpdateParcelaAgronomoDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
   ) {
-    return this.parcelasService.updateAgronomo(id, updateParcelaAgronomoDto);
+    return this.parcelasService.updateAgronomo(
+      id,
+      updateParcelaAgronomoDto,
+      currentUser
+    );
   }
 
   @Delete(":id")
@@ -263,7 +276,10 @@ export class ParcelasController {
   @ApiNotFoundResponse({
     description: "La parcela no existe."
   })
-  deleteParcela(@Param("id", ParseEntityIdPipe) id: string) {
-    return this.parcelasService.remove(id);
+  deleteParcela(
+    @Param("id", ParseEntityIdPipe) id: string,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.parcelasService.remove(id, currentUser);
   }
 }

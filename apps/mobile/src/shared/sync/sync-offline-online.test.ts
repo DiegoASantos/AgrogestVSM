@@ -69,9 +69,16 @@ vi.mock("../../modules/sectores/repositories/sectores.repository", () => ({
 vi.mock("../../modules/subsectores/repositories/subsectores.repository", () => ({
   subsectoresRepository: { getById: vi.fn(() => null), update: vi.fn(), insert: vi.fn() }
 }));
+const parcelasRepositoryMocks = vi.hoisted(() => ({
+  getById: vi.fn((id: string) =>
+    id === "3"
+      ? { id, isActive: true, syncStatus: "synced", serverId: id }
+      : null
+  )
+}));
 vi.mock("../../modules/parcelas/repositories/parcelas.repository", () => ({
   parcelasRepository: {
-    getById: vi.fn(() => null),
+    getById: parcelasRepositoryMocks.getById,
     update: vi.fn(),
     insert: vi.fn(),
     getByProductorAndSubsector: vi.fn(() => [])

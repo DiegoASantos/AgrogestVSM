@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { initDatabase, getDatabase } from "../../../shared/database/connection";
+import { setCatalogSessionUserId } from "../../../shared/database/catalog-session";
 import {
   clearApiToken,
   setApiToken,
@@ -20,7 +21,10 @@ import {
   loadAuthTokens,
   storeAuthTokens
 } from "../../../shared/services/api/secure-token-store";
-import { isAccessTokenExpired } from "../../../shared/utils/auth-token";
+import {
+  getUserIdFromAccessToken,
+  isAccessTokenExpired
+} from "../../../shared/utils/auth-token";
 import { authService } from "../services";
 import {
   classifyRefreshFailure,
@@ -84,6 +88,10 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
         refreshToken: result.refreshToken
       });
       persistSessionMetadata(nextSession);
+      setCatalogSessionUserId(
+        getDatabase(),
+        getUserIdFromAccessToken(result.accessToken)
+      );
       sessionRef.current = nextSession;
       setSession(nextSession);
       refreshCooldownUntilRef.current = 0;
@@ -101,6 +109,7 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     refreshTokenRef.current = null;
     refreshCooldownUntilRef.current = 0;
     clearPersistedSessionMetadata();
+    setCatalogSessionUserId(getDatabase(), null);
     void clearAuthTokens().catch(() => {
       // Local state is already cleared even if secure storage is unavailable.
     });
@@ -357,6 +366,13 @@ async function loadPersistedSession(): Promise<{
     }
 
     setApiToken(tokens?.accessToken ?? null);
+
+    if (tokens?.accessToken) {
+      setCatalogSessionUserId(
+        getDatabase(),
+        getUserIdFromAccessToken(tokens.accessToken)
+      );
+    }
 
     return {
       session: {

@@ -41,15 +41,35 @@ export class ProductoresService {
     private readonly visitasCampoService: VisitasCampoService
   ) {}
 
-  async create(createProductorDto: CreateProductorDto) {
+  async create(
+    createProductorDto: CreateProductorDto,
+    currentUser?: CurrentUserContext
+  ) {
     if (createProductorDto.publicId) {
       const existing = await this.productoresRepository.findOne({
         where: { publicId: createProductorDto.publicId }
       });
 
       if (existing) {
+        if (
+          isAgronomoUser(currentUser) &&
+          existing.createdByUserId !== currentUser!.userId &&
+          !(await this.parcelasService.hasParcelAssignedToAgronomo(
+            existing.id,
+            currentUser!.userId
+          ))
+        ) {
+          throw new NotFoundException("Productor not found.");
+        }
+
         return createSuccessResponse(this.toResponse(existing));
       }
+    }
+
+    if (createProductorDto.isActive === true) {
+      throw new ConflictException(
+        "El productor no puede estar activo sin una parcela activa."
+      );
     }
 
     const entityType = createProductorDto.entityType ?? "persona";
@@ -78,7 +98,8 @@ export class ProductoresService {
       phone: createProductorDto.phone ?? null,
       email: createProductorDto.email ?? null,
       address: createProductorDto.address ?? null,
-      isActive: createProductorDto.isActive ?? true
+      isActive: false,
+      createdByUserId: isAgronomoUser(currentUser) ? currentUser!.userId : null
     });
 
     try {
@@ -93,7 +114,8 @@ export class ProductoresService {
   async findAll(query: FindProductoresQueryDto, currentUser?: CurrentUserContext) {
     const queryBuilder = this.productoresRepository
       .createQueryBuilder("productor")
-      .orderBy("productor.creado_at", "DESC")
+      .orderBy("productor.activo", "DESC")
+      .addOrderBy("productor.creado_at", "DESC")
       .skip(query.skip)
       .take(query.take);
 
@@ -141,16 +163,25 @@ export class ProductoresService {
     );
   }
 
-  async findById(id: string) {
-    const productor = await this.findEntityById(id);
+  async findById(id: string, currentUser?: CurrentUserContext) {
+    const productor = await this.findEntityById(id, currentUser);
 
     return createSuccessResponse(this.toResponse(productor));
   }
 
-  async getSummary(id: string) {
-    const productor = await this.findEntityById(id);
-    const sectores = await this.sectoresService.findEntitiesByProductorId(id);
-    const parcelasCount = await this.parcelasService.countByProductorId(id);
+  async getSummary(id: string, currentUser?: CurrentUserContext) {
+    const productor = await this.findEntityById(id, currentUser);
+    const agronomoUserId = isAgronomoUser(currentUser)
+      ? currentUser!.userId
+      : undefined;
+    const sectores = await this.sectoresService.findEntitiesByProductorId(
+      id,
+      agronomoUserId
+    );
+    const parcelasCount = await this.parcelasService.countByProductorId(
+      id,
+      currentUser
+    );
 
     return createSuccessResponse({
       productor: this.toResponse(productor),
@@ -161,10 +192,19 @@ export class ProductoresService {
     });
   }
 
-  async getStructure(id: string) {
-    const productor = await this.findEntityById(id);
-    const sectores = await this.sectoresService.findEntitiesByProductorId(id);
-    const parcelas = await this.parcelasService.findEntitiesByProductorId(id);
+  async getStructure(id: string, currentUser?: CurrentUserContext) {
+    const productor = await this.findEntityById(id, currentUser);
+    const agronomoUserId = isAgronomoUser(currentUser)
+      ? currentUser!.userId
+      : undefined;
+    const sectores = await this.sectoresService.findEntitiesByProductorId(
+      id,
+      agronomoUserId
+    );
+    const parcelas = await this.parcelasService.findEntitiesByProductorId(
+      id,
+      currentUser
+    );
 
     const parcelasBySubsectorId = parcelas.reduce<Record<string, ParcelaEntity[]>>(
       (accumulator, parcela) => {
@@ -210,12 +250,31 @@ export class ProductoresService {
     });
   }
 
-  async getHistorialVisitas(id: string, query: FindHistorialVisitasProductorQueryDto) {
-    return this.visitasCampoService.findHistoryByProductorId(id, query);
+  async getHistorialVisitas(
+    id: string,
+    query: FindHistorialVisitasProductorQueryDto,
+    currentUser?: CurrentUserContext
+  ) {
+    await this.findEntityById(id, currentUser);
+    return this.visitasCampoService.findHistoryByProductorId(id, query, currentUser);
   }
 
-  async update(id: string, updateProductorDto: UpdateProductorDto) {
-    const productor = await this.findEntityById(id);
+  async update(
+    id: string,
+    updateProductorDto: UpdateProductorDto,
+    currentUser?: CurrentUserContext
+  ) {
+    const productor = await this.findEntityById(id, currentUser);
+    const derivedIsActive = await this.parcelasService.hasActiveParcelByProductorId(id);
+
+    if (
+      updateProductorDto.isActive !== undefined &&
+      updateProductorDto.isActive !== derivedIsActive
+    ) {
+      throw new ConflictException(
+        "El estado del productor depende de sus parcelas activas."
+      );
+    }
     const nextEntityType = updateProductorDto.entityType ?? productor.entityType;
     const nextDocumentTypeId =
       updateProductorDto.documentTypeId !== undefined
@@ -284,9 +343,7 @@ export class ProductoresService {
       ...(updateProductorDto.address !== undefined
         ? { address: updateProductorDto.address }
         : {}),
-      ...(updateProductorDto.isActive !== undefined
-        ? { isActive: updateProductorDto.isActive }
-        : {}),
+      isActive: derivedIsActive,
       updatedAt: new Date()
     });
 
@@ -299,8 +356,15 @@ export class ProductoresService {
     }
   }
 
-  async remove(id: string) {
-    const productor = await this.findEntityById(id);
+  async remove(id: string, currentUser?: CurrentUserContext) {
+    const productor = await this.findEntityById(id, currentUser);
+    const hasActiveParcela = await this.parcelasService.hasActiveParcelByProductorId(id);
+
+    if (hasActiveParcela) {
+      throw new ConflictException(
+        "No se puede desactivar un productor que tiene parcelas activas."
+      );
+    }
 
     if (!productor.isActive) {
       return createSuccessResponse(this.toResponse(productor));
@@ -314,12 +378,23 @@ export class ProductoresService {
     return createSuccessResponse(this.toResponse(savedProductor));
   }
 
-  private async findEntityById(id: string) {
+  private async findEntityById(id: string, currentUser?: CurrentUserContext) {
     const productor = await this.productoresRepository.findOne({
       where: { id }
     });
 
     if (!productor) {
+      throw new NotFoundException("Productor not found.");
+    }
+
+    if (
+      isAgronomoUser(currentUser) &&
+      productor.createdByUserId !== currentUser!.userId &&
+      !(await this.parcelasService.hasParcelAssignedToAgronomo(
+        productor.id,
+        currentUser!.userId
+      ))
+    ) {
       throw new NotFoundException("Productor not found.");
     }
 

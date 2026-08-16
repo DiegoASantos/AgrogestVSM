@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-11
+last_reviewed: 2026-08-15
 ---
 
 # Línea base de seguridad operativa
@@ -21,6 +21,22 @@ last_reviewed: 2026-08-11
 - `Cache-Control: no-store` en endpoints de autenticación;
 - tokens mobile en almacenamiento seguro;
 - access token web solo en memoria y refresh token por sesión de pestaña.
+
+- aislamiento horizontal de parcelas para `AGRONOMO`: listados, lectura y
+  mutaciones por ID se limitan a `agronomo_usuario_id` y una visita nueva exige
+  una parcela activa asignada al usuario autenticado;
+- catalogos SQLite de productores y parcelas aislados por el usuario de la
+  sesion, sin reutilizar como visibles los datos descargados por otra cuenta.
+- outbox y fallos mobile particionados por usuario; un cambio de cuenta no
+  intenta publicar pendientes anteriores con el token nuevo;
+- alta y movimiento de parcelas por `AGRONOMO` limitados a productores creados
+  por el usuario o que ya tengan una parcela asignada a el.
+- endpoints de productor por ID (detalle, resumen, estructura, historial,
+  actualizacion y desactivacion) ocultan productores ajenos y filtran parcelas,
+  sectores y visitas por el agronomo autenticado;
+- la reconciliacion de filas `pending` sin outbox solo reconstruye operaciones
+  cuya pertenencia a la sesion puede demostrarse por propietario de catalogo o
+  por la visita raiz; no reasigna catalogos globales huerfanos entre cuentas.
 
 ## Rate limiting
 

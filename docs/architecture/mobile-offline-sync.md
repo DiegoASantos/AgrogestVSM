@@ -29,6 +29,30 @@ la API cuando vuelva a tener conectividad.
 6. Se sincronizan evaluaciones, sanidad, notas, riego, labores y receta.
 7. Los registros pasan a `synced`, quedan `pending` o terminan en `error`.
 
+### Catalogos territoriales por sesion y reactivacion
+
+La migracion SQLite 59 agrega a productores y parcelas el propietario de la
+descarga y una marca de visibilidad. Cada descarga oculta primero el catalogo
+sincronizado de la sesion actual y vuelve a marcar solo los elementos devueltos
+por la API. No borra operaciones pendientes, productores creados localmente ni
+parcelas requeridas por visitas historicas. Al cambiar el usuario autenticado
+se invalida la fecha de catalogos para obligar una descarga con el nuevo
+alcance; las consultas seleccionables filtran siempre por el propietario de la
+sesion.
+
+Los selectores incluyen activos e inactivos y ordenan activos primero. Si el
+tecnico confirma una parcela inactiva, mobile la activa junto con el estado
+local del productor y crea una operacion `parcelas:update` en una sola
+transaccion. El orden del outbox procesa parcelas antes que visitas. Ademas, el
+handler de visita espera mientras la parcela siga `pending` o `error`; un fallo
+de activacion no elimina ni intenta publicar anticipadamente la visita.
+
+`sync_outbox` y `sync_failures` tambien conservan `owner_user_id`. El motor,
+los contadores y el reintento durable solo leen filas del usuario autenticado.
+Al actualizar desde una version anterior, los pendientes sin propietario se
+asignan una sola vez a la primera sesion restaurada; cambiar luego de cuenta no
+publica, elimina ni convierte en fallo los pendientes de la sesion anterior.
+
 ### Parcelas con dos puntos de referencia
 
 El alta mobile de una parcela guarda en la misma transacción SQLite el punto de
@@ -150,9 +174,12 @@ y programa un sync inmediato con `bypassBackoff`.
 - toda visita nueva se guarda con etapa fenológica; una visita pendiente de una
   versión anterior sin etapa debe corregirse antes de reintentar su sync;
 - no sincronizar hijos antes de obtener el ID de la visita;
+- no sincronizar una visita mientras su parcela este inactiva o su activacion
+  local no haya sido confirmada por la API;
 - conservar operaciones de borrado con el ID remoto necesario;
 - evitar duplicar entradas equivalentes en la outbox;
 - no perder datos locales por una caida de red;
+- no procesar outbox ni fallos durables pertenecientes a otra sesion;
 - mantener idempotencia mediante IDs publicos cuando aplique;
 - no considerar `synced` una entidad que no fue confirmada por la API;
 - al finalizar el paso 3 de Enfermedades, su nota de paso espera en outbox si

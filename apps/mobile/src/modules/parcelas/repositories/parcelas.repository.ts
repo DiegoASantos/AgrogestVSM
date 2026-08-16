@@ -1,9 +1,11 @@
 import { getDatabase } from "../../../shared/database/connection";
+import { getCatalogSessionUserId } from "../../../shared/database/catalog-session";
 import {
   fromSqliteBoolean,
   getNowIsoString,
   parseNullableJson,
-  stringifyNullableJson
+  stringifyNullableJson,
+  toSqliteBoolean
 } from "../../../shared/database/sqlite-utils";
 import type { SQLiteBindValue } from "expo-sqlite";
 import {
@@ -57,11 +59,15 @@ const PARCELA_COLUMNS = `
 export const parcelasRepository = {
   getAll() {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const rows = db.getAllSync<ParcelaRow>(
       `SELECT ${PARCELA_COLUMNS}
        FROM parcelas
        INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
-       ORDER BY parcelas.name ASC, parcelas.id ASC`
+       WHERE parcelas.catalog_owner_user_id = ?
+         AND parcelas.catalog_visible = 1
+       ORDER BY parcelas.is_active DESC, parcelas.name ASC, parcelas.id ASC`,
+      ownerUserId
     );
 
     return rows.map(mapParcelaRow);
@@ -101,13 +107,17 @@ export const parcelasRepository = {
 
   getBySectorId(sectorId: string) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const rows = db.getAllSync<ParcelaRow>(
       `SELECT ${PARCELA_COLUMNS}
        FROM parcelas
        INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
        WHERE subsectores.sector_id = ?
-       ORDER BY parcelas.name ASC, parcelas.id ASC`,
-      sectorId
+         AND parcelas.catalog_owner_user_id = ?
+         AND parcelas.catalog_visible = 1
+       ORDER BY parcelas.is_active DESC, parcelas.name ASC, parcelas.id ASC`,
+      sectorId,
+      ownerUserId
     );
 
     return rows.map(mapParcelaRow);
@@ -115,13 +125,17 @@ export const parcelasRepository = {
 
   getBySubsectorId(subsectorId: string) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const rows = db.getAllSync<ParcelaRow>(
       `SELECT ${PARCELA_COLUMNS}
        FROM parcelas
        INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
        WHERE parcelas.subsector_id = ?
-       ORDER BY parcelas.name ASC, parcelas.id ASC`,
-      subsectorId
+         AND parcelas.catalog_owner_user_id = ?
+         AND parcelas.catalog_visible = 1
+       ORDER BY parcelas.is_active DESC, parcelas.name ASC, parcelas.id ASC`,
+      subsectorId,
+      ownerUserId
     );
 
     return rows.map(mapParcelaRow);
@@ -129,15 +143,19 @@ export const parcelasRepository = {
 
   getByProductorAndSubsector(productorId: string, subsectorId: string) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const rows = db.getAllSync<ParcelaRow>(
       `SELECT ${PARCELA_COLUMNS}
        FROM parcelas
        INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
        WHERE parcelas.productor_id = ?
          AND parcelas.subsector_id = ?
-       ORDER BY parcelas.name ASC, parcelas.id ASC`,
+         AND parcelas.catalog_owner_user_id = ?
+         AND parcelas.catalog_visible = 1
+       ORDER BY parcelas.is_active DESC, parcelas.name ASC, parcelas.id ASC`,
       productorId,
-      subsectorId
+      subsectorId,
+      ownerUserId
     );
 
     return rows.map(mapParcelaRow);
@@ -145,13 +163,17 @@ export const parcelasRepository = {
 
   getByProductorId(productorId: string) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const rows = db.getAllSync<ParcelaRow>(
       `SELECT ${PARCELA_COLUMNS}
        FROM parcelas
        INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
        WHERE parcelas.productor_id = ?
-       ORDER BY parcelas.name ASC, parcelas.id ASC`,
-      productorId
+         AND parcelas.catalog_owner_user_id = ?
+         AND parcelas.catalog_visible = 1
+       ORDER BY parcelas.is_active DESC, parcelas.name ASC, parcelas.id ASC`,
+      productorId,
+      ownerUserId
     );
 
     return rows.map(mapParcelaRow);
@@ -159,11 +181,15 @@ export const parcelasRepository = {
 
   countByProductorId(productorId: string) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const row = db.getFirstSync<{ total: number }>(
       `SELECT COUNT(*) AS total
        FROM parcelas
-       WHERE productor_id = ?`,
-      productorId
+       WHERE productor_id = ?
+         AND catalog_owner_user_id = ?
+         AND catalog_visible = 1`,
+      productorId,
+      ownerUserId
     );
 
     return row?.total ?? 0;
@@ -171,13 +197,15 @@ export const parcelasRepository = {
 
   insert(parcela: Parcela) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     db.runSync(
       `INSERT INTO parcelas (
         id, public_id, productor_id, subsector_id, code, name,
         area_hectares, description, reference_point, parcel_reference_point, geometry,
         is_active, created_at, updated_at,
-        server_id, sync_status, sync_error_message
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        server_id, sync_status, sync_error_message,
+        catalog_owner_user_id, catalog_visible
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       parcela.id,
       parcela.publicId,
       parcela.productorId,
@@ -189,12 +217,14 @@ export const parcelasRepository = {
       stringifyNullableJson(parcela.referencePoint),
       stringifyNullableJson(parcela.parcelReferencePoint),
       stringifyNullableJson(parcela.geometry),
-      1,
+      toSqliteBoolean(parcela.isActive),
       parcela.createdAt,
       parcela.updatedAt,
       parcela.serverId,
       parcela.syncStatus,
-      parcela.syncErrorMessage
+      parcela.syncErrorMessage,
+      ownerUserId,
+      1
     );
   },
 
@@ -206,6 +236,7 @@ export const parcelasRepository = {
       syncErrorMessage?: string | null;
       code?: string;
       publicId?: string;
+      isActive?: boolean;
     }
   ) {
     const db = getDatabase();
@@ -232,6 +263,10 @@ export const parcelasRepository = {
       sets.push("public_id = ?");
       params.push(data.publicId);
     }
+    if (data.isActive !== undefined) {
+      sets.push("is_active = ?");
+      params.push(toSqliteBoolean(data.isActive));
+    }
 
     sets.push("updated_at = ?");
     params.push(getNowIsoString());
@@ -240,6 +275,10 @@ export const parcelasRepository = {
     db.runSync(`UPDATE parcelas SET ${sets.join(", ")} WHERE id = ?`, ...params);
   }
 };
+
+function requireCatalogOwner(db: ReturnType<typeof getDatabase>): string {
+  return getCatalogSessionUserId(db) ?? "__no_authenticated_catalog_owner__";
+}
 
 function mapParcelaRow(row: ParcelaRow): Parcela {
   return {

@@ -1,5 +1,10 @@
 import { getDatabase } from "../../../shared/database/connection";
-import { fromSqliteBoolean, getNowIsoString } from "../../../shared/database/sqlite-utils";
+import { getCatalogSessionUserId } from "../../../shared/database/catalog-session";
+import {
+  fromSqliteBoolean,
+  getNowIsoString,
+  toSqliteBoolean
+} from "../../../shared/database/sqlite-utils";
 import type { SQLiteBindValue } from "expo-sqlite";
 import type { Productor } from "../types";
 
@@ -44,11 +49,15 @@ const PRODUCTOR_COLUMNS = `
 export const productoresRepository = {
   getAll() {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const rows = db.getAllSync<ProductorRow>(
       `SELECT ${PRODUCTOR_COLUMNS}
        FROM productores
-       WHERE is_active = 1
-       ORDER BY COALESCE(first_name, document_number, public_id) ASC, id ASC`
+       WHERE catalog_owner_user_id = ?
+         AND (catalog_visible = 1 OR created_locally = 1)
+       ORDER BY is_active DESC,
+         COALESCE(first_name, document_number, public_id) ASC, id ASC`,
+      ownerUserId
     );
 
     return rows.map(mapProductorRow);
@@ -56,19 +65,23 @@ export const productoresRepository = {
 
   searchByName(query: string, limit: number, offset: number) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const searchPattern = `%${query.trim().toLowerCase()}%`;
     const rows = db.getAllSync<ProductorRow>(
       `SELECT ${PRODUCTOR_COLUMNS}
        FROM productores
-       WHERE is_active = 1
+       WHERE catalog_owner_user_id = ?
+         AND (catalog_visible = 1 OR created_locally = 1)
          AND (
           LOWER(COALESCE(first_name, '')) LIKE ?
           OR LOWER(COALESCE(last_name, '')) LIKE ?
           OR LOWER(COALESCE(document_number, '')) LIKE ?
         )
-       ORDER BY COALESCE(first_name, document_number, public_id) ASC, id ASC
+       ORDER BY is_active DESC,
+         COALESCE(first_name, document_number, public_id) ASC, id ASC
        LIMIT ?
        OFFSET ?`,
+      ownerUserId,
       searchPattern,
       searchPattern,
       searchPattern,
@@ -81,16 +94,19 @@ export const productoresRepository = {
 
   countByName(query: string) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const searchPattern = `%${query.trim().toLowerCase()}%`;
     const row = db.getFirstSync<{ total: number }>(
       `SELECT COUNT(*) AS total
        FROM productores
-       WHERE is_active = 1
+       WHERE catalog_owner_user_id = ?
+         AND (catalog_visible = 1 OR created_locally = 1)
          AND (
           LOWER(COALESCE(first_name, '')) LIKE ?
           OR LOWER(COALESCE(last_name, '')) LIKE ?
           OR LOWER(COALESCE(document_number, '')) LIKE ?
         )`,
+      ownerUserId,
       searchPattern,
       searchPattern,
       searchPattern
@@ -114,18 +130,25 @@ export const productoresRepository = {
 
   getBySectorId(sectorId: string) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     const rows = db.getAllSync<ProductorRow>(
       `SELECT ${PRODUCTOR_COLUMNS}
        FROM productores
-       WHERE is_active = 1
+       WHERE catalog_owner_user_id = ?
+         AND (catalog_visible = 1 OR created_locally = 1)
          AND id IN (
           SELECT DISTINCT parcelas.productor_id
           FROM parcelas
           INNER JOIN subsectores ON subsectores.id = parcelas.subsector_id
           WHERE subsectores.sector_id = ?
+            AND parcelas.catalog_owner_user_id = ?
+            AND parcelas.catalog_visible = 1
         )
-       ORDER BY COALESCE(first_name, document_number, public_id) ASC, id ASC`,
-      sectorId
+       ORDER BY is_active DESC,
+         COALESCE(first_name, document_number, public_id) ASC, id ASC`,
+      ownerUserId,
+      sectorId,
+      ownerUserId
     );
 
     return rows.map(mapProductorRow);
@@ -133,13 +156,15 @@ export const productoresRepository = {
 
   insert(productor: Productor) {
     const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
     db.runSync(
       `INSERT INTO productores (
         id, public_id, entity_type, document_type_id, document_number,
         first_name, last_name, phone, email, address,
         is_active, created_at, updated_at,
-        server_id, sync_status, sync_error_message
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        server_id, sync_status, sync_error_message,
+        catalog_owner_user_id, catalog_visible, created_locally
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       productor.id,
       productor.publicId,
       productor.entityType,
@@ -150,16 +175,27 @@ export const productoresRepository = {
       productor.phone,
       productor.email,
       productor.address,
-      1,
+      toSqliteBoolean(productor.isActive),
       productor.createdAt,
       productor.updatedAt,
       productor.serverId,
       productor.syncStatus,
-      productor.syncErrorMessage
+      productor.syncErrorMessage,
+      ownerUserId,
+      1,
+      1
     );
   },
 
-  update(id: string, data: { serverId?: string | null; syncStatus?: Productor["syncStatus"]; syncErrorMessage?: string | null }) {
+  update(
+    id: string,
+    data: {
+      serverId?: string | null;
+      syncStatus?: Productor["syncStatus"];
+      syncErrorMessage?: string | null;
+      isActive?: boolean;
+    }
+  ) {
     const db = getDatabase();
     const sets: string[] = [];
     const params: SQLiteBindValue[] = [];
@@ -176,6 +212,10 @@ export const productoresRepository = {
       sets.push("sync_error_message = ?");
       params.push(data.syncErrorMessage);
     }
+    if (data.isActive !== undefined) {
+      sets.push("is_active = ?");
+      params.push(toSqliteBoolean(data.isActive));
+    }
 
     sets.push("updated_at = ?");
     params.push(getNowIsoString());
@@ -184,6 +224,10 @@ export const productoresRepository = {
     db.runSync(`UPDATE productores SET ${sets.join(", ")} WHERE id = ?`, ...params);
   }
 };
+
+function requireCatalogOwner(db: ReturnType<typeof getDatabase>): string {
+  return getCatalogSessionUserId(db) ?? "__no_authenticated_catalog_owner__";
+}
 
 function mapProductorRow(row: ProductorRow): Productor {
   return {

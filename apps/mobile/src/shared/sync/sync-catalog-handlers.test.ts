@@ -20,6 +20,8 @@ vi.mock("../utils/local-id", () => ({
 
 import { parcelasRepository } from "../../modules/parcelas/repositories/parcelas.repository";
 import { parcelasRemote } from "../../modules/parcelas/services/parcelas.remote";
+import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
+import { visitasCampoRemote } from "../../modules/visitas-campo/services/visitas-campo.remote";
 import { productoresRepository } from "../../modules/productores/repositories/productores.repository";
 import { productoresRemote } from "../../modules/productores/services/productores.remote";
 import {
@@ -35,7 +37,8 @@ import {
   handleMarcaProducto,
   handleParcela,
   handleProductor,
-  handleSubsector
+  handleSubsector,
+  handleVisitaCampo
 } from "./sync-handlers";
 
 function makeEntry(overrides: Partial<SyncOutboxItem> = {}): SyncOutboxItem {
@@ -124,7 +127,8 @@ describe("catalog sync handlers", () => {
       areaHectares: null,
       description: null,
       referencePoint: point,
-      parcelReferencePoint: point
+      parcelReferencePoint: point,
+      isActive: true
     } as never);
     vi.spyOn(productoresRepository, "getById").mockReturnValue({
       id: "productor-local",
@@ -153,7 +157,8 @@ describe("catalog sync handlers", () => {
         areaHectares: null,
         description: null,
         referencePoint: point,
-        parcelReferencePoint: point
+        parcelReferencePoint: point,
+        isActive: true
       },
       {}
     );
@@ -167,6 +172,29 @@ describe("catalog sync handlers", () => {
       })
     );
     expect(result).toEqual({ status: "synced", serverId: "401" });
+  });
+
+  it("keeps a visit pending while its parcela activation has not synced", async () => {
+    vi.spyOn(visitasCampoRepository, "getById").mockReturnValue({
+      id: "visita-local",
+      parcelaId: "parcela-local"
+    } as never);
+    vi.spyOn(parcelasRepository, "getById").mockReturnValue({
+      id: "parcela-local",
+      isActive: true,
+      syncStatus: "error"
+    } as never);
+    const create = vi.spyOn(visitasCampoRemote, "create");
+
+    const result = await handleVisitaCampo(
+      makeEntry({
+        entityType: "visitas_campo",
+        entityLocalId: "visita-local"
+      })
+    );
+
+    expect(result).toEqual({ status: "skipped" });
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("uses the delete payload after the local productor row was removed", async () => {

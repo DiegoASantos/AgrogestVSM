@@ -1,5 +1,6 @@
 import { getCatalogsDownloadedAt } from "../database/catalog-status";
 import { getDatabase } from "../database/connection";
+import { getCatalogSessionUserId } from "../database/catalog-session";
 import { getSyncFailures } from "../database/sync-failures";
 import {
   SYNC_ENTITY_TABLES,
@@ -66,11 +67,23 @@ const CATALOG_SYNC_ENTITY_TYPES = new Set<SyncEntityType>([
 
 export function getSyncCounts(): SyncCountsResult {
   const db = getDatabase();
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    return { pendingCount: 0, errorCount: 0 };
+  }
+
   const pendingCount =
-    db.getFirstSync<{ count: number }>(`SELECT COUNT(*) as count FROM sync_outbox`)
+    db.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM sync_outbox WHERE owner_user_id = ?`,
+      ownerUserId
+    )
       ?.count ?? 0;
   let errorCount =
-    db.getFirstSync<{ count: number }>(`SELECT COUNT(*) as count FROM sync_failures`)
+    db.getFirstSync<{ count: number }>(
+      `SELECT COUNT(*) as count FROM sync_failures WHERE owner_user_id = ?`,
+      ownerUserId
+    )
       ?.count ?? 0;
 
   for (const entityType of SYNC_ENTITY_TYPES) {
@@ -161,6 +174,12 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
 
 export function getSyncPendingDetails(): SyncPendingDetail[] {
   const db = getDatabase();
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    return [];
+  }
+
   const rows = db.getAllSync<{
     entity_type: SyncEntityType;
     entity_local_id: string;
@@ -168,8 +187,10 @@ export function getSyncPendingDetails(): SyncPendingDetail[] {
   }>(
     `SELECT entity_type, entity_local_id, created_at
      FROM sync_outbox
+     WHERE owner_user_id = ?
      ORDER BY CASE WHEN entity_type = 'visitas_campo' THEN 0 ELSE 1 END,
-              id ASC`
+              id ASC`,
+    ownerUserId
   );
 
   return rows.map((row) => ({

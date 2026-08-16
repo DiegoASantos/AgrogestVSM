@@ -143,7 +143,7 @@ export function NuevoProductorScreen() {
           phone: telefono.trim() || null,
           email: email.trim().toLowerCase() || null,
           address: direccion.trim() || null,
-          isActive: true,
+          isActive: false,
           createdAt: ahora,
           updatedAt: ahora,
           serverId: null,

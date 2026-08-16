@@ -27,6 +27,24 @@ persona, un fundo o una cooperativa. Las personas requieren `nombres` y
 juntos cuando se informan. Fundos y cooperativas usan `nombres` como nombre de
 la entidad y no requieren documento.
 
+El estado de un productor es derivado y global: esta activo si y solo si tiene
+al menos una parcela activa. Crear, activar, desactivar o mover una parcela
+recalcula en la misma transaccion los productores afectados. Por ello el estado
+no se edita de forma independiente. Un productor compartido puede aparecer
+activo para un agronomo aunque la parcela asignada a ese usuario este inactiva,
+si otra parcela del productor permanece activa.
+
+Cada parcela puede asignarse a un unico agronomo. Un usuario `AGRONOMO` recibe
+solo los productores con alguna parcela asignada a el y solo sus parcelas,
+incluidos los registros inactivos; los listados ordenan primero los activos.
+Una visita nueva exige que la parcela este activa y asignada al agronomo
+autenticado. `ADMIN` conserva la visibilidad administrativa global.
+
+Los productores creados por un agronomo conservan internamente
+`creado_por_usuario_id`. Esta procedencia permite crear su primera parcela sin
+abrir acceso horizontal: un agronomo solo puede crear o mover una parcela hacia
+un productor que haya creado o que ya tenga alguna parcela asignada a el.
+
 Desde la spec 007, la relacion vigente es `Sector -> Subsector -> Parcela`.
 `Parcela.sectorId` se conserva en respuestas de API como valor derivado para
 compatibilidad temporal de mapas, visitas, historial, geodatos y reportes

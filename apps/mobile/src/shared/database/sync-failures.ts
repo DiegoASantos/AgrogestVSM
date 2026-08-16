@@ -8,6 +8,7 @@ import {
   type SyncEntityType
 } from "../sync/sync-entities";
 import { notifySyncStatusChanged } from "../sync/sync-events";
+import { getCatalogSessionUserId } from "./catalog-session";
 
 export type SyncFailureKind = "transient" | "permanent";
 
@@ -27,6 +28,7 @@ export type SyncFailure = {
 
 type SyncFailureRow = {
   id: number;
+  owner_user_id: string | null;
   entity_type: SyncEntityType;
   entity_local_id: string;
   operation: SyncOutboxOperation;
@@ -46,9 +48,11 @@ export function storeSyncFailure(
   errorMessage: string,
   attemptedAt = getNowIsoString()
 ) {
+  const ownerUserId = entry.ownerUserId ?? requireSyncOwner(db);
   db.runSync(
     `INSERT OR REPLACE INTO sync_failures (
        id,
+       owner_user_id,
        entity_type,
        entity_local_id,
        operation,
@@ -61,11 +65,14 @@ export function storeSyncFailure(
        failed_at
      )
      VALUES (
-       (SELECT id FROM sync_failures WHERE entity_type = ? AND entity_local_id = ?),
-       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+       (SELECT id FROM sync_failures
+        WHERE owner_user_id = ? AND entity_type = ? AND entity_local_id = ?),
+       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
      )`,
+    ownerUserId,
     entry.entityType,
     entry.entityLocalId,
+    ownerUserId,
     entry.entityType,
     entry.entityLocalId,
     entry.operation,
@@ -85,10 +92,17 @@ export function deleteSyncFailureForEntity(
   entityLocalId: string,
   kind?: SyncFailureKind
 ) {
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    return;
+  }
+
   db.runSync(
     `DELETE FROM sync_failures
-     WHERE entity_type = ? AND entity_local_id = ?
+     WHERE owner_user_id = ? AND entity_type = ? AND entity_local_id = ?
        ${kind ? "AND error_kind = ?" : ""}`,
+    ownerUserId,
     entityType,
     entityLocalId,
     ...(kind ? [kind] : [])
@@ -96,10 +110,18 @@ export function deleteSyncFailureForEntity(
 }
 
 export function getSyncFailures(): SyncFailure[] {
-  return getDatabase()
+  const db = getDatabase();
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    return [];
+  }
+
+  return db
     .getAllSync<SyncFailureRow>(
       `SELECT
          id,
+         owner_user_id,
          entity_type,
          entity_local_id,
          operation,
@@ -111,16 +133,25 @@ export function getSyncFailures(): SyncFailure[] {
          last_attempt_at,
          failed_at
        FROM sync_failures
-       ORDER BY failed_at DESC, id DESC`
+       WHERE owner_user_id = ?
+       ORDER BY failed_at DESC, id DESC`,
+      ownerUserId
     )
     .map(mapFailureRow);
 }
 
 export function retryTransientSyncFailures() {
   const db = getDatabase();
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    return 0;
+  }
+
   const failures = db.getAllSync<SyncFailureRow>(
     `SELECT
        id,
+       owner_user_id,
        entity_type,
        entity_local_id,
        operation,
@@ -132,18 +163,21 @@ export function retryTransientSyncFailures() {
        last_attempt_at,
        failed_at
      FROM sync_failures
-     WHERE error_kind = 'transient'
+     WHERE owner_user_id = ?
+       AND error_kind = 'transient'
      ORDER BY CASE WHEN entity_type = 'visitas_campo' THEN 0 ELSE 1 END,
               failed_at ASC,
-              id ASC`
+              id ASC`,
+    ownerUserId
   );
 
   db.withTransactionSync(() => {
     for (const failure of failures) {
       const existing = db.getFirstSync<{ id: number }>(
         `SELECT id FROM sync_outbox
-         WHERE entity_type = ? AND entity_local_id = ?
+         WHERE owner_user_id = ? AND entity_type = ? AND entity_local_id = ?
          LIMIT 1`,
+        ownerUserId,
         failure.entity_type,
         failure.entity_local_id
       );
@@ -151,8 +185,10 @@ export function retryTransientSyncFailures() {
       if (!existing) {
         db.runSync(
           `INSERT INTO sync_outbox (
-             entity_type, entity_local_id, operation, payload, retry_count, created_at
-           ) VALUES (?, ?, ?, ?, 0, ?)`,
+             owner_user_id, entity_type, entity_local_id, operation, payload,
+             retry_count, created_at
+           ) VALUES (?, ?, ?, ?, ?, 0, ?)`,
+          ownerUserId,
           failure.entity_type,
           failure.entity_local_id,
           failure.operation,
@@ -211,4 +247,14 @@ function mapFailureRow(row: SyncFailureRow): SyncFailure {
     lastAttemptAt: row.last_attempt_at,
     failedAt: row.failed_at
   };
+}
+
+function requireSyncOwner(db: SQLiteDatabase): string {
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    throw new Error("No hay una sesion autenticada para registrar un fallo de sync.");
+  }
+
+  return ownerUserId;
 }

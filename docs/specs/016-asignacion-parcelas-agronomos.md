@@ -1,14 +1,19 @@
 ---
 title: Asignacion de parcelas a agronomos y filtro de productores
-status: draft
+status: superseded
 numero: 016
 area: productores, parcelas, visitas-campo
 created: 2026-07-13
 approved_by:
 implemented_in:
+superseded_by: 041-visibilidad-reactivacion-productores-parcelas-mobile.md
 ---
 
 # Spec 016: Asignacion de parcelas a agronomos y filtro de productores
+
+> Reemplazada por la spec 041, que conserva la asignacion por parcela y define
+> la visibilidad de activos e inactivos, el estado derivado y la reactivacion
+> offline previa a una visita.
 
 ## Contexto
 

@@ -154,12 +154,23 @@ export class SectoresService {
     return createSuccessResponse(this.toResponse(savedSector));
   }
 
-  findEntitiesByProductorId(productorId: string): Promise<SectorEntity[]> {
-    return this.sectoresRepository
+  findEntitiesByProductorId(
+    productorId: string,
+    agronomoUserId?: string
+  ): Promise<SectorEntity[]> {
+    const queryBuilder = this.sectoresRepository
       .createQueryBuilder("sector")
       .innerJoin(SubsectorEntity, "subsector", "subsector.sector_id = sector.id")
       .innerJoin(ParcelaEntity, "parcela", "parcela.subsector_id = subsector.id")
-      .where("parcela.productor_id = :productorId", { productorId })
+      .where("parcela.productor_id = :productorId", { productorId });
+
+    if (agronomoUserId) {
+      queryBuilder.andWhere("parcela.agronomo_usuario_id = :agronomoUserId", {
+        agronomoUserId
+      });
+    }
+
+    return queryBuilder
       .distinct(true)
       .orderBy("sector.name", "ASC")
       .getMany();

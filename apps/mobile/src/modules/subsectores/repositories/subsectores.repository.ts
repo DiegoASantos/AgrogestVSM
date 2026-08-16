@@ -1,4 +1,5 @@
 import { getDatabase } from "../../../shared/database/connection";
+import { getCatalogSessionUserId } from "../../../shared/database/catalog-session";
 import { fromSqliteBoolean, getNowIsoString } from "../../../shared/database/sqlite-utils";
 import type { SQLiteBindValue } from "expo-sqlite";
 import type { Subsector } from "../types";
@@ -58,15 +59,20 @@ export const subsectoresRepository = {
 
   getByProductorAndSector(productorId: string, sectorId: string) {
     const db = getDatabase();
+    const ownerUserId =
+      getCatalogSessionUserId(db) ?? "__no_authenticated_catalog_owner__";
     const rows = db.getAllSync<SubsectorRow>(
       `SELECT DISTINCT ${SUBSECTOR_COLUMNS}
        FROM subsectores
        INNER JOIN parcelas ON parcelas.subsector_id = subsectores.id
        WHERE parcelas.productor_id = ?
          AND subsectores.sector_id = ?
+         AND parcelas.catalog_owner_user_id = ?
+         AND parcelas.catalog_visible = 1
        ORDER BY subsectores.name ASC, subsectores.id ASC`,
       productorId,
-      sectorId
+      sectorId,
+      ownerUserId
     );
 
     return rows.map(mapSubsectorRow);

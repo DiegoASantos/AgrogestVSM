@@ -121,7 +121,10 @@ export const SQL_SCHEMA = [
     updated_at TEXT NOT NULL,
     server_id TEXT,
     sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
-    sync_error_message TEXT
+    sync_error_message TEXT,
+    catalog_owner_user_id TEXT,
+    catalog_visible INTEGER NOT NULL DEFAULT 0,
+    created_locally INTEGER NOT NULL DEFAULT 0
   )`,
   `CREATE TABLE IF NOT EXISTS tipos_documento (
     id INTEGER PRIMARY KEY NOT NULL,
@@ -193,6 +196,8 @@ export const SQL_SCHEMA = [
     server_id TEXT,
     sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
     sync_error_message TEXT,
+    catalog_owner_user_id TEXT,
+    catalog_visible INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (productor_id) REFERENCES productores(id),
     FOREIGN KEY (subsector_id) REFERENCES subsectores(id)
   )`,
@@ -499,6 +504,7 @@ export const SQL_SCHEMA = [
   )`,
   `CREATE TABLE IF NOT EXISTS sync_failures (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_user_id TEXT,
     entity_type TEXT NOT NULL,
     entity_local_id TEXT NOT NULL,
     operation TEXT NOT NULL CHECK(operation IN ('create', 'update', 'delete')),
@@ -509,7 +515,7 @@ export const SQL_SCHEMA = [
     outbox_created_at TEXT NOT NULL,
     last_attempt_at TEXT NOT NULL,
     failed_at TEXT NOT NULL,
-    UNIQUE(entity_type, entity_local_id)
+    UNIQUE(owner_user_id, entity_type, entity_local_id)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_sync_failures_kind_failed_at
     ON sync_failures(error_kind, failed_at)`,

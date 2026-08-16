@@ -19,6 +19,7 @@ import { getDatabase } from "../../../../shared/database/connection";
 import { sectoresRepository } from "../../../sectores/repositories/sectores.repository";
 import { subsectoresRepository } from "../../../subsectores/repositories/subsectores.repository";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
+import { productoresRepository } from "../../repositories/productores.repository";
 import type { GeoJsonPointGeometry } from "../../../../shared/maps/geo";
 import { generatePublicId } from "../../../../shared/utils/local-id";
 
@@ -330,6 +331,7 @@ export function AgregarParcelaScreen() {
           syncErrorMessage: null,
           sectorId: sectorId
         });
+        productoresRepository.update(productorId, { isActive: true });
 
         insertSyncOutboxEntry(db, {
           entityType: "parcelas",

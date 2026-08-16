@@ -20,11 +20,16 @@ vi.mock("../database/sync-outbox", () => ({
 }));
 
 const runSync = vi.fn();
-const getAllSync = vi.fn(() => []);
+const getAllSync = vi.fn((...args: unknown[]) => {
+  void args;
+  return [];
+});
+const getFirstSync = vi.fn(() => ({ value: "agronomo-1" }));
 vi.mock("../database/connection", () => ({
   getDatabase: () => ({
     runSync,
     getAllSync,
+    getFirstSync,
     withTransactionSync: (callback: () => void) => callback()
   })
 }));
@@ -235,6 +240,29 @@ describe("processOutbox", () => {
 
     expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 0 });
     expect(setLastSyncTime).toHaveBeenCalledOnce();
+  });
+
+  it("reconciles orphaned pending rows only for the authenticated owner", async () => {
+    getPendingOutboxEntries.mockReturnValue([]);
+
+    await processOutbox();
+
+    const productorQuery = getAllSync.mock.calls.find((call) =>
+      String(call[0]).includes("FROM productores")
+    );
+    const visitaQuery = getAllSync.mock.calls.find((call) =>
+      String(call[0]).includes("FROM visitas_campo")
+    );
+
+    expect(String(productorQuery?.[0])).toContain(
+      "productores.catalog_owner_user_id = ?"
+    );
+    expect(productorQuery).toContain("agronomo-1");
+    expect(String(visitaQuery?.[0])).toContain(
+      "visitas_campo.agronomist_user_id = ?"
+    );
+    expect(String(visitaQuery?.[0])).toContain("sync_outbox.owner_user_id = ?");
+    expect(visitaQuery).toContain("agronomo-1");
   });
 
   it("deletes orphaned entries whose entity type has no handler", async () => {

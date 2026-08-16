@@ -45,8 +45,11 @@ export class ProductoresController {
   @ApiConflictResponse({
     description: "Ya existe un productor con el mismo documento."
   })
-  createProductor(@Body() createProductorDto: CreateProductorDto) {
-    return this.productoresService.create(createProductorDto);
+  createProductor(
+    @Body() createProductorDto: CreateProductorDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.productoresService.create(createProductorDto, currentUser);
   }
 
   @Get()
@@ -76,8 +79,11 @@ export class ProductoresController {
   @ApiNotFoundResponse({
     description: "El productor no existe."
   })
-  getProductorSummary(@Param("id", ParseEntityIdPipe) id: string) {
-    return this.productoresService.getSummary(id);
+  getProductorSummary(
+    @Param("id", ParseEntityIdPipe) id: string,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.productoresService.getSummary(id, currentUser);
   }
 
   @Get(":id/estructura")
@@ -95,8 +101,11 @@ export class ProductoresController {
   @ApiNotFoundResponse({
     description: "El productor no existe."
   })
-  getProductorStructure(@Param("id", ParseEntityIdPipe) id: string) {
-    return this.productoresService.getStructure(id);
+  getProductorStructure(
+    @Param("id", ParseEntityIdPipe) id: string,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.productoresService.getStructure(id, currentUser);
   }
 
   @Get(":id/historial-visitas")
@@ -136,9 +145,10 @@ export class ProductoresController {
   })
   getProductorVisitHistory(
     @Param("id", ParseEntityIdPipe) id: string,
-    @Query() query: FindHistorialVisitasProductorQueryDto
+    @Query() query: FindHistorialVisitasProductorQueryDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
   ) {
-    return this.productoresService.getHistorialVisitas(id, query);
+    return this.productoresService.getHistorialVisitas(id, query, currentUser);
   }
 
   @Get(":id")
@@ -154,8 +164,11 @@ export class ProductoresController {
   @ApiNotFoundResponse({
     description: "El productor no existe."
   })
-  getProductorById(@Param("id", ParseEntityIdPipe) id: string) {
-    return this.productoresService.findById(id);
+  getProductorById(
+    @Param("id", ParseEntityIdPipe) id: string,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.productoresService.findById(id, currentUser);
   }
 
   @Patch(":id")
@@ -179,9 +192,10 @@ export class ProductoresController {
   })
   updateProductor(
     @Param("id", ParseEntityIdPipe) id: string,
-    @Body() updateProductorDto: UpdateProductorDto
+    @Body() updateProductorDto: UpdateProductorDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
   ) {
-    return this.productoresService.update(id, updateProductorDto);
+    return this.productoresService.update(id, updateProductorDto, currentUser);
   }
 
   @Delete(":id")
@@ -199,7 +213,10 @@ export class ProductoresController {
   @ApiNotFoundResponse({
     description: "El productor no existe."
   })
-  deleteProductor(@Param("id", ParseEntityIdPipe) id: string) {
-    return this.productoresService.remove(id);
+  deleteProductor(
+    @Param("id", ParseEntityIdPipe) id: string,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.productoresService.remove(id, currentUser);
   }
 }

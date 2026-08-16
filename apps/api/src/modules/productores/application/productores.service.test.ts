@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException
+} from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProductoresService } from "./productores.service";
@@ -19,6 +23,7 @@ function buildProductor(overrides: Partial<ProductorEntity> = {}): ProductorEnti
     email: null,
     address: null,
     isActive: true,
+    createdByUserId: null,
     createdAt: now,
     updatedAt: now,
     parcelas: [],
@@ -30,10 +35,13 @@ function buildService(
   options: {
     existingProductor?: ProductorEntity | null;
     findAllResult?: [ProductorEntity[], number];
+    hasActiveParcela?: boolean;
+    hasAssignedParcela?: boolean;
   } = {}
 ) {
   const queryBuilder = {
     orderBy: vi.fn(() => queryBuilder),
+    addOrderBy: vi.fn(() => queryBuilder),
     skip: vi.fn(() => queryBuilder),
     take: vi.fn(() => queryBuilder),
     andWhere: vi.fn(() => queryBuilder),
@@ -46,15 +54,23 @@ function buildService(
     findAndCount: vi.fn(),
     createQueryBuilder: vi.fn(() => queryBuilder)
   };
+  const parcelasService = {
+    hasActiveParcelByProductorId: vi.fn(
+      async () => options.hasActiveParcela ?? false
+    ),
+    hasParcelAssignedToAgronomo: vi.fn(
+      async () => options.hasAssignedParcela ?? false
+    )
+  };
 
   const service = new ProductoresService(
     repository as never,
     {} as never,
-    {} as never,
+    parcelasService as never,
     {} as never
   );
 
-  return { queryBuilder, repository, service };
+  return { parcelasService, queryBuilder, repository, service };
 }
 
 describe("ProductoresService", () => {
@@ -75,7 +91,8 @@ describe("ProductoresService", () => {
           documentTypeId: null,
           documentNumber: null,
           firstName: "Juan",
-          lastName: "Perez"
+          lastName: "Perez",
+          isActive: false
         })
       );
       expect(result.data).toMatchObject({
@@ -206,6 +223,78 @@ describe("ProductoresService", () => {
 
       expect(repository.save).not.toHaveBeenCalled();
     });
+
+    it("rejects creating an active producer without an active parcela", async () => {
+      const { service } = buildService();
+
+      await expect(
+        service.create({
+          entityType: "persona",
+          firstName: "Juan",
+          lastName: "Perez",
+          isActive: true
+        })
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("records the agronomist who creates a producer for its first parcela", async () => {
+      const { repository, service } = buildService();
+
+      await service.create(
+        {
+          entityType: "persona",
+          firstName: "Juana",
+          lastName: "Rios"
+        },
+        { userId: "agronomo-1", roles: ["AGRONOMO"] }
+      );
+
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ createdByUserId: "agronomo-1" })
+      );
+    });
+  });
+
+  describe("derived state", () => {
+    it("rejects a producer state that disagrees with its active parcelas", async () => {
+      const { service } = buildService({
+        existingProductor: buildProductor({ isActive: true }),
+        hasActiveParcela: true
+      });
+
+      await expect(
+        service.update("1", { isActive: false })
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe("authorization", () => {
+    it("hides a producer outside the agronomist scope", async () => {
+      const { service } = buildService({
+        existingProductor: buildProductor({ createdByUserId: "agronomo-2" })
+      });
+
+      await expect(
+        service.findById("1", {
+          userId: "agronomo-1",
+          roles: ["AGRONOMO"]
+        })
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("allows an agronomist to read a producer with an assigned parcela", async () => {
+      const { service } = buildService({
+        existingProductor: buildProductor({ createdByUserId: "agronomo-2" }),
+        hasAssignedParcela: true
+      });
+
+      const result = await service.findById("1", {
+        userId: "agronomo-1",
+        roles: ["AGRONOMO"]
+      });
+
+      expect(result.data).toMatchObject({ id: "1" });
+    });
   });
 
   describe("findAll", () => {
@@ -233,6 +322,10 @@ describe("ProductoresService", () => {
 
       expect(queryBuilder.skip).toHaveBeenCalledWith(10);
       expect(queryBuilder.take).toHaveBeenCalledWith(10);
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+        "productor.activo",
+        "DESC"
+      );
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         "productor.activo = :isActive",
         { isActive: true }

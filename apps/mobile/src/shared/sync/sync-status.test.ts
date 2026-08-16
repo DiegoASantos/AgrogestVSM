@@ -26,6 +26,9 @@ beforeEach(() => {
   getFirstSync.mockReset();
   getAllSync.mockReset();
   getFirstSync.mockImplementation((statement: string) => {
+    if (statement.includes("FROM app_meta")) {
+      return { value: "agronomo-1" };
+    }
     if (statement.includes("FROM sync_outbox")) {
       return { count: 0 };
     }

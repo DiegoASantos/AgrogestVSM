@@ -37,6 +37,10 @@ vi.mock("./catalog-status", () => ({
   getCatalogsDownloadedAt: () => null
 }));
 
+vi.mock("./catalog-session", () => ({
+  getCatalogSessionUserId: () => "agronomo-1"
+}));
+
 vi.mock("./catalog-download-state", () => ({
   notifyCatalogDownloadStarted: vi.fn(),
   notifyCatalogDownloadCompleted: vi.fn()

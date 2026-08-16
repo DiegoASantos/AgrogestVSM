@@ -1,3 +1,4 @@
+import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { ParcelasService } from "./parcelas.service";
@@ -43,12 +44,17 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
     getManyAndCount: vi.fn(async () => [[buildParcela()], 1]),
     getOne: vi.fn(async (): Promise<ParcelaEntity | null> => null)
   };
-  const parcelasRepository = {
+  const parcelasRepository: Record<string, unknown> & {
+    save: ReturnType<typeof vi.fn>;
+    findOne: ReturnType<typeof vi.fn>;
+    exists: ReturnType<typeof vi.fn>;
+  } = {
     query: vi.fn(async () => [{ value: sequenceValues.shift() ?? 1 }]),
     create: vi.fn((value: Partial<ParcelaEntity>) => buildParcela(value)),
     save: vi.fn(async (value: ParcelaEntity) => value),
     findOne: vi.fn(),
     find: vi.fn(),
+    exists: vi.fn(async () => true),
     createQueryBuilder: vi.fn(() => queryBuilder)
   };
   const sectoresRepository = {
@@ -58,7 +64,22 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
     findOne: vi.fn(async () => ({ id: "10", sectorId: "1" }))
   };
   const productoresRepository = {
-    findOne: vi.fn(async () => ({ id: "1" }))
+    findOne: vi.fn(async () => ({ id: "1", createdByUserId: null })),
+    find: vi.fn(async () => [{ id: "1" }]),
+    update: vi.fn()
+  };
+  parcelasRepository.manager = {
+    transaction: vi.fn(async (callback: (manager: unknown) => unknown) =>
+      callback({
+        getRepository: (entity: { name: string }) =>
+          entity.name === "ParcelaEntity"
+            ? {
+                save: parcelasRepository.save,
+                exists: vi.fn(async () => true)
+              }
+            : productoresRepository
+      })
+    )
   };
   const userRepository = {
     createQueryBuilder: vi.fn(() => userQueryBuilder)
@@ -92,7 +113,7 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
 describe("ParcelasService", () => {
   describe("create", () => {
     it("generates PAR-001 when the sequence returns one", async () => {
-      const { parcelasRepository, service } = buildService([1]);
+      const { parcelasRepository, productoresRepository, service } = buildService([1]);
 
       const result = await service.create({
         productorId: "1",
@@ -115,6 +136,10 @@ describe("ParcelasService", () => {
         subsectorId: "10",
         sectorId: "1"
       });
+      expect(productoresRepository.update).toHaveBeenCalledWith(
+        "1",
+        expect.objectContaining({ isActive: true })
+      );
     });
 
     it("persists and returns access and internal parcel points independently", async () => {
@@ -288,6 +313,62 @@ describe("ParcelasService", () => {
     });
   });
 
+  describe("authorization", () => {
+    it("hides a parcela assigned to another agronomist", async () => {
+      const { parcelasRepository, service } = buildService();
+      parcelasRepository.findOne.mockResolvedValue(
+        buildParcela({ agronomoUsuarioId: "agronomo-2" })
+      );
+
+      await expect(
+        service.findById("1", {
+          userId: "agronomo-1",
+          roles: ["AGRONOMO"]
+        })
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("rejects creating a parcela for a producer outside the agronomist scope", async () => {
+      const { parcelasRepository, productoresRepository, service } = buildService();
+      productoresRepository.findOne.mockResolvedValue({
+        id: "1",
+        createdByUserId: "agronomo-2"
+      } as never);
+      parcelasRepository.exists.mockResolvedValue(false);
+
+      await expect(
+        service.create(
+          {
+            productorId: "1",
+            subsectorId: "10",
+            name: "Parcela ajena"
+          },
+          { userId: "agronomo-1", roles: ["AGRONOMO"] }
+        )
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("rejects moving a parcela to a producer outside the agronomist scope", async () => {
+      const { parcelasRepository, productoresRepository, service } = buildService();
+      parcelasRepository.findOne.mockResolvedValueOnce(
+        buildParcela({ agronomoUsuarioId: "agronomo-1" })
+      );
+      productoresRepository.findOne.mockResolvedValue({
+        id: "2",
+        createdByUserId: "agronomo-2"
+      } as never);
+      parcelasRepository.exists.mockResolvedValue(false);
+
+      await expect(
+        service.update(
+          "1",
+          { productorId: "2" },
+          { userId: "agronomo-1", roles: ["AGRONOMO"] }
+        )
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
   describe("findAll", () => {
     it("orders joined parcelas by entity property paths for TypeORM pagination", async () => {
       const { queryBuilder, service } = buildService();
@@ -299,7 +380,11 @@ describe("ParcelasService", () => {
         take: 20
       } as never);
 
-      expect(queryBuilder.orderBy).toHaveBeenCalledWith("subsector.sectorId", "ASC");
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith("parcela.activo", "DESC");
+      expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
+        "subsector.sectorId",
+        "ASC"
+      );
       expect(queryBuilder.addOrderBy).toHaveBeenCalledWith("parcela.subsectorId", "ASC");
       expect(queryBuilder.addOrderBy).toHaveBeenCalledWith("parcela.code", "ASC");
     });

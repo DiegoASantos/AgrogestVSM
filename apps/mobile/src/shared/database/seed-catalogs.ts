@@ -12,6 +12,7 @@ import { visitaCampoCatalogsRemote } from "../../modules/visitas-campo/services/
 import { visitaRecetasRemote } from "../../modules/visita-recetas/services/visita-recetas.remote";
 import { tiposDocumentoRemote } from "../../modules/tipos-documento/services/tipos-documento.remote";
 import { getCatalogsDownloadedAt } from "./catalog-status";
+import { getCatalogSessionUserId } from "./catalog-session";
 import {
   notifyCatalogDownloadCompleted,
   notifyCatalogDownloadStarted
@@ -106,6 +107,11 @@ async function performCatalogDownload() {
     const downloadedAt = getNowIsoString();
 
     const db = initDatabase();
+    const catalogOwnerUserId = getCatalogSessionUserId(db);
+
+    if (!catalogOwnerUserId) {
+      throw new Error("No hay una sesion autenticada para descargar los catalogos.");
+    }
 
     nutricionRepository.ensureStorage();
 
@@ -113,6 +119,21 @@ async function performCatalogDownload() {
 
     try {
       db.withTransactionSync(() => {
+        db.runSync(
+          `UPDATE productores
+           SET catalog_visible = 0
+           WHERE catalog_owner_user_id = ?
+             AND sync_status = 'synced'
+             AND created_locally = 0`,
+          catalogOwnerUserId
+        );
+        db.runSync(
+          `UPDATE parcelas
+           SET catalog_visible = 0
+           WHERE catalog_owner_user_id = ?
+             AND sync_status = 'synced'`,
+          catalogOwnerUserId
+        );
         for (const cultivo of cultivos) {
           db.runSync(
             `INSERT OR REPLACE INTO cultivos (id, code, name, is_active)
@@ -440,8 +461,11 @@ async function performCatalogDownload() {
           created_at,
           updated_at,
           server_id,
-          sync_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          sync_status,
+          catalog_owner_user_id,
+          catalog_visible,
+          created_locally
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           public_id = excluded.public_id,
           entity_type = excluded.entity_type,
@@ -455,6 +479,8 @@ async function performCatalogDownload() {
           is_active = excluded.is_active,
           updated_at = excluded.updated_at,
           server_id = excluded.server_id,
+          catalog_owner_user_id = excluded.catalog_owner_user_id,
+          catalog_visible = 1,
           sync_status = 'synced',
           sync_error_message = NULL
         WHERE productores.sync_status <> 'pending'`,
@@ -472,7 +498,10 @@ async function performCatalogDownload() {
             productor.createdAt,
             productor.updatedAt,
             productor.id,
-            "synced"
+            "synced",
+            catalogOwnerUserId,
+            1,
+            0
           );
         }
 
@@ -595,14 +624,16 @@ async function performCatalogDownload() {
             parcela.id
           );
         }
-        db.execSync(
+        db.runSync(
           `DELETE FROM parcelas
            WHERE id NOT IN (SELECT DISTINCT parcela_id FROM visitas_campo)
+             AND catalog_owner_user_id = ?
              AND (sync_status IS NULL OR sync_status = 'synced')
              AND (
                server_id IS NULL
                OR server_id NOT IN (SELECT server_id FROM downloaded_parcela_ids)
-             )`
+             )`,
+          catalogOwnerUserId
         );
 
         for (const parcela of parcelas) {
@@ -634,8 +665,10 @@ async function performCatalogDownload() {
           created_at,
           updated_at,
           server_id,
-          sync_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          sync_status,
+          catalog_owner_user_id,
+          catalog_visible
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           public_id = excluded.public_id,
           productor_id = excluded.productor_id,
@@ -650,6 +683,8 @@ async function performCatalogDownload() {
           is_active = excluded.is_active,
           updated_at = excluded.updated_at,
           server_id = excluded.server_id,
+          catalog_owner_user_id = excluded.catalog_owner_user_id,
+          catalog_visible = 1,
           sync_status = 'synced',
           sync_error_message = NULL
         WHERE parcelas.sync_status <> 'pending'`,
@@ -668,7 +703,9 @@ async function performCatalogDownload() {
             parcela.createdAt,
             parcela.updatedAt,
             parcela.id,
-            "synced"
+            "synced",
+            catalogOwnerUserId,
+            1
           );
         }
 

@@ -311,7 +311,8 @@ describe("API critical HTTP integration contract", () => {
         visitDate: "2026-04-04",
         startVisitTime: "08:30",
         phenologicalStageId: "1"
-      })
+      }),
+      undefined
     );
   });
 

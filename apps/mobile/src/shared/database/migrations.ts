@@ -1417,6 +1417,72 @@ const MIGRATIONS: Migration[] = [
         updated_at TEXT NOT NULL
       )`
     ]
+  },
+  {
+    version: 59,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "productores", "catalog_owner_user_id", "TEXT");
+      addColumnIfMissing(
+        db,
+        "productores",
+        "catalog_visible",
+        "INTEGER NOT NULL DEFAULT 0"
+      );
+      addColumnIfMissing(
+        db,
+        "productores",
+        "created_locally",
+        "INTEGER NOT NULL DEFAULT 0"
+      );
+      addColumnIfMissing(db, "parcelas", "catalog_owner_user_id", "TEXT");
+      addColumnIfMissing(
+        db,
+        "parcelas",
+        "catalog_visible",
+        "INTEGER NOT NULL DEFAULT 0"
+      );
+      addColumnIfMissing(db, "sync_outbox", "owner_user_id", "TEXT");
+      db.execSync("DROP TABLE IF EXISTS sync_failures_next");
+      db.execSync(`CREATE TABLE sync_failures_next (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_user_id TEXT,
+        entity_type TEXT NOT NULL,
+        entity_local_id TEXT NOT NULL,
+        operation TEXT NOT NULL CHECK(operation IN ('create', 'update', 'delete')),
+        payload TEXT,
+        retry_count INTEGER NOT NULL DEFAULT 0 CHECK(retry_count >= 0),
+        error_kind TEXT NOT NULL CHECK(error_kind IN ('transient', 'permanent')),
+        error_message TEXT,
+        outbox_created_at TEXT NOT NULL,
+        last_attempt_at TEXT NOT NULL,
+        failed_at TEXT NOT NULL,
+        UNIQUE(owner_user_id, entity_type, entity_local_id)
+      )`);
+      db.execSync(`INSERT INTO sync_failures_next (
+        id, owner_user_id, entity_type, entity_local_id, operation, payload,
+        retry_count, error_kind, error_message, outbox_created_at,
+        last_attempt_at, failed_at
+      )
+      SELECT id, NULL, entity_type, entity_local_id, operation, payload,
+        retry_count, error_kind, error_message, outbox_created_at,
+        last_attempt_at, failed_at
+      FROM sync_failures`);
+      db.execSync("DROP TABLE sync_failures");
+      db.execSync("ALTER TABLE sync_failures_next RENAME TO sync_failures");
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_productores_catalog_session ON productores(catalog_owner_user_id, catalog_visible, is_active)"
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_parcelas_catalog_session ON parcelas(catalog_owner_user_id, catalog_visible, is_active)"
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_sync_outbox_owner_order ON sync_outbox(owner_user_id, id)"
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_sync_failures_owner_kind ON sync_failures(owner_user_id, error_kind, failed_at)"
+      );
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
   }
 ];
 

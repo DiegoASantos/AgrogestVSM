@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 58;
+const LATEST_MIGRATION_VERSION = 59;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1389,7 +1389,9 @@ describe("runMigrations", () => {
       )
     ).toBe(false);
     expect(
-      db.executedStatements.some((statement) => statement.includes("sync_outbox"))
+      db.executedStatements.some((statement) =>
+        statement.includes("DELETE FROM sync_outbox")
+      )
     ).toBe(false);
   });
 
@@ -1526,6 +1528,44 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+sync_outbox/iu.test(statement)
+      )
+    ).toBe(false);
+  });
+
+  it("adds catalog session metadata without deleting offline entities", () => {
+    const db = createFakeDatabase(58);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE productores ADD COLUMN catalog_owner_user_id TEXT"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE productores ADD COLUMN catalog_visible INTEGER NOT NULL DEFAULT 0"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE productores ADD COLUMN created_locally INTEGER NOT NULL DEFAULT 0"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE parcelas ADD COLUMN catalog_owner_user_id TEXT"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE parcelas ADD COLUMN catalog_visible INTEGER NOT NULL DEFAULT 0"
+    );
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE sync_outbox ADD COLUMN owner_user_id TEXT"
+    );
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("CREATE TABLE sync_failures_next")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(productores|parcelas|sync_outbox|visitas_campo)/iu.test(
+          statement
+        )
       )
     ).toBe(false);
   });

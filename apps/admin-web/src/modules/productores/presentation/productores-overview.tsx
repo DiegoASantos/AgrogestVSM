@@ -285,8 +285,7 @@ export function ProductoresOverview() {
         lastName: formState.entityType === "persona" ? lastName || null : null,
         phone: phone || null,
         email: email || null,
-        address: address || null,
-        isActive: formState.status === "active"
+        address: address || null
       };
 
       if (formState.id) {
@@ -622,18 +621,11 @@ export function ProductoresOverview() {
 
             <label className="field-group">
               <span>Estado</span>
-              <select
-                onChange={(event) =>
-                  setFormState((currentState) => ({
-                    ...currentState,
-                    status: event.target.value as ProductorFormState["status"]
-                  }))
-                }
-                value={formState.status}
-              >
-                <option value="active">Activo</option>
-                <option value="inactive">Inactivo</option>
-              </select>
+              <p className="form-help">
+                {formState.id
+                  ? `Calculado desde sus parcelas: ${formState.status === "active" ? "Activo" : "Inactivo"}.`
+                  : "El productor quedara inactivo hasta que tenga una parcela activa."}
+              </p>
             </label>
           </form>
           {formError ? <p className="form-error">{formError}</p> : null}
@@ -645,7 +637,7 @@ export function ProductoresOverview() {
         confirmLabel="Desactivar"
         description={
           itemToDeactivate
-            ? `Se desactivara el productor ${buildProductorDisplayName(itemToDeactivate)}. Podra reactivarse mas adelante.`
+            ? `Se desactivara el productor ${buildProductorDisplayName(itemToDeactivate)}. Solo es posible si no tiene parcelas activas.`
             : ""
         }
         isLoading={isDeleting}

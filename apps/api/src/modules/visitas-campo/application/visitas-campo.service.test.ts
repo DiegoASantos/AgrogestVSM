@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { QueryFailedError } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -197,6 +197,35 @@ describe("VisitasCampoService", () => {
     it("should reject when parcela not found", async () => {
       repo.findOne.mockResolvedValue(null);
       await expect(service.create(validDto)).rejects.toThrow();
+    });
+
+    it("rejects a visit when the parcela is inactive", async () => {
+      repo.findOne
+        .mockResolvedValueOnce({ id: "10" })
+        .mockResolvedValueOnce({ id: "20", cultivoId: "10" })
+        .mockResolvedValueOnce({ id: "30", isActive: false });
+
+      await expect(service.create(validDto)).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+    });
+
+    it("hides a parcela assigned to another agronomist", async () => {
+      repo.findOne
+        .mockResolvedValueOnce({ id: "10" })
+        .mockResolvedValueOnce({ id: "20", cultivoId: "10" })
+        .mockResolvedValueOnce({
+          id: "30",
+          isActive: true,
+          agronomoUsuarioId: "otro-agronomo"
+        });
+
+      await expect(
+        service.create(validDto, {
+          userId: "u1",
+          roles: ["AGRONOMO"]
+        })
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it("should handle duplicate nroFicha via ConflictException", async () => {

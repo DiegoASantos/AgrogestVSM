@@ -104,8 +104,9 @@ export class CreateProductorDto {
   address?: string | null;
 
   @ApiPropertyOptional({
-    example: true,
-    default: true
+    example: false,
+    default: false,
+    description: "Estado derivado; solo puede ser false al crear sin parcelas."
   })
   @IsOptional()
   @IsBoolean()

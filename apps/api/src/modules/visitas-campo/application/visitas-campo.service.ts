@@ -39,6 +39,11 @@ import {
   VisitaCampoEntity
 } from "../infrastructure/persistence/entities/visita-campo.entity";
 
+type CurrentUserContext = {
+  userId: string;
+  roles: string[];
+};
+
 @Injectable()
 export class VisitasCampoService {
   constructor(
@@ -72,7 +77,14 @@ export class VisitasCampoService {
     private readonly visitaCalificacionesRepository: Repository<VisitaCalificacionEntity>
   ) {}
 
-  async create(createVisitaCampoDto: CreateVisitaCampoDto) {
+  async create(
+    createVisitaCampoDto: CreateVisitaCampoDto,
+    currentUser?: CurrentUserContext
+  ) {
+    const normalizedDto = isAgronomoUser(currentUser)
+      ? { ...createVisitaCampoDto, agronomistUserId: currentUser!.userId }
+      : createVisitaCampoDto;
+
     if (createVisitaCampoDto.publicId) {
       const existingVisitaCampo = await this.visitasCampoRepository.findOne({
         where: {
@@ -81,42 +93,49 @@ export class VisitasCampoService {
       });
 
       if (existingVisitaCampo) {
+        if (
+          isAgronomoUser(currentUser) &&
+          existingVisitaCampo.agronomoUsuarioId !== currentUser!.userId
+        ) {
+          throw new NotFoundException("Visita de campo not found.");
+        }
+
         return createSuccessResponse(this.toResponse(existingVisitaCampo));
       }
     }
 
-    await this.validateReferences(createVisitaCampoDto);
-    await this.ensureUniqueNroFicha(createVisitaCampoDto.nroFicha ?? null);
+    await this.validateReferences(normalizedDto, currentUser);
+    await this.ensureUniqueNroFicha(normalizedDto.nroFicha ?? null);
     validateVisitTimes(
-      createVisitaCampoDto.startVisitTime,
-      createVisitaCampoDto.endVisitTime ?? null
+      normalizedDto.startVisitTime,
+      normalizedDto.endVisitTime ?? null
     );
 
     const visitaCampo = this.visitasCampoRepository.create({
-      publicId: createVisitaCampoDto.publicId ?? undefined,
-      nroFicha: createVisitaCampoDto.nroFicha ?? null,
-      cultivoId: createVisitaCampoDto.cropId,
-      variedadId: createVisitaCampoDto.varietyId,
-      parcelaId: createVisitaCampoDto.parcelaId,
-      campaniaId: createVisitaCampoDto.campaignId,
-      agronomoUsuarioId: createVisitaCampoDto.agronomistUserId,
-      nroPlantas: createVisitaCampoDto.plantsCount ?? null,
-      areaHectares: normalizeAreaHectares(createVisitaCampoDto.areaHectares ?? null),
-      fechaSiembra: normalizeDateOnly(createVisitaCampoDto.sowingDate ?? null),
-      fechaVisita: normalizeRequiredDateOnly(createVisitaCampoDto.visitDate),
-      horaVisitaInicio: createVisitaCampoDto.startVisitTime,
-      horaVisitaFin: createVisitaCampoDto.endVisitTime ?? null,
-      etapaFenologicaId: createVisitaCampoDto.phenologicalStageId,
-      subEtapaId: createVisitaCampoDto.subEtapaId ?? null,
+      publicId: normalizedDto.publicId ?? undefined,
+      nroFicha: normalizedDto.nroFicha ?? null,
+      cultivoId: normalizedDto.cropId,
+      variedadId: normalizedDto.varietyId,
+      parcelaId: normalizedDto.parcelaId,
+      campaniaId: normalizedDto.campaignId,
+      agronomoUsuarioId: normalizedDto.agronomistUserId,
+      nroPlantas: normalizedDto.plantsCount ?? null,
+      areaHectares: normalizeAreaHectares(normalizedDto.areaHectares ?? null),
+      fechaSiembra: normalizeDateOnly(normalizedDto.sowingDate ?? null),
+      fechaVisita: normalizeRequiredDateOnly(normalizedDto.visitDate),
+      horaVisitaInicio: normalizedDto.startVisitTime,
+      horaVisitaFin: normalizedDto.endVisitTime ?? null,
+      etapaFenologicaId: normalizedDto.phenologicalStageId,
+      subEtapaId: normalizedDto.subEtapaId ?? null,
       subEtapaPercentage:
-        createVisitaCampoDto.subEtapaPercentage === undefined ||
-        createVisitaCampoDto.subEtapaPercentage === null
+        normalizedDto.subEtapaPercentage === undefined ||
+        normalizedDto.subEtapaPercentage === null
           ? null
-          : String(createVisitaCampoDto.subEtapaPercentage),
-      observacionGeneral: createVisitaCampoDto.generalObservation ?? null,
-      firmaAgronomoNombre: createVisitaCampoDto.agronomistSignatureName ?? null,
-      firmaProductorNombre: createVisitaCampoDto.producerSignatureName ?? null,
-      ubicacionVisita: validatePointGeometry(createVisitaCampoDto.visitLocation),
+          : String(normalizedDto.subEtapaPercentage),
+      observacionGeneral: normalizedDto.generalObservation ?? null,
+      firmaAgronomoNombre: normalizedDto.agronomistSignatureName ?? null,
+      firmaProductorNombre: normalizedDto.producerSignatureName ?? null,
+      ubicacionVisita: validatePointGeometry(normalizedDto.visitLocation),
       sincronizadoAt: null,
       isActive: true
     });
@@ -253,7 +272,8 @@ export class VisitasCampoService {
 
   async findHistoryByProductorId(
     productorId: string,
-    query: FindHistorialVisitasProductorQueryDto
+    query: FindHistorialVisitasProductorQueryDto,
+    currentUser?: CurrentUserContext
   ) {
     const productor = await this.findProductorEntityById(productorId);
 
@@ -267,6 +287,11 @@ export class VisitasCampoService {
     );
 
     this.applyHistoryFilters(queryBuilder, query);
+    if (isAgronomoUser(currentUser)) {
+      queryBuilder.andWhere("visita.agronomo_usuario_id = :currentUserId", {
+        currentUserId: currentUser!.userId
+      });
+    }
     queryBuilder.skip(query.skip).take(query.take);
 
     const [visitasCampo, total] = await queryBuilder.getManyAndCount();
@@ -276,7 +301,9 @@ export class VisitasCampoService {
         productor: this.toProductorSummaryResponse(productor),
         filters: {
           campaignId: query.campania_id ?? null,
-          agronomistUserId: query.agronomo_usuario_id ?? null,
+          agronomistUserId: isAgronomoUser(currentUser)
+            ? currentUser!.userId
+            : (query.agronomo_usuario_id ?? null),
           startDate: query.fecha_desde ?? null,
           endDate: query.fecha_hasta ?? null
         },
@@ -321,12 +348,24 @@ export class VisitasCampoService {
     );
   }
 
-  async update(id: string, updateVisitaCampoDto: UpdateVisitaCampoDto) {
+  async update(
+    id: string,
+    updateVisitaCampoDto: UpdateVisitaCampoDto,
+    currentUser?: CurrentUserContext
+  ) {
     if (updateVisitaCampoDto.phenologicalStageId === null) {
       throw new BadRequestException("La etapa fenologica no puede eliminarse.");
     }
 
     const visitaCampo = await this.findEntityById(id);
+
+    if (
+      isAgronomoUser(currentUser) &&
+      visitaCampo.agronomoUsuarioId !== currentUser!.userId
+    ) {
+      throw new NotFoundException("Visita de campo not found.");
+    }
+
     const nextCropId = updateVisitaCampoDto.cropId ?? visitaCampo.cultivoId;
     const nextVarietyId = updateVisitaCampoDto.varietyId ?? visitaCampo.variedadId;
     const nextCampaignId = updateVisitaCampoDto.campaignId ?? visitaCampo.campaniaId;
@@ -365,7 +404,7 @@ export class VisitasCampoService {
       phenologicalStageId: nextPhenologicalStageId ?? undefined,
       subEtapaId: nextSubEtapaId ?? undefined,
       subEtapaPercentage: nextSubEtapaPercentage
-    });
+    }, currentUser);
 
     await this.ensureUniqueNroFicha(nextNroFicha ?? null, visitaCampo.id);
     validateVisitTimes(nextStartVisitTime, nextEndVisitTime ?? null);
@@ -489,7 +528,7 @@ export class VisitasCampoService {
     phenologicalStageId?: string | null;
     subEtapaId?: string | null;
     subEtapaPercentage?: number | null;
-  }) {
+  }, currentUser?: CurrentUserContext) {
     await this.findRequiredEntity(
       this.cultivosRepository,
       input.cropId,
@@ -500,11 +539,25 @@ export class VisitasCampoService {
       input.varietyId,
       "Variedad not found."
     );
-    await this.findRequiredEntity(
+    const parcela = await this.findRequiredEntity(
       this.parcelasRepository,
       input.parcelaId,
       "Parcela not found."
     );
+
+    if (!parcela.isActive) {
+      throw new BadRequestException(
+        "La parcela debe estar activa para registrar una visita."
+      );
+    }
+
+    if (
+      isAgronomoUser(currentUser) &&
+      (parcela.agronomoUsuarioId !== currentUser!.userId ||
+        input.agronomistUserId !== currentUser!.userId)
+    ) {
+      throw new NotFoundException("Parcela not found.");
+    }
     const campania = await this.findRequiredEntity(
       this.campaniasRepository,
       input.campaignId,
@@ -953,6 +1006,14 @@ function validateVisitTimes(startVisitTime: string, endVisitTime: string | null)
       "startVisitTime must be less than or equal to endVisitTime."
     );
   }
+}
+
+function isAgronomoUser(currentUser?: CurrentUserContext): boolean {
+  if (!currentUser) {
+    return false;
+  }
+
+  return currentUser.roles.includes("AGRONOMO") && !currentUser.roles.includes("ADMIN");
 }
 
 function validateDateRange(startDate: string | undefined, endDate: string | undefined) {

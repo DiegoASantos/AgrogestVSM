@@ -51,6 +51,7 @@ describe("sync-outbox", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     database.getAllSync.mockReturnValue([]);
+    database.getFirstSync.mockReturnValue({ value: "agronomo-1" });
     database.runSync.mockReturnValue({ changes: 1 });
   });
 
@@ -142,7 +143,8 @@ describe("sync-outbox", () => {
         id: 1,
         entityType: "visitas_campo",
         entityLocalId: "local-1",
-        operation: "create"
+        operation: "create",
+        ownerUserId: undefined
       });
     });
 
@@ -163,6 +165,17 @@ describe("sync-outbox", () => {
       const query = String(calls.at(-1)?.[0]);
       expect(query).toContain("WHEN entity_type = 'ingredientes_activos' THEN 0");
       expect(query).toContain("WHEN entity_type = 'marcas_producto' THEN 1");
+    });
+
+    it("loads only entries owned by the authenticated user", () => {
+      database.getFirstSync.mockReturnValue({ value: "agronomo-b" });
+      database.getAllSync.mockReturnValue([]);
+
+      getPendingOutboxEntries();
+
+      const call = database.getAllSync.mock.calls.at(-1) as unknown[];
+      expect(String(call[0])).toContain("WHERE owner_user_id = ?");
+      expect(call[1]).toBe("agronomo-b");
     });
   });
 

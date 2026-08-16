@@ -33,4 +33,5 @@ export type CreateParcelaDraft = {
   description: string | null;
   referencePoint: GeoJsonPointGeometry | null;
   parcelReferencePoint?: GeoJsonPointGeometry | null;
+  isActive?: boolean;
 };

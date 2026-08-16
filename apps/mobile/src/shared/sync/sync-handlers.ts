@@ -86,6 +86,12 @@ export async function handleVisitaCampo(
     return { status: "deleted_local" };
   }
 
+  const parcela = parcelasRepository.getById(visita.parcelaId);
+
+  if (!parcela || !parcela.isActive || parcela.syncStatus !== "synced") {
+    return { status: "skipped" };
+  }
+
   if (entry.operation === "create" || entry.operation === "update") {
     const apiToken = getApiToken();
 
@@ -657,7 +663,8 @@ export async function handleParcela(
     areaHectares: parcela.areaHectares,
     description: parcela.description,
     referencePoint: parcela.referencePoint,
-    parcelReferencePoint: parcela.parcelReferencePoint
+    parcelReferencePoint: parcela.parcelReferencePoint,
+    isActive: parcela.isActive
   };
   const response =
     entry.operation === "update" && parcela.serverId
@@ -669,7 +676,8 @@ export async function handleParcela(
     syncStatus: "synced",
     syncErrorMessage: null,
     code: response.code,
-    publicId: response.publicId
+    publicId: response.publicId,
+    isActive: response.isActive
   });
 
   return { status: "synced", serverId: response.id };

@@ -32,6 +32,7 @@ import { classifyError } from "./sync-errors";
 import { SYNC_ENTITY_TABLES } from "./sync-entities";
 import { entityHandlerMap } from "./sync-handlers";
 import { setLastSyncTime } from "./sync-status";
+import { getCatalogSessionUserId } from "../database/catalog-session";
 
 const MAX_RETRIES = 5;
 
@@ -490,6 +491,12 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
 
 function reconcilePendingOutboxEntries() {
   const db = getDatabase();
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    return;
+  }
+
   const timestamp = getNowIsoString();
 
   db.runSync(`
@@ -504,11 +511,22 @@ function reconcilePendingOutboxEntries() {
       UNION
       SELECT receta_local_id FROM visita_receta_labores WHERE sync_status = 'pending'
     )
-  `);
+      AND EXISTS (
+        SELECT 1
+        FROM visitas_campo
+        WHERE visitas_campo.local_id = visita_recetas.visita_local_id
+          AND visitas_campo.agronomist_user_id = ?
+      )
+  `, ownerUserId);
 
   for (const entity of RECONCILABLE_SYNC_ENTITIES) {
     const isCatalogEntity = ["productores", "sectores", "subsectores", "parcelas", "ingredientes_activos", "fertilizantes", "marcas_producto"].includes(entity.entityType);
     const idColumn = isCatalogEntity ? "id" : "local_id";
+    const ownership = getReconciliationOwnership(
+      entity.entityType,
+      entity.table,
+      ownerUserId
+    );
 
     const rows =
       entity.entityType === "visita_recetas"
@@ -516,35 +534,44 @@ function reconcilePendingOutboxEntries() {
             `SELECT local_id, server_id
              FROM visita_recetas
              WHERE sync_status = 'pending'
+               ${ownership.sql}
                AND NOT EXISTS (
-                 SELECT 1
-                 FROM sync_outbox
-                 WHERE entity_type = ?
-                   AND entity_local_id IN (
-                     visita_recetas.local_id,
-                     visita_recetas.visita_local_id
-                   )
-               )`,
+                  SELECT 1
+                  FROM sync_outbox
+                  WHERE sync_outbox.owner_user_id = ?
+                    AND entity_type = ?
+                    AND entity_local_id IN (
+                      visita_recetas.local_id,
+                      visita_recetas.visita_local_id
+                    )
+                )`,
+            ...ownership.parameters,
+            ownerUserId,
             entity.entityType
           )
         : db.getAllSync<{ local_id: string; server_id: string | null }>(
             `SELECT ${idColumn} AS local_id, server_id
              FROM ${entity.table}
              WHERE sync_status = 'pending'
+               ${ownership.sql}
                AND NOT EXISTS (
-                 SELECT 1
-                 FROM sync_outbox
-                 WHERE entity_type = ?
-                   AND entity_local_id = ${entity.table}.${idColumn}
-               )`,
+                  SELECT 1
+                  FROM sync_outbox
+                  WHERE sync_outbox.owner_user_id = ?
+                    AND entity_type = ?
+                    AND entity_local_id = ${entity.table}.${idColumn}
+                )`,
+            ...ownership.parameters,
+            ownerUserId,
             entity.entityType
           );
 
     for (const row of rows) {
       db.runSync(
         `INSERT INTO sync_outbox
-           (entity_type, entity_local_id, operation, payload, created_at)
-         VALUES (?, ?, ?, NULL, ?)`,
+           (owner_user_id, entity_type, entity_local_id, operation, payload, created_at)
+         VALUES (?, ?, ?, ?, NULL, ?)`,
+        ownerUserId,
         entity.entityType,
         row.local_id,
         row.server_id ? "update" : "create",
@@ -552,4 +579,66 @@ function reconcilePendingOutboxEntries() {
       );
     }
   }
+}
+
+function getReconciliationOwnership(
+  entityType: keyof typeof SYNC_ENTITY_TABLES,
+  table: string,
+  ownerUserId: string
+): { sql: string; parameters: string[] } {
+  if (entityType === "productores" || entityType === "parcelas") {
+    return {
+      sql: `AND ${table}.catalog_owner_user_id = ?`,
+      parameters: [ownerUserId]
+    };
+  }
+
+  if (entityType === "sectores") {
+    return {
+      sql: `AND EXISTS (
+        SELECT 1
+        FROM subsectores owner_subsector
+        INNER JOIN parcelas owner_parcela
+          ON owner_parcela.subsector_id = owner_subsector.id
+        WHERE owner_subsector.sector_id = sectores.id
+          AND owner_parcela.catalog_owner_user_id = ?
+      )`,
+      parameters: [ownerUserId]
+    };
+  }
+
+  if (entityType === "subsectores") {
+    return {
+      sql: `AND EXISTS (
+        SELECT 1
+        FROM parcelas owner_parcela
+        WHERE owner_parcela.subsector_id = subsectores.id
+          AND owner_parcela.catalog_owner_user_id = ?
+      )`,
+      parameters: [ownerUserId]
+    };
+  }
+
+  if (entityType === "visitas_campo") {
+    return {
+      sql: "AND visitas_campo.agronomist_user_id = ?",
+      parameters: [ownerUserId]
+    };
+  }
+
+  if (entityType.startsWith("visita_")) {
+    return {
+      sql: `AND EXISTS (
+        SELECT 1
+        FROM visitas_campo owner_visita
+        WHERE owner_visita.local_id = ${table}.visita_local_id
+          AND owner_visita.agronomist_user_id = ?
+      )`,
+      parameters: [ownerUserId]
+    };
+  }
+
+  // Los catalogos globales no tienen columna de propietario. Si su outbox se
+  // pierde, no se reasignan automaticamente a otra sesion autenticada.
+  return { sql: "AND 1 = 0", parameters: [] };
 }

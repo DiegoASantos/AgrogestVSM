@@ -26,14 +26,16 @@ const { retryTransientSyncFailures, storeSyncFailure } = await import(
 describe("sync failures", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getFirstSync.mockReturnValue(null);
+    getFirstSync.mockImplementation((query: string) =>
+      query.includes("FROM app_meta") ? { value: "agronomo-1" } : null
+    );
     getAllSync.mockImplementation((query: string) =>
       query.startsWith("PRAGMA") ? [] : []
     );
   });
 
   it("stores the complete delete operation for a durable retry", () => {
-    const db = { runSync } as never;
+    const db = { runSync, getFirstSync } as never;
 
     storeSyncFailure(
       db,
@@ -53,8 +55,10 @@ describe("sync failures", () => {
 
     expect(runSync).toHaveBeenCalledWith(
       expect.stringContaining("INSERT OR REPLACE INTO sync_failures"),
+      "agronomo-1",
       "visitas_campo",
       "local-7",
+      "agronomo-1",
       "visitas_campo",
       "local-7",
       "delete",
@@ -93,18 +97,18 @@ describe("sync failures", () => {
     );
     expect(inserts).toHaveLength(2);
     expect(inserts[0]?.slice(1, 6)).toEqual([
+      "agronomo-1",
       "visitas_campo",
       "parent",
       "delete",
-      "parent-payload",
-      "2026-07-12T00:00:00.000Z"
+      "parent-payload"
     ]);
     expect(inserts[1]?.slice(1, 6)).toEqual([
+      "agronomo-1",
       "visita_evaluaciones",
       "child",
       "create",
-      "child-payload",
-      "2026-07-12T00:00:00.000Z"
+      "child-payload"
     ]);
     expect(notifySyncStatusChanged).toHaveBeenCalledOnce();
   });
@@ -119,6 +123,7 @@ function failureRow(
 ) {
   return {
     id,
+    owner_user_id: "agronomo-1",
     entity_type: entityType,
     entity_local_id: entityLocalId,
     operation,

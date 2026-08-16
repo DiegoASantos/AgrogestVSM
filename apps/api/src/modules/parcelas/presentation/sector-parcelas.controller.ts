@@ -8,6 +8,8 @@ import {
 } from "@nestjs/swagger";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { CurrentAuthUser } from "../../auth/presentation/decorators/current-auth-user.decorator";
+import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { ParcelasService } from "../application/parcelas.service";
 
 @ApiTags("Parcelas")
@@ -31,8 +33,9 @@ export class SectorParcelasController {
     description: "El sector no existe."
   })
   getParcelasBySectorId(
-    @Param("sectorId", ParseEntityIdPipe) sectorId: string
+    @Param("sectorId", ParseEntityIdPipe) sectorId: string,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
   ) {
-    return this.parcelasService.findBySectorId(sectorId);
+    return this.parcelasService.findBySectorId(sectorId, currentUser);
   }
 }

@@ -32,12 +32,14 @@ describe("productoresRepository", () => {
   });
 
   describe("#getAll", () => {
-    it("should query active productores", () => {
+    it("should query visible productores with active ones first", () => {
       database.getAllSync.mockReturnValue([row] as never);
 
       const result = productoresRepository.getAll();
 
-      expect(sqlOf(database.getAllSync.mock.calls).some((s) => s.includes("WHERE is_active = 1"))).toBe(true);
+      const queries = sqlOf(database.getAllSync.mock.calls);
+      expect(queries.some((s) => s.includes("catalog_visible = 1"))).toBe(true);
+      expect(queries.some((s) => s.includes("ORDER BY is_active DESC"))).toBe(true);
       expect(result).toHaveLength(1);
       expect(result[0].firstName).toBe("Juan");
     });

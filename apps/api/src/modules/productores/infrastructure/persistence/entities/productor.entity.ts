@@ -90,6 +90,13 @@ export class ProductorEntity {
   isActive!: boolean;
 
   @Column({
+    name: "creado_por_usuario_id",
+    type: "bigint",
+    nullable: true
+  })
+  createdByUserId!: string | null;
+
+  @Column({
     name: "creado_at",
     type: "timestamptz",
     default: () => "now()"

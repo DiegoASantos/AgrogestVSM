@@ -21,6 +21,8 @@ import {
 } from "@nestjs/swagger";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { CurrentAuthUser } from "../../auth/presentation/decorators/current-auth-user.decorator";
+import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { VisitasCampoService } from "../application/visitas-campo.service";
 import { CreateVisitaCampoDto } from "./dto/create-visita-campo.dto";
 import { FindVisitasCampoQueryDto } from "./dto/find-visitas-campo-query.dto";
@@ -42,8 +44,11 @@ export class VisitasCampoController {
   @ApiConflictResponse({
     description: "Ya existe una visita con el mismo nroFicha."
   })
-  createVisitaCampo(@Body() createVisitaCampoDto: CreateVisitaCampoDto) {
-    return this.visitasCampoService.create(createVisitaCampoDto);
+  createVisitaCampo(
+    @Body() createVisitaCampoDto: CreateVisitaCampoDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.visitasCampoService.create(createVisitaCampoDto, currentUser);
   }
 
   @Get()
@@ -197,9 +202,10 @@ export class VisitasCampoController {
   })
   updateVisitaCampo(
     @Param("id", ParseEntityIdPipe) id: string,
-    @Body() updateVisitaCampoDto: UpdateVisitaCampoDto
+    @Body() updateVisitaCampoDto: UpdateVisitaCampoDto,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
   ) {
-    return this.visitasCampoService.update(id, updateVisitaCampoDto);
+    return this.visitasCampoService.update(id, updateVisitaCampoDto, currentUser);
   }
 
   @Delete(":id")

@@ -5,6 +5,7 @@ import type { SyncEntityType } from "../sync/sync-entities";
 import { notifySyncStatusChanged } from "../sync/sync-events";
 import { deleteSyncFailureForEntity } from "./sync-failures";
 import { scheduleSync } from "../sync/sync-requests";
+import { getCatalogSessionUserId } from "./catalog-session";
 
 export type SyncOutboxOperation = "create" | "update" | "delete";
 
@@ -18,6 +19,7 @@ export type SyncOutboxEntry = {
 
 type SyncOutboxRow = {
   id: number;
+  owner_user_id: string | null;
   entity_type: string;
   entity_local_id: string;
   operation: SyncOutboxOperation;
@@ -34,15 +36,18 @@ export type SyncOutboxItem = {
   payload: string | null;
   retryCount: number;
   createdAt: string;
+  ownerUserId?: string | null;
 };
 
 export function insertSyncOutboxEntry(db: SQLiteDatabase, entry: SyncOutboxEntry) {
+  const ownerUserId = requireSyncOwner(db);
   deleteSyncFailureForEntity(db, entry.entityType, entry.entityLocalId, "transient");
   const existingEntries = db.getAllSync<Pick<SyncOutboxRow, "id" | "operation">>(
     `SELECT id, operation
      FROM sync_outbox
-     WHERE entity_type = ? AND entity_local_id = ?
+     WHERE owner_user_id = ? AND entity_type = ? AND entity_local_id = ?
      ORDER BY id ASC`,
+    ownerUserId,
     entry.entityType,
     entry.entityLocalId
   );
@@ -63,7 +68,8 @@ export function insertSyncOutboxEntry(db: SQLiteDatabase, entry: SyncOutboxEntry
     if (existingEntries.length > 0) {
       db.runSync(
         `DELETE FROM sync_outbox
-         WHERE entity_type = ? AND entity_local_id = ?`,
+         WHERE owner_user_id = ? AND entity_type = ? AND entity_local_id = ?`,
+        ownerUserId,
         entry.entityType,
         entry.entityLocalId
       );
@@ -75,8 +81,10 @@ export function insertSyncOutboxEntry(db: SQLiteDatabase, entry: SyncOutboxEntry
   }
 
   db.runSync(
-    `INSERT INTO sync_outbox (entity_type, entity_local_id, operation, payload, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO sync_outbox (
+       owner_user_id, entity_type, entity_local_id, operation, payload, created_at
+     ) VALUES (?, ?, ?, ?, ?, ?)`,
+    ownerUserId,
     entry.entityType,
     entry.entityLocalId,
     entry.operation,
@@ -90,9 +98,17 @@ export function insertSyncOutboxEntry(db: SQLiteDatabase, entry: SyncOutboxEntry
 
 export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
   const db = getDatabase();
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    return [];
+  }
+
   const rows = db.getAllSync<SyncOutboxRow>(
-    `SELECT id, entity_type, entity_local_id, operation, payload, retry_count, created_at
+    `SELECT id, owner_user_id, entity_type, entity_local_id, operation, payload,
+       retry_count, created_at
      FROM sync_outbox
+     WHERE owner_user_id = ?
      ORDER BY CASE
        WHEN entity_type = 'productores' THEN 0
        WHEN entity_type = 'sectores' THEN 0
@@ -106,6 +122,7 @@ export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
      END,
               id ASC
      LIMIT ?`,
+    ownerUserId,
     limit
   );
 
@@ -116,8 +133,19 @@ export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
     operation: row.operation,
     payload: row.payload,
     retryCount: row.retry_count,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    ownerUserId: row.owner_user_id
   }));
+}
+
+function requireSyncOwner(db: SQLiteDatabase): string {
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    throw new Error("No hay una sesion autenticada para registrar sincronizacion.");
+  }
+
+  return ownerUserId;
 }
 
 export function deleteOutboxEntry(id: number) {

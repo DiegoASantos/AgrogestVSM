@@ -14,6 +14,7 @@ import {
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
 import { getDatabase } from "../../../../shared/database/connection";
+import { getCatalogSessionUserId } from "../../../../shared/database/catalog-session";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
 import { parcelasService } from "../../../parcelas/services";
@@ -90,8 +91,8 @@ export function NewVisitaSelectorScreen() {
   }));
   const parcelaOptions = parcelas.map((parcela) => ({
     value: parcela.id,
-    label: parcela.name || parcela.code,
-    helper: parcela.code
+    label: `${parcela.name || parcela.code}${parcela.isActive ? "" : " (Inactiva)"}`,
+    helper: parcela.isActive ? parcela.code : `${parcela.code} · Requiere activacion`
   }));
   const selectedParcela = parcelas.find((parcela) => parcela.id === parcelaId);
 
@@ -103,29 +104,22 @@ export function NewVisitaSelectorScreen() {
         productoresService.countByName(query)
       ]);
 
-      const db = getDatabase();
       const options = nextProductores.map((productor) => {
-        const hasParcela = Boolean(
-          db.getFirstSync<{ found: number }>(
-            `SELECT 1 AS found
-             FROM parcelas
-             WHERE productor_id = ?
-             LIMIT 1`,
-            productor.id
-          )
-        );
+        const hasParcela = parcelasService.getByProductorId(productor.id);
 
-        return hasParcela
+        return hasParcela.then((parcelasDelProductor) =>
+          parcelasDelProductor.length > 0
           ? toProductorOption(productor)
           : {
               ...toProductorOption(productor),
               label: `[Sin parcela] ${buildProductorLabel(productor)}`,
               helper: "Toca para agregar una parcela",
               muted: true
-            };
+            }
+        );
       });
 
-      return { options, total };
+      return { options: await Promise.all(options), total };
     },
     []
   );
@@ -226,8 +220,7 @@ export function NewVisitaSelectorScreen() {
               isOpen={openCatalog === "parcela"}
               label="Parcela"
               onSelect={(value) => {
-                setParcelaId(value);
-                setOpenCatalog(null);
+                void handleParcelaSelection(value);
               }}
               onToggle={() => toggleCatalog("parcela")}
               options={parcelaOptions}
@@ -314,11 +307,7 @@ export function NewVisitaSelectorScreen() {
   }
 
   async function handleProductorSelection(value: string) {
-    const row = getDatabase().getFirstSync<{ total: number }>(
-      "SELECT COUNT(*) AS total FROM parcelas WHERE productor_id = ?",
-      value
-    );
-    const parcelaCount = row?.total ?? 0;
+    const parcelaCount = (await parcelasService.getByProductorId(value)).length;
 
     if (parcelaCount === 0) {
       clearSelection();
@@ -415,10 +404,59 @@ export function NewVisitaSelectorScreen() {
       setParcelas(nextParcelas);
 
       if (nextParcelas.length === 1) {
-        setParcelaId(nextParcelas[0].id);
+        await handleParcelaSelection(nextParcelas[0].id, nextParcelas);
       }
     } catch (nextError) {
       setError(toApiError(nextError).message || "No se pudieron cargar las parcelas.");
+    } finally {
+      setLoadingCatalog(null);
+    }
+  }
+
+  async function handleParcelaSelection(
+    value: string,
+    availableParcelas = parcelas
+  ) {
+    const selected = availableParcelas.find((parcela) => parcela.id === value);
+
+    if (!selected) {
+      return;
+    }
+
+    if (selected.isActive) {
+      setParcelaId(value);
+      setOpenCatalog(null);
+      return;
+    }
+
+    Alert.alert(
+      "Parcela inactiva",
+      "Esta parcela está inactiva. ¿Deseas activarla para realizar la visita?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Activar y continuar",
+          onPress: () => {
+            void activateSelectedParcela(selected);
+          }
+        }
+      ]
+    );
+  }
+
+  async function activateSelectedParcela(selected: Parcela) {
+    setLoadingCatalog("parcela");
+    setError(null);
+
+    try {
+      const activated = await parcelasService.activateForVisit(selected.id);
+      setParcelas((current) =>
+        current.map((parcela) => (parcela.id === activated.id ? activated : parcela))
+      );
+      setParcelaId(activated.id);
+      setOpenCatalog(null);
+    } catch (nextError) {
+      setError(toApiError(nextError).message || "No se pudo activar la parcela.");
     } finally {
       setLoadingCatalog(null);
     }
@@ -468,11 +506,23 @@ export function NewVisitaSelectorScreen() {
   }
 
   function handleNewProductorPress() {
-    const pending = getDatabase().getFirstSync<{ total: number }>(
+    const db = getDatabase();
+    const ownerUserId =
+      getCatalogSessionUserId(db) ?? "__no_authenticated_catalog_owner__";
+    const pending = db.getFirstSync<{ total: number }>(
       `SELECT COUNT(*) AS total
-       FROM productores
-       WHERE is_active = 1
-         AND id NOT IN (SELECT DISTINCT productor_id FROM parcelas)`
+       FROM productores AS productor
+       WHERE productor.catalog_owner_user_id = ?
+         AND productor.created_locally = 1
+         AND NOT EXISTS (
+           SELECT 1
+           FROM parcelas AS parcela
+           WHERE parcela.productor_id = productor.id
+             AND parcela.catalog_owner_user_id = ?
+             AND parcela.catalog_visible = 1
+         )`,
+      ownerUserId,
+      ownerUserId
     );
 
     if (!pending?.total) {
@@ -506,7 +556,7 @@ export function NewVisitaSelectorScreen() {
 function toProductorOption(productor: Productor): AppPaginatedSelectOption {
   return {
     value: productor.id,
-    label: buildProductorLabel(productor),
+    label: `${buildProductorLabel(productor)}${productor.isActive ? "" : " (Inactivo)"}`,
     helper: productor.documentNumber ?? productor.publicId
   };
 }
