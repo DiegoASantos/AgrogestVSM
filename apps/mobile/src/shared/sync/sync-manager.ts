@@ -3,6 +3,7 @@ export type SyncConnectionQuality = "stable" | "unstable" | "none";
 export type SyncAttemptRecord = {
   success: boolean;
   attemptedAt: string;
+  durationMs?: number;
 };
 
 export type SyncManagerState = {
@@ -37,6 +38,10 @@ export const DEFAULT_SYNC_MANAGER_CONFIG: SyncManagerConfig = {
   severeMinimumBackoffMs: 60_000
 };
 
+export const SLOW_NETWORK_REQUEST_MS = 5_000;
+const MIN_QUALITY_OBSERVATIONS = 3;
+const FAILURES_TO_DEGRADE = 2;
+
 export class SyncManager {
   constructor(
     private readonly store: SyncManagerStateStore,
@@ -54,6 +59,14 @@ export class SyncManager {
     }
 
     if (state.consecutiveSuccesses >= this.config.recoverySuccesses) {
+      return "stable";
+    }
+
+    if (state.consecutiveFailures >= FAILURES_TO_DEGRADE) {
+      return "unstable";
+    }
+
+    if (state.window.length < MIN_QUALITY_OBSERVATIONS) {
       return "stable";
     }
 
@@ -107,8 +120,17 @@ export class SyncManager {
     return Math.max(0, interval - (this.now().getTime() - lastAttemptTime));
   }
 
-  recordAttempt(success: boolean) {
-    return this.recordOutcome(success ? 1 : 0, success ? 0 : 1);
+  recordAttempt(success: boolean, durationMs?: number) {
+    const isResponsive =
+      success && (durationMs === undefined || durationMs < SLOW_NETWORK_REQUEST_MS);
+
+    return this.recordRecords([
+      {
+        success: isResponsive,
+        attemptedAt: this.now().toISOString(),
+        ...(durationMs === undefined ? {} : { durationMs })
+      }
+    ]);
   }
 
   recordOutcome(successes: number, failures: number) {
@@ -119,7 +141,6 @@ export class SyncManager {
       return this.getState();
     }
 
-    const currentState = this.getState();
     const attemptedAt = this.now().toISOString();
     const nextRecords: SyncAttemptRecord[] = [
       ...Array.from({ length: normalizedSuccesses }, () => ({
@@ -131,10 +152,23 @@ export class SyncManager {
         attemptedAt
       }))
     ];
+    return this.recordRecords(nextRecords);
+  }
+
+  private recordRecords(nextRecords: SyncAttemptRecord[]) {
+    if (nextRecords.length === 0) {
+      return this.getState();
+    }
+
+    const currentState = this.getState();
     const nextWindow = [...currentState.window, ...nextRecords].slice(
       -this.config.windowSize
     );
+    const normalizedSuccesses = nextRecords.filter((record) => record.success).length;
+    const normalizedFailures = nextRecords.length - normalizedSuccesses;
     const success = normalizedFailures === 0 && normalizedSuccesses > 0;
+    const attemptedAt =
+      nextRecords[nextRecords.length - 1]?.attemptedAt ?? this.now().toISOString();
 
     const consecutiveSuccesses = success
       ? currentState.consecutiveSuccesses + normalizedSuccesses
@@ -157,9 +191,7 @@ export class SyncManager {
     const nextState: SyncManagerState = {
       window: nextWindow,
       consecutiveFailures:
-        consecutiveSuccesses >= this.config.recoverySuccesses
-          ? 0
-          : consecutiveFailures,
+        consecutiveSuccesses >= this.config.recoverySuccesses ? 0 : consecutiveFailures,
       consecutiveSuccesses,
       backoffStep,
       lastAttemptAt: attemptedAt,

@@ -128,6 +128,33 @@ tasa de exito por operaciones individuales (no por ciclo completo):
 - el boton manual omite el backoff (`bypassBackoff`) sin forzar refresh de
   autenticacion.
 
+Desde la spec 045, la medicion tambien considera lenta una respuesta que tarda
+5 segundos o mas. Un timeout, fallo de transporte, HTTP 5xx o respuesta lenta
+cuenta como observacion mala; los HTTP 4xx confirman que el transporte responde
+y no degradan por si solos la calidad. Una sola observacion mala no cambia el
+modo: se requieren dos consecutivas o una tasa menor a 70% con al menos tres
+observaciones.
+
+Mobile separa cuatro conceptos:
+
+- conectividad fisica informada por NetInfo;
+- calidad `checking`, `stable`, `unstable` o `none`;
+- preferencia por usuario `automatic` u `offline`;
+- modo efectivo `online`, `offline_auto` u `offline_manual`.
+
+En cualquier modo offline efectivo, el cliente rechaza requests normales antes
+de `fetch`. Sync, pull de catalogos, clima remoto y comprobacion OTA quedan
+pausados, mientras los formularios continuan escribiendo en SQLite y outbox.
+Login es una accion esencial permitida si existe conectividad fisica. El modo
+offline manual se conserva en `app_meta` por usuario hasta que este vuelva a
+automatico.
+
+En `offline_auto`, con la app activa, un sondeo publico a `/health` con timeout
+de 5 segundos se ejecuta cada 30 segundos. No antecede cada request ni procesa
+datos de negocio. Tres respuestas buenas restauran online; `Probar conexion
+ahora` permite una comprobacion explicita y programa el sync si responde rapido.
+En `offline_manual` no existen sondeos automaticos.
+
 Los guardados siguen escribiendo primero en SQLite y programan sync en segundo
 plano. La UI no espera a la red para confirmar el guardado local.
 

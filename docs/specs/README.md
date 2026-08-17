@@ -88,4 +88,5 @@ en la raíz.
 - [Spec 042: Recuperacion y baja segura de catalogos creados desde mobile](042-recuperacion-baja-segura-catalogos-mobile.md)
 - [Spec 043: Selector de unidad para dosis fitosanitarias y fertilizantes](043-selector-unidad-dosis-receta.md)
 - [Spec 044: Recomendaciones reactivas y preventivas](044-recomendaciones-reactivas-preventivas.md)
+- [Spec 045: Conectividad hibrida y modo offline controlado en mobile](045-conectividad-hibrida-mobile.md)
 - [Plantilla](TEMPLATE.md)

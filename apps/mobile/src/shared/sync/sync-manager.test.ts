@@ -41,16 +41,40 @@ describe("SyncManager", () => {
 
     expect(manager.getSuccessRate()).toBe(0);
     expect(manager.evaluateConnection(true)).toBe("unstable");
-    expect(manager.getBackoffIntervalMs()).toBe(120_000);
+    expect(manager.getBackoffIntervalMs()).toBe(60_000);
   });
 
   it("uses the severe minimum interval when the success rate is below 20 percent", () => {
     const manager = buildManager();
 
     manager.recordAttempt(false);
+    manager.recordAttempt(false);
 
     expect(manager.getSuccessRate()).toBe(0);
     expect(manager.getBackoffIntervalMs()).toBe(60_000);
+  });
+
+  it("waits for two bad observations before degrading the connection", () => {
+    const manager = buildManager();
+
+    manager.recordAttempt(false);
+    expect(manager.evaluateConnection(true)).toBe("stable");
+
+    manager.recordAttempt(false);
+    expect(manager.evaluateConnection(true)).toBe("unstable");
+  });
+
+  it("treats successful requests lasting five seconds as bad observations", () => {
+    const manager = buildManager();
+
+    manager.recordAttempt(true, 5_000);
+    manager.recordAttempt(true, 5_000);
+
+    expect(manager.evaluateConnection(true)).toBe("unstable");
+    expect(manager.getState().window).toEqual([
+      expect.objectContaining({ success: false, durationMs: 5_000 }),
+      expect.objectContaining({ success: false, durationMs: 5_000 })
+    ]);
   });
 
   it("restores stable state after three consecutive successes", () => {
@@ -99,5 +123,9 @@ describe("SyncManager", () => {
 });
 
 function buildManager() {
-  return new SyncManager(new MemoryStore(), undefined, () => new Date("2026-07-04T00:00:00.000Z"));
+  return new SyncManager(
+    new MemoryStore(),
+    undefined,
+    () => new Date("2026-07-04T00:00:00.000Z")
+  );
 }

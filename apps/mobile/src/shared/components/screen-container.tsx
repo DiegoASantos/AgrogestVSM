@@ -1,7 +1,8 @@
 import type { PropsWithChildren } from "react";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 
-import { useIsOnline } from "../connectivity/use-is-online";
+import { getConnectivityPresentation } from "../connectivity/connectivity-presentation";
+import { useConnectivity } from "../connectivity/use-connectivity";
 import { theme } from "../constants/theme";
 import { AppText } from "./app-text";
 
@@ -10,16 +11,21 @@ type ScreenContainerProps = PropsWithChildren<{
 }>;
 
 export function ScreenContainer({ children, contentStyle }: ScreenContainerProps) {
-  const { isOnline } = useIsOnline();
+  const { effectiveMode, isPhysicallyOnline, quality } = useConnectivity();
+  const connectivity = getConnectivityPresentation({
+    effectiveMode,
+    isPhysicallyOnline,
+    quality
+  });
 
   return (
     <View style={styles.safeArea}>
       <View style={[styles.content, contentStyle]}>
-        {!isOnline ? (
+        {connectivity.banner ? (
           <View style={styles.offlineBanner}>
             <View style={styles.offlineDot} />
             <AppText variant="label" style={styles.offlineBannerText}>
-              Sin conexion — datos guardados localmente
+              {connectivity.banner}
             </AppText>
           </View>
         ) : null}

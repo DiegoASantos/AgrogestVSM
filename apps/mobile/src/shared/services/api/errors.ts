@@ -27,6 +27,17 @@ export class ApiRequestAbortedError extends ApiError {
   }
 }
 
+export class ApiOfflineModeError extends ApiError {
+  constructor(message = "La aplicacion esta trabajando sin conexion.") {
+    super(message);
+    this.name = "ApiOfflineModeError";
+  }
+}
+
+export function isApiOfflineModeError(error: unknown) {
+  return error instanceof ApiOfflineModeError;
+}
+
 export function isApiRequestAbortedError(error: unknown) {
   return error instanceof ApiRequestAbortedError;
 }

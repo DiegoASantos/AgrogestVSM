@@ -62,8 +62,16 @@ vi.mock("../services/api/errors", async () => {
       this.name = "ApiError";
     }
   }
+  class ApiOfflineModeError extends ApiError {
+    constructor() {
+      super("offline mode");
+      this.name = "ApiOfflineModeError";
+    }
+  }
   return {
     ApiError,
+    ApiOfflineModeError,
+    isApiOfflineModeError: (error: unknown) => error instanceof ApiOfflineModeError,
     isApiRequestAbortedError: () => false,
     toApiError(error: unknown) {
       if (error instanceof ApiError) return error;
@@ -520,6 +528,23 @@ describe("processOutbox", () => {
 
     expect(result.stoppedByAuth).toBe(true);
     expect(result.unattempted).toBe(1);
+  });
+
+  it("pauses without retrying when connectivity mode changes during a cycle", async () => {
+    const { ApiOfflineModeError } = await import("../services/api/errors");
+    getPendingOutboxEntries.mockReturnValue([
+      makeEntry({ id: 45 }),
+      makeEntry({ id: 46, entityLocalId: "local-2" })
+    ]);
+    handlerVisita.mockRejectedValue(new ApiOfflineModeError());
+
+    const result = await processOutbox();
+
+    expect(result.stoppedByConnectivity).toBe(true);
+    expect(result.unattempted).toBe(2);
+    expect(incrementOutboxRetryCount).not.toHaveBeenCalled();
+    expect(deleteOutboxEntry).not.toHaveBeenCalled();
+    expect(setLastSyncTime).not.toHaveBeenCalled();
   });
 
   it("stops processing on abort signal", async () => {

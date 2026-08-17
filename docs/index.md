@@ -38,6 +38,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [ADR-001: `docs/` como vault canónico](adr/001-docs-vault-canonico.md)
 - [ADR-002: equipo inicial de IA reducido](adr/002-equipo-ia-reducido.md)
 - [ADR-003: sync adaptativo por tasa de exito](adr/003-sync-adaptativo-por-tasa-exito.md)
+- [ADR-004: conectividad efectiva y modo offline controlado en mobile](adr/004-conectividad-efectiva-mobile.md)
 - [Plantilla de ADR](adr/TEMPLATE.md)
 
 ## Especificaciones
@@ -93,6 +94,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Recuperacion y baja segura de catalogos creados desde mobile](specs/042-recuperacion-baja-segura-catalogos-mobile.md)
 - [Selector de unidad para dosis fitosanitarias y fertilizantes](specs/043-selector-unidad-dosis-receta.md)
 - [Recomendaciones reactivas y preventivas](specs/044-recomendaciones-reactivas-preventivas.md)
+- [Conectividad hibrida y modo offline controlado en mobile](specs/045-conectividad-hibrida-mobile.md)
 
 ## Runbooks
 

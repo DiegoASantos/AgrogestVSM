@@ -2,7 +2,7 @@
 title: Deploy mobile Android con Expo EAS
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-16
+last_reviewed: 2026-08-17
 ---
 
 # Deploy mobile Android con Expo EAS
@@ -111,6 +111,13 @@ Antes del reparto productivo, hacer una prueba de actualizacion representativa:
 4. abrir la app y comprobar migraciones, lectura de visitas, receta y outbox;
 5. comparar conteos e invariantes y ejecutar un sync controlado;
 6. cancelar el release ante cualquier perdida, inconsistencia o error de firma.
+
+Si el release modifica conectividad efectiva, validar ademas una red limitada:
+dos fallos o respuestas de 5 segundos deben activar offline automatico sin
+perder pendientes; tres sondeos rapidos deben restaurar online. Confirmar que
+offline manual sobrevive al reinicio, muestra su recordatorio y permite login
+con conectividad fisica, pero no ejecuta sync, catalogos, clima remoto ni OTA
+hasta volver a automatico.
 
 Para el salto `versionCode` 7 a 8 no se agrega una migracion SQLite. La cohorte
 productiva debe estar en `user_version = 53`; una instalacion mucho mas antigua

@@ -6,6 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useAuthSession } from "../src/modules/auth/hooks/use-auth-session";
 import { AuthSessionProvider } from "../src/modules/auth/state/auth-session-provider";
 import { AppBottomNavigation } from "../src/shared/components";
+import { ConnectivityProvider } from "../src/shared/connectivity/connectivity-context";
 import { initDatabase } from "../src/shared/database/connection";
 import { theme } from "../src/shared/constants/theme";
 import { useSync } from "../src/shared/sync";
@@ -23,7 +24,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthSessionProvider>
-        <AppNavigation />
+        <ConnectivityProvider>
+          <AppNavigation />
+        </ConnectivityProvider>
       </AuthSessionProvider>
     </SafeAreaProvider>
   );

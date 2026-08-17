@@ -2,7 +2,7 @@
 title: Índice de ADR
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-05
+last_reviewed: 2026-08-17
 ---
 
 # Registros de decisiones arquitectónicas
@@ -30,4 +30,5 @@ anterior se marca como `superseded`.
 - [ADR-001: `docs/` como vault y documentación canónica](001-docs-vault-canonico.md)
 - [ADR-002: equipo inicial de IA reducido](002-equipo-ia-reducido.md)
 - [ADR-003: sync adaptativo por tasa de exito](003-sync-adaptativo-por-tasa-exito.md)
+- [ADR-004: conectividad efectiva y modo offline controlado en mobile](004-conectividad-efectiva-mobile.md)
 - [Plantilla](TEMPLATE.md)

@@ -34,7 +34,8 @@ export const authService = {
   async login(values: LoginFormValues): Promise<AuthLoginResult> {
     const response = await apiRequest<LoginApiResponse>("/auth/login", {
       method: "POST",
-      body: values
+      body: values,
+      networkPolicy: "essential"
     });
 
     return {

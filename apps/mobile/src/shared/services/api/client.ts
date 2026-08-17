@@ -1,6 +1,14 @@
 import { getApiBaseUrl } from "./config";
 import { getApiToken, refreshApiToken } from "./auth-store";
-import { ApiError, ApiRequestAbortedError, ApiTimeoutError } from "./errors";
+import {
+  ApiError,
+  ApiOfflineModeError,
+  ApiRequestAbortedError,
+  ApiTimeoutError
+} from "./errors";
+import { isNetworkRequestAllowed } from "../../connectivity/connectivity-policy";
+import { publishNetworkObservation } from "../../connectivity/network-telemetry";
+import type { NetworkRequestPolicy } from "../../connectivity/connectivity-types";
 
 export const DEFAULT_API_TIMEOUT_MS = 15_000;
 
@@ -10,6 +18,7 @@ export type ApiRequestOptions = {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   timeoutMs?: number;
+  networkPolicy?: NetworkRequestPolicy;
 };
 
 export type ApiRequestContext = Pick<ApiRequestOptions, "signal" | "timeoutMs">;
@@ -31,6 +40,12 @@ type ApiFailureResponse = {
 };
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}) {
+  const networkPolicy = options.networkPolicy ?? "standard";
+
+  if (!isNetworkRequestAllowed(networkPolicy)) {
+    throw new ApiOfflineModeError();
+  }
+
   let result = await performRequest(path, options);
 
   if (
@@ -105,6 +120,8 @@ async function performRequest(
   const apiToken = getApiToken();
   const controller = new AbortController();
   const timeoutMs = normalizeTimeout(options.timeoutMs);
+  const networkPolicy = options.networkPolicy ?? "standard";
+  const startedAt = Date.now();
   let timedOut = false;
   const handleExternalAbort = () => controller.abort();
 
@@ -120,15 +137,14 @@ async function performRequest(
   }, timeoutMs);
 
   try {
-    const includeAuth = apiToken && (!options.headers?.Authorization || overrideAuthorization);
+    const includeAuth =
+      apiToken && (!options.headers?.Authorization || overrideAuthorization);
 
     const response = await fetch(buildApiUrl(path), {
       method: options.method ?? "GET",
       headers: {
         "Content-Type": "application/json",
-        ...(includeAuth
-          ? { Authorization: `Bearer ${apiToken}` }
-          : {}),
+        ...(includeAuth ? { Authorization: `Bearer ${apiToken}` } : {}),
         ...(options.headers ?? {})
       },
       ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
@@ -136,8 +152,20 @@ async function performRequest(
     });
     const rawPayload = await response.text();
 
+    publishNetworkObservation({
+      durationMs: Date.now() - startedAt,
+      policy: networkPolicy,
+      success: response.status !== 408 && response.status < 500
+    });
+
     return { response, rawPayload };
   } catch (error) {
+    publishNetworkObservation({
+      durationMs: Date.now() - startedAt,
+      policy: networkPolicy,
+      success: false
+    });
+
     if (timedOut) {
       throw new ApiTimeoutError(undefined, timeoutMs);
     }

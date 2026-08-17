@@ -17,7 +17,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "../../../../shared/components";
-import { useIsOnline } from "../../../../shared/connectivity/use-is-online";
+import { getConnectivityPresentation } from "../../../../shared/connectivity/connectivity-presentation";
+import type {
+  NetworkPreference,
+  NetworkQuality
+} from "../../../../shared/connectivity/connectivity-types";
+import { useConnectivity } from "../../../../shared/connectivity/use-connectivity";
 import { useCatalogDownloadStatus } from "../../../../shared/database/catalog-download-state";
 import { forceRefreshAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import {
@@ -52,7 +57,16 @@ const HISTORY_ROUTE = "/visitas-campo/historial";
 export function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { isOnline } = useIsOnline();
+  const {
+    checkConnectionNow,
+    effectiveMode,
+    isCheckingConnection,
+    isOnline,
+    isPhysicallyOnline,
+    preference,
+    quality,
+    setPreference
+  } = useConnectivity();
   const { isUpdatePending } = useUpdates();
   const { isAuthenticated, onlineSessionStatus, session, signOut } = useAuthSession();
   const updateCheckInFlightRef = useRef(false);
@@ -62,6 +76,10 @@ export function HomeScreen() {
   const [syncPending, setSyncPending] = useState<SyncPendingDetail[]>([]);
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [isPendingModalVisible, setIsPendingModalVisible] = useState(false);
+  const [isConnectivityModalVisible, setIsConnectivityModalVisible] = useState(false);
+  const [connectionProbeFeedback, setConnectionProbeFeedback] = useState<string | null>(
+    null
+  );
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [lastSyncAttempt, setLastSyncAttempt] = useState<SyncRunResult | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
@@ -73,6 +91,15 @@ export function HomeScreen() {
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
   const catalogStatus = useCatalogDownloadStatus();
   const heroHeight = Math.min(Math.max(width * 0.58, 218), 330);
+  const connectivity = useMemo(
+    () =>
+      getConnectivityPresentation({
+        effectiveMode,
+        isPhysicallyOnline,
+        quality
+      }),
+    [effectiveMode, isPhysicallyOnline, quality]
+  );
 
   const loadSyncState = useCallback(() => {
     setSyncCounts(getSyncCounts());
@@ -280,6 +307,25 @@ export function HomeScreen() {
     }
   }, [isApplyingAppUpdate]);
 
+  const handleConnectivityPreference = useCallback(
+    (nextPreference: NetworkPreference) => {
+      setConnectionProbeFeedback(null);
+      setPreference(nextPreference);
+      setIsConnectivityModalVisible(false);
+    },
+    [setPreference]
+  );
+
+  const handleCheckConnection = useCallback(async () => {
+    setConnectionProbeFeedback(null);
+    const isResponsive = await checkConnectionNow();
+    setConnectionProbeFeedback(
+      isResponsive
+        ? "La conexion respondio correctamente. Se reanudara la sincronizacion."
+        : "La conexion aun no es estable. Tus datos permanecen guardados localmente."
+    );
+  }, [checkConnectionNow]);
+
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
       <StatusBar backgroundColor="#fbfcf9" style="dark" />
@@ -392,6 +438,28 @@ export function HomeScreen() {
           </View>
         ) : null}
 
+        {connectivity.banner ? (
+          <View style={styles.connectivityBanner}>
+            <Ionicons color="#9a5a00" name={connectivity.icon} size={22} />
+            <AppText style={styles.connectivityBannerText} variant="caption">
+              {connectivity.banner}
+            </AppText>
+            <Pressable
+              accessibilityLabel="Cambiar modo de conectividad"
+              accessibilityRole="button"
+              onPress={() => setIsConnectivityModalVisible(true)}
+              style={({ pressed }) => [
+                styles.connectivityBannerButton,
+                pressed && styles.pressed
+              ]}
+            >
+              <AppText style={styles.connectivityBannerButtonText} variant="label">
+                Cambiar
+              </AppText>
+            </Pressable>
+          </View>
+        ) : null}
+
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
@@ -402,12 +470,12 @@ export function HomeScreen() {
         <View style={styles.dashboard}>
           <View style={styles.connectionGrid}>
             <InfoCard
-              description={
-                isOnline ? "Conexion estable" : "Tus cambios se guardaran localmente"
-              }
-              icon={isOnline ? "wifi" : "cloud-offline-outline"}
-              title={isOnline ? "Online" : "Offline"}
-              variant={isOnline ? "success" : "warning"}
+              accessibilityHint="Abre las opciones para trabajar online u offline"
+              description={connectivity.description}
+              icon={connectivity.icon}
+              onPress={() => setIsConnectivityModalVisible(true)}
+              title={connectivity.title}
+              variant={connectivity.variant}
             />
             <InfoCard
               description={`Ultima sincronizacion: ${formatLastSyncTime(lastSyncTime)}`}
@@ -610,6 +678,20 @@ export function HomeScreen() {
         </View>
       </ScrollView>
 
+      <ConnectivityModeModal
+        feedback={connectionProbeFeedback}
+        isChecking={isCheckingConnection}
+        isPhysicallyOnline={isPhysicallyOnline}
+        onCheck={() => {
+          void handleCheckConnection();
+        }}
+        onClose={() => setIsConnectivityModalVisible(false)}
+        onSelect={handleConnectivityPreference}
+        preference={preference}
+        quality={quality}
+        visible={isConnectivityModalVisible}
+      />
+
       <SyncErrorsModal
         errors={syncErrors}
         onClose={() => setIsErrorModalVisible(false)}
@@ -627,19 +709,174 @@ export function HomeScreen() {
   );
 }
 
+function ConnectivityModeModal({
+  feedback,
+  isChecking,
+  isPhysicallyOnline,
+  onCheck,
+  onClose,
+  onSelect,
+  preference,
+  quality,
+  visible
+}: {
+  feedback: string | null;
+  isChecking: boolean;
+  isPhysicallyOnline: boolean;
+  onCheck: () => void;
+  onClose: () => void;
+  onSelect: (preference: NetworkPreference) => void;
+  preference: NetworkPreference;
+  quality: NetworkQuality;
+  visible: boolean;
+}) {
+  const canCheck = preference === "automatic" && isPhysicallyOnline && !isChecking;
+
+  return (
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
+      <View style={styles.errorModalOverlay}>
+        <View style={styles.connectivityModalCard}>
+          <View style={styles.errorModalHeader}>
+            <View style={styles.errorModalTitleRow}>
+              <View style={styles.connectivityModalIcon}>
+                <Ionicons color="#9a5a00" name="wifi-outline" size={24} />
+              </View>
+              <View style={styles.errorModalTitleCopy}>
+                <AppText style={styles.errorModalTitle} variant="heading">
+                  Modo de conectividad
+                </AppText>
+                <AppText style={styles.errorModalSubtitle} variant="caption">
+                  Elige como debe usar Internet AgroGest.
+                </AppText>
+              </View>
+            </View>
+            <Pressable
+              accessibilityLabel="Cerrar opciones de conectividad"
+              accessibilityRole="button"
+              onPress={onClose}
+              style={({ pressed }) => [
+                styles.errorModalCloseButton,
+                pressed && styles.pressed
+              ]}
+            >
+              <Ionicons color="#44534c" name="close" size={24} />
+            </Pressable>
+          </View>
+
+          <View style={styles.connectivityOptions}>
+            <Pressable
+              accessibilityRole="radio"
+              accessibilityState={{ checked: preference === "automatic" }}
+              onPress={() => onSelect("automatic")}
+              style={({ pressed }) => [
+                styles.connectivityOption,
+                preference === "automatic" && styles.connectivityOptionSelected,
+                pressed && styles.pressed
+              ]}
+            >
+              <View style={styles.connectivityOptionIcon}>
+                <Ionicons color="#08643f" name="git-network-outline" size={24} />
+              </View>
+              <View style={styles.connectivityOptionCopy}>
+                <AppText style={styles.connectivityOptionTitle} variant="label">
+                  Modo automatico
+                </AppText>
+                <AppText style={styles.connectivityOptionDescription} variant="caption">
+                  Usa Internet cuando responde bien y protege el trabajo cuando la red es
+                  inestable.
+                </AppText>
+              </View>
+              <Ionicons
+                color={preference === "automatic" ? "#4f940e" : "#9aa59f"}
+                name={preference === "automatic" ? "radio-button-on" : "radio-button-off"}
+                size={23}
+              />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="radio"
+              accessibilityState={{ checked: preference === "offline" }}
+              onPress={() => onSelect("offline")}
+              style={({ pressed }) => [
+                styles.connectivityOption,
+                preference === "offline" && styles.connectivityOptionSelected,
+                pressed && styles.pressed
+              ]}
+            >
+              <View style={styles.connectivityOptionIcon}>
+                <Ionicons color="#9a5a00" name="cloud-offline-outline" size={24} />
+              </View>
+              <View style={styles.connectivityOptionCopy}>
+                <AppText style={styles.connectivityOptionTitle} variant="label">
+                  Trabajar offline
+                </AppText>
+                <AppText style={styles.connectivityOptionDescription} variant="caption">
+                  Guarda todo localmente y no usa la red hasta que vuelvas a automatico.
+                </AppText>
+              </View>
+              <Ionicons
+                color={preference === "offline" ? "#e28700" : "#9aa59f"}
+                name={preference === "offline" ? "radio-button-on" : "radio-button-off"}
+                size={23}
+              />
+            </Pressable>
+
+            {preference === "automatic" && quality !== "stable" ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={!canCheck}
+                onPress={onCheck}
+                style={({ pressed }) => [
+                  styles.checkConnectionButton,
+                  pressed && styles.pressed,
+                  !canCheck && styles.manualSyncButtonDisabled
+                ]}
+              >
+                {isChecking ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <Ionicons color="#ffffff" name="pulse-outline" size={20} />
+                )}
+                <AppText style={styles.checkConnectionButtonText} variant="label">
+                  {isChecking ? "Comprobando..." : "Probar conexion ahora"}
+                </AppText>
+              </Pressable>
+            ) : null}
+
+            {!isPhysicallyOnline ? (
+              <AppText style={styles.connectionFeedback} variant="caption">
+                El dispositivo no tiene acceso a Internet. El login y las pruebas de
+                conexion requieren red.
+              </AppText>
+            ) : feedback ? (
+              <AppText style={styles.connectionFeedback} variant="caption">
+                {feedback}
+              </AppText>
+            ) : null}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function InfoCard({
+  accessibilityHint,
   description,
   icon,
+  onPress,
   title,
   variant
 }: {
+  accessibilityHint?: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
+  onPress?: () => void;
   title: string;
   variant: StatusVariant;
 }) {
-  return (
-    <View style={styles.infoCard}>
+  const content = (
+    <>
       <View style={[styles.infoIcon, statusBackgroundStyles[variant]]}>
         <Ionicons color={statusColorStyles[variant]} name={icon} size={29} />
       </View>
@@ -654,7 +891,23 @@ function InfoCard({
           {description}
         </AppText>
       </View>
-    </View>
+      {onPress ? <Ionicons color="#718078" name="chevron-forward" size={18} /> : null}
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.infoCard}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      accessibilityHint={accessibilityHint}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.infoCard, pressed && styles.infoCardPressed]}
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -1288,6 +1541,10 @@ const styles = StyleSheet.create({
     shadowRadius: 9,
     elevation: 4
   },
+  infoCardPressed: {
+    backgroundColor: "#f7faf6",
+    transform: [{ scale: 0.99 }]
+  },
   infoIcon: {
     width: 55,
     height: 55,
@@ -1574,6 +1831,36 @@ const styles = StyleSheet.create({
   catalogBannerTextError: {
     color: "#bc3f36"
   },
+  connectivityBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e8bd78",
+    backgroundColor: "#fff7e9"
+  },
+  connectivityBannerText: {
+    minWidth: 0,
+    flex: 1,
+    color: "#6f4a14",
+    lineHeight: 17
+  },
+  connectivityBannerButton: {
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: 11,
+    borderRadius: 10,
+    backgroundColor: "#f7e3bd"
+  },
+  connectivityBannerButtonText: {
+    color: "#71480c",
+    fontSize: 12
+  },
   errorModalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -1588,6 +1875,79 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "#ffffff",
     overflow: "hidden"
+  },
+  connectivityModalCard: {
+    width: "100%",
+    maxWidth: 620,
+    alignSelf: "center",
+    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    overflow: "hidden"
+  },
+  connectivityModalIcon: {
+    width: 43,
+    height: 43,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: "#fff1d8"
+  },
+  connectivityOptions: {
+    gap: 11,
+    padding: 15
+  },
+  connectivityOption: {
+    minHeight: 84,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: "#dce4de",
+    borderRadius: 14,
+    backgroundColor: "#fbfcfa"
+  },
+  connectivityOptionSelected: {
+    borderColor: "#8fbd6b",
+    backgroundColor: "#f3f8ef"
+  },
+  connectivityOptionIcon: {
+    width: 43,
+    height: 43,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+    backgroundColor: "#edf5e8"
+  },
+  connectivityOptionCopy: {
+    minWidth: 0,
+    flex: 1,
+    gap: 3
+  },
+  connectivityOptionTitle: {
+    color: "#173c2d",
+    fontSize: 15
+  },
+  connectivityOptionDescription: {
+    color: "#66736c",
+    lineHeight: 17
+  },
+  checkConnectionButton: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 13,
+    backgroundColor: "#08643f"
+  },
+  checkConnectionButtonText: {
+    color: "#ffffff"
+  },
+  connectionFeedback: {
+    paddingHorizontal: 4,
+    color: "#6f4a14",
+    lineHeight: 18
   },
   errorModalHeader: {
     flexDirection: "row",

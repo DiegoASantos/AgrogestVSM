@@ -103,6 +103,7 @@ vi.mock("../services/api/errors", async () => {
 
   return {
     ApiError,
+    isApiOfflineModeError: () => false,
     isApiRequestAbortedError: () => false,
     toApiError(error: unknown) {
       if (error instanceof ApiError) return error;
@@ -632,9 +633,7 @@ describe("offline/online sync with complete visit data", () => {
             ]
           })
         ],
-        fertilizacion: [
-          expect.objectContaining({ enfoque: "preventivo", factor: 1 })
-        ]
+        fertilizacion: [expect.objectContaining({ enfoque: "preventivo", factor: 1 })]
       }),
       { signal: undefined }
     );

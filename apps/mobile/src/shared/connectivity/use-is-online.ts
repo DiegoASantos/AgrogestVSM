@@ -1,15 +1,6 @@
-import NetInfo from "@react-native-community/netinfo";
-import { useEffect, useState } from "react";
+import { useConnectivity } from "./use-connectivity";
 
 export function useIsOnline() {
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsOnline(state.isInternetReachable ?? true);
-    });
-    return () => unsubscribe();
-  }, []);
-
+  const { isOnline } = useConnectivity();
   return { isOnline };
 }

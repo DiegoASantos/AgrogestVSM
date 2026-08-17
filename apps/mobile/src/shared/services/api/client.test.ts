@@ -13,13 +13,17 @@ vi.mock("./auth-store", () => ({
 }));
 
 const { apiRequest } = await import("./client");
-const { ApiRequestAbortedError, ApiTimeoutError } = await import("./errors");
+const { ApiOfflineModeError, ApiRequestAbortedError, ApiTimeoutError } =
+  await import("./errors");
+const { resetConnectivityPolicyForTests, setConnectivityPolicySnapshot } =
+  await import("../../connectivity/connectivity-policy");
 
 describe("apiRequest timeouts", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     getApiToken.mockReturnValue(null);
     refreshApiToken.mockResolvedValue(null);
+    resetConnectivityPolicyForTests();
   });
 
   afterEach(() => {
@@ -69,9 +73,7 @@ describe("apiRequest timeouts", () => {
       signal: controller.signal,
       timeoutMs: 5_000
     });
-    const assertion = expect(request).rejects.toBeInstanceOf(
-      ApiRequestAbortedError
-    );
+    const assertion = expect(request).rejects.toBeInstanceOf(ApiRequestAbortedError);
 
     controller.abort();
     await assertion;
@@ -80,20 +82,62 @@ describe("apiRequest timeouts", () => {
   it("parses a successful response and clears its timer", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            success: true,
-            data: { id: "ok" },
-            timestamp: "2026-07-12T00:00:00.000Z"
-          }),
-          { status: 200 }
-        )
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: { id: "ok" },
+              timestamp: "2026-07-12T00:00:00.000Z"
+            }),
+            { status: 200 }
+          )
       )
     );
 
     await expect(apiRequest<{ id: string }>("/ok")).resolves.toEqual({ id: "ok" });
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("blocks standard requests before fetch while manual offline is active", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    setConnectivityPolicySnapshot({
+      effectiveMode: "offline_manual",
+      isPhysicallyOnline: true,
+      preference: "offline"
+    });
+
+    await expect(apiRequest("/blocked")).rejects.toBeInstanceOf(ApiOfflineModeError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows an essential login request while manual offline is active", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              success: true,
+              data: { accessToken: "token" },
+              timestamp: "2026-08-17T00:00:00.000Z"
+            }),
+            { status: 200 }
+          )
+      )
+    );
+    setConnectivityPolicySnapshot({
+      effectiveMode: "offline_manual",
+      isPhysicallyOnline: true,
+      preference: "offline"
+    });
+
+    await expect(
+      apiRequest<{ accessToken: string }>("/auth/login", {
+        networkPolicy: "essential"
+      })
+    ).resolves.toEqual({ accessToken: "token" });
   });
 });
 
@@ -101,11 +145,9 @@ function createAbortableFetch() {
   return vi.fn(
     async (_url: unknown, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener(
-          "abort",
-          () => reject(new Error("aborted")),
-          { once: true }
-        );
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")), {
+          once: true
+        });
       })
   );
 }

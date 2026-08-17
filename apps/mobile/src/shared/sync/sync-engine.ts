@@ -19,7 +19,11 @@ import {
 import { getDatabase } from "../database/connection";
 import { getNowIsoString } from "../database/sqlite-utils";
 import { getApiToken } from "../services/api/auth-store";
-import { ApiError, isApiRequestAbortedError } from "../services/api/errors";
+import {
+  ApiError,
+  isApiOfflineModeError,
+  isApiRequestAbortedError
+} from "../services/api/errors";
 import { deleteSyncFailureForEntity, storeSyncFailure } from "../database/sync-failures";
 import { debugLog } from "../utils/debug-log";
 import { classifyError } from "./sync-errors";
@@ -46,6 +50,7 @@ export type ProcessOutboxResult = {
   dependencySkipped: number;
   unattempted: number;
   stoppedByAuth: boolean;
+  stoppedByConnectivity: boolean;
   aborted: boolean;
 };
 
@@ -99,6 +104,7 @@ export async function processOutbox(
     dependencySkipped: 0,
     unattempted: 0,
     stoppedByAuth: false,
+    stoppedByConnectivity: false,
     aborted: false
   };
 
@@ -123,6 +129,7 @@ export async function processOutbox(
   let aborted = false;
   const failedVisitaIds = new Set<string>();
   let stoppedByAuth = false;
+  let stoppedByConnectivity = false;
 
   for (const [entryIndex, entry] of entries.entries()) {
     if (options.signal?.aborted) {
@@ -173,6 +180,12 @@ export async function processOutbox(
         dependencySkipped++;
       }
     } catch (error) {
+      if (isApiOfflineModeError(error)) {
+        stoppedByConnectivity = true;
+        unattempted = entries.length - entryIndex;
+        break;
+      }
+
       if (isApiRequestAbortedError(error)) {
         aborted = true;
         unattempted = entries.length - entryIndex - 1;
@@ -252,7 +265,7 @@ export async function processOutbox(
     }
   }
 
-  if (!stoppedByAuth && !aborted) {
+  if (!stoppedByAuth && !stoppedByConnectivity && !aborted) {
     setLastSyncTime(getNowIsoString());
   }
 
@@ -266,6 +279,7 @@ export async function processOutbox(
     dependencySkipped,
     unattempted,
     stoppedByAuth,
+    stoppedByConnectivity,
     aborted
   };
 }
