@@ -409,7 +409,8 @@ describe("API critical HTTP integration contract", () => {
               {
                 objetivo: "plaga",
                 objetivoNombre: "Trips",
-                dosisProducto: 250
+                dosisProducto: 250,
+                unidadDosis: "ml/cilindro"
               }
             ]
           }
@@ -445,12 +446,46 @@ describe("API critical HTTP integration contract", () => {
       expect.objectContaining({
         mezclas: [
           expect.objectContaining({
-            productos: [expect.objectContaining({ objetivo: "plaga" })]
+            productos: [
+              expect.objectContaining({
+                objetivo: "plaga",
+                unidadDosis: "ml/cilindro"
+              })
+            ]
           })
         ],
         riego: expect.objectContaining({ tipoRecomendacion: "riego_ligero" })
       })
     );
+  });
+
+  it("rejects a non-canonical fitosanitary dose unit", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/visitas-campo/7/receta",
+      payload: {
+        mezclas: [
+          {
+            numero: 1,
+            factor: 1,
+            factorEditable: false,
+            productos: [
+              {
+                objetivo: "plaga",
+                objetivoNombre: "Trips",
+                dosisProducto: 250,
+                unidadDosis: "onzas/cilindro"
+              }
+            ]
+          }
+        ],
+        fertilizacion: [],
+        labores: []
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(recetasService.save).not.toHaveBeenCalled();
   });
 
   it("accepts the temporary flat recipe contract from older mobile clients", async () => {

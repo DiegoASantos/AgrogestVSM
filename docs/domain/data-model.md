@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-17
 ---
 
 # Modelo del dominio
@@ -136,9 +136,11 @@ fertilizacion. Cada tanque se representa mediante `visita_receta_mezcla` en
 SQLite y `visita_receta_mezclas` en PostgreSQL. La mezcla es la cabecera de sus
 productos y concentra numero, coadyuvantes, orden de preparacion, volumen de
 aplicacion y factor de incidencia; cada producto conserva objetivo, seleccion
-comercial y `dosis_producto`. El total fitosanitario se recalcula como
+comercial, `dosis_producto` y `unidad_dosis`. Para nuevas dosis fitosanitarias,
+mobile permite `mg`, `g`, `kg`, `ml` o `l` por cilindro. El total fitosanitario
+conserva la unidad seleccionada y se muestra por hectarea; se recalcula como
 `dosis_producto * volumen_aplicacion * factor`, sin usar el area ni la
-concentracion comercial.
+concentracion comercial y sin convertir unidades.
 
 El factor se deriva del grado de incidencia: grados 0 y 1 usan 1, grado 2 usa
 1.2 y grado 3 parte de 1.5 y permite ajuste manual. Una mezcla con varios
@@ -148,6 +150,13 @@ aplicacion foliar. Las columnas fitosanitarias anteriores se mantienen
 temporalmente pobladas para permitir rollback y clientes mobile anteriores;
 una migracion de contraccion futura requerira una spec y confirmacion de la
 adopcion de la version nueva.
+
+La dosis de fertilizacion conserva `unidad_dosis`: los productos solidos
+permiten `mg`, `g` o `kg`, y los liquidos permiten `ml` o `l`. La via edafica
+agrega el denominador `/planta` y la foliar `/cilindro`. Los valores historicos
+`Kg` y `L` siguen siendo legibles, mientras que mobile nuevo escribe
+abreviaturas en minusculas. Una dosis nueva requiere unidad en la UI; API
+mantiene el campo opcional para compatibilidad con clientes instalados.
 
 Antes de finalizar, mobile contrasta de forma orientativa y por cada mezcla los
 ingredientes activos, nombres comerciales y coadyuvantes que comparten tanque;

@@ -4,12 +4,15 @@ import type { RecetaFertilizacion, RecetaMezcla } from "../../types";
 import {
   appendMezclasForNewFindings,
   buildFertilizacionesForSave,
+  buildFertilizacionUnidadDosis,
+  buildFitosanidadUnidadDosis,
   buildMezclasForSave,
   calculateTotal,
   createEmptyFertilizacion,
   deriveMezclaFactors,
   diseaseFactorFromPercentage,
   getUnidadDosis,
+  getFertilizacionDosisUnits,
   mergeMissingFitosanidadFindings,
   restoreFitosanidadApps,
   restoreMezclas
@@ -46,6 +49,7 @@ const mezcla: RecetaMezcla = {
       modoAccionId: "3",
       ingredienteActivoNombre: "Abamectina",
       dosisProducto: 250,
+      unidadDosis: "ml/cilindro",
       marcaProductoNombre: "Agrimec",
       concentracionProducto: 18,
       cantidadTotalProducto: 600,
@@ -120,6 +124,7 @@ describe("receta con mezclas", () => {
     expect(apps[0]?.ingredientes[0]).toMatchObject({
       mezclaNumero: 1,
       dosisProducto: "250",
+      unidadDosis: "ml/cilindro",
       marcaProductoNombre: "Agrimec"
     });
   });
@@ -136,7 +141,12 @@ describe("receta con mezclas", () => {
       numero: 1,
       volumenAplicacion: 2,
       factor: 1.2,
-      productos: [expect.objectContaining({ dosisProducto: 250 })]
+      productos: [
+        expect.objectContaining({
+          dosisProducto: 250,
+          unidadDosis: "ml/cilindro"
+        })
+      ]
     });
   });
 
@@ -155,18 +165,25 @@ describe("receta con mezclas", () => {
   });
 
   it.each([
-    ["edafica", "solido", "Kg/planta"],
-    ["edafica", "liquido", "L/planta"],
-    ["foliar", "solido", "Kg/cilindro"],
-    ["foliar", "liquido", "L/cilindro"]
-  ] as const)("mantiene unidad %s/%s", (via, tipo, expected) => {
+    ["edafica", "kg/planta"],
+    ["foliar", "kg/cilindro"]
+  ] as const)("mantiene la unidad seleccionada para via %s", (via, expected) => {
     expect(
       getUnidadDosis({
         ...createEmptyFertilizacion(),
         viaAplicacion: via,
-        tipoProducto: tipo
+        tipoProducto: "solido",
+        unidadDosis: "kg/cilindro"
       })
     ).toBe(expected);
+  });
+
+  it("ofrece unidades por estado fisico sin convertir la dosis", () => {
+    expect(getFertilizacionDosisUnits("solido")).toEqual(["mg", "g", "kg"]);
+    expect(getFertilizacionDosisUnits("liquido")).toEqual(["ml", "l"]);
+    expect(buildFitosanidadUnidadDosis("g")).toBe("g/cilindro");
+    expect(buildFertilizacionUnidadDosis("ml", "edafica")).toBe("ml/planta");
+    expect(calculateTotal(2, 3, 1.2)).toBeCloseTo(7.2);
   });
 
   it("incluye factor en fertilizacion", () => {

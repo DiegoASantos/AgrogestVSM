@@ -78,6 +78,14 @@ export class VisitaRecetaFitosanidadEntity {
   dosisProducto!: number | null;
 
   @Column({
+    name: "unidad_dosis",
+    type: "varchar",
+    length: 30,
+    nullable: true
+  })
+  unidadDosis!: string | null;
+
+  @Column({
     name: "volumen_aplicacion",
     type: "numeric",
     precision: 12,

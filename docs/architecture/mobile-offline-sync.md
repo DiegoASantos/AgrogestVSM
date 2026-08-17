@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-17
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -80,6 +80,12 @@ El handler envia `mezclas[]` con `productos[]`. Tras la confirmacion de API,
 receta, y confirma en conjunto todos los detalles. Un reintento conserva una
 sola operacion padre: no crea outbox independientes para las mezclas ni para
 sus productos.
+
+Cada producto fitosanitario conserva `unidad_dosis` dentro del mismo agregado
+y la envia como `mezclas[].productos[].unidadDosis`. La migracion SQLite 61 es
+aditiva y deja `NULL` en recetas historicas; no recrea tablas ni toca outbox.
+Fertilizacion reutiliza su `unidad_dosis` existente. La unidad solo etiqueta el
+valor y su resultado: el sync no convierte dosis ni modifica la formula.
 
 Al confirmar `Enviar` al final de Receta, mobile actualiza `endVisitTime` de la
 visita con la hora propuesta por el dispositivo o corregida por el tecnico. El

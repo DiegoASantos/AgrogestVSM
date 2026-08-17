@@ -12,6 +12,12 @@ import type {
 } from "../../types";
 import { resolveIngredientId } from "./visita-receta-selection";
 
+export const DOSIS_UNITS = ["mg", "g", "kg", "ml", "l"] as const;
+export type DosisUnit = (typeof DOSIS_UNITS)[number];
+
+const SOLID_DOSIS_UNITS: readonly DosisUnit[] = ["mg", "g", "kg"];
+const LIQUID_DOSIS_UNITS: readonly DosisUnit[] = ["ml", "l"];
+
 export type AppIngrediente = {
   localId: string;
   mezclaNumero: number;
@@ -20,6 +26,7 @@ export type AppIngrediente = {
   ingredienteActivoId: string;
   ingredienteActivoNombre: string;
   dosisProducto: string;
+  unidadDosis?: string;
   marcaProductoNombre: string;
   concentracionProducto: string;
   unidadMedidaProducto: string;
@@ -75,6 +82,7 @@ export function createEmptyIngrediente(mezclaNumero = 0): AppIngrediente {
     ingredienteActivoId: "",
     ingredienteActivoNombre: "",
     dosisProducto: "",
+    unidadDosis: "",
     marcaProductoNombre: "",
     concentracionProducto: "",
     unidadMedidaProducto: "",
@@ -248,7 +256,7 @@ export function restoreFertilizaciones(
       concentracion: catalogProduct?.concentracion ?? "",
       unidadMedida: catalogProduct?.unidadMedida ?? "",
       dosis: row.dosis?.toString() ?? "",
-      unidadDosis: row.unidadDosis ?? "",
+      unidadDosis: normalizeFertilizacionUnidadDosis(row.unidadDosis, row.viaAplicacion),
       cantidadTotalPlantas: row.cantidadTotalPlantas?.toString() ?? "",
       volumenAplicacion: row.volumenAplicacion?.toString() ?? "",
       factor: row.factor.toString(),
@@ -275,6 +283,7 @@ export function buildMezclasForSave(
           modoAccionId: ingredient.modoAccionId || null,
           ingredienteActivoNombre: ingredient.ingredienteActivoNombre || null,
           dosisProducto: parsePositiveDecimal(ingredient.dosisProducto),
+          unidadDosis: ingredient.unidadDosis || null,
           marcaProductoNombre: ingredient.marcaProductoNombre || null,
           concentracionProducto: parsePositiveDecimal(ingredient.concentracionProducto),
           cantidadTotalProducto:
@@ -294,7 +303,8 @@ export function buildMezclasForSave(
       volumenAplicacion: parsePositiveDecimal(mezcla.volumenAplicacion),
       factor: parsePositiveDecimal(mezcla.factor) ?? 1,
       factorEditable: mezcla.factorEditable,
-      cantidadTotalProducto: productos.reduce((sum, p) => sum + (p.cantidadTotalProducto ?? 0), 0) || null,
+      cantidadTotalProducto:
+        productos.reduce((sum, p) => sum + (p.cantidadTotalProducto ?? 0), 0) || null,
       productos
     };
   });
@@ -303,19 +313,22 @@ export function buildMezclasForSave(
 export function buildFertilizacionesForSave(
   fertilizaciones: AppFertilizacion[]
 ): SaveRecetaData["fertilizacion"] {
-  return fertilizaciones.map((fertilizacion) => ({
-    viaAplicacion: fertilizacion.viaAplicacion,
-    fertilizanteNombre: fertilizacion.fertilizanteNombre || null,
-    tipoProducto: fertilizacion.tipoProducto,
-    dosis: parsePositiveDecimal(fertilizacion.dosis),
-    unidadDosis: fertilizacion.unidadDosis || getUnidadDosis(fertilizacion),
-    cantidadTotalPlantas: toPositiveInteger(fertilizacion.cantidadTotalPlantas),
-    volumenAplicacion: parsePositiveDecimal(fertilizacion.volumenAplicacion),
-    factor: parsePositiveDecimal(fertilizacion.factor) ?? 1,
-    cantidadTotalFertilizante: parsePositiveDecimal(
-      fertilizacion.cantidadTotalFertilizante
-    )
-  }));
+  return fertilizaciones.map((fertilizacion) => {
+    const unidadDosis = getUnidadDosis(fertilizacion);
+    return {
+      viaAplicacion: fertilizacion.viaAplicacion,
+      fertilizanteNombre: fertilizacion.fertilizanteNombre || null,
+      tipoProducto: fertilizacion.tipoProducto,
+      dosis: parsePositiveDecimal(fertilizacion.dosis),
+      unidadDosis: unidadDosis || null,
+      cantidadTotalPlantas: toPositiveInteger(fertilizacion.cantidadTotalPlantas),
+      volumenAplicacion: parsePositiveDecimal(fertilizacion.volumenAplicacion),
+      factor: parsePositiveDecimal(fertilizacion.factor) ?? 1,
+      cantidadTotalFertilizante: parsePositiveDecimal(
+        fertilizacion.cantidadTotalFertilizante
+      )
+    };
+  });
 }
 
 export function collectNomenclaturaPorMezcla(
@@ -444,10 +457,37 @@ export function calculateTotal(
 }
 
 export function getUnidadDosis(fertilizacion: AppFertilizacion) {
-  if (fertilizacion.viaAplicacion === "edafica") {
-    return fertilizacion.tipoProducto === "liquido" ? "L/planta" : "Kg/planta";
-  }
-  return fertilizacion.tipoProducto === "liquido" ? "L/cilindro" : "Kg/cilindro";
+  const unit = getDosisUnit(fertilizacion.unidadDosis);
+  return unit ? buildFertilizacionUnidadDosis(unit, fertilizacion.viaAplicacion) : "";
+}
+
+export function getDosisUnit(value: string | null | undefined): DosisUnit | "" {
+  const unit = value?.split("/")[0]?.trim().toLowerCase();
+  return DOSIS_UNITS.includes(unit as DosisUnit) ? (unit as DosisUnit) : "";
+}
+
+export function buildFitosanidadUnidadDosis(unit: DosisUnit) {
+  return `${unit}/cilindro`;
+}
+
+export function buildFertilizacionUnidadDosis(
+  unit: DosisUnit,
+  viaAplicacion: AppFertilizacion["viaAplicacion"]
+) {
+  return `${unit}/${viaAplicacion === "edafica" ? "planta" : "cilindro"}`;
+}
+
+export function getFertilizacionDosisUnits(
+  tipoProducto: AppFertilizacion["tipoProducto"]
+) {
+  return tipoProducto === "liquido" ? LIQUID_DOSIS_UNITS : SOLID_DOSIS_UNITS;
+}
+
+export function isValidFertilizacionUnidadDosis(fertilizacion: AppFertilizacion) {
+  const unit = getDosisUnit(fertilizacion.unidadDosis);
+  return Boolean(
+    unit && getFertilizacionDosisUnits(fertilizacion.tipoProducto).includes(unit)
+  );
 }
 
 function restoreIngrediente(
@@ -474,6 +514,7 @@ function restoreIngrediente(
     ),
     ingredienteActivoNombre: row.ingredienteActivoNombre ?? "",
     dosisProducto: row.dosisProducto?.toString() ?? "",
+    unidadDosis: row.unidadDosis ?? "",
     marcaProductoNombre: row.marcaProductoNombre ?? "",
     concentracionProducto:
       catalogProduct?.concentracionTexto ??
@@ -483,6 +524,14 @@ function restoreIngrediente(
     unidadMedidaProducto: catalogProduct?.unidadMedida ?? "",
     cantidadTotalProducto: formatCalculatedField(row.cantidadTotalProducto)
   };
+}
+
+function normalizeFertilizacionUnidadDosis(
+  value: string | null | undefined,
+  viaAplicacion: AppFertilizacion["viaAplicacion"]
+) {
+  const unit = getDosisUnit(value);
+  return unit ? buildFertilizacionUnidadDosis(unit, viaAplicacion) : "";
 }
 
 function factorToGrade(factor: number) {

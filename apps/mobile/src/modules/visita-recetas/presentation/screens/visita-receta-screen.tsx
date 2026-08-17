@@ -69,15 +69,20 @@ import {
 import {
   buildFertilizacionesForSave,
   buildMezclasForSave,
+  buildFertilizacionUnidadDosis,
+  buildFitosanidadUnidadDosis,
   appendMezclasForNewFindings,
   calculateTotal,
   collectNomenclaturaPorMezcla,
   createEmptyMezcla,
   createEmptyFertilizacion,
   createEmptyIngrediente,
+  getDosisUnit,
+  getFertilizacionDosisUnits,
   getUnidadDosis,
   hasFertilizacionData,
   hasFitosanidadData,
+  isValidFertilizacionUnidadDosis,
   mergeMissingFitosanidadFindings,
   parsePositiveDecimal,
   deriveMezclaFactors,
@@ -602,7 +607,13 @@ export function VisitaRecetaScreen() {
         if (currentIndex !== index) return fertilizacion;
 
         const current = { ...fertilizacion, ...patch };
-        if (patch.viaAplicacion !== undefined || patch.tipoProducto !== undefined) {
+        if (patch.tipoProducto !== undefined) {
+          const unit = getDosisUnit(current.unidadDosis);
+          current.unidadDosis =
+            unit && getFertilizacionDosisUnits(current.tipoProducto).includes(unit)
+              ? getUnidadDosis(current)
+              : "";
+        } else if (patch.viaAplicacion !== undefined) {
           current.unidadDosis = getUnidadDosis(current);
         }
 
@@ -1243,16 +1254,16 @@ function FitosanidadCard({
 
       <View style={styles.ingredientList}>
         {value.ingredientes.map((ingredient, ingredientIndex) => (
-            <IngredienteCard
-              canRemove={value.ingredientes.length > 1}
-              index={ingredientIndex}
-              ingredientesActivos={ingredientesActivos}
-              key={ingredient.localId}
-              marcasProducto={marcasProducto}
-              mezclas={mezclas}
-              modosAccion={modosAccion}
-              onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
-              onCloseDropdown={onCloseDropdown}
+          <IngredienteCard
+            canRemove={value.ingredientes.length > 1}
+            index={ingredientIndex}
+            ingredientesActivos={ingredientesActivos}
+            key={ingredient.localId}
+            marcasProducto={marcasProducto}
+            mezclas={mezclas}
+            modosAccion={modosAccion}
+            onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
+            onCloseDropdown={onCloseDropdown}
             onRemove={() => onRemoveIngrediente(ingredientIndex)}
             openDropdown={openDropdown}
             prefix={`${prefix}_ingrediente_${ingredientIndex}`}
@@ -1462,9 +1473,30 @@ function IngredienteCard({
       />
 
       <LabeledNumericInput
-        label="Dosis de producto comercial (mg o mL/cilindro)"
+        label="Dosis de producto comercial"
         value={value.dosisProducto}
         onChangeText={(dosisProducto) => onChange({ dosisProducto })}
+      />
+
+      <AppSelectField
+        icon="speedometer-outline"
+        label="Unidad de dosis"
+        options={(["mg", "g", "kg", "ml", "l"] as const).map((unit) => ({
+          value: unit,
+          label: `${unit}/cilindro`
+        }))}
+        placeholder="Seleccionar unidad"
+        selectedLabel={value.unidadDosis || undefined}
+        isOpen={openDropdown === `${prefix}_unidad_dosis`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_unidad_dosis`)}
+        onSelect={(unit) =>
+          onChange({
+            unidadDosis: buildFitosanidadUnidadDosis(
+              unit as "mg" | "g" | "kg" | "ml" | "l"
+            )
+          })
+        }
       />
     </View>
   );
@@ -1787,6 +1819,26 @@ function validateRequiredRecipe(
     if (missingVolume) {
       return `Ingresa el volumen de aplicación de la mezcla ${missingVolume.numero}.`;
     }
+
+    const missingUnit = fitosanidadApps
+      .flatMap((application) => application.ingredientes)
+      .find(
+        (ingredient) =>
+          Boolean(parsePositiveDecimal(ingredient.dosisProducto)) &&
+          !getDosisUnit(ingredient.unidadDosis)
+      );
+    if (missingUnit) return "Selecciona la unidad de cada dosis fitosanitaria.";
+  }
+
+  if (hasFertilizacion) {
+    const missingUnit = fertilizaciones.find(
+      (fertilizacion) =>
+        Boolean(parsePositiveDecimal(fertilizacion.dosis)) &&
+        !isValidFertilizacionUnidadDosis(fertilizacion)
+    );
+    if (missingUnit) {
+      return "Selecciona una unidad valida para cada dosis de fertilizacion.";
+    }
   }
 
   return null;
@@ -1817,6 +1869,7 @@ function FertilizacionCard({
 }) {
   const prefix = `fert_${index}`;
   const unidadDosis = getUnidadDosis(value);
+  const unidadBase = getDosisUnit(unidadDosis);
 
   return (
     <View style={styles.fertilizacionCard}>
@@ -1912,9 +1965,31 @@ function FertilizacionCard({
       />
 
       <LabeledNumericInput
-        label={`Dosis (${unidadDosis})`}
+        label="Dosis"
         value={value.dosis}
         onChangeText={(v) => onChange({ dosis: v })}
+      />
+
+      <AppSelectField
+        icon="speedometer-outline"
+        label="Unidad de dosis"
+        options={getFertilizacionDosisUnits(value.tipoProducto).map((unit) => ({
+          value: unit,
+          label: buildFertilizacionUnidadDosis(unit, value.viaAplicacion)
+        }))}
+        placeholder="Seleccionar unidad"
+        selectedLabel={unidadDosis || undefined}
+        isOpen={openDropdown === `${prefix}_unidad_dosis`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_unidad_dosis`)}
+        onSelect={(unit) =>
+          onChange({
+            unidadDosis: buildFertilizacionUnidadDosis(
+              unit as "mg" | "g" | "kg" | "ml" | "l",
+              value.viaAplicacion
+            )
+          })
+        }
       />
 
       <LabeledNumericInput
@@ -1939,15 +2014,7 @@ function FertilizacionCard({
       )}
 
       <ReadonlyField
-        label={`Cantidad total de fertilizante (${
-          value.viaAplicacion === "edafica"
-            ? value.tipoProducto === "liquido"
-              ? "L"
-              : "Kg"
-            : value.tipoProducto === "liquido"
-              ? "L"
-              : "Kg"
-        })`}
+        label={`Cantidad total de fertilizante${unidadBase ? ` (${unidadBase})` : ""}`}
         value={value.cantidadTotalFertilizante}
       />
     </View>

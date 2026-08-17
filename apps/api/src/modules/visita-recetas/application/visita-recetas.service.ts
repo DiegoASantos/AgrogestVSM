@@ -230,6 +230,7 @@ export class VisitaRecetasService {
           modoAccionId: item.modoAccionId ? String(item.modoAccionId) : null,
           ingredienteActivoNombre: item.ingredienteActivoNombre ?? null,
           dosisProducto: item.dosisProducto ?? null,
+          unidadDosis: item.unidadDosis ?? null,
           marcaProductoNombre: item.marcaProductoNombre ?? null,
           concentracionProducto: item.concentracionProducto ?? null,
           cantidadTotalProducto:
@@ -257,8 +258,9 @@ export class VisitaRecetasService {
   ) {
     if (!items.length) return;
 
-    const entities = items.map((item) =>
-      this.fertilizacionRepository.create({
+    const entities = items.map((item) => {
+      assertFertilizacionDoseUnit(item);
+      return this.fertilizacionRepository.create({
         recetaId,
         viaAplicacion: item.viaAplicacion,
         fertilizanteNombre: item.fertilizanteNombre ?? null,
@@ -278,8 +280,8 @@ export class VisitaRecetasService {
           ) ??
           item.cantidadTotalFertilizante ??
           null
-      })
-    );
+      });
+    });
 
     await this.fertilizacionRepository.save(entities);
   }
@@ -351,6 +353,7 @@ export class VisitaRecetasService {
             modoAccionId: producto.modoAccionId,
             ingredienteActivoNombre: producto.ingredienteActivoNombre,
             dosisProducto: producto.dosisProducto,
+            unidadDosis: producto.unidadDosis,
             marcaProductoNombre: producto.marcaProductoNombre,
             concentracionProducto: producto.concentracionProducto,
             cantidadTotalProducto: producto.cantidadTotalProducto
@@ -368,6 +371,7 @@ export class VisitaRecetasService {
         modoAccionId: f.modoAccionId,
         ingredienteActivoNombre: f.ingredienteActivoNombre,
         dosisIa: f.dosisIa,
+        unidadDosis: f.unidadDosis,
         volumenAplicacion: f.volumenAplicacion,
         cantidadTotalIa: f.cantidadTotalIa,
         marcaProductoNombre: f.marcaProductoNombre,
@@ -438,6 +442,7 @@ export class VisitaRecetasService {
       current.productos.push({
         ...item,
         dosisProducto: item.dosisIa,
+        unidadDosis: undefined,
         preserveLegacyTotal: true
       });
       grouped.set(key, current);
@@ -469,5 +474,23 @@ function assertSerializedArray(value: string | undefined, field: string) {
     }
   } catch {
     throw new BadRequestException(`${field} debe contener un arreglo JSON valido.`);
+  }
+}
+
+function assertFertilizacionDoseUnit(
+  item: CreateVisitaRecetaDto["fertilizacion"][number]
+) {
+  if (!item.unidadDosis || !item.tipoProducto) return;
+
+  const [rawUnit, denominator] = item.unidadDosis.split("/");
+  const unit = rawUnit?.toLowerCase();
+  const allowedUnits =
+    item.tipoProducto === "liquido" ? ["ml", "l"] : ["mg", "g", "kg"];
+  const expectedDenominator = item.viaAplicacion === "edafica" ? "planta" : "cilindro";
+
+  if (!unit || !allowedUnits.includes(unit) || denominator !== expectedDenominator) {
+    throw new BadRequestException(
+      "La unidad de dosis no corresponde al tipo de producto y via de fertilizacion."
+    );
   }
 }

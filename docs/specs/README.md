@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-09
+last_reviewed: 2026-08-17
 ---
 
 # Especificaciones
@@ -86,4 +86,5 @@ en la raíz.
 - [Spec 040: Evapotranspiracion y radiacion diaria en clima mobile](040-et-radiacion-clima-mobile.md)
 - [Spec 041: Visibilidad y reactivacion de productores y parcelas en mobile](041-visibilidad-reactivacion-productores-parcelas-mobile.md)
 - [Spec 042: Recuperacion y baja segura de catalogos creados desde mobile](042-recuperacion-baja-segura-catalogos-mobile.md)
+- [Spec 043: Selector de unidad para dosis fitosanitarias y fertilizantes](043-selector-unidad-dosis-receta.md)
 - [Plantilla](TEMPLATE.md)

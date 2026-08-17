@@ -27,7 +27,11 @@ export function PreviousRecipeSummaryCard({
         style={({ pressed }) => [styles.header, pressed && styles.pressed]}
       >
         <View style={styles.iconBox}>
-          <Ionicons color={theme.colors.primaryDark} name="document-text-outline" size={20} />
+          <Ionicons
+            color={theme.colors.primaryDark}
+            name="document-text-outline"
+            size={20}
+          />
         </View>
         <View style={styles.headerCopy}>
           <AppText style={styles.title} variant="heading">
@@ -52,7 +56,11 @@ export function PreviousRecipeSummaryCard({
             </AppText>
           ) : (
             details.map((detail, index) => (
-              <AppText key={`${detail}-${index}`} style={styles.detailText} variant="muted">
+              <AppText
+                key={`${detail}-${index}`}
+                style={styles.detailText}
+                variant="muted"
+              >
                 {detail}
               </AppText>
             ))
@@ -93,7 +101,9 @@ function buildDetails(receta: RecetaAnterior | null, modulo: CalificacionModulo)
           item.objetivoNombre,
           item.ingredienteActivoNombre,
           item.marcaProductoNombre,
-          item.dosisIa ? `${item.dosisIa}` : null
+          item.dosisIa
+            ? `${item.dosisIa} ${item.unidadDosis ?? "mg o ml/cilindro"}`
+            : null
         ]
           .filter(Boolean)
           .join(" - ")

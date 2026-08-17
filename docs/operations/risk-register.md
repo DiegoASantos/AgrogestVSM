@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-16
+last_reviewed: 2026-08-17
 ---
 
 # Registro de riesgos
@@ -37,6 +37,7 @@ last_reviewed: 2026-08-16
 | R-024 | Un dispositivo con catálogos descargados hace menos de 24 horas puede conservar temporalmente las relaciones sanitarias anteriores | Media | Mitigado | Forzar actualización de catálogos en el smoke y comunicarla a dispositivos piloto; instalaciones nuevas descargan el conjunto completo |
 | R-025 | Credenciales WeatherLink expuestas, cuota agotada o estaciones compartidas sin GPS/historico autorizado | Alta | Mitigado | Rotar el API Secret y guardarlo solo en Render; limitar rangos a siete dias, cachear por estacion/dia y limitar consultas por usuario; conservar estaciones sin GPS fuera del mapa y sanitizar errores de permisos |
 | R-026 | Borrados fisicos de catalogos de receta dejan identidades y fallos huerfanos en dispositivos offline | Alta | Mitigado | Spec 042: baja logica ADMIN, idempotencia por `publicId`, recuperacion explicita desde SQLite, visibilidad preservadora y runbook con backup y verificacion |
+| R-027 | Recetas fitosanitarias historicas no permiten inferir una unidad concreta entre masa y volumen | Baja | Mitigado | Spec 043 conserva `NULL` y muestra `mg o ml` como texto de compatibilidad; no inventa ni convierte datos historicos |
 
 ## Revisión
 

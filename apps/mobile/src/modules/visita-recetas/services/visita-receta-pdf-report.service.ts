@@ -4,6 +4,13 @@ import { parcelasRepository } from "../../parcelas/repositories/parcelas.reposit
 import { productoresRepository } from "../../productores/repositories/productores.repository";
 import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
 import { REPORT_IMAGE_WIDTH } from "../../../shared/reporting/report-config";
+import {
+  formatDoseUnit,
+  formatFertilizacionDosis,
+  formatFitosanidadDosis,
+  getFertilizacionTotalUnit,
+  getFitosanidadAggregateUnit
+} from "../domain/dose-unit-format";
 
 declare const process:
   | {
@@ -569,14 +576,17 @@ function renderFitosanidad(receta: VisitaRecetaCompleta): string {
         ) ?? producto.cantidadTotalProducto;
       html += `<tr>
         <td>${escapeHtml(producto.objetivoNombre)} / ${escapeHtml(producto.marcaProductoNombre ?? producto.ingredienteActivoNombre ?? "-")}</td>
-        <td>${producto.dosisProducto ?? "-"} mg o mL/cilindro</td>
-        <td class="calculated">${formatNumber(total)} mg o mL/ha</td>
+        <td>${producto.dosisProducto ?? "-"} ${escapeHtml(formatDoseUnit(producto.unidadDosis, "cilindro"))}</td>
+        <td class="calculated">${formatNumber(total)} ${escapeHtml(formatDoseUnit(producto.unidadDosis, "ha"))}</td>
       </tr>`;
     }
     html += `</table>`;
 
-    if (mezcla.cantidadTotalProducto) {
-      html += `<p style="font-size:13px;margin-top:8px;"><strong>Cantidad total a aplicar:</strong> <span class="calculated">${formatNumber(mezcla.cantidadTotalProducto)} mg o mL/ha</span></p>`;
+    const aggregateUnit = getFitosanidadAggregateUnit(
+      mezcla.productos.map((producto) => producto.unidadDosis)
+    );
+    if (mezcla.cantidadTotalProducto && aggregateUnit) {
+      html += `<p style="font-size:13px;margin-top:8px;"><strong>Cantidad total a aplicar:</strong> <span class="calculated">${formatNumber(mezcla.cantidadTotalProducto)} ${escapeHtml(aggregateUnit)}</span></p>`;
     }
 
     html += `</div>`;
@@ -738,25 +748,11 @@ function renderResumenFertilizacion(receta: VisitaRecetaCompleta): string {
               <td>${escapeHtml(item.viaAplicacion === "edafica" ? "Edafica" : "Foliar")}</td>
               <td>${escapeHtml(formatFertilizacionDosis(item))}</td>
               <td>${item.factor}</td>
-              <td>${item.cantidadTotalFertilizante ?? "-"} ${item.tipoProducto === "liquido" ? "L" : "Kg"}</td>
+              <td>${item.cantidadTotalFertilizante ?? "-"} ${escapeHtml(getFertilizacionTotalUnit(item.unidadDosis, item.tipoProducto))}</td>
             </tr>`
         )
         .join("")}
     </table>`;
-}
-
-function formatFitosanidadDosis(
-  item: VisitaRecetaCompleta["mezclas"][number]["productos"][number]
-) {
-  if (item.cantidadTotalProducto !== null && item.cantidadTotalProducto !== undefined) {
-    return `${item.cantidadTotalProducto} mg o mL/ha`;
-  }
-
-  if (item.dosisProducto !== null && item.dosisProducto !== undefined) {
-    return `${item.dosisProducto} mg o mL/cilindro`;
-  }
-
-  return "-";
 }
 
 function calculateRecipeTotal(
@@ -770,12 +766,6 @@ function calculateRecipeTotal(
     volumen !== undefined
     ? dosis * volumen * factor
     : null;
-}
-
-function formatFertilizacionDosis(item: VisitaRecetaCompleta["fertilizacion"][number]) {
-  const parts = [item.dosis, item.unidadDosis].filter(Boolean);
-
-  return parts.length > 0 ? parts.join(" ") : "-";
 }
 
 async function getReportIconUri(): Promise<string | null> {

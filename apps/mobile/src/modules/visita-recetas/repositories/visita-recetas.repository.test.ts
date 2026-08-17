@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const database = vi.hoisted(() => ({
-  getAllSync: vi.fn(() => []),
+  getAllSync: vi.fn((...args: unknown[]) => {
+    void args;
+    return [];
+  }),
   getFirstSync: vi.fn(),
   runSync: vi
     .fn<(statement: string, ...params: unknown[]) => { changes: number }>()
@@ -48,6 +51,68 @@ describe("visitaRecetasRepository", () => {
     it("should return null when not found", () => {
       database.getFirstSync.mockReturnValue(null);
       expect(visitaRecetasRepository.getRecetaByVisitaLocalId("x")).toBeNull();
+    });
+
+    it("restores the selected fitosanitary dose unit", () => {
+      database.getFirstSync.mockReturnValue(recetaRow);
+      database.getAllSync.mockImplementation((...args: unknown[]) => {
+        const statement = String(args[0]);
+        if (statement.includes("FROM visita_receta_mezcla")) {
+          return [
+            {
+              local_id: "m1",
+              server_id: null,
+              receta_local_id: "r1",
+              numero: 1,
+              coadyuvantes_ids: null,
+              orden_mezcla: null,
+              volumen_aplicacion: "2",
+              factor: "1",
+              factor_editable: 0,
+              cantidad_total_producto: "500",
+              sync_status: "pending",
+              created_at: "2026-01-01",
+              updated_at: "2026-01-01"
+            }
+          ] as never;
+        }
+        if (statement.includes("FROM visita_receta_fitosanidad")) {
+          return [
+            {
+              local_id: "p1",
+              server_id: null,
+              receta_local_id: "r1",
+              mezcla_local_id: "m1",
+              numero: 1,
+              objetivo: "plaga",
+              objetivo_nombre: "Trips",
+              tipo_control_id: null,
+              tipo_producto_id: null,
+              disolvente: "Agua",
+              modo_accion_id: null,
+              ingrediente_activo_nombre: "Abamectina",
+              dosis_ia: "250",
+              dosis_producto: "250",
+              unidad_dosis: "g/cilindro",
+              volumen_aplicacion: "2",
+              cantidad_total_ia: null,
+              marca_producto_nombre: "Agrimec",
+              concentracion_producto: null,
+              cantidad_total_producto: "500",
+              coadyuvantes_ids: null,
+              orden_mezcla: null,
+              sync_status: "pending",
+              created_at: "2026-01-01",
+              updated_at: "2026-01-01"
+            }
+          ] as never;
+        }
+        return [];
+      });
+
+      const result = visitaRecetasRepository.getRecetaByVisitaLocalId("v1");
+
+      expect(result?.mezclas[0]?.productos[0]?.unidadDosis).toBe("g/cilindro");
     });
   });
 

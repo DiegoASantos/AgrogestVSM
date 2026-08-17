@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 60;
+const LATEST_MIGRATION_VERSION = 61;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -21,6 +21,7 @@ type FakeDatabase = {
   marcasProductoColumns: Set<string>;
   ingredienteActivoColumns: Set<string>;
   fertilizanteColumns: Set<string>;
+  visitaRecetaFitosanidadColumns: Set<string>;
   detalleNutrientesRows: Array<{ id: string; name: string }>;
   appMetaRows: Map<string, string | null>;
   organosRows: Array<{
@@ -90,6 +91,7 @@ function createFakeDatabase(
     ]),
     ingredienteActivoColumns: new Set(["id", "public_id", "name", "description"]),
     fertilizanteColumns: new Set(["id", "name", "type"]),
+    visitaRecetaFitosanidadColumns: new Set(["local_id", "dosis_producto"]),
     detalleNutrientesRows: [],
     appMetaRows: new Map(),
     organosRows: [],
@@ -442,6 +444,21 @@ function createFakeDatabase(
         this.fertilizanteColumns.add(columnName);
       }
 
+      if (statement.startsWith("ALTER TABLE visita_receta_fitosanidad ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.visitaRecetaFitosanidadColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.visitaRecetaFitosanidadColumns.add(columnName);
+      }
+
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
         this.pestDiseaseColumns.delete("code");
       }
@@ -621,6 +638,12 @@ function createFakeDatabase(
 
       if (statement === "PRAGMA table_info(fertilizantes)") {
         return Array.from(this.fertilizanteColumns, (name) => ({ name })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(visita_receta_fitosanidad)") {
+        return Array.from(this.visitaRecetaFitosanidadColumns, (name) => ({
+          name
+        })) as T[];
       }
 
       if (
@@ -1607,6 +1630,22 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+(ingredientes_activos|marcas_producto|fertilizantes|sync_outbox)/iu.test(
+          statement
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("adds the fitosanitary dose unit without deleting offline data", () => {
+    const db = createFakeDatabase(60);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.visitaRecetaFitosanidadColumns.has("unidad_dosis")).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(visita_recetas|visita_receta_fitosanidad|sync_outbox)/iu.test(
           statement
         )
       )

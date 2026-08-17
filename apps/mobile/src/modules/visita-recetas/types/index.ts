@@ -61,6 +61,7 @@ export type RecetaFitosanidad = {
   modoAccionId: string | null;
   ingredienteActivoNombre: string | null;
   dosisProducto: number | null;
+  unidadDosis?: string | null;
   marcaProductoNombre: string | null;
   concentracionProducto: number | null;
   cantidadTotalProducto: number | null;

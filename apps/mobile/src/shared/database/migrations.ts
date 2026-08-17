@@ -1492,6 +1492,12 @@ const MIGRATIONS: Migration[] = [
       }
       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
     }
+  },
+  {
+    version: 61,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "visita_receta_fitosanidad", "unidad_dosis", "TEXT");
+    }
   }
 ];
 

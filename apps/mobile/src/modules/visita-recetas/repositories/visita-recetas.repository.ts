@@ -74,6 +74,7 @@ type FitosanidadRow = {
   ingrediente_activo_nombre: string | null;
   dosis_ia: string | null;
   dosis_producto: string | null;
+  unidad_dosis: string | null;
   volumen_aplicacion: string | null;
   cantidad_total_ia: string | null;
   marca_producto_nombre: string | null;
@@ -369,6 +370,7 @@ export const visitaRecetasRepository = {
           modoAccionId: string | null;
           ingredienteActivoNombre: string | null;
           dosisProducto: number | null;
+          unidadDosis?: string | null;
           marcaProductoNombre: string | null;
           concentracionProducto: number | null;
           cantidadTotalProducto: number | null;
@@ -457,10 +459,10 @@ export const visitaRecetasRepository = {
         const stmtFito = db.prepareSync(
           `INSERT INTO visita_receta_fitosanidad
          (local_id, server_id, receta_local_id, mezcla_local_id, numero, objetivo, objetivo_nombre, tipo_control_id, tipo_producto_id,
-          disolvente, modo_accion_id, ingrediente_activo_nombre, dosis_ia, dosis_producto, volumen_aplicacion,
+          disolvente, modo_accion_id, ingrediente_activo_nombre, dosis_ia, dosis_producto, unidad_dosis, volumen_aplicacion,
           cantidad_total_ia, marca_producto_nombre, concentracion_producto, cantidad_total_producto,
           coadyuvantes_ids, orden_mezcla, sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
         );
         for (const mezcla of data.mezclas) {
           const mezclaLocalId = generateLocalId();
@@ -494,6 +496,7 @@ export const visitaRecetasRepository = {
               producto.ingredienteActivoNombre,
               producto.dosisProducto?.toString() ?? null,
               producto.dosisProducto?.toString() ?? null,
+              producto.unidadDosis ?? null,
               mezcla.volumenAplicacion?.toString() ?? null,
               null,
               producto.marcaProductoNombre,
@@ -654,6 +657,7 @@ function mapFitosanidadRow(r: FitosanidadRow): RecetaFitosanidad {
     modoAccionId: r.modo_accion_id,
     ingredienteActivoNombre: r.ingrediente_activo_nombre,
     dosisProducto: parseNullableNumeric(r.dosis_producto ?? r.dosis_ia),
+    unidadDosis: r.unidad_dosis,
     marcaProductoNombre: r.marca_producto_nombre,
     concentracionProducto: parseNullableNumeric(r.concentracion_producto),
     cantidadTotalProducto: parseNullableNumeric(r.cantidad_total_producto),

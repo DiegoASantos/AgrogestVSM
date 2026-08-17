@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-09
+last_reviewed: 2026-08-17
 ---
 
 # Documentación de AgroGest VSM
@@ -91,6 +91,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Visibilidad y reactivacion de productores y parcelas en mobile](specs/041-visibilidad-reactivacion-productores-parcelas-mobile.md)
 
 - [Recuperacion y baja segura de catalogos creados desde mobile](specs/042-recuperacion-baja-segura-catalogos-mobile.md)
+- [Selector de unidad para dosis fitosanitarias y fertilizantes](specs/043-selector-unidad-dosis-receta.md)
 
 ## Runbooks
 

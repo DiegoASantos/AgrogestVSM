@@ -74,6 +74,15 @@ export class FitosanidadProductoDto {
   @Min(0)
   dosisProducto?: number;
 
+  @ApiPropertyOptional({
+    example: "ml/cilindro",
+    description:
+      "Unidad elegida para la dosis comercial. La seleccion no convierte el valor numerico."
+  })
+  @IsOptional()
+  @IsIn(["mg/cilindro", "g/cilindro", "kg/cilindro", "ml/cilindro", "l/cilindro"])
+  unidadDosis?: string;
+
   @ApiPropertyOptional({ example: "Agrimec" })
   @IsOptional()
   @IsString()
@@ -235,12 +244,27 @@ export class FertilizacionDto {
   dosis?: number;
 
   @ApiPropertyOptional({
-    example: "Kg/planta",
-    description: "Unidad de dosis (Kg/planta, L/planta, Kg/cilindro, L/cilindro)."
+    example: "kg/planta",
+    description:
+      "Unidad de dosis seleccionada. Acepta unidades canonicas y valores legacy de clientes instalados."
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(30)
+  @IsIn([
+    "mg/planta",
+    "g/planta",
+    "kg/planta",
+    "ml/planta",
+    "l/planta",
+    "mg/cilindro",
+    "g/cilindro",
+    "kg/cilindro",
+    "ml/cilindro",
+    "l/cilindro",
+    "Kg/planta",
+    "L/planta",
+    "Kg/cilindro",
+    "L/cilindro"
+  ])
   unidadDosis?: string;
 
   @ApiPropertyOptional({ example: 1500 })

@@ -422,6 +422,7 @@ export const SQL_SCHEMA = [
     ingrediente_activo_nombre TEXT,
     dosis_ia TEXT,
     dosis_producto TEXT,
+    unidad_dosis TEXT,
     volumen_aplicacion TEXT,
     cantidad_total_ia TEXT,
     marca_producto_nombre TEXT,

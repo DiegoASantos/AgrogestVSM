@@ -30,6 +30,7 @@ export type SaveRecetaInput = {
       modoAccionId?: number | null;
       ingredienteActivoNombre?: string | null;
       dosisProducto?: number | null;
+      unidadDosis?: string | null;
       marcaProductoNombre?: string | null;
       concentracionProducto?: number | null;
       cantidadTotalProducto?: number | null;

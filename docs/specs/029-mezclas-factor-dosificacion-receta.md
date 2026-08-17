@@ -415,3 +415,9 @@ ahora aplicadas por mezcla en vez de por receta completa.
 - [x] `docs/specs/027-multiples-productos-receta-validacion-incompatibilidades.md`:
   anotar que la validación ahora es por mezcla.
 - [x] `docs/notes/`: nota temporal de implementación y handoff.
+
+## Ampliacion posterior
+
+La [Spec 043](043-selector-unidad-dosis-receta.md) reemplaza las etiquetas fijas
+`mg o mL` por una unidad seleccionada y persistida. No cambia la formula ni los
+factores definidos en esta spec.

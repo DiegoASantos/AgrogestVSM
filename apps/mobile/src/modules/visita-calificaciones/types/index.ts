@@ -51,6 +51,7 @@ export type RecetaAnterior = {
     dosisIa?: number | null;
     volumenAplicacion?: number | null;
     cantidadTotalIa?: number | null;
+    unidadDosis?: string | null;
     marcaProductoNombre?: string | null;
     concentracionProducto?: number | null;
     cantidadTotalProducto?: number | null;
@@ -82,9 +83,11 @@ export function isModuloEvaluable(
   }
 
   if (modulo === "plagas" || modulo === "enfermedades") {
-    return receta.fitosanidad?.some((item) =>
-      item.objetivo === (modulo === "plagas" ? "plaga" : "enfermedad")
-    ) ?? false;
+    return (
+      receta.fitosanidad?.some(
+        (item) => item.objetivo === (modulo === "plagas" ? "plaga" : "enfermedad")
+      ) ?? false
+    );
   }
 
   if (modulo === "nutricion") return (receta.fertilizacion?.length ?? 0) > 0;
@@ -120,7 +123,6 @@ export const COMPLIANCE_LEGEND: ComplianceLegendItem[] = [
   {
     puntaje: 3,
     title: "Cumplimiento optimo",
-    description:
-      "Cumplimiento estricto y oportuno de dosis, moleculas y plazos."
+    description: "Cumplimiento estricto y oportuno de dosis, moleculas y plazos."
   }
 ];

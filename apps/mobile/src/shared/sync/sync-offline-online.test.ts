@@ -71,9 +71,7 @@ vi.mock("../../modules/subsectores/repositories/subsectores.repository", () => (
 }));
 const parcelasRepositoryMocks = vi.hoisted(() => ({
   getById: vi.fn((id: string) =>
-    id === "3"
-      ? { id, isActive: true, syncStatus: "synced", serverId: id }
-      : null
+    id === "3" ? { id, isActive: true, syncStatus: "synced", serverId: id } : null
   )
 }));
 vi.mock("../../modules/parcelas/repositories/parcelas.repository", () => ({
@@ -513,6 +511,7 @@ function seedOfflineCompleteVisit() {
         modoAccionId: "3",
         ingredienteActivoNombre: "Spinosad",
         dosisProducto: 0.15,
+        unidadDosis: "ml/cilindro",
         marcaProductoNombre: "Producto X",
         concentracionProducto: 120,
         cantidadTotalProducto: 0.25,
@@ -592,6 +591,17 @@ describe("offline/online sync with complete visit data", () => {
         description: "Evaluacion vegetativa registrada sin conexion.",
         organosAfectados: []
       },
+      { signal: undefined }
+    );
+    expect(recetaRemoteSave).toHaveBeenCalledWith(
+      "server-visita-1",
+      expect.objectContaining({
+        mezclas: [
+          expect.objectContaining({
+            productos: [expect.objectContaining({ unidadDosis: "ml/cilindro" })]
+          })
+        ]
+      }),
       { signal: undefined }
     );
 

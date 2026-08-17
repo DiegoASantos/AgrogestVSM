@@ -32,6 +32,7 @@ export type SaveRecetaData = {
       modoAccionId: string | null;
       ingredienteActivoNombre: string | null;
       dosisProducto: number | null;
+      unidadDosis?: string | null;
       marcaProductoNombre: string | null;
       concentracionProducto: number | null;
       cantidadTotalProducto: number | null;
@@ -222,6 +223,7 @@ export const visitaRecetasService = {
           modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
           ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
           dosisProducto: f.dosisProducto ?? undefined,
+          unidadDosis: f.unidadDosis ?? undefined,
           marcaProductoNombre: f.marcaProductoNombre ?? undefined,
           concentracionProducto: f.concentracionProducto ?? undefined,
           cantidadTotalProducto: f.cantidadTotalProducto ?? undefined

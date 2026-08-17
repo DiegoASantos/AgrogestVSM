@@ -1024,6 +1024,7 @@ async function handleReceta(
           modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
           ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
           dosisProducto: f.dosisProducto ?? undefined,
+          unidadDosis: f.unidadDosis ?? undefined,
           marcaProductoNombre: f.marcaProductoNombre ?? undefined,
           concentracionProducto: f.concentracionProducto ?? undefined,
           cantidadTotalProducto: f.cantidadTotalProducto ?? undefined

@@ -180,6 +180,7 @@ export class VisitaCalificacionesService {
         modoAccionId: item.modoAccionId,
         ingredienteActivoNombre: item.ingredienteActivoNombre,
         dosisIa: item.dosisIa,
+        unidadDosis: item.unidadDosis,
         volumenAplicacion: item.volumenAplicacion,
         cantidadTotalIa: item.cantidadTotalIa,
         marcaProductoNombre: item.marcaProductoNombre,

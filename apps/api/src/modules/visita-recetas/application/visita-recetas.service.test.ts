@@ -73,6 +73,7 @@ function makeValidDto(): CreateVisitaRecetaDto {
             modoAccionId: 1,
             ingredienteActivoNombre: "Abamectina",
             dosisProducto: 250,
+            unidadDosis: "ml/cilindro",
             marcaProductoNombre: "Agrimec",
             concentracionProducto: 18,
             cantidadTotalProducto: 600
@@ -172,6 +173,7 @@ describe("VisitaRecetasService", () => {
       expect(fitosanidadRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           dosisProducto: 250,
+          unidadDosis: "ml/cilindro",
           volumenAplicacion: 2,
           cantidadTotalProducto: 600
         })
@@ -204,6 +206,21 @@ describe("VisitaRecetasService", () => {
 
       await expect(service.save("10", dto)).rejects.toThrow(
         "ordenMezcla debe contener un arreglo JSON valido."
+      );
+    });
+
+    it("rejects a liquid dose unit for a solid fertilizer", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      recetaRepo.findOne.mockResolvedValue(null);
+      recetaRepo.create.mockReturnValue(makeReceta());
+      recetaRepo.save.mockResolvedValue(makeReceta());
+      mezclaRepo.create.mockReturnValue({});
+      mezclaRepo.save.mockResolvedValue({ id: "m1" });
+      const dto = makeValidDto();
+      dto.fertilizacion[0]!.unidadDosis = "ml/planta";
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "La unidad de dosis no corresponde al tipo de producto y via de fertilizacion."
       );
     });
   });
