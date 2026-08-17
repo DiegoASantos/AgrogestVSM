@@ -96,6 +96,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Recomendaciones reactivas y preventivas](specs/044-recomendaciones-reactivas-preventivas.md)
 - [Conectividad hibrida y modo offline controlado en mobile](specs/045-conectividad-hibrida-mobile.md)
 - [Concentraciones ampliadas y permiso para eliminar visitas](specs/046-concentraciones-ampliadas-permiso-eliminar-visitas.md)
+- [Reconciliacion de catalogos de receta en mobile](specs/047-reconciliacion-catalogos-receta-mobile.md)
 
 ## Runbooks
 

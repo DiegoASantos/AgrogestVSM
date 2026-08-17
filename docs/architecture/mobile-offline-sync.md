@@ -297,10 +297,16 @@ selección existente, sin borrar recetas, catálogos ni operaciones pendientes.
 
 La migracion SQLite 60 agrega `catalog_visible` a estos tres catalogos. Antes
 de cada descarga se ocultan solo las filas `synced`; las recibidas de la API se
-vuelven visibles por UPSERT. Las filas `pending` y `error` nunca se ocultan ni
-se sobrescriben durante ese refresco. Asi se retira de los selectores un
-catalogo desactivado remotamente sin borrar la copia local ni afectar recetas
-historicas.
+vuelven visibles por UPSERT. Las filas `pending` y `error` que no coinciden con
+una identidad remota nunca se ocultan ni se sobrescriben durante ese refresco.
+Si la API devuelve el mismo `server_id` o `public_id`, la descarga constituye
+confirmacion definitiva del alta local: conserva su `id` local canonico,
+actualiza los valores remotos, cambia el estado a `synced`, limpia el error y
+retira el outbox y fallo de la sesion autenticada. Los duplicados historicos de
+esa misma identidad se consolidan y las marcas se remapean al `id` local
+canonico del ingrediente. Asi se retira de los selectores un catalogo
+desactivado remotamente sin borrar altas locales no confirmadas, afectar recetas
+historicas ni depender del estado previo del push.
 
 Un alta fallida requiere una accion explicita desde Errores de sincronizacion.
 `Volver a enviar` conserva `id`, `public_id`, propietario y valores SQLite,

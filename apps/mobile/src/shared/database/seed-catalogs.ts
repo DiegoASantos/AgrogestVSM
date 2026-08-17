@@ -345,7 +345,12 @@ async function performCatalogDownload() {
         }
 
         for (const item of ingredientesActivos) {
-          const localId = resolveLocalCatalogId(db, "ingredientes_activos", item.id);
+          const identity = resolveRecipeCatalogIdentity(
+            db,
+            "ingredientes_activos",
+            item.id,
+            item.publicId
+          );
           db.runSync(
             `INSERT INTO ingredientes_activos (
           id, public_id, name, description, server_id, sync_status, catalog_visible
@@ -357,19 +362,32 @@ async function performCatalogDownload() {
           server_id = excluded.server_id,
           sync_status = 'synced',
           sync_error_message = NULL,
-          catalog_visible = 1
-        WHERE ingredientes_activos.sync_status = 'synced'`,
-            localId,
+          catalog_visible = 1`,
+            identity.localId,
             item.publicId,
             item.name,
             item.description ?? null,
             item.id,
             "synced"
           );
+          reconcileConfirmedRecipeCatalog(
+            db,
+            catalogOwnerUserId,
+            "ingredientes_activos",
+            identity
+          );
         }
 
         for (const item of marcasProducto) {
-          const localId = resolveLocalCatalogId(db, "marcas_producto", item.id);
+          const identity = resolveRecipeCatalogIdentity(
+            db,
+            "marcas_producto",
+            item.id,
+            item.publicId
+          );
+          const ingredienteActivoLocalId = item.ingredienteActivoId
+            ? resolveLocalCatalogId(db, "ingredientes_activos", item.ingredienteActivoId)
+            : null;
           db.runSync(
             `INSERT INTO marcas_producto (
           id, public_id, name, tipo_producto_id, ingrediente_activo_id,
@@ -387,23 +405,33 @@ async function performCatalogDownload() {
           server_id = excluded.server_id,
           sync_status = 'synced',
           sync_error_message = NULL,
-          catalog_visible = 1
-        WHERE marcas_producto.sync_status = 'synced'`,
-            localId,
+          catalog_visible = 1`,
+            identity.localId,
             item.publicId,
             item.name,
             item.tipoProductoId ?? null,
-            item.ingredienteActivoId ?? null,
+            ingredienteActivoLocalId,
             item.ingredienteActivoNombre ?? null,
             item.concentracionTexto ?? item.concentracion?.toString() ?? null,
             item.unidadMedida ?? null,
             item.id,
             "synced"
           );
+          reconcileConfirmedRecipeCatalog(
+            db,
+            catalogOwnerUserId,
+            "marcas_producto",
+            identity
+          );
         }
 
         for (const item of fertilizantes) {
-          const localId = resolveLocalCatalogId(db, "fertilizantes", item.id);
+          const identity = resolveRecipeCatalogIdentity(
+            db,
+            "fertilizantes",
+            item.id,
+            item.publicId
+          );
           db.runSync(
             `INSERT INTO fertilizantes (
           id, public_id, name, type, concentracion, unidad_medida, server_id, sync_status,
@@ -418,9 +446,8 @@ async function performCatalogDownload() {
           server_id = excluded.server_id,
           sync_status = 'synced',
           sync_error_message = NULL,
-          catalog_visible = 1
-        WHERE fertilizantes.sync_status = 'synced'`,
-            localId,
+          catalog_visible = 1`,
+            identity.localId,
             item.publicId,
             item.name,
             item.type,
@@ -428,6 +455,12 @@ async function performCatalogDownload() {
             item.unidadMedida,
             item.id,
             "synced"
+          );
+          reconcileConfirmedRecipeCatalog(
+            db,
+            catalogOwnerUserId,
+            "fertilizantes",
+            identity
           );
         }
 
@@ -778,6 +811,88 @@ function resolveLocalCatalogId(
   );
 
   return row?.id ?? serverId;
+}
+
+type RecipeCatalogTable = "ingredientes_activos" | "fertilizantes" | "marcas_producto";
+
+type RecipeCatalogIdentityRow = {
+  id: string;
+  public_id: string;
+  server_id: string | null;
+  sync_status: "pending" | "synced" | "error";
+};
+
+type ResolvedRecipeCatalogIdentity = {
+  localId: string;
+  duplicateLocalIds: string[];
+  matchedLocalIds: string[];
+};
+
+function resolveRecipeCatalogIdentity(
+  db: ReturnType<typeof initDatabase>,
+  table: RecipeCatalogTable,
+  serverId: string,
+  publicId: string
+): ResolvedRecipeCatalogIdentity {
+  const rows = db.getAllSync<RecipeCatalogIdentityRow>(
+    `SELECT id, public_id, server_id, sync_status
+     FROM ${table}
+     WHERE id = ? OR server_id = ? OR public_id = ?`,
+    serverId,
+    serverId,
+    publicId
+  );
+  const canonical =
+    rows.find((row) => row.public_id === publicId && row.sync_status !== "synced") ??
+    rows.find((row) => row.server_id === serverId || row.id === serverId) ??
+    rows.find((row) => row.public_id === publicId);
+  const localId = canonical?.id ?? serverId;
+
+  return {
+    localId,
+    duplicateLocalIds: rows.filter((row) => row.id !== localId).map((row) => row.id),
+    matchedLocalIds: rows.map((row) => row.id)
+  };
+}
+
+function reconcileConfirmedRecipeCatalog(
+  db: ReturnType<typeof initDatabase>,
+  ownerUserId: string,
+  table: RecipeCatalogTable,
+  identity: ResolvedRecipeCatalogIdentity
+) {
+  if (table === "ingredientes_activos") {
+    for (const duplicateLocalId of identity.duplicateLocalIds) {
+      db.runSync(
+        `UPDATE marcas_producto
+         SET ingrediente_activo_id = ?
+         WHERE ingrediente_activo_id = ?`,
+        identity.localId,
+        duplicateLocalId
+      );
+    }
+  }
+
+  for (const localId of identity.matchedLocalIds) {
+    db.runSync(
+      `DELETE FROM sync_outbox
+       WHERE owner_user_id = ? AND entity_type = ? AND entity_local_id = ?`,
+      ownerUserId,
+      table,
+      localId
+    );
+    db.runSync(
+      `DELETE FROM sync_failures
+       WHERE owner_user_id = ? AND entity_type = ? AND entity_local_id = ?`,
+      ownerUserId,
+      table,
+      localId
+    );
+  }
+
+  for (const duplicateLocalId of identity.duplicateLocalIds) {
+    db.runSync(`DELETE FROM ${table} WHERE id = ?`, duplicateLocalId);
+  }
 }
 
 export async function forceRefreshAllCatalogs(): Promise<void> {

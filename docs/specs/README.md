@@ -90,4 +90,5 @@ en la raíz.
 - [Spec 044: Recomendaciones reactivas y preventivas](044-recomendaciones-reactivas-preventivas.md)
 - [Spec 045: Conectividad hibrida y modo offline controlado en mobile](045-conectividad-hibrida-mobile.md)
 - [Spec 046: Concentraciones ampliadas y permiso para eliminar visitas](046-concentraciones-ampliadas-permiso-eliminar-visitas.md)
+- [Spec 047: Reconciliacion de catalogos de receta en mobile](047-reconciliacion-catalogos-receta-mobile.md)
 - [Plantilla](TEMPLATE.md)
