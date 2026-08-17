@@ -1,18 +1,14 @@
 export type TimePeriod = "AM" | "PM";
 
 export function formatEditable12HourInput(previousValue: string, nextValue: string) {
-  if (nextValue.length < previousValue.length) {
+  if (nextValue.length < previousValue.length || nextValue.includes(":")) {
     return sanitizePartialTimeInput(nextValue);
   }
 
   const digits = nextValue.replace(/\D/g, "").slice(0, 4);
-  if (digits.length <= 2) return digits;
+  if (digits.length < 4) return digits;
 
-  const hourDigits = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
-  const minuteDigits = digits.length === 3 ? digits.slice(1) : digits.slice(2);
-  return `${pad(clamp(Number(hourDigits), 1, 12))}:${pad(
-    clamp(Number(minuteDigits), 0, 59)
-  )}`;
+  return normalizeTyped12HourInput(digits);
 }
 
 export function isComplete12HourInput(value: string) {

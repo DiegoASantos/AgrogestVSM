@@ -17,10 +17,11 @@ describe("time input editing", () => {
     expect(formatEditable12HourInput("0", "")).toBe("");
   });
 
-  it("formatea una nueva hora al completar cuatro dígitos", () => {
-    expect(formatEditable12HourInput("23", "239")).toBe("02:39");
-    expect(isComplete12HourInput("02:39")).toBe(true);
-    expect(isComplete12HourInput("02:3")).toBe(false);
+  it("no reordena una hora de dos dígitos mientras se completa", () => {
+    expect(formatEditable12HourInput("10", "102")).toBe("102");
+    expect(isComplete12HourInput("102")).toBe(false);
+    expect(formatEditable12HourInput("102", "1020")).toBe("10:20");
+    expect(isComplete12HourInput("10:20")).toBe(true);
   });
 
   it("convierte entre formato de 12 horas y hora de API", () => {
