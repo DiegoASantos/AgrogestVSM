@@ -69,6 +69,7 @@ import {
 import {
   buildFertilizacionesForSave,
   buildMezclasForSave,
+  appendMezclasForNewFindings,
   calculateTotal,
   collectNomenclaturaPorMezcla,
   createEmptyMezcla,
@@ -77,6 +78,7 @@ import {
   getUnidadDosis,
   hasFertilizacionData,
   hasFitosanidadData,
+  mergeMissingFitosanidadFindings,
   parsePositiveDecimal,
   deriveMezclaFactors,
   factorFromGrade,
@@ -284,7 +286,8 @@ export function VisitaRecetaScreen() {
           recetaData,
           catalogos.ingredientesActivos,
           catalogos.marcasProducto,
-          catalogos.fertilizantes
+          catalogos.fertilizantes,
+          localConsData
         );
       } else if (localConsData) {
         if (parcela) {
@@ -310,12 +313,7 @@ export function VisitaRecetaScreen() {
       }
 
       setIsLoading(false);
-      void refreshConsolidacionFromRemote(
-        vId,
-        localConsData,
-        Boolean(recetaData),
-        requestId
-      );
+      void refreshConsolidacionFromRemote(vId, localConsData, requestId);
     } catch (err) {
       if (!isActiveLoad(requestId)) {
         return;
@@ -328,7 +326,6 @@ export function VisitaRecetaScreen() {
   async function refreshConsolidacionFromRemote(
     vId: string,
     localConsData: ConsolidacionHallazgo,
-    hasSavedReceta: boolean,
     requestId: number
   ) {
     try {
@@ -346,17 +343,15 @@ export function VisitaRecetaScreen() {
 
       setConsolidacion(resolvedConsData);
 
-      if (!hasSavedReceta && hasFitosanidadFindings(resolvedConsData)) {
+      if (hasFitosanidadFindings(resolvedConsData)) {
         setFitosanidadApps((prev) => {
-          if (prev.length > 0) return prev;
-          const apps = buildFitosanidadFromConsolidacion(resolvedConsData);
-          setMezclas(
-            deriveMezclaFactors(
-              apps,
-              apps.map((_, index) => createEmptyMezcla(index + 1))
-            )
+          const merged = mergeMissingFitosanidadFindings(prev, resolvedConsData);
+          if (merged.addedCount === 0) return prev;
+
+          setMezclas((current) =>
+            appendMezclasForNewFindings(current, merged.addedCount)
           );
-          return apps;
+          return merged.applications;
         });
       }
     } catch {
@@ -383,12 +378,23 @@ export function VisitaRecetaScreen() {
     receta: VisitaRecetaCompleta,
     ingredientCatalog: IngredienteActivoCatalogItem[],
     commercialCatalog: MarcaProductoCatalogItem[],
-    fertilizerCatalog: FertilizanteCatalogItem[]
+    fertilizerCatalog: FertilizanteCatalogItem[],
+    consolidationData: ConsolidacionHallazgo
   ) {
-    setFitosanidadApps(
-      restoreFitosanidadApps(receta.mezclas, ingredientCatalog, commercialCatalog)
+    const restoredApplications = restoreFitosanidadApps(
+      receta.mezclas,
+      ingredientCatalog,
+      commercialCatalog
     );
-    setMezclas(restoreMezclas(receta.mezclas));
+    const merged = mergeMissingFitosanidadFindings(
+      restoredApplications,
+      consolidationData
+    );
+
+    setFitosanidadApps(merged.applications);
+    setMezclas(
+      appendMezclasForNewFindings(restoreMezclas(receta.mezclas), merged.addedCount)
+    );
     setFertilizaciones(restoreFertilizaciones(receta.fertilizacion, fertilizerCatalog));
 
     if (receta.riego) {
@@ -402,55 +408,14 @@ export function VisitaRecetaScreen() {
     cons: ConsolidacionHallazgo,
     volumenPorDefecto = ""
   ) {
-    const apps = buildFitosanidadFromConsolidacion(cons);
-    setFitosanidadApps(apps);
+    const merged = mergeMissingFitosanidadFindings([], cons);
+    setFitosanidadApps(merged.applications);
     setMezclas(
       deriveMezclaFactors(
-        apps,
-        apps.map((_, index) => createEmptyMezcla(index + 1, volumenPorDefecto))
+        merged.applications,
+        appendMezclasForNewFindings([], merged.addedCount, volumenPorDefecto)
       )
     );
-  }
-
-  function buildFitosanidadFromConsolidacion(cons: ConsolidacionHallazgo) {
-    const apps: AppFitosanidad[] = [];
-    let num = 1;
-
-    for (const plaga of cons.plagas) {
-      apps.push(
-        createEmptyFitosanidad(num++, "plaga", plaga.nombre, plaga.incidenceGrade)
-      );
-    }
-    for (const enfermedad of cons.enfermedades) {
-      apps.push(
-        createEmptyFitosanidad(
-          num++,
-          "enfermedad",
-          enfermedad.nombre,
-          enfermedad.incidenceGrade
-        )
-      );
-    }
-
-    return apps;
-  }
-
-  function createEmptyFitosanidad(
-    numero: number,
-    objetivo: "plaga" | "enfermedad",
-    objetivoNombre: string,
-    incidenceGrade: number
-  ): AppFitosanidad {
-    return {
-      localId: `new_${numero}_${Date.now()}`,
-      numero,
-      objetivo,
-      objetivoNombre,
-      incidenceGrade,
-      tipoControlId: "",
-      disolvente: "Agua",
-      ingredientes: [createEmptyIngrediente(0)]
-    };
   }
 
   function updateFitosanidadApp(index: number, patch: Partial<AppFitosanidad>) {

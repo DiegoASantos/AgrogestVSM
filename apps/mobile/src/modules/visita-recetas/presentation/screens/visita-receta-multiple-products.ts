@@ -6,6 +6,7 @@ import type {
   FertilizanteCatalogItem,
   IngredienteActivoCatalogItem,
   MarcaProductoCatalogItem,
+  ConsolidacionHallazgo,
   RecetaFertilizacion,
   RecetaMezcla
 } from "../../types";
@@ -110,6 +111,72 @@ export function createEmptyFertilizacion(volumenAplicacion = ""): AppFertilizaci
     factorEditable: false,
     cantidadTotalFertilizante: ""
   };
+}
+
+export function mergeMissingFitosanidadFindings(
+  applications: AppFitosanidad[],
+  consolidation: ConsolidacionHallazgo
+): { applications: AppFitosanidad[]; addedCount: number } {
+  const existingKeys = new Set(
+    applications.map((application) =>
+      [application.objetivo, normalizeName(application.objetivoNombre)].join("::")
+    )
+  );
+  const merged = [...applications];
+  let nextNumber = applications.reduce(
+    (maximum, application) => Math.max(maximum, application.numero),
+    0
+  );
+
+  const appendFinding = (
+    objetivo: AppFitosanidad["objetivo"],
+    finding: ConsolidacionHallazgo["plagas"][number]
+  ) => {
+    const key = [objetivo, normalizeName(finding.nombre)].join("::");
+    if (existingKeys.has(key)) return;
+
+    existingKeys.add(key);
+    nextNumber += 1;
+    merged.push({
+      localId: createTransientId("fito"),
+      numero: nextNumber,
+      objetivo,
+      objetivoNombre: finding.nombre,
+      incidenceGrade: finding.incidenceGrade,
+      tipoControlId: "",
+      disolvente: "Agua",
+      ingredientes: [createEmptyIngrediente(0)]
+    });
+  };
+
+  consolidation.plagas.forEach((finding) => appendFinding("plaga", finding));
+  consolidation.enfermedades.forEach((finding) => appendFinding("enfermedad", finding));
+
+  return {
+    applications: merged,
+    addedCount: merged.length - applications.length
+  };
+}
+
+export function appendMezclasForNewFindings(
+  mezclas: AppMezcla[],
+  addedCount: number,
+  defaultVolume = ""
+) {
+  if (addedCount <= 0) return mezclas;
+
+  const startNumber = mezclas.reduce(
+    (maximum, mezcla) => Math.max(maximum, mezcla.numero),
+    0
+  );
+  const inheritedVolume = mezclas[0]?.volumenAplicacion ?? defaultVolume;
+
+  return [
+    ...mezclas,
+    ...Array.from({ length: addedCount }, (_, index) =>
+      createEmptyMezcla(startNumber + index + 1, inheritedVolume)
+    )
+  ];
 }
 
 export function restoreFitosanidadApps(

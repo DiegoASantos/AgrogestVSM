@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RecetaFertilizacion, RecetaMezcla } from "../../types";
 import {
+  appendMezclasForNewFindings,
   buildFertilizacionesForSave,
   buildMezclasForSave,
   calculateTotal,
@@ -9,6 +10,7 @@ import {
   deriveMezclaFactors,
   diseaseFactorFromPercentage,
   getUnidadDosis,
+  mergeMissingFitosanidadFindings,
   restoreFitosanidadApps,
   restoreMezclas
 } from "./visita-receta-multiple-products";
@@ -55,6 +57,63 @@ const mezcla: RecetaMezcla = {
 };
 
 describe("receta con mezclas", () => {
+  const consolidation = {
+    etapaFenologica: "Floracion",
+    plagas: [],
+    enfermedades: [
+      {
+        nombre: "Oidium",
+        incidencia: "10%",
+        severidad: "Leve",
+        organos: ["flor"],
+        incidenceGrade: 2
+      }
+    ],
+    nutricion: [],
+    riego: { humedadSuelo: null, estresHidrico: null },
+    labores: []
+  };
+
+  it("agrega un diagnostico sanitario a una receta guardada sin fitosanidad", () => {
+    const merged = mergeMissingFitosanidadFindings([], consolidation);
+    const mezclas = appendMezclasForNewFindings([], merged.addedCount);
+
+    expect(merged.addedCount).toBe(1);
+    expect(merged.applications[0]).toMatchObject({
+      objetivo: "enfermedad",
+      objetivoNombre: "Oidium",
+      incidenceGrade: 2
+    });
+    expect(mezclas).toHaveLength(1);
+  });
+
+  it("conserva recomendaciones existentes y agrega solo el diagnostico faltante", () => {
+    const existing = restoreFitosanidadApps([mezcla], [], []);
+    const merged = mergeMissingFitosanidadFindings(existing, consolidation);
+
+    expect(merged.addedCount).toBe(1);
+    expect(merged.applications[0]).toBe(existing[0]);
+    expect(merged.applications.map((item) => item.objetivoNombre)).toEqual([
+      "Trips",
+      "Oidium"
+    ]);
+  });
+
+  it("no duplica un diagnostico ya recomendado aunque cambien acentos o mayusculas", () => {
+    const existing = [
+      {
+        ...restoreFitosanidadApps([mezcla], [], [])[0]!,
+        objetivo: "enfermedad" as const,
+        objetivoNombre: "Oídium"
+      }
+    ];
+    const merged = mergeMissingFitosanidadFindings(existing, consolidation);
+
+    expect(merged.addedCount).toBe(0);
+    expect(merged.applications).toHaveLength(1);
+    expect(merged.applications[0]).toBe(existing[0]);
+  });
+
   it("restaura cabecera y productos con asignacion estable", () => {
     const apps = restoreFitosanidadApps([mezcla], [], []);
     expect(restoreMezclas([mezcla])[0]).toMatchObject({ numero: 1, factor: "1.2" });
