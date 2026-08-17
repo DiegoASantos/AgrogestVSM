@@ -380,7 +380,7 @@ describe("ParcelasService", () => {
         take: 20
       } as never);
 
-      expect(queryBuilder.orderBy).toHaveBeenCalledWith("parcela.activo", "DESC");
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith("parcela.isActive", "DESC");
       expect(queryBuilder.addOrderBy).toHaveBeenCalledWith(
         "subsector.sectorId",
         "ASC"

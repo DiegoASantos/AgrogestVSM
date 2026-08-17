@@ -497,7 +497,7 @@ export class ParcelasService {
     }
 
     return queryBuilder
-      .orderBy("parcela.activo", "DESC")
+      .orderBy("parcela.isActive", "DESC")
       .addOrderBy("subsector.sectorId", "ASC")
       .addOrderBy("parcela.subsectorId", "ASC")
       .addOrderBy("parcela.code", "ASC");
