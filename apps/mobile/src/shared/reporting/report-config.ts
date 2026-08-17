@@ -1,1 +1,2 @@
 export const REPORT_IMAGE_WIDTH = 720;
+export const REPORT_IMAGE_MAX_PAGE_HEIGHT = 1080;

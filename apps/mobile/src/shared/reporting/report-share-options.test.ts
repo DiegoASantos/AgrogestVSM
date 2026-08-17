@@ -9,7 +9,7 @@ import {
 describe("report share options", () => {
   it("shares PNG reports as files so receiving apps do not recompress them", () => {
     expect(getLosslessPngShareOptions("receta")).toEqual({
-      dialogTitle: "Compartir receta como imagen PNG de alta calidad",
+      dialogTitle: "Compartir receta como imagen PNG",
       mimeType: "application/octet-stream",
       UTI: "public.data"
     });

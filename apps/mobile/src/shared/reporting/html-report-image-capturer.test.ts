@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { REPORT_IMAGE_MAX_PAGE_HEIGHT } from "./report-config";
 import {
   getMaxReportLogicalHeight,
   getReportPageSlices,
@@ -50,6 +51,17 @@ describe("HTML report image sizing", () => {
       { height: 1, offsetY: 3000 }
     ]);
     expect(getReportPageSlices(0, 1500)).toEqual([]);
+  });
+
+  it("splits tall reports into readable images without losing content", () => {
+    const pages = getReportPageSlices(2500, REPORT_IMAGE_MAX_PAGE_HEIGHT);
+
+    expect(pages).toEqual([
+      { height: 1080, offsetY: 0 },
+      { height: 1080, offsetY: 1080 },
+      { height: 340, offsetY: 2160 }
+    ]);
+    expect(pages.reduce((total, page) => total + page.height, 0)).toBe(2500);
   });
 
   it("accepts page readiness only for a concrete render", () => {

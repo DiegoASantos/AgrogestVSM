@@ -124,10 +124,10 @@ export function useReportSharing({ onError }: UseReportSharingOptions) {
       const label = REPORT_LABELS[report];
       Alert.alert(
         `Compartir ${label}`,
-        "Selecciona el formato. La imagen PNG se envia como archivo para conservar su nitidez.",
+        "Selecciona el formato que deseas compartir.",
         [
           {
-            text: "Imagen PNG (alta calidad)",
+            text: "Imagen PNG",
             onPress: () => {
               void runReportOperation(visitaId, report, "share-image");
             }

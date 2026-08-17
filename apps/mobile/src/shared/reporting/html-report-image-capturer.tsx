@@ -20,14 +20,16 @@ import {
   parseReportPageReadyMessage,
   parseReportHeightMessage
 } from "./report-image-sizing";
-import { REPORT_IMAGE_WIDTH } from "./report-config";
+import {
+  REPORT_IMAGE_MAX_PAGE_HEIGHT,
+  REPORT_IMAGE_WIDTH
+} from "./report-config";
 
 const CAPTURE_TIMEOUT_MS = 20_000;
 const CAPTURE_SETTLE_MS = 500;
 const PAGE_READY_TIMEOUT_MS = 5_000;
 const MAX_IMAGE_PIXEL_AREA = 28_000_000;
 const pixelRatio = PixelRatio.get();
-const SAFE_PAGE_HEIGHT = 1500;
 const REPORT_SIZE_MESSAGE = "agrogest-report-size";
 const REPORT_PAGE_READY_MESSAGE = "agrogest-report-page-ready";
 
@@ -294,7 +296,7 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
     }, [contentHeight, maxPageHeight, rejectPending, request, resolvePending]);
 
     async function capturarPaginas(alturaTotal: number, id: number): Promise<string[]> {
-      const alturaPagina = Math.min(maxPageHeight, SAFE_PAGE_HEIGHT);
+      const alturaPagina = Math.min(maxPageHeight, REPORT_IMAGE_MAX_PAGE_HEIGHT);
       const paginas = getReportPageSlices(alturaTotal, alturaPagina);
       const uris: string[] = [];
 
@@ -393,7 +395,7 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
             style={[
               styles.captureSurface,
               {
-                height: pageRender?.height ?? SAFE_PAGE_HEIGHT,
+                height: pageRender?.height ?? REPORT_IMAGE_MAX_PAGE_HEIGHT,
                 width: REPORT_IMAGE_WIDTH
               }
             ]}
@@ -421,7 +423,7 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
               source={{ baseUrl: "about:blank", html: request.html }}
               style={{
                 backgroundColor: "#ffffff",
-                height: pageRender?.height ?? SAFE_PAGE_HEIGHT,
+                height: pageRender?.height ?? REPORT_IMAGE_MAX_PAGE_HEIGHT,
                 width: REPORT_IMAGE_WIDTH
               }}
             />
