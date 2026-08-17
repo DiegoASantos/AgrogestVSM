@@ -90,6 +90,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Evapotranspiracion y radiacion diaria en clima mobile](specs/040-et-radiacion-clima-mobile.md)
 - [Visibilidad y reactivacion de productores y parcelas en mobile](specs/041-visibilidad-reactivacion-productores-parcelas-mobile.md)
 
+- [Recuperacion y baja segura de catalogos creados desde mobile](specs/042-recuperacion-baja-segura-catalogos-mobile.md)
+
 ## Runbooks
 
 - [Flujo diario de mantenimiento con IA](runbooks/daily-workflow.md)

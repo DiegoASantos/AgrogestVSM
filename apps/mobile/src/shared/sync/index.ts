@@ -12,4 +12,9 @@ export {
   type SyncPendingDetail
 } from "./sync-status";
 export { retryTransientSyncFailures } from "../database/sync-failures";
+export {
+  discardUnsyncedCatalogFailure,
+  isRecoverableCatalogEntity,
+  retryCatalogSyncFailure
+} from "./catalog-sync-recovery";
 export type { SyncRunResult, SyncRunStatus } from "./sync-result";

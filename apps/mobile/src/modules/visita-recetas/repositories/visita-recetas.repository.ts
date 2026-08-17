@@ -172,7 +172,10 @@ export const visitaRecetasRepository = {
       name: string;
       description: string | null;
     }>(
-      "SELECT id, public_id, name, description FROM ingredientes_activos ORDER BY name ASC"
+      `SELECT id, public_id, name, description
+       FROM ingredientes_activos
+       WHERE catalog_visible = 1 OR sync_status <> 'synced'
+       ORDER BY name ASC`
     );
     return rows.map((r) => ({
       id: r.id,
@@ -195,7 +198,9 @@ export const visitaRecetasRepository = {
       ingrediente_activo_nombre: string | null;
     }>(
       `SELECT id, public_id, name, tipo_producto_id, ingrediente_activo_id, concentracion, unidad_medida, ingrediente_activo_nombre
-       FROM marcas_producto ORDER BY name ASC`
+       FROM marcas_producto
+       WHERE catalog_visible = 1 OR sync_status <> 'synced'
+       ORDER BY name ASC`
     );
     return rows.map((r) => ({
       id: r.id,
@@ -244,7 +249,10 @@ export const visitaRecetasRepository = {
       concentracion: string | null;
       unidad_medida: string | null;
     }>(
-      "SELECT id, public_id, name, type, concentracion, unidad_medida FROM fertilizantes ORDER BY name ASC"
+      `SELECT id, public_id, name, type, concentracion, unidad_medida
+       FROM fertilizantes
+       WHERE catalog_visible = 1 OR sync_status <> 'synced'
+       ORDER BY name ASC`
     );
     return rows.length > 0
       ? rows.map((row) => ({

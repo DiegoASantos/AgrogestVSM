@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 59;
+const LATEST_MIGRATION_VERSION = 60;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -19,6 +19,7 @@ type FakeDatabase = {
   visitaObservacionesSanitariasColumns: Set<string>;
   visitaCalificacionesColumns: Set<string>;
   marcasProductoColumns: Set<string>;
+  ingredienteActivoColumns: Set<string>;
   fertilizanteColumns: Set<string>;
   detalleNutrientesRows: Array<{ id: string; name: string }>;
   appMetaRows: Map<string, string | null>;
@@ -87,6 +88,7 @@ function createFakeDatabase(
       "concentracion",
       "ingrediente_activo_nombre"
     ]),
+    ingredienteActivoColumns: new Set(["id", "public_id", "name", "description"]),
     fertilizanteColumns: new Set(["id", "name", "type"]),
     detalleNutrientesRows: [],
     appMetaRows: new Map(),
@@ -410,6 +412,21 @@ function createFakeDatabase(
         this.marcasProductoColumns.add(columnName);
       }
 
+      if (statement.startsWith("ALTER TABLE ingredientes_activos ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.ingredienteActivoColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.ingredienteActivoColumns.add(columnName);
+      }
+
       if (statement.startsWith("ALTER TABLE fertilizantes ADD COLUMN ")) {
         const parts = statement.split(/\s+/u);
         const columnName = parts[5];
@@ -592,6 +609,12 @@ function createFakeDatabase(
 
       if (statement === "PRAGMA table_info(marcas_producto)") {
         return Array.from(this.marcasProductoColumns, (name) => ({
+          name
+        })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(ingredientes_activos)") {
+        return Array.from(this.ingredienteActivoColumns, (name) => ({
           name
         })) as T[];
       }
@@ -1564,6 +1587,26 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+(productores|parcelas|sync_outbox|visitas_campo)/iu.test(
+          statement
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("adds recipe catalog visibility without deleting pending data", () => {
+    const db = createFakeDatabase(59);
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-08-16T10:00:00.000Z");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.ingredienteActivoColumns.has("catalog_visible")).toBe(true);
+    expect(db.marcasProductoColumns.has("catalog_visible")).toBe(true);
+    expect(db.fertilizanteColumns.has("catalog_visible")).toBe(true);
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(ingredientes_activos|marcas_producto|fertilizantes|sync_outbox)/iu.test(
           statement
         )
       )

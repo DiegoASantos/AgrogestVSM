@@ -58,4 +58,16 @@ describe("classifyError", () => {
     const result = classifyError(new ApiError("validation failed", 422));
     expect(result.message).toBe("validation failed");
   });
+
+  it("adds API validation details to the durable error message", () => {
+    const result = classifyError(
+      new ApiError("Validation failed.", 400, [
+        { field: "unidadMedida", messages: ["must be shorter than 20 characters"] }
+      ])
+    );
+
+    expect(result.message).toBe(
+      "Validation failed. unidadMedida: must be shorter than 20 characters"
+    );
+  });
 });

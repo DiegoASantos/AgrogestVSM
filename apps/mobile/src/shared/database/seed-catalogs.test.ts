@@ -254,6 +254,25 @@ describe("seed-catalogs convergence", () => {
     );
   });
 
+  it("hides only synced recipe catalogs before restoring active rows", async () => {
+    const { downloadAllCatalogs } = await import("./seed-catalogs");
+    await downloadAllCatalogs();
+
+    for (const table of ["ingredientes_activos", "fertilizantes", "marcas_producto"]) {
+      const hide = runSyncCalls.find(
+        (call) =>
+          call.sql.includes(`UPDATE ${table}`) &&
+          call.sql.includes("SET catalog_visible = 0")
+      );
+      expect(hide?.sql).toContain("sync_status = 'synced'");
+    }
+    expect(
+      runSyncCalls.some((call) =>
+        /DELETE FROM (ingredientes_activos|fertilizantes|marcas_producto)/u.test(call.sql)
+      )
+    ).toBe(false);
+  });
+
   it("migration 53 brings the tipos_documento table", async () => {
     const { runMigrations } = await import("./migrations");
 

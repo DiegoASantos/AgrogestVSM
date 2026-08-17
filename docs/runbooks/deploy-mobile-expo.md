@@ -2,7 +2,7 @@
 title: Deploy mobile Android con Expo EAS
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-16
 ---
 
 # Deploy mobile Android con Expo EAS
@@ -116,6 +116,13 @@ Para el salto `versionCode` 7 a 8 no se agrega una migracion SQLite. La cohorte
 productiva debe estar en `user_version = 53`; una instalacion mucho mas antigua
 requiere evaluar primero su ruta historica de migraciones y no debe recibir el
 APK por supuesto.
+
+La recuperacion de catalogos de receta de la spec 042 agrega la migracion
+SQLite 60 desde JavaScript y no cambia dependencias, plugins ni permisos
+nativos, por lo que es candidata a OTA sobre un runtime compatible. Antes de
+publicarla se debe actualizar in-place una copia representativa que contenga
+`sync_outbox`, `sync_failures` y filas de catalogo en `pending`/`error`;
+cancelar si no llega a `user_version = 60` preservando esos datos.
 
 ## API de produccion
 

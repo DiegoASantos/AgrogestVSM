@@ -70,3 +70,43 @@ Antes de borrar datos locales:
 
 Nunca indicar al usuario reinstalar la aplicación como primera medida si hay
 datos pendientes.
+
+### Catalogos de receta eliminados o con validacion fallida
+
+Este procedimiento aplica a `ingredientes_activos`, `marcas_producto` y
+`fertilizantes`. No ejecutar borrados fisicos ni vaciar SQLite, outbox o fallos
+durables.
+
+1. Detener nuevas correcciones sobre los registros afectados y registrar
+   cantidad, tipo, `public_id`/ID local, propietario y estado de sync sin copiar
+   datos personales al incidente.
+2. Crear y verificar un backup productivo antes de cualquier mutacion. Confirmar
+   tambien la version instalada del mobile y el commit de la API.
+3. Consultar en modo lectura si cada `public_id` existe, su valor de `activo` y
+   si tiene referencias. No recrear ni desactivar por nombre, porque no es una
+   identidad estable.
+4. Desplegar primero la API compatible. Verificar health, autenticacion,
+   idempotencia de alta por `publicId` y que los endpoints
+   `DELETE /ingredientes-activos/:id`, `DELETE /fertilizantes/:id` y
+   `DELETE /marcas-producto/:id` exijan rol `ADMIN` y respondan con
+   `isActive = false` sin borrar la fila.
+5. Publicar despues la version mobile con migracion SQLite 60. Probar una
+   actualizacion in-place representativa antes de ampliar la distribucion.
+6. En el dispositivo afectado, abrir Errores de sincronizacion y revisar cada
+   registro:
+   - si la copia SQLite es valida, elegir `Volver a enviar`;
+   - si fue un alta equivocada nunca confirmada, elegir `Descartar alta local`
+     y confirmar;
+   - si ya tenia `server_id` pero fue borrada manualmente en PostgreSQL,
+     recrearla por el mismo `publicId`, comprobar la identidad resultante y
+     luego desactivarla mediante la API administrativa si no debe seleccionarse.
+7. Refrescar catalogos. Comprobar que los inactivos ya no aparecen en
+   selectores, que no quedan reencolados automaticamente y que visitas y recetas
+   historicas siguen disponibles.
+8. Registrar por cada elemento la accion y el resultado. No registrar tokens ni
+   payloads completos.
+
+Rollback: una baja equivocada se revierte reactivando la misma fila, no creando
+otra. Las columnas SQLite aditivas se conservan. Si falla la OTA, detener su
+distribucion y mantener la API compatible; restaurar un backup completo solo
+ante corrupcion confirmada y con aprobacion del responsable productivo.

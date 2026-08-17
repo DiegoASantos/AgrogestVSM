@@ -85,4 +85,5 @@ en la raíz.
 - [Spec 039: Hora de fin al finalizar receta mobile](039-hora-fin-receta-mobile.md)
 - [Spec 040: Evapotranspiracion y radiacion diaria en clima mobile](040-et-radiacion-clima-mobile.md)
 - [Spec 041: Visibilidad y reactivacion de productores y parcelas en mobile](041-visibilidad-reactivacion-productores-parcelas-mobile.md)
+- [Spec 042: Recuperacion y baja segura de catalogos creados desde mobile](042-recuperacion-baja-segura-catalogos-mobile.md)
 - [Plantilla](TEMPLATE.md)

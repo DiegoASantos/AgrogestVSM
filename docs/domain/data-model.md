@@ -123,6 +123,14 @@ medida. Esos datos describen el producto seleccionado y son distintos de la
 dosis y su unidad de aplicacion guardadas en el detalle de la receta. Mobile los
 usa como informacion readonly y no los duplica en la receta historica.
 
+`ingredientes_activos`, `marcas_producto` y `fertilizantes` usan baja logica:
+un registro que deja de ser seleccionable conserva su identidad y pasa a
+`activo = false`. La operacion normal nunca elimina fisicamente estas filas,
+porque dispositivos offline pueden conservar el mismo `public_id` y las
+recetas historicas deben mantener sus referencias y etiquetas. Las altas de
+mobile persisten el `public_id` proporcionado por el cliente para que un
+reintento sea idempotente.
+
 Una receta puede contener varias mezclas fitosanitarias y varios detalles de
 fertilizacion. Cada tanque se representa mediante `visita_receta_mezcla` en
 SQLite y `visita_receta_mezclas` en PostgreSQL. La mezcla es la cabecera de sus

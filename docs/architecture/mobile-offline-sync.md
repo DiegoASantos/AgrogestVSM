@@ -166,6 +166,10 @@ y programa un sync inmediato con `bypassBackoff`.
   accion separada que reencola solo fallos `transient` en orden padre-hijos;
 - errores `permanent` permanecen visibles y requieren correccion explicita
   desde el detalle del dato;
+- los fallos permanentes de ingredientes activos, marcas y fertilizantes dejan
+  la fila local en `error` y la reconciliacion no la vuelve a encolar mientras
+  exista su `sync_failures`; el detalle conserva los campos de validacion que
+  envio la API;
 - un error de autenticacion detiene el ciclo;
 - ciertos conflictos recuperan el ID existente del servidor.
 
@@ -247,6 +251,22 @@ la correctiva 50 volvió a invalidar `catalogs_downloaded_at` para forzar la
 descarga posterior a la reparación del backend. Cuando una descarga termina,
 una receta abierta relee SQLite y completa concentración y unidad de la
 selección existente, sin borrar recetas, catálogos ni operaciones pendientes.
+
+La migracion SQLite 60 agrega `catalog_visible` a estos tres catalogos. Antes
+de cada descarga se ocultan solo las filas `synced`; las recibidas de la API se
+vuelven visibles por UPSERT. Las filas `pending` y `error` nunca se ocultan ni
+se sobrescriben durante ese refresco. Asi se retira de los selectores un
+catalogo desactivado remotamente sin borrar la copia local ni afectar recetas
+historicas.
+
+Un alta fallida requiere una accion explicita desde Errores de sincronizacion.
+`Volver a enviar` conserva `id`, `public_id`, propietario y valores SQLite,
+elimina el fallo anterior y crea una sola operacion de outbox. `Descartar alta
+local` solo esta disponible si la API nunca confirmo un `server_id`; elimina en
+una transaccion la fila de catalogo y sus metadatos de sync. Un ingrediente no
+puede descartarse si una marca pendiente o fallida depende de el. Una fila ya
+confirmada se desactiva en la API por un administrador, no se descarta desde el
+dispositivo.
 
 El detalle de visita deriva directamente desde SQLite los scores técnicos de
 Plagas, Enfermedades, Nutrición y Riego. Esta previsualización no se persiste ni

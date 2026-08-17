@@ -1435,12 +1435,7 @@ const MIGRATIONS: Migration[] = [
         "INTEGER NOT NULL DEFAULT 0"
       );
       addColumnIfMissing(db, "parcelas", "catalog_owner_user_id", "TEXT");
-      addColumnIfMissing(
-        db,
-        "parcelas",
-        "catalog_visible",
-        "INTEGER NOT NULL DEFAULT 0"
-      );
+      addColumnIfMissing(db, "parcelas", "catalog_visible", "INTEGER NOT NULL DEFAULT 0");
       addColumnIfMissing(db, "sync_outbox", "owner_user_id", "TEXT");
       db.execSync("DROP TABLE IF EXISTS sync_failures_next");
       db.execSync(`CREATE TABLE sync_failures_next (
@@ -1481,6 +1476,20 @@ const MIGRATIONS: Migration[] = [
       db.execSync(
         "CREATE INDEX IF NOT EXISTS idx_sync_failures_owner_kind ON sync_failures(owner_user_id, error_kind, failed_at)"
       );
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
+  },
+  {
+    version: 60,
+    run(db: SQLiteDatabase) {
+      for (const table of ["ingredientes_activos", "fertilizantes", "marcas_producto"]) {
+        addColumnIfMissing(
+          db,
+          table,
+          "catalog_visible",
+          "INTEGER NOT NULL DEFAULT 1 CHECK(catalog_visible IN (0, 1))"
+        );
+      }
       db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
     }
   }

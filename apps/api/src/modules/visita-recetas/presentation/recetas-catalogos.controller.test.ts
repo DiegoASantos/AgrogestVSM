@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { REQUIRED_ROLES_KEY } from "../../auth/presentation/decorators/roles.decorator";
 import { RecetasCatalogosController } from "./recetas-catalogos.controller";
 
 function repositoryReturning(items: unknown[]) {
@@ -17,6 +18,42 @@ function buildController(marcas: unknown[], fertilizantes: unknown[]) {
     empty as never,
     repositoryReturning(fertilizantes) as never
   );
+}
+
+function buildWritableController() {
+  const empty = repositoryReturning([]);
+  const ingredienteRepo = {
+    ...repositoryReturning([]),
+    findOne: vi.fn(),
+    findOneOrFail: vi.fn(),
+    create: vi.fn((value) => value),
+    save: vi.fn(async (value) => value)
+  };
+  const marcaRepo = {
+    ...repositoryReturning([]),
+    findOne: vi.fn(),
+    findOneOrFail: vi.fn(),
+    create: vi.fn((value) => value),
+    save: vi.fn(async (value) => value)
+  };
+  const fertilizanteRepo = {
+    ...repositoryReturning([]),
+    findOne: vi.fn(),
+    findOneOrFail: vi.fn(),
+    create: vi.fn((value) => value),
+    save: vi.fn(async (value) => value)
+  };
+  const controller = new RecetasCatalogosController(
+    empty as never,
+    ingredienteRepo as never,
+    marcaRepo as never,
+    empty as never,
+    empty as never,
+    empty as never,
+    fertilizanteRepo as never
+  );
+
+  return { controller, ingredienteRepo, marcaRepo, fertilizanteRepo };
 }
 
 describe("RecetasCatalogosController", () => {
@@ -95,10 +132,12 @@ describe("RecetasCatalogosController", () => {
       [
         {
           id: "1",
+          publicId: "fert-public-1",
           name: "DAP",
           type: "solido",
           concentracion: "18-46-00",
-          unidadMedida: "%"
+          unidadMedida: "%",
+          isActive: true
         }
       ]
     );
@@ -108,11 +147,94 @@ describe("RecetasCatalogosController", () => {
     expect(result.data).toEqual([
       {
         id: "1",
+        publicId: "fert-public-1",
         name: "DAP",
         type: "solido",
         concentracion: "18-46-00",
-        unidadMedida: "%"
+        unidadMedida: "%",
+        isActive: true
       }
     ]);
+  });
+
+  it("persists the mobile public id when creating a fertilizer", async () => {
+    const { controller, fertilizanteRepo } = buildWritableController();
+    fertilizanteRepo.findOne.mockResolvedValue(null);
+    fertilizanteRepo.save.mockImplementation(async (value) => ({
+      id: "42",
+      isActive: true,
+      ...value
+    }));
+
+    await controller.createFertilizante({
+      publicId: "550e8400-e29b-41d4-a716-446655440000",
+      name: "DAP",
+      tipo: "solido",
+      concentracion: "18-46-00",
+      unidadMedida: "%"
+    });
+
+    expect(fertilizanteRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicId: "550e8400-e29b-41d4-a716-446655440000"
+      })
+    );
+  });
+
+  it("returns the existing fertilizer for an idempotent retry", async () => {
+    const { controller, fertilizanteRepo } = buildWritableController();
+    fertilizanteRepo.findOne.mockResolvedValue({
+      id: "42",
+      publicId: "550e8400-e29b-41d4-a716-446655440000",
+      name: "DAP",
+      type: "solido",
+      concentracion: "18-46-00",
+      unidadMedida: "%",
+      isActive: true
+    });
+
+    const result = await controller.createFertilizante({
+      publicId: "550e8400-e29b-41d4-a716-446655440000",
+      name: "DAP repetido",
+      tipo: "solido"
+    });
+
+    expect(result.data.id).toBe("42");
+    expect(fertilizanteRepo.create).not.toHaveBeenCalled();
+    expect(fertilizanteRepo.save).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "deactivateIngredienteActivo",
+    "deactivateFertilizante",
+    "deactivateMarcaProducto"
+  ] as const)("restricts %s to ADMIN", (handler) => {
+    expect(
+      Reflect.getMetadata(
+        REQUIRED_ROLES_KEY,
+        RecetasCatalogosController.prototype[handler]
+      )
+    ).toEqual(["ADMIN"]);
+  });
+
+  it("soft-deactivates a fertilizer instead of deleting it", async () => {
+    const { controller, fertilizanteRepo } = buildWritableController();
+    const entity = {
+      id: "42",
+      publicId: "550e8400-e29b-41d4-a716-446655440000",
+      name: "DAP",
+      type: "solido",
+      concentracion: "18-46-00",
+      unidadMedida: "%",
+      isActive: true
+    };
+    fertilizanteRepo.findOneOrFail.mockResolvedValue(entity);
+
+    const result = await controller.deactivateFertilizante("42");
+
+    expect(fertilizanteRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "42", isActive: false })
+    );
+    expect(result.data.isActive).toBe(false);
   });
 });

@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-16
 ---
 
 # Línea base de seguridad operativa
@@ -37,6 +37,9 @@ last_reviewed: 2026-08-15
 - la reconciliacion de filas `pending` sin outbox solo reconstruye operaciones
   cuya pertenencia a la sesion puede demostrarse por propietario de catalogo o
   por la visita raiz; no reasigna catalogos globales huerfanos entre cuentas.
+- la baja logica de ingredientes activos, marcas y fertilizantes exige rol
+  `ADMIN`; el agronomo puede recuperar o descartar solamente altas locales no
+  confirmadas que aparecen en los fallos de su sesion.
 
 ## Rate limiting
 

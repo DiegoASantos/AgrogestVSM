@@ -38,8 +38,7 @@ const storeSyncFailure = vi.fn();
 const deleteSyncFailureForEntity = vi.fn();
 vi.mock("../database/sync-failures", () => ({
   storeSyncFailure: (...args: unknown[]) => storeSyncFailure(...args),
-  deleteSyncFailureForEntity: (...args: unknown[]) =>
-    deleteSyncFailureForEntity(...args)
+  deleteSyncFailureForEntity: (...args: unknown[]) => deleteSyncFailureForEntity(...args)
 }));
 
 vi.mock("../database/sqlite-utils", () => ({
@@ -157,6 +156,13 @@ vi.mock("../../modules/visita-recetas/repositories/visita-recetas.repository", (
   }
 }));
 
+const fertilizanteCatalogUpdate = vi.fn();
+vi.mock("../../modules/visita-recetas/repositories/catalogo-repository-helpers", () => ({
+  catalogoIngredientesActivosRepo: { actualizar: vi.fn() },
+  catalogoFertilizantesRepo: { actualizar: fertilizanteCatalogUpdate },
+  catalogoMarcasRepo: { actualizar: vi.fn() }
+}));
+
 const visitaCalificacionesUpdate = vi.fn();
 const visitaCalificacionesGetById = vi.fn();
 vi.mock(
@@ -172,11 +178,13 @@ vi.mock(
 const handlerVisita = vi.fn();
 const handlerEvaluacion = vi.fn();
 const handlerObservacion = vi.fn();
+const handlerFertilizante = vi.fn();
 vi.mock("./sync-handlers", () => ({
   entityHandlerMap: {
     visitas_campo: (entry: unknown) => handlerVisita(entry),
     visita_evaluaciones: (entry: unknown) => handlerEvaluacion(entry),
-    visita_observaciones_sanitarias: (entry: unknown) => handlerObservacion(entry)
+    visita_observaciones_sanitarias: (entry: unknown) => handlerObservacion(entry),
+    fertilizantes: (entry: unknown) => handlerFertilizante(entry)
   }
 }));
 
@@ -258,9 +266,7 @@ describe("processOutbox", () => {
       "productores.catalog_owner_user_id = ?"
     );
     expect(productorQuery).toContain("agronomo-1");
-    expect(String(visitaQuery?.[0])).toContain(
-      "visitas_campo.agronomist_user_id = ?"
-    );
+    expect(String(visitaQuery?.[0])).toContain("visitas_campo.agronomist_user_id = ?");
     expect(String(visitaQuery?.[0])).toContain("sync_outbox.owner_user_id = ?");
     expect(visitaQuery).toContain("agronomo-1");
   });
@@ -416,6 +422,48 @@ describe("processOutbox", () => {
     );
     expect(deleteOutboxEntry).toHaveBeenCalledWith(6);
     expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 1 });
+  });
+
+  it("marks a fertilizer validation failure as durable error with details", async () => {
+    getPendingOutboxEntries.mockReturnValue([
+      makeEntry({
+        id: 61,
+        entityType: "fertilizantes",
+        entityLocalId: "fert-local-1"
+      })
+    ]);
+    handlerFertilizante.mockRejectedValue(
+      new ApiError("Validation failed.", 400, [
+        { field: "unidadMedida", messages: ["too long"] }
+      ])
+    );
+
+    const result = await processOutbox();
+
+    expect(storeSyncFailure).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ id: 61 }),
+      "permanent",
+      "Validation failed. unidadMedida: too long"
+    );
+    expect(fertilizanteCatalogUpdate).toHaveBeenCalledWith("fert-local-1", {
+      syncStatus: "error",
+      syncErrorMessage: "Validation failed. unidadMedida: too long"
+    });
+    expect(deleteOutboxEntry).toHaveBeenCalledWith(61);
+    expect(result).toMatchObject({ permanentFailures: 1, errors: 1 });
+  });
+
+  it("excludes durable failures when reconciling pending rows", async () => {
+    getPendingOutboxEntries.mockReturnValue([]);
+
+    await processOutbox();
+
+    expect(
+      getAllSync.mock.calls.some(([query]) =>
+        String(query).includes("FROM sync_failures")
+      )
+    ).toBe(true);
   });
 
   it("skips child create entries when their parent visita already failed this cycle", async () => {

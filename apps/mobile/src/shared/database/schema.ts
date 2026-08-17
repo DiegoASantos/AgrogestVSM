@@ -337,7 +337,8 @@ export const SQL_SCHEMA = [
     description TEXT,
     server_id TEXT,
     sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
-    sync_error_message TEXT
+    sync_error_message TEXT,
+    catalog_visible INTEGER NOT NULL DEFAULT 1 CHECK(catalog_visible IN (0, 1))
   )`,
   `CREATE TABLE IF NOT EXISTS marcas_producto (
     id TEXT PRIMARY KEY NOT NULL,
@@ -350,7 +351,8 @@ export const SQL_SCHEMA = [
     ingrediente_activo_nombre TEXT,
     server_id TEXT,
     sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
-    sync_error_message TEXT
+    sync_error_message TEXT,
+    catalog_visible INTEGER NOT NULL DEFAULT 1 CHECK(catalog_visible IN (0, 1))
   )`,
   `CREATE TABLE IF NOT EXISTS modos_accion (
     id TEXT PRIMARY KEY NOT NULL,
@@ -373,7 +375,8 @@ export const SQL_SCHEMA = [
     unidad_medida TEXT,
     server_id TEXT,
     sync_status TEXT NOT NULL DEFAULT 'synced' CHECK(sync_status IN ('pending', 'synced', 'error')),
-    sync_error_message TEXT
+    sync_error_message TEXT,
+    catalog_visible INTEGER NOT NULL DEFAULT 1 CHECK(catalog_visible IN (0, 1))
   )`,
   `CREATE TABLE IF NOT EXISTS visita_recetas (
     local_id TEXT PRIMARY KEY NOT NULL,

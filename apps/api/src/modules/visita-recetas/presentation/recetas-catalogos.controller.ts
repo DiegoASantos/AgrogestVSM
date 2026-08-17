@@ -1,5 +1,11 @@
-import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
-import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
+import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
+import {
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags
+} from "@nestjs/swagger";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
@@ -31,7 +37,13 @@ function toLegacyNumericConcentration(value: string | null) {
 }
 
 function toIngredienteResponse(item: IngredienteActivoEntity) {
-  return { id: item.id, publicId: item.publicId, name: item.name, description: item.description };
+  return {
+    id: item.id,
+    publicId: item.publicId,
+    name: item.name,
+    description: item.description,
+    isActive: item.isActive
+  };
 }
 
 function toFertilizanteResponse(item: FertilizanteEntity) {
@@ -41,7 +53,8 @@ function toFertilizanteResponse(item: FertilizanteEntity) {
     name: item.name,
     type: item.type,
     concentracion: item.concentracion,
-    unidadMedida: item.unidadMedida
+    unidadMedida: item.unidadMedida,
+    isActive: item.isActive
   };
 }
 
@@ -55,7 +68,8 @@ function toMarcaResponse(item: MarcaProductoEntity) {
     ingredienteActivoNombre: item.ingredienteActivo?.name ?? null,
     concentracion: toLegacyNumericConcentration(item.concentracion),
     concentracionTexto: item.concentracion,
-    unidadMedida: item.unidadMedida
+    unidadMedida: item.unidadMedida,
+    isActive: item.isActive
   };
 }
 
@@ -124,10 +138,24 @@ export class RecetasCatalogosController {
     }
 
     const entity = this.ingredienteActivoRepo.create({
+      ...(dto.publicId ? { publicId: dto.publicId } : {}),
       name: dto.name,
       description: dto.description ?? null
     });
 
+    const saved = await this.ingredienteActivoRepo.save(entity);
+
+    return createSuccessResponse(toIngredienteResponse(saved));
+  }
+
+  @Delete("ingredientes-activos/:id")
+  @Roles("ADMIN")
+  @ApiOperation({ summary: "Desactiva un ingrediente activo sin borrar su historial." })
+  @ApiParam({ name: "id", type: String, example: "1" })
+  @ApiOkResponse({ description: "Ingrediente activo desactivado." })
+  async deactivateIngredienteActivo(@Param("id", ParseEntityIdPipe) id: string) {
+    const entity = await this.ingredienteActivoRepo.findOneOrFail({ where: { id } });
+    entity.isActive = false;
     const saved = await this.ingredienteActivoRepo.save(entity);
 
     return createSuccessResponse(toIngredienteResponse(saved));
@@ -181,12 +209,26 @@ export class RecetasCatalogosController {
     }
 
     const entity = this.fertilizanteRepo.create({
+      ...(dto.publicId ? { publicId: dto.publicId } : {}),
       name: dto.name,
       type: dto.tipo as "solido" | "liquido",
       concentracion: dto.concentracion ?? null,
       unidadMedida: dto.unidadMedida ?? null
     });
 
+    const saved = await this.fertilizanteRepo.save(entity);
+
+    return createSuccessResponse(toFertilizanteResponse(saved));
+  }
+
+  @Delete("fertilizantes/:id")
+  @Roles("ADMIN")
+  @ApiOperation({ summary: "Desactiva un fertilizante sin borrar su historial." })
+  @ApiParam({ name: "id", type: String, example: "1" })
+  @ApiOkResponse({ description: "Fertilizante desactivado." })
+  async deactivateFertilizante(@Param("id", ParseEntityIdPipe) id: string) {
+    const entity = await this.fertilizanteRepo.findOneOrFail({ where: { id } });
+    entity.isActive = false;
     const saved = await this.fertilizanteRepo.save(entity);
 
     return createSuccessResponse(toFertilizanteResponse(saved));
@@ -243,6 +285,7 @@ export class RecetasCatalogosController {
     }
 
     const entity = this.marcaProductoRepo.create({
+      ...(dto.publicId ? { publicId: dto.publicId } : {}),
       name: dto.name,
       tipoProductoId: dto.tipoProductoId,
       ingredienteActivoId: dto.ingredienteActivoId ?? null,
@@ -250,6 +293,19 @@ export class RecetasCatalogosController {
       unidadMedida: dto.unidadMedida ?? null
     });
 
+    const saved = await this.marcaProductoRepo.save(entity);
+
+    return createSuccessResponse(toMarcaResponse(saved));
+  }
+
+  @Delete("marcas-producto/:id")
+  @Roles("ADMIN")
+  @ApiOperation({ summary: "Desactiva una marca de producto sin borrar su historial." })
+  @ApiParam({ name: "id", type: String, example: "1" })
+  @ApiOkResponse({ description: "Marca de producto desactivada." })
+  async deactivateMarcaProducto(@Param("id", ParseEntityIdPipe) id: string) {
+    const entity = await this.marcaProductoRepo.findOneOrFail({ where: { id } });
+    entity.isActive = false;
     const saved = await this.marcaProductoRepo.save(entity);
 
     return createSuccessResponse(toMarcaResponse(saved));
@@ -268,7 +324,8 @@ export class RecetasCatalogosController {
 
     if (dto.name !== undefined) entity.name = dto.name;
     if (dto.tipoProductoId !== undefined) entity.tipoProductoId = dto.tipoProductoId;
-    if (dto.ingredienteActivoId !== undefined) entity.ingredienteActivoId = dto.ingredienteActivoId ?? null;
+    if (dto.ingredienteActivoId !== undefined)
+      entity.ingredienteActivoId = dto.ingredienteActivoId ?? null;
     if (dto.concentracion !== undefined) entity.concentracion = dto.concentracion ?? null;
     if (dto.unidadMedida !== undefined) entity.unidadMedida = dto.unidadMedida ?? null;
 
@@ -288,9 +345,7 @@ export class RecetasCatalogosController {
       order: { name: "ASC" }
     });
 
-    return createSuccessResponse(
-      items.map((i) => ({ id: i.id, name: i.name }))
-    );
+    return createSuccessResponse(items.map((i) => ({ id: i.id, name: i.name })));
   }
 
   @Get("tipos-control")
@@ -302,9 +357,7 @@ export class RecetasCatalogosController {
       order: { name: "ASC" }
     });
 
-    return createSuccessResponse(
-      items.map((i) => ({ id: i.id, name: i.name }))
-    );
+    return createSuccessResponse(items.map((i) => ({ id: i.id, name: i.name })));
   }
 
   @Get("tipos-producto-fitosanitario")
@@ -316,8 +369,6 @@ export class RecetasCatalogosController {
       order: { name: "ASC" }
     });
 
-    return createSuccessResponse(
-      items.map((i) => ({ id: i.id, name: i.name }))
-    );
+    return createSuccessResponse(items.map((i) => ({ id: i.id, name: i.name })));
   }
 }

@@ -5,6 +5,7 @@ import { useUpdates } from "expo-updates";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ImageBackground,
   Modal,
   Pressable,
@@ -25,6 +26,9 @@ import {
   getSyncCounts,
   getSyncErrorDetails,
   getSyncPendingDetails,
+  discardUnsyncedCatalogFailure,
+  isRecoverableCatalogEntity,
+  retryCatalogSyncFailure,
   retryTransientSyncFailures,
   scheduleSync,
   subscribeToSyncStatus,
@@ -88,9 +92,7 @@ export function HomeScreen() {
 
     try {
       setRecentVisits(visitasCampoService.getRecentByAccessToken(session.accessToken));
-      void parcelasService
-        .getAll()
-        .catch(() => {});
+      void parcelasService.getAll().catch(() => {});
     } catch {
       setRecentVisits([]);
     }
@@ -199,6 +201,63 @@ export function HomeScreen() {
       setIsRefreshingCatalogs(false);
     }
   }, [isOnline, isRefreshingCatalogs, catalogStatus.isDownloading, loadDashboard]);
+
+  const handleRetryCatalogFailure = useCallback(
+    (error: SyncErrorDetail) => {
+      if (!isRecoverableCatalogEntity(error.entityType)) {
+        return;
+      }
+
+      try {
+        retryCatalogSyncFailure(error.entityType, error.localId);
+        setIsErrorModalVisible(false);
+        loadSyncState();
+      } catch (recoveryError) {
+        Alert.alert(
+          "No se pudo volver a enviar",
+          recoveryError instanceof Error
+            ? recoveryError.message
+            : "Ocurrio un error al preparar el reintento."
+        );
+      }
+    },
+    [loadSyncState]
+  );
+
+  const handleDiscardCatalogFailure = useCallback(
+    (error: SyncErrorDetail) => {
+      if (!isRecoverableCatalogEntity(error.entityType)) {
+        return;
+      }
+      const entityType = error.entityType;
+
+      Alert.alert(
+        "Descartar alta local",
+        `Se retirara ${error.displayName ?? "este registro"} del catalogo local. Las visitas y recetas no se borraran.`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          {
+            text: "Descartar",
+            style: "destructive",
+            onPress: () => {
+              try {
+                discardUnsyncedCatalogFailure(entityType, error.localId);
+                loadSyncState();
+              } catch (discardError) {
+                Alert.alert(
+                  "No se puede descartar",
+                  discardError instanceof Error
+                    ? discardError.message
+                    : "Ocurrio un error al descartar el registro."
+                );
+              }
+            }
+          }
+        ]
+      );
+    },
+    [loadSyncState]
+  );
 
   const handleApplyAppUpdate = useCallback(async () => {
     if (isApplyingAppUpdate) {
@@ -554,6 +613,8 @@ export function HomeScreen() {
       <SyncErrorsModal
         errors={syncErrors}
         onClose={() => setIsErrorModalVisible(false)}
+        onDiscardCatalog={handleDiscardCatalogFailure}
+        onRetryCatalog={handleRetryCatalogFailure}
         visible={isErrorModalVisible}
       />
 
@@ -649,10 +710,14 @@ function SyncMetric({
 function SyncErrorsModal({
   errors,
   onClose,
+  onDiscardCatalog,
+  onRetryCatalog,
   visible
 }: {
   errors: SyncErrorDetail[];
   onClose: () => void;
+  onDiscardCatalog: (error: SyncErrorDetail) => void;
+  onRetryCatalog: (error: SyncErrorDetail) => void;
   visible: boolean;
 }) {
   return (
@@ -705,6 +770,9 @@ function SyncErrorsModal({
                       {error.entityLabel}
                     </AppText>
                   </View>
+                  {error.displayName ? (
+                    <ErrorField label="Registro" value={error.displayName} />
+                  ) : null}
                   <ErrorField label="ID local" value={error.localId} />
                   <ErrorField
                     label="Ultima actualizacion"
@@ -716,9 +784,41 @@ function SyncErrorsModal({
                     value={
                       error.retryable
                         ? "Puede reintentarse."
-                        : "Corrige el dato desde su detalle."
+                        : error.canRetryCatalog
+                          ? "Vuelve a enviarlo o descarta el alta local si fue un error."
+                          : "Corrige el dato desde su detalle."
                     }
                   />
+                  {error.canRetryCatalog ? (
+                    <View style={styles.errorItemActions}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => onRetryCatalog(error)}
+                        style={({ pressed }) => [
+                          styles.errorRetryButton,
+                          pressed && styles.pressed
+                        ]}
+                      >
+                        <AppText style={styles.errorRetryButtonText} variant="label">
+                          Volver a enviar
+                        </AppText>
+                      </Pressable>
+                      {error.canDiscardCatalog ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => onDiscardCatalog(error)}
+                          style={({ pressed }) => [
+                            styles.errorDiscardButton,
+                            pressed && styles.pressed
+                          ]}
+                        >
+                          <AppText style={styles.errorDiscardButtonText} variant="label">
+                            Descartar alta local
+                          </AppText>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </View>
               ))
             ) : (
@@ -1570,6 +1670,30 @@ const styles = StyleSheet.create({
     color: "#27342f",
     fontSize: 13,
     lineHeight: 19
+  },
+  errorItemActions: {
+    gap: 8,
+    marginTop: 2
+  },
+  errorRetryButton: {
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#08643f"
+  },
+  errorRetryButtonText: {
+    color: "#ffffff"
+  },
+  errorDiscardButton: {
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bc3f36",
+    backgroundColor: "#ffffff"
+  },
+  errorDiscardButtonText: {
+    color: "#9d3d35"
   },
   errorEmptyState: {
     alignItems: "center",

@@ -19,20 +19,20 @@ import {
 import { getDatabase } from "../database/connection";
 import { getNowIsoString } from "../database/sqlite-utils";
 import { getApiToken } from "../services/api/auth-store";
-import {
-  ApiError,
-  isApiRequestAbortedError
-} from "../services/api/errors";
-import {
-  deleteSyncFailureForEntity,
-  storeSyncFailure
-} from "../database/sync-failures";
+import { ApiError, isApiRequestAbortedError } from "../services/api/errors";
+import { deleteSyncFailureForEntity, storeSyncFailure } from "../database/sync-failures";
 import { debugLog } from "../utils/debug-log";
 import { classifyError } from "./sync-errors";
 import { SYNC_ENTITY_TABLES } from "./sync-entities";
 import { entityHandlerMap } from "./sync-handlers";
 import { setLastSyncTime } from "./sync-status";
 import { getCatalogSessionUserId } from "../database/catalog-session";
+import { runInSafeTransactionSync } from "../database/safe-transaction";
+import {
+  catalogoFertilizantesRepo,
+  catalogoIngredientesActivosRepo,
+  catalogoMarcasRepo
+} from "../../modules/visita-recetas/repositories/catalogo-repository-helpers";
 
 const MAX_RETRIES = 5;
 
@@ -160,7 +160,7 @@ export async function processOutbox(
 
       if (result.status === "synced" || result.status === "deleted_local") {
         const db = getDatabase();
-        db.withTransactionSync(() => {
+        runInSafeTransactionSync(db, () => {
           deleteSyncFailureForEntity(db, entry.entityType, entry.entityLocalId);
           deleteOutboxEntry(entry.id);
         });
@@ -196,7 +196,7 @@ export async function processOutbox(
           const message =
             "Conflicto sin identidad remota recuperable. Requiere correccion manual.";
           const db = getDatabase();
-          db.withTransactionSync(() => {
+          runInSafeTransactionSync(db, () => {
             storeSyncFailure(db, entry, "permanent", message);
             markEntityError(entry, message);
             deleteOutboxEntry(entry.id);
@@ -216,7 +216,7 @@ export async function processOutbox(
           );
           const message = `Fallo tras ${MAX_RETRIES} intentos: ${classified.message}`;
           const db = getDatabase();
-          db.withTransactionSync(() => {
+          runInSafeTransactionSync(db, () => {
             storeSyncFailure(db, entry, "transient", message);
             markEntityError(entry, message);
             deleteOutboxEntry(entry.id);
@@ -243,7 +243,7 @@ export async function processOutbox(
       );
       permanentFailures++;
       const db = getDatabase();
-      db.withTransactionSync(() => {
+      runInSafeTransactionSync(db, () => {
         storeSyncFailure(db, entry, "permanent", classified.message);
         markEntityError(entry, classified.message);
         deleteOutboxEntry(entry.id);
@@ -389,7 +389,9 @@ function getChildVisitaLocalId(entry: SyncOutboxItem): string | null {
         null
       );
     case "visita_calificaciones":
-      return visitaCalificacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      return (
+        visitaCalificacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null
+      );
     default:
       return null;
   }
@@ -424,6 +426,24 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
         break;
       case "parcelas":
         parcelasRepository.update(entry.entityLocalId, {
+          syncStatus: "error",
+          syncErrorMessage: message
+        });
+        break;
+      case "ingredientes_activos":
+        catalogoIngredientesActivosRepo.actualizar(entry.entityLocalId, {
+          syncStatus: "error",
+          syncErrorMessage: message
+        });
+        break;
+      case "fertilizantes":
+        catalogoFertilizantesRepo.actualizar(entry.entityLocalId, {
+          syncStatus: "error",
+          syncErrorMessage: message
+        });
+        break;
+      case "marcas_producto":
+        catalogoMarcasRepo.actualizar(entry.entityLocalId, {
           syncStatus: "error",
           syncErrorMessage: message
         });
@@ -477,7 +497,17 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
         return;
     }
 
-    if (!["productores", "sectores", "subsectores", "parcelas"].includes(entry.entityType)) {
+    if (
+      ![
+        "productores",
+        "sectores",
+        "subsectores",
+        "parcelas",
+        "ingredientes_activos",
+        "fertilizantes",
+        "marcas_producto"
+      ].includes(entry.entityType)
+    ) {
       getDatabase().runSync(
         `UPDATE ${table} SET sync_error_message = ? WHERE local_id = ?`,
         message,
@@ -499,7 +529,8 @@ function reconcilePendingOutboxEntries() {
 
   const timestamp = getNowIsoString();
 
-  db.runSync(`
+  db.runSync(
+    `
     UPDATE visita_recetas
     SET sync_status = 'pending'
     WHERE local_id IN (
@@ -517,10 +548,20 @@ function reconcilePendingOutboxEntries() {
         WHERE visitas_campo.local_id = visita_recetas.visita_local_id
           AND visitas_campo.agronomist_user_id = ?
       )
-  `, ownerUserId);
+  `,
+    ownerUserId
+  );
 
   for (const entity of RECONCILABLE_SYNC_ENTITIES) {
-    const isCatalogEntity = ["productores", "sectores", "subsectores", "parcelas", "ingredientes_activos", "fertilizantes", "marcas_producto"].includes(entity.entityType);
+    const isCatalogEntity = [
+      "productores",
+      "sectores",
+      "subsectores",
+      "parcelas",
+      "ingredientes_activos",
+      "fertilizantes",
+      "marcas_producto"
+    ].includes(entity.entityType);
     const idColumn = isCatalogEntity ? "id" : "local_id";
     const ownership = getReconciliationOwnership(
       entity.entityType,
@@ -544,8 +585,20 @@ function reconcilePendingOutboxEntries() {
                       visita_recetas.local_id,
                       visita_recetas.visita_local_id
                     )
+                )
+               AND NOT EXISTS (
+                  SELECT 1
+                  FROM sync_failures
+                  WHERE sync_failures.owner_user_id = ?
+                    AND entity_type = ?
+                    AND entity_local_id IN (
+                      visita_recetas.local_id,
+                      visita_recetas.visita_local_id
+                    )
                 )`,
             ...ownership.parameters,
+            ownerUserId,
+            entity.entityType,
             ownerUserId,
             entity.entityType
           )
@@ -560,8 +613,17 @@ function reconcilePendingOutboxEntries() {
                   WHERE sync_outbox.owner_user_id = ?
                     AND entity_type = ?
                     AND entity_local_id = ${entity.table}.${idColumn}
+                )
+               AND NOT EXISTS (
+                  SELECT 1
+                  FROM sync_failures
+                  WHERE sync_failures.owner_user_id = ?
+                    AND entity_type = ?
+                    AND entity_local_id = ${entity.table}.${idColumn}
                 )`,
             ...ownership.parameters,
+            ownerUserId,
+            entity.entityType,
             ownerUserId,
             entity.entityType
           );

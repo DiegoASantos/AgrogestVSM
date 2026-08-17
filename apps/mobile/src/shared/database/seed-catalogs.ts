@@ -134,6 +134,17 @@ async function performCatalogDownload() {
              AND sync_status = 'synced'`,
           catalogOwnerUserId
         );
+        for (const table of [
+          "ingredientes_activos",
+          "fertilizantes",
+          "marcas_producto"
+        ]) {
+          db.runSync(
+            `UPDATE ${table}
+             SET catalog_visible = 0
+             WHERE sync_status = 'synced'`
+          );
+        }
         for (const cultivo of cultivos) {
           db.runSync(
             `INSERT OR REPLACE INTO cultivos (id, code, name, is_active)
@@ -337,16 +348,17 @@ async function performCatalogDownload() {
           const localId = resolveLocalCatalogId(db, "ingredientes_activos", item.id);
           db.runSync(
             `INSERT INTO ingredientes_activos (
-          id, public_id, name, description, server_id, sync_status
-        ) VALUES (?, ?, ?, ?, ?, ?)
+          id, public_id, name, description, server_id, sync_status, catalog_visible
+        ) VALUES (?, ?, ?, ?, ?, ?, 1)
         ON CONFLICT(id) DO UPDATE SET
           public_id = excluded.public_id,
           name = excluded.name,
           description = excluded.description,
           server_id = excluded.server_id,
           sync_status = 'synced',
-          sync_error_message = NULL
-        WHERE ingredientes_activos.sync_status <> 'pending'`,
+          sync_error_message = NULL,
+          catalog_visible = 1
+        WHERE ingredientes_activos.sync_status = 'synced'`,
             localId,
             item.publicId,
             item.name,
@@ -362,8 +374,8 @@ async function performCatalogDownload() {
             `INSERT INTO marcas_producto (
           id, public_id, name, tipo_producto_id, ingrediente_activo_id,
           ingrediente_activo_nombre, concentracion, unidad_medida,
-          server_id, sync_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          server_id, sync_status, catalog_visible
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         ON CONFLICT(id) DO UPDATE SET
           public_id = excluded.public_id,
           name = excluded.name,
@@ -374,8 +386,9 @@ async function performCatalogDownload() {
           unidad_medida = excluded.unidad_medida,
           server_id = excluded.server_id,
           sync_status = 'synced',
-          sync_error_message = NULL
-        WHERE marcas_producto.sync_status <> 'pending'`,
+          sync_error_message = NULL,
+          catalog_visible = 1
+        WHERE marcas_producto.sync_status = 'synced'`,
             localId,
             item.publicId,
             item.name,
@@ -393,8 +406,9 @@ async function performCatalogDownload() {
           const localId = resolveLocalCatalogId(db, "fertilizantes", item.id);
           db.runSync(
             `INSERT INTO fertilizantes (
-          id, public_id, name, type, concentracion, unidad_medida, server_id, sync_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          id, public_id, name, type, concentracion, unidad_medida, server_id, sync_status,
+          catalog_visible
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
         ON CONFLICT(id) DO UPDATE SET
           public_id = excluded.public_id,
           name = excluded.name,
@@ -403,8 +417,9 @@ async function performCatalogDownload() {
           unidad_medida = excluded.unidad_medida,
           server_id = excluded.server_id,
           sync_status = 'synced',
-          sync_error_message = NULL
-        WHERE fertilizantes.sync_status <> 'pending'`,
+          sync_error_message = NULL,
+          catalog_visible = 1
+        WHERE fertilizantes.sync_status = 'synced'`,
             localId,
             item.publicId,
             item.name,

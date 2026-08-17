@@ -9,6 +9,7 @@ import {
 } from "./sync-entities";
 import type { SyncRunResult } from "./sync-result";
 import { notifySyncStatusChanged, subscribeToSyncStatus } from "./sync-events";
+import { isRecoverableCatalogEntity } from "./catalog-sync-recovery";
 
 type SyncCountsResult = {
   pendingCount: number;
@@ -23,6 +24,9 @@ export type SyncErrorDetail = {
   updatedAt: string | null;
   retryable: boolean;
   errorKind: "transient" | "permanent" | "legacy";
+  displayName?: string | null;
+  canRetryCatalog?: boolean;
+  canDiscardCatalog?: boolean;
 };
 
 export type SyncPendingDetail = {
@@ -77,14 +81,12 @@ export function getSyncCounts(): SyncCountsResult {
     db.getFirstSync<{ count: number }>(
       `SELECT COUNT(*) as count FROM sync_outbox WHERE owner_user_id = ?`,
       ownerUserId
-    )
-      ?.count ?? 0;
+    )?.count ?? 0;
   let errorCount =
     db.getFirstSync<{ count: number }>(
       `SELECT COUNT(*) as count FROM sync_failures WHERE owner_user_id = ?`,
       ownerUserId
-    )
-      ?.count ?? 0;
+    )?.count ?? 0;
 
   for (const entityType of SYNC_ENTITY_TYPES) {
     const table = SYNC_ENTITY_TABLES[entityType];
@@ -110,15 +112,24 @@ export function getSyncCounts(): SyncCountsResult {
 
 export function getSyncErrorDetails(): SyncErrorDetail[] {
   const db = getDatabase();
-  const details: SyncErrorDetail[] = getSyncFailures().map((failure) => ({
-    entityType: failure.entityType,
-    entityLabel: SYNC_ENTITY_LABELS[failure.entityType],
-    localId: failure.entityLocalId,
-    message: failure.errorMessage?.trim() || "Fallo de sincronizacion sin detalle.",
-    updatedAt: failure.failedAt,
-    retryable: failure.errorKind === "transient",
-    errorKind: failure.errorKind
-  }));
+  const details: SyncErrorDetail[] = getSyncFailures().map((failure) => {
+    const catalog = getCatalogFailureMetadata(
+      db,
+      failure.entityType,
+      failure.entityLocalId
+    );
+
+    return {
+      entityType: failure.entityType,
+      entityLabel: SYNC_ENTITY_LABELS[failure.entityType],
+      localId: failure.entityLocalId,
+      message: failure.errorMessage?.trim() || "Fallo de sincronizacion sin detalle.",
+      updatedAt: failure.failedAt,
+      retryable: failure.errorKind === "transient",
+      errorKind: failure.errorKind,
+      ...catalog
+    };
+  });
 
   for (const entityType of SYNC_ENTITY_TYPES) {
     const table = SYNC_ENTITY_TABLES[entityType];
@@ -164,12 +175,51 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
           "Sin detalle tecnico registrado. Reintenta la sincronizacion para capturar el mensaje actualizado.",
         updatedAt: row.updated_at,
         retryable: false,
-        errorKind: "legacy"
+        errorKind: "legacy",
+        ...getCatalogFailureMetadata(db, entityType, row.local_id, false)
       });
     }
   }
 
   return details;
+}
+
+function getCatalogFailureMetadata(
+  db: ReturnType<typeof getDatabase>,
+  entityType: SyncEntityType,
+  localId: string,
+  allowRecovery = true
+) {
+  if (!isRecoverableCatalogEntity(entityType)) {
+    return {};
+  }
+
+  const row = db.getFirstSync<{ name: string; server_id: string | null }>(
+    `SELECT name, server_id FROM ${SYNC_ENTITY_TABLES[entityType]}
+     WHERE id = ? LIMIT 1`,
+    localId
+  );
+  if (!row) {
+    return { canRetryCatalog: false, canDiscardCatalog: false };
+  }
+
+  const hasPendingBrandDependency =
+    entityType === "ingredientes_activos" &&
+    Boolean(
+      db.getFirstSync<{ id: string }>(
+        `SELECT id FROM marcas_producto
+         WHERE ingrediente_activo_id = ?
+           AND sync_status IN ('pending', 'error')
+         LIMIT 1`,
+        localId
+      )
+    );
+
+  return {
+    displayName: row.name,
+    canRetryCatalog: allowRecovery,
+    canDiscardCatalog: allowRecovery && !row.server_id && !hasPendingBrandDependency
+  };
 }
 
 export function getSyncPendingDetails(): SyncPendingDetail[] {
