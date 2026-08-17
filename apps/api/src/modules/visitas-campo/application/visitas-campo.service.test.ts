@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException
+} from "@nestjs/common";
 import { QueryFailedError } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,7 +46,12 @@ function makeQueryBuilder<T>(result: T[], count: number) {
   };
 }
 
-function makeUQ(constraint: string) { return new QueryFailedError("insert", [], { code: "23505", constraint } as unknown as Error); }
+function makeUQ(constraint: string) {
+  return new QueryFailedError("insert", [], {
+    code: "23505",
+    constraint
+  } as unknown as Error);
+}
 
 function makeVisita(overrides: Partial<VisitaCampoEntity> = {}): VisitaCampoEntity {
   return {
@@ -106,9 +115,18 @@ describe("VisitasCampoService", () => {
     repo = makeRepo();
     service = new VisitasCampoService(
       repo as never,
-      repo as never, repo as never, repo as never, repo as never,
-      repo as never, repo as never, repo as never, repo as never,
-      repo as never, repo as never, repo as never, repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
+      repo as never,
       repo as never
     );
   });
@@ -164,7 +182,10 @@ describe("VisitasCampoService", () => {
       repo.findOne.mockResolvedValue(visita);
       repo.save.mockImplementation(async (e) => e);
 
-      const result = await service.remove("5");
+      const result = await service.remove("5", {
+        userId: "admin-1",
+        roles: ["ADMIN"]
+      });
 
       expect(repo.save).toHaveBeenCalled();
       expect(result.data.isActive).toBe(false);
@@ -174,7 +195,10 @@ describe("VisitasCampoService", () => {
       const visita = makeVisita({ id: "6", isActive: false });
       repo.findOne.mockResolvedValue(visita);
 
-      const result = await service.remove("6");
+      const result = await service.remove("6", {
+        userId: "admin-1",
+        roles: ["ADMIN"]
+      });
 
       expect(repo.save).not.toHaveBeenCalled();
       expect(result.data.isActive).toBe(false);
@@ -183,14 +207,59 @@ describe("VisitasCampoService", () => {
     it("should throw NotFoundException when not found", async () => {
       repo.findOne.mockResolvedValue(null);
 
-      await expect(service.remove("999")).rejects.toThrow(NotFoundException);
+      await expect(
+        service.remove("999", { userId: "admin-1", roles: ["ADMIN"] })
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("allows an authorized agronomist to delete their own visit", async () => {
+      const visita = makeVisita({ id: "7", agronomoUsuarioId: "agro-1" });
+      repo.findOne
+        .mockResolvedValueOnce(visita)
+        .mockResolvedValueOnce({ id: "agro-1", canDeleteVisits: true });
+      repo.save.mockImplementation(async (entity) => entity);
+
+      const result = await service.remove("7", {
+        userId: "agro-1",
+        roles: ["AGRONOMO"]
+      });
+
+      expect(result.data.isActive).toBe(false);
+      expect(repo.save).toHaveBeenCalledWith(visita);
+    });
+
+    it("rejects an agronomist without the individual permission", async () => {
+      repo.findOne
+        .mockResolvedValueOnce(makeVisita({ agronomoUsuarioId: "agro-1" }))
+        .mockResolvedValueOnce({ id: "agro-1", canDeleteVisits: false });
+
+      await expect(
+        service.remove("1", { userId: "agro-1", roles: ["AGRONOMO"] })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it("hides visits owned by another agronomist", async () => {
+      repo.findOne.mockResolvedValue(makeVisita({ agronomoUsuarioId: "agro-owner" }));
+
+      await expect(
+        service.remove("1", { userId: "agro-other", roles: ["AGRONOMO"] })
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(repo.save).not.toHaveBeenCalled();
     });
   });
 
   describe("#create", () => {
     const validDto = {
-      cropId: "10", varietyId: "20", parcelaId: "30", campaignId: "40",
-      agronomistUserId: "u1", visitDate: "2026-06-15", startVisitTime: "08:00",
+      cropId: "10",
+      varietyId: "20",
+      parcelaId: "30",
+      campaignId: "40",
+      agronomistUserId: "u1",
+      visitDate: "2026-06-15",
+      startVisitTime: "08:00",
       phenologicalStageId: "50"
     };
 
@@ -205,9 +274,7 @@ describe("VisitasCampoService", () => {
         .mockResolvedValueOnce({ id: "20", cultivoId: "10" })
         .mockResolvedValueOnce({ id: "30", isActive: false });
 
-      await expect(service.create(validDto)).rejects.toBeInstanceOf(
-        BadRequestException
-      );
+      await expect(service.create(validDto)).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it("hides a parcela assigned to another agronomist", async () => {

@@ -3,6 +3,7 @@ import { toTitleCase } from "@agrogest/utils";
 import type { LoginFormValues } from "../schemas/login-form.schema";
 import type { AuthLoginResult, AuthUser } from "../types/auth.types";
 import { apiRequest, type ApiRequestContext } from "../../../shared/services";
+import { getUserIdFromAccessToken } from "../../../shared/utils/auth-token";
 
 type LoginApiResponse = {
   accessToken: string;
@@ -22,6 +23,7 @@ type AuthUserApiResponse = {
   email: string;
   phone: string | null;
   isActive: boolean;
+  canDeleteVisits: boolean;
   roles: Array<{
     id: number;
     code: string;
@@ -44,7 +46,7 @@ export const authService = {
       tokenType: response.tokenType,
       expiresIn: response.expiresIn,
       refreshExpiresIn: response.refreshExpiresIn,
-      user: mapAuthUser(response.user)
+      user: mapAuthUser(response.user, response.accessToken)
     };
   },
 
@@ -53,7 +55,7 @@ export const authService = {
       headers: {
         Authorization: `${tokenType} ${accessToken}`
       }
-    }).then(mapAuthUser);
+    }).then((response) => mapAuthUser(response, accessToken));
   },
 
   async authenticate(values: LoginFormValues): Promise<AuthLoginResult> {
@@ -77,7 +79,7 @@ export const authService = {
       tokenType: response.tokenType,
       expiresIn: response.expiresIn,
       refreshExpiresIn: response.refreshExpiresIn,
-      user: mapAuthUser(response.user)
+      user: mapAuthUser(response.user, response.accessToken)
     };
   },
 
@@ -89,14 +91,16 @@ export const authService = {
   }
 };
 
-function mapAuthUser(response: AuthUserApiResponse): AuthUser {
+function mapAuthUser(response: AuthUserApiResponse, accessToken: string): AuthUser {
   return {
+    userId: getUserIdFromAccessToken(accessToken),
     publicId: response.publicId,
     email: response.email,
     firstName: response.firstName,
     lastName: response.lastName,
     phone: response.phone,
     isActive: response.isActive,
+    canDeleteVisits: response.canDeleteVisits,
     displayName: buildDisplayName(response.firstName, response.lastName, response.email),
     roles: response.roles.map((role) => role.code)
   };

@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException
-} from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { hash } from "bcrypt";
 import { QueryFailedError, Repository } from "typeorm";
@@ -89,6 +85,9 @@ export class UsersService {
       passwordHash: await hash(createUserDto.password, 10),
       ...(createUserDto.isActive !== undefined
         ? { isActive: createUserDto.isActive }
+        : {}),
+      ...(createUserDto.canDeleteVisits !== undefined
+        ? { canDeleteVisits: createUserDto.canDeleteVisits }
         : {})
     });
 
@@ -111,12 +110,13 @@ export class UsersService {
       ...(updateUserDto.lastName !== undefined
         ? { lastName: updateUserDto.lastName }
         : {}),
-      ...(updateUserDto.email !== undefined
-        ? { email: updateUserDto.email }
-        : {}),
+      ...(updateUserDto.email !== undefined ? { email: updateUserDto.email } : {}),
       ...(updateUserDto.phone !== undefined ? { phone: updateUserDto.phone } : {}),
       ...(updateUserDto.isActive !== undefined
         ? { isActive: updateUserDto.isActive }
+        : {}),
+      ...(updateUserDto.canDeleteVisits !== undefined
+        ? { canDeleteVisits: updateUserDto.canDeleteVisits }
         : {})
     });
 
@@ -148,9 +148,7 @@ export class UsersService {
       firstName: updateData.firstName,
       lastName: updateData.lastName,
       email: updateData.email,
-      ...(updateData.phone !== undefined
-        ? { phone: updateData.phone }
-        : {}),
+      ...(updateData.phone !== undefined ? { phone: updateData.phone } : {}),
       ...(updateData.passwordHash !== undefined
         ? { passwordHash: updateData.passwordHash }
         : {})
@@ -239,9 +237,7 @@ export class UsersService {
         databaseError?.code === "23505" &&
         databaseError.constraint === "ux_usuarios_email_lower"
       ) {
-        throw new ConflictException(
-          "A user with the same email already exists."
-        );
+        throw new ConflictException("A user with the same email already exists.");
       }
     }
 
@@ -269,6 +265,7 @@ export class UsersService {
       email: user.email,
       phone: user.phone,
       isActive: user.isActive,
+      canDeleteVisits: user.canDeleteVisits,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       roles

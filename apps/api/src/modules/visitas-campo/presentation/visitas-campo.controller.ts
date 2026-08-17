@@ -1,17 +1,9 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query
-} from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -171,8 +163,7 @@ export class VisitasCampoController {
     example: "1"
   })
   @ApiOkResponse({
-    description:
-      "Cabecera de la visita con evaluaciones y observaciones sanitarias."
+    description: "Cabecera de la visita con evaluaciones y observaciones sanitarias."
   })
   @ApiNotFoundResponse({
     description: "La visita de campo no existe."
@@ -223,7 +214,13 @@ export class VisitasCampoController {
   @ApiNotFoundResponse({
     description: "La visita de campo no existe."
   })
-  deleteVisitaCampo(@Param("id", ParseEntityIdPipe) id: string) {
-    return this.visitasCampoService.remove(id);
+  @ApiForbiddenResponse({
+    description: "El usuario no tiene permiso para eliminar visitas."
+  })
+  deleteVisitaCampo(
+    @Param("id", ParseEntityIdPipe) id: string,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    return this.visitasCampoService.remove(id, currentUser);
   }
 }

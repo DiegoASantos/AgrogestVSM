@@ -14,6 +14,7 @@ export type AuthenticatedUserProfile = {
   email: string;
   phone: string | null;
   isActive: boolean;
+  canDeleteVisits: boolean;
   roles: AuthenticatedRole[];
 };
 

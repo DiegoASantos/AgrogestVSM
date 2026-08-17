@@ -1,12 +1,7 @@
 import { UserEntity } from "../../users/infrastructure/persistence/entities/user.entity";
-import type {
-  AccessTokenPayload,
-  AuthenticatedUserProfile
-} from "../types/auth.types";
+import type { AccessTokenPayload, AuthenticatedUserProfile } from "../types/auth.types";
 
-export function toAuthenticatedUserProfile(
-  user: UserEntity
-): AuthenticatedUserProfile {
+export function toAuthenticatedUserProfile(user: UserEntity): AuthenticatedUserProfile {
   const roles = (user.userRoles ?? [])
     .map((userRole) => userRole.role)
     .filter((role) => role !== null && role !== undefined)
@@ -25,6 +20,7 @@ export function toAuthenticatedUserProfile(
     email: user.email,
     phone: user.phone,
     isActive: user.isActive,
+    canDeleteVisits: user.canDeleteVisits,
     roles
   };
 }

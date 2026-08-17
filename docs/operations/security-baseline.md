@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-16
+last_reviewed: 2026-08-17
 ---
 
 # Línea base de seguridad operativa
@@ -40,6 +40,12 @@ last_reviewed: 2026-08-16
 - la baja logica de ingredientes activos, marcas y fertilizantes exige rol
   `ADMIN`; el agronomo puede recuperar o descartar solamente altas locales no
   confirmadas que aparecen en los fallos de su sesion.
+- la baja logica de visitas exige `ADMIN` o un `AGRONOMO` con permiso individual
+  `puede_eliminar_visitas`; el agronomo solo puede afectar visitas propias y la
+  API consulta el permiso persistido en cada solicitud;
+- mobile usa el permiso cacheado solo para visibilidad y borradores offline;
+  una visita sincronizada se conserva localmente hasta recibir confirmacion de
+  la API, por lo que una revocacion o un fallo de red no causa perdida local.
 
 ## Rate limiting
 

@@ -321,6 +321,14 @@ acceder a Mantenimiento ni Seguridad y la API rechaza sus mutaciones.
 el panel web, además de su acceso climático móvil. La aplicación móvil no admite
 sesiones con rol `ANALISTA`.
 
+Cada usuario tiene `puede_eliminar_visitas`, desactivado por defecto. El valor
+solo produce capacidad efectiva junto con el rol `AGRONOMO` y permite dar de
+baja exclusivamente visitas cuyo `agronomo_usuario_id` sea el usuario
+autenticado. Al retirar ese rol se limpia el permiso. La baja conserva la fila
+y su historial en PostgreSQL con `visitas_campo.activo = false`; la copia del
+agregado en el dispositivo se elimina fisicamente despues de la confirmacion
+remota, o directamente cuando era un borrador sin identidad de servidor.
+
 La única excepción de escritura para un usuario exclusivamente `ANALISTA` son
 las lecturas manuales de reservorios definidas por la spec 032. Los endpoints
 correspondientes requieren autorización explícita; el bloqueo global continúa

@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException
-} from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, QueryFailedError, Repository } from "typeorm";
 
@@ -43,10 +39,7 @@ export class UserRolesService {
     });
   }
 
-  async findAllAdmin(
-    query: FindUserRolesQueryDto,
-    pagination: PaginationQueryDto
-  ) {
+  async findAllAdmin(query: FindUserRolesQueryDto, pagination: PaginationQueryDto) {
     const [userRoles, total] = await this.userRolesRepository.findAndCount({
       relations: {
         user: true,
@@ -102,8 +95,7 @@ export class UserRolesService {
   ) {
     const currentUserRole = await this.findEntityByIds(userId, roleId);
     const nextUserId = updateUserRoleDto.userId ?? currentUserRole.userId;
-    const nextRoleId =
-      updateUserRoleDto.roleId ?? String(currentUserRole.roleId);
+    const nextRoleId = updateUserRoleDto.roleId ?? String(currentUserRole.roleId);
 
     const user = await this.findUserById(nextUserId);
     const role = await this.findRoleById(nextRoleId);
@@ -125,14 +117,23 @@ export class UserRolesService {
     try {
       const savedUserRole = await this.dataSource.transaction(
         async (transactionManager) => {
-          const userRolesRepository =
-            transactionManager.getRepository(UserRoleEntity);
+          const userRolesRepository = transactionManager.getRepository(UserRoleEntity);
           const savedUserRole = await userRolesRepository.save(nextUserRole);
 
           await userRolesRepository.delete({
             userId: currentUserRole.userId,
             roleId: currentUserRole.roleId
           });
+
+          if (
+            currentUserRole.role.code === "AGRONOMO" &&
+            (nextUserId !== currentUserRole.userId ||
+              Number(nextRoleId) !== currentUserRole.roleId)
+          ) {
+            await transactionManager
+              .getRepository(UserEntity)
+              .update(currentUserRole.userId, { canDeleteVisits: false });
+          }
 
           return savedUserRole;
         }
@@ -148,7 +149,15 @@ export class UserRolesService {
     const userRole = await this.findEntityByIds(userId, roleId);
     const response = this.toResponse(userRole);
 
-    await this.userRolesRepository.remove(userRole);
+    await this.dataSource.transaction(async (transactionManager) => {
+      await transactionManager.getRepository(UserRoleEntity).remove(userRole);
+
+      if (userRole.role.code === "AGRONOMO") {
+        await transactionManager.getRepository(UserEntity).update(userRole.userId, {
+          canDeleteVisits: false
+        });
+      }
+    });
 
     return createSuccessResponse(response);
   }

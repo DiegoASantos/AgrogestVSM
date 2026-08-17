@@ -44,6 +44,7 @@ function makeUser(overrides: Partial<Record<string, unknown>> = {}) {
     lastName: "Perez",
     phone: null,
     isActive: true,
+    canDeleteVisits: false,
     passwordHash: "hash",
     userRoles: [
       {
@@ -126,6 +127,7 @@ describe("AuthService", () => {
       expect(response.data.expiresIn).toBe("15m");
       expect(response.data.refreshExpiresIn).toBe("7d");
       expect(response.data.user.email).toBe("admin@agrogest.pe");
+      expect(response.data.user.canDeleteVisits).toBe(false);
       expect(jwt.signAsync).toHaveBeenCalledTimes(2);
       expect(refreshSessions.create).toHaveBeenCalledTimes(1);
     });
@@ -213,9 +215,7 @@ describe("AuthService", () => {
       const { service, jwt } = buildService();
       jwt.verifyAsync.mockRejectedValue(new Error("jwt expired"));
 
-      await expect(service.refresh("bad")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
+      await expect(service.refresh("bad")).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it("rejects a token whose payload is not of type 'refresh'", async () => {
@@ -258,9 +258,7 @@ describe("AuthService", () => {
       jwt.verifyAsync.mockResolvedValue({
         ...makeRefreshPayload()
       });
-      users.findByPublicIdWithRoles.mockResolvedValue(
-        makeUser({ isActive: false })
-      );
+      users.findByPublicIdWithRoles.mockResolvedValue(makeUser({ isActive: false }));
 
       await expect(service.refresh("valid")).rejects.toBeInstanceOf(
         UnauthorizedException
@@ -274,9 +272,7 @@ describe("AuthService", () => {
         sub: 123
       });
 
-      await expect(service.refresh("odd")).rejects.toBeInstanceOf(
-        UnauthorizedException
-      );
+      await expect(service.refresh("odd")).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it("rejects a token that was already rotated", async () => {
@@ -392,9 +388,7 @@ describe("AuthService", () => {
 
     it("throws UnauthorizedException when user is inactive", async () => {
       const { service, users } = buildService();
-      users.findByPublicIdWithRoles.mockResolvedValue(
-        makeUser({ isActive: false })
-      );
+      users.findByPublicIdWithRoles.mockResolvedValue(makeUser({ isActive: false }));
 
       await expect(
         service.updateAuthenticatedUser(accessPayload, makeProfileDto())

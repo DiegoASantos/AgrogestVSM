@@ -32,6 +32,7 @@ import { entityHandlerMap } from "./sync-handlers";
 import { setLastSyncTime } from "./sync-status";
 import { getCatalogSessionUserId } from "../database/catalog-session";
 import { runInSafeTransactionSync } from "../database/safe-transaction";
+import { runWithSyncMutationLock } from "./sync-mutation-lock";
 import {
   catalogoFertilizantesRepo,
   catalogoIngredientesActivosRepo,
@@ -90,8 +91,14 @@ const ROOT_ENTITY_TYPES = new Set<string>([
   "visitas_campo"
 ]);
 
-export async function processOutbox(
+export function processOutbox(
   options: ProcessOutboxOptions = {}
+): Promise<ProcessOutboxResult> {
+  return runWithSyncMutationLock(() => processOutboxUnlocked(options));
+}
+
+async function processOutboxUnlocked(
+  options: ProcessOutboxOptions
 ): Promise<ProcessOutboxResult> {
   const token = getApiToken();
   const emptyResult: ProcessOutboxResult = {

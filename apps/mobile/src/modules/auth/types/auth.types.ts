@@ -1,6 +1,7 @@
 import type { LoginFormValues } from "../schemas/login-form.schema";
 
 export type AuthUser = {
+  userId: string;
   publicId: string;
   email: string;
   displayName: string;
@@ -8,21 +9,16 @@ export type AuthUser = {
   lastName: string;
   phone: string | null;
   isActive: boolean;
+  canDeleteVisits: boolean;
   roles: string[];
 };
 
 export type AuthSessionStatus = "guest" | "authenticated";
 export type OnlineSessionStatus =
-  | "unavailable"
-  | "valid"
-  | "temporarily_unavailable"
-  | "reauth_required";
+  "unavailable" | "valid" | "temporarily_unavailable" | "reauth_required";
 
 export type EnsureOnlineSessionResult =
-  | "valid"
-  | "temporarily_unavailable"
-  | "reauth_required"
-  | "unauthenticated";
+  "valid" | "temporarily_unavailable" | "reauth_required" | "unauthenticated";
 
 export type EnsureOnlineSessionOptions = {
   forceRefresh?: boolean;

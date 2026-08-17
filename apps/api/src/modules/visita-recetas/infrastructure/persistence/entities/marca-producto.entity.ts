@@ -30,7 +30,7 @@ export class MarcaProductoEntity {
   @Column({
     name: "concentracion",
     type: "varchar",
-    length: 30,
+    length: 300,
     nullable: true
   })
   concentracion!: string | null;

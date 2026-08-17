@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException
 } from "@nestjs/common";
@@ -106,10 +107,7 @@ export class VisitasCampoService {
 
     await this.validateReferences(normalizedDto, currentUser);
     await this.ensureUniqueNroFicha(normalizedDto.nroFicha ?? null);
-    validateVisitTimes(
-      normalizedDto.startVisitTime,
-      normalizedDto.endVisitTime ?? null
-    );
+    validateVisitTimes(normalizedDto.startVisitTime, normalizedDto.endVisitTime ?? null);
 
     const visitaCampo = this.visitasCampoRepository.create({
       publicId: normalizedDto.publicId ?? undefined,
@@ -195,59 +193,58 @@ export class VisitasCampoService {
       laboresCulturales,
       calificaciones,
       etapaFenologica
-    ] =
-      await Promise.all([
-        this.visitaEvaluacionesRepository.find({
-          where: {
-            visitaId: id
-          },
-          order: {
-            order: "ASC",
-            id: "ASC"
-          }
-        }),
-        this.observacionesSanitariasRepository.find({
-          where: {
-            visitaId: id
-          },
-          relations: {
-            organosAfectados: true
-          },
-          order: {
-            id: "ASC"
-          }
-        }),
-        this.visitaRiegosRepository.findOne({
-          where: {
-            visitaId: id
-          }
-        }),
-        this.visitaLaboresRepository.find({
-          where: {
-            visitaId: id
-          },
-          relations: {
-            laborCultural: true
-          },
-          order: {
-            id: "ASC"
-          }
-        }),
-        this.visitaCalificacionesRepository.find({
-          where: {
-            visitaId: id
-          },
-          order: {
-            modulo: "ASC",
-            id: "ASC"
-          }
-        }),
-        visitaCampo.etapaFenologicaId
-          ? this.etapasFenologicasRepository.findOne({
-              where: { id: visitaCampo.etapaFenologicaId }
-            })
-          : Promise.resolve(null)
-      ]);
+    ] = await Promise.all([
+      this.visitaEvaluacionesRepository.find({
+        where: {
+          visitaId: id
+        },
+        order: {
+          order: "ASC",
+          id: "ASC"
+        }
+      }),
+      this.observacionesSanitariasRepository.find({
+        where: {
+          visitaId: id
+        },
+        relations: {
+          organosAfectados: true
+        },
+        order: {
+          id: "ASC"
+        }
+      }),
+      this.visitaRiegosRepository.findOne({
+        where: {
+          visitaId: id
+        }
+      }),
+      this.visitaLaboresRepository.find({
+        where: {
+          visitaId: id
+        },
+        relations: {
+          laborCultural: true
+        },
+        order: {
+          id: "ASC"
+        }
+      }),
+      this.visitaCalificacionesRepository.find({
+        where: {
+          visitaId: id
+        },
+        order: {
+          modulo: "ASC",
+          id: "ASC"
+        }
+      }),
+      visitaCampo.etapaFenologicaId
+        ? this.etapasFenologicasRepository.findOne({
+            where: { id: visitaCampo.etapaFenologicaId }
+          })
+        : Promise.resolve(null)
+    ]);
 
     return createSuccessResponse({
       visita: {
@@ -394,17 +391,20 @@ export class VisitasCampoService {
           ? null
           : Number(visitaCampo.subEtapaPercentage);
 
-    await this.validateReferences({
-      cropId: nextCropId,
-      varietyId: nextVarietyId,
-      parcelaId: updateVisitaCampoDto.parcelaId ?? visitaCampo.parcelaId,
-      campaignId: nextCampaignId,
-      agronomistUserId:
-        updateVisitaCampoDto.agronomistUserId ?? visitaCampo.agronomoUsuarioId,
-      phenologicalStageId: nextPhenologicalStageId ?? undefined,
-      subEtapaId: nextSubEtapaId ?? undefined,
-      subEtapaPercentage: nextSubEtapaPercentage
-    }, currentUser);
+    await this.validateReferences(
+      {
+        cropId: nextCropId,
+        varietyId: nextVarietyId,
+        parcelaId: updateVisitaCampoDto.parcelaId ?? visitaCampo.parcelaId,
+        campaignId: nextCampaignId,
+        agronomistUserId:
+          updateVisitaCampoDto.agronomistUserId ?? visitaCampo.agronomoUsuarioId,
+        phenologicalStageId: nextPhenologicalStageId ?? undefined,
+        subEtapaId: nextSubEtapaId ?? undefined,
+        subEtapaPercentage: nextSubEtapaPercentage
+      },
+      currentUser
+    );
 
     await this.ensureUniqueNroFicha(nextNroFicha ?? null, visitaCampo.id);
     validateVisitTimes(nextStartVisitTime, nextEndVisitTime ?? null);
@@ -492,8 +492,29 @@ export class VisitasCampoService {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: string, currentUser?: CurrentUserContext) {
     const visitaCampo = await this.findEntityById(id);
+
+    if (!currentUser) {
+      throw new ForbiddenException("No tiene permiso para eliminar visitas.");
+    }
+
+    if (!isAdminUser(currentUser)) {
+      if (
+        !isAgronomoUser(currentUser) ||
+        visitaCampo.agronomoUsuarioId !== currentUser.userId
+      ) {
+        throw new NotFoundException("Visita de campo not found.");
+      }
+
+      const agronomo = await this.usuariosRepository.findOne({
+        where: { id: currentUser.userId }
+      });
+
+      if (!agronomo?.canDeleteVisits) {
+        throw new ForbiddenException("No tiene permiso para eliminar visitas.");
+      }
+    }
 
     if (!visitaCampo.isActive) {
       return createSuccessResponse(this.toResponse(visitaCampo));
@@ -519,16 +540,19 @@ export class VisitasCampoService {
     return visitaCampo;
   }
 
-  private async validateReferences(input: {
-    cropId: string;
-    varietyId: string;
-    parcelaId: string;
-    campaignId: string;
-    agronomistUserId: string;
-    phenologicalStageId?: string | null;
-    subEtapaId?: string | null;
-    subEtapaPercentage?: number | null;
-  }, currentUser?: CurrentUserContext) {
+  private async validateReferences(
+    input: {
+      cropId: string;
+      varietyId: string;
+      parcelaId: string;
+      campaignId: string;
+      agronomistUserId: string;
+      phenologicalStageId?: string | null;
+      subEtapaId?: string | null;
+      subEtapaPercentage?: number | null;
+    },
+    currentUser?: CurrentUserContext
+  ) {
     await this.findRequiredEntity(
       this.cultivosRepository,
       input.cropId,
@@ -1014,6 +1038,10 @@ function isAgronomoUser(currentUser?: CurrentUserContext): boolean {
   }
 
   return currentUser.roles.includes("AGRONOMO") && !currentUser.roles.includes("ADMIN");
+}
+
+function isAdminUser(currentUser?: CurrentUserContext): boolean {
+  return currentUser?.roles.includes("ADMIN") === true;
 }
 
 function validateDateRange(startDate: string | undefined, endDate: string | undefined) {

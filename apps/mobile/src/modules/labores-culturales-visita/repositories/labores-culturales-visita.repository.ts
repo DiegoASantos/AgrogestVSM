@@ -211,7 +211,10 @@ export const laboresCulturalesVisitaRepository = {
     const db = getDatabase();
     const existing = this.getById(localId);
     const payload = existing?.serverId
-      ? JSON.stringify({ serverId: existing.serverId })
+      ? JSON.stringify({
+          serverId: existing.serverId,
+          visitaId: existing.visitaId
+        })
       : null;
 
     db.withTransactionSync(() => {

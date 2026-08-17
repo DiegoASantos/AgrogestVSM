@@ -1,5 +1,8 @@
 import { getDatabase } from "../../../shared/database/connection";
+import { getCatalogSessionUserId } from "../../../shared/database/catalog-session";
 import { insertSyncOutboxEntry } from "../../../shared/database/sync-outbox";
+import { notifySyncStatusChanged } from "../../../shared/sync/sync-events";
+import type { SyncEntityType } from "../../../shared/sync/sync-entities";
 import {
   fromSqliteBoolean,
   getNowIsoString,
@@ -564,21 +567,35 @@ export const visitasCampoRepository = {
     return visita;
   },
 
-  deleteById(localId: string) {
+  deleteLocalAggregateById(localId: string) {
     const db = getDatabase();
-    const existing = this.getById(localId);
-    const payload = existing?.serverId
-      ? JSON.stringify({ serverId: existing.serverId })
-      : null;
+    const ownerUserId = getCatalogSessionUserId(db);
+
+    if (!ownerUserId) {
+      throw new Error("No hay una sesion autenticada para eliminar la visita.");
+    }
 
     db.withTransactionSync(() => {
-      insertSyncOutboxEntry(db, {
-        entityType: "visitas_campo",
-        entityLocalId: localId,
-        operation: "delete",
-        payload,
-        createdAt: getNowIsoString()
-      });
+      const identities = getVisitSyncIdentities(localId);
+
+      for (const identity of identities) {
+        db.runSync(
+          `DELETE FROM sync_outbox
+           WHERE owner_user_id = ? AND entity_type = ? AND entity_local_id = ?`,
+          ownerUserId,
+          identity.entityType,
+          identity.entityLocalId
+        );
+        db.runSync(
+          `DELETE FROM sync_failures
+           WHERE owner_user_id = ? AND entity_type = ? AND entity_local_id = ?`,
+          ownerUserId,
+          identity.entityType,
+          identity.entityLocalId
+        );
+      }
+
+      deleteVisitPayloadTombstones(db, ownerUserId, localId);
 
       const result = db.runSync(
         `DELETE FROM visitas_campo
@@ -590,6 +607,8 @@ export const visitasCampoRepository = {
         throw new Error("No se encontro la visita local para eliminar.");
       }
     });
+
+    notifySyncStatusChanged();
   },
 
   getCultivos() {
@@ -693,6 +712,85 @@ export const visitasCampoRepository = {
   }
 };
 
+type VisitSyncIdentity = {
+  entityType: SyncEntityType;
+  entityLocalId: string;
+};
+
+function getVisitSyncIdentities(localId: string): VisitSyncIdentity[] {
+  const db = getDatabase();
+  return db.getAllSync<VisitSyncIdentity>(
+    `SELECT 'visitas_campo' AS entityType, local_id AS entityLocalId
+       FROM visitas_campo WHERE local_id = ?
+     UNION ALL SELECT 'visita_evaluaciones', local_id
+       FROM visita_evaluaciones WHERE visita_local_id = ?
+     UNION ALL SELECT 'visita_observaciones_sanitarias', local_id
+       FROM visita_observaciones_sanitarias WHERE visita_local_id = ?
+     UNION ALL SELECT 'visita_paso_observaciones', local_id
+       FROM visita_paso_observaciones WHERE visita_local_id = ?
+     UNION ALL SELECT 'visita_riegos', local_id
+       FROM visita_riegos WHERE visita_local_id = ?
+     UNION ALL SELECT 'visita_labores_culturales', local_id
+       FROM visita_labores_culturales WHERE visita_local_id = ?
+     UNION ALL SELECT 'visita_recetas', local_id
+       FROM visita_recetas WHERE visita_local_id = ?
+     UNION ALL SELECT 'visita_calificaciones', local_id
+       FROM visita_calificaciones WHERE visita_local_id = ?
+     UNION ALL SELECT 'visita_receta_mezcla', child.local_id
+       FROM visita_receta_mezcla child
+       INNER JOIN visita_recetas receta ON receta.local_id = child.receta_local_id
+       WHERE receta.visita_local_id = ?
+     UNION ALL SELECT 'visita_receta_fitosanidad', child.local_id
+       FROM visita_receta_fitosanidad child
+       INNER JOIN visita_recetas receta ON receta.local_id = child.receta_local_id
+       WHERE receta.visita_local_id = ?
+     UNION ALL SELECT 'visita_receta_fertilizacion', child.local_id
+       FROM visita_receta_fertilizacion child
+       INNER JOIN visita_recetas receta ON receta.local_id = child.receta_local_id
+       WHERE receta.visita_local_id = ?
+     UNION ALL SELECT 'visita_receta_riego', child.local_id
+       FROM visita_receta_riego child
+       INNER JOIN visita_recetas receta ON receta.local_id = child.receta_local_id
+       WHERE receta.visita_local_id = ?
+     UNION ALL SELECT 'visita_receta_labores', child.local_id
+       FROM visita_receta_labores child
+       INNER JOIN visita_recetas receta ON receta.local_id = child.receta_local_id
+       WHERE receta.visita_local_id = ?`,
+    ...Array(13).fill(localId)
+  );
+}
+
+function deleteVisitPayloadTombstones(
+  db: ReturnType<typeof getDatabase>,
+  ownerUserId: string,
+  visitaLocalId: string
+) {
+  for (const table of ["sync_outbox", "sync_failures"] as const) {
+    const rows = db.getAllSync<{ id: number; payload: string | null }>(
+      `SELECT id, payload FROM ${table} WHERE owner_user_id = ? AND payload IS NOT NULL`,
+      ownerUserId
+    );
+
+    for (const row of rows) {
+      try {
+        const payload = JSON.parse(row.payload ?? "null") as {
+          visitaId?: string;
+          visitaLocalId?: string;
+        } | null;
+
+        if (
+          payload?.visitaId === visitaLocalId ||
+          payload?.visitaLocalId === visitaLocalId
+        ) {
+          db.runSync(`DELETE FROM ${table} WHERE id = ?`, row.id);
+        }
+      } catch {
+        // Payloads legacy no validos no deben bloquear la eliminacion local.
+      }
+    }
+  }
+}
+
 function mapVisitaCampoRow(row: VisitaCampoRow): VisitaCampo {
   return {
     id: row.local_id,
@@ -775,10 +873,8 @@ function normalizeCatalogName(value: string) {
 }
 
 function mapRecentVisitaCampoRow(row: RecentVisitaCampoRow): RecentVisitaCampo {
-  const productorName = [row.first_name, row.last_name]
-    .filter(Boolean)
-    .join(" ")
-    .trim() || null;
+  const productorName =
+    [row.first_name, row.last_name].filter(Boolean).join(" ").trim() || null;
 
   return {
     id: row.local_id,

@@ -20,6 +20,7 @@ export type SecurityUserItem = {
   email: string;
   phone: string | null;
   isActive: boolean;
+  canDeleteVisits: boolean;
   createdAt: string;
   updatedAt: string;
   roles: SecurityRoleItem[];
@@ -32,6 +33,7 @@ export type SecurityUserPayload = {
   phone?: string | null;
   password?: string;
   isActive?: boolean;
+  canDeleteVisits?: boolean;
 };
 
 export type SecurityUserRoleItem = {

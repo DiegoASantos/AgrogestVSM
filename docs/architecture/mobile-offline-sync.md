@@ -337,6 +337,22 @@ catálogos de solo lectura.
 
 ## Cambios críticos
 
+### Eliminacion autorizada de visitas
+
+El perfil autenticado conserva `canDeleteVisits`, otorgado individualmente por
+un administrador y denegado por defecto. Mobile solo muestra la accion cuando
+el ID interno del usuario coincide con `agronomist_user_id` de la visita. La
+API vuelve a comprobar rol, permiso persistido y propiedad; la visibilidad del
+boton no es un control de seguridad.
+
+Una visita sin `server_id` puede eliminarse offline. Mobile adquiere el mismo
+mutex usado por el ciclo de sync, elimina en una transaccion la metadata del
+agregado en `sync_outbox` y `sync_failures`, y despues borra `visitas_campo`;
+las FK eliminan fisicamente sus hijos SQLite. Una visita con `server_id` exige
+modo online y sesion valida: primero se confirma `DELETE /visitas-campo/:id`,
+que asigna `activo = false` en PostgreSQL, y solo entonces se purga SQLite. Un
+403, timeout o fallo de red conserva intacta la copia local.
+
 Toda nueva entidad sincronizable requiere:
 
 - tabla y migración SQLite;

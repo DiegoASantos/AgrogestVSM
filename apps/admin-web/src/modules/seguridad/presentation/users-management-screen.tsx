@@ -32,6 +32,8 @@ type UserFormState = {
   phone: string;
   password: string;
   status: "active" | "inactive";
+  canDeleteVisits: boolean;
+  hasAgronomoRole: boolean;
 };
 
 const emptyForm: UserFormState = {
@@ -41,7 +43,9 @@ const emptyForm: UserFormState = {
   email: "",
   phone: "",
   password: "",
-  status: "active"
+  status: "active",
+  canDeleteVisits: false,
+  hasAgronomoRole: false
 };
 
 export function UsersManagementScreen() {
@@ -54,9 +58,7 @@ export function UsersManagementScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formState, setFormState] = useState<UserFormState>(emptyForm);
-  const [itemToDeactivate, setItemToDeactivate] = useState<SecurityUserItem | null>(
-    null
-  );
+  const [itemToDeactivate, setItemToDeactivate] = useState<SecurityUserItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -116,6 +118,14 @@ export function UsersManagementScreen() {
       key: "status",
       header: "Estado",
       cell: (item) => renderStatusBadge(item.isActive)
+    },
+    {
+      key: "visitDeletion",
+      header: "Eliminar visitas",
+      cell: (item) =>
+        item.roles.some((role) => role.code === "AGRONOMO") && item.canDeleteVisits
+          ? "Permitido"
+          : "No permitido"
     },
     {
       key: "actions",
@@ -188,7 +198,9 @@ export function UsersManagementScreen() {
       email: item.email,
       phone: item.phone ?? "",
       password: "",
-      status: item.isActive ? "active" : "inactive"
+      status: item.isActive ? "active" : "inactive",
+      canDeleteVisits: item.canDeleteVisits,
+      hasAgronomoRole: item.roles.some((role) => role.code === "AGRONOMO")
     });
     setModalOpen(true);
   }
@@ -227,7 +239,8 @@ export function UsersManagementScreen() {
         email,
         ...(phone ? { phone } : {}),
         ...(password ? { password } : {}),
-        isActive: formState.status === "active"
+        isActive: formState.status === "active",
+        canDeleteVisits: formState.hasAgronomoRole && formState.canDeleteVisits
       };
 
       if (formState.id) {
@@ -290,16 +303,33 @@ export function UsersManagementScreen() {
       <ToolbarActions
         actions={
           <>
-            <button className="ui-button ui-button--ghost" onClick={() => void loadUsers()} type="button">
+            <button
+              className="ui-button ui-button--ghost"
+              onClick={() => void loadUsers()}
+              type="button"
+            >
               Recargar
             </button>
-            <Link className="ui-button ui-button--secondary" href={adminRoutes.seguridadItems.roles}>
+            <Link
+              className="ui-button ui-button--secondary"
+              href={adminRoutes.seguridadItems.roles}
+            >
               Ver roles
             </Link>
-            <Link className="ui-button ui-button--secondary" href={adminRoutes.seguridadItems.usuarioRoles}>
+            <Link
+              className="ui-button ui-button--secondary"
+              href={adminRoutes.seguridadItems.usuarioRoles}
+            >
               Ver asignaciones
             </Link>
-            <button className="ui-button ui-button--primary" onClick={() => { resetForm(); setModalOpen(true); }} type="button">
+            <button
+              className="ui-button ui-button--primary"
+              onClick={() => {
+                resetForm();
+                setModalOpen(true);
+              }}
+              type="button"
+            >
               Nuevo usuario
             </button>
           </>
@@ -335,9 +365,7 @@ export function UsersManagementScreen() {
         <label className="field-group">
           <span>Estado</span>
           <select
-            onChange={(event) =>
-              setStatusFilter(event.target.value as StatusFilter)
-            }
+            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
             value={statusFilter}
           >
             <option value="all">Todos</option>
@@ -347,14 +375,16 @@ export function UsersManagementScreen() {
         </label>
       </FilterBar>
 
-      {successMessage ? (
-        <FeedbackBanner kind="success" message={successMessage} />
-      ) : null}
+      {successMessage ? <FeedbackBanner kind="success" message={successMessage} /> : null}
 
       {listError ? (
         <ErrorState
           action={
-            <button className="ui-button ui-button--secondary" onClick={() => void loadUsers()} type="button">
+            <button
+              className="ui-button ui-button--secondary"
+              onClick={() => void loadUsers()}
+              type="button"
+            >
               Reintentar
             </button>
           }
@@ -384,12 +414,22 @@ export function UsersManagementScreen() {
 
       <FormModal
         open={modalOpen}
-        onClose={() => { resetForm(); setModalOpen(false); }}
+        onClose={() => {
+          resetForm();
+          setModalOpen(false);
+        }}
         title={formState.id ? "Editar usuario" : "Nuevo usuario"}
         description="Alta o edicion simple de usuarios."
         footer={
           <>
-            <button className="ui-button ui-button--ghost" onClick={() => { resetForm(); setModalOpen(false); }} type="button">
+            <button
+              className="ui-button ui-button--ghost"
+              onClick={() => {
+                resetForm();
+                setModalOpen(false);
+              }}
+              type="button"
+            >
               Cancelar
             </button>
             <button
@@ -494,6 +534,27 @@ export function UsersManagementScreen() {
               <option value="active">Activo</option>
               <option value="inactive">Inactivo</option>
             </select>
+          </label>
+
+          <label className="field-group">
+            <span>Permiso de visitas</span>
+            <span>
+              <input
+                checked={formState.canDeleteVisits}
+                disabled={!formState.hasAgronomoRole}
+                onChange={(event) =>
+                  setFormState((currentState) => ({
+                    ...currentState,
+                    canDeleteVisits: event.target.checked
+                  }))
+                }
+                type="checkbox"
+              />{" "}
+              Puede eliminar sus propias visitas desde mobile
+            </span>
+            {!formState.hasAgronomoRole ? (
+              <small>Asigna primero el rol AGRONOMO para habilitar este permiso.</small>
+            ) : null}
           </label>
 
           {formError ? <p className="form-error">{formError}</p> : null}

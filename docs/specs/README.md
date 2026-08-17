@@ -89,4 +89,5 @@ en la raíz.
 - [Spec 043: Selector de unidad para dosis fitosanitarias y fertilizantes](043-selector-unidad-dosis-receta.md)
 - [Spec 044: Recomendaciones reactivas y preventivas](044-recomendaciones-reactivas-preventivas.md)
 - [Spec 045: Conectividad hibrida y modo offline controlado en mobile](045-conectividad-hibrida-mobile.md)
+- [Spec 046: Concentraciones ampliadas y permiso para eliminar visitas](046-concentraciones-ampliadas-permiso-eliminar-visitas.md)
 - [Plantilla](TEMPLATE.md)

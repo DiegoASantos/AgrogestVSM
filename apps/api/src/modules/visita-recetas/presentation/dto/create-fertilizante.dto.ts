@@ -1,5 +1,12 @@
 import { Transform } from "class-transformer";
-import { IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
+import {
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength
+} from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateFertilizanteDto {
@@ -38,7 +45,7 @@ export class CreateFertilizanteDto {
   @Transform(({ value }) => (typeof value === "string" ? value.trim() || null : value))
   @IsOptional()
   @IsString()
-  @MaxLength(30)
+  @MaxLength(300)
   concentracion?: string | null;
 
   @ApiPropertyOptional({

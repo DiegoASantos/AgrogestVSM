@@ -63,6 +63,13 @@ export class UserEntity {
   isActive!: boolean;
 
   @Column({
+    name: "puede_eliminar_visitas",
+    type: "boolean",
+    default: () => "false"
+  })
+  canDeleteVisits!: boolean;
+
+  @Column({
     name: "creado_at",
     type: "timestamptz",
     default: () => "now()"

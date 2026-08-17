@@ -94,6 +94,10 @@ export class AuthController {
                   type: "boolean",
                   example: true
                 },
+                canDeleteVisits: {
+                  type: "boolean",
+                  example: false
+                },
                 roles: {
                   type: "array",
                   items: {
@@ -238,6 +242,10 @@ export class AuthController {
               type: "boolean",
               example: true
             },
+            canDeleteVisits: {
+              type: "boolean",
+              example: false
+            },
             roles: {
               type: "array",
               items: {
@@ -279,8 +287,7 @@ export class AuthController {
   @Patch("me")
   @ApiBearerAuth("access-token")
   @ApiOperation({
-    summary:
-      "Actualiza los datos personales y/o contrasena del usuario autenticado."
+    summary: "Actualiza los datos personales y/o contrasena del usuario autenticado."
   })
   @ApiBody({ type: UpdateProfileDto })
   @ApiOkResponse({
@@ -295,9 +302,6 @@ export class AuthController {
     @CurrentAuthUser() accessTokenPayload: AccessTokenPayload,
     @Body() updateProfileDto: UpdateProfileDto
   ) {
-    return this.authService.updateAuthenticatedUser(
-      accessTokenPayload,
-      updateProfileDto
-    );
+    return this.authService.updateAuthenticatedUser(accessTokenPayload, updateProfileDto);
   }
 }

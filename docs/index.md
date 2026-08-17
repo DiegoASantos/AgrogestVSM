@@ -95,6 +95,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Selector de unidad para dosis fitosanitarias y fertilizantes](specs/043-selector-unidad-dosis-receta.md)
 - [Recomendaciones reactivas y preventivas](specs/044-recomendaciones-reactivas-preventivas.md)
 - [Conectividad hibrida y modo offline controlado en mobile](specs/045-conectividad-hibrida-mobile.md)
+- [Concentraciones ampliadas y permiso para eliminar visitas](specs/046-concentraciones-ampliadas-permiso-eliminar-visitas.md)
 
 ## Runbooks
 

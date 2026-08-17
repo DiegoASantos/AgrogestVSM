@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import {
   AppMap,
@@ -15,9 +15,11 @@ import {
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
+import { useConnectivity } from "../../../../shared/connectivity/use-connectivity";
 import { toApiError } from "../../../../shared/services";
 import { retryTransientSyncFailures, scheduleSync } from "../../../../shared/sync";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
+import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import type {
   IncidenceLevelCatalogItem,
   PestDiseaseCatalogItem
@@ -27,6 +29,7 @@ import {
   localTechnicalScoresService,
   pickMobileTechnicalScoreDetails,
   shouldConfirmTechnicalScoresFromServer,
+  visitaDeletionService,
   visitaCampoCatalogsService,
   visitasCampoRemote,
   visitasCampoService
@@ -46,6 +49,7 @@ import type {
   VisitaCampoFull,
   VisitaSyncSummary
 } from "../../types";
+import { canUserDeleteVisit } from "../../domain/visit-deletion-policy";
 
 type DetailCatalogs = {
   cultivos: CultivoCatalogItem[];
@@ -67,6 +71,8 @@ const EMPTY_CATALOGS: DetailCatalogs = {
 
 export function VisitaCampoDetailScreen() {
   const router = useRouter();
+  const { ensureOnlineSession, session } = useAuthSession();
+  const { isOnline } = useConnectivity();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
   const technicalScoreRequestId = useRef(0);
@@ -75,6 +81,7 @@ export function VisitaCampoDetailScreen() {
   const [catalogs, setCatalogs] = useState<DetailCatalogs>(EMPTY_CATALOGS);
   const [isLoading, setIsLoading] = useState(true);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
   const [syncSummary, setSyncSummary] = useState<VisitaSyncSummary | null>(null);
@@ -114,6 +121,13 @@ export function VisitaCampoDetailScreen() {
   );
 
   const visita = detail?.visita ?? null;
+  const canDeleteVisit = visita
+    ? canUserDeleteVisit({
+        agronomistUserId: visita.agronomistUserId,
+        canDeleteVisits: session.user?.canDeleteVisits,
+        currentUserId: session.user?.userId
+      })
+    : false;
   const visitMapPoints = useMemo(() => {
     if (!visita?.visitLocation) {
       return [];
@@ -361,6 +375,16 @@ export function VisitaCampoDetailScreen() {
             */}
 
             <View style={styles.bottomActions}>
+              {canDeleteVisit ? (
+                <AppButton
+                  disabled={isDeleting}
+                  icon="trash-outline"
+                  label={isDeleting ? "Eliminando..." : "Eliminar visita"}
+                  loading={isDeleting}
+                  onPress={confirmDeleteVisit}
+                  variant="danger"
+                />
+              ) : null}
               <AppButton label="Volver" onPress={() => router.back()} variant="outline" />
               <AppButton
                 label="Ir al inicio"
@@ -539,6 +563,52 @@ export function VisitaCampoDetailScreen() {
     }
   }
 
+  function confirmDeleteVisit() {
+    if (!visita || isDeleting) {
+      return;
+    }
+
+    Alert.alert(
+      "Eliminar visita",
+      visita.serverId
+        ? "La visita se desactivara en el servidor y se eliminara de este dispositivo."
+        : "La visita aun no se sincronizo y se eliminara definitivamente de este dispositivo.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: () => void handleDeleteVisit()
+        }
+      ]
+    );
+  }
+
+  async function handleDeleteVisit() {
+    if (!visita || !session.user || isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      await visitaDeletionService.remove(visita.id, {
+        canDeleteVisits: session.user.canDeleteVisits,
+        currentUserId: session.user.userId,
+        ensureOnlineSession,
+        isOnline
+      });
+      router.replace("/visitas-campo/historial");
+    } catch (nextError) {
+      const apiError = toApiError(nextError);
+      Alert.alert(
+        "No se pudo eliminar la visita",
+        apiError.message || "La visita permanece guardada en el dispositivo."
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 }
 
 type VisitMapPoint = {

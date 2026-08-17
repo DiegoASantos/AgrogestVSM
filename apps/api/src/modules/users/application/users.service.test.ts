@@ -65,6 +65,7 @@ function makeUser(overrides: Partial<UserEntity> = {}): UserEntity {
     phone: null,
     passwordHash: "$2b$10$hashedpassword",
     isActive: true,
+    canDeleteVisits: false,
     createdAt: new Date("2026-01-01"),
     updatedAt: new Date("2026-01-01"),
     userRoles: [
@@ -72,7 +73,13 @@ function makeUser(overrides: Partial<UserEntity> = {}): UserEntity {
         id: 1,
         userId: "1",
         roleId: 1,
-        role: { id: 1, code: "ADMIN", name: "Administrador", description: "Admin role", userRoles: [] }
+        role: {
+          id: 1,
+          code: "ADMIN",
+          name: "Administrador",
+          description: "Admin role",
+          userRoles: []
+        }
       }
     ],
     parcelas: [],
@@ -153,7 +160,9 @@ describe("UsersService", () => {
       expect(repo.createQueryBuilder).toHaveBeenCalledWith("user");
       expect(qb.leftJoinAndSelect).toHaveBeenCalledWith("user.userRoles", "userRole");
       expect(qb.leftJoinAndSelect).toHaveBeenCalledWith("userRole.role", "role");
-      expect(qb.where).toHaveBeenCalledWith("user.public_id = :publicId", { publicId: "public-1" });
+      expect(qb.where).toHaveBeenCalledWith("user.public_id = :publicId", {
+        publicId: "public-1"
+      });
       expect(qb.getOne).toHaveBeenCalled();
       expect(result).toEqual(user);
     });
@@ -176,10 +185,9 @@ describe("UsersService", () => {
 
       const result = await service.findByEmail("  juan@agrogest.pe  ");
 
-      expect(qb.where).toHaveBeenCalledWith(
-        "LOWER(user.email) = LOWER(:email)",
-        { email: "juan@agrogest.pe" }
-      );
+      expect(qb.where).toHaveBeenCalledWith("LOWER(user.email) = LOWER(:email)", {
+        email: "juan@agrogest.pe"
+      });
       expect(result).toEqual(user);
     });
 
@@ -211,7 +219,8 @@ describe("UsersService", () => {
         firstName: "Juan",
         lastName: "Pérez",
         email: "juan@agrogest.pe",
-        displayName: "Juan Pérez"
+        displayName: "Juan Pérez",
+        canDeleteVisits: false
       });
       expect(result.meta).toEqual({ count: 1 });
     });
@@ -261,13 +270,21 @@ describe("UsersService", () => {
 
     it("should hash password and persist the user, then re-query with roles for response", async () => {
       vi.mocked(hash).mockResolvedValue("$2b$10$hashed" as never);
-      const entity = makeUser({ id: "2", firstName: "María", lastName: "García", email: "maria@agrogest.pe" });
+      const entity = makeUser({
+        id: "2",
+        firstName: "María",
+        lastName: "García",
+        email: "maria@agrogest.pe"
+      });
       repo.create.mockReturnValue(entity);
       repo.save.mockResolvedValue(entity);
       const qb = makeAdminQueryBuilder([entity]);
       repo.createQueryBuilder.mockReturnValue(qb);
 
-      const result = await service.createAdmin(validDto);
+      const result = await service.createAdmin({
+        ...validDto,
+        canDeleteVisits: true
+      });
 
       expect(hash).toHaveBeenCalledWith("secret123", 10);
       expect(repo.create).toHaveBeenCalledWith(
@@ -276,7 +293,8 @@ describe("UsersService", () => {
           lastName: "García",
           email: "maria@agrogest.pe",
           passwordHash: "$2b$10$hashed",
-          phone: "999888777"
+          phone: "999888777",
+          canDeleteVisits: true
         })
       );
       expect(result.success).toBe(true);
@@ -297,9 +315,7 @@ describe("UsersService", () => {
         password: "pw123"
       });
 
-      expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ phone: null })
-      );
+      expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ phone: null }));
     });
 
     it("should throw ConflictException when unique email constraint [ux_usuarios_email_lower] fails", async () => {
@@ -336,7 +352,10 @@ describe("UsersService", () => {
       });
 
       expect(hash).toHaveBeenCalledWith("newpassword", 10);
-      expect(repo.merge).toHaveBeenCalledWith(existing, expect.objectContaining({ firstName: "Updated" }));
+      expect(repo.merge).toHaveBeenCalledWith(
+        existing,
+        expect.objectContaining({ firstName: "Updated" })
+      );
       expect(merged.passwordHash).toBe("newhash");
       expect(result.data.firstName).toBe("Updated");
     });
@@ -357,9 +376,9 @@ describe("UsersService", () => {
     it("should throw NotFoundException when user does not exist", async () => {
       repo.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.updateAdmin("999", { firstName: "X" })
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateAdmin("999", { firstName: "X" })).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -405,12 +424,8 @@ describe("UsersService", () => {
       const qbRequery = makeAuthQueryBuilder(
         makeUser({ firstName: "New", lastName: "Profile" })
       );
-      repo.createQueryBuilder
-        .mockReturnValueOnce(qbFind)
-        .mockReturnValueOnce(qbRequery);
-      repo.merge.mockReturnValue(
-        makeUser({ firstName: "New", lastName: "Profile" })
-      );
+      repo.createQueryBuilder.mockReturnValueOnce(qbFind).mockReturnValueOnce(qbRequery);
+      repo.merge.mockReturnValue(makeUser({ firstName: "New", lastName: "Profile" }));
       repo.save.mockResolvedValue({});
 
       const result = await service.updateSelfProfile(publicId, {
@@ -438,9 +453,7 @@ describe("UsersService", () => {
       const qbFind = makeAuthQueryBuilder(existing);
       const updatedUser = makeUser({ passwordHash: "$2b$hashed" });
       const qbRequery = makeAuthQueryBuilder(updatedUser);
-      repo.createQueryBuilder
-        .mockReturnValueOnce(qbFind)
-        .mockReturnValueOnce(qbRequery);
+      repo.createQueryBuilder.mockReturnValueOnce(qbFind).mockReturnValueOnce(qbRequery);
       repo.merge.mockReturnValue(updatedUser);
       repo.save.mockResolvedValue({});
 
@@ -463,9 +476,7 @@ describe("UsersService", () => {
       const qbFind = makeAuthQueryBuilder(existing);
       const updatedUser = makeUser({ phone: "999888777" });
       const qbRequery = makeAuthQueryBuilder(updatedUser);
-      repo.createQueryBuilder
-        .mockReturnValueOnce(qbFind)
-        .mockReturnValueOnce(qbRequery);
+      repo.createQueryBuilder.mockReturnValueOnce(qbFind).mockReturnValueOnce(qbRequery);
       repo.merge.mockReturnValue(updatedUser);
       repo.save.mockResolvedValue({});
 
@@ -487,9 +498,7 @@ describe("UsersService", () => {
       const existing = makeUser({ phone: "oldphone" });
       const qbFind = makeAuthQueryBuilder(existing);
       const qbRequery = makeAuthQueryBuilder(existing);
-      repo.createQueryBuilder
-        .mockReturnValueOnce(qbFind)
-        .mockReturnValueOnce(qbRequery);
+      repo.createQueryBuilder.mockReturnValueOnce(qbFind).mockReturnValueOnce(qbRequery);
       repo.merge.mockReturnValue(existing);
       repo.save.mockResolvedValue({});
 

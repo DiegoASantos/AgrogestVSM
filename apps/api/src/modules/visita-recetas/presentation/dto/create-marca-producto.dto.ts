@@ -1,5 +1,12 @@
 import { Transform } from "class-transformer";
-import { IsNotEmpty, IsOptional, IsString, IsUUID, Matches, MaxLength } from "class-validator";
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength
+} from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateMarcaProductoDto {
@@ -26,7 +33,9 @@ export class CreateMarcaProductoDto {
     example: "1",
     description: "ID del tipo de producto fitosanitario (obligatorio)."
   })
-  @Transform(({ value }) => (typeof value === "string" ? value.trim() : String(value ?? "")))
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.trim() : String(value ?? "")
+  )
   @Matches(/^[1-9]\d*$/, {
     message: "tipoProductoId must be a positive integer."
   })
@@ -50,7 +59,7 @@ export class CreateMarcaProductoDto {
   @Transform(({ value }) => (typeof value === "string" ? value.trim() || null : value))
   @IsOptional()
   @IsString()
-  @MaxLength(30)
+  @MaxLength(300)
   concentracion?: string | null;
 
   @ApiPropertyOptional({

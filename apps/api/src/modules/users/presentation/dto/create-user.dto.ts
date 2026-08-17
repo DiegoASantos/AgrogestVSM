@@ -67,4 +67,12 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: "Permite al agronomo eliminar sus propias visitas desde mobile."
+  })
+  @IsOptional()
+  @IsBoolean()
+  canDeleteVisits?: boolean;
 }
