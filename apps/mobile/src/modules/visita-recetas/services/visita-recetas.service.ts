@@ -26,6 +26,10 @@ export type SaveRecetaData = {
     productos: Array<{
       objetivo: "plaga" | "enfermedad";
       objetivoNombre: string;
+      enfoque: "reactivo" | "preventivo";
+      objetivoId: string | null;
+      incidenciaGrado: number | null;
+      severidadGrado: number | null;
       tipoControlId: string | null;
       tipoProductoId: string | null;
       disolvente: string;
@@ -39,6 +43,7 @@ export type SaveRecetaData = {
     }>;
   }>;
   fertilizacion: Array<{
+    enfoque: "reactivo" | "preventivo";
     viaAplicacion: "edafica" | "foliar";
     fertilizanteNombre: string | null;
     tipoProducto: "solido" | "liquido" | null;
@@ -64,6 +69,17 @@ export const visitaRecetasService = {
       tiposProducto: visitaRecetasRepository.getTiposProducto(),
       fertilizantes: visitaRecetasRepository.getFertilizantes()
     };
+  },
+
+  getPreventivePestDiseases(phenologicalStageId: string | null) {
+    if (phenologicalStageId) {
+      return observacionesSanitariasRepository.getPestDiseasesByPhenologicalStage(
+        phenologicalStageId
+      );
+    }
+    return observacionesSanitariasRepository
+      .getPestDiseases()
+      .filter((item) => item.isActive);
   },
 
   getByVisitaId(visitaId: string): VisitaRecetaCompleta | null {
@@ -102,6 +118,7 @@ export const visitaRecetasService = {
       }
 
       const item = {
+        objetivoId: pest.id,
         nombre: pest.name,
         incidencia:
           observacion.incidencePercentage !== null
@@ -217,6 +234,10 @@ export const visitaRecetasService = {
         productos: mezcla.productos.map((f) => ({
           objetivo: f.objetivo,
           objetivoNombre: f.objetivoNombre,
+          enfoque: f.enfoque,
+          objetivoId: f.objetivoId ? Number(f.objetivoId) : undefined,
+          incidenciaGrado: f.incidenciaGrado ?? undefined,
+          severidadGrado: f.severidadGrado ?? undefined,
           tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
           tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
           disolvente: f.disolvente,
@@ -230,6 +251,7 @@ export const visitaRecetasService = {
         }))
       })),
       fertilizacion: data.fertilizacion.map((f) => ({
+        enfoque: f.enfoque,
         viaAplicacion: f.viaAplicacion,
         fertilizanteNombre: f.fertilizanteNombre ?? undefined,
         tipoProducto: f.tipoProducto ?? undefined,

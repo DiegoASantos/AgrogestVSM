@@ -421,3 +421,8 @@ ahora aplicadas por mezcla en vez de por receta completa.
 La [Spec 043](043-selector-unidad-dosis-receta.md) reemplaza las etiquetas fijas
 `mg o mL` por una unidad seleccionada y persistida. No cambia la formula ni los
 factores definidos en esta spec.
+
+La [Spec 044](044-recomendaciones-reactivas-preventivas.md) identifica cada
+recomendacion como reactiva o preventiva. Las prevenciones usan grado 0 y
+factor 1 sin cambiar la formula; en mezclas mixtas no elevan el mayor factor
+reactivo.

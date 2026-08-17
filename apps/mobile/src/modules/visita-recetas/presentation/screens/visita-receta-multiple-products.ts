@@ -1,5 +1,6 @@
 import { resolveNutritionIncidence } from "../../../evaluaciones/domain/nutrition-incidence";
 import { resolveDiseaseIncidenceGrade } from "../../../observaciones-sanitarias/domain/disease-incidence";
+import type { PestDiseaseCatalogItem } from "../../../observaciones-sanitarias/types";
 import type { SaveRecetaData } from "../../services";
 import type {
   CoadyuvanteCatalogItem,
@@ -8,7 +9,8 @@ import type {
   MarcaProductoCatalogItem,
   ConsolidacionHallazgo,
   RecetaFertilizacion,
-  RecetaMezcla
+  RecetaMezcla,
+  RecommendationApproach
 } from "../../types";
 import { resolveIngredientId } from "./visita-receta-selection";
 
@@ -38,7 +40,10 @@ export type AppFitosanidad = {
   numero: number;
   objetivo: "plaga" | "enfermedad";
   objetivoNombre: string;
+  enfoque?: RecommendationApproach;
+  objetivoId?: string | null;
   incidenceGrade: number;
+  severityGrade?: number | null;
   tipoControlId: string;
   disolvente: string;
   ingredientes: AppIngrediente[];
@@ -57,6 +62,7 @@ export type AppMezcla = {
 
 export type AppFertilizacion = {
   localId: string;
+  enfoque?: RecommendationApproach;
   viaAplicacion: "edafica" | "foliar";
   fertilizanteNombre: string;
   tipoProducto: "solido" | "liquido";
@@ -106,6 +112,7 @@ export function createEmptyMezcla(numero: number, volumenAplicacion = ""): AppMe
 export function createEmptyFertilizacion(volumenAplicacion = ""): AppFertilizacion {
   return {
     localId: createTransientId("fertilizante"),
+    enfoque: "reactivo",
     viaAplicacion: "edafica",
     fertilizanteNombre: "",
     tipoProducto: "solido",
@@ -150,20 +157,86 @@ export function mergeMissingFitosanidadFindings(
       numero: nextNumber,
       objetivo,
       objetivoNombre: finding.nombre,
+      enfoque: "reactivo",
+      objetivoId: finding.objetivoId ?? null,
       incidenceGrade: finding.incidenceGrade,
+      severityGrade: null,
       tipoControlId: "",
       disolvente: "Agua",
       ingredientes: [createEmptyIngrediente(0)]
     });
   };
 
-  consolidation.plagas.forEach((finding) => appendFinding("plaga", finding));
-  consolidation.enfermedades.forEach((finding) => appendFinding("enfermedad", finding));
+  consolidation.plagas
+    .filter((finding) => finding.incidenceGrade > 0)
+    .forEach((finding) => appendFinding("plaga", finding));
+  consolidation.enfermedades
+    .filter((finding) => finding.incidenceGrade > 0)
+    .forEach((finding) => appendFinding("enfermedad", finding));
 
   return {
     applications: merged,
     addedCount: merged.length - applications.length
   };
+}
+
+export function createPreventiveFitosanidad(
+  numero: number,
+  objetivo: AppFitosanidad["objetivo"],
+  objetivoId: string,
+  objetivoNombre: string
+): AppFitosanidad {
+  return {
+    localId: createTransientId("fito-preventivo"),
+    numero,
+    objetivo,
+    objetivoNombre,
+    enfoque: "preventivo",
+    objetivoId,
+    incidenceGrade: 0,
+    severityGrade: 0,
+    tipoControlId: "",
+    disolvente: "Agua",
+    ingredientes: [createEmptyIngrediente(0)]
+  };
+}
+
+export function getAvailablePreventiveTargets(
+  targets: PestDiseaseCatalogItem[],
+  consolidation: ConsolidacionHallazgo | null,
+  applications: AppFitosanidad[],
+  objectiveType: AppFitosanidad["objetivo"]
+) {
+  const findings = [
+    ...(consolidation?.plagas ?? []),
+    ...(consolidation?.enfermedades ?? [])
+  ];
+  const positiveIds = new Set(
+    findings
+      .filter((finding) => finding.incidenceGrade > 0)
+      .map((finding) => finding.objetivoId)
+      .filter((id): id is string => Boolean(id))
+  );
+  const positiveNames = new Set(
+    findings
+      .filter((finding) => finding.incidenceGrade > 0)
+      .map((finding) => normalizeName(finding.nombre))
+  );
+  const preventiveIds = new Set(
+    applications
+      .filter((application) => application.enfoque === "preventivo")
+      .map((application) => application.objetivoId)
+      .filter((id): id is string => Boolean(id))
+  );
+
+  return targets.filter(
+    (target) =>
+      target.isActive &&
+      target.type === objectiveType &&
+      !positiveIds.has(target.id) &&
+      !positiveNames.has(normalizeName(target.name)) &&
+      !preventiveIds.has(target.id)
+  );
 }
 
 export function appendMezclasForNewFindings(
@@ -196,7 +269,11 @@ export function restoreFitosanidadApps(
 
   for (const mezcla of mezclas) {
     for (const row of mezcla.productos) {
-      const key = [row.objetivo, normalizeName(row.objetivoNombre)].join("::");
+      const key = [
+        row.enfoque ?? "reactivo",
+        row.objetivo,
+        row.objetivoId ?? normalizeName(row.objetivoNombre)
+      ].join("::");
       const ingredient = restoreIngrediente(
         row,
         mezcla.numero,
@@ -213,7 +290,10 @@ export function restoreFitosanidadApps(
           numero: groups.size + 1,
           objetivo: row.objetivo,
           objetivoNombre: row.objetivoNombre,
-          incidenceGrade: factorToGrade(mezcla.factor),
+          enfoque: row.enfoque ?? "reactivo",
+          objetivoId: row.objetivoId,
+          incidenceGrade: row.incidenciaGrado ?? factorToGrade(mezcla.factor),
+          severityGrade: row.severidadGrado,
           tipoControlId: row.tipoControlId ?? "",
           disolvente: row.disolvente,
           ingredientes: [ingredient]
@@ -250,6 +330,7 @@ export function restoreFertilizaciones(
 
     return {
       localId: `fertilizante_${row.id}`,
+      enfoque: row.enfoque ?? "reactivo",
       viaAplicacion: row.viaAplicacion,
       fertilizanteNombre: row.fertilizanteNombre ?? "",
       tipoProducto: row.tipoProducto ?? "solido",
@@ -277,6 +358,10 @@ export function buildMezclasForSave(
         .map((ingredient) => ({
           objetivo: application.objetivo,
           objetivoNombre: application.objetivoNombre,
+          enfoque: application.enfoque ?? "reactivo",
+          objetivoId: application.objetivoId ?? null,
+          incidenciaGrado: application.incidenceGrade,
+          severidadGrado: application.severityGrade ?? null,
           tipoControlId: application.tipoControlId || null,
           tipoProductoId: ingredient.tipoProductoId || null,
           disolvente: application.disolvente,
@@ -316,6 +401,7 @@ export function buildFertilizacionesForSave(
   return fertilizaciones.map((fertilizacion) => {
     const unidadDosis = getUnidadDosis(fertilizacion);
     return {
+      enfoque: fertilizacion.enfoque ?? "reactivo",
       viaAplicacion: fertilizacion.viaAplicacion,
       fertilizanteNombre: fertilizacion.fertilizanteNombre || null,
       tipoProducto: fertilizacion.tipoProducto,
@@ -378,6 +464,37 @@ export function recalculateFertilizacion(
   };
 }
 
+export function applyFertilizacionApproachFactor(
+  fertilizaciones: AppFertilizacion[],
+  changedIndex: number,
+  reactiveGrades: number[]
+) {
+  const changed = fertilizaciones[changedIndex];
+  if (!changed) return fertilizaciones;
+
+  const approachAdjusted =
+    changed.enfoque === "preventivo"
+      ? { ...changed, factor: "1", factorEditable: false }
+      : (() => {
+          const reactiveIndex =
+            fertilizaciones
+              .slice(0, changedIndex + 1)
+              .filter((item) => item.enfoque !== "preventivo").length - 1;
+          const grade = reactiveGrades[reactiveIndex] ?? 0;
+          return {
+            ...changed,
+            factor: factorFromGrade(grade).toString(),
+            factorEditable: grade === 3
+          };
+        })();
+
+  return fertilizaciones.map((item, currentIndex) =>
+    currentIndex === changedIndex
+      ? recalculateFertilizacion(approachAdjusted)
+      : item
+  );
+}
+
 export function deriveMezclaFactors(
   applications: AppFitosanidad[],
   mezclas: AppMezcla[]
@@ -413,16 +530,18 @@ export function nutritionFactorFromPercentage(percentage: number) {
 }
 
 export function hasFitosanidadData(applications: AppFitosanidad[]) {
-  return applications.some((application) =>
-    application.ingredientes.some((ingredient) =>
-      Boolean(
-        ingredient.tipoProductoId ||
-        ingredient.modoAccionId ||
-        ingredient.ingredienteActivoNombre.trim() ||
-        ingredient.dosisProducto.trim() ||
-        ingredient.marcaProductoNombre.trim()
+  return applications.some(
+    (application) =>
+      application.enfoque === "preventivo" ||
+      application.ingredientes.some((ingredient) =>
+        Boolean(
+          ingredient.tipoProductoId ||
+          ingredient.modoAccionId ||
+          ingredient.ingredienteActivoNombre.trim() ||
+          ingredient.dosisProducto.trim() ||
+          ingredient.marcaProductoNombre.trim()
+        )
       )
-    )
   );
 }
 

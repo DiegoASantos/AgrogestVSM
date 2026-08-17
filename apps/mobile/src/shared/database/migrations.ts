@@ -1498,6 +1498,36 @@ const MIGRATIONS: Migration[] = [
     run(db: SQLiteDatabase) {
       addColumnIfMissing(db, "visita_receta_fitosanidad", "unidad_dosis", "TEXT");
     }
+  },
+  {
+    version: 62,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(
+        db,
+        "visita_receta_fitosanidad",
+        "enfoque",
+        "TEXT NOT NULL DEFAULT 'reactivo' CHECK(enfoque IN ('reactivo', 'preventivo'))"
+      );
+      addColumnIfMissing(db, "visita_receta_fitosanidad", "objetivo_id", "TEXT");
+      addColumnIfMissing(
+        db,
+        "visita_receta_fitosanidad",
+        "incidencia_grado",
+        "INTEGER CHECK(incidencia_grado IS NULL OR incidencia_grado BETWEEN 0 AND 3)"
+      );
+      addColumnIfMissing(
+        db,
+        "visita_receta_fitosanidad",
+        "severidad_grado",
+        "INTEGER CHECK(severidad_grado IS NULL OR severidad_grado BETWEEN 0 AND 3)"
+      );
+      addColumnIfMissing(
+        db,
+        "visita_receta_fertilizacion",
+        "enfoque",
+        "TEXT NOT NULL DEFAULT 'reactivo' CHECK(enfoque IN ('reactivo', 'preventivo'))"
+      );
+    }
   }
 ];
 

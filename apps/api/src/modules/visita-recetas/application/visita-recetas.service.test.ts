@@ -3,6 +3,8 @@ import type { Repository } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { VisitaCampoEntity } from "../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
+import type { PlagaEnfermedadEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/plaga-enfermedad.entity";
+import type { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
 import { VisitaRecetasService } from "./visita-recetas.service";
 import type { VisitaRecetaEntity } from "../infrastructure/persistence/entities/visita-receta.entity";
 import type { VisitaRecetaFitosanidadEntity } from "../infrastructure/persistence/entities/visita-receta-fitosanidad.entity";
@@ -102,6 +104,8 @@ function makeValidDto(): CreateVisitaRecetaDto {
 describe("VisitaRecetasService", () => {
   let recetaRepo: RepoMock;
   let visitaRepo: RepoMock;
+  let plagaEnfermedadRepo: RepoMock;
+  let observacionSanitariaRepo: RepoMock;
   let fitosanidadRepo: RepoMock;
   let mezclaRepo: RepoMock;
   let fertilizacionRepo: RepoMock;
@@ -113,6 +117,8 @@ describe("VisitaRecetasService", () => {
   beforeEach(() => {
     recetaRepo = makeRepo();
     visitaRepo = makeRepo();
+    plagaEnfermedadRepo = makeRepo();
+    observacionSanitariaRepo = makeRepo();
     fitosanidadRepo = makeRepo();
     fitosanidadRepo.create.mockImplementation((value) => value);
     mezclaRepo = makeRepo();
@@ -126,6 +132,8 @@ describe("VisitaRecetasService", () => {
     service = new VisitaRecetasService(
       recetaRepo as unknown as Repository<VisitaRecetaEntity>,
       visitaRepo as unknown as Repository<VisitaCampoEntity>,
+      plagaEnfermedadRepo as unknown as Repository<PlagaEnfermedadEntity>,
+      observacionSanitariaRepo as unknown as Repository<VisitaObservacionSanitariaEntity>,
       fitosanidadRepo as unknown as Repository<VisitaRecetaFitosanidadEntity>,
       mezclaRepo as unknown as Repository<VisitaRecetaMezclaEntity>,
       fertilizacionRepo as unknown as Repository<VisitaRecetaFertilizacionEntity>,
@@ -144,8 +152,95 @@ describe("VisitaRecetasService", () => {
       );
     });
 
+    it("requires catalog target and grade zero for a preventive product", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      const dto = makeValidDto();
+      Object.assign(dto.mezclas![0]!.productos[0]!, {
+        enfoque: "preventivo",
+        objetivoId: 12,
+        incidenciaGrado: 1,
+        severidadGrado: 0
+      });
+      dto.mezclas![0]!.factor = 1;
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "incidencia y severidad grado 0"
+      );
+      expect(recetaRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it("rejects prevention for an objective diagnosed positively", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      plagaEnfermedadRepo.findOne.mockResolvedValue({
+        id: "12",
+        name: "Thrips",
+        type: "plaga",
+        isActive: true
+      });
+      observacionSanitariaRepo.findOne.mockResolvedValue({
+        incidencePercentage: null,
+        nivelIncidencia: { grade: 2 }
+      });
+      const dto = makeValidDto();
+      Object.assign(dto.mezclas![0]!.productos[0]!, {
+        enfoque: "preventivo",
+        objetivoId: 12,
+        incidenciaGrado: 0,
+        severidadGrado: 0
+      });
+      dto.mezclas![0]!.factor = 1;
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "diagnosticado positivamente"
+      );
+      expect(recetaRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it("rejects the same objective as reactive and preventive for legacy clients", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      plagaEnfermedadRepo.findOne.mockResolvedValue({
+        id: "12",
+        name: "Thrips",
+        type: "plaga",
+        isActive: true
+      });
+      const dto = makeValidDto();
+      dto.mezclas![0]!.productos.push({
+        ...dto.mezclas![0]!.productos[0]!,
+        enfoque: "preventivo",
+        objetivoId: 12,
+        objetivoNombre: "nombre no confiable",
+        incidenciaGrado: 0,
+        severidadGrado: 0
+      });
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "reactivo y preventivo"
+      );
+      expect(observacionSanitariaRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it("requires factor one for preventive fertilization", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      const dto = makeValidDto();
+      dto.fertilizacion[0]!.enfoque = "preventivo";
+      dto.fertilizacion[0]!.factor = 1.2;
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "fertilizacion preventiva debe usar factor 1"
+      );
+      expect(recetaRepo.findOne).not.toHaveBeenCalled();
+    });
+
     it("creates a new receta when none exists for the visita", async () => {
       visitaRepo.findOne.mockResolvedValue(makeVisita());
+      plagaEnfermedadRepo.findOne.mockResolvedValue({
+        id: "12",
+        name: "Thrips",
+        type: "plaga",
+        isActive: true
+      });
+      observacionSanitariaRepo.findOne.mockResolvedValue(null);
       recetaRepo.findOne.mockResolvedValueOnce(null); // no existing
       recetaRepo.create.mockReturnValue(makeReceta());
       recetaRepo.save.mockResolvedValue(makeReceta());
@@ -166,7 +261,17 @@ describe("VisitaRecetasService", () => {
       historialRepo.create.mockReturnValue({});
       historialRepo.save.mockResolvedValue({});
 
-      const result = await service.save("10", makeValidDto());
+      const dto = makeValidDto();
+      Object.assign(dto.mezclas![0]!.productos[0]!, {
+        enfoque: "preventivo",
+        objetivoId: 12,
+        incidenciaGrado: 0,
+        severidadGrado: 0
+      });
+      dto.mezclas![0]!.factor = 1;
+      dto.fertilizacion[0]!.enfoque = "preventivo";
+
+      const result = await service.save("10", dto);
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
@@ -175,11 +280,19 @@ describe("VisitaRecetasService", () => {
           dosisProducto: 250,
           unidadDosis: "ml/cilindro",
           volumenAplicacion: 2,
-          cantidadTotalProducto: 600
+          cantidadTotalProducto: 500,
+          enfoque: "preventivo",
+          objetivoId: "12",
+          incidenciaGrado: 0,
+          severidadGrado: 0
         })
       );
       expect(fertilizacionRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ cantidadTotalFertilizante: 750, factor: 1 })
+        expect.objectContaining({
+          cantidadTotalFertilizante: 750,
+          enfoque: "preventivo",
+          factor: 1
+        })
       );
     });
 

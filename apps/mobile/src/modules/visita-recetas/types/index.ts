@@ -47,6 +47,8 @@ export type FertilizanteCatalogItem = {
   unidadMedida: string | null;
 };
 
+export type RecommendationApproach = "reactivo" | "preventivo";
+
 export type RecetaFitosanidad = {
   id: string;
   serverId: string | null;
@@ -55,6 +57,10 @@ export type RecetaFitosanidad = {
   numero: number;
   objetivo: "plaga" | "enfermedad";
   objetivoNombre: string;
+  enfoque?: RecommendationApproach;
+  objetivoId?: string | null;
+  incidenciaGrado?: number | null;
+  severidadGrado?: number | null;
   tipoControlId: string | null;
   tipoProductoId: string | null;
   disolvente: string;
@@ -91,6 +97,7 @@ export type RecetaFertilizacion = {
   id: string;
   serverId: string | null;
   recetaLocalId: string;
+  enfoque?: RecommendationApproach;
   viaAplicacion: "edafica" | "foliar";
   fertilizanteNombre: string | null;
   tipoProducto: "solido" | "liquido" | null;
@@ -154,6 +161,7 @@ export type VisitaRecetaCompleta = VisitaReceta & {
 export type ConsolidacionHallazgo = {
   etapaFenologica: string | null;
   plagas: Array<{
+    objetivoId?: string;
     nombre: string;
     incidencia: string;
     severidad: string;
@@ -161,6 +169,7 @@ export type ConsolidacionHallazgo = {
     incidenceGrade: number;
   }>;
   enfermedades: Array<{
+    objetivoId?: string;
     nombre: string;
     incidencia: string;
     severidad: string;

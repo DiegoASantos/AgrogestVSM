@@ -174,6 +174,10 @@ export class VisitaCalificacionesService {
         numero: item.numero,
         objetivo: item.objetivo,
         objetivoNombre: item.objetivoNombre,
+        enfoque: item.enfoque,
+        objetivoId: item.objetivoId,
+        incidenciaGrado: item.incidenciaGrado,
+        severidadGrado: item.severidadGrado,
         tipoControlId: item.tipoControlId,
         tipoProductoId: item.tipoProductoId,
         disolvente: item.disolvente,
@@ -190,6 +194,7 @@ export class VisitaCalificacionesService {
         ordenMezcla: item.ordenMezcla
       })),
       fertilizacion: (receta.fertilizacion ?? []).map((item) => ({
+        enfoque: item.enfoque,
         viaAplicacion: item.viaAplicacion,
         fertilizanteNombre: item.fertilizanteNombre,
         tipoProducto: item.tipoProducto,

@@ -43,6 +43,10 @@ export type RecetaAnterior = {
     numero?: number;
     objetivo: "plaga" | "enfermedad";
     objetivoNombre: string;
+    enfoque?: "reactivo" | "preventivo";
+    objetivoId?: string | null;
+    incidenciaGrado?: number | null;
+    severidadGrado?: number | null;
     tipoControlId?: string | null;
     tipoProductoId?: string | null;
     disolvente?: string | null;
@@ -57,6 +61,7 @@ export type RecetaAnterior = {
     cantidadTotalProducto?: number | null;
   }>;
   fertilizacion?: Array<{
+    enfoque?: "reactivo" | "preventivo";
     viaAplicacion: "edafica" | "foliar";
     fertilizanteNombre?: string | null;
     tipoProducto?: "solido" | "liquido" | null;

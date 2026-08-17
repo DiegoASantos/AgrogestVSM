@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
+import { formatRecommendationApproach } from "../../../visita-recetas/domain/recommendation-approach";
 import type { CalificacionModulo, RecetaAnterior } from "../../types";
 
 type PreviousRecipeSummaryCardProps = {
@@ -98,6 +99,7 @@ function buildDetails(receta: RecetaAnterior | null, modulo: CalificacionModulo)
       .filter((item) => item.objetivo === objetivo)
       .map((item) =>
         [
+          formatRecommendationApproach(item.enfoque, true),
           item.objetivoNombre,
           item.ingredienteActivoNombre,
           item.marcaProductoNombre,
@@ -113,6 +115,7 @@ function buildDetails(receta: RecetaAnterior | null, modulo: CalificacionModulo)
   if (modulo === "nutricion") {
     return (receta.fertilizacion ?? []).map((item) =>
       [
+        formatRecommendationApproach(item.enfoque),
         item.fertilizanteNombre,
         item.viaAplicacion,
         item.dosis ? `${item.dosis} ${item.unidadDosis ?? ""}`.trim() : null

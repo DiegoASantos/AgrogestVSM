@@ -505,6 +505,10 @@ function seedOfflineCompleteVisit() {
         numero: 1,
         objetivo: "plaga",
         objetivoNombre: "Trips",
+        enfoque: "preventivo",
+        objetivoId: "12",
+        incidenciaGrado: 0,
+        severidadGrado: 0,
         tipoControlId: "1",
         tipoProductoId: "2",
         disolvente: "agua",
@@ -520,7 +524,26 @@ function seedOfflineCompleteVisit() {
         updatedAt: now
       }
     ],
-    fertilizacion: [],
+    fertilizacion: [
+      {
+        id: "receta-fert-local-1",
+        serverId: null,
+        recetaLocalId: "receta-local-1",
+        enfoque: "preventivo",
+        viaAplicacion: "foliar",
+        fertilizanteNombre: "Calcio-boro-zinc",
+        tipoProducto: "liquido",
+        dosis: 1,
+        unidadDosis: "l/cilindro",
+        cantidadTotalPlantas: null,
+        volumenAplicacion: 2,
+        cantidadTotalFertilizante: 2,
+        factor: 1,
+        syncStatus: "pending",
+        createdAt: now,
+        updatedAt: now
+      }
+    ],
     riego: {
       id: "receta-riego-local-1",
       serverId: null,
@@ -598,8 +621,19 @@ describe("offline/online sync with complete visit data", () => {
       expect.objectContaining({
         mezclas: [
           expect.objectContaining({
-            productos: [expect.objectContaining({ unidadDosis: "ml/cilindro" })]
+            productos: [
+              expect.objectContaining({
+                enfoque: "preventivo",
+                objetivoId: 12,
+                incidenciaGrado: 0,
+                severidadGrado: 0,
+                unidadDosis: "ml/cilindro"
+              })
+            ]
           })
+        ],
+        fertilizacion: [
+          expect.objectContaining({ enfoque: "preventivo", factor: 1 })
         ]
       }),
       { signal: undefined }

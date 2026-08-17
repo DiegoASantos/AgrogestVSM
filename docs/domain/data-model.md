@@ -151,6 +151,20 @@ temporalmente pobladas para permitir rollback y clientes mobile anteriores;
 una migracion de contraccion futura requerira una spec y confirmacion de la
 adopcion de la version nueva.
 
+Cada detalle de receta identifica su enfoque como `reactivo` o `preventivo`.
+La ausencia historica del campo se interpreta como `reactivo`. En fitosanidad,
+una prevencion referencia un objetivo activo del catalogo de plagas y
+enfermedades y guarda incidencia y severidad grado 0 dentro de la receta. Esta
+informacion no crea ni modifica observaciones sanitarias: la evidencia de campo
+y la recomendacion permanecen como conceptos separados. El API rechaza una
+prevencion cuando la misma visita ya tiene incidencia positiva para el
+objetivo. Una mezcla formada solo por prevenciones usa factor 1; en una mezcla
+mixta, el factor sigue derivandose del mayor hallazgo reactivo.
+
+En fertilizacion, el enfoque se guarda por producto sin asociar ni inferir una
+deficiencia nutricional. Una recomendacion preventiva usa factor 1 no editable;
+las formulas, dosis y unidades son las mismas del flujo reactivo.
+
 La dosis de fertilizacion conserva `unidad_dosis`: los productos solidos
 permiten `mg`, `g` o `kg`, y los liquidos permiten `ml` o `l`. La via edafica
 agrega el denominador `/planta` y la foliar `/cilindro`. Los valores historicos

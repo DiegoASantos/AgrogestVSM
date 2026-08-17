@@ -87,6 +87,16 @@ aditiva y deja `NULL` en recetas historicas; no recrea tablas ni toca outbox.
 Fertilizacion reutiliza su `unidad_dosis` existente. La unidad solo etiqueta el
 valor y su resultado: el sync no convierte dosis ni modifica la formula.
 
+La migracion SQLite 62 agrega de forma aditiva el enfoque de cada recomendacion
+y, para fitosanidad, el objetivo preventivo y sus grados de incidencia y
+severidad. El formulario escribe estos campos en la misma transaccion que el
+resto de la receta; la operacion padre de `visita_recetas` los conserva dentro
+de `mezclas[].productos[]` y `fertilizacion[]` durante reintentos. No se crean
+operaciones de outbox ni observaciones sanitarias separadas por una prevencion.
+Las filas historicas sin enfoque se leen como reactivas sin reescritura masiva.
+La migracion y el API compatibles deben desplegarse antes de publicar la OTA
+mobile.
+
 Al confirmar `Enviar` al final de Receta, mobile actualiza `endVisitTime` de la
 visita con la hora propuesta por el dispositivo o corregida por el tecnico. El
 update reutiliza la operacion de `visitas_campo` y se registra antes de programar

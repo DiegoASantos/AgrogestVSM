@@ -53,7 +53,7 @@ describe("visitaRecetasRepository", () => {
       expect(visitaRecetasRepository.getRecetaByVisitaLocalId("x")).toBeNull();
     });
 
-    it("restores the selected fitosanitary dose unit", () => {
+    it("restores the selected fitosanitary dose unit and preventive approach", () => {
       database.getFirstSync.mockReturnValue(recetaRow);
       database.getAllSync.mockImplementation((...args: unknown[]) => {
         const statement = String(args[0]);
@@ -86,6 +86,10 @@ describe("visitaRecetasRepository", () => {
               numero: 1,
               objetivo: "plaga",
               objetivo_nombre: "Trips",
+              enfoque: "preventivo",
+              objetivo_id: "12",
+              incidencia_grado: 0,
+              severidad_grado: 0,
               tipo_control_id: null,
               tipo_producto_id: null,
               disolvente: "Agua",
@@ -112,7 +116,13 @@ describe("visitaRecetasRepository", () => {
 
       const result = visitaRecetasRepository.getRecetaByVisitaLocalId("v1");
 
-      expect(result?.mezclas[0]?.productos[0]?.unidadDosis).toBe("g/cilindro");
+      expect(result?.mezclas[0]?.productos[0]).toMatchObject({
+        unidadDosis: "g/cilindro",
+        enfoque: "preventivo",
+        objetivoId: "12",
+        incidenciaGrado: 0,
+        severidadGrado: 0
+      });
     });
   });
 

@@ -150,6 +150,7 @@ describe("visitaRecetasService", () => {
 
     expect(result.plagas).toEqual([
       {
+        objetivoId: "pest-1",
         nombre: "Trips",
         incidencia: "Baja",
         severidad: "Leve",
@@ -159,6 +160,7 @@ describe("visitaRecetasService", () => {
     ]);
     expect(result.enfermedades).toEqual([
       {
+        objetivoId: "disease-1",
         nombre: "Oidio",
         incidencia: "12%",
         severidad: "Leve",

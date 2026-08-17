@@ -87,4 +87,5 @@ en la raíz.
 - [Spec 041: Visibilidad y reactivacion de productores y parcelas en mobile](041-visibilidad-reactivacion-productores-parcelas-mobile.md)
 - [Spec 042: Recuperacion y baja segura de catalogos creados desde mobile](042-recuperacion-baja-segura-catalogos-mobile.md)
 - [Spec 043: Selector de unidad para dosis fitosanitarias y fertilizantes](043-selector-unidad-dosis-receta.md)
+- [Spec 044: Recomendaciones reactivas y preventivas](044-recomendaciones-reactivas-preventivas.md)
 - [Plantilla](TEMPLATE.md)

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RecetaFertilizacion, RecetaMezcla } from "../../types";
 import {
+  applyFertilizacionApproachFactor,
   appendMezclasForNewFindings,
   buildFertilizacionesForSave,
   buildFertilizacionUnidadDosis,
@@ -9,9 +10,11 @@ import {
   buildMezclasForSave,
   calculateTotal,
   createEmptyFertilizacion,
+  createPreventiveFitosanidad,
   deriveMezclaFactors,
   diseaseFactorFromPercentage,
   getUnidadDosis,
+  getAvailablePreventiveTargets,
   getFertilizacionDosisUnits,
   mergeMissingFitosanidadFindings,
   restoreFitosanidadApps,
@@ -43,6 +46,10 @@ const mezcla: RecetaMezcla = {
       numero: 1,
       objetivo: "plaga",
       objetivoNombre: "Trips",
+      enfoque: "reactivo",
+      objetivoId: "pest-1",
+      incidenciaGrado: 2,
+      severidadGrado: null,
       tipoControlId: "1",
       tipoProductoId: "2",
       disolvente: "Agua",
@@ -66,6 +73,7 @@ describe("receta con mezclas", () => {
     plagas: [],
     enfermedades: [
       {
+        objetivoId: "disease-1",
         nombre: "Oidium",
         incidencia: "10%",
         severidad: "Leve",
@@ -89,6 +97,84 @@ describe("receta con mezclas", () => {
       incidenceGrade: 2
     });
     expect(mezclas).toHaveLength(1);
+  });
+
+  it("no genera una recomendacion reactiva para hallazgos grado cero", () => {
+    const merged = mergeMissingFitosanidadFindings([], {
+      ...consolidation,
+      enfermedades: [
+        {
+          ...consolidation.enfermedades[0]!,
+          objetivoId: "disease-zero",
+          nombre: "Antracnosis",
+          incidenceGrade: 0
+        }
+      ]
+    });
+
+    expect(merged).toMatchObject({ addedCount: 0, applications: [] });
+  });
+
+  it("ofrece para prevencion solo objetivos sin incidencia positiva ni duplicados", () => {
+    const preventive = createPreventiveFitosanidad(
+      2,
+      "enfermedad",
+      "disease-2",
+      "Antracnosis"
+    );
+    const targets = [
+      { id: "disease-1", name: "Oidium", type: "enfermedad", isActive: true },
+      {
+        id: "disease-2",
+        name: "Antracnosis",
+        type: "enfermedad",
+        isActive: true
+      },
+      {
+        id: "disease-3",
+        name: "Muerte regresiva",
+        type: "enfermedad",
+        isActive: true
+      },
+      { id: "pest-2", name: "Chinche", type: "plaga", isActive: true }
+    ].map((item) => ({ ...item, code: null, scientificName: null }));
+
+    expect(
+      getAvailablePreventiveTargets(
+        targets,
+        consolidation,
+        [preventive],
+        "enfermedad"
+      ).map((item) => item.id)
+    ).toEqual(["disease-3"]);
+  });
+
+  it("guarda una prevencion en grado cero sin elevar el factor de mezcla", () => {
+    const preventive = createPreventiveFitosanidad(
+      1,
+      "plaga",
+      "pest-2",
+      "Chinche"
+    );
+    preventive.ingredientes[0]!.mezclaNumero = 1;
+    const mezclaPreventiva = { ...restoreMezclas([mezcla])[0]!, factor: "1" };
+
+    expect(deriveMezclaFactors([preventive], [mezclaPreventiva])[0]).toMatchObject({
+      factor: "1",
+      factorEditable: false
+    });
+    expect(
+      deriveMezclaFactors(
+        [...restoreFitosanidadApps([mezcla], [], []), preventive],
+        [mezclaPreventiva]
+      )[0]
+    ).toMatchObject({ factor: "1.2", factorEditable: false });
+    expect(buildMezclasForSave([preventive], [mezclaPreventiva])[0]?.productos[0]).toMatchObject({
+      enfoque: "preventivo",
+      objetivoId: "pest-2",
+      incidenciaGrado: 0,
+      severidadGrado: 0
+    });
   });
 
   it("conserva recomendaciones existentes y agrega solo el diagnostico faltante", () => {
@@ -216,5 +302,32 @@ describe("receta con mezclas", () => {
       cantidadTotalFertilizante: String(row.cantidadTotalFertilizante)
     };
     expect(buildFertilizacionesForSave([app])[0]).toMatchObject({ factor: 1.2 });
+  });
+
+  it("cambia solo el factor del fertilizante cuyo enfoque se edita", () => {
+    const manualReactive = {
+      ...createEmptyFertilizacion(),
+      enfoque: "reactivo" as const,
+      factor: "2.25",
+      factorEditable: true
+    };
+    const changedToPreventive = {
+      ...createEmptyFertilizacion(),
+      enfoque: "preventivo" as const,
+      factor: "1.2"
+    };
+
+    const result = applyFertilizacionApproachFactor(
+      [manualReactive, changedToPreventive],
+      1,
+      [3, 2]
+    );
+
+    expect(result[0]).toEqual(manualReactive);
+    expect(result[1]).toMatchObject({
+      enfoque: "preventivo",
+      factor: "1",
+      factorEditable: false
+    });
   });
 });

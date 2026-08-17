@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 61;
+const LATEST_MIGRATION_VERSION = 62;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -22,6 +22,7 @@ type FakeDatabase = {
   ingredienteActivoColumns: Set<string>;
   fertilizanteColumns: Set<string>;
   visitaRecetaFitosanidadColumns: Set<string>;
+  visitaRecetaFertilizacionColumns: Set<string>;
   detalleNutrientesRows: Array<{ id: string; name: string }>;
   appMetaRows: Map<string, string | null>;
   organosRows: Array<{
@@ -92,6 +93,7 @@ function createFakeDatabase(
     ingredienteActivoColumns: new Set(["id", "public_id", "name", "description"]),
     fertilizanteColumns: new Set(["id", "name", "type"]),
     visitaRecetaFitosanidadColumns: new Set(["local_id", "dosis_producto"]),
+    visitaRecetaFertilizacionColumns: new Set(["local_id", "factor"]),
     detalleNutrientesRows: [],
     appMetaRows: new Map(),
     organosRows: [],
@@ -459,6 +461,21 @@ function createFakeDatabase(
         this.visitaRecetaFitosanidadColumns.add(columnName);
       }
 
+      if (statement.startsWith("ALTER TABLE visita_receta_fertilizacion ADD COLUMN ")) {
+        const parts = statement.split(/\s+/u);
+        const columnName = parts[5];
+
+        if (!columnName) {
+          throw new Error(`Could not parse column from statement: ${statement}`);
+        }
+
+        if (this.visitaRecetaFertilizacionColumns.has(columnName)) {
+          throw new Error(`Duplicate column: ${columnName}`);
+        }
+
+        this.visitaRecetaFertilizacionColumns.add(columnName);
+      }
+
       if (statement === "ALTER TABLE pest_diseases DROP COLUMN code") {
         this.pestDiseaseColumns.delete("code");
       }
@@ -642,6 +659,12 @@ function createFakeDatabase(
 
       if (statement === "PRAGMA table_info(visita_receta_fitosanidad)") {
         return Array.from(this.visitaRecetaFitosanidadColumns, (name) => ({
+          name
+        })) as T[];
+      }
+
+      if (statement === "PRAGMA table_info(visita_receta_fertilizacion)") {
+        return Array.from(this.visitaRecetaFertilizacionColumns, (name) => ({
           name
         })) as T[];
       }
@@ -1646,6 +1669,30 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+(visita_recetas|visita_receta_fitosanidad|sync_outbox)/iu.test(
+          statement
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("adds preventive recommendation fields without deleting offline data", () => {
+    const db = createFakeDatabase(61);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    for (const column of [
+      "enfoque",
+      "objetivo_id",
+      "incidencia_grado",
+      "severidad_grado"
+    ]) {
+      expect(db.visitaRecetaFitosanidadColumns.has(column)).toBe(true);
+    }
+    expect(db.visitaRecetaFertilizacionColumns.has("enfoque")).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(visita_recetas|visita_receta_fitosanidad|visita_receta_fertilizacion|sync_outbox)/iu.test(
           statement
         )
       )

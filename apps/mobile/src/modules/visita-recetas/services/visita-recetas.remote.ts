@@ -24,6 +24,10 @@ export type SaveRecetaInput = {
     productos: Array<{
       objetivo: "plaga" | "enfermedad";
       objetivoNombre: string;
+      enfoque?: "reactivo" | "preventivo";
+      objetivoId?: number | null;
+      incidenciaGrado?: number | null;
+      severidadGrado?: number | null;
       tipoControlId?: number | null;
       tipoProductoId?: number | null;
       disolvente?: string;
@@ -37,6 +41,7 @@ export type SaveRecetaInput = {
     }>;
   }>;
   fertilizacion: Array<{
+    enfoque?: "reactivo" | "preventivo";
     viaAplicacion: "edafica" | "foliar";
     fertilizanteNombre?: string | null;
     tipoProducto?: "solido" | "liquido" | null;

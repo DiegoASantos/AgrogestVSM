@@ -3,6 +3,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { VisitaCampoEntity } from "../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 import { VisitaObservacionSanitariaEntity } from "../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
+import { PlagaEnfermedadEntity } from "../visita-observaciones-sanitarias/infrastructure/persistence/entities/plaga-enfermedad.entity";
 import { VisitaEvaluacionEntity } from "../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
 import { VisitaRiegoEntity } from "../visita-riegos/infrastructure/persistence/entities/visita-riego.entity";
 import { VisitaLaborCulturalEntity } from "../visita-labores-culturales/infrastructure/persistence/entities/visita-labor-cultural.entity";
@@ -31,6 +32,7 @@ import { RecetasCatalogosController } from "./presentation/recetas-catalogos.con
     TypeOrmModule.forFeature([
       VisitaCampoEntity,
       VisitaObservacionSanitariaEntity,
+      PlagaEnfermedadEntity,
       VisitaEvaluacionEntity,
       VisitaRiegoEntity,
       VisitaLaborCulturalEntity,

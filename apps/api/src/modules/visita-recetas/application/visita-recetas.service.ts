@@ -4,6 +4,8 @@ import { Repository } from "typeorm";
 
 import { createSuccessResponse } from "../../../common/http/api-response";
 import { VisitaCampoEntity } from "../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
+import { PlagaEnfermedadEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/plaga-enfermedad.entity";
+import { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
 import {
   CreateVisitaRecetaDto,
   type FitosanidadProductoDto,
@@ -38,6 +40,10 @@ export class VisitaRecetasService {
     private readonly recetaRepository: Repository<VisitaRecetaEntity>,
     @InjectRepository(VisitaCampoEntity)
     private readonly visitaRepository: Repository<VisitaCampoEntity>,
+    @InjectRepository(PlagaEnfermedadEntity)
+    private readonly plagaEnfermedadRepository: Repository<PlagaEnfermedadEntity>,
+    @InjectRepository(VisitaObservacionSanitariaEntity)
+    private readonly observacionSanitariaRepository: Repository<VisitaObservacionSanitariaEntity>,
     @InjectRepository(VisitaRecetaFitosanidadEntity)
     private readonly fitosanidadRepository: Repository<VisitaRecetaFitosanidadEntity>,
     @InjectRepository(VisitaRecetaMezclaEntity)
@@ -61,6 +67,7 @@ export class VisitaRecetasService {
       throw new BadRequestException("Visita de campo not found.");
     }
     const mezclas = this.normalizeMezclas(dto);
+    await this.assertRecommendationApproaches(visitaId, mezclas, dto.fertilizacion);
 
     let receta = await this.recetaRepository.findOne({
       where: { visitaId },
@@ -224,6 +231,10 @@ export class VisitaRecetasService {
           numero: mezcla.numero,
           objetivo: item.objetivo,
           objetivoNombre: item.objetivoNombre,
+          enfoque: item.enfoque ?? "reactivo",
+          objetivoId: item.objetivoId ? String(item.objetivoId) : null,
+          incidenciaGrado: item.incidenciaGrado ?? null,
+          severidadGrado: item.severidadGrado ?? null,
           tipoControlId: item.tipoControlId ? String(item.tipoControlId) : null,
           tipoProductoId: item.tipoProductoId ? String(item.tipoProductoId) : null,
           disolvente: item.disolvente ?? "Agua",
@@ -262,6 +273,7 @@ export class VisitaRecetasService {
       assertFertilizacionDoseUnit(item);
       return this.fertilizacionRepository.create({
         recetaId,
+        enfoque: item.enfoque ?? "reactivo",
         viaAplicacion: item.viaAplicacion,
         fertilizanteNombre: item.fertilizanteNombre ?? null,
         tipoProducto: item.tipoProducto ?? null,
@@ -347,6 +359,10 @@ export class VisitaRecetasService {
             id: producto.id,
             objetivo: producto.objetivo,
             objetivoNombre: producto.objetivoNombre,
+            enfoque: producto.enfoque,
+            objetivoId: producto.objetivoId,
+            incidenciaGrado: producto.incidenciaGrado,
+            severidadGrado: producto.severidadGrado,
             tipoControlId: producto.tipoControlId,
             tipoProductoId: producto.tipoProductoId,
             disolvente: producto.disolvente,
@@ -365,6 +381,10 @@ export class VisitaRecetasService {
         numero: f.numero,
         objetivo: f.objetivo,
         objetivoNombre: f.objetivoNombre,
+        enfoque: f.enfoque,
+        objetivoId: f.objetivoId,
+        incidenciaGrado: f.incidenciaGrado,
+        severidadGrado: f.severidadGrado,
         tipoControlId: f.tipoControlId,
         tipoProductoId: f.tipoProductoId,
         disolvente: f.disolvente,
@@ -382,6 +402,7 @@ export class VisitaRecetasService {
       })),
       fertilizacion: (receta.fertilizacion ?? []).map((f) => ({
         id: f.id,
+        enfoque: f.enfoque,
         viaAplicacion: f.viaAplicacion,
         fertilizanteNombre: f.fertilizanteNombre,
         tipoProducto: f.tipoProducto,
@@ -449,6 +470,117 @@ export class VisitaRecetasService {
     }
 
     return [...grouped.values()];
+  }
+
+  private async assertRecommendationApproaches(
+    visitaId: string,
+    mezclas: NormalizedMezcla[],
+    fertilizacion: CreateVisitaRecetaDto["fertilizacion"]
+  ) {
+    const products = mezclas.flatMap((mezcla) => mezcla.productos);
+    const reactiveTargetIds = new Set(
+      products
+        .filter(
+          (item) =>
+            (item.enfoque ?? "reactivo") === "reactivo" && item.objetivoId
+        )
+        .map((item) => String(item.objetivoId))
+    );
+    const reactiveTargetNames = new Set(
+      products
+        .filter((item) => (item.enfoque ?? "reactivo") === "reactivo")
+        .map(
+          (item) =>
+            `${item.objetivo}::${item.objetivoNombre.trim().toLocaleLowerCase("es")}`
+        )
+    );
+    const targetCache = new Map<string, PlagaEnfermedadEntity>();
+    const positiveDiagnosisCache = new Map<string, boolean>();
+
+    for (const mezcla of mezclas) {
+      const preventiveProducts = mezcla.productos.filter(
+        (item) => item.enfoque === "preventivo"
+      );
+
+      if (
+        preventiveProducts.length === mezcla.productos.length &&
+        (mezcla.factor !== 1 || mezcla.factorEditable)
+      ) {
+        throw new BadRequestException(
+          "Una mezcla exclusivamente preventiva debe usar factor 1 y no ser editable."
+        );
+      }
+
+      for (const item of preventiveProducts) {
+        if (
+          !item.objetivoId ||
+          item.incidenciaGrado !== 0 ||
+          item.severidadGrado !== 0
+        ) {
+          throw new BadRequestException(
+            "Una recomendacion fitosanitaria preventiva requiere objetivo e incidencia y severidad grado 0."
+          );
+        }
+
+        const id = String(item.objetivoId);
+        let target = targetCache.get(id);
+        if (!target) {
+          const found = await this.plagaEnfermedadRepository.findOne({
+            where: { id, isActive: true }
+          });
+          if (!found) {
+            throw new BadRequestException(
+              "La plaga o enfermedad seleccionada para prevencion no esta disponible."
+            );
+          }
+          target = found;
+          targetCache.set(id, found);
+        }
+
+        if (target.type !== item.objetivo) {
+          throw new BadRequestException(
+            "El objetivo preventivo no corresponde al tipo de plaga o enfermedad."
+          );
+        }
+
+        item.objetivoNombre = target.name;
+        const targetNameKey =
+          `${target.type}::${target.name.trim().toLocaleLowerCase("es")}`;
+        if (reactiveTargetIds.has(id) || reactiveTargetNames.has(targetNameKey)) {
+          throw new BadRequestException(
+            "Un mismo objetivo no puede recomendarse como reactivo y preventivo en la receta."
+          );
+        }
+
+        let hasPositiveDiagnosis = positiveDiagnosisCache.get(id);
+        if (hasPositiveDiagnosis === undefined) {
+          const observation = await this.observacionSanitariaRepository.findOne({
+            where: { visitaId, plagaEnfermedadId: id },
+            relations: ["nivelIncidencia"]
+          });
+          hasPositiveDiagnosis = Boolean(
+            observation &&
+              (Number(observation.incidencePercentage ?? 0) > 0 ||
+                (observation.nivelIncidencia?.grade ?? 0) > 0)
+          );
+          positiveDiagnosisCache.set(id, hasPositiveDiagnosis);
+        }
+
+        if (hasPositiveDiagnosis) {
+          throw new BadRequestException(
+            "No se puede registrar como preventivo un objetivo diagnosticado positivamente."
+          );
+        }
+      }
+    }
+
+    for (const item of fertilizacion) {
+      if (item.enfoque === "preventivo" && (item.factor ?? 1) !== 1) {
+        throw new BadRequestException(
+          "Una recomendacion de fertilizacion preventiva debe usar factor 1."
+        );
+      }
+    }
   }
 }
 

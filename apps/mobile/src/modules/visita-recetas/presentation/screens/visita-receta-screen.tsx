@@ -1,7 +1,14 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps
+} from "react";
 import {
   Alert,
   ImageBackground,
@@ -37,6 +44,7 @@ import {
 import { Time12HourInput } from "../../../visitas-campo/presentation/components/time-12-hour-input";
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import { visitasCampoService } from "../../../visitas-campo/services/visitas-campo.service";
+import type { PestDiseaseCatalogItem } from "../../../observaciones-sanitarias/types";
 import {
   construirMensajeAdvertencia,
   validarMezcla
@@ -67,6 +75,7 @@ import {
   resolveCommercialSelectionPatch
 } from "./visita-receta-selection";
 import {
+  applyFertilizacionApproachFactor,
   buildFertilizacionesForSave,
   buildMezclasForSave,
   buildFertilizacionUnidadDosis,
@@ -77,7 +86,9 @@ import {
   createEmptyMezcla,
   createEmptyFertilizacion,
   createEmptyIngrediente,
+  createPreventiveFitosanidad,
   getDosisUnit,
+  getAvailablePreventiveTargets,
   getFertilizacionDosisUnits,
   getUnidadDosis,
   hasFertilizacionData,
@@ -139,6 +150,13 @@ export function VisitaRecetaScreen() {
     TipoProductoFitosanitarioCatalogItem[]
   >([]);
   const [fertilizantes, setFertilizantes] = useState<FertilizanteCatalogItem[]>([]);
+  const [preventiveTargets, setPreventiveTargets] = useState<
+    PestDiseaseCatalogItem[]
+  >([]);
+  const [preventiveObjectiveType, setPreventiveObjectiveType] = useState<
+    "plaga" | "enfermedad"
+  >("plaga");
+  const [preventiveTargetId, setPreventiveTargetId] = useState("");
 
   const [fitosanidadApps, setFitosanidadApps] = useState<AppFitosanidad[]>([]);
   const [mezclas, setMezclas] = useState<AppMezcla[]>([]);
@@ -154,6 +172,20 @@ export function VisitaRecetaScreen() {
   const compatibilityAlertOpenRef = useRef(false);
   const catalogDownloadStatus = useCatalogDownloadStatus();
   const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
+
+  const availablePreventiveTargets = useMemo(() => {
+    return getAvailablePreventiveTargets(
+      preventiveTargets,
+      consolidacion,
+      fitosanidadApps,
+      preventiveObjectiveType
+    );
+  }, [
+    consolidacion,
+    fitosanidadApps,
+    preventiveObjectiveType,
+    preventiveTargets
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -201,6 +233,12 @@ export function VisitaRecetaScreen() {
     setTiposControl(catalogos.tiposControl);
     setTiposProducto(catalogos.tiposProducto);
     setFertilizantes(catalogos.fertilizantes);
+    const visita = visitaId ? visitasCampoRepository.getById(visitaId) : null;
+    setPreventiveTargets(
+      visitaRecetasService.getPreventivePestDiseases(
+        visita?.phenologicalStageId ?? null
+      )
+    );
 
     setFitosanidadApps((currentApps) =>
       currentApps.map((current) => {
@@ -262,6 +300,11 @@ export function VisitaRecetaScreen() {
       setFertilizantes(catalogos.fertilizantes);
 
       const visita = visitasCampoRepository.getById(vId);
+      setPreventiveTargets(
+        visitaRecetasService.getPreventivePestDiseases(
+          visita?.phenologicalStageId ?? null
+        )
+      );
       const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
       const localConsData = visitaRecetasService.getConsolidacionLocal(vId);
       const recetaData = visitaRecetasService.getByVisitaId(vId);
@@ -579,10 +622,55 @@ export function VisitaRecetaScreen() {
     setMezclas(regenerateMezclas(next, projected));
   }
 
+  function addPreventiveFitosanidad() {
+    closeDropdown();
+    const target = availablePreventiveTargets.find(
+      (item) => item.id === preventiveTargetId
+    );
+    if (!target) {
+      setSubmitError("Selecciona una plaga o enfermedad disponible para prevencion.");
+      return;
+    }
+
+    const nextNumber =
+      fitosanidadApps.reduce(
+        (maximum, application) => Math.max(maximum, application.numero),
+        0
+      ) + 1;
+    const application = createPreventiveFitosanidad(
+      nextNumber,
+      preventiveObjectiveType,
+      target.id,
+      target.name
+    );
+    const projected = [...fitosanidadApps, application];
+    setFitosanidadApps(projected);
+    setMezclas((current) =>
+      deriveMezclaFactors(
+        projected,
+        appendMezclasForNewFindings(current, 1, current[0]?.volumenAplicacion ?? "")
+      )
+    );
+    setPreventiveTargetId("");
+    setSubmitError(null);
+  }
+
+  function removePreventiveFitosanidad(applicationIndex: number) {
+    closeDropdown();
+    const projected = fitosanidadApps.filter(
+      (_, currentIndex) => currentIndex !== applicationIndex
+    );
+    setFitosanidadApps(projected);
+    setMezclas((current) => regenerateMezclas(current, projected));
+  }
+
   function addFertilizacion() {
     closeDropdown();
     setFertilizaciones((prev) => {
-      const grade = consolidacion?.nutricion[prev.length]?.incidenceGrade ?? 0;
+      const reactiveCount = prev.filter(
+        (item) => item.enfoque !== "preventivo"
+      ).length;
+      const grade = consolidacion?.nutricion[reactiveCount]?.incidenceGrade ?? 0;
       return [
         ...prev,
         {
@@ -602,8 +690,8 @@ export function VisitaRecetaScreen() {
   }
 
   function updateFertilizacion(index: number, patch: Partial<AppFertilizacion>) {
-    setFertilizaciones((prev) =>
-      prev.map((fertilizacion, currentIndex) => {
+    setFertilizaciones((prev) => {
+      const updated = prev.map((fertilizacion, currentIndex) => {
         if (currentIndex !== index) return fertilizacion;
 
         const current = { ...fertilizacion, ...patch };
@@ -618,8 +706,15 @@ export function VisitaRecetaScreen() {
         }
 
         return recalculateFertilizacion(current);
-      })
-    );
+      });
+
+      if (patch.enfoque === undefined) return updated;
+      return applyFertilizacionApproachFactor(
+        updated,
+        index,
+        consolidacion?.nutricion.map((item) => item.incidenceGrade) ?? []
+      );
+    });
   }
 
   function handleSave() {
@@ -874,7 +969,7 @@ export function VisitaRecetaScreen() {
           {fitosanidadApps.length === 0 ? (
             <AppCard>
               <AppText variant="muted">
-                No se detectaron plagas ni enfermedades en los pasos previos.
+                No se detectaron plagas ni enfermedades con incidencia positiva.
               </AppText>
             </AppCard>
           ) : (
@@ -895,6 +990,11 @@ export function VisitaRecetaScreen() {
                 onRemoveIngrediente={(ingredientIndex) =>
                   removeIngrediente(index, ingredientIndex)
                 }
+                onRemoveApplication={
+                  app.enfoque === "preventivo"
+                    ? () => removePreventiveFitosanidad(index)
+                    : undefined
+                }
                 openDropdown={openDropdown}
                 tiposControl={tiposControl}
                 tiposProducto={tiposProducto}
@@ -912,6 +1012,59 @@ export function VisitaRecetaScreen() {
               />
             ))
           )}
+
+          <AppCard>
+            <AppText variant="heading">Agregar prevencion</AppText>
+            <AppText variant="muted">
+              Selecciona un objetivo sin incidencia positiva en esta visita.
+            </AppText>
+            <AppSelectField
+              icon="shield-outline"
+              label="Tipo de objetivo"
+              options={[
+                { value: "plaga", label: "Plaga" },
+                { value: "enfermedad", label: "Enfermedad" }
+              ]}
+              placeholder="Seleccionar tipo"
+              selectedLabel={
+                preventiveObjectiveType === "plaga" ? "Plaga" : "Enfermedad"
+              }
+              isOpen={openDropdown === "preventive_type"}
+              onClose={closeDropdown}
+              onToggle={() => toggleDropdown("preventive_type")}
+              onSelect={(value) => {
+                setPreventiveObjectiveType(value as "plaga" | "enfermedad");
+                setPreventiveTargetId("");
+              }}
+            />
+            <AppSelectField
+              icon="leaf-outline"
+              label="Objetivo preventivo"
+              options={availablePreventiveTargets.map((target) => ({
+                value: target.id,
+                label: target.name
+              }))}
+              placeholder={
+                availablePreventiveTargets.length > 0
+                  ? "Seleccionar objetivo"
+                  : "No hay objetivos disponibles"
+              }
+              selectedLabel={
+                availablePreventiveTargets.find(
+                  (target) => target.id === preventiveTargetId
+                )?.name
+              }
+              isOpen={openDropdown === "preventive_target"}
+              onClose={closeDropdown}
+              onToggle={() => toggleDropdown("preventive_target")}
+              onSelect={setPreventiveTargetId}
+            />
+            <AddItemButton
+              accessibilityLabel="Agregar recomendacion fitosanitaria preventiva"
+              label="Agregar prevencion"
+              onPress={addPreventiveFitosanidad}
+            />
+          </AppCard>
 
           {fitosanidadApps.length > 0 ? (
             <>
@@ -1193,6 +1346,7 @@ function FitosanidadCard({
   onChange,
   onChangeIngrediente,
   onCloseDropdown,
+  onRemoveApplication,
   onRemoveIngrediente,
   toggleDropdown,
   onNavegarCatalogo
@@ -1210,6 +1364,7 @@ function FitosanidadCard({
   onChange: (patch: Partial<AppFitosanidad>) => void;
   onChangeIngrediente: (index: number, patch: Partial<AppIngrediente>) => void;
   onCloseDropdown: () => void;
+  onRemoveApplication?: () => void;
   onRemoveIngrediente: (index: number) => void;
   toggleDropdown: (key: string) => void;
   onNavegarCatalogo: (tipo: string, ingredienteActivoId?: string) => void;
@@ -1231,7 +1386,21 @@ function FitosanidadCard({
           <AppText variant="caption">
             {value.ingredientes.length} ingrediente(s) activo(s)
           </AppText>
+          {value.enfoque === "preventivo" ? (
+            <AppText style={styles.preventiveText} variant="caption">
+              Preventivo · Incidencia grado 0 · Severidad grado 0
+            </AppText>
+          ) : (
+            <AppText variant="caption">Reactivo</AppText>
+          )}
         </View>
+        {onRemoveApplication ? (
+          <RemoveItemButton
+            accessibilityLabel={`Quitar prevencion para ${value.objetivoNombre}`}
+            label="Quitar"
+            onPress={onRemoveApplication}
+          />
+        ) : null}
       </View>
 
       <AppSelectField
@@ -1797,6 +1966,17 @@ function validateRequiredRecipe(
   }
 
   if (hasFitosanidad) {
+    const invalidPreventive = fitosanidadApps.find(
+      (application) =>
+        application.enfoque === "preventivo" &&
+        (!application.objetivoId ||
+          application.incidenceGrade !== 0 ||
+          application.severityGrade !== 0)
+    );
+    if (invalidPreventive) {
+      return "La recomendacion preventiva debe conservar incidencia y severidad grado 0.";
+    }
+
     const hasUnassigned = fitosanidadApps.some((application) =>
       application.ingredientes.some(
         (ingredient) =>
@@ -1831,6 +2011,15 @@ function validateRequiredRecipe(
   }
 
   if (hasFertilizacion) {
+    const invalidPreventive = fertilizaciones.find(
+      (fertilizacion) =>
+        fertilizacion.enfoque === "preventivo" &&
+        parsePositiveDecimal(fertilizacion.factor) !== 1
+    );
+    if (invalidPreventive) {
+      return "La fertilizacion preventiva debe usar factor 1.";
+    }
+
     const missingUnit = fertilizaciones.find(
       (fertilizacion) =>
         Boolean(parsePositiveDecimal(fertilizacion.dosis)) &&
@@ -1890,6 +2079,29 @@ function FertilizacionCard({
           />
         ) : null}
       </View>
+
+      <AppSelectField
+        icon="shield-checkmark-outline"
+        label="Enfoque de la recomendacion"
+        options={[
+          { value: "reactivo", label: "Reactivo" },
+          { value: "preventivo", label: "Preventivo" }
+        ]}
+        placeholder="Seleccionar enfoque"
+        selectedLabel={value.enfoque === "preventivo" ? "Preventivo" : "Reactivo"}
+        isOpen={openDropdown === `${prefix}_enfoque`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_enfoque`)}
+        onSelect={(approach) =>
+          onChange({ enfoque: approach as "reactivo" | "preventivo" })
+        }
+      />
+
+      {value.enfoque === "preventivo" ? (
+        <AppText style={styles.preventiveText} variant="caption">
+          Preventivo · Factor fijo 1.0
+        </AppText>
+      ) : null}
 
       <AppSelectField
         icon="leaf"
@@ -2442,6 +2654,10 @@ const styles = StyleSheet.create({
   fitoHeaderText: {
     flex: 1,
     gap: 2
+  },
+  preventiveText: {
+    color: theme.colors.primaryDark,
+    fontWeight: "600"
   },
   ingredientList: {
     gap: 12

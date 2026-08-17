@@ -35,6 +35,44 @@ export class FitosanidadProductoDto {
   @MaxLength(150)
   objetivoNombre!: string;
 
+  @ApiPropertyOptional({
+    example: "preventivo",
+    description:
+      "Enfoque de la recomendacion. Si se omite se interpreta como reactivo."
+  })
+  @IsOptional()
+  @IsIn(["reactivo", "preventivo"])
+  enfoque?: "reactivo" | "preventivo";
+
+  @ApiPropertyOptional({
+    example: 12,
+    description: "Identificador de la plaga o enfermedad objetivo."
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  objetivoId?: number;
+
+  @ApiPropertyOptional({
+    example: 0,
+    description: "Grado de incidencia conservado dentro de la receta."
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(3)
+  incidenciaGrado?: number;
+
+  @ApiPropertyOptional({
+    example: 0,
+    description: "Grado de severidad conservado dentro de la receta."
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(3)
+  severidadGrado?: number;
+
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @IsInt()
@@ -215,6 +253,15 @@ export class FertilizacionDto {
   @IsInt()
   @Min(1)
   id?: number;
+
+  @ApiPropertyOptional({
+    example: "preventivo",
+    description:
+      "Enfoque del producto fertilizante. Si se omite se interpreta como reactivo."
+  })
+  @IsOptional()
+  @IsIn(["reactivo", "preventivo"])
+  enfoque?: "reactivo" | "preventivo";
 
   @ApiProperty({
     example: "edafica",

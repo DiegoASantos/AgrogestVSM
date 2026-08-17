@@ -34,6 +34,18 @@ export class VisitaRecetaFitosanidadEntity {
   @Column({ name: "objetivo_nombre", type: "varchar", length: 150 })
   objetivoNombre!: string;
 
+  @Column({ name: "enfoque", type: "varchar", length: 12, default: "reactivo" })
+  enfoque!: "reactivo" | "preventivo";
+
+  @Column({ name: "objetivo_id", type: "bigint", nullable: true })
+  objetivoId!: string | null;
+
+  @Column({ name: "incidencia_grado", type: "smallint", nullable: true })
+  incidenciaGrado!: number | null;
+
+  @Column({ name: "severidad_grado", type: "smallint", nullable: true })
+  severidadGrado!: number | null;
+
   @Column({ name: "tipo_control_id", type: "bigint", nullable: true })
   tipoControlId!: string | null;
 

@@ -17,6 +17,9 @@ export class VisitaRecetaFertilizacionEntity {
   @Column({ name: "receta_id", type: "bigint" })
   recetaId!: string;
 
+  @Column({ name: "enfoque", type: "varchar", length: 12, default: "reactivo" })
+  enfoque!: "reactivo" | "preventivo";
+
   @Column({
     name: "via_aplicacion",
     type: "varchar",

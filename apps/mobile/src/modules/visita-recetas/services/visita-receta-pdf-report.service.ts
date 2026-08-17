@@ -11,6 +11,7 @@ import {
   getFertilizacionTotalUnit,
   getFitosanidadAggregateUnit
 } from "../domain/dose-unit-format";
+import { formatRecommendationApproach } from "../domain/recommendation-approach";
 
 declare const process:
   | {
@@ -575,7 +576,7 @@ function renderFitosanidad(receta: VisitaRecetaCompleta): string {
           mezcla.factor
         ) ?? producto.cantidadTotalProducto;
       html += `<tr>
-        <td>${escapeHtml(producto.objetivoNombre)} / ${escapeHtml(producto.marcaProductoNombre ?? producto.ingredienteActivoNombre ?? "-")}</td>
+        <td><strong>${escapeHtml(formatRecommendationApproach(producto.enfoque, true))}</strong> · ${escapeHtml(producto.objetivoNombre)} / ${escapeHtml(producto.marcaProductoNombre ?? producto.ingredienteActivoNombre ?? "-")}</td>
         <td>${producto.dosisProducto ?? "-"} ${escapeHtml(formatDoseUnit(producto.unidadDosis, "cilindro"))}</td>
         <td class="calculated">${formatNumber(total)} ${escapeHtml(formatDoseUnit(producto.unidadDosis, "ha"))}</td>
       </tr>`;
@@ -630,6 +631,7 @@ function renderFertilizacion(receta: VisitaRecetaCompleta): string {
     <div class="section-card">
       <table>
         <tr><th>Campo</th><th>Valor</th></tr>
+        <tr><td>Enfoque</td><td><strong>${escapeHtml(formatRecommendationApproach(fert.enfoque))}</strong></td></tr>
         <tr><td>Via de aplicacion</td><td>${viaLabel}</td></tr>
         <tr><td>Fertilizante</td><td>${escapeHtml(fert.fertilizanteNombre ?? "-")}</td></tr>
         <tr><td>Tipo de producto</td><td>${tipoLabel}</td></tr>

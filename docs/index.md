@@ -92,6 +92,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 
 - [Recuperacion y baja segura de catalogos creados desde mobile](specs/042-recuperacion-baja-segura-catalogos-mobile.md)
 - [Selector de unidad para dosis fitosanitarias y fertilizantes](specs/043-selector-unidad-dosis-receta.md)
+- [Recomendaciones reactivas y preventivas](specs/044-recomendaciones-reactivas-preventivas.md)
 
 ## Runbooks
 

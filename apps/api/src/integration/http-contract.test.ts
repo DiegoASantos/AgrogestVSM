@@ -409,6 +409,10 @@ describe("API critical HTTP integration contract", () => {
               {
                 objetivo: "plaga",
                 objetivoNombre: "Trips",
+                enfoque: "preventivo",
+                objetivoId: 12,
+                incidenciaGrado: 0,
+                severidadGrado: 0,
                 dosisProducto: 250,
                 unidadDosis: "ml/cilindro"
               }
@@ -417,6 +421,7 @@ describe("API critical HTTP integration contract", () => {
         ],
         fertilizacion: [
           {
+            enfoque: "preventivo",
             viaAplicacion: "foliar",
             fertilizanteNombre: "Nitrato de potasio",
             factor: 1
@@ -449,6 +454,8 @@ describe("API critical HTTP integration contract", () => {
             productos: [
               expect.objectContaining({
                 objetivo: "plaga",
+                enfoque: "preventivo",
+                objetivoId: 12,
                 unidadDosis: "ml/cilindro"
               })
             ]
@@ -475,6 +482,34 @@ describe("API critical HTTP integration contract", () => {
                 objetivoNombre: "Trips",
                 dosisProducto: 250,
                 unidadDosis: "onzas/cilindro"
+              }
+            ]
+          }
+        ],
+        fertilizacion: [],
+        labores: []
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(recetasService.save).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown recommendation approach", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/visitas-campo/7/receta",
+      payload: {
+        mezclas: [
+          {
+            numero: 1,
+            factor: 1,
+            factorEditable: false,
+            productos: [
+              {
+                objetivo: "plaga",
+                objetivoNombre: "Trips",
+                enfoque: "automatico"
               }
             ]
           }

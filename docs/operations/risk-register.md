@@ -38,6 +38,7 @@ last_reviewed: 2026-08-17
 | R-025 | Credenciales WeatherLink expuestas, cuota agotada o estaciones compartidas sin GPS/historico autorizado | Alta | Mitigado | Rotar el API Secret y guardarlo solo en Render; limitar rangos a siete dias, cachear por estacion/dia y limitar consultas por usuario; conservar estaciones sin GPS fuera del mapa y sanitizar errores de permisos |
 | R-026 | Borrados fisicos de catalogos de receta dejan identidades y fallos huerfanos en dispositivos offline | Alta | Mitigado | Spec 042: baja logica ADMIN, idempotencia por `publicId`, recuperacion explicita desde SQLite, visibilidad preservadora y runbook con backup y verificacion |
 | R-027 | Recetas fitosanitarias historicas no permiten inferir una unidad concreta entre masa y volumen | Baja | Mitigado | Spec 043 conserva `NULL` y muestra `mg o ml` como texto de compatibilidad; no inventa ni convierte datos historicos |
+| R-028 | Mobile puede sincronizar enfoques preventivos antes de que PostgreSQL y API acepten el nuevo contrato, o usar un catalogo sanitario desactualizado | Media | Mitigado | Desplegar migracion 049 y API antes de la OTA; mobile conserva el agregado en outbox y API revalida objetivo activo, tipo e incidencia positiva antes de persistir |
 
 ## Revisión
 

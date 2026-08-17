@@ -13,6 +13,7 @@ import { resolveDiseaseIncidenceGrade } from "../../visita-observaciones-sanitar
 type ConsolidacionHallazgo = {
   etapaFenologica: string | null;
   plagas: Array<{
+    objetivoId: string;
     nombre: string;
     incidencia: string;
     severidad: string;
@@ -20,6 +21,7 @@ type ConsolidacionHallazgo = {
     incidenceGrade: number;
   }>;
   enfermedades: Array<{
+    objetivoId: string;
     nombre: string;
     incidencia: string;
     severidad: string;
@@ -100,6 +102,7 @@ export class VisitaRecetasConsolidacionService {
     const plagas = observaciones
       .filter((o) => o.plagaEnfermedad?.type === "plaga")
       .map((o) => ({
+        objetivoId: o.plagaEnfermedadId,
         nombre: o.plagaEnfermedad?.name ?? "Desconocida",
         incidencia: o.nivelIncidencia?.name ?? "No especificada",
         severidad: o.nivelSeveridad?.name ?? "No especificada",
@@ -110,6 +113,7 @@ export class VisitaRecetasConsolidacionService {
     const enfermedades = observaciones
       .filter((o) => o.plagaEnfermedad?.type === "enfermedad")
       .map((o) => ({
+        objetivoId: o.plagaEnfermedadId,
         nombre: o.plagaEnfermedad?.name ?? "Desconocida",
         incidencia: o.nivelIncidencia?.name ?? "No especificada",
         severidad: o.nivelSeveridad?.name ?? "No especificada",
