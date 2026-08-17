@@ -4,6 +4,8 @@ import { releaseCapture } from "react-native-view-shot";
 
 import {
   HtmlReportImageCapturer,
+  getLosslessPngShareOptions,
+  LOSSLESS_PNG_MIME_TYPE,
   REPORT_IMAGE_CAPTURE_CANCELLED_ERROR,
   type HtmlReportImageCapturerHandle
 } from "../../../../shared/reporting";
@@ -78,11 +80,10 @@ export function useReportSharing({ onError }: UseReportSharingOptions) {
           if (uris.length > 1) {
             await compartirMultiplesImagenes(uris, REPORT_LABELS[report]);
           } else {
-            await Sharing.shareAsync(uris[0], {
-              dialogTitle: `Compartir ${REPORT_LABELS[report]} como imagen`,
-              mimeType: "image/png",
-              UTI: "public.png"
-            });
+            await Sharing.shareAsync(
+              uris[0],
+              getLosslessPngShareOptions(REPORT_LABELS[report])
+            );
           }
         } finally {
           for (const uri of uris) {
@@ -123,10 +124,10 @@ export function useReportSharing({ onError }: UseReportSharingOptions) {
       const label = REPORT_LABELS[report];
       Alert.alert(
         `Compartir ${label}`,
-        "Selecciona el formato que deseas compartir.",
+        "Selecciona el formato. La imagen PNG se envia como archivo para conservar su nitidez.",
         [
           {
-            text: "Imagen PNG",
+            text: "Imagen PNG (alta calidad)",
             onPress: () => {
               void runReportOperation(visitaId, report, "share-image");
             }
@@ -179,11 +180,7 @@ async function compartirMultiplesImagenes(uris: string[], label: string) {
   } else {
     const Sharing = await import("expo-sharing");
     for (const uri of uris) {
-      await Sharing.shareAsync(uri, {
-        dialogTitle: `Compartir ${label} como imagen`,
-        mimeType: "image/png",
-        UTI: "public.png"
-      });
+      await Sharing.shareAsync(uri, getLosslessPngShareOptions(label));
     }
   }
 }
@@ -210,7 +207,7 @@ async function compartirMultiplesAndroid(uris: string[], label: string) {
     ];
 
     await IntentLauncher.startActivityAsync("android.intent.action.SEND_MULTIPLE", {
-      type: "image/png",
+      type: LOSSLESS_PNG_MIME_TYPE,
       flags: 1,
       extra: extras
     });
@@ -218,11 +215,7 @@ async function compartirMultiplesAndroid(uris: string[], label: string) {
     const Sharing = await import("expo-sharing");
     for (const uri of contentUris) {
       try {
-        await Sharing.shareAsync(uri, {
-          dialogTitle: `Compartir ${label} como imagen`,
-          mimeType: "image/png",
-          UTI: "public.png"
-        });
+        await Sharing.shareAsync(uri, getLosslessPngShareOptions(label));
       } catch { /* continue to next image */ }
     }
   }
