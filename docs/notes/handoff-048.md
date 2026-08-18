@@ -1,4 +1,6 @@
-# Handoff: Spec 048 - evaluacion asistida por voz offline
+# Handoff historico: Spec 048 - evaluacion asistida por voz offline
+
+> La funcionalidad fue retirada y la spec se marco `cancelled` el 2026-08-18.
 
 ## Identificacion
 

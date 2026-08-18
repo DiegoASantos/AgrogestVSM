@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-17
+last_reviewed: 2026-08-18
 ---
 
 # Registro de riesgos
@@ -40,7 +40,7 @@ last_reviewed: 2026-08-17
 | R-027 | Recetas fitosanitarias historicas no permiten inferir una unidad concreta entre masa y volumen | Baja | Mitigado | Spec 043 conserva `NULL` y muestra `mg o ml` como texto de compatibilidad; no inventa ni convierte datos historicos |
 | R-028 | Mobile puede sincronizar enfoques preventivos antes de que PostgreSQL y API acepten el nuevo contrato, o usar un catalogo sanitario desactualizado | Media | Mitigado | Desplegar migracion 049 y API antes de la OTA; mobile conserva el agregado en outbox y API revalida objetivo activo, tipo e incidencia positiva antes de persistir |
 | R-029 | Un usuario puede olvidar que selecciono offline manual y retrasar la publicacion de pendientes | Baja | Mitigado | La preferencia se muestra en la tarjeta y en una franja persistente con recordatorio; cambiar a automatico programa recuperacion y sync sin alterar el outbox |
-| R-030 | Los modelos locales de voz aumentan el APK y pueden exceder memoria, latencia o precision aceptable en equipos de campo | Alta | Abierto | Modelos INT8, motores alternados y formulario manual; bloquear el release hasta superar modo avion, diez recorridos y piloto Android 10/4 GB de la spec 048 |
+| R-031 | El vaciado de borradores al cierre forzado puede variar entre versiones de Android | Baja | Mitigado | Escritura cada 300 ms y vaciado en segundo plano/desmontaje; validar cierre forzado y reinicio en el piloto mobile antes del release |
 
 ## Revisión
 

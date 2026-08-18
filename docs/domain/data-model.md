@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-17
+last_reviewed: 2026-08-18
 ---
 
 # Modelo del dominio
@@ -117,6 +117,13 @@ parcialmente. Mobile resuelve la cascada tipo de producto, ingrediente activo y
 nombre comercial; cada nivel se filtra por los anteriores. La receta sigue
 guardando los nombres y, cuando es calculable, la concentracion numerica para
 compatibilidad offline e historica.
+
+La identidad funcional de una marca fitosanitaria es la combinacion de nombre
+comercial y tipo de producto. Un mismo nombre puede existir varias veces cuando
+tiene usos distintos, por ejemplo como fungicida e insecticida, y cada fila
+reutiliza el ingrediente activo correspondiente. Las cargas masivas comparan
+esa combinacion normalizada contra el estado actual y no sobrescriben
+ingrediente, concentracion ni unidad ya informados.
 
 El catalogo `fertilizantes` tambien conserva concentracion textual y unidad de
 medida. Esos datos describen el producto seleccionado y son distintos de la

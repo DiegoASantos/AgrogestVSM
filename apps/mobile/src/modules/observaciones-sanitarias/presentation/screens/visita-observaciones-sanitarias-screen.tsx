@@ -35,7 +35,14 @@ import {
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
+import {
+  buildVisitDraftScopeKey,
+  readVisitFormDraft,
+  type VisitFormDraftIdentity
+} from "../../../../shared/database/visit-form-drafts";
+import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft";
 import { toApiError } from "../../../../shared/services";
+import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import {
   ComplianceScoreCard,
   PreviousRecipeSummaryCard
@@ -144,6 +151,14 @@ const ORGANO_OPTIONS: Array<{
 ];
 
 type SanitaryStepMode = "plagas" | "enfermedades";
+type SanitaryFormDraft = {
+  selections: Record<string, SanitarySelection>;
+  stepNote: StepNoteState;
+  scoreValue: number | null;
+  scoreJustificado: boolean | null;
+  categoriaJustificacion: string | null;
+  motivoJustificacion: string | null;
+};
 
 export function VisitaObservacionesSanitariasScreen({
   mode = "plagas"
@@ -151,6 +166,7 @@ export function VisitaObservacionesSanitariasScreen({
   mode?: SanitaryStepMode;
 }) {
   const router = useRouter();
+  const { session } = useAuthSession();
   const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
@@ -177,6 +193,41 @@ export function VisitaObservacionesSanitariasScreen({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isDraftReady, setIsDraftReady] = useState(false);
+  const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
+    () =>
+      session.user?.publicId && visitaId
+        ? {
+            ownerUserId: session.user.publicId,
+            scopeKey: buildVisitDraftScopeKey(visitaId),
+            moduleKey: mode
+          }
+        : null,
+    [mode, session.user?.publicId, visitaId]
+  );
+  const draftValue = useMemo<SanitaryFormDraft>(
+    () => ({
+      selections,
+      stepNote,
+      scoreValue,
+      scoreJustificado,
+      categoriaJustificacion,
+      motivoJustificacion
+    }),
+    [
+      categoriaJustificacion,
+      motivoJustificacion,
+      scoreJustificado,
+      scoreValue,
+      selections,
+      stepNote
+    ]
+  );
+  const { clearDraft } = useVisitFormDraft({
+    enabled: isDraftReady && !isLoading && !error,
+    identity: draftIdentity,
+    value: draftValue
+  });
 
   useEffect(() => {
     if (!visitaId) {
@@ -186,7 +237,7 @@ export function VisitaObservacionesSanitariasScreen({
     }
 
     void loadStep(visitaId);
-  }, [visitaId, mode]);
+  }, [draftIdentity, visitaId, mode]);
 
   const plagas = useMemo(
     () => pestDiseases.filter((item) => item.type === "plaga"),
@@ -427,6 +478,7 @@ export function VisitaObservacionesSanitariasScreen({
 
   async function loadStep(id: string) {
     setIsLoading(true);
+    setIsDraftReady(false);
     setError(null);
     setSubmitError(null);
 
@@ -463,19 +515,43 @@ export function VisitaObservacionesSanitariasScreen({
         }
       }
 
+      const draft = draftIdentity
+        ? readVisitFormDraft<SanitaryFormDraft>(draftIdentity)
+        : null;
+      const validIds = new Set(
+        resolvedPestDiseases
+          .filter((item) => item.type === (mode === "plagas" ? "plaga" : "enfermedad"))
+          .map((item) => item.id)
+      );
+      const restoredSelections = draft?.selections
+        ? Object.fromEntries(
+            Object.entries(draft.selections).filter(([itemId]) => validIds.has(itemId))
+          )
+        : null;
+
       setPestDiseases(resolvedPestDiseases);
       setIncidenceLevels(nextIncidenceLevels.map(normalizeIncidenceLevel));
       setObservaciones(nextObservaciones);
-      setSelections(buildSelectionMap(nextObservaciones));
+      setSelections(restoredSelections ?? buildSelectionMap(nextObservaciones));
       const currentCalificacion = visitaCalificacionesService.getByModulo(id, mode);
-      setScoreValue(currentCalificacion?.puntaje ?? null);
+      setScoreValue(draft ? draft.scoreValue : (currentCalificacion?.puntaje ?? null));
       setScoreJustificado(
-        currentCalificacion && currentCalificacion.puntaje < 3
-          ? (currentCalificacion.justificado ?? false)
-          : null
+        draft
+          ? draft.scoreJustificado
+          : currentCalificacion && currentCalificacion.puntaje < 3
+            ? (currentCalificacion.justificado ?? false)
+            : null
       );
-      setCategoriaJustificacion(currentCalificacion?.categoriaJustificacion ?? null);
-      setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
+      setCategoriaJustificacion(
+        draft
+          ? draft.categoriaJustificacion
+          : (currentCalificacion?.categoriaJustificacion ?? null)
+      );
+      setMotivoJustificacion(
+        draft
+          ? draft.motivoJustificacion
+          : (currentCalificacion?.motivoJustificacion ?? null)
+      );
       try {
         setRecetaAnterior(
           await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id)
@@ -483,10 +559,13 @@ export function VisitaObservacionesSanitariasScreen({
       } catch {
         setRecetaAnterior({ existe: false });
       }
-      setStepNote({
-        observation: nextStepNote?.observation ?? "",
-        recommendation: nextStepNote?.recommendation ?? ""
-      });
+      setStepNote(
+        draft?.stepNote ?? {
+          observation: nextStepNote?.observation ?? "",
+          recommendation: nextStepNote?.recommendation ?? ""
+        }
+      );
+      setIsDraftReady(true);
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setError(apiError.message || `No se pudo cargar el paso ${stepNumber}.`);
@@ -743,6 +822,8 @@ export function VisitaObservacionesSanitariasScreen({
         recommendation: stepNote.recommendation.trim() || null,
         finalizedAt: new Date().toISOString()
       });
+
+      clearDraft();
 
       router.replace({
         pathname:

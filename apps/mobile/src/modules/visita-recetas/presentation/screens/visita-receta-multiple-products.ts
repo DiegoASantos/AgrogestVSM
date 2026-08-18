@@ -6,11 +6,14 @@ import type {
   CoadyuvanteCatalogItem,
   FertilizanteCatalogItem,
   IngredienteActivoCatalogItem,
+  ModoAccionCatalogItem,
   MarcaProductoCatalogItem,
   ConsolidacionHallazgo,
   RecetaFertilizacion,
   RecetaMezcla,
-  RecommendationApproach
+  RecommendationApproach,
+  TipoControlCatalogItem,
+  TipoProductoFitosanitarioCatalogItem
 } from "../../types";
 import { resolveIngredientId } from "./visita-receta-selection";
 
@@ -126,6 +129,125 @@ export function createEmptyFertilizacion(volumenAplicacion = ""): AppFertilizaci
     factorEditable: false,
     cantidadTotalFertilizante: ""
   };
+}
+
+type RecetaDraftCatalogs = {
+  coadyuvantes: CoadyuvanteCatalogItem[];
+  ingredientesActivos: IngredienteActivoCatalogItem[];
+  marcasProducto: MarcaProductoCatalogItem[];
+  modosAccion: ModoAccionCatalogItem[];
+  tiposControl: TipoControlCatalogItem[];
+  tiposProducto: TipoProductoFitosanitarioCatalogItem[];
+  fertilizantes: FertilizanteCatalogItem[];
+};
+
+export function sanitizeDraftFitosanidad(
+  applications: AppFitosanidad[],
+  catalogs: RecetaDraftCatalogs
+): AppFitosanidad[] {
+  const validControlIds = new Set(catalogs.tiposControl.map((item) => item.id));
+  const validModeIds = new Set(catalogs.modosAccion.map((item) => item.id));
+  const validProductTypeIds = new Set(catalogs.tiposProducto.map((item) => item.id));
+  const ingredientById = new Map(
+    catalogs.ingredientesActivos.map((item) => [item.id, item])
+  );
+
+  return applications.map((application) => ({
+    ...application,
+    tipoControlId: validControlIds.has(application.tipoControlId)
+      ? application.tipoControlId
+      : "",
+    ingredientes: application.ingredientes.map((ingredient) => {
+      const tipoProductoId = validProductTypeIds.has(ingredient.tipoProductoId)
+        ? ingredient.tipoProductoId
+        : "";
+      const selectedIngredient = tipoProductoId
+        ? ingredientById.get(ingredient.ingredienteActivoId)
+        : undefined;
+      const selectedBrand = selectedIngredient
+        ? catalogs.marcasProducto.find(
+            (brand) =>
+              normalizeName(brand.name) ===
+                normalizeName(ingredient.marcaProductoNombre) &&
+              brand.tipoProductoId === tipoProductoId &&
+              brand.ingredienteActivoId === selectedIngredient.id
+          )
+        : undefined;
+
+      return {
+        ...ingredient,
+        tipoProductoId,
+        modoAccionId: validModeIds.has(ingredient.modoAccionId)
+          ? ingredient.modoAccionId
+          : "",
+        ingredienteActivoId: selectedIngredient?.id ?? "",
+        ingredienteActivoNombre: selectedIngredient?.name ?? "",
+        marcaProductoNombre: selectedBrand?.name ?? "",
+        concentracionProducto: selectedBrand
+          ? (selectedBrand.concentracionTexto ??
+            selectedBrand.concentracion?.toString() ??
+            "")
+          : "",
+        unidadMedidaProducto: selectedBrand?.unidadMedida ?? ""
+      };
+    })
+  }));
+}
+
+export function sanitizeDraftMezclas(
+  mezclas: AppMezcla[],
+  applications: AppFitosanidad[],
+  coadyuvantes: CoadyuvanteCatalogItem[]
+): AppMezcla[] {
+  const coadyuvanteById = new Map(coadyuvantes.map((item) => [item.id, item]));
+
+  return mezclas.map((mezcla) => {
+    const coadyuvantesIds = mezcla.coadyuvantesIds.filter((id) =>
+      coadyuvanteById.has(id)
+    );
+    const allowedOrderItems = new Set([
+      "Agua",
+      ...coadyuvantesIds
+        .map((id) => coadyuvanteById.get(id)?.name)
+        .filter((name): name is string => Boolean(name)),
+      ...applications.flatMap((application) =>
+        application.ingredientes
+          .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
+          .map((ingredient) => ingredient.marcaProductoNombre)
+          .filter(Boolean)
+      )
+    ]);
+
+    return {
+      ...mezcla,
+      coadyuvantesIds,
+      ordenMezcla: mezcla.ordenMezcla.filter((item) => allowedOrderItems.has(item))
+    };
+  });
+}
+
+export function sanitizeDraftFertilizaciones(
+  fertilizaciones: AppFertilizacion[],
+  catalog: FertilizanteCatalogItem[]
+): AppFertilizacion[] {
+  return fertilizaciones.map((fertilizacion) => {
+    if (!fertilizacion.fertilizanteNombre.trim()) {
+      return fertilizacion;
+    }
+
+    const selected = catalog.find(
+      (item) =>
+        normalizeName(item.name) === normalizeName(fertilizacion.fertilizanteNombre)
+    );
+
+    return {
+      ...fertilizacion,
+      fertilizanteNombre: selected?.name ?? "",
+      tipoProducto: selected?.type ?? fertilizacion.tipoProducto,
+      concentracion: selected?.concentracion ?? "",
+      unidadMedida: selected?.unidadMedida ?? ""
+    };
+  });
 }
 
 export function mergeMissingFitosanidadFindings(

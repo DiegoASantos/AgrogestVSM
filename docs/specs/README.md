@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-17
+last_reviewed: 2026-08-18
 ---
 
 # Especificaciones
@@ -91,5 +91,8 @@ en la raíz.
 - [Spec 045: Conectividad hibrida y modo offline controlado en mobile](045-conectividad-hibrida-mobile.md)
 - [Spec 046: Concentraciones ampliadas y permiso para eliminar visitas](046-concentraciones-ampliadas-permiso-eliminar-visitas.md)
 - [Spec 047: Reconciliacion de catalogos de receta en mobile](047-reconciliacion-catalogos-receta-mobile.md)
-- [Spec 048: Evaluacion asistida por voz completamente offline](048-evaluacion-asistida-voz-offline.md)
+- [Spec 048 cancelada: Evaluacion asistida por voz completamente offline](048-evaluacion-asistida-voz-offline.md)
+- [Spec 049: Borradores persistentes en visitas mobile](049-borradores-persistentes-visitas-mobile.md)
+- [Spec 050: Carga idempotente del catalogo agroquimico desde Excel](050-catalogo-agroquimicos-excel.md)
+- [Spec 051: Tutorial visual guiado para el paso 1 de visitas](051-tutorial-guiado-paso-1-visita.md)
 - [Plantilla](TEMPLATE.md)

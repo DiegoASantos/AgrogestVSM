@@ -1,5 +1,6 @@
 import { getDatabase } from "../../../shared/database/connection";
 import { getCatalogSessionUserId } from "../../../shared/database/catalog-session";
+import { deleteVisitFormDraftsForVisit } from "../../../shared/database/visit-form-drafts";
 import { insertSyncOutboxEntry } from "../../../shared/database/sync-outbox";
 import { notifySyncStatusChanged } from "../../../shared/sync/sync-events";
 import type { SyncEntityType } from "../../../shared/sync/sync-entities";
@@ -596,6 +597,7 @@ export const visitasCampoRepository = {
       }
 
       deleteVisitPayloadTombstones(db, ownerUserId, localId);
+      deleteVisitFormDraftsForVisit(ownerUserId, localId, db);
 
       const result = db.runSync(
         `DELETE FROM visitas_campo

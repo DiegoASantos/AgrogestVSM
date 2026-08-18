@@ -131,27 +131,6 @@ publicarla se debe actualizar in-place una copia representativa que contenga
 `sync_outbox`, `sync_failures` y filas de catalogo en `pending`/`error`;
 cancelar si no llega a `user_version = 60` preservando esos datos.
 
-## Release con voz offline
-
-La evaluacion asistida incorpora `react-native-sherpa-onnx`, permiso de
-microfono, plugin de prebuild y aproximadamente 142 MB de modelos locales. Debe
-distribuirse como APK/AAB nuevo; no es compatible con OTA sobre la version
-anterior. El plugin `with-offline-voice-models` copia ambos directorios a los
-assets nativos de Android y hace fallar el prebuild si falta alguno.
-
-Antes del piloto:
-
-1. comprobar que el APK arranca y completa las diez preguntas en modo avion;
-2. probar Android 10 con 4 GB de RAM, diez recorridos consecutivos, ruido de
-   campo, silencio, permiso denegado y segundo plano;
-3. confirmar que no existe trafico de red durante voz y que no quedan archivos
-   de audio;
-4. instalar el APK encima del productivo anterior y verificar SQLite y outbox;
-5. medir latencia y precision contra los umbrales de la spec 048.
-
-Cancelar el reparto si faltan modelos, hay cierres por memoria, una respuesta
-excede tres segundos en el equipo minimo o se pierde cualquier dato local.
-
 ## API de produccion
 
 El entorno EAS `production` contiene:

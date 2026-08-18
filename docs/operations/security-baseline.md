@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-17
+last_reviewed: 2026-08-18
 ---
 
 # Línea base de seguridad operativa
@@ -29,6 +29,8 @@ last_reviewed: 2026-08-17
   sesion, sin reutilizar como visibles los datos descargados por otra cuenta.
 - outbox y fallos mobile particionados por usuario; un cambio de cuenta no
   intenta publicar pendientes anteriores con el token nuevo;
+- borradores de formularios de visita particionados por `publicId`; otra cuenta
+  del dispositivo no puede leer, sobrescribir ni eliminar su contenido;
 - alta y movimiento de parcelas por `AGRONOMO` limitados a productores creados
   por el usuario o que ya tengan una parcela asignada a el.
 - endpoints de productor por ID (detalle, resumen, estructura, historial,
@@ -93,15 +95,3 @@ preferida es instalar la CA correspondiente y activar verificación estricta.
 - producción: acceso limitado al mantenedor y responsables designados;
 - MCP de PostgreSQL: solo lectura y nunca producción por defecto;
 - cuentas compartidas: no permitidas.
-
-## Voz local en mobile
-
-- `RECORD_AUDIO` se solicita solo cuando el usuario inicia la evaluacion
-  asistida y la denegacion no bloquea el formulario manual;
-- reconocimiento y sintesis usan modelos incluidos en el APK, sin solicitudes
-  a Google, OpenAI, la API de AgroGest ni otro proveedor;
-- el PCM y la transcripcion permanecen en memoria durante la pregunta actual;
-  no se escriben en SQLite, archivos, logs, telemetria ni outbox;
-- cancelar, pasar a segundo plano o cerrar el dialogo detiene la captura,
-  limpia buffers y libera los motores nativos;
-- cada sustitucion de modelos exige registrar procedencia, licencia y SHA-256.

@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ImageBackground,
   Modal,
@@ -24,7 +24,14 @@ import {
 import { getDatabase } from "../../../../shared/database/connection";
 import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
+import {
+  buildVisitDraftScopeKey,
+  readVisitFormDraft,
+  type VisitFormDraftIdentity
+} from "../../../../shared/database/visit-form-drafts";
+import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft";
 import { toApiError } from "../../../../shared/services";
+import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import {
   ComplianceScoreCard,
   PreviousRecipeSummaryCard,
@@ -68,9 +75,23 @@ type LockedRiegoFields = {
   fuenteAgua: boolean;
   tipoSuelo: boolean;
 };
+type RiegoFormDraft = {
+  selectedTipoRiegoId: string | null;
+  fuenteAgua: FuenteAgua | null;
+  tipoSuelo: TipoSuelo | null;
+  humedadSuelo: HumedadSuelo | null;
+  estresHidrico: boolean;
+  lockedFields: LockedRiegoFields;
+  scoreValue: number | null;
+  scoreJustificado: boolean | null;
+  categoriaJustificacion: string | null;
+  motivoJustificacion: string | null;
+  stepObservation: string;
+};
 
 export function VisitaRiegoScreen() {
   const router = useRouter();
+  const { session } = useAuthSession();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
 
@@ -100,6 +121,51 @@ export function VisitaRiegoScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isDraftReady, setIsDraftReady] = useState(false);
+  const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
+    () =>
+      session.user?.publicId && visitaId
+        ? {
+            ownerUserId: session.user.publicId,
+            scopeKey: buildVisitDraftScopeKey(visitaId),
+            moduleKey: "riego"
+          }
+        : null,
+    [session.user?.publicId, visitaId]
+  );
+  const draftValue = useMemo<RiegoFormDraft>(
+    () => ({
+      selectedTipoRiegoId,
+      fuenteAgua,
+      tipoSuelo,
+      humedadSuelo,
+      estresHidrico,
+      lockedFields,
+      scoreValue,
+      scoreJustificado,
+      categoriaJustificacion,
+      motivoJustificacion,
+      stepObservation
+    }),
+    [
+      categoriaJustificacion,
+      estresHidrico,
+      fuenteAgua,
+      humedadSuelo,
+      lockedFields,
+      motivoJustificacion,
+      scoreJustificado,
+      scoreValue,
+      selectedTipoRiegoId,
+      stepObservation,
+      tipoSuelo
+    ]
+  );
+  const { clearDraft } = useVisitFormDraft({
+    enabled: isDraftReady && !isLoading && !error,
+    identity: draftIdentity,
+    value: draftValue
+  });
 
   useEffect(() => {
     if (!visitaId) {
@@ -109,7 +175,7 @@ export function VisitaRiegoScreen() {
     }
 
     void loadStep(visitaId);
-  }, [visitaId]);
+  }, [draftIdentity, visitaId]);
 
   return (
     <ScreenContainer contentStyle={styles.container}>
@@ -489,6 +555,7 @@ export function VisitaRiegoScreen() {
 
   async function loadStep(id: string) {
     setIsLoading(true);
+    setIsDraftReady(false);
     setError(null);
     setSubmitError(null);
 
@@ -536,15 +603,55 @@ export function VisitaRiegoScreen() {
       }
 
       const currentCalificacion = visitaCalificacionesService.getByModulo(id, "riego");
-      setScoreValue(currentCalificacion?.puntaje ?? null);
-      setScoreJustificado(
-        currentCalificacion && currentCalificacion.puntaje < 3
-          ? (currentCalificacion.justificado ?? false)
-          : null
+      const draft = draftIdentity ? readVisitFormDraft<RiegoFormDraft>(draftIdentity) : null;
+      const activeTipoIds = new Set(
+        nextTiposRiego.filter((item) => item.isActive).map((item) => item.id)
       );
-      setCategoriaJustificacion(currentCalificacion?.categoriaJustificacion ?? null);
-      setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
-      setStepObservation(nextStepNote?.observation ?? "");
+      if (draft) {
+        setSelectedTipoRiegoId(
+          draft.selectedTipoRiegoId && activeTipoIds.has(draft.selectedTipoRiegoId)
+            ? draft.selectedTipoRiegoId
+            : null
+        );
+        setFuenteAgua(
+          draft.fuenteAgua && FUENTES_AGUA.includes(draft.fuenteAgua)
+            ? draft.fuenteAgua
+            : null
+        );
+        setTipoSuelo(
+          draft.tipoSuelo && TIPOS_SUELO.includes(draft.tipoSuelo)
+            ? draft.tipoSuelo
+            : null
+        );
+        setHumedadSuelo(
+          draft.humedadSuelo && HUMEDADES_SUELO.includes(draft.humedadSuelo)
+            ? draft.humedadSuelo
+            : null
+        );
+        setEstresHidrico(Boolean(draft.estresHidrico));
+        setLockedFields((current) => ({ ...current, ...(draft.lockedFields ?? {}) }));
+      }
+      setScoreValue(draft ? draft.scoreValue : (currentCalificacion?.puntaje ?? null));
+      setScoreJustificado(
+        draft
+          ? draft.scoreJustificado
+          : currentCalificacion && currentCalificacion.puntaje < 3
+            ? (currentCalificacion.justificado ?? false)
+            : null
+      );
+      setCategoriaJustificacion(
+        draft
+          ? draft.categoriaJustificacion
+          : (currentCalificacion?.categoriaJustificacion ?? null)
+      );
+      setMotivoJustificacion(
+        draft
+          ? draft.motivoJustificacion
+          : (currentCalificacion?.motivoJustificacion ?? null)
+      );
+      setStepObservation(
+        draft ? draft.stepObservation : (nextStepNote?.observation ?? "")
+      );
       try {
         setRecetaAnterior(
           await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id)
@@ -552,6 +659,7 @@ export function VisitaRiegoScreen() {
       } catch {
         setRecetaAnterior({ existe: false });
       }
+      setIsDraftReady(true);
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setError(apiError.message || "No se pudo cargar riego.");
@@ -726,6 +834,7 @@ export function VisitaRiegoScreen() {
       await observacionesSanitariasService.upsertStepNote(visitaId, STEP_NUMBER, {
         observation: stepObservation.trim() || null
       });
+      clearDraft();
       router.replace({
         pathname: "/visitas-campo/[id]/labores-culturales",
         params: { id: visitaId }

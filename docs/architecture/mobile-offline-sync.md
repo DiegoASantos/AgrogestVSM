@@ -2,13 +2,14 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-17
+last_reviewed: 2026-08-18
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
   - apps/mobile/src/shared/services/api
   - apps/mobile/src/modules/auth
   - apps/mobile/src/modules/parcelas
+  - apps/mobile/src/modules/visitas-campo
   - apps/mobile/src/modules/visita-recetas
 ---
 
@@ -28,6 +29,20 @@ la API cuando vuelva a tener conectividad.
 5. El ID del servidor se guarda junto al ID local.
 6. Se sincronizan evaluaciones, sanidad, notas, riego, labores y receta.
 7. Los registros pasan a `synced`, quedan `pending` o terminan en `error`.
+
+### Captura guiada de datos basicos
+
+El paso 1 de una visita ofrece un tutorial visual manual y completamente local.
+La guia recorre solo los campos pendientes en el orden del formulario, desplaza
+la pantalla, atenua el resto de la interfaz y mantiene interactivo el control
+resaltado. No registra progreso, no solicita permisos y no modifica SQLite ni
+la outbox.
+
+Numero de plantas, area en hectareas y fecha de siembra son obligatorios tanto
+con tutorial como sin el. Hora de fin pertenece exclusivamente al cierre de
+Receta: editar los datos basicos construye una actualizacion parcial que no
+incluye ni reemplaza ese valor. Los borradores anteriores se restauran mediante
+una lista explicita de campos vigentes para ignorar propiedades retiradas.
 
 ### Catalogos territoriales por sesion y reactivacion
 
@@ -295,6 +310,14 @@ descarga posterior a la reparación del backend. Cuando una descarga termina,
 una receta abierta relee SQLite y completa concentración y unidad de la
 selección existente, sin borrar recetas, catálogos ni operaciones pendientes.
 
+La migracion PostgreSQL 051 agrega de forma idempotente marcas e ingredientes
+del catalogo agroquimico. No cambia SQLite ni crea operaciones de outbox: una
+instalacion nueva recibe las filas en su descarga inicial y una existente las
+obtiene en la recarga manual o automatica del catalogo. Dos filas con el mismo
+nombre comercial y tipos fitosanitarios diferentes son usos validos; el
+ingrediente activo remoto se reutiliza y la reconciliacion conserva su
+`public_id`.
+
 La migracion SQLite 60 agrega `catalog_visible` a estos tres catalogos. Antes
 de cada descarga se ocultan solo las filas `synced`; las recibidas de la API se
 vuelven visibles por UPSERT. Las filas `pending` y `error` que no coinciden con
@@ -372,21 +395,21 @@ Toda nueva entidad sincronizable requiere:
 - pruebas offline-online;
 - actualización de este documento.
 
-## Entrada asistida por voz offline
+## Borradores persistentes de formularios
 
-El paso 1 de una visita admite una capa opcional de entrada por voz para ayudar
-a usuarios mayores. El asistente lee los catalogos que mobile ya tiene
-disponibles, pregunta cada campo, interpreta la respuesta y exige confirmacion
-antes de escribir sobre el mismo estado del formulario manual. Al finalizar
-solo cierra el dialogo para que el tecnico revise; no guarda ni navega.
+Los pasos Datos, Plagas, Enfermedades, Nutricion, Riego, Labores y Receta
+conservan en `visit_form_drafts` una copia JSON versionada del estado todavia no
+guardado. La clave combina el `publicId` del usuario, el contexto de la visita y
+el modulo; una visita nueva usa temporalmente su parcela como contexto y, desde
+el paso 2, usa el ID local de la visita.
 
-El reconocimiento Whisper Tiny INT8 y la sintesis Piper en espanol se ejecutan
-con Sherpa-ONNX dentro del dispositivo. Los modelos se incluyen en el APK, por
-lo que el recorrido no descarga recursos ni usa la API. Las muestras PCM viven
-solo en memoria y los motores se destruyen al alternar entre lectura y escucha,
-al cancelar y cuando la aplicacion pasa a segundo plano.
+El formulario carga primero las entidades operativas y despues superpone el
+borrador compatible. Los cambios se escriben con debounce y se vacian antes de
+desmontar la pantalla o pasar la aplicacion a segundo plano. Un guardado local
+exitoso elimina solo el borrador del modulo; un error lo conserva. Eliminar la
+visita retira todos sus borradores dentro de la misma transaccion local.
 
-Esta capa no introduce tabla, migracion, handler ni tipo de outbox. El guardado
-posterior conserva exactamente el flujo formulario -> SQLite -> outbox. El
-formulario manual permanece disponible si el equipo no tiene Android 10, se
-deniega `RECORD_AUDIO`, falta un modelo o falla el runtime nativo.
+Un borrador no representa una entidad del dominio, no usa `sync_status`, no
+crea entradas en `sync_outbox` ni llega a la API. Cambiar de cuenta deja los
+borradores anteriores almacenados, pero ninguna lectura o escritura puede
+acceder a ellos con el propietario de la nueva sesion.

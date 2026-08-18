@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 62;
+const LATEST_MIGRATION_VERSION = 63;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1693,6 +1693,26 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+(visita_recetas|visita_receta_fitosanidad|visita_receta_fertilizacion|sync_outbox)/iu.test(
+          statement
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("adds visit form drafts without altering operational data or outbox", () => {
+    const db = createFakeDatabase(62);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("CREATE TABLE IF NOT EXISTS visit_form_drafts")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        /(?:DELETE|UPDATE|INSERT)\s+(?:FROM\s+|INTO\s+)?(?:visitas_campo|sync_outbox)/iu.test(
           statement
         )
       )

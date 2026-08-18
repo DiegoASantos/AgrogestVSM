@@ -30,8 +30,7 @@
       },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -41,7 +40,6 @@
       "expo-router",
       "expo-sqlite",
       "expo-asset",
-      "./plugins/with-offline-voice-models",
       [
         "expo-location",
         {

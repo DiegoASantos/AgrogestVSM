@@ -18,7 +18,10 @@ import {
   getFertilizacionDosisUnits,
   mergeMissingFitosanidadFindings,
   restoreFitosanidadApps,
-  restoreMezclas
+  restoreMezclas,
+  sanitizeDraftFertilizaciones,
+  sanitizeDraftFitosanidad,
+  sanitizeDraftMezclas
 } from "./visita-receta-multiple-products";
 
 const now = "2026-08-04T00:00:00.000Z";
@@ -328,6 +331,118 @@ describe("receta con mezclas", () => {
       enfoque: "preventivo",
       factor: "1",
       factorEditable: false
+    });
+  });
+
+  it("conserva el borrador de receta y limpia referencias de catalogo inexistentes", () => {
+    const catalogs = {
+      coadyuvantes: [{ id: "coad-1", name: "Adherente", description: null }],
+      ingredientesActivos: [
+        {
+          id: "ingredient-1",
+          publicId: "ingredient-public-1",
+          name: "Abamectina",
+          description: null
+        }
+      ],
+      marcasProducto: [
+        {
+          id: "brand-1",
+          publicId: "brand-public-1",
+          name: "Agrimec",
+          tipoProductoId: "type-1",
+          ingredienteActivoId: "ingredient-1",
+          ingredienteActivoNombre: "Abamectina",
+          concentracionTexto: "1.8",
+          unidadMedida: "%"
+        }
+      ],
+      modosAccion: [{ id: "mode-1", name: "Contacto" }],
+      tiposControl: [{ id: "control-1", name: "Quimico" }],
+      tiposProducto: [{ id: "type-1", name: "Insecticida" }],
+      fertilizantes: [
+        {
+          id: "fertilizer-1",
+          publicId: "fertilizer-public-1",
+          name: "Nitrato",
+          type: "solido" as const,
+          concentracion: "20",
+          unidadMedida: "%"
+        }
+      ]
+    };
+    const staleApplications = [
+      {
+        localId: "app-1",
+        numero: 1,
+        objetivo: "plaga" as const,
+        objetivoNombre: "Trips",
+        incidenceGrade: 2,
+        tipoControlId: "deleted-control",
+        disolvente: "Agua",
+        ingredientes: [
+          {
+            localId: "product-1",
+            mezclaNumero: 1,
+            tipoProductoId: "type-1",
+            modoAccionId: "deleted-mode",
+            ingredienteActivoId: "deleted-ingredient",
+            ingredienteActivoNombre: "Ingrediente eliminado",
+            dosisProducto: "250",
+            unidadDosis: "ml",
+            marcaProductoNombre: "Marca eliminada",
+            concentracionProducto: "99",
+            unidadMedidaProducto: "%",
+            cantidadTotalProducto: "600"
+          }
+        ]
+      }
+    ];
+
+    const applications = sanitizeDraftFitosanidad(staleApplications, catalogs);
+    const sanitizedMezclas = sanitizeDraftMezclas(
+      [
+        {
+          localId: "mix-1",
+          numero: 1,
+          volumenAplicacion: "2",
+          coadyuvantesIds: ["coad-1", "deleted-coad"],
+          ordenMezcla: ["Agua", "Marca eliminada", "Adherente"],
+          factor: "1.2",
+          factorEditable: false,
+          cantidadTotalProducto: "600"
+        }
+      ],
+      applications,
+      catalogs.coadyuvantes
+    );
+    const fertilizaciones = sanitizeDraftFertilizaciones(
+      [
+        {
+          ...createEmptyFertilizacion(),
+          fertilizanteNombre: "Fertilizante eliminado",
+          dosis: "2"
+        }
+      ],
+      catalogs.fertilizantes
+    );
+
+    expect(applications[0]).toMatchObject({ tipoControlId: "" });
+    expect(applications[0]?.ingredientes[0]).toMatchObject({
+      ingredienteActivoId: "",
+      ingredienteActivoNombre: "",
+      marcaProductoNombre: "",
+      modoAccionId: "",
+      dosisProducto: "250"
+    });
+    expect(sanitizedMezclas[0]).toMatchObject({
+      coadyuvantesIds: ["coad-1"],
+      ordenMezcla: ["Agua", "Adherente"],
+      volumenAplicacion: "2"
+    });
+    expect(fertilizaciones[0]).toMatchObject({
+      fertilizanteNombre: "",
+      dosis: "2"
     });
   });
 });

@@ -21,8 +21,15 @@ import {
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
+import {
+  buildVisitDraftScopeKey,
+  readVisitFormDraft,
+  type VisitFormDraftIdentity
+} from "../../../../shared/database/visit-form-drafts";
+import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft";
 import { toApiError } from "../../../../shared/services";
 import { scheduleSync } from "../../../../shared/sync";
+import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import {
   ComplianceScoreCard,
   PreviousRecipeSummaryCard,
@@ -47,9 +54,18 @@ type LaborGroup = {
   categoryName: string;
   items: LaborCulturalCatalogItem[];
 };
+type LaboresFormDraft = {
+  selectedLaborIds: string[];
+  scoreValue: number | null;
+  scoreJustificado: boolean | null;
+  categoriaJustificacion: string | null;
+  motivoJustificacion: string | null;
+  stepObservation: string;
+};
 
 export function VisitaLaboresCulturalesScreen() {
   const router = useRouter();
+  const { session } = useAuthSession();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
 
@@ -66,6 +82,41 @@ export function VisitaLaboresCulturalesScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isDraftReady, setIsDraftReady] = useState(false);
+  const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
+    () =>
+      session.user?.publicId && visitaId
+        ? {
+            ownerUserId: session.user.publicId,
+            scopeKey: buildVisitDraftScopeKey(visitaId),
+            moduleKey: "labores"
+          }
+        : null,
+    [session.user?.publicId, visitaId]
+  );
+  const draftValue = useMemo<LaboresFormDraft>(
+    () => ({
+      selectedLaborIds: Array.from(selectedLaborIds).sort(),
+      scoreValue,
+      scoreJustificado,
+      categoriaJustificacion,
+      motivoJustificacion,
+      stepObservation
+    }),
+    [
+      categoriaJustificacion,
+      motivoJustificacion,
+      scoreJustificado,
+      scoreValue,
+      selectedLaborIds,
+      stepObservation
+    ]
+  );
+  const { clearDraft } = useVisitFormDraft({
+    enabled: isDraftReady && !isLoading && !error,
+    identity: draftIdentity,
+    value: draftValue
+  });
   const laborGroups = useMemo(() => groupLabores(labores), [labores]);
   const selectedCategoryCodes = useMemo(
     () =>
@@ -88,7 +139,7 @@ export function VisitaLaboresCulturalesScreen() {
     }
 
     void loadStep(visitaId);
-  }, [visitaId]);
+  }, [draftIdentity, visitaId]);
 
   return (
     <ScreenContainer contentStyle={styles.container}>
@@ -270,6 +321,7 @@ export function VisitaLaboresCulturalesScreen() {
 
   async function loadStep(id: string) {
     setIsLoading(true);
+    setIsDraftReady(false);
     setError(null);
     setSubmitError(null);
 
@@ -303,26 +355,47 @@ export function VisitaLaboresCulturalesScreen() {
       );
 
       const activeLabores = nextLabores.filter((labor) => labor.isActive && labor.categoryCode);
+      const draft = draftIdentity
+        ? readVisitFormDraft<LaboresFormDraft>(draftIdentity)
+        : null;
+      const activeIds = new Set(activeLabores.map((labor) => labor.id));
       setLabores(activeLabores);
       setSelectedLaborIds(
-        existingLabores.length > 0
-          ? new Set(existingLabores.map((labor) => labor.laborCulturalId))
-          : getDefaultLaborSelectionIds(activeLabores)
+        draft
+          ? new Set(
+              (draft.selectedLaborIds ?? []).filter((laborId) => activeIds.has(laborId))
+            )
+          : existingLabores.length > 0
+            ? new Set(existingLabores.map((labor) => labor.laborCulturalId))
+            : getDefaultLaborSelectionIds(activeLabores)
       );
-      setScoreValue(currentCalificacion?.puntaje ?? null);
+      setScoreValue(draft ? draft.scoreValue : (currentCalificacion?.puntaje ?? null));
       setScoreJustificado(
-        currentCalificacion && currentCalificacion.puntaje < 3
-          ? (currentCalificacion.justificado ?? false)
-          : null
+        draft
+          ? draft.scoreJustificado
+          : currentCalificacion && currentCalificacion.puntaje < 3
+            ? (currentCalificacion.justificado ?? false)
+            : null
       );
-      setCategoriaJustificacion(currentCalificacion?.categoriaJustificacion ?? null);
-      setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
-      setStepObservation(nextStepNote?.observation ?? "");
+      setCategoriaJustificacion(
+        draft
+          ? draft.categoriaJustificacion
+          : (currentCalificacion?.categoriaJustificacion ?? null)
+      );
+      setMotivoJustificacion(
+        draft
+          ? draft.motivoJustificacion
+          : (currentCalificacion?.motivoJustificacion ?? null)
+      );
+      setStepObservation(
+        draft ? draft.stepObservation : (nextStepNote?.observation ?? "")
+      );
       try {
         setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
       } catch {
         setRecetaAnterior({ existe: false });
       }
+      setIsDraftReady(true);
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setError(apiError.message || "No se pudo cargar labores culturales.");
@@ -441,6 +514,7 @@ export function VisitaLaboresCulturalesScreen() {
       await observacionesSanitariasService.upsertStepNote(visitaId, STEP_NUMBER, {
         observation: stepObservation.trim() || null
       });
+      clearDraft();
       void scheduleSync();
       router.replace({
         pathname: "/visitas-campo/[id]/receta",

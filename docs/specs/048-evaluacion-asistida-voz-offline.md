@@ -1,9 +1,10 @@
 ---
 title: Evaluacion asistida por voz completamente offline
-status: implementing
+status: cancelled
 numero: "048"
 area: mobile, accesibilidad, voz, offline, visitas
 created: 2026-08-17
+last_reviewed: 2026-08-18
 approved_by: usuario, 2026-08-17
 implemented_in:
 ---
@@ -110,7 +111,7 @@ estable compatible; nunca desinstalar para resolver una falla.
 
 ## Estado de implementacion
 
-El asistente, parsers, modelos, permiso y plugin nativo estan implementados. La
-spec permanece en `implementing` hasta completar el build Android y los
-criterios que requieren dispositivo fisico, modo avion y piloto de campo. No se
-ha publicado APK ni OTA.
+La iniciativa fue cancelada por decision del usuario el 2026-08-18. Se retiro
+el asistente del paso 1 junto con parsers, pruebas, servicio nativo, permiso de
+microfono, plugin de prebuild, modelos empaquetados y dependencias exclusivas.
+No se publico APK ni OTA con esta funcionalidad.

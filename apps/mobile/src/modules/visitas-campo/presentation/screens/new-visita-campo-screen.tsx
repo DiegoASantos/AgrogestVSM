@@ -1,13 +1,17 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
   ImageBackground,
+  Keyboard,
   Modal,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   PanResponder,
   Pressable,
+  type ScrollView,
   StyleSheet,
   TextInput,
   type LayoutChangeEvent,
@@ -25,6 +29,13 @@ import {
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
+import {
+  buildNewVisitDraftScopeKey,
+  buildVisitDraftScopeKey,
+  readVisitFormDraft,
+  type VisitFormDraftIdentity
+} from "../../../../shared/database/visit-form-drafts";
+import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft";
 import { captureCurrentDeviceLocation } from "../../../../shared/location/device-location";
 import type { GeoJsonPointGeometry } from "../../../../shared/maps/geo";
 import { toApiError } from "../../../../shared/services";
@@ -50,9 +61,19 @@ import {
   type TimePeriod
 } from "../../domain/time-input";
 import { validateRequiredPhenologicalStage } from "../../domain/required-phenological-stage";
-import type { VoiceFormField } from "../../domain/offline-voice-input";
+import {
+  buildStepOneTutorialSteps,
+  findFirstPendingTutorialStep,
+  findNextPendingTutorialStep,
+  getAreaHectaresIssue,
+  getPlantsCountIssue,
+  getSowingDateIssue,
+  mergeStepOneFormValues,
+  takePreviousTutorialStep,
+  type StepOneTutorialFieldId
+} from "../../domain/step-one-tutorial";
+import { GuidedFormTutorial } from "../components/guided-form-tutorial";
 import { Time12HourInput } from "../components/time-12-hour-input";
-import { VoiceVisitAssistantModal } from "../components/voice-visit-assistant-modal";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
@@ -62,6 +83,12 @@ type DefaultLockedFields = {
   plantsCount: boolean;
   areaHectares: boolean;
   sowingDate: boolean;
+};
+type VisitDataFormDraft = {
+  values: NewVisitaCampoFormValues;
+  defaultLockedFields: DefaultLockedFields;
+  startVisitTimeInput: string;
+  startVisitTimePeriod: TimePeriod;
 };
 type WizardStep = {
   index: number;
@@ -141,7 +168,6 @@ export function NewVisitaCampoScreen() {
     sowingDate: "",
     visitDate: today,
     startVisitTime: "",
-    endVisitTime: "",
     phenologicalStage: "",
     subEtapaId: "",
     subEtapaPercentage: "",
@@ -154,16 +180,71 @@ export function NewVisitaCampoScreen() {
   });
   const [startVisitTimeInput, setStartVisitTimeInput] = useState("");
   const [startVisitTimePeriod, setStartVisitTimePeriod] = useState<TimePeriod>("AM");
-  const [endVisitTimeInput, setEndVisitTimeInput] = useState("");
-  const [endVisitTimePeriod, setEndVisitTimePeriod] = useState<TimePeriod>("AM");
   const [errors, setErrors] = useState<NewVisitaCampoFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
+  const [isDraftReady, setIsDraftReady] = useState(false);
+  const tutorialScrollRef = useRef<ScrollView>(null);
+  const tutorialTargets = useRef<Partial<Record<StepOneTutorialFieldId, View | null>>>(
+    {}
+  );
+  const [tutorialScrollY, setTutorialScrollY] = useState(0);
+  const [tutorialStepId, setTutorialStepId] = useState<StepOneTutorialFieldId | null>(
+    null
+  );
+  const [tutorialHistory, setTutorialHistory] = useState<StepOneTutorialFieldId[]>([]);
+  const [tutorialNotice, setTutorialNotice] = useState<string | null>(null);
+  const draftIdentity = useMemo<VisitFormDraftIdentity | null>(() => {
+    const ownerUserId = session.user?.publicId;
+    const scopeKey = existingVisitaId
+      ? buildVisitDraftScopeKey(existingVisitaId)
+      : parcelaId
+        ? buildNewVisitDraftScopeKey(parcelaId)
+        : null;
+
+    return ownerUserId && scopeKey ? { ownerUserId, scopeKey, moduleKey: "datos" } : null;
+  }, [existingVisitaId, parcelaId, session.user?.publicId]);
+  const draftValue = useMemo<VisitDataFormDraft>(
+    () => ({
+      values,
+      defaultLockedFields,
+      startVisitTimeInput,
+      startVisitTimePeriod
+    }),
+    [defaultLockedFields, startVisitTimeInput, startVisitTimePeriod, values]
+  );
+  const { clearDraft } = useVisitFormDraft({
+    enabled: isDraftReady,
+    identity: draftIdentity,
+    value: draftValue
+  });
 
   useEffect(() => {
     void loadCultivos();
   }, []);
+
+  useEffect(() => {
+    if (!draftIdentity || existingVisitaId) {
+      return;
+    }
+
+    const draft = readVisitFormDraft<VisitDataFormDraft>(draftIdentity);
+    if (draft) {
+      setValues((currentValues) =>
+        mergeStepOneFormValues(currentValues, draft.values, {
+          parcelaId: currentValues.parcelaId,
+          parcelaLabel: currentValues.parcelaLabel
+        })
+      );
+      setDefaultLockedFields((current) => ({
+        ...current,
+        ...(draft.defaultLockedFields ?? {})
+      }));
+      setStartVisitTimeInput(draft.startVisitTimeInput ?? "");
+      setStartVisitTimePeriod(draft.startVisitTimePeriod ?? "AM");
+    }
+    setIsDraftReady(true);
+  }, [draftIdentity, existingVisitaId]);
 
   useEffect(() => {
     if (isEditingVisita) {
@@ -223,8 +304,7 @@ export function NewVisitaCampoScreen() {
           return;
         }
 
-        setValues((currentValues) => ({
-          ...currentValues,
+        const baseValues: NewVisitaCampoFormValues = {
           crop: visita.cropId,
           variety: visita.varietyId,
           parcelaId: visita.parcelaId,
@@ -238,7 +318,6 @@ export function NewVisitaCampoScreen() {
           sowingDate: visita.sowingDate ?? "",
           visitDate: visita.visitDate,
           startVisitTime: visita.startVisitTime,
-          endVisitTime: visita.endVisitTime ?? "",
           phenologicalStage: visita.phenologicalStageId ?? "",
           subEtapaId: visita.subEtapaId ?? "",
           subEtapaPercentage:
@@ -246,9 +325,22 @@ export function NewVisitaCampoScreen() {
               ? ""
               : String(visita.subEtapaPercentage),
           generalObservation: visita.generalObservation ?? ""
-        }));
-        syncTimeInputFromApi("startVisitTime", visita.startVisitTime);
-        syncTimeInputFromApi("endVisitTime", visita.endVisitTime ?? "");
+        };
+        const draft = draftIdentity
+          ? readVisitFormDraft<VisitDataFormDraft>(draftIdentity)
+          : null;
+        setValues(mergeStepOneFormValues(baseValues, draft?.values));
+        if (draft) {
+          setDefaultLockedFields((current) => ({
+            ...current,
+            ...(draft.defaultLockedFields ?? {})
+          }));
+          setStartVisitTimeInput(draft.startVisitTimeInput ?? "");
+          setStartVisitTimePeriod(draft.startVisitTimePeriod ?? "AM");
+        } else {
+          syncStartTimeInputFromApi(visita.startVisitTime);
+        }
+        setIsDraftReady(true);
       } catch (error) {
         if (!isActive) {
           return;
@@ -262,7 +354,7 @@ export function NewVisitaCampoScreen() {
     return () => {
       isActive = false;
     };
-  }, [existingVisitaId]);
+  }, [draftIdentity, existingVisitaId]);
 
   useEffect(() => {
     if (!values.crop) {
@@ -357,6 +449,51 @@ export function NewVisitaCampoScreen() {
     (isLoadingSubEtapas || subEtapas.length > 0 || !!subEtapasError);
   const shouldShowLaborProgress =
     selectedEtapaFenologica?.type === "Labor" && !isPendingLabor(selectedEtapaFenologica);
+  const tutorialSteps = useMemo(
+    () =>
+      buildStepOneTutorialSteps({
+        values,
+        today,
+        activeCatalog,
+        isLoadingCultivos,
+        isLoadingVariedades,
+        isLoadingEtapasFenologicas,
+        isLoadingProgress: shouldShowSubEtapas && isLoadingSubEtapas,
+        showProgress: shouldShowSubEtapas || shouldShowLaborProgress
+      }),
+    [
+      activeCatalog,
+      isLoadingCultivos,
+      isLoadingEtapasFenologicas,
+      isLoadingSubEtapas,
+      isLoadingVariedades,
+      shouldShowLaborProgress,
+      shouldShowSubEtapas,
+      today,
+      values
+    ]
+  );
+  const currentTutorialStep = tutorialStepId
+    ? (tutorialSteps.find((step) => step.id === tutorialStepId) ?? null)
+    : null;
+
+  useEffect(() => {
+    if (!tutorialStepId || currentTutorialStep) {
+      return;
+    }
+
+    const fallbackStep = findFirstPendingTutorialStep(tutorialSteps);
+    if (fallbackStep) {
+      setTutorialStepId(fallbackStep.id);
+      return;
+    }
+
+    setTutorialStepId(null);
+    setTutorialHistory([]);
+    setTutorialNotice(
+      "Tutorial terminado. Revisa los datos y pulsa Continuar cuando estes listo."
+    );
+  }, [currentTutorialStep, tutorialStepId, tutorialSteps]);
 
   if (!session.accessToken) {
     return (
@@ -393,10 +530,31 @@ export function NewVisitaCampoScreen() {
           <AppText style={styles.topBarTitle} variant="title">
             Registro de visita
           </AppText>
+          <Pressable
+            accessibilityLabel="Iniciar tutorial del formulario"
+            accessibilityRole="button"
+            disabled={isSubmitting}
+            onPress={openTutorial}
+            style={({ pressed }) => [
+              styles.tutorialButton,
+              pressed && !isSubmitting && styles.pressed,
+              isSubmitting && styles.disabledButton
+            ]}
+          >
+            <Ionicons color="#f4c95d" name="navigate" size={17} />
+            <AppText style={styles.tutorialButtonText} variant="label">
+              Tutorial
+            </AppText>
+          </Pressable>
         </View>
       </SafeAreaView>
 
-      <FormScrollView contentContainerStyle={styles.scrollContent}>
+      <FormScrollView
+        contentContainerStyle={styles.scrollContent}
+        onScroll={handleTutorialScroll}
+        ref={tutorialScrollRef}
+        scrollEventThrottle={16}
+      >
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
@@ -424,34 +582,14 @@ export function NewVisitaCampoScreen() {
             steps={WIZARD_STEPS}
           />
 
-          <View style={styles.voiceCard}>
-            <View style={styles.voiceIcon}>
-              <Ionicons color="#ffffff" name="mic" size={31} />
-            </View>
-            <View style={styles.voiceCopy}>
-              <AppText style={styles.voiceTitle} variant="heading">
-                Completar con ayuda por voz
-              </AppText>
-              <AppText style={styles.voiceDescription} variant="body">
-                Te guia pregunta por pregunta y funciona completamente sin internet.
+          {tutorialNotice ? (
+            <View style={styles.tutorialNotice}>
+              <Ionicons color="#1b4332" name="checkmark-circle" size={20} />
+              <AppText style={styles.tutorialNoticeText} variant="label">
+                {tutorialNotice}
               </AppText>
             </View>
-            <Pressable
-              accessibilityHint="Inicia preguntas habladas para completar este formulario"
-              accessibilityRole="button"
-              disabled={isSubmitting}
-              onPress={() => setIsVoiceAssistantOpen(true)}
-              style={({ pressed }) => [
-                styles.voiceButton,
-                pressed && styles.pressed,
-                isSubmitting && styles.disabledButton
-              ]}
-            >
-              <AppText style={styles.voiceButtonText} variant="label">
-                Iniciar
-              </AppText>
-            </Pressable>
-          </View>
+          ) : null}
 
           <View style={styles.formCard}>
             <View style={styles.sectionHeader}>
@@ -464,7 +602,13 @@ export function NewVisitaCampoScreen() {
             </View>
 
             <View style={isTwoColumnLayout ? styles.fieldGrid : styles.fieldStack}>
-              <View style={styles.fieldColumn}>
+              <View
+                collapsable={false}
+                ref={(node) => {
+                  tutorialTargets.current.crop = node;
+                }}
+                style={styles.fieldColumn}
+              >
                 <AppSelectField
                   disabled={isLoadingCultivos}
                   emptyMessage="No hay cultivos disponibles."
@@ -481,7 +625,13 @@ export function NewVisitaCampoScreen() {
                 />
               </View>
 
-              <View style={styles.fieldColumn}>
+              <View
+                collapsable={false}
+                ref={(node) => {
+                  tutorialTargets.current.variety = node;
+                }}
+                style={styles.fieldColumn}
+              >
                 <AppSelectField
                   disabled={!values.crop || isLoadingVariedades}
                   emptyMessage="No hay variedades para el cultivo seleccionado."
@@ -515,13 +665,19 @@ export function NewVisitaCampoScreen() {
                 />
               </View>
 
-              <View style={styles.fieldColumn}>
+              <View
+                collapsable={false}
+                ref={(node) => {
+                  tutorialTargets.current.plantsCount = node;
+                }}
+                style={styles.fieldColumn}
+              >
                 <IconTextInput
                   editable={!defaultLockedFields.plantsCount}
                   error={errors.plantsCount}
                   icon="flower-outline"
                   keyboardType="number-pad"
-                  label="Numero de plantas"
+                  label="Numero de plantas *"
                   onEditPress={() => unlockDefaultField("plantsCount")}
                   onChangeText={(value) => updateField("plantsCount", value)}
                   placeholder="Ingresa el numero"
@@ -529,13 +685,19 @@ export function NewVisitaCampoScreen() {
                 />
               </View>
 
-              <View style={styles.fieldColumn}>
+              <View
+                collapsable={false}
+                ref={(node) => {
+                  tutorialTargets.current.areaHectares = node;
+                }}
+                style={styles.fieldColumn}
+              >
                 <IconTextInput
                   editable={!defaultLockedFields.areaHectares}
                   error={errors.areaHectares}
                   icon="resize-outline"
                   keyboardType="decimal-pad"
-                  label="Area (ha)"
+                  label="Area (ha) *"
                   onEditPress={() => unlockDefaultField("areaHectares")}
                   onChangeText={(value) =>
                     updateField("areaHectares", formatDecimalInput(value))
@@ -545,13 +707,19 @@ export function NewVisitaCampoScreen() {
                 />
               </View>
 
-              <View style={styles.fieldColumn}>
+              <View
+                collapsable={false}
+                ref={(node) => {
+                  tutorialTargets.current.sowingDate = node;
+                }}
+                style={styles.fieldColumn}
+              >
                 <DatePickerField
                   allowClear
                   editable={!defaultLockedFields.sowingDate}
                   error={errors.sowingDate}
                   isOpen={activeCatalog === "sowingDate"}
-                  label="Fecha de siembra"
+                  label="Fecha de siembra *"
                   maxDate={today}
                   onClear={() => handleDateSelection("sowingDate", "")}
                   onEditPress={() => unlockDefaultField("sowingDate")}
@@ -570,34 +738,21 @@ export function NewVisitaCampoScreen() {
                 />
               </View>
 
-              <View style={styles.fieldColumn}>
+              <View
+                collapsable={false}
+                ref={(node) => {
+                  tutorialTargets.current.startVisitTime = node;
+                }}
+                style={styles.fieldColumn}
+              >
                 <Time12HourInput
                   error={errors.startVisitTime}
                   label="Hora de inicio"
-                  onChangeText={(value) => handleTimeInputChange("startVisitTime", value)}
-                  onEndEditing={() => handleTimeInputEndEditing("startVisitTime")}
-                  onPeriodChange={(period) =>
-                    handleTimePeriodChange("startVisitTime", period)
-                  }
+                  onChangeText={handleStartTimeInputChange}
+                  onEndEditing={handleStartTimeInputEndEditing}
+                  onPeriodChange={handleStartTimePeriodChange}
                   period={startVisitTimePeriod}
                   value={startVisitTimeInput}
-                />
-                <AppText style={styles.fieldHint} variant="caption">
-                  Ingresa la hora en formato 12 h
-                </AppText>
-              </View>
-
-              <View style={styles.fieldColumn}>
-                <Time12HourInput
-                  error={errors.endVisitTime}
-                  label="Hora de fin"
-                  onChangeText={(value) => handleTimeInputChange("endVisitTime", value)}
-                  onEndEditing={() => handleTimeInputEndEditing("endVisitTime")}
-                  onPeriodChange={(period) =>
-                    handleTimePeriodChange("endVisitTime", period)
-                  }
-                  period={endVisitTimePeriod}
-                  value={endVisitTimeInput}
                 />
                 <AppText style={styles.fieldHint} variant="caption">
                   Ingresa la hora en formato 12 h
@@ -616,64 +771,85 @@ export function NewVisitaCampoScreen() {
               </AppText>
             </View>
 
-            <AppSelectField
-              disabled={!values.crop}
-              emptyMessage="No hay etapas fenologicas disponibles."
-              error={getCatalogError(etapasFenologicasError, errors.phenologicalStage)}
-              icon="flower"
-              isLoading={isLoadingEtapasFenologicas}
-              isOpen={activeCatalog === "phenologicalStage"}
-              label="Etapa *"
-              onSelect={(value) => handleCatalogSelection("phenologicalStage", value)}
-              onToggle={() => toggleCatalog("phenologicalStage")}
-              options={etapaFenologicaOptions}
-              placeholder={
-                values.crop ? "Selecciona etapa" : "Selecciona primero un cultivo"
-              }
-              selectedLabel={getSelectedLabel(
-                etapaFenologicaOptions,
-                values.phenologicalStage
-              )}
-            />
+            <View
+              collapsable={false}
+              ref={(node) => {
+                tutorialTargets.current.phenologicalStage = node;
+              }}
+            >
+              <AppSelectField
+                disabled={!values.crop}
+                emptyMessage="No hay etapas fenologicas disponibles."
+                error={getCatalogError(etapasFenologicasError, errors.phenologicalStage)}
+                icon="flower"
+                isLoading={isLoadingEtapasFenologicas}
+                isOpen={activeCatalog === "phenologicalStage"}
+                label="Etapa *"
+                onSelect={(value) => handleCatalogSelection("phenologicalStage", value)}
+                onToggle={() => toggleCatalog("phenologicalStage")}
+                options={etapaFenologicaOptions}
+                placeholder={
+                  values.crop ? "Selecciona etapa" : "Selecciona primero un cultivo"
+                }
+                selectedLabel={getSelectedLabel(
+                  etapaFenologicaOptions,
+                  values.phenologicalStage
+                )}
+              />
+            </View>
 
             {shouldShowSubEtapas ? (
-              <ProgressGuide
-                error={getCatalogError(subEtapasError, errors.subEtapaPercentage)}
-                isLoading={isLoadingSubEtapas}
-                onImagePress={(subEtapa) => setSelectedSubEtapaInfo(subEtapa)}
-                onTrackLayout={(event) =>
-                  setSliderTrackWidth(event.nativeEvent.layout.width)
-                }
-                onValueChange={handleSubEtapaProgressChange}
-                onValueCommit={commitSubEtapaProgress}
-                progress={Number.isFinite(subEtapaProgress) ? subEtapaProgress : 0}
-                showMarkers
-                sliderTrackWidth={sliderTrackWidth}
-                subEtapas={subEtapas}
-                subtitle="Ajusta el avance observado del cultivo."
-                title="Sub etapa"
-                valueText={values.subEtapaPercentage}
-              />
+              <View
+                collapsable={false}
+                ref={(node) => {
+                  tutorialTargets.current.subEtapaPercentage = node;
+                }}
+              >
+                <ProgressGuide
+                  error={getCatalogError(subEtapasError, errors.subEtapaPercentage)}
+                  isLoading={isLoadingSubEtapas}
+                  onImagePress={(subEtapa) => setSelectedSubEtapaInfo(subEtapa)}
+                  onTrackLayout={(event) =>
+                    setSliderTrackWidth(event.nativeEvent.layout.width)
+                  }
+                  onValueChange={handleSubEtapaProgressChange}
+                  onValueCommit={commitSubEtapaProgress}
+                  progress={Number.isFinite(subEtapaProgress) ? subEtapaProgress : 0}
+                  showMarkers
+                  sliderTrackWidth={sliderTrackWidth}
+                  subEtapas={subEtapas}
+                  subtitle="Ajusta el avance observado del cultivo."
+                  title="Sub etapa"
+                  valueText={values.subEtapaPercentage}
+                />
+              </View>
             ) : null}
 
             {shouldShowLaborProgress ? (
-              <ProgressGuide
-                error={errors.subEtapaPercentage ?? null}
-                isLoading={false}
-                onImagePress={(subEtapa) => setSelectedSubEtapaInfo(subEtapa)}
-                onTrackLayout={(event) =>
-                  setSliderTrackWidth(event.nativeEvent.layout.width)
-                }
-                onValueChange={handleSubEtapaProgressChange}
-                onValueCommit={commitSubEtapaProgress}
-                progress={Number.isFinite(subEtapaProgress) ? subEtapaProgress : 0}
-                showMarkers={false}
-                sliderTrackWidth={sliderTrackWidth}
-                subEtapas={[]}
-                subtitle="Ajusta el porcentaje de avance de la labor."
-                title="Avance de labor"
-                valueText={values.subEtapaPercentage}
-              />
+              <View
+                collapsable={false}
+                ref={(node) => {
+                  tutorialTargets.current.subEtapaPercentage = node;
+                }}
+              >
+                <ProgressGuide
+                  error={errors.subEtapaPercentage ?? null}
+                  isLoading={false}
+                  onImagePress={(subEtapa) => setSelectedSubEtapaInfo(subEtapa)}
+                  onTrackLayout={(event) =>
+                    setSliderTrackWidth(event.nativeEvent.layout.width)
+                  }
+                  onValueChange={handleSubEtapaProgressChange}
+                  onValueCommit={commitSubEtapaProgress}
+                  progress={Number.isFinite(subEtapaProgress) ? subEtapaProgress : 0}
+                  showMarkers={false}
+                  sliderTrackWidth={sliderTrackWidth}
+                  subEtapas={[]}
+                  subtitle="Ajusta el porcentaje de avance de la labor."
+                  title="Avance de labor"
+                  valueText={values.subEtapaPercentage}
+                />
+              </View>
             ) : null}
           </View>
 
@@ -687,16 +863,23 @@ export function NewVisitaCampoScreen() {
               </AppText>
             </View>
 
-            <TextInput
-              multiline
-              numberOfLines={4}
-              onChangeText={(value) => updateField("generalObservation", value)}
-              placeholder="Observaciones generales de la visita"
-              placeholderTextColor={theme.colors.textMuted}
-              style={styles.observationInput}
-              textAlignVertical="top"
-              value={values.generalObservation}
-            />
+            <View
+              collapsable={false}
+              ref={(node) => {
+                tutorialTargets.current.generalObservation = node;
+              }}
+            >
+              <TextInput
+                multiline
+                numberOfLines={4}
+                onChangeText={(value) => updateField("generalObservation", value)}
+                placeholder="Observaciones generales de la visita"
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.observationInput}
+                textAlignVertical="top"
+                value={values.generalObservation}
+              />
+            </View>
           </View>
 
           {submitError ? (
@@ -752,18 +935,29 @@ export function NewVisitaCampoScreen() {
         onClose={() => setSelectedSubEtapaInfo(null)}
         subEtapa={selectedSubEtapaInfo}
       />
-      <VoiceVisitAssistantModal
-        cropOptions={cultivoOptions}
-        isLoadingPhenologicalStages={isLoadingEtapasFenologicas}
-        isLoadingVarieties={isLoadingVariedades}
-        onApply={handleVoiceFieldApply}
-        onClose={() => setIsVoiceAssistantOpen(false)}
-        phenologicalStageOptions={etapaFenologicaOptions}
-        today={today}
-        values={values}
-        varietyOptions={variedadOptions}
-        visible={isVoiceAssistantOpen}
-      />
+
+      {currentTutorialStep ? (
+        <GuidedFormTutorial
+          canGoBack={tutorialHistory.length > 0}
+          currentPosition={
+            tutorialSteps.findIndex((step) => step.id === currentTutorialStep.id) + 1
+          }
+          onBack={goToPreviousTutorialStep}
+          onClose={closeTutorial}
+          onNext={goToNextTutorialStep}
+          refreshKey={[
+            currentTutorialStep.id,
+            activeCatalog ?? "closed",
+            currentTutorialStep.isLoading ? "loading" : "ready",
+            width
+          ].join(":")}
+          scrollRef={tutorialScrollRef}
+          scrollY={tutorialScrollY}
+          step={currentTutorialStep}
+          target={tutorialTargets.current[currentTutorialStep.id] ?? null}
+          totalSteps={tutorialSteps.length}
+        />
+      ) : null}
     </ScreenContainer>
   );
 
@@ -789,67 +983,101 @@ export function NewVisitaCampoScreen() {
     }));
   }
 
-  function syncTimeInputFromApi(field: "startVisitTime" | "endVisitTime", value: string) {
-    const displayValue = formatTimeFor12HourInput(value);
+  function handleTutorialScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    setTutorialScrollY(event.nativeEvent.contentOffset.y);
+  }
 
-    if (field === "startVisitTime") {
-      setStartVisitTimeInput(displayValue.time);
-      setStartVisitTimePeriod(displayValue.period);
+  function openTutorial() {
+    Keyboard.dismiss();
+    setActiveCatalog(null);
+    setTutorialNotice(null);
+    setTutorialHistory([]);
+
+    const firstPendingStep = findFirstPendingTutorialStep(tutorialSteps);
+    if (!firstPendingStep) {
+      setTutorialStepId(null);
+      setTutorialNotice("Todos los campos del paso 1 ya estan completos.");
       return;
     }
 
-    setEndVisitTimeInput(displayValue.time);
-    setEndVisitTimePeriod(displayValue.period);
+    setTutorialStepId(firstPendingStep.id);
   }
 
-  function handleTimeInputChange(
-    field: "startVisitTime" | "endVisitTime",
-    value: string
-  ) {
-    const period = field === "startVisitTime" ? startVisitTimePeriod : endVisitTimePeriod;
-    const previousValue =
-      field === "startVisitTime" ? startVisitTimeInput : endVisitTimeInput;
-    const nextValue = formatEditable12HourInput(previousValue, value);
+  function closeTutorial() {
+    Keyboard.dismiss();
+    setActiveCatalog(null);
+    setTutorialStepId(null);
+    setTutorialHistory([]);
+  }
 
-    if (field === "startVisitTime") {
-      setStartVisitTimeInput(nextValue);
-    } else {
-      setEndVisitTimeInput(nextValue);
+  function goToPreviousTutorialStep() {
+    const { previousId, remainingHistory } = takePreviousTutorialStep(tutorialHistory);
+    if (!previousId) {
+      return;
     }
 
+    Keyboard.dismiss();
+    setActiveCatalog(null);
+    setTutorialHistory(remainingHistory);
+    setTutorialStepId(previousId);
+  }
+
+  function goToNextTutorialStep() {
+    if (!currentTutorialStep?.isEnabled) {
+      return;
+    }
+
+    if (!currentTutorialStep.isComplete && !currentTutorialStep.isOptional) {
+      return;
+    }
+
+    Keyboard.dismiss();
+    setActiveCatalog(null);
+    const nextStep = findNextPendingTutorialStep(tutorialSteps, currentTutorialStep.id);
+
+    if (!nextStep) {
+      setTutorialStepId(null);
+      setTutorialHistory([]);
+      setTutorialNotice(
+        "Tutorial terminado. Revisa los datos y pulsa Continuar cuando estes listo."
+      );
+      return;
+    }
+
+    setTutorialHistory((history) => [...history, currentTutorialStep.id]);
+    setTutorialStepId(nextStep.id);
+  }
+
+  function syncStartTimeInputFromApi(value: string) {
+    const displayValue = formatTimeFor12HourInput(value);
+    setStartVisitTimeInput(displayValue.time);
+    setStartVisitTimePeriod(displayValue.period);
+  }
+
+  function handleStartTimeInputChange(value: string) {
+    const nextValue = formatEditable12HourInput(startVisitTimeInput, value);
+    setStartVisitTimeInput(nextValue);
+
     updateField(
-      field,
-      isComplete12HourInput(nextValue) ? normalize12HourTimeForApi(nextValue, period) : ""
+      "startVisitTime",
+      isComplete12HourInput(nextValue)
+        ? normalize12HourTimeForApi(nextValue, startVisitTimePeriod)
+        : ""
     );
   }
 
-  function handleTimeInputEndEditing(field: "startVisitTime" | "endVisitTime") {
-    const value = field === "startVisitTime" ? startVisitTimeInput : endVisitTimeInput;
-    const period = field === "startVisitTime" ? startVisitTimePeriod : endVisitTimePeriod;
-    const normalizedValue = normalizeTyped12HourInput(value);
-
-    if (field === "startVisitTime") {
-      setStartVisitTimeInput(normalizedValue);
-    } else {
-      setEndVisitTimeInput(normalizedValue);
-    }
-
-    updateField(field, normalize12HourTimeForApi(normalizedValue, period));
+  function handleStartTimeInputEndEditing() {
+    const normalizedValue = normalizeTyped12HourInput(startVisitTimeInput);
+    setStartVisitTimeInput(normalizedValue);
+    updateField(
+      "startVisitTime",
+      normalize12HourTimeForApi(normalizedValue, startVisitTimePeriod)
+    );
   }
 
-  function handleTimePeriodChange(
-    field: "startVisitTime" | "endVisitTime",
-    period: TimePeriod
-  ) {
-    const value = field === "startVisitTime" ? startVisitTimeInput : endVisitTimeInput;
-
-    if (field === "startVisitTime") {
-      setStartVisitTimePeriod(period);
-    } else {
-      setEndVisitTimePeriod(period);
-    }
-
-    updateField(field, normalize12HourTimeForApi(value, period));
+  function handleStartTimePeriodChange(period: TimePeriod) {
+    setStartVisitTimePeriod(period);
+    updateField("startVisitTime", normalize12HourTimeForApi(startVisitTimeInput, period));
   }
 
   function toggleCatalog(field: ActiveVisitaField) {
@@ -896,38 +1124,6 @@ export function NewVisitaCampoScreen() {
     }
 
     setActiveCatalog(null);
-  }
-
-  function handleVoiceFieldApply(field: VoiceFormField, value: string) {
-    if (field === "crop" || field === "variety" || field === "phenologicalStage") {
-      handleCatalogSelection(field, value);
-      return;
-    }
-
-    if (field === "plantsCount" || field === "areaHectares") {
-      unlockDefaultField(field);
-      updateField(field, value);
-      return;
-    }
-
-    if (field === "sowingDate") {
-      unlockDefaultField(field);
-      handleDateSelection(field, value);
-      return;
-    }
-
-    if (field === "startVisitTime" || field === "endVisitTime") {
-      updateField(field, value);
-      syncTimeInputFromApi(field, value);
-      return;
-    }
-
-    if (field === "subEtapaPercentage") {
-      commitSubEtapaProgress(value);
-      return;
-    }
-
-    updateField(field, value);
   }
 
   function handleDateSelection(field: "sowingDate", value: string) {
@@ -1022,6 +1218,8 @@ export function NewVisitaCampoScreen() {
             accessToken: session.accessToken,
             tokenType: session.tokenType
           });
+
+      clearDraft();
 
       router.replace({
         pathname: "/visitas-campo/[id]/observaciones-sanitarias",
@@ -2032,27 +2230,27 @@ function validateForm(
     nextErrors.parcelaId = "No se encontro una parcela valida.";
   }
 
-  if (values.plantsCount.trim().length > 0) {
-    const plantsCount = Number(values.plantsCount);
-
-    if (!Number.isInteger(plantsCount) || plantsCount < 0) {
-      nextErrors.plantsCount =
-        "Numero de plantas debe ser un entero mayor o igual a cero.";
-    }
+  const plantsCountIssue = getPlantsCountIssue(values.plantsCount);
+  if (plantsCountIssue === "missing") {
+    nextErrors.plantsCount = "Ingresa el numero de plantas.";
+  } else if (plantsCountIssue === "invalid") {
+    nextErrors.plantsCount = "Numero de plantas debe ser un entero mayor o igual a cero.";
   }
 
-  if (values.areaHectares.trim().length > 0) {
-    const areaHectares = Number(values.areaHectares);
-
-    if (!Number.isFinite(areaHectares) || areaHectares <= 0) {
-      nextErrors.areaHectares = "Area debe ser un numero mayor que cero.";
-    }
+  const areaHectaresIssue = getAreaHectaresIssue(values.areaHectares);
+  if (areaHectaresIssue === "missing") {
+    nextErrors.areaHectares = "Ingresa el area en hectareas.";
+  } else if (areaHectaresIssue === "invalid") {
+    nextErrors.areaHectares = "Area debe ser un numero mayor que cero.";
   }
 
-  if (values.sowingDate) {
+  const sowingDateIssue = getSowingDateIssue(values.sowingDate, today);
+  if (sowingDateIssue === "missing") {
+    nextErrors.sowingDate = "Selecciona la fecha de siembra.";
+  } else if (sowingDateIssue === "invalid") {
     if (!DATE_PATTERN.test(values.sowingDate.trim())) {
       nextErrors.sowingDate = "Fecha de siembra debe tener formato AAAA-MM-DD.";
-    } else if (compareDateValues(values.sowingDate, today) > 0) {
+    } else {
       nextErrors.sowingDate = "Fecha de siembra no puede ser mayor a la fecha actual.";
     }
   }
@@ -2067,18 +2265,6 @@ function validateForm(
     nextErrors.startVisitTime = "La hora de inicio es obligatoria.";
   } else if (!TIME_PATTERN.test(values.startVisitTime.trim())) {
     nextErrors.startVisitTime = "Hora de inicio debe tener formato HH:mm.";
-  }
-
-  if (values.endVisitTime.trim()) {
-    if (!TIME_PATTERN.test(values.endVisitTime.trim())) {
-      nextErrors.endVisitTime = "Hora de fin debe tener formato HH:mm.";
-    } else if (
-      values.startVisitTime.trim() &&
-      normalizeTimeForApi(values.startVisitTime) >
-        normalizeTimeForApi(values.endVisitTime)
-    ) {
-      nextErrors.startVisitTime = "Hora de inicio no puede ser mayor a la hora de fin.";
-    }
   }
 
   if (values.subEtapaPercentage.trim().length > 0) {
@@ -2135,9 +2321,6 @@ function buildCreateDraft(
     ...(values.sowingDate.trim() ? { sowingDate: values.sowingDate.trim() } : {}),
     visitDate: values.visitDate.trim(),
     startVisitTime: normalizeTimeForApi(values.startVisitTime),
-    endVisitTime: values.endVisitTime.trim()
-      ? normalizeTimeForApi(values.endVisitTime)
-      : null,
     phenologicalStageId: values.phenologicalStage,
     ...(values.subEtapaId ? { subEtapaId: values.subEtapaId } : {}),
     ...(values.subEtapaPercentage.trim()
@@ -2456,8 +2639,8 @@ const styles = StyleSheet.create({
     minHeight: 86,
     flexDirection: "row",
     alignItems: "center",
-    gap: 18,
-    paddingHorizontal: 20,
+    gap: 10,
+    paddingHorizontal: 14,
     paddingBottom: 16,
     backgroundColor: "#064b31"
   },
@@ -2471,9 +2654,23 @@ const styles = StyleSheet.create({
   topBarTitle: {
     flex: 1,
     color: "#ffffff",
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 26,
+    lineHeight: 31,
     letterSpacing: 0
+  },
+  tutorialButton: {
+    alignItems: "center",
+    borderColor: "rgba(244, 201, 93, 0.58)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: 12
+  },
+  tutorialButtonText: {
+    color: "#ffffff",
+    fontSize: 13
   },
   scrollContent: {
     paddingBottom: 18,
@@ -2521,6 +2718,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingTop: 15,
     paddingBottom: 16
+  },
+  tutorialNotice: {
+    alignItems: "center",
+    backgroundColor: "#e8f5ec",
+    borderColor: "#b8d9c3",
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 12
+  },
+  tutorialNoticeText: {
+    color: "#1b4332",
+    flex: 1
   },
   progressCard: {
     flexDirection: "row",
@@ -2606,53 +2818,6 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     borderRadius: 4,
     backgroundColor: "#3f8f21"
-  },
-  voiceCard: {
-    alignItems: "center",
-    backgroundColor: "#e9f5ee",
-    borderColor: "#95d5b2",
-    borderRadius: 20,
-    borderWidth: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 14,
-    padding: 17
-  },
-  voiceIcon: {
-    alignItems: "center",
-    backgroundColor: "#176b2d",
-    borderRadius: 28,
-    height: 56,
-    justifyContent: "center",
-    width: 56
-  },
-  voiceCopy: {
-    flex: 1,
-    minWidth: 210
-  },
-  voiceTitle: {
-    color: "#073b2a",
-    fontSize: 19,
-    lineHeight: 24
-  },
-  voiceDescription: {
-    color: "#45675a",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4
-  },
-  voiceButton: {
-    alignItems: "center",
-    backgroundColor: "#176b2d",
-    borderRadius: 14,
-    justifyContent: "center",
-    minHeight: 50,
-    minWidth: 104,
-    paddingHorizontal: 18
-  },
-  voiceButtonText: {
-    color: "#ffffff",
-    fontSize: 16
   },
   formCard: {
     gap: 16,

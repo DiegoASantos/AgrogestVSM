@@ -2,7 +2,7 @@
 title: Rollback de despliegues
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-08-18
 ---
 
 # Rollback de despliegues
@@ -58,3 +58,8 @@ runtime.
 No escribir migraciones destructivas con rollback automático basado únicamente
 en `DROP`. Para datos empresariales se prefiere una migración correctiva
 auditada o una restauración aprobada.
+
+En cargas aditivas de catalogos, no borrar automaticamente las filas insertadas:
+pueden estar referenciadas por recetas o por dispositivos offline. Ante una
+carga incorrecta, respaldar primero, identificar por nombre y tipo las filas
+afectadas y aplicar una correccion hacia adelante o una baja logica aprobada.

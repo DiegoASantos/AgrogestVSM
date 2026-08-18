@@ -35,7 +35,14 @@ import {
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
+import {
+  buildVisitDraftScopeKey,
+  readVisitFormDraft,
+  type VisitFormDraftIdentity
+} from "../../../../shared/database/visit-form-drafts";
+import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft";
 import { toApiError } from "../../../../shared/services";
+import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { nutricionService } from "../../../nutricion/services";
 import type {
   NutrientCatalogItem,
@@ -135,9 +142,18 @@ type NutritionSelection = {
   incidencePercentage: string;
   organosAfectados: OrganoAfectado[];
 };
+type NutritionFormDraft = {
+  selections: Record<string, NutritionSelection>;
+  scoreValue: number | null;
+  scoreJustificado: boolean | null;
+  categoriaJustificacion: string | null;
+  motivoJustificacion: string | null;
+  stepObservation: string;
+};
 
 export function VisitaNutricionScreen() {
   const router = useRouter();
+  const { session } = useAuthSession();
   const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
@@ -159,6 +175,41 @@ export function VisitaNutricionScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isDraftReady, setIsDraftReady] = useState(false);
+  const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
+    () =>
+      session.user?.publicId && visitaId
+        ? {
+            ownerUserId: session.user.publicId,
+            scopeKey: buildVisitDraftScopeKey(visitaId),
+            moduleKey: "nutricion"
+          }
+        : null,
+    [session.user?.publicId, visitaId]
+  );
+  const draftValue = useMemo<NutritionFormDraft>(
+    () => ({
+      selections,
+      scoreValue,
+      scoreJustificado,
+      categoriaJustificacion,
+      motivoJustificacion,
+      stepObservation
+    }),
+    [
+      categoriaJustificacion,
+      motivoJustificacion,
+      scoreJustificado,
+      scoreValue,
+      selections,
+      stepObservation
+    ]
+  );
+  const { clearDraft } = useVisitFormDraft({
+    enabled: isDraftReady && !isLoading && !error,
+    identity: draftIdentity,
+    value: draftValue
+  });
 
   useEffect(() => {
     if (!visitaId) {
@@ -168,7 +219,7 @@ export function VisitaNutricionScreen() {
     }
 
     void loadStep(visitaId);
-  }, [visitaId]);
+  }, [draftIdentity, visitaId]);
 
   return (
     <ScreenContainer contentStyle={styles.container}>
@@ -329,6 +380,7 @@ export function VisitaNutricionScreen() {
 
   async function loadStep(id: string) {
     setIsLoading(true);
+    setIsDraftReady(false);
     setError(null);
     setSubmitError(null);
 
@@ -358,19 +410,52 @@ export function VisitaNutricionScreen() {
         id,
         "nutricion"
       );
+      const draft = draftIdentity
+        ? readVisitFormDraft<NutritionFormDraft>(draftIdentity)
+        : null;
+      const restoredSelections = draft
+        ? Object.fromEntries(
+            sortedNutrients.flatMap((nutrient) => {
+              const selection = draft.selections?.[nutrient.id];
+              if (!selection) {
+                return [];
+              }
+              const detailId = nutrient.details.some(
+                (detail) => detail.id === selection.detailId
+              )
+                ? selection.detailId
+                : null;
+              return [[nutrient.id, { ...selection, detailId }]];
+            })
+          )
+        : null;
 
       setNutrients(sortedNutrients);
       setEvaluaciones(nextEvaluaciones);
-      setSelections(buildSelectionMap(nextEvaluaciones, sortedNutrients));
-      setScoreValue(currentCalificacion?.puntaje ?? null);
-      setScoreJustificado(
-        currentCalificacion && currentCalificacion.puntaje < 3
-          ? (currentCalificacion.justificado ?? false)
-          : null
+      setSelections(
+        restoredSelections ?? buildSelectionMap(nextEvaluaciones, sortedNutrients)
       );
-      setCategoriaJustificacion(currentCalificacion?.categoriaJustificacion ?? null);
-      setMotivoJustificacion(currentCalificacion?.motivoJustificacion ?? null);
-      setStepObservation(nextStepNote?.observation ?? "");
+      setScoreValue(draft ? draft.scoreValue : (currentCalificacion?.puntaje ?? null));
+      setScoreJustificado(
+        draft
+          ? draft.scoreJustificado
+          : currentCalificacion && currentCalificacion.puntaje < 3
+            ? (currentCalificacion.justificado ?? false)
+            : null
+      );
+      setCategoriaJustificacion(
+        draft
+          ? draft.categoriaJustificacion
+          : (currentCalificacion?.categoriaJustificacion ?? null)
+      );
+      setMotivoJustificacion(
+        draft
+          ? draft.motivoJustificacion
+          : (currentCalificacion?.motivoJustificacion ?? null)
+      );
+      setStepObservation(
+        draft ? draft.stepObservation : (nextStepNote?.observation ?? "")
+      );
       try {
         setRecetaAnterior(
           await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id)
@@ -378,6 +463,7 @@ export function VisitaNutricionScreen() {
       } catch {
         setRecetaAnterior({ existe: false });
       }
+      setIsDraftReady(true);
     } catch (nextError) {
       const apiError = toApiError(nextError);
       setError(apiError.message || "No se pudo cargar nutricion.");
@@ -567,6 +653,8 @@ export function VisitaNutricionScreen() {
         observation: stepObservation.trim() || null,
         finalizedAt: new Date().toISOString()
       });
+
+      clearDraft();
 
       router.replace({
         pathname: "/visitas-campo/[id]/riego",

@@ -225,6 +225,18 @@ describe("visitasCampoRepository", () => {
         })
       );
     });
+
+    it("preserva la hora de fin cuando datos basicos no la incluyen", () => {
+      database.getFirstSync.mockReturnValue(visitaRow);
+
+      visitasCampoRepository.update("v1", { plantsCount: 125 });
+
+      const updateStatement = sqlOf(database.runSync.mock.calls).find((statement) =>
+        statement.includes("plants_count = ?")
+      );
+      expect(updateStatement).toContain("plants_count = ?");
+      expect(updateStatement).not.toContain("end_visit_time = ?");
+    });
   });
 
   describe("#deleteLocalAggregateById", () => {

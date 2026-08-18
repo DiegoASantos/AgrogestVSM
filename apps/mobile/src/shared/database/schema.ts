@@ -502,6 +502,17 @@ export const SQL_SCHEMA = [
     key TEXT PRIMARY KEY NOT NULL,
     value TEXT
   )`,
+  `CREATE TABLE IF NOT EXISTS visit_form_drafts (
+    owner_user_id TEXT NOT NULL,
+    scope_key TEXT NOT NULL,
+    module_key TEXT NOT NULL CHECK(module_key IN ('datos','plagas','enfermedades','nutricion','riego','labores','receta')),
+    payload_json TEXT NOT NULL,
+    schema_version INTEGER NOT NULL DEFAULT 1 CHECK(schema_version > 0),
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (owner_user_id, scope_key, module_key)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_visit_form_drafts_owner_scope
+    ON visit_form_drafts(owner_user_id, scope_key)`,
   `CREATE TABLE IF NOT EXISTS sync_state (
     id TEXT PRIMARY KEY NOT NULL,
     window_json TEXT NOT NULL DEFAULT '[]',

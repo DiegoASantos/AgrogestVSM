@@ -29,8 +29,15 @@ import {
 import { AppSelectField } from "../../../../shared/components/app-select-field";
 import { theme } from "../../../../shared/constants/theme";
 import { useCatalogDownloadStatus } from "../../../../shared/database/catalog-download-state";
+import {
+  buildVisitDraftScopeKey,
+  readVisitFormDraft,
+  type VisitFormDraftIdentity
+} from "../../../../shared/database/visit-form-drafts";
+import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft";
 import { toApiError } from "../../../../shared/services";
 import { scheduleSync } from "../../../../shared/sync";
+import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
 import {
   formatEditable12HourInput,
@@ -50,6 +57,10 @@ import {
   validarMezcla
 } from "../../domain/validacion-mezclas";
 import { visitaRecetasService, type SaveRecetaData } from "../../services";
+import {
+  LABOR_RECOMENDACION_LABELS,
+  RIEGO_RECOMENDACION_LABELS
+} from "../../types";
 import type {
   ConsolidacionHallazgo,
   CoadyuvanteCatalogItem,
@@ -103,6 +114,9 @@ import {
   restoreFertilizaciones,
   restoreFitosanidadApps,
   restoreMezclas,
+  sanitizeDraftFertilizaciones,
+  sanitizeDraftFitosanidad,
+  sanitizeDraftMezclas,
   type AppFertilizacion,
   type AppFitosanidad,
   type AppIngrediente,
@@ -112,7 +126,25 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
+const VALID_RIEGO_RECOMMENDATIONS = new Set(
+  Object.keys(RIEGO_RECOMENDACION_LABELS)
+);
+const VALID_LABOR_RECOMMENDATIONS = new Set(
+  Object.keys(LABOR_RECOMENDACION_LABELS)
+);
+
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
+type RecetaFormDraft = {
+  endVisitTimeInput: string;
+  endVisitTimePeriod: TimePeriod;
+  preventiveObjectiveType: "plaga" | "enfermedad";
+  preventiveTargetId: string;
+  fitosanidadApps: AppFitosanidad[];
+  mezclas: AppMezcla[];
+  fertilizaciones: AppFertilizacion[];
+  riegoSelection: string | null;
+  laborSelections: string[];
+};
 
 function formatCatalogConcentration(concentration: string, measurementUnit: string) {
   return [concentration.trim(), measurementUnit.trim()].filter(Boolean).join(" ");
@@ -125,6 +157,7 @@ function toSingleParam(value: string | string[] | undefined): string | null {
 
 export function VisitaRecetaScreen() {
   const router = useRouter();
+  const { session } = useAuthSession();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const visitaId = toSingleParam(params.id);
 
@@ -168,10 +201,51 @@ export function VisitaRecetaScreen() {
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [ordenExchangeResetToken, setOrdenExchangeResetToken] = useState(0);
+  const [isDraftReady, setIsDraftReady] = useState(false);
   const loadRequestRef = useRef(0);
   const compatibilityAlertOpenRef = useRef(false);
   const catalogDownloadStatus = useCatalogDownloadStatus();
   const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
+  const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
+    () =>
+      session.user?.publicId && visitaId
+        ? {
+            ownerUserId: session.user.publicId,
+            scopeKey: buildVisitDraftScopeKey(visitaId),
+            moduleKey: "receta"
+          }
+        : null,
+    [session.user?.publicId, visitaId]
+  );
+  const draftValue = useMemo<RecetaFormDraft>(
+    () => ({
+      endVisitTimeInput,
+      endVisitTimePeriod,
+      preventiveObjectiveType,
+      preventiveTargetId,
+      fitosanidadApps,
+      mezclas,
+      fertilizaciones,
+      riegoSelection,
+      laborSelections: Array.from(laborSelections).sort()
+    }),
+    [
+      endVisitTimeInput,
+      endVisitTimePeriod,
+      fertilizaciones,
+      fitosanidadApps,
+      laborSelections,
+      mezclas,
+      preventiveObjectiveType,
+      preventiveTargetId,
+      riegoSelection
+    ]
+  );
+  const { clearDraft } = useVisitFormDraft({
+    enabled: isDraftReady && !isLoading && !error,
+    identity: draftIdentity,
+    value: draftValue
+  });
 
   const availablePreventiveTargets = useMemo(() => {
     return getAvailablePreventiveTargets(
@@ -211,7 +285,7 @@ export function VisitaRecetaScreen() {
         loadRequestRef.current += 1;
       }
     };
-  }, [visitaId]);
+  }, [draftIdentity, visitaId]);
 
   useEffect(() => {
     const downloadWasActive = catalogDownloadWasActiveRef.current;
@@ -288,6 +362,7 @@ export function VisitaRecetaScreen() {
 
   function loadAll(vId: string, requestId: number) {
     setIsLoading(true);
+    setIsDraftReady(false);
     setError(null);
     try {
       const catalogos = visitaRecetasService.getCatalogos();
@@ -300,11 +375,11 @@ export function VisitaRecetaScreen() {
       setFertilizantes(catalogos.fertilizantes);
 
       const visita = visitasCampoRepository.getById(vId);
-      setPreventiveTargets(
+      const currentPreventiveTargets =
         visitaRecetasService.getPreventivePestDiseases(
           visita?.phenologicalStageId ?? null
-        )
-      );
+        );
+      setPreventiveTargets(currentPreventiveTargets);
       const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
       const localConsData = visitaRecetasService.getConsolidacionLocal(vId);
       const recetaData = visitaRecetasService.getByVisitaId(vId);
@@ -360,6 +435,61 @@ export function VisitaRecetaScreen() {
         );
       }
 
+      const draft = draftIdentity
+        ? readVisitFormDraft<RecetaFormDraft>(draftIdentity)
+        : null;
+      if (draft) {
+        const preventiveObjectiveType =
+          draft.preventiveObjectiveType === "enfermedad" ? "enfermedad" : "plaga";
+        const draftFitosanidad = sanitizeDraftFitosanidad(
+          Array.isArray(draft.fitosanidadApps) ? draft.fitosanidadApps : [],
+          catalogos
+        );
+        const draftMezclas = sanitizeDraftMezclas(
+          Array.isArray(draft.mezclas) ? draft.mezclas : [],
+          draftFitosanidad,
+          catalogos.coadyuvantes
+        );
+        const draftFertilizaciones = sanitizeDraftFertilizaciones(
+          Array.isArray(draft.fertilizaciones) ? draft.fertilizaciones : [],
+          catalogos.fertilizantes
+        );
+        const preventiveTargetIsValid = currentPreventiveTargets.some(
+          (target) =>
+            target.id === draft.preventiveTargetId &&
+            target.type === preventiveObjectiveType
+        );
+
+        setEndVisitTimeInput(draft.endVisitTimeInput ?? "");
+        setEndVisitTimePeriod(draft.endVisitTimePeriod ?? "AM");
+        setPreventiveObjectiveType(preventiveObjectiveType);
+        setPreventiveTargetId(
+          preventiveTargetIsValid ? (draft.preventiveTargetId ?? "") : ""
+        );
+        setFitosanidadApps(draftFitosanidad);
+        setMezclas(draftMezclas);
+        setFertilizaciones(
+          draftFertilizaciones.length > 0
+            ? draftFertilizaciones
+            : [createEmptyFertilizacion()]
+        );
+        setRiegoSelection(
+          draft.riegoSelection &&
+            VALID_RIEGO_RECOMMENDATIONS.has(draft.riegoSelection)
+            ? draft.riegoSelection
+            : null
+        );
+        setLaborSelections(
+          new Set(
+            (Array.isArray(draft.laborSelections)
+              ? draft.laborSelections
+              : []
+            ).filter((labor) => VALID_LABOR_RECOMMENDATIONS.has(labor))
+          )
+        );
+      }
+
+      setIsDraftReady(true);
       setIsLoading(false);
       void refreshConsolidacionFromRemote(vId, localConsData, requestId);
     } catch (err) {
@@ -807,6 +937,7 @@ export function VisitaRecetaScreen() {
       };
 
       visitaRecetasService.save(vId, data);
+      clearDraft();
 
       const updated = visitaRecetasService.getByVisitaId(vId);
       setRecetaData(updated);

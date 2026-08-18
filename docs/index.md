@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-17
+last_reviewed: 2026-08-18
 ---
 
 # Documentación de AgroGest VSM
@@ -97,7 +97,10 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Conectividad hibrida y modo offline controlado en mobile](specs/045-conectividad-hibrida-mobile.md)
 - [Concentraciones ampliadas y permiso para eliminar visitas](specs/046-concentraciones-ampliadas-permiso-eliminar-visitas.md)
 - [Reconciliacion de catalogos de receta en mobile](specs/047-reconciliacion-catalogos-receta-mobile.md)
-- [Evaluacion asistida por voz completamente offline](specs/048-evaluacion-asistida-voz-offline.md)
+- [Spec 048 cancelada: evaluacion asistida por voz completamente offline](specs/048-evaluacion-asistida-voz-offline.md)
+- [Borradores persistentes en visitas mobile](specs/049-borradores-persistentes-visitas-mobile.md)
+- [Carga idempotente del catalogo agroquimico desde Excel](specs/050-catalogo-agroquimicos-excel.md)
+- [Tutorial visual guiado para el paso 1 de visitas](specs/051-tutorial-guiado-paso-1-visita.md)
 
 ## Runbooks
 
