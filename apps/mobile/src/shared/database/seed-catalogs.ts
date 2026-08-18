@@ -18,6 +18,7 @@ import {
   notifyCatalogDownloadStarted
 } from "./catalog-download-state";
 import { initDatabase } from "./connection";
+import { runInSafeTransactionSync } from "./safe-transaction";
 import { getNowIsoString, stringifyNullableJson, toSqliteBoolean } from "./sqlite-utils";
 
 let catalogDownloadInFlight: Promise<void> | null = null;
@@ -118,7 +119,7 @@ async function performCatalogDownload() {
     db.execSync("PRAGMA foreign_keys = OFF");
 
     try {
-      db.withTransactionSync(() => {
+      runInSafeTransactionSync(db, () => {
         db.runSync(
           `UPDATE productores
            SET catalog_visible = 0

@@ -14,7 +14,9 @@ export function runInSafeTransactionSync(db: SQLiteDatabase, task: () => void): 
   db.execSync("BEGIN");
   try {
     task();
-    db.execSync("COMMIT");
+    if (db.isInTransactionSync()) {
+      db.execSync("COMMIT");
+    }
   } catch (error) {
     if (db.isInTransactionSync()) {
       try {

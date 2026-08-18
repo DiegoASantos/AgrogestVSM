@@ -1,6 +1,7 @@
 import { type SQLiteDatabase } from "expo-sqlite";
 
 import { SQL_SCHEMA } from "./schema";
+import { runInSafeTransactionSync } from "./safe-transaction";
 
 type Migration = {
   version: number;
@@ -1723,7 +1724,7 @@ export function runMigrations(db: SQLiteDatabase) {
   );
 
   for (const migration of pending) {
-    db.withTransactionSync(() => {
+    runInSafeTransactionSync(db, () => {
       if (migration.run) {
         migration.run(db);
       }

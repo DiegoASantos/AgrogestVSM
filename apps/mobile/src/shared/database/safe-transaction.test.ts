@@ -37,4 +37,27 @@ describe("runInSafeTransactionSync", () => {
     expect(task).toHaveBeenCalledOnce();
     expect(db.execSync).not.toHaveBeenCalled();
   });
+
+  it("does not commit again when the task already closed the transaction", () => {
+    let inTransaction = false;
+    const db = {
+      execSync: vi.fn((statement: string) => {
+        if (statement === "BEGIN") inTransaction = true;
+        if (statement === "COMMIT" || statement === "ROLLBACK") {
+          inTransaction = false;
+        }
+      }),
+      isInTransactionSync: vi.fn(() => inTransaction),
+      withTransactionSync: vi.fn()
+    };
+
+    expect(() =>
+      runInSafeTransactionSync(db as never, () => {
+        inTransaction = false;
+      })
+    ).not.toThrow();
+    expect(db.execSync).toHaveBeenCalledWith("BEGIN");
+    expect(db.execSync).not.toHaveBeenCalledWith("COMMIT");
+    expect(db.execSync).not.toHaveBeenCalledWith("ROLLBACK");
+  });
 });

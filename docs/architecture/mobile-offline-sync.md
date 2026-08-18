@@ -331,6 +331,14 @@ canonico del ingrediente. Asi se retira de los selectores un catalogo
 desactivado remotamente sin borrar altas locales no confirmadas, afectar recetas
 historicas ni depender del estado previo del push.
 
+Las migraciones y la escritura completa de una descarga usan el wrapper
+transaccional seguro compartido. Antes de abrir `BEGIN` consultan
+`isInTransactionSync`: si ya existe una transaccion, la reutilizan sin anidar
+otro `BEGIN`; al terminar solo ejecutan `COMMIT` o `ROLLBACK` cuando SQLite
+confirma que la transaccion sigue activa. Esto evita que un cierre previo
+reemplace el resultado real por `cannot commit/rollback - no transaction is
+active`, sin retirar datos ni operaciones pendientes.
+
 Un alta fallida requiere una accion explicita desde Errores de sincronizacion.
 `Volver a enviar` conserva `id`, `public_id`, propietario y valores SQLite,
 elimina el fallo anterior y crea una sola operacion de outbox. `Descartar alta

@@ -32,8 +32,8 @@ otras operaciones pendientes.
 - Conservar en mobile el detalle de validacion devuelto por la API.
 - Marcar ingredientes, fertilizantes y marcas con fallo permanente como
   `error`, sin reencolarlos automaticamente mientras exista `sync_failures`.
-- Evitar que el wrapper transaccional sustituya el error original por
-  `cannot rollback - no transaction is active`.
+- Evitar que el wrapper transaccional sustituya el resultado original por
+  `cannot commit/rollback - no transaction is active`.
 - Persistir el `publicId` enviado por mobile al crear los tres catalogos para
   garantizar idempotencia real.
 - Permitir corregir y reintentar un alta fallida usando SQLite como fuente.
@@ -146,8 +146,8 @@ aprobacion del responsable productivo.
       403 al intentar la misma operacion.
 - [x] CA-008: Refrescar catalogos oculta inactivos, conserva pendientes y no
       altera recetas ni visitas.
-- [x] CA-009: Ningun fallo de callback sin transaccion activa queda sustituido
-      por un error de rollback.
+- [x] CA-009: Ningun callback sin transaccion activa queda sustituido por un
+      error secundario de commit o rollback.
 - [ ] CA-010: La base SQLite productiva representativa migra sin perder los ocho
       fallos ni otras operaciones pendientes.
 

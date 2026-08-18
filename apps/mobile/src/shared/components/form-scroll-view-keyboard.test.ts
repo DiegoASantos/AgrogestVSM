@@ -1,10 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
-  FORM_KEYBOARD_EXTRA_OFFSET,
   getFormKeyboardAvoidingBehavior,
-  scrollFocusedInputIntoView,
-  type KeyboardScrollable
+  getFocusedInputScrollOffset
 } from "./form-scroll-view-keyboard";
 
 describe("form scroll view keyboard behavior", () => {
@@ -17,32 +15,36 @@ describe("form scroll view keyboard behavior", () => {
     expect(getFormKeyboardAvoidingBehavior("web")).toBeUndefined();
   });
 
-  it("keeps the focused input above the keyboard with a safe offset", () => {
-    const target = { nativeTag: 42 };
-    const scrollToKeyboard = vi.fn();
-    const scrollView: KeyboardScrollable = {
-      scrollResponderScrollNativeHandleToKeyboard: scrollToKeyboard
-    };
-
-    scrollFocusedInputIntoView(scrollView, target);
-
-    expect(scrollToKeyboard).toHaveBeenCalledOnce();
-    expect(scrollToKeyboard).toHaveBeenCalledWith(
-      target,
-      FORM_KEYBOARD_EXTRA_OFFSET,
-      true
-    );
+  it("uses the real viewport position when it begins below a header", () => {
+    expect(
+      getFocusedInputScrollOffset({
+        currentOffsetY: 100,
+        scrollViewport: { y: 120, height: 500 },
+        focusedInput: { y: 470, height: 60 },
+        keyboardTop: 500
+      })
+    ).toBe(154);
   });
 
-  it("does nothing without a scroll view or focused target", () => {
-    const scrollToKeyboard = vi.fn();
-    const scrollView: KeyboardScrollable = {
-      scrollResponderScrollNativeHandleToKeyboard: scrollToKeyboard
-    };
+  it("does not move when the focused input is already visible", () => {
+    expect(
+      getFocusedInputScrollOffset({
+        currentOffsetY: 100,
+        scrollViewport: { y: 120, height: 500 },
+        focusedInput: { y: 300, height: 60 },
+        keyboardTop: 500
+      })
+    ).toBeNull();
+  });
 
-    scrollFocusedInputIntoView(null, { nativeTag: 42 });
-    scrollFocusedInputIntoView(scrollView, null);
-
-    expect(scrollToKeyboard).not.toHaveBeenCalled();
+  it("scrolls upward without producing a negative offset", () => {
+    expect(
+      getFocusedInputScrollOffset({
+        currentOffsetY: 10,
+        scrollViewport: { y: 120, height: 500 },
+        focusedInput: { y: 100, height: 40 },
+        keyboardTop: 500
+      })
+    ).toBe(0);
   });
 });

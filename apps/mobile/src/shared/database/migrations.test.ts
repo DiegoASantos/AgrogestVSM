@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
@@ -1717,5 +1717,28 @@ describe("runMigrations", () => {
         )
       )
     ).toBe(false);
+  });
+
+  it("reuses an active transaction while applying pending migrations", () => {
+    const statements: string[] = [];
+    const withTransactionSync = vi.fn(() => {
+      throw new Error("native transaction wrapper must not be nested");
+    });
+    const db = {
+      execSync: vi.fn((statement: string) => {
+        statements.push(statement.replace(/\s+/gu, " ").trim());
+      }),
+      getAllSync: vi.fn(() => []),
+      getFirstSync: vi.fn(() => ({ user_version: 62 })),
+      isInTransactionSync: vi.fn(() => true),
+      runSync: vi.fn(),
+      withTransactionSync
+    };
+
+    expect(() => runMigrations(db as never)).not.toThrow();
+    expect(withTransactionSync).not.toHaveBeenCalled();
+    expect(statements).not.toContain("BEGIN");
+    expect(statements).not.toContain("COMMIT");
+    expect(statements).toContain("PRAGMA user_version = 63");
   });
 });

@@ -2,12 +2,9 @@ export const FORM_KEYBOARD_EXTRA_OFFSET = 24;
 
 export type FormKeyboardAvoidingBehavior = "height" | "padding" | undefined;
 
-export type KeyboardScrollable = {
-  scrollResponderScrollNativeHandleToKeyboard(
-    target: unknown,
-    additionalOffset?: number,
-    preventNegativeScrollOffset?: boolean
-  ): void;
+export type WindowRectangle = {
+  y: number;
+  height: number;
 };
 
 export function getFormKeyboardAvoidingBehavior(
@@ -24,17 +21,40 @@ export function getFormKeyboardAvoidingBehavior(
   return undefined;
 }
 
-export function scrollFocusedInputIntoView(
-  scrollView: KeyboardScrollable | null,
-  target: unknown
-): void {
-  if (scrollView === null || target === null || target === undefined) {
-    return;
+type FocusedInputScrollOffsetOptions = {
+  currentOffsetY: number;
+  scrollViewport: WindowRectangle;
+  focusedInput: WindowRectangle;
+  keyboardTop: number;
+};
+
+export function getFocusedInputScrollOffset({
+  currentOffsetY,
+  scrollViewport,
+  focusedInput,
+  keyboardTop
+}: FocusedInputScrollOffsetOptions): number | null {
+  const viewportTop = scrollViewport.y;
+  const viewportBottom = Math.min(viewportTop + scrollViewport.height, keyboardTop);
+  const visibleTop = viewportTop + FORM_KEYBOARD_EXTRA_OFFSET;
+  const visibleBottom = viewportBottom - FORM_KEYBOARD_EXTRA_OFFSET;
+
+  if (visibleBottom <= visibleTop) {
+    return null;
   }
 
-  scrollView.scrollResponderScrollNativeHandleToKeyboard(
-    target,
-    FORM_KEYBOARD_EXTRA_OFFSET,
-    true
-  );
+  const inputBottom = focusedInput.y + focusedInput.height;
+  let adjustment = 0;
+
+  if (inputBottom > visibleBottom) {
+    adjustment = inputBottom - visibleBottom;
+  } else if (focusedInput.y < visibleTop) {
+    adjustment = focusedInput.y - visibleTop;
+  }
+
+  if (adjustment === 0) {
+    return null;
+  }
+
+  return Math.max(0, currentOffsetY + adjustment);
 }

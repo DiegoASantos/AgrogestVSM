@@ -7,6 +7,8 @@ const getFirstSync = vi.fn<
   (sql: string, ...params: unknown[]) => Record<string, unknown> | null
 >(() => null);
 const withTransactionSync = vi.fn((cb: () => void) => cb());
+let isInTransaction = false;
+const isInTransactionSync = vi.fn(() => isInTransaction);
 
 vi.mock("expo-sqlite", () => ({
   openDatabaseSync: () => ({
@@ -14,6 +16,7 @@ vi.mock("expo-sqlite", () => ({
     execSync,
     getAllSync,
     getFirstSync,
+    isInTransactionSync,
     withTransactionSync
   })
 }));
@@ -24,6 +27,7 @@ vi.mock("../connection", () => ({
     execSync,
     getAllSync,
     getFirstSync,
+    isInTransactionSync,
     withTransactionSync
   }),
   initDatabase: () => ({
@@ -31,6 +35,7 @@ vi.mock("../connection", () => ({
     execSync,
     getAllSync,
     getFirstSync,
+    isInTransactionSync,
     withTransactionSync
   })
 }));
@@ -142,17 +147,43 @@ describe("seed-catalogs convergence", () => {
     mockGetIngredientesActivos.mockResolvedValue([]);
     mockGetMarcasProducto.mockResolvedValue([]);
     mockGetFertilizantes.mockResolvedValue([]);
+    isInTransaction = false;
 
     runSync.mockImplementation((sql: string, ...params: unknown[]) => {
       runSyncCalls.push({ sql: sql.replace(/\s+/gu, " ").trim(), params });
     });
-    execSync.mockImplementation(() => {});
+    execSync.mockImplementation((statement: string) => {
+      if (statement === "BEGIN") isInTransaction = true;
+      if (statement === "COMMIT" || statement === "ROLLBACK") {
+        isInTransaction = false;
+      }
+    });
     getAllSync.mockReturnValue([]);
     getFirstSync.mockReturnValue(null);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("uses the safe transaction wrapper for the complete catalog replacement", async () => {
+    const { downloadAllCatalogs } = await import("./seed-catalogs");
+    await downloadAllCatalogs();
+
+    expect(execSync).toHaveBeenCalledWith("BEGIN");
+    expect(execSync).toHaveBeenCalledWith("COMMIT");
+    expect(withTransactionSync).not.toHaveBeenCalled();
+  });
+
+  it("reuses an existing transaction without opening or closing a nested one", async () => {
+    isInTransaction = true;
+
+    const { downloadAllCatalogs } = await import("./seed-catalogs");
+    await downloadAllCatalogs();
+
+    expect(execSync).not.toHaveBeenCalledWith("BEGIN");
+    expect(execSync).not.toHaveBeenCalledWith("COMMIT");
+    expect(withTransactionSync).not.toHaveBeenCalled();
   });
 
   it("inserts productores with ON CONFLICT and WHERE sync_status <> 'pending' guard", async () => {
