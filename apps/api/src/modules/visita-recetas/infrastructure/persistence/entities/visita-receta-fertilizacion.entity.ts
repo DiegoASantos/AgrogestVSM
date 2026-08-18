@@ -8,6 +8,7 @@ import {
   UpdateDateColumn
 } from "typeorm";
 import { VisitaRecetaEntity } from "./visita-receta.entity";
+import { NutrienteEntity } from "../../../../nutricion/infrastructure/persistence/entities/nutriente.entity";
 
 @Entity({ name: "visita_receta_fertilizacion" })
 export class VisitaRecetaFertilizacionEntity {
@@ -19,6 +20,12 @@ export class VisitaRecetaFertilizacionEntity {
 
   @Column({ name: "enfoque", type: "varchar", length: 12, default: "reactivo" })
   enfoque!: "reactivo" | "preventivo";
+
+  @Column({ name: "nutriente_id", type: "bigint", nullable: true })
+  nutrienteId!: string | null;
+
+  @Column({ name: "nutriente_nombre", type: "varchar", length: 100, nullable: true })
+  nutrienteNombre!: string | null;
 
   @Column({
     name: "via_aplicacion",
@@ -99,4 +106,12 @@ export class VisitaRecetaFertilizacionEntity {
   })
   @JoinColumn({ name: "receta_id", referencedColumnName: "id" })
   receta!: VisitaRecetaEntity;
+
+  @ManyToOne(() => NutrienteEntity, {
+    nullable: true,
+    onDelete: "RESTRICT",
+    onUpdate: "NO ACTION"
+  })
+  @JoinColumn({ name: "nutriente_id", referencedColumnName: "id" })
+  nutriente!: NutrienteEntity | null;
 }

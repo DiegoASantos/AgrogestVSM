@@ -112,6 +112,8 @@ type FertilizacionRow = {
   server_id: string | null;
   receta_local_id: string;
   enfoque: "reactivo" | "preventivo";
+  nutriente_id: string | null;
+  nutriente_nombre: string | null;
   via_aplicacion: "edafica" | "foliar";
   fertilizante_nombre: string | null;
   tipo_producto: "solido" | "liquido" | null;
@@ -387,6 +389,8 @@ export const visitaRecetasRepository = {
       }>;
       fertilizacion: Array<{
         enfoque: "reactivo" | "preventivo";
+        nutrienteId: string | null;
+        nutrienteNombre?: string | null;
         viaAplicacion: "edafica" | "foliar";
         fertilizanteNombre: string | null;
         tipoProducto: "solido" | "liquido" | null;
@@ -531,10 +535,10 @@ export const visitaRecetasRepository = {
       if (data.fertilizacion.length > 0) {
         const stmtFert = db.prepareSync(
           `INSERT INTO visita_receta_fertilizacion
-         (local_id, server_id, receta_local_id, enfoque, via_aplicacion, fertilizante_nombre, tipo_producto,
+         (local_id, server_id, receta_local_id, enfoque, nutriente_id, nutriente_nombre, via_aplicacion, fertilizante_nombre, tipo_producto,
           dosis, unidad_dosis, cantidad_total_plantas, volumen_aplicacion, cantidad_total_fertilizante, factor,
           sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
         );
         for (const f of data.fertilizacion) {
           stmtFert.executeSync([
@@ -542,6 +546,8 @@ export const visitaRecetasRepository = {
             null,
             recetaLocalId,
             f.enfoque,
+            f.nutrienteId,
+            f.nutrienteNombre ?? null,
             f.viaAplicacion,
             f.fertilizanteNombre,
             f.tipoProducto,
@@ -712,6 +718,8 @@ function mapFertilizacionRow(r: FertilizacionRow): RecetaFertilizacion {
     serverId: r.server_id,
     recetaLocalId: r.receta_local_id,
     enfoque: r.enfoque ?? "reactivo",
+    nutrienteId: r.nutriente_id,
+    nutrienteNombre: r.nutriente_nombre,
     viaAplicacion: r.via_aplicacion,
     fertilizanteNombre: r.fertilizante_nombre,
     tipoProducto: r.tipo_producto,

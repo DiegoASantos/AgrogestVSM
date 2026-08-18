@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { VisitaCampoEntity } from "../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 import type { PlagaEnfermedadEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/plaga-enfermedad.entity";
 import type { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
+import type { VisitaEvaluacionEntity } from "../../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
+import type { NutrienteEntity } from "../../nutricion/infrastructure/persistence/entities/nutriente.entity";
 import { VisitaRecetasService } from "./visita-recetas.service";
 import type { VisitaRecetaEntity } from "../infrastructure/persistence/entities/visita-receta.entity";
 import type { VisitaRecetaFitosanidadEntity } from "../infrastructure/persistence/entities/visita-receta-fitosanidad.entity";
@@ -51,7 +53,7 @@ function makeReceta(overrides: Partial<VisitaRecetaEntity> = {}): VisitaRecetaEn
 }
 
 function makeVisita(): VisitaCampoEntity {
-  return { id: "10" } as VisitaCampoEntity;
+  return { id: "10", cultivoId: "5" } as VisitaCampoEntity;
 }
 
 function makeValidDto(): CreateVisitaRecetaDto {
@@ -106,6 +108,8 @@ describe("VisitaRecetasService", () => {
   let visitaRepo: RepoMock;
   let plagaEnfermedadRepo: RepoMock;
   let observacionSanitariaRepo: RepoMock;
+  let evaluacionRepo: RepoMock;
+  let nutrienteRepo: RepoMock;
   let fitosanidadRepo: RepoMock;
   let mezclaRepo: RepoMock;
   let fertilizacionRepo: RepoMock;
@@ -119,6 +123,8 @@ describe("VisitaRecetasService", () => {
     visitaRepo = makeRepo();
     plagaEnfermedadRepo = makeRepo();
     observacionSanitariaRepo = makeRepo();
+    evaluacionRepo = makeRepo();
+    nutrienteRepo = makeRepo();
     fitosanidadRepo = makeRepo();
     fitosanidadRepo.create.mockImplementation((value) => value);
     mezclaRepo = makeRepo();
@@ -134,6 +140,8 @@ describe("VisitaRecetasService", () => {
       visitaRepo as unknown as Repository<VisitaCampoEntity>,
       plagaEnfermedadRepo as unknown as Repository<PlagaEnfermedadEntity>,
       observacionSanitariaRepo as unknown as Repository<VisitaObservacionSanitariaEntity>,
+      evaluacionRepo as unknown as Repository<VisitaEvaluacionEntity>,
+      nutrienteRepo as unknown as Repository<NutrienteEntity>,
       fitosanidadRepo as unknown as Repository<VisitaRecetaFitosanidadEntity>,
       mezclaRepo as unknown as Repository<VisitaRecetaMezclaEntity>,
       fertilizacionRepo as unknown as Repository<VisitaRecetaFertilizacionEntity>,
@@ -232,6 +240,51 @@ describe("VisitaRecetasService", () => {
       expect(recetaRepo.findOne).not.toHaveBeenCalled();
     });
 
+    it("clasifica como curativo un nutriente evaluado aunque tenga grado cero", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      nutrienteRepo.findOne.mockResolvedValue({
+        id: "12",
+        cultivoId: "5",
+        name: "Boro",
+        isActive: true
+      });
+      evaluacionRepo.findOne.mockResolvedValue({
+        visitaId: "10",
+        nutrientId: "12",
+        incidencePercentage: "0"
+      });
+      const dto = makeValidDto();
+      Object.assign(dto.fertilizacion[0]!, {
+        nutrienteId: "12",
+        enfoque: "preventivo",
+        factor: 1
+      });
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "debe recomendarse como curativo"
+      );
+    });
+
+    it("clasifica como preventivo un nutriente no evaluado", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      nutrienteRepo.findOne.mockResolvedValue({
+        id: "13",
+        cultivoId: "5",
+        name: "Zinc",
+        isActive: true
+      });
+      evaluacionRepo.findOne.mockResolvedValue(null);
+      const dto = makeValidDto();
+      Object.assign(dto.fertilizacion[0]!, {
+        nutrienteId: "13",
+        enfoque: "reactivo"
+      });
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "debe recomendarse como preventivo"
+      );
+    });
+
     it("creates a new receta when none exists for the visita", async () => {
       visitaRepo.findOne.mockResolvedValue(makeVisita());
       plagaEnfermedadRepo.findOne.mockResolvedValue({
@@ -241,6 +294,13 @@ describe("VisitaRecetasService", () => {
         isActive: true
       });
       observacionSanitariaRepo.findOne.mockResolvedValue(null);
+      nutrienteRepo.findOne.mockResolvedValue({
+        id: "13",
+        cultivoId: "5",
+        name: "Zinc",
+        isActive: true
+      });
+      evaluacionRepo.findOne.mockResolvedValue(null);
       recetaRepo.findOne.mockResolvedValueOnce(null); // no existing
       recetaRepo.create.mockReturnValue(makeReceta());
       recetaRepo.save.mockResolvedValue(makeReceta());
@@ -270,6 +330,7 @@ describe("VisitaRecetasService", () => {
       });
       dto.mezclas![0]!.factor = 1;
       dto.fertilizacion[0]!.enfoque = "preventivo";
+      dto.fertilizacion[0]!.nutrienteId = "13";
 
       const result = await service.save("10", dto);
 
@@ -289,6 +350,8 @@ describe("VisitaRecetasService", () => {
       );
       expect(fertilizacionRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
+          nutrienteId: "13",
+          nutrienteNombre: "Zinc",
           cantidadTotalFertilizante: 750,
           enfoque: "preventivo",
           factor: 1

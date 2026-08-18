@@ -112,6 +112,17 @@ Las filas historicas sin enfoque se leen como reactivas sin reescritura masiva.
 La migracion y el API compatibles deben desplegarse antes de publicar la OTA
 mobile.
 
+La migracion SQLite 64 agrega `nutriente_id` y `nutriente_nombre` de forma
+nullable a cada producto fertilizante. No recrea la tabla ni modifica filas u
+operaciones pendientes. La agrupacion por deficiencia es una proyeccion de UI:
+al guardar se mantiene una fila por producto y se repiten nutriente, enfoque y
+factor en los productos de la misma tarjeta. El handler padre envia
+`fertilizacion[].nutrienteId`; API obtiene el nombre canonico del catalogo y lo
+devuelve como instantanea. Evaluaciones y receta mantienen el orden actual de
+sincronizacion, por lo que el servidor puede clasificar curativo por la mera
+existencia de la evaluacion, incluido grado 0. Despliegue: migracion PostgreSQL
+052, API compatible y finalmente mobile/admin.
+
 Al confirmar `Enviar` al final de Receta, mobile actualiza `endVisitTime` de la
 visita con la hora propuesta por el dispositivo o corregida por el tecnico. El
 update reutiliza la operacion de `visitas_campo` y se registra antes de programar
@@ -309,6 +320,16 @@ la correctiva 50 volvió a invalidar `catalogs_downloaded_at` para forzar la
 descarga posterior a la reparación del backend. Cuando una descarga termina,
 una receta abierta relee SQLite y completa concentración y unidad de la
 selección existente, sin borrar recetas, catálogos ni operaciones pendientes.
+
+En el formulario de receta, tipo de producto sigue siendo el primer requisito
+fitosanitario. Despues puede elegirse ingrediente activo o Nombre comercial: si
+se comienza por ingrediente, las marcas se filtran por esa relacion; si se
+comienza por marca, la opcion completa el ingrediente relacionado, la
+concentracion y la unidad. Solo participan marcas cuyo ingrediente existe en el
+catalogo local vigente, y cada marca muestra ese ingrediente como texto
+auxiliar. Tipo de producto, ingrediente, Nombre comercial y fertilizante usan
+busqueda local que ignora mayusculas y tildes. Esta navegacion no cambia el
+formato persistido de la receta, SQLite ni la outbox.
 
 La migracion PostgreSQL 051 agrega de forma idempotente marcas e ingredientes
 del catalogo agroquimico. No cambia SQLite ni crea operaciones de outbox: una

@@ -32,6 +32,7 @@ un coste de coordinación mayor que su beneficio.
 | ----- | ----- | ---------- | -------------- | -------- | ------- | --------- | --------- | ---------- | -------------------- |
 | 2026-06-25 | Spec 002 | baja | no medido | no aplicada | no medido | no medido | no medido | no medido | 0 al cierre |
 | 2026-06-25 | Spec 003 / piloto Fase 2 | crítica | no medido retrospectivo | 174.49 s | 67 839 entrada; 6 183 salida; 5 631 razonamiento; 772 480 cache-read; USD 0.042588385 | 1 alta, 2 medias, 2 bajas | 2 | 3 | 0 al cierre |
+| 2026-08-18 | Spec 053 | alta | no medido | intento mayor a 120 s, sin veredicto recuperable | no reportado | no evaluado | 0 | 0 | 0 al cierre |
 
 ## Resultado del piloto crítico
 

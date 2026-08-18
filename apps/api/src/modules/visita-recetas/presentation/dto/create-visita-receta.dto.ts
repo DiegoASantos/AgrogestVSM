@@ -255,6 +255,15 @@ export class FertilizacionDto {
   id?: number;
 
   @ApiPropertyOptional({
+    example: "12",
+    description: "Nutriente objetivo. Se omite solo para recetas legacy."
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  nutrienteId?: string;
+
+  @ApiPropertyOptional({
     example: "preventivo",
     description:
       "Enfoque del producto fertilizante. Si se omite se interpreta como reactivo."

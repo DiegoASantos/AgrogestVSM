@@ -7,6 +7,7 @@ import { PlagaEnfermedadEntity } from "../visita-observaciones-sanitarias/infras
 import { VisitaEvaluacionEntity } from "../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
 import { VisitaRiegoEntity } from "../visita-riegos/infrastructure/persistence/entities/visita-riego.entity";
 import { VisitaLaborCulturalEntity } from "../visita-labores-culturales/infrastructure/persistence/entities/visita-labor-cultural.entity";
+import { NutrienteEntity } from "../nutricion/infrastructure/persistence/entities/nutriente.entity";
 
 import { VisitaRecetasService } from "./application/visita-recetas.service";
 import { VisitaRecetasConsolidacionService } from "./application/visita-recetas-consolidacion.service";
@@ -36,6 +37,7 @@ import { RecetasCatalogosController } from "./presentation/recetas-catalogos.con
       VisitaEvaluacionEntity,
       VisitaRiegoEntity,
       VisitaLaborCulturalEntity,
+      NutrienteEntity,
       CoadyuvanteEntity,
       IngredienteActivoEntity,
       MarcaProductoEntity,

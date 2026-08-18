@@ -15,8 +15,10 @@ import {
   diseaseFactorFromPercentage,
   getUnidadDosis,
   getAvailablePreventiveTargets,
+  getAvailablePreventiveNutrients,
   getFertilizacionDosisUnits,
   mergeMissingFitosanidadFindings,
+  mergeNutritionFertilizations,
   restoreFitosanidadApps,
   restoreMezclas,
   sanitizeDraftFertilizaciones,
@@ -444,5 +446,124 @@ describe("receta con mezclas", () => {
       fertilizanteNombre: "",
       dosis: "2"
     });
+  });
+
+  it("crea una tarjeta curativa por cada nutriente evaluado incluso en grado cero", () => {
+    const fertilizaciones = mergeNutritionFertilizations([], {
+      ...consolidation,
+      nutricion: [
+        {
+          nutrienteId: "nut-boro",
+          elemento: "Boro",
+          incidencia: "0%",
+          severidad: "No especificada",
+          incidenceGrade: 0
+        }
+      ]
+    });
+
+    expect(fertilizaciones).toHaveLength(1);
+    expect(fertilizaciones[0]).toMatchObject({
+      nutrienteId: "nut-boro",
+      nutrienteNombre: "Boro",
+      enfoque: "reactivo",
+      incidenceGrade: 0,
+      factor: "1",
+      factorEditable: false
+    });
+  });
+
+  it("solo ofrece como preventivos nutrientes no evaluados ni usados", () => {
+    const nutrients = [
+      { id: "boro", cultivoId: "mango", code: null, name: "Boro", description: null, isActive: true, details: [] },
+      { id: "zinc", cultivoId: "mango", code: null, name: "Zinc", description: null, isActive: true, details: [] },
+      { id: "calcio", cultivoId: "mango", code: null, name: "Calcio", description: null, isActive: true, details: [] }
+    ];
+    const available = getAvailablePreventiveNutrients(
+      nutrients,
+      {
+        ...consolidation,
+        nutricion: [{ nutrienteId: "boro", elemento: "Boro", incidencia: "0%", severidad: "-", incidenceGrade: 0 }]
+      },
+      [
+        createEmptyFertilizacion("", {
+          nutrienteId: "zinc",
+          nutrienteNombre: "Zinc",
+          enfoque: "preventivo",
+          incidenceGrade: 0
+        })
+      ]
+    );
+
+    expect(available.map((item) => item.id)).toEqual(["calcio"]);
+  });
+
+  it("serializa varios productos con el mismo nutriente y enfoque", () => {
+    const first = {
+      ...createEmptyFertilizacion("", {
+        nutrienteId: "nut-boro",
+        nutrienteNombre: "Boro",
+        enfoque: "reactivo",
+        incidenceGrade: 2
+      }),
+      fertilizanteNombre: "Boro 10",
+      dosis: "2"
+    };
+    const saved = buildFertilizacionesForSave([
+      first,
+      { ...first, localId: "otro", fertilizanteNombre: "Boro Plus" }
+    ]);
+
+    expect(saved).toHaveLength(2);
+    expect(saved[0]).toMatchObject({
+      nutrienteId: "nut-boro",
+      nutrienteNombre: "Boro",
+      enfoque: "reactivo"
+    });
+  });
+
+  it("reclasifica como preventivo al quitar la evaluacion sin perder el producto", () => {
+    const current = {
+      ...createEmptyFertilizacion("", {
+        nutrienteId: "nut-zinc",
+        nutrienteNombre: "Zinc",
+        enfoque: "reactivo",
+        incidenceGrade: 3
+      }),
+      fertilizanteNombre: "Zinc Plus",
+      factor: "1.7",
+      factorEditable: true
+    };
+
+    const reconciled = mergeNutritionFertilizations([current], consolidation);
+
+    expect(reconciled[0]).toMatchObject({
+      fertilizanteNombre: "Zinc Plus",
+      enfoque: "preventivo",
+      incidenceGrade: 0,
+      factor: "1",
+      factorEditable: false
+    });
+  });
+
+  it("no persiste filas vacias creadas solo para mostrar el diagnostico", () => {
+    const empty = createEmptyFertilizacion("", {
+      nutrienteId: "nut-boro",
+      nutrienteNombre: "Boro",
+      enfoque: "reactivo",
+      incidenceGrade: 0
+    });
+
+    expect(buildFertilizacionesForSave([empty])).toEqual([]);
+  });
+
+  it("descarta el fertilizante vacio de un borrador legacy", () => {
+    const legacyEmpty = createEmptyFertilizacion() as ReturnType<
+      typeof createEmptyFertilizacion
+    >;
+    delete (legacyEmpty as Partial<typeof legacyEmpty>).nutrienteId;
+    delete (legacyEmpty as Partial<typeof legacyEmpty>).nutrienteNombre;
+
+    expect(sanitizeDraftFertilizaciones([legacyEmpty], [])).toEqual([]);
   });
 });

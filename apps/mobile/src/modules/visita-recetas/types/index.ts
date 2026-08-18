@@ -98,6 +98,8 @@ export type RecetaFertilizacion = {
   serverId: string | null;
   recetaLocalId: string;
   enfoque?: RecommendationApproach;
+  nutrienteId?: string | null;
+  nutrienteNombre?: string | null;
   viaAplicacion: "edafica" | "foliar";
   fertilizanteNombre: string | null;
   tipoProducto: "solido" | "liquido" | null;
@@ -177,6 +179,7 @@ export type ConsolidacionHallazgo = {
     incidenceGrade: number;
   }>;
   nutricion: Array<{
+    nutrienteId?: string | null;
     elemento: string;
     incidencia: string;
     severidad: string;

@@ -1,6 +1,7 @@
 import { resolveNutritionIncidence } from "../../../evaluaciones/domain/nutrition-incidence";
 import { resolveDiseaseIncidenceGrade } from "../../../observaciones-sanitarias/domain/disease-incidence";
 import type { PestDiseaseCatalogItem } from "../../../observaciones-sanitarias/types";
+import type { NutrientCatalogItem } from "../../../nutricion/types";
 import type { SaveRecetaData } from "../../services";
 import type {
   CoadyuvanteCatalogItem,
@@ -66,6 +67,9 @@ export type AppMezcla = {
 export type AppFertilizacion = {
   localId: string;
   enfoque?: RecommendationApproach;
+  nutrienteId: string | null;
+  nutrienteNombre: string;
+  incidenceGrade: number | null;
   viaAplicacion: "edafica" | "foliar";
   fertilizanteNombre: string;
   tipoProducto: "solido" | "liquido";
@@ -112,10 +116,22 @@ export function createEmptyMezcla(numero: number, volumenAplicacion = ""): AppMe
   };
 }
 
-export function createEmptyFertilizacion(volumenAplicacion = ""): AppFertilizacion {
+export function createEmptyFertilizacion(
+  volumenAplicacion = "",
+  target?: {
+    nutrienteId: string | null;
+    nutrienteNombre: string;
+    enfoque: RecommendationApproach;
+    incidenceGrade?: number | null;
+  }
+): AppFertilizacion {
+  const grade = target?.incidenceGrade ?? 0;
   return {
     localId: createTransientId("fertilizante"),
-    enfoque: "reactivo",
+    enfoque: target?.enfoque ?? "reactivo",
+    nutrienteId: target?.nutrienteId ?? null,
+    nutrienteNombre: target?.nutrienteNombre ?? "",
+    incidenceGrade: target?.incidenceGrade ?? null,
     viaAplicacion: "edafica",
     fertilizanteNombre: "",
     tipoProducto: "solido",
@@ -125,8 +141,9 @@ export function createEmptyFertilizacion(volumenAplicacion = ""): AppFertilizaci
     unidadDosis: "",
     cantidadTotalPlantas: "",
     volumenAplicacion,
-    factor: "1",
-    factorEditable: false,
+    factor:
+      target?.enfoque === "preventivo" ? "1" : factorFromGrade(grade).toString(),
+    factorEditable: target?.enfoque !== "preventivo" && grade === 3,
     cantidadTotalFertilizante: ""
   };
 }
@@ -230,24 +247,37 @@ export function sanitizeDraftFertilizaciones(
   fertilizaciones: AppFertilizacion[],
   catalog: FertilizanteCatalogItem[]
 ): AppFertilizacion[] {
-  return fertilizaciones.map((fertilizacion) => {
-    if (!fertilizacion.fertilizanteNombre.trim()) {
-      return fertilizacion;
-    }
+  return fertilizaciones
+    .map((fertilizacion) => {
+      const normalized = {
+        ...fertilizacion,
+        nutrienteId: fertilizacion.nutrienteId ?? null,
+        nutrienteNombre: fertilizacion.nutrienteNombre ?? "",
+        incidenceGrade: fertilizacion.incidenceGrade ?? null
+      };
+      if (!normalized.fertilizanteNombre.trim()) {
+        return normalized;
+      }
 
-    const selected = catalog.find(
-      (item) =>
-        normalizeName(item.name) === normalizeName(fertilizacion.fertilizanteNombre)
+      const selected = catalog.find(
+        (item) =>
+          normalizeName(item.name) ===
+          normalizeName(normalized.fertilizanteNombre)
+      );
+
+      return {
+        ...normalized,
+        fertilizanteNombre: selected?.name ?? "",
+        tipoProducto: selected?.type ?? normalized.tipoProducto,
+        concentracion: selected?.concentracion ?? "",
+        unidadMedida: selected?.unidadMedida ?? ""
+      };
+    })
+    .filter(
+      (fertilizacion) =>
+        Boolean(fertilizacion.nutrienteId) ||
+        hasFertilizacionProductData(fertilizacion)
     );
-
-    return {
-      ...fertilizacion,
-      fertilizanteNombre: selected?.name ?? "",
-      tipoProducto: selected?.type ?? fertilizacion.tipoProducto,
-      concentracion: selected?.concentracion ?? "",
-      unidadMedida: selected?.unidadMedida ?? ""
-    };
-  });
 }
 
 export function mergeMissingFitosanidadFindings(
@@ -453,6 +483,9 @@ export function restoreFertilizaciones(
     return {
       localId: `fertilizante_${row.id}`,
       enfoque: row.enfoque ?? "reactivo",
+      nutrienteId: row.nutrienteId ?? null,
+      nutrienteNombre: row.nutrienteNombre ?? "",
+      incidenceGrade: null,
       viaAplicacion: row.viaAplicacion,
       fertilizanteNombre: row.fertilizanteNombre ?? "",
       tipoProducto: row.tipoProducto ?? "solido",
@@ -520,23 +553,27 @@ export function buildMezclasForSave(
 export function buildFertilizacionesForSave(
   fertilizaciones: AppFertilizacion[]
 ): SaveRecetaData["fertilizacion"] {
-  return fertilizaciones.map((fertilizacion) => {
-    const unidadDosis = getUnidadDosis(fertilizacion);
-    return {
-      enfoque: fertilizacion.enfoque ?? "reactivo",
-      viaAplicacion: fertilizacion.viaAplicacion,
-      fertilizanteNombre: fertilizacion.fertilizanteNombre || null,
-      tipoProducto: fertilizacion.tipoProducto,
-      dosis: parsePositiveDecimal(fertilizacion.dosis),
-      unidadDosis: unidadDosis || null,
-      cantidadTotalPlantas: toPositiveInteger(fertilizacion.cantidadTotalPlantas),
-      volumenAplicacion: parsePositiveDecimal(fertilizacion.volumenAplicacion),
-      factor: parsePositiveDecimal(fertilizacion.factor) ?? 1,
-      cantidadTotalFertilizante: parsePositiveDecimal(
-        fertilizacion.cantidadTotalFertilizante
-      )
-    };
-  });
+  return fertilizaciones
+    .filter(hasFertilizacionProductData)
+    .map((fertilizacion) => {
+      const unidadDosis = getUnidadDosis(fertilizacion);
+      return {
+        enfoque: fertilizacion.enfoque ?? "reactivo",
+        nutrienteId: fertilizacion.nutrienteId,
+        nutrienteNombre: fertilizacion.nutrienteNombre || null,
+        viaAplicacion: fertilizacion.viaAplicacion,
+        fertilizanteNombre: fertilizacion.fertilizanteNombre || null,
+        tipoProducto: fertilizacion.tipoProducto,
+        dosis: parsePositiveDecimal(fertilizacion.dosis),
+        unidadDosis: unidadDosis || null,
+        cantidadTotalPlantas: toPositiveInteger(fertilizacion.cantidadTotalPlantas),
+        volumenAplicacion: parsePositiveDecimal(fertilizacion.volumenAplicacion),
+        factor: parsePositiveDecimal(fertilizacion.factor) ?? 1,
+        cantidadTotalFertilizante: parsePositiveDecimal(
+          fertilizacion.cantidadTotalFertilizante
+        )
+      };
+    });
 }
 
 export function collectNomenclaturaPorMezcla(
@@ -668,14 +705,102 @@ export function hasFitosanidadData(applications: AppFitosanidad[]) {
 }
 
 export function hasFertilizacionData(fertilizaciones: AppFertilizacion[]) {
-  return fertilizaciones.some((fertilizacion) =>
-    Boolean(
-      fertilizacion.fertilizanteNombre.trim() ||
+  return fertilizaciones.some(hasFertilizacionProductData);
+}
+
+function hasFertilizacionProductData(fertilizacion: AppFertilizacion) {
+  return Boolean(
+    fertilizacion.fertilizanteNombre.trim() ||
       fertilizacion.dosis.trim() ||
       fertilizacion.cantidadTotalPlantas.trim() ||
       fertilizacion.volumenAplicacion.trim()
-    )
   );
+}
+
+export function mergeNutritionFertilizations(
+  fertilizaciones: AppFertilizacion[],
+  consolidation: ConsolidacionHallazgo,
+  defaultVolume = ""
+): AppFertilizacion[] {
+  const findingsById = new Map(
+    consolidation.nutricion
+      .filter((finding) => Boolean(finding.nutrienteId))
+      .map((finding) => [finding.nutrienteId as string, finding])
+  );
+  const reconciled = fertilizaciones.map((item) => {
+    const finding = item.nutrienteId ? findingsById.get(item.nutrienteId) : undefined;
+    if (!finding) {
+      return item.nutrienteId
+        ? recalculateFertilizacion({
+            ...item,
+            enfoque: "preventivo",
+            incidenceGrade: 0,
+            factor: "1",
+            factorEditable: false
+          })
+        : item;
+    }
+    const factor = factorFromGrade(finding.incidenceGrade);
+    return recalculateFertilizacion({
+      ...item,
+      enfoque: "reactivo",
+      nutrienteNombre: finding.elemento,
+      incidenceGrade: finding.incidenceGrade,
+      factor:
+        item.factorEditable && finding.incidenceGrade === 3
+          ? item.factor
+          : factor.toString(),
+      factorEditable: finding.incidenceGrade === 3
+    });
+  });
+  const existingIds = new Set(
+    reconciled.map((item) => item.nutrienteId).filter((id): id is string => Boolean(id))
+  );
+  for (const finding of consolidation.nutricion) {
+    if (!finding.nutrienteId || existingIds.has(finding.nutrienteId)) continue;
+    reconciled.push(
+      createEmptyFertilizacion(defaultVolume, {
+        nutrienteId: finding.nutrienteId,
+        nutrienteNombre: finding.elemento,
+        enfoque: "reactivo",
+        incidenceGrade: finding.incidenceGrade
+      })
+    );
+    existingIds.add(finding.nutrienteId);
+  }
+  return reconciled;
+}
+
+export function getAvailablePreventiveNutrients(
+  nutrients: NutrientCatalogItem[],
+  consolidation: ConsolidacionHallazgo | null,
+  fertilizaciones: AppFertilizacion[]
+) {
+  const evaluatedIds = new Set(
+    (consolidation?.nutricion ?? [])
+      .map((finding) => finding.nutrienteId)
+      .filter((id): id is string => Boolean(id))
+  );
+  const usedIds = new Set(
+    fertilizaciones
+      .map((item) => item.nutrienteId)
+      .filter((id): id is string => Boolean(id))
+  );
+  return nutrients.filter(
+    (nutrient) => nutrient.isActive && !evaluatedIds.has(nutrient.id) && !usedIds.has(nutrient.id)
+  );
+}
+
+export function createPreventiveFertilizacion(
+  nutrient: NutrientCatalogItem,
+  defaultVolume = ""
+) {
+  return createEmptyFertilizacion(defaultVolume, {
+    nutrienteId: nutrient.id,
+    nutrienteNombre: nutrient.name,
+    enfoque: "preventivo",
+    incidenceGrade: 0
+  });
 }
 
 export function parsePositiveDecimal(

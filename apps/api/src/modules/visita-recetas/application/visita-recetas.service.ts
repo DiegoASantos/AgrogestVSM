@@ -6,6 +6,8 @@ import { createSuccessResponse } from "../../../common/http/api-response";
 import { VisitaCampoEntity } from "../../visitas-campo/infrastructure/persistence/entities/visita-campo.entity";
 import { PlagaEnfermedadEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/plaga-enfermedad.entity";
 import { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
+import { VisitaEvaluacionEntity } from "../../visita-evaluaciones/infrastructure/persistence/entities/visita-evaluacion.entity";
+import { NutrienteEntity } from "../../nutricion/infrastructure/persistence/entities/nutriente.entity";
 import {
   CreateVisitaRecetaDto,
   type FitosanidadProductoDto,
@@ -44,6 +46,10 @@ export class VisitaRecetasService {
     private readonly plagaEnfermedadRepository: Repository<PlagaEnfermedadEntity>,
     @InjectRepository(VisitaObservacionSanitariaEntity)
     private readonly observacionSanitariaRepository: Repository<VisitaObservacionSanitariaEntity>,
+    @InjectRepository(VisitaEvaluacionEntity)
+    private readonly evaluacionRepository: Repository<VisitaEvaluacionEntity>,
+    @InjectRepository(NutrienteEntity)
+    private readonly nutrienteRepository: Repository<NutrienteEntity>,
     @InjectRepository(VisitaRecetaFitosanidadEntity)
     private readonly fitosanidadRepository: Repository<VisitaRecetaFitosanidadEntity>,
     @InjectRepository(VisitaRecetaMezclaEntity)
@@ -67,7 +73,7 @@ export class VisitaRecetasService {
       throw new BadRequestException("Visita de campo not found.");
     }
     const mezclas = this.normalizeMezclas(dto);
-    await this.assertRecommendationApproaches(visitaId, mezclas, dto.fertilizacion);
+    await this.assertRecommendationApproaches(visita, mezclas, dto.fertilizacion);
 
     let receta = await this.recetaRepository.findOne({
       where: { visitaId },
@@ -274,6 +280,9 @@ export class VisitaRecetasService {
       return this.fertilizacionRepository.create({
         recetaId,
         enfoque: item.enfoque ?? "reactivo",
+        nutrienteId: item.nutrienteId ?? null,
+        nutrienteNombre:
+          (item as typeof item & { nutrienteNombre?: string }).nutrienteNombre ?? null,
         viaAplicacion: item.viaAplicacion,
         fertilizanteNombre: item.fertilizanteNombre ?? null,
         tipoProducto: item.tipoProducto ?? null,
@@ -403,6 +412,8 @@ export class VisitaRecetasService {
       fertilizacion: (receta.fertilizacion ?? []).map((f) => ({
         id: f.id,
         enfoque: f.enfoque,
+        nutrienteId: f.nutrienteId,
+        nutrienteNombre: f.nutrienteNombre,
         viaAplicacion: f.viaAplicacion,
         fertilizanteNombre: f.fertilizanteNombre,
         tipoProducto: f.tipoProducto,
@@ -473,7 +484,7 @@ export class VisitaRecetasService {
   }
 
   private async assertRecommendationApproaches(
-    visitaId: string,
+    visita: VisitaCampoEntity,
     mezclas: NormalizedMezcla[],
     fertilizacion: CreateVisitaRecetaDto["fertilizacion"]
   ) {
@@ -555,7 +566,7 @@ export class VisitaRecetasService {
         let hasPositiveDiagnosis = positiveDiagnosisCache.get(id);
         if (hasPositiveDiagnosis === undefined) {
           const observation = await this.observacionSanitariaRepository.findOne({
-            where: { visitaId, plagaEnfermedadId: id },
+            where: { visitaId: visita.id, plagaEnfermedadId: id },
             relations: ["nivelIncidencia"]
           });
           hasPositiveDiagnosis = Boolean(
@@ -574,12 +585,67 @@ export class VisitaRecetasService {
       }
     }
 
+    const approachByNutrient = new Map<string, "reactivo" | "preventivo">();
+    const factorByNutrient = new Map<string, number>();
     for (const item of fertilizacion) {
       if (item.enfoque === "preventivo" && (item.factor ?? 1) !== 1) {
         throw new BadRequestException(
           "Una recomendacion de fertilizacion preventiva debe usar factor 1."
         );
       }
+
+      if (!item.nutrienteId) continue;
+
+      const nutrient = await this.nutrienteRepository.findOne({
+        where: { id: item.nutrienteId, isActive: true }
+      });
+      if (!nutrient || nutrient.cultivoId !== visita.cultivoId) {
+        throw new BadRequestException(
+          "El nutriente seleccionado no esta disponible para el cultivo de la visita."
+        );
+      }
+
+      const evaluation = await this.evaluacionRepository.findOne({
+        where: { visitaId: visita.id, nutrientId: item.nutrienteId }
+      });
+      const expectedApproach = evaluation ? "reactivo" : "preventivo";
+      if ((item.enfoque ?? "reactivo") !== expectedApproach) {
+        throw new BadRequestException(
+          evaluation
+            ? "Un nutriente evaluado en la visita debe recomendarse como curativo."
+            : "Un nutriente no evaluado debe recomendarse como preventivo."
+        );
+      }
+
+      const factor = item.factor ?? 1;
+      if (evaluation) {
+        const grade = resolveNutritionGrade(
+          Number(evaluation.incidencePercentage ?? 0)
+        );
+        const expectedFactor = grade >= 3 ? null : grade === 2 ? 1.2 : 1;
+        if (expectedFactor !== null && factor !== expectedFactor) {
+          throw new BadRequestException(
+            "El factor curativo no corresponde a la incidencia nutricional evaluada."
+          );
+        }
+      }
+
+      const previousApproach = approachByNutrient.get(item.nutrienteId);
+      if (previousApproach && previousApproach !== expectedApproach) {
+        throw new BadRequestException(
+          "Un nutriente no puede mezclar enfoques curativo y preventivo."
+        );
+      }
+      approachByNutrient.set(item.nutrienteId, expectedApproach);
+      const previousFactor = factorByNutrient.get(item.nutrienteId);
+      if (previousFactor !== undefined && previousFactor !== factor) {
+        throw new BadRequestException(
+          "Los productos de una misma deficiencia deben compartir el factor."
+        );
+      }
+      factorByNutrient.set(item.nutrienteId, factor);
+      (item as typeof item & { nutrienteNombre?: string }).nutrienteNombre =
+        nutrient.name;
     }
   }
 }
@@ -595,6 +661,13 @@ function calculateTotal(
     volumen !== undefined
     ? dosis * volumen * factor
     : null;
+}
+
+function resolveNutritionGrade(percentage: number) {
+  if (percentage <= 0) return 0;
+  if (percentage <= 5) return 1;
+  if (percentage <= 20) return 2;
+  return 3;
 }
 
 function assertSerializedArray(value: string | undefined, field: string) {

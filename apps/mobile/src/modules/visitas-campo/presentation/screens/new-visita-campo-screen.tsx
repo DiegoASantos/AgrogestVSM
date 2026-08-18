@@ -553,6 +553,7 @@ export function NewVisitaCampoScreen() {
         contentContainerStyle={styles.scrollContent}
         onScroll={handleTutorialScroll}
         ref={tutorialScrollRef}
+        scrollEnabled={tutorialStepId === null}
         scrollEventThrottle={16}
       >
         <ImageBackground

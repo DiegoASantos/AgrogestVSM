@@ -1036,6 +1036,7 @@ async function handleReceta(
       })),
       fertilizacion: receta.fertilizacion.map((f) => ({
         enfoque: f.enfoque,
+        nutrienteId: f.nutrienteId,
         viaAplicacion: f.viaAplicacion,
         fertilizanteNombre: f.fertilizanteNombre ?? undefined,
         tipoProducto: f.tipoProducto ?? undefined,

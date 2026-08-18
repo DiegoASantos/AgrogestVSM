@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 63;
+const LATEST_MIGRATION_VERSION = 64;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1739,6 +1739,18 @@ describe("runMigrations", () => {
     expect(withTransactionSync).not.toHaveBeenCalled();
     expect(statements).not.toContain("BEGIN");
     expect(statements).not.toContain("COMMIT");
-    expect(statements).toContain("PRAGMA user_version = 63");
+    expect(
+      statements.some((statement) =>
+        statement.includes(
+          "ALTER TABLE visita_receta_fertilizacion ADD COLUMN nutriente_id TEXT"
+        )
+      )
+    ).toBe(true);
+    expect(
+      statements.some((statement) =>
+        statement.includes("idx_visita_receta_fertilizacion_nutriente")
+      )
+    ).toBe(true);
+    expect(statements).toContain("PRAGMA user_version = 64");
   });
 });

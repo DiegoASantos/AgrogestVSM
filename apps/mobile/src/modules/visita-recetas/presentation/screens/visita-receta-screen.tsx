@@ -52,6 +52,7 @@ import { Time12HourInput } from "../../../visitas-campo/presentation/components/
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import { visitasCampoService } from "../../../visitas-campo/services/visitas-campo.service";
 import type { PestDiseaseCatalogItem } from "../../../observaciones-sanitarias/types";
+import type { NutrientCatalogItem } from "../../../nutricion/types";
 import {
   construirMensajeAdvertencia,
   validarMezcla
@@ -86,7 +87,6 @@ import {
   resolveCommercialSelectionPatch
 } from "./visita-receta-selection";
 import {
-  applyFertilizacionApproachFactor,
   buildFertilizacionesForSave,
   buildMezclasForSave,
   buildFertilizacionUnidadDosis,
@@ -96,19 +96,21 @@ import {
   collectNomenclaturaPorMezcla,
   createEmptyMezcla,
   createEmptyFertilizacion,
+  createPreventiveFertilizacion,
   createEmptyIngrediente,
   createPreventiveFitosanidad,
   getDosisUnit,
   getAvailablePreventiveTargets,
+  getAvailablePreventiveNutrients,
   getFertilizacionDosisUnits,
   getUnidadDosis,
   hasFertilizacionData,
   hasFitosanidadData,
   isValidFertilizacionUnidadDosis,
   mergeMissingFitosanidadFindings,
+  mergeNutritionFertilizations,
   parsePositiveDecimal,
   deriveMezclaFactors,
-  factorFromGrade,
   recalculateFertilizacion,
   recalculateIngrediente,
   restoreFertilizaciones,
@@ -139,6 +141,7 @@ type RecetaFormDraft = {
   endVisitTimePeriod: TimePeriod;
   preventiveObjectiveType: "plaga" | "enfermedad";
   preventiveTargetId: string;
+  preventiveNutrientId: string;
   fitosanidadApps: AppFitosanidad[];
   mezclas: AppMezcla[];
   fertilizaciones: AppFertilizacion[];
@@ -190,12 +193,12 @@ export function VisitaRecetaScreen() {
     "plaga" | "enfermedad"
   >("plaga");
   const [preventiveTargetId, setPreventiveTargetId] = useState("");
+  const [nutrients, setNutrients] = useState<NutrientCatalogItem[]>([]);
+  const [preventiveNutrientId, setPreventiveNutrientId] = useState("");
 
   const [fitosanidadApps, setFitosanidadApps] = useState<AppFitosanidad[]>([]);
   const [mezclas, setMezclas] = useState<AppMezcla[]>([]);
-  const [fertilizaciones, setFertilizaciones] = useState<AppFertilizacion[]>(() => [
-    createEmptyFertilizacion()
-  ]);
+  const [fertilizaciones, setFertilizaciones] = useState<AppFertilizacion[]>([]);
   const [riegoSelection, setRiegoSelection] = useState<string | null>(null);
   const [laborSelections, setLaborSelections] = useState<Set<string>>(() => new Set());
 
@@ -223,6 +226,7 @@ export function VisitaRecetaScreen() {
       endVisitTimePeriod,
       preventiveObjectiveType,
       preventiveTargetId,
+      preventiveNutrientId,
       fitosanidadApps,
       mezclas,
       fertilizaciones,
@@ -238,6 +242,7 @@ export function VisitaRecetaScreen() {
       mezclas,
       preventiveObjectiveType,
       preventiveTargetId,
+      preventiveNutrientId,
       riegoSelection
     ]
   );
@@ -260,6 +265,22 @@ export function VisitaRecetaScreen() {
     preventiveObjectiveType,
     preventiveTargets
   ]);
+
+  const availablePreventiveNutrients = useMemo(
+    () => getAvailablePreventiveNutrients(nutrients, consolidacion, fertilizaciones),
+    [consolidacion, fertilizaciones, nutrients]
+  );
+
+  const fertilizacionGroups = useMemo(() => {
+    const groups = new Map<string, AppFertilizacion[]>();
+    for (const item of fertilizaciones) {
+      const key = item.nutrienteId
+        ? `${item.enfoque ?? "reactivo"}:${item.nutrienteId}`
+        : `legacy:${item.localId}`;
+      groups.set(key, [...(groups.get(key) ?? []), item]);
+    }
+    return [...groups.entries()].map(([key, productos]) => ({ key, productos }));
+  }, [fertilizaciones]);
 
   useFocusEffect(
     useCallback(() => {
@@ -320,7 +341,9 @@ export function VisitaRecetaScreen() {
           ...current,
           ingredientes: current.ingredientes.map((ingredient) => {
             const selectionPatch = resolveCommercialSelectionPatch(
+              ingredient.tipoProductoId,
               ingredient.marcaProductoNombre,
+              catalogos.ingredientesActivos,
               catalogos.marcasProducto
             );
 
@@ -375,6 +398,10 @@ export function VisitaRecetaScreen() {
       setFertilizantes(catalogos.fertilizantes);
 
       const visita = visitasCampoRepository.getById(vId);
+      const currentNutrients = visita
+        ? visitaRecetasService.getNutrientsByCrop(visita.cropId)
+        : [];
+      setNutrients(currentNutrients);
       const currentPreventiveTargets =
         visitaRecetasService.getPreventivePestDiseases(
           visita?.phenologicalStageId ?? null
@@ -419,19 +446,12 @@ export function VisitaRecetaScreen() {
           );
         }
         initFitosanidadFromConsolidacion(localConsData, volumenPorDefecto.fitosanidad);
-        setFertilizaciones((prev) =>
-          prev.map((item, index) => {
-            const grade = localConsData.nutricion[index]?.incidenceGrade ?? 0;
-            return recalculateFertilizacion({
-              ...item,
-              volumenAplicacion:
-                index === 0 && volumenPorDefecto.fertilizacion
-                  ? volumenPorDefecto.fertilizacion
-                  : item.volumenAplicacion,
-              factor: factorFromGrade(grade).toString(),
-              factorEditable: grade === 3
-            });
-          })
+        setFertilizaciones(
+          mergeNutritionFertilizations(
+            [],
+            localConsData,
+            volumenPorDefecto.fertilizacion
+          )
         );
       }
 
@@ -468,10 +488,13 @@ export function VisitaRecetaScreen() {
         );
         setFitosanidadApps(draftFitosanidad);
         setMezclas(draftMezclas);
+        setPreventiveNutrientId(
+          currentNutrients.some((item) => item.id === draft.preventiveNutrientId)
+            ? (draft.preventiveNutrientId ?? "")
+            : ""
+        );
         setFertilizaciones(
-          draftFertilizaciones.length > 0
-            ? draftFertilizaciones
-            : [createEmptyFertilizacion()]
+          mergeNutritionFertilizations(draftFertilizaciones, localConsData)
         );
         setRiegoSelection(
           draft.riegoSelection &&
@@ -513,13 +536,23 @@ export function VisitaRecetaScreen() {
         return;
       }
 
-      const resolvedConsData = hasFitosanidadFindings(remoteConsData)
+      const resolvedFitosanidad = hasFitosanidadFindings(remoteConsData)
         ? remoteConsData
         : hasFitosanidadFindings(localConsData)
           ? mergeFitosanidadConsolidacion(remoteConsData, localConsData)
           : remoteConsData;
+      const resolvedConsData = {
+        ...resolvedFitosanidad,
+        nutricion: mergeNutritionConsolidacion(
+          resolvedFitosanidad.nutricion,
+          localConsData.nutricion
+        )
+      };
 
       setConsolidacion(resolvedConsData);
+      setFertilizaciones((current) =>
+        mergeNutritionFertilizations(current, resolvedConsData)
+      );
 
       if (hasFitosanidadFindings(resolvedConsData)) {
         setFitosanidadApps((prev) => {
@@ -552,6 +585,35 @@ export function VisitaRecetaScreen() {
     };
   }
 
+  function mergeNutritionConsolidacion(
+    remote: ConsolidacionHallazgo["nutricion"],
+    local: ConsolidacionHallazgo["nutricion"]
+  ) {
+    const localByName = new Map(
+      local.map((item) => [item.elemento.trim().toLocaleLowerCase("es"), item])
+    );
+    const merged = remote.map((item) => {
+      if (item.nutrienteId) return item;
+      const localItem = localByName.get(
+        item.elemento.trim().toLocaleLowerCase("es")
+      );
+      return localItem?.nutrienteId
+        ? { ...item, nutrienteId: localItem.nutrienteId }
+        : item;
+    });
+    const remoteIds = new Set(
+      merged
+        .map((item) => item.nutrienteId)
+        .filter((id): id is string => Boolean(id))
+    );
+    return [
+      ...merged,
+      ...local.filter(
+        (item) => item.nutrienteId && !remoteIds.has(item.nutrienteId)
+      )
+    ];
+  }
+
   function restoreFromReceta(
     receta: VisitaRecetaCompleta,
     ingredientCatalog: IngredienteActivoCatalogItem[],
@@ -573,7 +635,12 @@ export function VisitaRecetaScreen() {
     setMezclas(
       appendMezclasForNewFindings(restoreMezclas(receta.mezclas), merged.addedCount)
     );
-    setFertilizaciones(restoreFertilizaciones(receta.fertilizacion, fertilizerCatalog));
+    setFertilizaciones(
+      mergeNutritionFertilizations(
+        restoreFertilizaciones(receta.fertilizacion, fertilizerCatalog),
+        consolidationData
+      )
+    );
 
     if (receta.riego) {
       setRiegoSelection(receta.riego.tipoRecomendacion);
@@ -794,35 +861,65 @@ export function VisitaRecetaScreen() {
     setMezclas((current) => regenerateMezclas(current, projected));
   }
 
-  function addFertilizacion() {
+  function addPreventiveFertilizacion() {
     closeDropdown();
-    setFertilizaciones((prev) => {
-      const reactiveCount = prev.filter(
-        (item) => item.enfoque !== "preventivo"
-      ).length;
-      const grade = consolidacion?.nutricion[reactiveCount]?.incidenceGrade ?? 0;
-      return [
-        ...prev,
-        {
-          ...createEmptyFertilizacion(prev[0]?.volumenAplicacion ?? ""),
-          factor: factorFromGrade(grade).toString(),
-          factorEditable: grade === 3
-        }
-      ];
-    });
+    const nutrient = availablePreventiveNutrients.find(
+      (item) => item.id === preventiveNutrientId
+    );
+    if (!nutrient) {
+      setSubmitError("Selecciona el nutriente de la recomendacion preventiva.");
+      return;
+    }
+    setFertilizaciones((prev) => [
+      ...prev,
+      createPreventiveFertilizacion(
+        nutrient,
+        prev[0]?.volumenAplicacion ?? ""
+      )
+    ]);
+    setPreventiveNutrientId("");
+    setSubmitError(null);
   }
 
-  function removeFertilizacion(index: number) {
+  function addFertilizacionProduct(reference: AppFertilizacion) {
     closeDropdown();
-    setFertilizaciones((prev) =>
-      prev.length > 1 ? prev.filter((_, currentIndex) => currentIndex !== index) : prev
-    );
+    setFertilizaciones((prev) => [
+      ...prev,
+      {
+        ...createEmptyFertilizacion(reference.volumenAplicacion, {
+          nutrienteId: reference.nutrienteId,
+          nutrienteNombre: reference.nutrienteNombre,
+          enfoque: reference.enfoque ?? "reactivo",
+          incidenceGrade: reference.incidenceGrade
+        }),
+        factor: reference.factor,
+        factorEditable: reference.factorEditable
+      }
+    ]);
+  }
+
+  function removeFertilizacion(localId: string) {
+    closeDropdown();
+    setFertilizaciones((prev) => prev.filter((item) => item.localId !== localId));
   }
 
   function updateFertilizacion(index: number, patch: Partial<AppFertilizacion>) {
     setFertilizaciones((prev) => {
+      const reference = prev[index];
       const updated = prev.map((fertilizacion, currentIndex) => {
-        if (currentIndex !== index) return fertilizacion;
+        const sharesFactor =
+          patch.factor !== undefined &&
+          reference?.nutrienteId &&
+          fertilizacion.nutrienteId === reference.nutrienteId &&
+          fertilizacion.enfoque === reference.enfoque;
+        if (currentIndex !== index && !sharesFactor) return fertilizacion;
+
+        if (currentIndex !== index) {
+          return recalculateFertilizacion({
+            ...fertilizacion,
+            factor: patch.factor ?? fertilizacion.factor
+          });
+        }
 
         const current = { ...fertilizacion, ...patch };
         if (patch.tipoProducto !== undefined) {
@@ -838,12 +935,7 @@ export function VisitaRecetaScreen() {
         return recalculateFertilizacion(current);
       });
 
-      if (patch.enfoque === undefined) return updated;
-      return applyFertilizacionApproachFactor(
-        updated,
-        index,
-        consolidacion?.nutricion.map((item) => item.incidenceGrade) ?? []
-      );
+      return updated;
     });
   }
 
@@ -1226,10 +1318,10 @@ export function VisitaRecetaScreen() {
           <SectionHeader
             icon="nutrition"
             label="Fertilización"
-            subtitle={`${fertilizaciones.length} fertilizante(s) recomendado(s)`}
+            subtitle={`${fertilizacionGroups.length} deficiencia(s) atendida(s)`}
           />
 
-          {fertilizaciones.length === 0 ? (
+          {fertilizacionGroups.length === 0 ? (
             <View style={styles.emptyProductsCard}>
               <Ionicons
                 color={theme.colors.textMuted}
@@ -1237,50 +1329,129 @@ export function VisitaRecetaScreen() {
                 size={28}
               />
               <AppText style={styles.emptyProductsTitle} variant="label">
-                Aún no agregaste fertilizantes
+                No hay deficiencias nutricionales registradas
               </AppText>
               <AppText style={styles.emptyProductsText} variant="muted">
-                Agrega el primer producto para completar esta recomendación.
+                Evalúa un nutriente o agrega una recomendación preventiva.
               </AppText>
-              <AddItemButton
-                accessibilityLabel="Agregar primer fertilizante"
-                label="Agregar fertilizante"
-                onPress={addFertilizacion}
-              />
             </View>
-          ) : (
-            fertilizaciones.map((fertilizacion, index) => (
-              <FertilizacionCard
-                canRemove={fertilizaciones.length > 1}
-                fertilizantes={fertilizantes}
-                index={index}
-                key={fertilizacion.localId}
-                onChange={(patch) => updateFertilizacion(index, patch)}
-                onCloseDropdown={closeDropdown}
-                onRemove={() => removeFertilizacion(index)}
-                openDropdown={openDropdown}
-                toggleDropdown={toggleDropdown}
-                onNavegarCatalogo={(tipo, ingredienteActivoId) =>
-                  router.push(
-                    `/productos/nuevo?tipoPredefinido=${tipo}${
-                      ingredienteActivoId
-                        ? `&ingredienteActivoId=${encodeURIComponent(ingredienteActivoId)}`
-                        : ""
-                    }`
-                  )
-                }
-                value={fertilizacion}
-              />
-            ))
-          )}
-
-          {fertilizaciones.length > 0 ? (
-            <AddItemButton
-              accessibilityLabel="Agregar otro fertilizante"
-              label="Agregar otro fertilizante"
-              onPress={addFertilizacion}
-            />
           ) : null}
+
+          {fertilizacionGroups.map((group, groupIndex) => {
+            const reference = group.productos[0]!;
+            const isPreventive = reference.enfoque === "preventivo";
+            return (
+              <View key={group.key} style={styles.fertilizacionGroupCard}>
+                <View style={styles.itemCardHeader}>
+                  <View style={styles.itemCardTitle}>
+                    <View style={styles.itemNumberBadge}>
+                      <AppText style={styles.itemNumberText} variant="eyebrow">
+                        {groupIndex + 1}
+                      </AppText>
+                    </View>
+                    <View>
+                      <AppText variant="heading">
+                        {reference.nutrienteNombre || "Deficiencia no registrada"}
+                      </AppText>
+                      <AppText variant="caption">
+                        {isPreventive ? "Preventivo" : "Curativo"}
+                        {!isPreventive && reference.incidenceGrade !== null
+                          ? ` · Grado ${reference.incidenceGrade}`
+                          : ""}
+                      </AppText>
+                    </View>
+                  </View>
+                  {isPreventive ? (
+                    <RemoveItemButton
+                      accessibilityLabel={`Quitar recomendación preventiva de ${reference.nutrienteNombre}`}
+                      label="Quitar"
+                      onPress={() =>
+                        setFertilizaciones((current) =>
+                          current.filter(
+                            (item) =>
+                              !(
+                                item.nutrienteId === reference.nutrienteId &&
+                                item.enfoque === reference.enfoque
+                              )
+                          )
+                        )
+                      }
+                    />
+                  ) : null}
+                </View>
+
+                {group.productos.map((fertilizacion, productIndex) => {
+                  const index = fertilizaciones.findIndex(
+                    (item) => item.localId === fertilizacion.localId
+                  );
+                  return (
+                    <FertilizacionCard
+                      canRemove={group.productos.length > 1}
+                      fertilizantes={fertilizantes}
+                      index={index}
+                      key={fertilizacion.localId}
+                      productIndex={productIndex}
+                      onChange={(patch) => updateFertilizacion(index, patch)}
+                      onCloseDropdown={closeDropdown}
+                      onRemove={() => removeFertilizacion(fertilizacion.localId)}
+                      openDropdown={openDropdown}
+                      toggleDropdown={toggleDropdown}
+                      onNavegarCatalogo={(tipo, ingredienteActivoId) =>
+                        router.push(
+                          `/productos/nuevo?tipoPredefinido=${tipo}${
+                            ingredienteActivoId
+                              ? `&ingredienteActivoId=${encodeURIComponent(ingredienteActivoId)}`
+                              : ""
+                          }`
+                        )
+                      }
+                      value={fertilizacion}
+                    />
+                  );
+                })}
+                {reference.nutrienteId ? (
+                  <AddItemButton
+                    accessibilityLabel={`Agregar fertilizante para ${reference.nutrienteNombre}`}
+                    label="Agregar otro producto"
+                    onPress={() => addFertilizacionProduct(reference)}
+                  />
+                ) : null}
+              </View>
+            );
+          })}
+
+          <View style={styles.preventiveFertilizationCard}>
+            <AppText variant="label">Agregar recomendación preventiva</AppText>
+            <AppText variant="caption">
+              Solo se muestran nutrientes del cultivo que no fueron evaluados.
+            </AppText>
+            <AppSelectField
+              icon="nutrition-outline"
+              label="Nutriente"
+              options={availablePreventiveNutrients.map((item) => ({
+                value: item.id,
+                label: item.name
+              }))}
+              placeholder="Seleccionar nutriente"
+              selectedLabel={
+                nutrients.find((item) => item.id === preventiveNutrientId)?.name
+              }
+              isOpen={openDropdown === "preventive_nutrient"}
+              onClose={closeDropdown}
+              onToggle={() => toggleDropdown("preventive_nutrient")}
+              onSelect={setPreventiveNutrientId}
+              searchable
+              searchPlaceholder="Buscar nutriente"
+            />
+            <AppButton
+              disabled={!preventiveNutrientId}
+              icon="add-circle-outline"
+              label="Agregar preventiva"
+              onPress={addPreventiveFertilizacion}
+              size="small"
+              variant="outline"
+            />
+          </View>
 
           <SectionHeader icon="water" label="Riego" subtitle="Recomendacion de riego" />
 
@@ -1628,6 +1799,7 @@ function IngredienteCard({
   const nombreComercialOptions = getCommercialOptions(
     value.tipoProductoId,
     value.ingredienteActivoId,
+    ingredientesActivos,
     marcasProducto
   );
 
@@ -1635,7 +1807,10 @@ function IngredienteCard({
     const selected = nombreComercialOptions.find(
       (option) => option.id === marcaProductoId
     );
-    if (selected) onChange(buildCommercialSelectionPatch(selected));
+    if (!selected) return;
+
+    const patch = buildCommercialSelectionPatch(selected, ingredientesActivos);
+    if (patch) onChange(patch);
   }
 
   return (
@@ -1691,6 +1866,8 @@ function IngredienteCard({
             buildTypeSelectionPatch(tipoProductoId, ingredientesActivos, marcasProducto)
           )
         }
+        searchable
+        searchPlaceholder="Buscar tipo de producto"
       />
 
       <AppSelectField
@@ -1733,6 +1910,8 @@ function IngredienteCard({
             )
           )
         }
+        searchable
+        searchPlaceholder="Buscar ingrediente activo"
       />
 
       <AppButton
@@ -1744,24 +1923,29 @@ function IngredienteCard({
       />
 
       <AppSelectField
-        disabled={!value.ingredienteActivoId}
-        emptyMessage="No hay nombres comerciales para el ingrediente seleccionado."
+        disabled={!value.tipoProductoId}
+        emptyMessage="No hay nombres comerciales relacionados con el tipo seleccionado."
         icon="pricetag-outline"
         label="Nombre comercial"
         options={nombreComercialOptions.map((item) => ({
           value: item.id,
-          label: item.name
+          label: item.name,
+          helper: ingredientesActivos.find(
+            (ingrediente) => ingrediente.id === item.ingredienteActivoId
+          )?.name
         }))}
         placeholder={
-          value.ingredienteActivoId
+          value.tipoProductoId
             ? "Seleccionar nombre comercial"
-            : "Selecciona primero ingrediente activo"
+            : "Selecciona primero tipo de producto"
         }
         selectedLabel={value.marcaProductoNombre || undefined}
         isOpen={openDropdown === `${prefix}_nombre_comercial`}
         onClose={onCloseDropdown}
         onToggle={() => toggleDropdown(`${prefix}_nombre_comercial`)}
         onSelect={handleNombreComercialSelect}
+        searchable
+        searchPlaceholder="Buscar nombre comercial o ingrediente activo"
       />
 
       <AppButton
@@ -2167,6 +2351,7 @@ function validateRequiredRecipe(
 function FertilizacionCard({
   value,
   index,
+  productIndex,
   canRemove,
   fertilizantes,
   openDropdown,
@@ -2178,6 +2363,7 @@ function FertilizacionCard({
 }: {
   value: AppFertilizacion;
   index: number;
+  productIndex: number;
   canRemove: boolean;
   fertilizantes: FertilizanteCatalogItem[];
   openDropdown: string | null;
@@ -2197,42 +2383,29 @@ function FertilizacionCard({
         <View style={styles.itemCardTitle}>
           <View style={styles.itemNumberBadge}>
             <AppText style={styles.itemNumberText} variant="eyebrow">
-              {index + 1}
+              {productIndex + 1}
             </AppText>
           </View>
-          <AppText variant="heading">Fertilizante {index + 1}</AppText>
+          <AppText variant="heading">Producto {productIndex + 1}</AppText>
         </View>
         {canRemove ? (
           <RemoveItemButton
-            accessibilityLabel={`Quitar fertilizante ${index + 1}`}
+            accessibilityLabel={`Quitar producto ${productIndex + 1}`}
             label="Quitar"
             onPress={onRemove}
           />
         ) : null}
       </View>
 
-      <AppSelectField
-        icon="shield-checkmark-outline"
-        label="Enfoque de la recomendacion"
-        options={[
-          { value: "reactivo", label: "Reactivo" },
-          { value: "preventivo", label: "Preventivo" }
-        ]}
-        placeholder="Seleccionar enfoque"
-        selectedLabel={value.enfoque === "preventivo" ? "Preventivo" : "Reactivo"}
-        isOpen={openDropdown === `${prefix}_enfoque`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_enfoque`)}
-        onSelect={(approach) =>
-          onChange({ enfoque: approach as "reactivo" | "preventivo" })
-        }
-      />
-
       {value.enfoque === "preventivo" ? (
         <AppText style={styles.preventiveText} variant="caption">
           Preventivo · Factor fijo 1.0
         </AppText>
-      ) : null}
+      ) : (
+        <AppText style={styles.preventiveText} variant="caption">
+          Curativo · Factor calculado desde la evaluación
+        </AppText>
+      )}
 
       <AppSelectField
         icon="leaf"
@@ -2271,6 +2444,8 @@ function FertilizacionCard({
             unidadMedida: fert?.unidadMedida ?? ""
           });
         }}
+        searchable
+        searchPlaceholder="Buscar fertilizante"
       />
 
       <AppButton
@@ -3005,6 +3180,22 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 16,
     ...theme.shadow.sm
+  },
+  fertilizacionGroupCard: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    gap: 14,
+    padding: 14
+  },
+  preventiveFertilizationCard: {
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16
   },
   addItemButton: {
     alignItems: "center",

@@ -115,7 +115,8 @@ function buildDetails(receta: RecetaAnterior | null, modulo: CalificacionModulo)
   if (modulo === "nutricion") {
     return (receta.fertilizacion ?? []).map((item) =>
       [
-        formatRecommendationApproach(item.enfoque),
+        item.nutrienteNombre ?? "Deficiencia no registrada",
+        item.enfoque === "preventivo" ? "Preventivo" : "Curativo",
         item.fertilizanteNombre,
         item.viaAplicacion,
         item.dosis ? `${item.dosis} ${item.unidadDosis ?? ""}`.trim() : null

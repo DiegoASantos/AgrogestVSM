@@ -424,6 +424,9 @@ export type RecetaFitosanidad = {
 
 export type RecetaFertilizacion = {
   id: string;
+  enfoque?: "reactivo" | "preventivo";
+  nutrienteId?: string | null;
+  nutrienteNombre?: string | null;
   viaAplicacion: "edafica" | "foliar";
   fertilizanteNombre: string | null;
   tipoProducto: "solido" | "liquido" | null;
@@ -432,6 +435,7 @@ export type RecetaFertilizacion = {
   cantidadTotalPlantas: number | null;
   volumenAplicacion: number | null;
   cantidadTotalFertilizante: number | null;
+  factor?: number;
 };
 
 export type RecetaRiego = {

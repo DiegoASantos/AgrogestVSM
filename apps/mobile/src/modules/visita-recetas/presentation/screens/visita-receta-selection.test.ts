@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { IngredienteActivoCatalogItem, MarcaProductoCatalogItem } from "../../types";
 import {
+  buildCommercialSelectionPatch,
   buildIngredientSelectionPatch,
   buildTypeSelectionPatch,
   getCommercialOptions,
@@ -60,6 +61,28 @@ const brands: MarcaProductoCatalogItem[] = [
     concentracion: 50,
     concentracionTexto: "50",
     unidadMedida: "g/Kg"
+  },
+  {
+    id: "brand-without-ingredient",
+    publicId: "brand-without-ingredient",
+    name: "Marca historica",
+    tipoProductoId: "type-1",
+    ingredienteActivoId: null,
+    ingredienteActivoNombre: null,
+    concentracion: 10,
+    concentracionTexto: "10",
+    unidadMedida: "%"
+  },
+  {
+    id: "brand-with-missing-ingredient",
+    publicId: "brand-with-missing-ingredient",
+    name: "Marca huerfana",
+    tipoProductoId: "type-1",
+    ingredienteActivoId: "ia-missing",
+    ingredienteActivoNombre: "Ingrediente inexistente",
+    concentracion: 12,
+    concentracionTexto: "12",
+    unidadMedida: "%"
   }
 ];
 
@@ -68,9 +91,15 @@ describe("recipe catalog selection cascade", () => {
     expect(
       getIngredientOptions("type-1", ingredients, brands).map((item) => item.id)
     ).toEqual(["ia-1", "ia-2"]);
-    expect(getCommercialOptions("type-1", "ia-1", brands).map((item) => item.id)).toEqual(
-      ["brand-1", "brand-2"]
-    );
+    expect(
+      getCommercialOptions("type-1", "ia-1", ingredients, brands).map((item) => item.id)
+    ).toEqual(["brand-1", "brand-2"]);
+  });
+
+  it("lists all valid commercial names for a type before choosing an ingredient", () => {
+    expect(
+      getCommercialOptions("type-1", "", ingredients, brands).map((item) => item.id)
+    ).toEqual(["brand-1", "brand-2", "brand-3"]);
   });
 
   it("clears dependent values when a type has multiple ingredients", () => {
@@ -105,6 +134,27 @@ describe("recipe catalog selection cascade", () => {
     });
   });
 
+  it("clears an incompatible brand and auto-selects the only compatible one", () => {
+    expect(buildIngredientSelectionPatch("type-1", "ia-2", ingredients, brands)).toEqual({
+      ingredienteActivoId: "ia-2",
+      ingredienteActivoNombre: "Azufre",
+      marcaProductoNombre: "Azufre 80",
+      concentracionProducto: "80",
+      unidadMedidaProducto: "%"
+    });
+  });
+
+  it("selects the ingredient, commercial name, concentration and unit from a brand", () => {
+    expect(buildCommercialSelectionPatch(brands[2]!, ingredients)).toEqual({
+      ingredienteActivoId: "ia-2",
+      ingredienteActivoNombre: "Azufre",
+      marcaProductoNombre: "Azufre 80",
+      concentracionProducto: "80",
+      unidadMedidaProducto: "%"
+    });
+    expect(buildCommercialSelectionPatch(brands[5]!, ingredients)).toBeNull();
+  });
+
   it("restores the transient ingredient id from persisted text", () => {
     expect(
       resolveIngredientId("type-1", "Abamectina", "Abamex", ingredients, brands)
@@ -115,11 +165,17 @@ describe("recipe catalog selection cascade", () => {
   });
 
   it("rehydrates concentration and unit after a catalog refresh", () => {
-    expect(resolveCommercialSelectionPatch(" cobre solo ", brands)).toEqual({
+    expect(
+      resolveCommercialSelectionPatch("type-2", " cobre solo ", ingredients, brands)
+    ).toEqual({
+      ingredienteActivoId: "ia-3",
+      ingredienteActivoNombre: "Cobre",
       marcaProductoNombre: "Cobre Solo",
       concentracionProducto: "50",
       unidadMedidaProducto: "g/Kg"
     });
-    expect(resolveCommercialSelectionPatch("Producto ausente", brands)).toBeNull();
+    expect(
+      resolveCommercialSelectionPatch("type-1", "Producto ausente", ingredients, brands)
+    ).toBeNull();
   });
 });

@@ -29,6 +29,7 @@ type ConsolidacionHallazgo = {
     incidenceGrade: number;
   }>;
   nutricion: Array<{
+    nutrienteId: string | null;
     elemento: string;
     incidencia: string;
     severidad: string;
@@ -88,6 +89,7 @@ export class VisitaRecetasConsolidacionService {
       }),
       this.evaluacionRepository.find({
         where: { visitaId },
+        relations: ["nutrient"],
         order: { order: "ASC" }
       }),
       this.riegoRepository.findOne({
@@ -122,11 +124,15 @@ export class VisitaRecetasConsolidacionService {
       }));
 
     const nutricion = evaluaciones
-      .filter((e) => e.description?.startsWith("Nutricion - "))
+      .filter(
+        (e) => Boolean(e.nutrientId) || e.description?.startsWith("Nutricion - ")
+      )
       .map((e) => {
         const descParts = (e.description ?? "").split(" - ");
         return {
-          elemento: descParts[1] ?? e.description ?? "Sin especificar",
+          nutrienteId: e.nutrientId,
+          elemento:
+            e.nutrient?.name ?? descParts[1] ?? e.description ?? "Sin especificar",
           incidencia: e.incidencePercentage
             ? `${e.incidencePercentage}%`
             : "No especificada",

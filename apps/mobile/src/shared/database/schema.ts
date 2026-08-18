@@ -445,6 +445,8 @@ export const SQL_SCHEMA = [
     server_id TEXT,
     receta_local_id TEXT NOT NULL,
     enfoque TEXT NOT NULL DEFAULT 'reactivo' CHECK(enfoque IN ('reactivo', 'preventivo')),
+    nutriente_id TEXT,
+    nutriente_nombre TEXT,
     via_aplicacion TEXT NOT NULL CHECK(via_aplicacion IN ('edafica', 'foliar')),
     fertilizante_nombre TEXT,
     tipo_producto TEXT CHECK(tipo_producto IN ('solido', 'liquido')),
@@ -459,6 +461,8 @@ export const SQL_SCHEMA = [
     updated_at TEXT NOT NULL,
     FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE
   )`,
+  `CREATE INDEX IF NOT EXISTS idx_visita_receta_fertilizacion_nutriente
+    ON visita_receta_fertilizacion(nutriente_id)`,
   `CREATE TABLE IF NOT EXISTS visita_receta_riego (
     local_id TEXT PRIMARY KEY NOT NULL,
     server_id TEXT,

@@ -10,6 +10,7 @@ import { getDatabase } from "../../../shared/database/connection";
 import type { VisitaRecetaCompleta, ConsolidacionHallazgo } from "../types";
 import { resolveDiseaseIncidenceGrade } from "../../observaciones-sanitarias/domain/disease-incidence";
 import { resolveNutritionIncidence } from "../../evaluaciones/domain/nutrition-incidence";
+import { nutricionService } from "../../nutricion/services/nutricion.service";
 
 const NUTRITION_DESCRIPTION_PREFIX = "Nutricion -";
 
@@ -44,6 +45,8 @@ export type SaveRecetaData = {
   }>;
   fertilizacion: Array<{
     enfoque: "reactivo" | "preventivo";
+    nutrienteId: string | null;
+    nutrienteNombre?: string | null;
     viaAplicacion: "edafica" | "foliar";
     fertilizanteNombre: string | null;
     tipoProducto: "solido" | "liquido" | null;
@@ -82,6 +85,10 @@ export const visitaRecetasService = {
       .filter((item) => item.isActive);
   },
 
+  getNutrientsByCrop(cropId: string) {
+    return nutricionService.getNutrientsByCrop(cropId);
+  },
+
   getByVisitaId(visitaId: string): VisitaRecetaCompleta | null {
     return visitaRecetasRepository.getRecetaByVisitaLocalId(visitaId);
   },
@@ -104,6 +111,10 @@ export const visitaRecetasService = {
     const laboresSeleccionadas =
       laboresCulturalesVisitaRepository.getByVisitaLocalId(visitaId);
     const evaluaciones = evaluacionesRepository.getByVisitaLocalId(visitaId);
+    const nutrients = visita
+      ? nutricionService.getNutrientsByCrop(visita.cropId)
+      : [];
+    const nutrientById = new Map(nutrients.map((nutrient) => [nutrient.id, nutrient]));
     const pestById = new Map(pestDiseases.map((pest) => [pest.id, pest]));
     const levelById = new Map(incidenceLevels.map((level) => [level.id, level]));
     const laborById = new Map(laboresCatalog.map((labor) => [labor.id, labor]));
@@ -147,14 +158,20 @@ export const visitaRecetasService = {
     }
 
     const nutricion = evaluaciones
-      .filter((evaluacion) =>
-        evaluacion.description.startsWith(NUTRITION_DESCRIPTION_PREFIX)
+      .filter(
+        (evaluacion) =>
+          Boolean(evaluacion.nutrientId) ||
+          evaluacion.description.startsWith(NUTRITION_DESCRIPTION_PREFIX)
       )
       .map((evaluacion) => {
         const parsed = parseNutritionEvaluationDescription(evaluacion.description);
 
         return {
-          elemento: parsed.elemento,
+          nutrienteId: evaluacion.nutrientId,
+          elemento:
+            (evaluacion.nutrientId
+              ? nutrientById.get(evaluacion.nutrientId)?.name
+              : null) ?? parsed.elemento,
           incidencia: evaluacion.incidencePercentage
             ? `${evaluacion.incidencePercentage}%`
             : "No especificada",
@@ -252,6 +269,7 @@ export const visitaRecetasService = {
       })),
       fertilizacion: data.fertilizacion.map((f) => ({
         enfoque: f.enfoque,
+        nutrienteId: f.nutrienteId ?? undefined,
         viaAplicacion: f.viaAplicacion,
         fertilizanteNombre: f.fertilizanteNombre ?? undefined,
         tipoProducto: f.tipoProducto ?? undefined,

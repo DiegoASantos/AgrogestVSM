@@ -631,7 +631,8 @@ function renderFertilizacion(receta: VisitaRecetaCompleta): string {
     <div class="section-card">
       <table>
         <tr><th>Campo</th><th>Valor</th></tr>
-        <tr><td>Enfoque</td><td><strong>${escapeHtml(formatRecommendationApproach(fert.enfoque))}</strong></td></tr>
+        <tr><td>Deficiencia</td><td><strong>${escapeHtml(fert.nutrienteNombre ?? "Deficiencia no registrada")}</strong></td></tr>
+        <tr><td>Enfoque</td><td><strong>${fert.enfoque === "preventivo" ? "Preventivo" : "Curativo"}</strong></td></tr>
         <tr><td>Via de aplicacion</td><td>${viaLabel}</td></tr>
         <tr><td>Fertilizante</td><td>${escapeHtml(fert.fertilizanteNombre ?? "-")}</td></tr>
         <tr><td>Tipo de producto</td><td>${tipoLabel}</td></tr>
@@ -741,11 +742,13 @@ function renderResumenFertilizacion(receta: VisitaRecetaCompleta): string {
   return `
     <h3>Fertilizantes</h3>
     <table>
-      <tr><th>Fertilizante</th><th>Via</th><th>Dosis</th><th>Factor</th><th>Total</th></tr>
+      <tr><th>Deficiencia</th><th>Enfoque</th><th>Fertilizante</th><th>Via</th><th>Dosis</th><th>Factor</th><th>Total</th></tr>
       ${receta.fertilizacion
         .map(
           (item) => `
             <tr>
+              <td>${escapeHtml(item.nutrienteNombre ?? "Deficiencia no registrada")}</td>
+              <td>${item.enfoque === "preventivo" ? "Preventivo" : "Curativo"}</td>
               <td>${escapeHtml(item.fertilizanteNombre ?? "-")}</td>
               <td>${escapeHtml(item.viaAplicacion === "edafica" ? "Edafica" : "Foliar")}</td>
               <td>${escapeHtml(formatFertilizacionDosis(item))}</td>

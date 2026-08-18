@@ -107,6 +107,16 @@ async function run() {
     await assertColumnExists(client, "marcas_producto", "unidad_medida");
     await assertColumnExists(client, "fertilizantes", "concentracion");
     await assertColumnExists(client, "fertilizantes", "unidad_medida");
+    await assertColumnExists(
+      client,
+      "visita_receta_fertilizacion",
+      "nutriente_id"
+    );
+    await assertColumnExists(
+      client,
+      "visita_receta_fertilizacion",
+      "nutriente_nombre"
+    );
     await assertMinimumCount(
       client,
       `SELECT COUNT(*)::text AS count

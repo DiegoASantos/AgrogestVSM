@@ -101,6 +101,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Borradores persistentes en visitas mobile](specs/049-borradores-persistentes-visitas-mobile.md)
 - [Carga idempotente del catalogo agroquimico desde Excel](specs/050-catalogo-agroquimicos-excel.md)
 - [Tutorial visual guiado para el paso 1 de visitas](specs/051-tutorial-guiado-paso-1-visita.md)
+- [Busqueda y seleccion bidireccional en recetas mobile](specs/052-busqueda-seleccion-bidireccional-recetas-mobile.md)
+- [Fertilizantes por deficiencia nutricional](specs/053-fertilizantes-por-deficiencia-nutricional.md)
 
 ## Runbooks
 

@@ -95,4 +95,6 @@ en la raíz.
 - [Spec 049: Borradores persistentes en visitas mobile](049-borradores-persistentes-visitas-mobile.md)
 - [Spec 050: Carga idempotente del catalogo agroquimico desde Excel](050-catalogo-agroquimicos-excel.md)
 - [Spec 051: Tutorial visual guiado para el paso 1 de visitas](051-tutorial-guiado-paso-1-visita.md)
+- [Spec 052: Busqueda y seleccion bidireccional en recetas mobile](052-busqueda-seleccion-bidireccional-recetas-mobile.md)
+- [Spec 053: Fertilizantes por deficiencia nutricional](053-fertilizantes-por-deficiencia-nutricional.md)
 - [Plantilla](TEMPLATE.md)

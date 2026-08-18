@@ -42,6 +42,7 @@ export type SaveRecetaInput = {
   }>;
   fertilizacion: Array<{
     enfoque?: "reactivo" | "preventivo";
+    nutrienteId?: string | null;
     viaAplicacion: "edafica" | "foliar";
     fertilizanteNombre?: string | null;
     tipoProducto?: "solido" | "liquido" | null;

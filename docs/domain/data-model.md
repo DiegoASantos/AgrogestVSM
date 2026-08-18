@@ -168,9 +168,15 @@ prevencion cuando la misma visita ya tiene incidencia positiva para el
 objetivo. Una mezcla formada solo por prevenciones usa factor 1; en una mezcla
 mixta, el factor sigue derivandose del mayor hallazgo reactivo.
 
-En fertilizacion, el enfoque se guarda por producto sin asociar ni inferir una
-deficiencia nutricional. Una recomendacion preventiva usa factor 1 no editable;
-las formulas, dosis y unidades son las mismas del flujo reactivo.
+En fertilizacion, cada fila de producto puede referenciar `nutriente_id` y
+conserva `nutriente_nombre` como instantanea historica. Mobile agrupa las filas
+por nutriente en una tarjeta de deficiencia y admite varios productos dentro de
+ella. La existencia de una evaluacion nutricional para la visita clasifica la
+tarjeta como curativa (`reactivo` en persistencia por compatibilidad), incluso
+con incidencia grado 0. Un nutriente del cultivo no evaluado solo puede
+recomendarse como preventivo y usa factor 1 no editable. Las recetas anteriores
+sin relacion permanecen legibles como `Deficiencia no registrada`; nunca se
+infiere el nutriente por la posicion del producto.
 
 La dosis de fertilizacion conserva `unidad_dosis`: los productos solidos
 permiten `mg`, `g` o `kg`, y los liquidos permiten `ml` o `l`. La via edafica
