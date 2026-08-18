@@ -371,3 +371,22 @@ Toda nueva entidad sincronizable requiere:
 - reconciliación y reintento;
 - pruebas offline-online;
 - actualización de este documento.
+
+## Entrada asistida por voz offline
+
+El paso 1 de una visita admite una capa opcional de entrada por voz para ayudar
+a usuarios mayores. El asistente lee los catalogos que mobile ya tiene
+disponibles, pregunta cada campo, interpreta la respuesta y exige confirmacion
+antes de escribir sobre el mismo estado del formulario manual. Al finalizar
+solo cierra el dialogo para que el tecnico revise; no guarda ni navega.
+
+El reconocimiento Whisper Tiny INT8 y la sintesis Piper en espanol se ejecutan
+con Sherpa-ONNX dentro del dispositivo. Los modelos se incluyen en el APK, por
+lo que el recorrido no descarga recursos ni usa la API. Las muestras PCM viven
+solo en memoria y los motores se destruyen al alternar entre lectura y escucha,
+al cancelar y cuando la aplicacion pasa a segundo plano.
+
+Esta capa no introduce tabla, migracion, handler ni tipo de outbox. El guardado
+posterior conserva exactamente el flujo formulario -> SQLite -> outbox. El
+formulario manual permanece disponible si el equipo no tiene Android 10, se
+deniega `RECORD_AUDIO`, falta un modelo o falla el runtime nativo.

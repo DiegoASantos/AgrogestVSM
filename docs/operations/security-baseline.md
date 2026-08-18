@@ -93,3 +93,15 @@ preferida es instalar la CA correspondiente y activar verificación estricta.
 - producción: acceso limitado al mantenedor y responsables designados;
 - MCP de PostgreSQL: solo lectura y nunca producción por defecto;
 - cuentas compartidas: no permitidas.
+
+## Voz local en mobile
+
+- `RECORD_AUDIO` se solicita solo cuando el usuario inicia la evaluacion
+  asistida y la denegacion no bloquea el formulario manual;
+- reconocimiento y sintesis usan modelos incluidos en el APK, sin solicitudes
+  a Google, OpenAI, la API de AgroGest ni otro proveedor;
+- el PCM y la transcripcion permanecen en memoria durante la pregunta actual;
+  no se escriben en SQLite, archivos, logs, telemetria ni outbox;
+- cancelar, pasar a segundo plano o cerrar el dialogo detiene la captura,
+  limpia buffers y libera los motores nativos;
+- cada sustitucion de modelos exige registrar procedencia, licencia y SHA-256.

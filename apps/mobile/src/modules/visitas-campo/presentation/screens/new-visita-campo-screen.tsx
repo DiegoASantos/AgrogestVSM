@@ -50,7 +50,9 @@ import {
   type TimePeriod
 } from "../../domain/time-input";
 import { validateRequiredPhenologicalStage } from "../../domain/required-phenological-stage";
+import type { VoiceFormField } from "../../domain/offline-voice-input";
 import { Time12HourInput } from "../components/time-12-hour-input";
+import { VoiceVisitAssistantModal } from "../components/voice-visit-assistant-modal";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
@@ -157,6 +159,7 @@ export function NewVisitaCampoScreen() {
   const [errors, setErrors] = useState<NewVisitaCampoFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
 
   useEffect(() => {
     void loadCultivos();
@@ -420,6 +423,35 @@ export function NewVisitaCampoScreen() {
             currentStep={CURRENT_STEP}
             steps={WIZARD_STEPS}
           />
+
+          <View style={styles.voiceCard}>
+            <View style={styles.voiceIcon}>
+              <Ionicons color="#ffffff" name="mic" size={31} />
+            </View>
+            <View style={styles.voiceCopy}>
+              <AppText style={styles.voiceTitle} variant="heading">
+                Completar con ayuda por voz
+              </AppText>
+              <AppText style={styles.voiceDescription} variant="body">
+                Te guia pregunta por pregunta y funciona completamente sin internet.
+              </AppText>
+            </View>
+            <Pressable
+              accessibilityHint="Inicia preguntas habladas para completar este formulario"
+              accessibilityRole="button"
+              disabled={isSubmitting}
+              onPress={() => setIsVoiceAssistantOpen(true)}
+              style={({ pressed }) => [
+                styles.voiceButton,
+                pressed && styles.pressed,
+                isSubmitting && styles.disabledButton
+              ]}
+            >
+              <AppText style={styles.voiceButtonText} variant="label">
+                Iniciar
+              </AppText>
+            </Pressable>
+          </View>
 
           <View style={styles.formCard}>
             <View style={styles.sectionHeader}>
@@ -720,6 +752,18 @@ export function NewVisitaCampoScreen() {
         onClose={() => setSelectedSubEtapaInfo(null)}
         subEtapa={selectedSubEtapaInfo}
       />
+      <VoiceVisitAssistantModal
+        cropOptions={cultivoOptions}
+        isLoadingPhenologicalStages={isLoadingEtapasFenologicas}
+        isLoadingVarieties={isLoadingVariedades}
+        onApply={handleVoiceFieldApply}
+        onClose={() => setIsVoiceAssistantOpen(false)}
+        phenologicalStageOptions={etapaFenologicaOptions}
+        today={today}
+        values={values}
+        varietyOptions={variedadOptions}
+        visible={isVoiceAssistantOpen}
+      />
     </ScreenContainer>
   );
 
@@ -775,9 +819,7 @@ export function NewVisitaCampoScreen() {
 
     updateField(
       field,
-      isComplete12HourInput(nextValue)
-        ? normalize12HourTimeForApi(nextValue, period)
-        : ""
+      isComplete12HourInput(nextValue) ? normalize12HourTimeForApi(nextValue, period) : ""
     );
   }
 
@@ -819,6 +861,10 @@ export function NewVisitaCampoScreen() {
     value: string
   ) {
     if (field === "crop") {
+      setVariedades([]);
+      setCampanias([]);
+      setEtapasFenologicas([]);
+      setSubEtapas([]);
       setErrors((currentErrors) => ({
         ...currentErrors,
         crop: undefined,
@@ -850,6 +896,38 @@ export function NewVisitaCampoScreen() {
     }
 
     setActiveCatalog(null);
+  }
+
+  function handleVoiceFieldApply(field: VoiceFormField, value: string) {
+    if (field === "crop" || field === "variety" || field === "phenologicalStage") {
+      handleCatalogSelection(field, value);
+      return;
+    }
+
+    if (field === "plantsCount" || field === "areaHectares") {
+      unlockDefaultField(field);
+      updateField(field, value);
+      return;
+    }
+
+    if (field === "sowingDate") {
+      unlockDefaultField(field);
+      handleDateSelection(field, value);
+      return;
+    }
+
+    if (field === "startVisitTime" || field === "endVisitTime") {
+      updateField(field, value);
+      syncTimeInputFromApi(field, value);
+      return;
+    }
+
+    if (field === "subEtapaPercentage") {
+      commitSubEtapaProgress(value);
+      return;
+    }
+
+    updateField(field, value);
   }
 
   function handleDateSelection(field: "sowingDate", value: string) {
@@ -2528,6 +2606,53 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     borderRadius: 4,
     backgroundColor: "#3f8f21"
+  },
+  voiceCard: {
+    alignItems: "center",
+    backgroundColor: "#e9f5ee",
+    borderColor: "#95d5b2",
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 14,
+    padding: 17
+  },
+  voiceIcon: {
+    alignItems: "center",
+    backgroundColor: "#176b2d",
+    borderRadius: 28,
+    height: 56,
+    justifyContent: "center",
+    width: 56
+  },
+  voiceCopy: {
+    flex: 1,
+    minWidth: 210
+  },
+  voiceTitle: {
+    color: "#073b2a",
+    fontSize: 19,
+    lineHeight: 24
+  },
+  voiceDescription: {
+    color: "#45675a",
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4
+  },
+  voiceButton: {
+    alignItems: "center",
+    backgroundColor: "#176b2d",
+    borderRadius: 14,
+    justifyContent: "center",
+    minHeight: 50,
+    minWidth: 104,
+    paddingHorizontal: 18
+  },
+  voiceButtonText: {
+    color: "#ffffff",
+    fontSize: 16
   },
   formCard: {
     gap: 16,
