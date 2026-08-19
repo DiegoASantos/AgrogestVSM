@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-18
+last_reviewed: 2026-08-19
 ---
 
 # Registro de riesgos
@@ -41,6 +41,7 @@ last_reviewed: 2026-08-18
 | R-028 | Mobile puede sincronizar enfoques preventivos antes de que PostgreSQL y API acepten el nuevo contrato, o usar un catalogo sanitario desactualizado | Media | Mitigado | Desplegar migracion 049 y API antes de la OTA; mobile conserva el agregado en outbox y API revalida objetivo activo, tipo e incidencia positiva antes de persistir |
 | R-029 | Un usuario puede olvidar que selecciono offline manual y retrasar la publicacion de pendientes | Baja | Mitigado | La preferencia se muestra en la tarjeta y en una franja persistente con recordatorio; cambiar a automatico programa recuperacion y sync sin alterar el outbox |
 | R-031 | El vaciado de borradores al cierre forzado puede variar entre versiones de Android | Baja | Mitigado | Escritura cada 300 ms y vaciado en segundo plano/desmontaje; validar cierre forzado y reinicio en el piloto mobile antes del release |
+| R-032 | NetInfo y `fetch` pueden reportar transiciones de conectividad distintas entre versiones de Android | Media | Abierto | Spec 060 separa alcance HTTP de errores del servidor y cancelaciones; ejecutar en el piloto cambios Wi-Fi/datos, timeouts y reapertura despues de cinco minutos antes del siguiente release mobile |
 
 ## Revisión
 

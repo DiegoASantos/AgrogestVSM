@@ -113,11 +113,14 @@ Antes del reparto productivo, hacer una prueba de actualizacion representativa:
 6. cancelar el release ante cualquier perdida, inconsistencia o error de firma.
 
 Si el release modifica conectividad efectiva, validar ademas una red limitada:
-dos fallos o respuestas de 5 segundos deben activar offline automatico sin
-perder pendientes; tres sondeos rapidos deben restaurar online. Confirmar que
-offline manual sobrevive al reinicio, muestra su recordatorio y permite login
-con conectividad fisica, pero no ejecuta sync, catalogos, clima remoto ni OTA
-hasta volver a automatico.
+dos timeouts o fallos de transporte deben activar offline automatico sin perder
+pendientes. Una respuesta HTTP lenta o 5xx debe conservar el modo online y
+mostrar su error remoto; una cancelacion interna no debe degradar la calidad.
+Tres sondeos con alcance deben restaurar online y, despues de cinco minutos sin
+actividad, un historial anterior no debe forzar offline al reabrir. Confirmar
+que offline manual sobrevive al reinicio, muestra su recordatorio y permite
+login con conectividad fisica, pero no ejecuta sync, catalogos, clima remoto ni
+OTA hasta volver a automatico.
 
 Para el salto `versionCode` 7 a 8 no se agrega una migracion SQLite. La cohorte
 productiva debe estar en `user_version = 53`; una instalacion mucho mas antigua

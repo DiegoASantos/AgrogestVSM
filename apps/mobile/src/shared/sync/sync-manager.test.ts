@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  NETWORK_QUALITY_HISTORY_TTL_MS,
   SyncManager,
   type SyncManagerState,
   type SyncManagerStateStore
@@ -64,17 +65,41 @@ describe("SyncManager", () => {
     expect(manager.evaluateConnection(true)).toBe("unstable");
   });
 
-  it("treats successful requests lasting five seconds as bad observations", () => {
+  it("keeps slow successful requests as reachable observations", () => {
     const manager = buildManager();
 
     manager.recordAttempt(true, 5_000);
     manager.recordAttempt(true, 5_000);
 
-    expect(manager.evaluateConnection(true)).toBe("unstable");
+    expect(manager.evaluateConnection(true)).toBe("stable");
     expect(manager.getState().window).toEqual([
-      expect.objectContaining({ success: false, durationMs: 5_000 }),
-      expect.objectContaining({ success: false, durationMs: 5_000 })
+      expect.objectContaining({ success: true, durationMs: 5_000 }),
+      expect.objectContaining({ success: true, durationMs: 5_000 })
     ]);
+  });
+
+  it("ignores a persisted degraded window after its quality history expires", () => {
+    const now = new Date("2026-07-04T00:10:00.000Z");
+    const store = new MemoryStore();
+    const attemptedAt = new Date(
+      now.getTime() - NETWORK_QUALITY_HISTORY_TTL_MS
+    ).toISOString();
+    store.state = {
+      window: [
+        { success: false, attemptedAt },
+        { success: false, attemptedAt }
+      ],
+      consecutiveFailures: 2,
+      consecutiveSuccesses: 0,
+      backoffStep: 1,
+      lastAttemptAt: attemptedAt,
+      updatedAt: attemptedAt
+    };
+    const manager = new SyncManager(store, undefined, () => now);
+
+    expect(manager.evaluateConnection(true)).toBe("stable");
+    expect(manager.getState().window).toEqual([]);
+    expect(manager.getBackoffIntervalMs()).toBe(0);
   });
 
   it("restores stable state after three consecutive successes", () => {

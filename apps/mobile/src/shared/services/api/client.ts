@@ -155,22 +155,26 @@ async function performRequest(
     publishNetworkObservation({
       durationMs: Date.now() - startedAt,
       policy: networkPolicy,
-      success: response.status !== 408 && response.status < 500
+      success: true
     });
 
     return { response, rawPayload };
   } catch (error) {
-    publishNetworkObservation({
-      durationMs: Date.now() - startedAt,
-      policy: networkPolicy,
-      success: false
-    });
+    const wasExternallyAborted = options.signal?.aborted === true && !timedOut;
+
+    if (!wasExternallyAborted) {
+      publishNetworkObservation({
+        durationMs: Date.now() - startedAt,
+        policy: networkPolicy,
+        success: false
+      });
+    }
 
     if (timedOut) {
       throw new ApiTimeoutError(undefined, timeoutMs);
     }
 
-    if (options.signal?.aborted || controller.signal.aborted) {
+    if (wasExternallyAborted || controller.signal.aborted) {
       throw new ApiRequestAbortedError();
     }
 

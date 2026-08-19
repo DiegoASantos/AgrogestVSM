@@ -1,12 +1,12 @@
 ---
 title: Conectividad efectiva y modo offline controlado en mobile
-status: accepted
+status: superseded
 date: 2026-08-17
 decision_makers:
   - usuario
   - mantenimiento
 supersedes:
-superseded_by:
+superseded_by: ADR-005
 ---
 
 # ADR-004: Conectividad efectiva y modo offline controlado en mobile

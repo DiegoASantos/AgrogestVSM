@@ -39,6 +39,7 @@ export const DEFAULT_SYNC_MANAGER_CONFIG: SyncManagerConfig = {
 };
 
 export const SLOW_NETWORK_REQUEST_MS = 5_000;
+export const NETWORK_QUALITY_HISTORY_TTL_MS = 5 * 60_000;
 const MIN_QUALITY_OBSERVATIONS = 3;
 const FAILURES_TO_DEGRADE = 2;
 
@@ -50,7 +51,13 @@ export class SyncManager {
   ) {}
 
   getState(): SyncManagerState {
-    return this.store.load() ?? createInitialSyncManagerState(this.now().toISOString());
+    const state = this.store.load();
+
+    if (!state || !this.isHistoryFresh(state)) {
+      return createInitialSyncManagerState(this.now().toISOString());
+    }
+
+    return state;
   }
 
   evaluateConnection(isOnline: boolean, state = this.getState()): SyncConnectionQuality {
@@ -121,12 +128,9 @@ export class SyncManager {
   }
 
   recordAttempt(success: boolean, durationMs?: number) {
-    const isResponsive =
-      success && (durationMs === undefined || durationMs < SLOW_NETWORK_REQUEST_MS);
-
     return this.recordRecords([
       {
-        success: isResponsive,
+        success,
         attemptedAt: this.now().toISOString(),
         ...(durationMs === undefined ? {} : { durationMs })
       }
@@ -206,6 +210,16 @@ export class SyncManager {
     const nextState = createInitialSyncManagerState(this.now().toISOString());
     this.store.save(nextState);
     return nextState;
+  }
+
+  private isHistoryFresh(state: SyncManagerState) {
+    const updatedAt = new Date(state.updatedAt).getTime();
+
+    if (Number.isNaN(updatedAt)) {
+      return false;
+    }
+
+    return this.now().getTime() - updatedAt < NETWORK_QUALITY_HISTORY_TTL_MS;
   }
 }
 

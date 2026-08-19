@@ -38,7 +38,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [ADR-001: `docs/` como vault canónico](adr/001-docs-vault-canonico.md)
 - [ADR-002: equipo inicial de IA reducido](adr/002-equipo-ia-reducido.md)
 - [ADR-003: sync adaptativo por tasa de exito](adr/003-sync-adaptativo-por-tasa-exito.md)
-- [ADR-004: conectividad efectiva y modo offline controlado en mobile](adr/004-conectividad-efectiva-mobile.md)
+- [ADR-004: conectividad efectiva y modo offline controlado en mobile (reemplazado)](adr/004-conectividad-efectiva-mobile.md)
+- [ADR-005: calidad de conectividad por alcance HTTP e historial reciente](adr/005-calidad-conectividad-por-alcance-http.md)
 - [Plantilla de ADR](adr/TEMPLATE.md)
 
 ## Especificaciones
@@ -109,6 +110,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Receta y mezclas independientes con cierre recuperable](specs/057-receta-y-mezclas-independientes.md)
 - [Ajustes UX de receta y mezclas con dosis de coadyuvantes](specs/058-ajustes-ux-receta-mezclas-y-dosis-coadyuvantes.md)
 - [Seleccion fitosanitaria simplificada en receta mobile](specs/059-seleccion-fitosanitaria-simplificada.md)
+- [Conectividad mobile sin falsos cambios a offline](specs/060-conectividad-mobile-sin-falsos-offline.md)
 
 ## Runbooks
 

@@ -103,4 +103,5 @@ en la raíz.
 - [Spec 057: Receta y mezclas independientes con cierre recuperable](057-receta-y-mezclas-independientes.md)
 - [Spec 058: Ajustes UX de receta y mezclas con dosis de coadyuvantes](058-ajustes-ux-receta-mezclas-y-dosis-coadyuvantes.md)
 - [Spec 059: Seleccion fitosanitaria simplificada en receta mobile](059-seleccion-fitosanitaria-simplificada.md)
+- [Spec 060: Conectividad mobile sin falsos cambios a offline](060-conectividad-mobile-sin-falsos-offline.md)
 - [Plantilla](TEMPLATE.md)

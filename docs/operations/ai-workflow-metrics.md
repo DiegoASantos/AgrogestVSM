@@ -2,7 +2,7 @@
 title: Métricas del flujo asistido por IA
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-08-19
 ---
 
 # Métricas del flujo asistido por IA
@@ -14,25 +14,26 @@ un coste de coordinación mayor que su beneficio.
 
 ## Campos mínimos
 
-| Campo | Medición |
-| ----- | -------- |
-| tarea | Spec, issue o descripción breve |
-| criticidad | baja, media, alta o crítica |
-| tiempo de implementación | minutos desde inicio hasta validación inicial |
-| tiempo de revisión | segundos de ejecución del reviewer |
-| consumo | tokens de entrada, salida y coste reportado por proveedor |
-| hallazgos | total por severidad |
-| aceptados | hallazgos que produjeron corrección |
-| rechazados | falsos positivos o fuera de alcance |
-| defectos posteriores | defectos atribuibles detectados después del cierre |
+| Campo                    | Medición                                                  |
+| ------------------------ | --------------------------------------------------------- |
+| tarea                    | Spec, issue o descripción breve                           |
+| criticidad               | baja, media, alta o crítica                               |
+| tiempo de implementación | minutos desde inicio hasta validación inicial             |
+| tiempo de revisión       | segundos de ejecución del reviewer                        |
+| consumo                  | tokens de entrada, salida y coste reportado por proveedor |
+| hallazgos                | total por severidad                                       |
+| aceptados                | hallazgos que produjeron corrección                       |
+| rechazados               | falsos positivos o fuera de alcance                       |
+| defectos posteriores     | defectos atribuibles detectados después del cierre        |
 
 ## Registro
 
-| Fecha | Tarea | Criticidad | Implementación | Revisión | Consumo | Hallazgos | Aceptados | Rechazados | Defectos posteriores |
-| ----- | ----- | ---------- | -------------- | -------- | ------- | --------- | --------- | ---------- | -------------------- |
-| 2026-06-25 | Spec 002 | baja | no medido | no aplicada | no medido | no medido | no medido | no medido | 0 al cierre |
-| 2026-06-25 | Spec 003 / piloto Fase 2 | crítica | no medido retrospectivo | 174.49 s | 67 839 entrada; 6 183 salida; 5 631 razonamiento; 772 480 cache-read; USD 0.042588385 | 1 alta, 2 medias, 2 bajas | 2 | 3 | 0 al cierre |
-| 2026-08-18 | Spec 053 | alta | no medido | intento mayor a 120 s, sin veredicto recuperable | no reportado | no evaluado | 0 | 0 | 0 al cierre |
+| Fecha      | Tarea                    | Criticidad | Implementación          | Revisión                                         | Consumo                                                                                | Hallazgos                 | Aceptados | Rechazados | Defectos posteriores |
+| ---------- | ------------------------ | ---------- | ----------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------- | --------- | ---------- | -------------------- |
+| 2026-06-25 | Spec 002                 | baja       | no medido               | no aplicada                                      | no medido                                                                              | no medido                 | no medido | no medido  | 0 al cierre          |
+| 2026-06-25 | Spec 003 / piloto Fase 2 | crítica    | no medido retrospectivo | 174.49 s                                         | 67 839 entrada; 6 183 salida; 5 631 razonamiento; 772 480 cache-read; USD 0.042588385  | 1 alta, 2 medias, 2 bajas | 2         | 3          | 0 al cierre          |
+| 2026-08-18 | Spec 053                 | alta       | no medido               | intento mayor a 120 s, sin veredicto recuperable | no reportado                                                                           | no evaluado               | 0         | 0          | 0 al cierre          |
+| 2026-08-19 | Spec 060                 | media      | no medido               | 220.81 s                                         | 43 514 entrada; 2 439 salida; 11 252 razonamiento; 451 328 cache-read; USD 0.032475824 | 1 baja; 1 observacion     | 2         | 0          | 0 al cierre          |
 
 ## Resultado del piloto crítico
 

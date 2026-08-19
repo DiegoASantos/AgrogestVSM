@@ -5,6 +5,7 @@ owner: mantenimiento
 last_reviewed: 2026-08-19
 related_code:
   - apps/mobile/src/shared/database
+  - apps/mobile/src/shared/connectivity
   - apps/mobile/src/shared/sync
   - apps/mobile/src/shared/services/api
   - apps/mobile/src/modules/auth
@@ -178,12 +179,19 @@ tasa de exito por operaciones individuales (no por ciclo completo):
 - el boton manual omite el backoff (`bypassBackoff`) sin forzar refresh de
   autenticacion.
 
-Desde la spec 045, la medicion tambien considera lenta una respuesta que tarda
-5 segundos o mas. Un timeout, fallo de transporte, HTTP 5xx o respuesta lenta
-cuenta como observacion mala; los HTTP 4xx confirman que el transporte responde
-y no degradan por si solos la calidad. Una sola observacion mala no cambia el
-modo: se requieren dos consecutivas o una tasa menor a 70% con al menos tres
-observaciones.
+Desde la spec 060, la calidad que determina el modo efectivo mide alcance de
+transporte y no salud del servidor. Toda respuesta HTTP confirma conectividad,
+aunque tarde 5 segundos o mas o tenga estado 5xx; esos casos conservan su error
+funcional, pero no se presentan como ausencia de Internet. Un timeout del
+cliente o fallo de transporte cuenta como observacion mala. Una cancelacion
+solicitada por la propia aplicacion no agrega observaciones. Se requieren dos
+fallos consecutivos o una tasa menor a 70% con al menos tres observaciones para
+degradar el modo.
+
+La ventana de `sync_state` solo representa la red reciente: si pasan cinco
+minutos sin actividad, deja de condicionar la calidad y el backoff. No requiere
+migracion porque el JSON historico conserva el mismo formato y la siguiente
+observacion reemplaza el estado vencido.
 
 Mobile separa cuatro conceptos:
 
@@ -201,9 +209,10 @@ automatico.
 
 En `offline_auto`, con la app activa, un sondeo publico a `/health` con timeout
 de 5 segundos se ejecuta cada 30 segundos. No antecede cada request ni procesa
-datos de negocio. Tres respuestas buenas restauran online; `Probar conexion
-ahora` permite una comprobacion explicita y programa el sync si responde rapido.
-En `offline_manual` no existen sondeos automaticos.
+datos de negocio. Tres observaciones consecutivas de alcance restauran online;
+`Probar conexion ahora` exige una respuesta exitosa y rapida para resetear el
+estado inmediatamente y programar el sync. En `offline_manual` no existen
+sondeos automaticos.
 
 Los guardados siguen escribiendo primero en SQLite y programan sync en segundo
 plano. La UI no espera a la red para confirmar el guardado local.

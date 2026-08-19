@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { NetworkObservation } from "../../connectivity/connectivity-types";
+
 const getApiToken = vi.fn(() => null as string | null);
 const refreshApiToken = vi.fn(async () => null as string | null);
 
@@ -17,6 +19,11 @@ const { ApiOfflineModeError, ApiRequestAbortedError, ApiTimeoutError } =
   await import("./errors");
 const { resetConnectivityPolicyForTests, setConnectivityPolicySnapshot } =
   await import("../../connectivity/connectivity-policy");
+const { subscribeToNetworkObservations } =
+  await import("../../connectivity/network-telemetry");
+
+let observations: NetworkObservation[] = [];
+let unsubscribeNetworkObservations: (() => void) | null = null;
 
 describe("apiRequest timeouts", () => {
   beforeEach(() => {
@@ -24,9 +31,15 @@ describe("apiRequest timeouts", () => {
     getApiToken.mockReturnValue(null);
     refreshApiToken.mockResolvedValue(null);
     resetConnectivityPolicyForTests();
+    observations = [];
+    unsubscribeNetworkObservations = subscribeToNetworkObservations((observation) => {
+      observations.push(observation);
+    });
   });
 
   afterEach(() => {
+    unsubscribeNetworkObservations?.();
+    unsubscribeNetworkObservations = null;
     vi.unstubAllGlobals();
     vi.useRealTimers();
     vi.clearAllMocks();
@@ -40,6 +53,9 @@ describe("apiRequest timeouts", () => {
 
     await vi.advanceTimersByTimeAsync(25);
     await assertion;
+    expect(observations).toEqual([
+      expect.objectContaining({ success: false, durationMs: 25 })
+    ]);
   });
 
   it("keeps the timeout active while reading the response body", async () => {
@@ -77,6 +93,59 @@ describe("apiRequest timeouts", () => {
 
     controller.abort();
     await assertion;
+    expect(observations).toEqual([]);
+  });
+
+  it("keeps a slow HTTP response as proof of connectivity", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Promise<Response>((resolve) => {
+            setTimeout(
+              () =>
+                resolve(
+                  new Response(
+                    JSON.stringify({
+                      success: true,
+                      data: { id: "slow-ok" },
+                      timestamp: "2026-08-19T00:00:00.000Z"
+                    }),
+                    { status: 200 }
+                  )
+                ),
+              6_000
+            );
+          })
+      )
+    );
+
+    const request = apiRequest<{ id: string }>("/slow-but-reachable");
+    await vi.advanceTimersByTimeAsync(6_000);
+
+    await expect(request).resolves.toEqual({ id: "slow-ok" });
+    expect(observations).toEqual([
+      expect.objectContaining({ success: true, durationMs: 6_000 })
+    ]);
+  });
+
+  it("keeps an HTTP 5xx response as proof of connectivity", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              success: false,
+              error: { message: "server unavailable", statusCode: 503 }
+            }),
+            { status: 503 }
+          )
+      )
+    );
+
+    await expect(apiRequest("/server-error")).rejects.toMatchObject({ statusCode: 503 });
+    expect(observations).toEqual([expect.objectContaining({ success: true })]);
   });
 
   it("parses a successful response and clears its timer", async () => {
