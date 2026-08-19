@@ -401,6 +401,7 @@ function wrapRecipeHtml(body: string) {
     .mixture-plan-number {
       width: 12%;
       text-align: center;
+      vertical-align: middle;
       font-weight: 700;
       color: #1b4332;
     }
@@ -850,6 +851,10 @@ export type ProducerMixtureRow = {
 };
 
 type ProducerMixtureItem = Pick<ProducerMixtureRow, "dose" | "item">;
+type ProducerMixtureGroup = {
+  mixtureNumber: number | null;
+  rows: ProducerMixtureRow[];
+};
 
 export function buildProducerMixtureRows(
   receta: VisitaRecetaCompleta,
@@ -923,18 +928,42 @@ function renderPlanMezclasProductor(
         <tr><th>Mezcla</th><th>Productos y coadyuvantes (en orden)</th><th>Dosis</th></tr>
       </thead>
       <tbody>
-        ${rows
-          .map(
-            (row) => `
-              <tr>
-                <td class="mixture-plan-number">${row.mixtureNumber ?? "Sin mezcla"}</td>
-                <td class="mixture-plan-item">${row.order}&deg; ${escapeHtml(row.item)}</td>
-                <td class="mixture-plan-dose">${escapeHtml(row.dose)}</td>
-              </tr>`
+        ${groupProducerMixtureRows(rows)
+          .map((group) =>
+            group.rows
+              .map(
+                (row, index) => `
+                    <tr>
+                      ${
+                        index === 0
+                          ? `<td class="mixture-plan-number" rowspan="${group.rows.length}">${group.mixtureNumber ?? "Sin mezcla"}</td>`
+                          : ""
+                      }
+                      <td class="mixture-plan-item">${row.order}&deg; ${escapeHtml(row.item)}</td>
+                      <td class="mixture-plan-dose">${escapeHtml(row.dose)}</td>
+                    </tr>`
+              )
+              .join("")
           )
           .join("")}
       </tbody>
     </table>`;
+}
+
+function groupProducerMixtureRows(rows: ProducerMixtureRow[]): ProducerMixtureGroup[] {
+  const groups: ProducerMixtureGroup[] = [];
+
+  for (const row of rows) {
+    const current = groups[groups.length - 1];
+
+    if (current?.mixtureNumber === row.mixtureNumber) {
+      current.rows.push(row);
+    } else {
+      groups.push({ mixtureNumber: row.mixtureNumber, rows: [row] });
+    }
+  }
+
+  return groups;
 }
 
 function getRecipeMixtures(receta: VisitaRecetaCompleta): RecetaMezcla[] {

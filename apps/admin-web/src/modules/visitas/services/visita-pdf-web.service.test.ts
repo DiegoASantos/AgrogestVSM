@@ -252,6 +252,8 @@ describe("visitaPdfWebService", () => {
       expect(html.indexOf("Fungi Max")).toBeLessThan(html.indexOf("Urea"));
       expect(html).toContain("50 ml/cilindro");
       expect(html).toContain("100 ml");
+      expect(html).toContain('rowspan="4">1</td>');
+      expect(html.match(/mixture-plan-number/g)).toHaveLength(2);
       expect(html).not.toContain("Aplicaciones fitosanitarias");
       expect(html).not.toContain("<h2>Fertilizacion</h2>");
       expect(html).not.toContain("Recomendacion de riego");

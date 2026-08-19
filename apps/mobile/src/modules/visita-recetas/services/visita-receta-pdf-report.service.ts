@@ -150,6 +150,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     .mixture-plan-number {
       width: 12%;
       text-align: center;
+      vertical-align: middle;
       font-weight: 700;
       color: #1b4332;
     }
@@ -217,7 +218,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     ${iconBase64 ? `<img alt="AgroGest VSM" class="header-icon" src="${iconBase64}" />` : ""}
     <div class="header-text">
       <h1>Receta de recomendaciones tecnicas</h1>
-      <p class="productor">Productor: ${productorNombre}</p>
+      <p class="productor">Productor: ${escapeHtml(productorNombre)}</p>
       <p>AgroGest VSM - ${new Date().toLocaleDateString("es-PE")}</p>
     </div>
   </div>
@@ -474,7 +475,8 @@ function escapeHtml(value: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function construirNombreProductor(

@@ -54,6 +54,8 @@ describe("producer recipe mixture plan", () => {
     expect(html).toContain("Mezclas y dosis");
     expect(html).toContain("Productos y coadyuvantes (en orden)");
     expect(html).toContain("50 ml/cilindro");
+    expect(html).toContain('rowspan="4">1</td>');
+    expect(html.match(/mixture-plan-number/g)).toHaveLength(1);
     expect(html).not.toContain("Cantidad total");
     expect(html).not.toContain("Factor de incidencia");
   });

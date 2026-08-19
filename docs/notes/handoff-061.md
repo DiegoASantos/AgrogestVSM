@@ -22,7 +22,8 @@ coadyuvantes en su orden de preparacion, y la dosis correspondiente.
 - admin web: el reporte aplica la misma proyeccion y mantiene lectura de recetas
   historicas que todavia solo incluyen `fitosanidad`;
 - tabla: incluye fitosanitarios, fertilizantes y coadyuvantes, excluye `Agua`,
-  conserva el orden registrado y evita omitir elementos vigentes;
+  conserva el orden registrado, agrupa el numero en una sola celda vertical y
+  evita omitir elementos vigentes;
 - pruebas: cubren orden, dosis, datos historicos, contenido permitido y
   secciones excluidas;
 - documentacion: Spec 061, indices y modelo de dominio.
@@ -44,7 +45,7 @@ coadyuvantes en su orden de preparacion, y la dosis correspondiente.
 | Vitest admin web `visitas/services` | 30/30              |
 | Typecheck mobile y admin web        | OK                 |
 | ESLint focalizado                   | OK                 |
-| Render HTML/PDF e inspeccion visual | OK, una pagina     |
+| Render HTML/PDF e inspeccion visual | OK, celda agrupada |
 | `pnpm docs:check`                   | 126 documentos, OK |
 | `git diff --check`                  | OK                 |
 
@@ -55,6 +56,18 @@ coadyuvantes en su orden de preparacion, y la dosis correspondiente.
   `Sin mezcla` para no perder una recomendacion;
 - no se modifica el reporte tecnico de diagnostico ni la captura de receta;
 - falta validacion humana final con datos reales antes del siguiente release.
+
+## Resultado de la revision independiente
+
+- modelo: `deepseek/deepseek-v4-pro`;
+- sesion: `ses_fe40f428cffeUsula9Ms3p2CTB`;
+- veredicto inicial: aprobado con observaciones;
+- aceptado: escapar el nombre del productor y unificar el escape de apostrofes
+  entre mobile y admin web;
+- diferido: semantica de dosis en el fallback historico y duplicados invalidos
+  dentro de `ordenMezcla`;
+- ajuste posterior: por validacion humana, el numero de mezcla se agrupa en una
+  sola celda vertical; requiere revision focalizada final del delta.
 
 ## Instrucciones al reviewer
 
