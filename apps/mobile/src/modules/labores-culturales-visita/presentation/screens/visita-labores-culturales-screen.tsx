@@ -2,13 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
-import {
-  ImageBackground,
-  Modal,
-  Pressable,
-  StyleSheet,
-  View
-} from "react-native";
+import { ImageBackground, Modal, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -32,11 +26,13 @@ import { scheduleSync } from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import {
   ComplianceScoreCard,
-  PreviousRecipeSummaryCard,
-  StepObservationCard
+  PreviousRecipeSummaryCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
-import { isModuloEvaluable, type RecetaAnterior } from "../../../visita-calificaciones/types";
+import {
+  isModuloEvaluable,
+  type RecetaAnterior
+} from "../../../visita-calificaciones/types";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import { laboresCulturalesVisitaService } from "../../services";
 import type { LaborCulturalCatalogItem } from "../../types";
@@ -73,7 +69,9 @@ export function VisitaLaboresCulturalesScreen() {
   const [selectedLaborIds, setSelectedLaborIds] = useState<Set<string>>(() => new Set());
   const [scoreValue, setScoreValue] = useState<number | null>(null);
   const [scoreJustificado, setScoreJustificado] = useState<boolean | null>(null);
-  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(null);
+  const [categoriaJustificacion, setCategoriaJustificacion] = useState<string | null>(
+    null
+  );
   const [motivoJustificacion, setMotivoJustificacion] = useState<string | null>(null);
   const [stepObservation, setStepObservation] = useState("");
   const [recetaAnterior, setRecetaAnterior] = useState<RecetaAnterior | null>(null);
@@ -226,7 +224,8 @@ export function VisitaLaboresCulturalesScreen() {
                     Una respuesta por categoria. La leyenda queda visible para comparar.
                   </AppText>
                   <AppText variant="caption">
-                    Revisa y edita las opciones preseleccionadas segun el estado observado.
+                    Revisa y edita las opciones preseleccionadas segun el estado
+                    observado.
                   </AppText>
                 </View>
               </View>
@@ -239,6 +238,7 @@ export function VisitaLaboresCulturalesScreen() {
               {laborGroups.map((group) => (
                 <CategoryOptionGroup
                   group={group}
+                  initiallyExpanded={laborGroups.length === 1}
                   isComplete={selectedCategoryCodes.has(group.categoryCode)}
                   key={group.categoryCode}
                   onHelpPress={setHelpItem}
@@ -247,7 +247,9 @@ export function VisitaLaboresCulturalesScreen() {
                 />
               ))}
 
-              {isModuloEvaluable(recetaAnterior, "labores") ? <PreviousRecipeSummaryCard modulo="labores" receta={recetaAnterior} /> : null}
+              {isModuloEvaluable(recetaAnterior, "labores") ? (
+                <PreviousRecipeSummaryCard modulo="labores" receta={recetaAnterior} />
+              ) : null}
               {isModuloEvaluable(recetaAnterior, "labores") ? (
                 <ComplianceScoreCard
                   value={scoreValue}
@@ -260,13 +262,9 @@ export function VisitaLaboresCulturalesScreen() {
                   onMotivoJustificacionChange={setMotivoJustificacion}
                   observacion={stepObservation}
                   onObservacionChange={setStepObservation}
+                  showObservation={false}
                 />
-              ) : (
-                <StepObservationCard
-                  value={stepObservation}
-                  onChange={setStepObservation}
-                />
-              )}
+              ) : null}
 
               {submitError ? (
                 <View style={styles.errorBanner}>
@@ -349,12 +347,11 @@ export function VisitaLaboresCulturalesScreen() {
         id,
         STEP_NUMBER
       );
-      const currentCalificacion = visitaCalificacionesService.getByModulo(
-        id,
-        "labores"
-      );
+      const currentCalificacion = visitaCalificacionesService.getByModulo(id, "labores");
 
-      const activeLabores = nextLabores.filter((labor) => labor.isActive && labor.categoryCode);
+      const activeLabores = nextLabores.filter(
+        (labor) => labor.isActive && labor.categoryCode
+      );
       const draft = draftIdentity
         ? readVisitFormDraft<LaboresFormDraft>(draftIdentity)
         : null;
@@ -391,7 +388,9 @@ export function VisitaLaboresCulturalesScreen() {
         draft ? draft.stepObservation : (nextStepNote?.observation ?? "")
       );
       try {
-        setRecetaAnterior(await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id));
+        setRecetaAnterior(
+          await visitaCalificacionesService.fetchRecetaAnteriorForVisit(id)
+        );
       } catch {
         setRecetaAnterior({ existe: false });
       }
@@ -561,22 +560,31 @@ function SelectionProgressSummary({
 
 function CategoryOptionGroup({
   group,
+  initiallyExpanded,
   isComplete,
   onHelpPress,
   onSelect,
   selectedLaborIds
 }: {
   group: LaborGroup;
+  initiallyExpanded: boolean;
   isComplete: boolean;
   onHelpPress: (item: LaborCulturalCatalogItem) => void;
   onSelect: (item: LaborCulturalCatalogItem) => void;
   selectedLaborIds: Set<string>;
 }) {
+  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
   const selectedItem = group.items.find((item) => selectedLaborIds.has(item.id));
 
   return (
     <View style={styles.categoryBlock}>
-      <View style={styles.categoryHeader}>
+      <Pressable
+        accessibilityLabel={`${isExpanded ? "Contraer" : "Expandir"} ${group.categoryName}`}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isExpanded }}
+        onPress={() => setIsExpanded((current) => !current)}
+        style={({ pressed }) => [styles.categoryHeader, pressed && styles.pressed]}
+      >
         <View style={styles.categoryHeading}>
           <View style={styles.categoryIcon}>
             <Ionicons
@@ -596,37 +604,46 @@ function CategoryOptionGroup({
             </AppText>
           </View>
         </View>
-        <View
-          style={[
-            styles.categoryBadge,
-            isComplete ? styles.categoryBadgeComplete : styles.categoryBadgePending
-          ]}
-        >
-          <AppText
+        <View style={styles.categoryHeaderStatus}>
+          <View
             style={[
-              styles.categoryBadgeText,
-              isComplete
-                ? styles.categoryBadgeTextComplete
-                : styles.categoryBadgeTextPending
+              styles.categoryBadge,
+              isComplete ? styles.categoryBadgeComplete : styles.categoryBadgePending
             ]}
-            variant="caption"
           >
-            {isComplete ? "Completo" : "Pendiente"}
-          </AppText>
-        </View>
-      </View>
-
-      <View style={styles.optionList}>
-        {group.items.map((labor) => (
-          <LaborOptionRow
-            isSelected={selectedLaborIds.has(labor.id)}
-            item={labor}
-            key={labor.id}
-            onHelpPress={onHelpPress}
-            onPress={() => onSelect(labor)}
+            <AppText
+              style={[
+                styles.categoryBadgeText,
+                isComplete
+                  ? styles.categoryBadgeTextComplete
+                  : styles.categoryBadgeTextPending
+              ]}
+              variant="caption"
+            >
+              {isComplete ? "Completo" : "Pendiente"}
+            </AppText>
+          </View>
+          <Ionicons
+            color={theme.colors.primaryDark}
+            name={isExpanded ? "chevron-up" : "chevron-down"}
+            size={20}
           />
-        ))}
-      </View>
+        </View>
+      </Pressable>
+
+      {isExpanded ? (
+        <View style={styles.optionList}>
+          {group.items.map((labor) => (
+            <LaborOptionRow
+              isSelected={selectedLaborIds.has(labor.id)}
+              item={labor}
+              key={labor.id}
+              onHelpPress={onHelpPress}
+              onPress={() => onSelect(labor)}
+            />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -928,6 +945,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     justifyContent: "space-between"
+  },
+  categoryHeaderStatus: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8
   },
   categoryHeading: {
     alignItems: "center",

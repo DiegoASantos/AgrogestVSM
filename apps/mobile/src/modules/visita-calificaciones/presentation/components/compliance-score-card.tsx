@@ -28,6 +28,7 @@ type ComplianceScoreCardProps = {
   onMotivoJustificacionChange: (value: string) => void;
   observacion: string;
   onObservacionChange: (value: string) => void;
+  showObservation?: boolean;
 };
 
 export function ComplianceScoreCard({
@@ -40,7 +41,8 @@ export function ComplianceScoreCard({
   motivoJustificacion,
   onMotivoJustificacionChange,
   observacion,
-  onObservacionChange
+  onObservacionChange,
+  showObservation = true
 }: ComplianceScoreCardProps) {
   const [selector, setSelector] = useState<"categoria" | "motivo" | null>(null);
   const selectedCategory = useMemo(
@@ -117,10 +119,7 @@ export function ComplianceScoreCard({
         {COMPLIANCE_LEGEND.map((item) => (
           <View key={item.puntaje} style={styles.legendItem}>
             <View
-              style={[
-                styles.legendDot,
-                { backgroundColor: SCORE_COLORS[item.puntaje] }
-              ]}
+              style={[styles.legendDot, { backgroundColor: SCORE_COLORS[item.puntaje] }]}
             />
             <View style={styles.legendCopy}>
               <AppText style={styles.legendTitle} variant="label">
@@ -177,21 +176,23 @@ export function ComplianceScoreCard({
         </View>
       ) : null}
 
-      <View style={styles.observationBlock}>
-        <AppText style={styles.observationTitle} variant="label">
-          Observacion del paso
-        </AppText>
-        <TextInput
-          multiline
-          numberOfLines={4}
-          onChangeText={onObservacionChange}
-          placeholder="Escribe una observacion opcional"
-          placeholderTextColor={theme.colors.textMuted}
-          style={styles.observationInput}
-          textAlignVertical="top"
-          value={observacion}
-        />
-      </View>
+      {showObservation ? (
+        <View style={styles.observationBlock}>
+          <AppText style={styles.observationTitle} variant="label">
+            Observacion del paso
+          </AppText>
+          <TextInput
+            multiline
+            numberOfLines={4}
+            onChangeText={onObservacionChange}
+            placeholder="Escribe una observacion opcional"
+            placeholderTextColor={theme.colors.textMuted}
+            style={styles.observationInput}
+            textAlignVertical="top"
+            value={observacion}
+          />
+        </View>
+      ) : null}
 
       <SelectionModal
         options={JUSTIFICACION_CATEGORIAS.map((category) => ({
@@ -296,10 +297,7 @@ function SelectionModal({
                 accessibilityRole="button"
                 key={option.id}
                 onPress={() => onSelect(option.id)}
-                style={({ pressed }) => [
-                  styles.modalOption,
-                  pressed && styles.pressed
-                ]}
+                style={({ pressed }) => [styles.modalOption, pressed && styles.pressed]}
               >
                 <AppText style={styles.modalOptionText} variant="label">
                   {option.label}

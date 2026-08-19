@@ -223,7 +223,7 @@ export class VisitaEvaluacionesService {
     return {
       isNutrition: true,
       nutrientId: nutrient.id,
-      organosAfectados: incidencePercentage === 0 ? [] : organosAfectados
+      organosAfectados
     };
   }
 

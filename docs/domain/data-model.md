@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-18
+last_reviewed: 2026-08-19
 ---
 
 # Modelo del dominio
@@ -262,6 +262,12 @@ Hierro, Zinc y Boro; cada deficiencia sin registro aporta incidencia 0 y nota 3.
 `ScoreNutricion` es el mínimo de las seis notas y se publica al finalizar el
 paso 4 o al existir una receta para la visita. La severidad y los órganos
 afectados no intervienen en esta fórmula.
+
+Mobile no solicita el órgano en la captura nutricional. Al ingresar cualquier
+incidencia, incluido 0%, usa `hoja_tierna` cuando la evaluación todavía no tiene
+un órgano; una selección histórica diferente se conserva. La API mantiene el
+arreglo recibido también para incidencia 0 y continúa aceptando arreglos vacíos
+de clientes anteriores.
 
 En Riego, toda captura nueva exige `humedad_suelo`; mobile impide avanzar sin
 seleccionarla y la API rechaza altas incompletas. Las filas históricas nulas se

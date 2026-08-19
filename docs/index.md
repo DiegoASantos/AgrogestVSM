@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-18
+last_reviewed: 2026-08-19
 ---
 
 # Documentación de AgroGest VSM
@@ -103,6 +103,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Tutorial visual guiado para el paso 1 de visitas](specs/051-tutorial-guiado-paso-1-visita.md)
 - [Busqueda y seleccion bidireccional en recetas mobile](specs/052-busqueda-seleccion-bidireccional-recetas-mobile.md)
 - [Fertilizantes por deficiencia nutricional](specs/053-fertilizantes-por-deficiencia-nutricional.md)
+- [Ajustes de captura en evaluaciones mobile](specs/054-ajustes-captura-evaluaciones-mobile.md)
+- [Acordeones exclusivos en receta mobile](specs/055-acordeones-exclusivos-receta-mobile.md)
 
 ## Runbooks
 

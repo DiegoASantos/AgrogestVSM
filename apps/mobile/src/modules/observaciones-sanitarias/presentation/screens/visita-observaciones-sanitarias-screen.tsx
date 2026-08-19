@@ -371,58 +371,10 @@ export function VisitaObservacionesSanitariasScreen({
                       observation: value
                     }))
                   }
+                  showObservation={false}
                 />
               ) : null}
             </>
-          ) : null}
-
-          {!isLoading && !error ? (
-            <View style={styles.noteCard}>
-              <View style={styles.sectionHeader}>
-                <AppText style={styles.sectionTitle} variant="heading">
-                  {recetaAnterior?.existe
-                    ? "Recomendacion"
-                    : "Observacion y recomendacion"}
-                </AppText>
-                <AppText style={styles.sectionSubtitle} variant="caption">
-                  Esta informacion pertenece solo al paso {stepNumber}.
-                </AppText>
-              </View>
-
-              {!recetaAnterior?.existe ? (
-                <TextInput
-                  multiline
-                  numberOfLines={4}
-                  onChangeText={(value) =>
-                    setStepNote((current) => ({
-                      ...current,
-                      observation: value
-                    }))
-                  }
-                  placeholder="Observacion del paso"
-                  placeholderTextColor={theme.colors.textMuted}
-                  style={styles.noteInput}
-                  textAlignVertical="top"
-                  value={stepNote.observation}
-                />
-              ) : null}
-
-              <TextInput
-                multiline
-                numberOfLines={4}
-                onChangeText={(value) =>
-                  setStepNote((current) => ({
-                    ...current,
-                    recommendation: value
-                  }))
-                }
-                placeholder="Recomendacion del paso"
-                placeholderTextColor={theme.colors.textMuted}
-                style={styles.noteInput}
-                textAlignVertical="top"
-                value={stepNote.recommendation}
-              />
-            </View>
           ) : null}
 
           {submitError ? (
@@ -2191,24 +2143,6 @@ const styles = StyleSheet.create({
   sanitaryCardCompact: {
     alignItems: "stretch",
     flexDirection: "column"
-  },
-  noteCard: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.borderLight,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    gap: 12,
-    padding: 14,
-    ...theme.shadow.sm
-  },
-  noteInput: {
-    backgroundColor: theme.colors.surfaceElevated,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    color: theme.colors.text,
-    minHeight: 92,
-    padding: 12
   },
   organosBlock: {
     gap: 7,

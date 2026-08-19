@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-18
+last_reviewed: 2026-08-19
 ---
 
 # Especificaciones
@@ -97,4 +97,6 @@ en la raíz.
 - [Spec 051: Tutorial visual guiado para el paso 1 de visitas](051-tutorial-guiado-paso-1-visita.md)
 - [Spec 052: Busqueda y seleccion bidireccional en recetas mobile](052-busqueda-seleccion-bidireccional-recetas-mobile.md)
 - [Spec 053: Fertilizantes por deficiencia nutricional](053-fertilizantes-por-deficiencia-nutricional.md)
+- [Spec 054: Ajustes de captura en evaluaciones mobile](054-ajustes-captura-evaluaciones-mobile.md)
+- [Spec 055: Acordeones exclusivos en receta mobile](055-acordeones-exclusivos-receta-mobile.md)
 - [Plantilla](TEMPLATE.md)

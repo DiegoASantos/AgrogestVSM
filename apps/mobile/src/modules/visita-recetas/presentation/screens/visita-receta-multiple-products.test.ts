@@ -220,6 +220,23 @@ describe("receta con mezclas", () => {
     });
   });
 
+  it("conserva un disolvente historico aunque el campo ya no sea editable", () => {
+    const historicalMix = {
+      ...mezcla,
+      productos: mezcla.productos.map((product) => ({
+        ...product,
+        disolvente: "Aceite vegetal"
+      }))
+    };
+    const apps = restoreFitosanidadApps([historicalMix], [], []);
+
+    expect(apps[0]?.disolvente).toBe("Aceite vegetal");
+    expect(
+      buildMezclasForSave(apps, restoreMezclas([historicalMix]))[0]?.productos[0]
+        ?.disolvente
+    ).toBe("Aceite vegetal");
+  });
+
   it("calcula cantidad total con dosis, volumen y factor", () => {
     expect(calculateTotal(250, 2, 1.2)).toBe(600);
     expect(diseaseFactorFromPercentage(15)).toBe(1.2);

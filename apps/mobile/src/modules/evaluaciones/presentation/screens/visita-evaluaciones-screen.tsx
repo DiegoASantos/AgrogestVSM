@@ -52,8 +52,7 @@ import type { OrganoAfectado } from "../../../observaciones-sanitarias/types";
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import {
   ComplianceScoreCard,
-  PreviousRecipeSummaryCard,
-  StepObservationCard
+  PreviousRecipeSummaryCard
 } from "../../../visita-calificaciones/presentation/components";
 import { visitaCalificacionesService } from "../../../visita-calificaciones/services";
 import {
@@ -62,6 +61,7 @@ import {
 } from "../../../visita-calificaciones/types";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import { resolveNutritionIncidence } from "../../domain/nutrition-incidence";
+import { resolveNutritionOrganos } from "../../domain/nutrition-organ-default";
 import { evaluacionesService } from "../../services";
 import type { VisitaEvaluacion } from "../../types";
 
@@ -113,28 +113,6 @@ const NUTRIENT_IMAGES: Array<{
   { patterns: ["nitrogeno"], source: NITROGENO_IMAGE },
   { patterns: ["potasio"], source: POTASIO_IMAGE },
   { patterns: ["zinc"], source: ZINC_IMAGE }
-];
-
-const ORGANO_OPTIONS: Array<{
-  value: OrganoAfectado;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}> = [
-  { value: "tronco_rama", label: "Tronco/rama", icon: "git-branch-outline" },
-  { value: "yema_apical", label: "Yema apical", icon: "radio-button-on-outline" },
-  { value: "brote_vegetativo", label: "Brote vegetativo", icon: "leaf-outline" },
-  { value: "hoja_tierna", label: "Hoja tierna", icon: "leaf-outline" },
-  { value: "hoja_madura", label: "Hoja madura", icon: "leaf-outline" },
-  { value: "panicula_floral", label: "Panicula floral", icon: "flower-outline" },
-  { value: "flor_individual", label: "Flor individual", icon: "rose-outline" },
-  {
-    value: "fruto_recien_cuajado",
-    label: "Fruto recien cuajado",
-    icon: "ellipse-outline"
-  },
-  { value: "fruto_verde", label: "Fruto verde", icon: "nutrition-outline" },
-  { value: "fruto_maduro", label: "Fruto maduro", icon: "basket-outline" },
-  { value: "raices", label: "Raices", icon: "nutrition-outline" }
 ];
 
 type NutritionSelection = {
@@ -295,7 +273,6 @@ export function VisitaNutricionScreen() {
               onIncidencePercentageChange={handleIncidencePercentageChange}
               onImagePress={setImagePreview}
               onSelectDetail={handleSelectDetail}
-              onToggleOrgano={handleToggleOrgano}
               selections={selections}
             />
           ) : null}
@@ -317,13 +294,9 @@ export function VisitaNutricionScreen() {
                   onMotivoJustificacionChange={setMotivoJustificacion}
                   observacion={stepObservation}
                   onObservacionChange={setStepObservation}
+                  showObservation={false}
                 />
-              ) : (
-                <StepObservationCard
-                  value={stepObservation}
-                  onChange={setStepObservation}
-                />
-              )}
+              ) : null}
             </>
           ) : null}
 
@@ -425,7 +398,19 @@ export function VisitaNutricionScreen() {
               )
                 ? selection.detailId
                 : null;
-              return [[nutrient.id, { ...selection, detailId }]];
+              return [
+                [
+                  nutrient.id,
+                  {
+                    ...selection,
+                    detailId,
+                    organosAfectados: resolveNutritionOrganos(
+                      selection.incidencePercentage,
+                      selection.organosAfectados
+                    )
+                  }
+                ]
+              ];
             })
           )
         : null;
@@ -493,7 +478,11 @@ export function VisitaNutricionScreen() {
         ...currentSelections,
         [nutrientId]: {
           ...currentSelection,
-          detailId: currentSelection.detailId === detailId ? null : detailId
+          detailId: currentSelection.detailId === detailId ? null : detailId,
+          organosAfectados: resolveNutritionOrganos(
+            currentSelection.incidencePercentage,
+            currentSelection.organosAfectados
+          )
         }
       };
     });
@@ -513,29 +502,10 @@ export function VisitaNutricionScreen() {
           ...currentSelection,
           incidencePercentage: normalizedValue,
           detailId: shouldClearDependents ? null : currentSelection.detailId,
-          organosAfectados: shouldClearDependents ? [] : currentSelection.organosAfectados
-        }
-      };
-    });
-  }
-
-  function handleToggleOrgano(nutrientId: string, organo: OrganoAfectado) {
-    setSubmitError(null);
-    setSelections((currentSelections) => {
-      const currentSelection = currentSelections[nutrientId] ?? createEmptySelection();
-      const selectedOrganos = new Set(currentSelection.organosAfectados);
-
-      if (selectedOrganos.has(organo)) {
-        selectedOrganos.delete(organo);
-      } else {
-        selectedOrganos.add(organo);
-      }
-
-      return {
-        ...currentSelections,
-        [nutrientId]: {
-          ...currentSelection,
-          organosAfectados: Array.from(selectedOrganos)
+          organosAfectados: resolveNutritionOrganos(
+            normalizedValue,
+            currentSelection.organosAfectados
+          )
         }
       };
     });
@@ -627,7 +597,10 @@ export function VisitaNutricionScreen() {
           incidencePercentage: Number(selection.incidencePercentage),
           percentage: selectedDetail ? getDetailNumericValue(selectedDetail) : null,
           description: buildEvaluationDescription(nutrient, selectedDetail, selection),
-          organosAfectados: selection.organosAfectados
+          organosAfectados: resolveNutritionOrganos(
+            selection.incidencePercentage,
+            selection.organosAfectados
+          )
         };
 
         if (existingEvaluation) {
@@ -675,7 +648,6 @@ type NutrientSectionProps = {
   onIncidencePercentageChange: (nutrientId: string, value: string) => void;
   onImagePress: (nutrient: NutrientCatalogItem) => void;
   onSelectDetail: (nutrientId: string, detailId: string) => void;
-  onToggleOrgano: (nutrientId: string, organo: OrganoAfectado) => void;
   selections: Record<string, NutritionSelection>;
 };
 
@@ -685,7 +657,6 @@ function NutrientSection({
   onIncidencePercentageChange,
   onImagePress,
   onSelectDetail,
-  onToggleOrgano,
   selections
 }: NutrientSectionProps) {
   const [expandedNutrientIds, setExpandedNutrientIds] = useState<Set<string>>(
@@ -743,7 +714,6 @@ function NutrientSection({
                 return nextIds;
               })
             }
-            onToggleOrgano={onToggleOrgano}
             selection={selections[nutrient.id] ?? createEmptySelection()}
           />
         );
@@ -760,7 +730,6 @@ type NutrientCardProps = {
   onImagePress: (nutrient: NutrientCatalogItem) => void;
   onSelectDetail: (nutrientId: string, detailId: string) => void;
   onToggleExpanded: () => void;
-  onToggleOrgano: (nutrientId: string, organo: OrganoAfectado) => void;
   selection: NutritionSelection;
 };
 
@@ -772,7 +741,6 @@ function NutrientCard({
   onImagePress,
   onSelectDetail,
   onToggleExpanded,
-  onToggleOrgano,
   selection
 }: NutrientCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -999,17 +967,6 @@ function NutrientCard({
             ) : (
               <AppText variant="muted">Sin grados registrados.</AppText>
             )}
-
-            <OrganoSelector
-              disabled={disablesSeverity}
-              disabledHint={
-                incidenceIsZero
-                  ? "Incidencia 0: no hay organos afectados."
-                  : "Indica primero la incidencia."
-              }
-              onToggle={(organo) => onToggleOrgano(nutrient.id, organo)}
-              selectedOrganos={selection.organosAfectados}
-            />
           </View>
         </View>
       )}
@@ -1086,71 +1043,6 @@ function NutritionIncidenceBlock({ value }: { value: string }) {
       <AppText style={styles.incidenceGradeDescription} variant="caption">
         {incidence.description}
       </AppText>
-    </View>
-  );
-}
-
-function OrganoSelector({
-  disabled,
-  disabledHint,
-  onToggle,
-  selectedOrganos
-}: {
-  disabled: boolean;
-  disabledHint: string;
-  onToggle: (organo: OrganoAfectado) => void;
-  selectedOrganos: OrganoAfectado[];
-}) {
-  return (
-    <View style={[styles.organosBlock, disabled && styles.disabledArea]}>
-      <View style={styles.detailLabelRow}>
-        <AppText style={styles.detailLabel} variant="caption">
-          Organos afectados
-        </AppText>
-        {disabled ? (
-          <AppText style={styles.disabledHint} variant="caption">
-            {disabledHint}
-          </AppText>
-        ) : null}
-      </View>
-      {!disabled ? (
-        <View style={styles.organosGrid}>
-          {ORGANO_OPTIONS.map((option) => {
-            const selected = selectedOrganos.includes(option.value);
-
-            return (
-              <Pressable
-                accessibilityLabel={`Organo afectado ${option.label}`}
-                accessibilityRole="button"
-                key={option.value}
-                onPress={() => onToggle(option.value)}
-                style={[
-                  styles.organoChip,
-                  selected ? styles.organoChipSelected : styles.organoChipInactive
-                ]}
-              >
-                <Ionicons
-                  color={selected ? theme.colors.primary : theme.colors.primaryDark}
-                  name={option.icon}
-                  size={17}
-                />
-                <AppText
-                  numberOfLines={2}
-                  style={[
-                    styles.organoChipText,
-                    selected
-                      ? styles.organoChipTextSelected
-                      : styles.organoChipTextInactive
-                  ]}
-                  variant="caption"
-                >
-                  {option.label}
-                </AppText>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -1419,7 +1311,10 @@ function buildSelectionMap(
       {
         detailId: findSelectedDetailId(nutrient, evaluation) ?? null,
         incidencePercentage: evaluation.incidencePercentage ?? "",
-        organosAfectados: evaluation.organosAfectados
+        organosAfectados: resolveNutritionOrganos(
+          evaluation.incidencePercentage ?? "",
+          evaluation.organosAfectados
+        )
       }
     ] as const;
   });
@@ -1471,10 +1366,6 @@ function validateNutritionSelections(
 
     if (!incidenceIsZero && !selection.detailId) {
       return `Selecciona severidad para ${nutrient.name}.`;
-    }
-
-    if (!incidenceIsZero && selection.organosAfectados.length === 0) {
-      return `Selecciona al menos un organo afectado para ${nutrient.name}.`;
     }
   }
 
@@ -1962,47 +1853,6 @@ const styles = StyleSheet.create({
     color: theme.colors.primaryDark,
     flex: 1,
     fontSize: 20
-  },
-  organosBlock: {
-    gap: 8,
-    paddingTop: 2
-  },
-  organosGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 7,
-    justifyContent: "space-between"
-  },
-  organoChip: {
-    alignItems: "center",
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    gap: 5,
-    justifyContent: "center",
-    minHeight: 70,
-    paddingHorizontal: 5,
-    paddingVertical: 8,
-    width: "30.8%"
-  },
-  organoChipInactive: {
-    backgroundColor: theme.colors.surfaceElevated,
-    borderColor: theme.colors.border
-  },
-  organoChipSelected: {
-    backgroundColor: "#eef9e8",
-    borderColor: theme.colors.primary
-  },
-  organoChipText: {
-    fontSize: 10,
-    lineHeight: 13,
-    textAlign: "center"
-  },
-  organoChipTextInactive: {
-    color: theme.colors.primaryDark
-  },
-  organoChipTextSelected: {
-    color: theme.colors.primaryDark,
-    fontWeight: "700"
   },
   percentageBlock: {
     gap: 8

@@ -93,4 +93,43 @@ describe("VisitaEvaluacionesService - Nutrición", () => {
       incidencePercentage: "5"
     });
   });
+
+  it("conserva hoja tierna cuando la incidencia nutricional es cero", async () => {
+    const { service, evaluations } = buildService();
+
+    const response = await service.create("visit-1", {
+      nutrientId: "nutrient-1",
+      order: 3001,
+      incidencePercentage: 0,
+      description: "Nutricion - Nitrogeno: Incidencia 0%",
+      organosAfectados: ["hoja_tierna"]
+    });
+
+    expect(evaluations.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        incidencePercentage: "0",
+        organosAfectados: ["hoja_tierna"]
+      })
+    );
+    expect(response.data).toMatchObject({
+      incidencePercentage: "0",
+      organosAfectados: ["hoja_tierna"]
+    });
+  });
+
+  it("sigue aceptando un arreglo de organos vacio con incidencia cero", async () => {
+    const { service, evaluations } = buildService();
+
+    await service.create("visit-1", {
+      nutrientId: "nutrient-1",
+      order: 3001,
+      incidencePercentage: 0,
+      description: "Nutricion - Nitrogeno: Incidencia 0%",
+      organosAfectados: []
+    });
+
+    expect(evaluations.create).toHaveBeenCalledWith(
+      expect.objectContaining({ organosAfectados: [] })
+    );
+  });
 });

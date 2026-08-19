@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-18
+last_reviewed: 2026-08-19
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/sync
@@ -263,6 +263,10 @@ y programa un sync inmediato con `bypassBackoff`.
   `nutrientId` del catálogo y se confirma antes de publicar la finalización que
   habilita el macro-score. La barrera incluye borrados nutricionales pendientes
   o preservados en `sync_failures`, cuyo payload conserva visita e identidad;
+- cada evaluación nutricional conserva `organosAfectados` dentro del mismo
+  payload. Mobile asigna `hoja_tierna` cuando existe una incidencia entre 0 y
+  100 sin órgano previo; el handler no transforma el arreglo y la API lo
+  conserva también para incidencia 0. No cambia el tipo ni el orden del outbox;
 - la recarga del catálogo nutricional usa UPSERT sin borrado implícito. Si una
   identidad `(cultivo, code)` cambia de ID remoto, SQLite remapea evaluaciones y
   detalles dentro de la misma transacción antes de retirar el ID anterior;
@@ -330,6 +334,13 @@ catalogo local vigente, y cada marca muestra ese ingrediente como texto
 auxiliar. Tipo de producto, ingrediente, Nombre comercial y fertilizante usan
 busqueda local que ignora mayusculas y tildes. Esta navegacion no cambia el
 formato persistido de la receta, SQLite ni la outbox.
+
+Las tarjetas de objetivos fitosanitarios, mezclas y grupos de fertilizacion se
+presentan como un acordeon exclusivo: solo una puede estar abierta y, al
+cargar, se prioriza la primera incompleta. La clave activa es estado efimero de
+presentacion y no forma parte del borrador, SQLite, payload ni outbox. El input
+de disolvente ya no se renderiza; las altas mantienen `Agua` por defecto y un
+valor historico distinto se restaura y serializa sin sobrescribirlo.
 
 La migracion PostgreSQL 051 agrega de forma idempotente marcas e ingredientes
 del catalogo agroquimico. No cambia SQLite ni crea operaciones de outbox: una
@@ -431,6 +442,11 @@ conservan en `visit_form_drafts` una copia JSON versionada del estado todavia no
 guardado. La clave combina el `publicId` del usuario, el contexto de la visita y
 el modulo; una visita nueva usa temporalmente su parcela como contexto y, desde
 el paso 2, usa el ID local de la visita.
+
+Los textos históricos de observación y recomendación de Plagas, Enfermedades,
+Nutrición y Labores permanecen en el borrador y en sus entidades aunque esos
+cuatro pasos ya no expongan inputs para editarlos. Guardar nuevamente no los
+borra. Riego mantiene visible su observación.
 
 El formulario carga primero las entidades operativas y despues superpone el
 borrador compatible. Los cambios se escriben con debounce y se vacian antes de

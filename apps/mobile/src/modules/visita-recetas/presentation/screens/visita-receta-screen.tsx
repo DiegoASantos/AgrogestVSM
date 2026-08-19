@@ -7,7 +7,8 @@ import {
   useMemo,
   useRef,
   useState,
-  type ComponentProps
+  type ComponentProps,
+  type ReactNode
 } from "react";
 import {
   Alert,
@@ -86,6 +87,20 @@ import {
   getIngredientOptions,
   resolveCommercialSelectionPatch
 } from "./visita-receta-selection";
+import {
+  buildRecipeAccordionCards,
+  findFirstIncompleteRecipeCard,
+  getFertilizacionCardKey,
+  getFitosanidadCardKey,
+  getMezclaCardKey,
+  groupRecipeFertilizaciones,
+  isFertilizacionGroupComplete,
+  isFitosanidadCardComplete,
+  isMezclaCardComplete,
+  resolveRecipeCardAfterRemoval,
+  toggleActiveRecipeCard,
+  type RecipeCardKey
+} from "./visita-receta-accordion";
 import {
   buildFertilizacionesForSave,
   buildMezclasForSave,
@@ -203,9 +218,12 @@ export function VisitaRecetaScreen() {
   const [laborSelections, setLaborSelections] = useState<Set<string>>(() => new Set());
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [activeRecipeCardKey, setActiveRecipeCardKey] =
+    useState<RecipeCardKey | null>(null);
   const [ordenExchangeResetToken, setOrdenExchangeResetToken] = useState(0);
   const [isDraftReady, setIsDraftReady] = useState(false);
   const loadRequestRef = useRef(0);
+  const accordionInitializedRef = useRef(false);
   const compatibilityAlertOpenRef = useRef(false);
   const catalogDownloadStatus = useCatalogDownloadStatus();
   const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
@@ -271,16 +289,21 @@ export function VisitaRecetaScreen() {
     [consolidacion, fertilizaciones, nutrients]
   );
 
-  const fertilizacionGroups = useMemo(() => {
-    const groups = new Map<string, AppFertilizacion[]>();
-    for (const item of fertilizaciones) {
-      const key = item.nutrienteId
-        ? `${item.enfoque ?? "reactivo"}:${item.nutrienteId}`
-        : `legacy:${item.localId}`;
-      groups.set(key, [...(groups.get(key) ?? []), item]);
-    }
-    return [...groups.entries()].map(([key, productos]) => ({ key, productos }));
-  }, [fertilizaciones]);
+  const fertilizacionGroups = useMemo(
+    () => groupRecipeFertilizaciones(fertilizaciones),
+    [fertilizaciones]
+  );
+  const recipeAccordionCards = useMemo(
+    () => buildRecipeAccordionCards(fitosanidadApps, mezclas, fertilizaciones),
+    [fertilizaciones, fitosanidadApps, mezclas]
+  );
+
+  useEffect(() => {
+    if (!isDraftReady || accordionInitializedRef.current) return;
+
+    accordionInitializedRef.current = true;
+    setActiveRecipeCardKey(findFirstIncompleteRecipeCard(recipeAccordionCards));
+  }, [isDraftReady, recipeAccordionCards]);
 
   useFocusEffect(
     useCallback(() => {
@@ -386,6 +409,8 @@ export function VisitaRecetaScreen() {
   function loadAll(vId: string, requestId: number) {
     setIsLoading(true);
     setIsDraftReady(false);
+    accordionInitializedRef.current = false;
+    setActiveRecipeCardKey(null);
     setError(null);
     try {
       const catalogos = visitaRecetasService.getCatalogos();
@@ -688,6 +713,10 @@ export function VisitaRecetaScreen() {
     );
     setFitosanidadApps(projected);
     setMezclas((current) => regenerateMezclas(current, projected));
+    const application = projected[applicationIndex];
+    if (application) {
+      openRecipeCard(getFitosanidadCardKey(application.localId));
+    }
   }
 
   function removeIngrediente(applicationIndex: number, ingredientIndex: number) {
@@ -800,6 +829,7 @@ export function VisitaRecetaScreen() {
     const count = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(20, parsed));
     if (count === 0) {
       setMezclas([]);
+      reconcileActiveRecipeCard(fitosanidadApps, [], fertilizaciones);
       return;
     }
     const next = Array.from(
@@ -815,8 +845,16 @@ export function VisitaRecetaScreen() {
         mezclaNumero: Math.min(ingredient.mezclaNumero, count)
       }))
     }));
+    const resolved = regenerateMezclas(next, projected);
     setFitosanidadApps(projected);
-    setMezclas(regenerateMezclas(next, projected));
+    setMezclas(resolved);
+
+    if (count > mezclas.length) {
+      const firstAdded = resolved[mezclas.length];
+      if (firstAdded) openRecipeCard(getMezclaCardKey(firstAdded.localId));
+    } else if (count < mezclas.length) {
+      reconcileActiveRecipeCard(projected, resolved, fertilizaciones);
+    }
   }
 
   function addPreventiveFitosanidad() {
@@ -848,6 +886,7 @@ export function VisitaRecetaScreen() {
         appendMezclasForNewFindings(current, 1, current[0]?.volumenAplicacion ?? "")
       )
     );
+    openRecipeCard(getFitosanidadCardKey(application.localId));
     setPreventiveTargetId("");
     setSubmitError(null);
   }
@@ -857,8 +896,10 @@ export function VisitaRecetaScreen() {
     const projected = fitosanidadApps.filter(
       (_, currentIndex) => currentIndex !== applicationIndex
     );
+    const nextMezclas = regenerateMezclas(mezclas, projected);
     setFitosanidadApps(projected);
-    setMezclas((current) => regenerateMezclas(current, projected));
+    setMezclas(nextMezclas);
+    reconcileActiveRecipeCard(projected, nextMezclas, fertilizaciones);
   }
 
   function addPreventiveFertilizacion() {
@@ -870,13 +911,13 @@ export function VisitaRecetaScreen() {
       setSubmitError("Selecciona el nutriente de la recomendacion preventiva.");
       return;
     }
-    setFertilizaciones((prev) => [
-      ...prev,
-      createPreventiveFertilizacion(
-        nutrient,
-        prev[0]?.volumenAplicacion ?? ""
-      )
-    ]);
+    const fertilizacion = createPreventiveFertilizacion(
+      nutrient,
+      fertilizaciones[0]?.volumenAplicacion ?? ""
+    );
+    setFertilizaciones((prev) => [...prev, fertilizacion]);
+    const group = groupRecipeFertilizaciones([fertilizacion])[0];
+    if (group) openRecipeCard(getFertilizacionCardKey(group.key));
     setPreventiveNutrientId("");
     setSubmitError(null);
   }
@@ -896,11 +937,26 @@ export function VisitaRecetaScreen() {
         factorEditable: reference.factorEditable
       }
     ]);
+    const group = groupRecipeFertilizaciones([reference])[0];
+    if (group) openRecipeCard(getFertilizacionCardKey(group.key));
   }
 
   function removeFertilizacion(localId: string) {
     closeDropdown();
     setFertilizaciones((prev) => prev.filter((item) => item.localId !== localId));
+  }
+
+  function removeFertilizacionGroup(reference: AppFertilizacion) {
+    closeDropdown();
+    const projected = fertilizaciones.filter(
+      (item) =>
+        !(
+          item.nutrienteId === reference.nutrienteId &&
+          item.enfoque === reference.enfoque
+        )
+    );
+    setFertilizaciones(projected);
+    reconcileActiveRecipeCard(fitosanidadApps, mezclas, projected);
   }
 
   function updateFertilizacion(index: number, patch: Partial<AppFertilizacion>) {
@@ -1115,6 +1171,33 @@ export function VisitaRecetaScreen() {
     setOpenDropdown(null);
   }
 
+  function openRecipeCard(key: RecipeCardKey) {
+    closeDropdown();
+    resetOrdenExchangeState();
+    setActiveRecipeCardKey(key);
+  }
+
+  function toggleRecipeCard(key: RecipeCardKey) {
+    closeDropdown();
+    resetOrdenExchangeState();
+    setActiveRecipeCardKey((current) => toggleActiveRecipeCard(current, key));
+  }
+
+  function reconcileActiveRecipeCard(
+    applications: AppFitosanidad[],
+    currentMezclas: AppMezcla[],
+    currentFertilizaciones: AppFertilizacion[]
+  ) {
+    const cards = buildRecipeAccordionCards(
+      applications,
+      currentMezclas,
+      currentFertilizaciones
+    );
+    setActiveRecipeCardKey((current) =>
+      resolveRecipeCardAfterRemoval(current, cards)
+    );
+  }
+
   function resetOrdenExchangeState() {
     setOrdenExchangeResetToken((value) => value + 1);
   }
@@ -1200,6 +1283,10 @@ export function VisitaRecetaScreen() {
               <FitosanidadCard
                 index={index}
                 ingredientesActivos={ingredientesActivos}
+                isComplete={isFitosanidadCardComplete(app)}
+                isExpanded={
+                  activeRecipeCardKey === getFitosanidadCardKey(app.localId)
+                }
                 key={app.localId}
                 marcasProducto={marcasProducto}
                 mezclas={mezclas}
@@ -1210,6 +1297,9 @@ export function VisitaRecetaScreen() {
                   updateIngrediente(index, ingredientIndex, patch)
                 }
                 onCloseDropdown={closeDropdown}
+                onToggle={() =>
+                  toggleRecipeCard(getFitosanidadCardKey(app.localId))
+                }
                 onRemoveIngrediente={(ingredientIndex) =>
                   removeIngrediente(index, ingredientIndex)
                 }
@@ -1305,9 +1395,16 @@ export function VisitaRecetaScreen() {
                 <MezclaCard
                   coadyuvantes={coadyuvantes}
                   fitosanidadApps={fitosanidadApps}
+                  isComplete={isMezclaCardComplete(mezcla, fitosanidadApps)}
+                  isExpanded={
+                    activeRecipeCardKey === getMezclaCardKey(mezcla.localId)
+                  }
                   key={mezcla.localId}
                   onChange={(patch) => updateMezcla(index, patch)}
                   onAsignarProducto={asignarProductoMezcla}
+                  onToggle={() =>
+                    toggleRecipeCard(getMezclaCardKey(mezcla.localId))
+                  }
                   resetToken={ordenExchangeResetToken}
                   value={mezcla}
                 />
@@ -1340,47 +1437,36 @@ export function VisitaRecetaScreen() {
           {fertilizacionGroups.map((group, groupIndex) => {
             const reference = group.productos[0]!;
             const isPreventive = reference.enfoque === "preventivo";
+            const cardKey = getFertilizacionCardKey(group.key);
+            const isExpanded = activeRecipeCardKey === cardKey;
             return (
               <View key={group.key} style={styles.fertilizacionGroupCard}>
-                <View style={styles.itemCardHeader}>
-                  <View style={styles.itemCardTitle}>
-                    <View style={styles.itemNumberBadge}>
-                      <AppText style={styles.itemNumberText} variant="eyebrow">
-                        {groupIndex + 1}
-                      </AppText>
-                    </View>
-                    <View>
-                      <AppText variant="heading">
-                        {reference.nutrienteNombre || "Deficiencia no registrada"}
-                      </AppText>
-                      <AppText variant="caption">
-                        {isPreventive ? "Preventivo" : "Curativo"}
-                        {!isPreventive && reference.incidenceGrade !== null
-                          ? ` · Grado ${reference.incidenceGrade}`
-                          : ""}
-                      </AppText>
-                    </View>
-                  </View>
-                  {isPreventive ? (
-                    <RemoveItemButton
-                      accessibilityLabel={`Quitar recomendación preventiva de ${reference.nutrienteNombre}`}
-                      label="Quitar"
-                      onPress={() =>
-                        setFertilizaciones((current) =>
-                          current.filter(
-                            (item) =>
-                              !(
-                                item.nutrienteId === reference.nutrienteId &&
-                                item.enfoque === reference.enfoque
-                              )
-                          )
-                        )
-                      }
-                    />
-                  ) : null}
-                </View>
+                <RecipeAccordionHeader
+                  action={
+                    isPreventive ? (
+                      <RemoveItemButton
+                        accessibilityLabel={`Quitar recomendación preventiva de ${reference.nutrienteNombre}`}
+                        label="Quitar"
+                        onPress={() => removeFertilizacionGroup(reference)}
+                      />
+                    ) : null
+                  }
+                  badge={String(groupIndex + 1)}
+                  isComplete={isFertilizacionGroupComplete(group.productos)}
+                  isExpanded={isExpanded}
+                  onToggle={() => toggleRecipeCard(cardKey)}
+                  subtitle={`${isPreventive ? "Preventivo" : "Curativo"}${
+                    !isPreventive && reference.incidenceGrade !== null
+                      ? ` · Grado ${reference.incidenceGrade}`
+                      : ""
+                  } · ${group.productos.length} producto(s)`}
+                  title={
+                    reference.nutrienteNombre || "Deficiencia no registrada"
+                  }
+                />
 
-                {group.productos.map((fertilizacion, productIndex) => {
+                {isExpanded
+                  ? group.productos.map((fertilizacion, productIndex) => {
                   const index = fertilizaciones.findIndex(
                     (item) => item.localId === fertilizacion.localId
                   );
@@ -1408,8 +1494,9 @@ export function VisitaRecetaScreen() {
                       value={fertilizacion}
                     />
                   );
-                })}
-                {reference.nutrienteId ? (
+                    })
+                  : null}
+                {isExpanded && reference.nutrienteId ? (
                   <AddItemButton
                     accessibilityLabel={`Agregar fertilizante para ${reference.nutrienteNombre}`}
                     label="Agregar otro producto"
@@ -1634,9 +1721,80 @@ function ConsolidacionPanel({ data }: { data: ConsolidacionHallazgo }) {
   );
 }
 
+function RecipeAccordionHeader({
+  action,
+  badge,
+  isComplete,
+  isExpanded,
+  onToggle,
+  subtitle,
+  title
+}: {
+  action?: ReactNode;
+  badge: string;
+  isComplete: boolean;
+  isExpanded: boolean;
+  onToggle: () => void;
+  subtitle: string;
+  title: string;
+}) {
+  return (
+    <View style={styles.recipeAccordionHeader}>
+      <Pressable
+        accessibilityLabel={`${isExpanded ? "Contraer" : "Expandir"} ${title}`}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isExpanded }}
+        onPress={onToggle}
+        style={({ pressed }) => [
+          styles.recipeAccordionButton,
+          pressed && styles.recipeAccordionButtonPressed
+        ]}
+      >
+        <View style={styles.recipeAccordionBadge}>
+          <AppText style={styles.recipeAccordionBadgeText} variant="eyebrow">
+            {badge}
+          </AppText>
+        </View>
+        <View style={styles.recipeAccordionCopy}>
+          <AppText variant="heading">{title}</AppText>
+          <AppText variant="caption">{subtitle}</AppText>
+          <View
+            style={[
+              styles.recipeAccordionStatus,
+              isComplete
+                ? styles.recipeAccordionStatusComplete
+                : styles.recipeAccordionStatusPending
+            ]}
+          >
+            <AppText
+              style={[
+                styles.recipeAccordionStatusText,
+                isComplete
+                  ? styles.recipeAccordionStatusTextComplete
+                  : styles.recipeAccordionStatusTextPending
+              ]}
+              variant="caption"
+            >
+              {isComplete ? "Completo" : "Pendiente"}
+            </AppText>
+          </View>
+        </View>
+        <Ionicons
+          color={theme.colors.primary}
+          name={isExpanded ? "chevron-up" : "chevron-down"}
+          size={22}
+        />
+      </Pressable>
+      {action ? <View style={styles.recipeAccordionAction}>{action}</View> : null}
+    </View>
+  );
+}
+
 function FitosanidadCard({
   value,
   index,
+  isComplete,
+  isExpanded,
   ingredientesActivos,
   marcasProducto,
   tiposControl,
@@ -1650,11 +1808,14 @@ function FitosanidadCard({
   onCloseDropdown,
   onRemoveApplication,
   onRemoveIngrediente,
+  onToggle,
   toggleDropdown,
   onNavegarCatalogo
 }: {
   value: AppFitosanidad;
   index: number;
+  isComplete: boolean;
+  isExpanded: boolean;
   ingredientesActivos: IngredienteActivoCatalogItem[];
   marcasProducto: MarcaProductoCatalogItem[];
   tiposControl: TipoControlCatalogItem[];
@@ -1668,6 +1829,7 @@ function FitosanidadCard({
   onCloseDropdown: () => void;
   onRemoveApplication?: () => void;
   onRemoveIngrediente: (index: number) => void;
+  onToggle: () => void;
   toggleDropdown: (key: string) => void;
   onNavegarCatalogo: (tipo: string, ingredienteActivoId?: string) => void;
 }) {
@@ -1675,83 +1837,71 @@ function FitosanidadCard({
 
   return (
     <View style={styles.fitosanidadCard}>
-      <View style={styles.fitoHeader}>
-        <View style={styles.fitoBadge}>
-          <AppText style={styles.fitoBadgeText} variant="eyebrow">
-            {String(value.numero).padStart(2, "0")}
-          </AppText>
-        </View>
-        <View style={styles.fitoHeaderText}>
-          <AppText variant="heading">
-            {value.objetivoNombre} ({value.objetivo === "plaga" ? "Plaga" : "Enfermedad"})
-          </AppText>
-          <AppText variant="caption">
-            {value.ingredientes.length} ingrediente(s) activo(s)
-          </AppText>
-          {value.enfoque === "preventivo" ? (
-            <AppText style={styles.preventiveText} variant="caption">
-              Preventivo · Incidencia grado 0 · Severidad grado 0
-            </AppText>
-          ) : (
-            <AppText variant="caption">Reactivo</AppText>
-          )}
-        </View>
-        {onRemoveApplication ? (
-          <RemoveItemButton
-            accessibilityLabel={`Quitar prevencion para ${value.objetivoNombre}`}
-            label="Quitar"
-            onPress={onRemoveApplication}
+      <RecipeAccordionHeader
+        action={
+          onRemoveApplication ? (
+            <RemoveItemButton
+              accessibilityLabel={`Quitar prevencion para ${value.objetivoNombre}`}
+              label="Quitar"
+              onPress={onRemoveApplication}
+            />
+          ) : null
+        }
+        badge={String(value.numero).padStart(2, "0")}
+        isComplete={isComplete}
+        isExpanded={isExpanded}
+        onToggle={onToggle}
+        subtitle={`${value.ingredientes.length} producto(s) · ${
+          value.enfoque === "preventivo" ? "Preventivo" : "Reactivo"
+        }`}
+        title={`${value.objetivoNombre} (${value.objetivo === "plaga" ? "Plaga" : "Enfermedad"})`}
+      />
+
+      {isExpanded ? (
+        <>
+          <AppSelectField
+            icon="shield-checkmark"
+            label="Tipo de control"
+            options={tiposControl.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="Seleccionar tipo"
+            selectedLabel={tiposControl.find((c) => c.id === value.tipoControlId)?.name}
+            isOpen={openDropdown === `${prefix}_control`}
+            onClose={onCloseDropdown}
+            onToggle={() => toggleDropdown(`${prefix}_control`)}
+            onSelect={(v) => onChange({ tipoControlId: v })}
           />
-        ) : null}
-      </View>
 
-      <AppSelectField
-        icon="shield-checkmark"
-        label="Tipo de control"
-        options={tiposControl.map((c) => ({ value: c.id, label: c.name }))}
-        placeholder="Seleccionar tipo"
-        selectedLabel={tiposControl.find((c) => c.id === value.tipoControlId)?.name}
-        isOpen={openDropdown === `${prefix}_control`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_control`)}
-        onSelect={(v) => onChange({ tipoControlId: v })}
-      />
+          <View style={styles.ingredientList}>
+            {value.ingredientes.map((ingredient, ingredientIndex) => (
+              <IngredienteCard
+                canRemove={value.ingredientes.length > 1}
+                index={ingredientIndex}
+                ingredientesActivos={ingredientesActivos}
+                key={ingredient.localId}
+                marcasProducto={marcasProducto}
+                mezclas={mezclas}
+                modosAccion={modosAccion}
+                onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
+                onCloseDropdown={onCloseDropdown}
+                onRemove={() => onRemoveIngrediente(ingredientIndex)}
+                openDropdown={openDropdown}
+                prefix={`${prefix}_ingrediente_${ingredientIndex}`}
+                tiposProducto={tiposProducto}
+                toggleDropdown={toggleDropdown}
+                onNavegarCatalogo={onNavegarCatalogo}
+                total={value.ingredientes.length}
+                value={ingredient}
+              />
+            ))}
+          </View>
 
-      <LabeledTextInput
-        label="Disolvente"
-        value={value.disolvente}
-        onChangeText={(v) => onChange({ disolvente: v })}
-      />
-
-      <View style={styles.ingredientList}>
-        {value.ingredientes.map((ingredient, ingredientIndex) => (
-          <IngredienteCard
-            canRemove={value.ingredientes.length > 1}
-            index={ingredientIndex}
-            ingredientesActivos={ingredientesActivos}
-            key={ingredient.localId}
-            marcasProducto={marcasProducto}
-            mezclas={mezclas}
-            modosAccion={modosAccion}
-            onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
-            onCloseDropdown={onCloseDropdown}
-            onRemove={() => onRemoveIngrediente(ingredientIndex)}
-            openDropdown={openDropdown}
-            prefix={`${prefix}_ingrediente_${ingredientIndex}`}
-            tiposProducto={tiposProducto}
-            toggleDropdown={toggleDropdown}
-            onNavegarCatalogo={onNavegarCatalogo}
-            total={value.ingredientes.length}
-            value={ingredient}
+          <AddItemButton
+            accessibilityLabel={`Agregar otro producto para ${value.objetivoNombre}`}
+            label="Agregar otro producto"
+            onPress={onAddIngrediente}
           />
-        ))}
-      </View>
-
-      <AddItemButton
-        accessibilityLabel={`Agregar otro producto para ${value.objetivoNombre}`}
-        label="Agregar otro producto"
-        onPress={onAddIngrediente}
-      />
+        </>
+      ) : null}
     </View>
   );
 }
@@ -2065,15 +2215,21 @@ function MezclaCard({
   coadyuvantes,
   resetToken,
   fitosanidadApps,
+  isComplete,
+  isExpanded,
   onChange,
-  onAsignarProducto
+  onAsignarProducto,
+  onToggle
 }: {
   value: AppMezcla;
   coadyuvantes: CoadyuvanteCatalogItem[];
   resetToken: number;
   fitosanidadApps: AppFitosanidad[];
+  isComplete: boolean;
+  isExpanded: boolean;
   onChange: (patch: Partial<AppMezcla>) => void;
   onAsignarProducto: (ingredientLocalId: string, mezclaNumero: number) => void;
+  onToggle: () => void;
 }) {
   const [isExchangeMode, setIsExchangeMode] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -2086,6 +2242,14 @@ function MezclaCard({
   const movableCount = value.ordenMezcla.filter(
     (item) => !isOrdenMezclaFixedItem(item)
   ).length;
+  const assignedProductCount = fitosanidadApps.reduce(
+    (total, application) =>
+      total +
+      application.ingredientes.filter(
+        (ingredient) => ingredient.mezclaNumero === value.numero
+      ).length,
+    0
+  );
 
   function exchange(index: number) {
     if (!isExchangeMode || isOrdenMezclaFixedItem(value.ordenMezcla[index] ?? "")) {
@@ -2103,7 +2267,21 @@ function MezclaCard({
 
   return (
     <View style={styles.fitosanidadCard}>
-      <AppText variant="heading">Mezcla {value.numero}</AppText>
+      <RecipeAccordionHeader
+        badge={String(value.numero)}
+        isComplete={isComplete}
+        isExpanded={isExpanded}
+        onToggle={onToggle}
+        subtitle={`${assignedProductCount} producto(s) · ${
+          value.volumenAplicacion
+            ? `${value.volumenAplicacion} cilindro(s)/ha`
+            : "Volumen pendiente"
+        }`}
+        title={`Mezcla ${value.numero}`}
+      />
+
+      {isExpanded ? (
+        <>
       <LabeledNumericInput
         label="Volumen de aplicación (cilindros/ha)"
         value={value.volumenAplicacion}
@@ -2259,6 +2437,8 @@ function MezclaCard({
             );
           })}
         </View>
+      ) : null}
+        </>
       ) : null}
     </View>
   );
@@ -2740,34 +2920,6 @@ function LaboresSection({
   );
 }
 
-function LabeledTextInput({
-  label,
-  value,
-  onChangeText,
-  placeholder
-}: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <View style={styles.fieldWrapper}>
-      <AppText variant="label" style={styles.fieldLabel}>
-        {label}
-      </AppText>
-      <TextInput
-        accessibilityLabel={label}
-        onChangeText={onChangeText}
-        placeholder={placeholder ?? label}
-        placeholderTextColor={theme.colors.textMuted}
-        style={styles.textInput}
-        value={value}
-      />
-    </View>
-  );
-}
-
 function LabeledNumericInput({
   label,
   value,
@@ -2940,26 +3092,63 @@ const styles = StyleSheet.create({
     padding: 16,
     ...theme.shadow.sm
   },
-  fitoHeader: {
+  recipeAccordionHeader: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 4
+    gap: 8
   },
-  fitoBadge: {
+  recipeAccordionButton: {
+    alignItems: "center",
+    borderRadius: theme.radius.md,
+    flex: 1,
+    flexDirection: "row",
+    gap: 12,
+    minHeight: 58,
+    paddingVertical: 4
+  },
+  recipeAccordionButtonPressed: {
+    opacity: 0.72
+  },
+  recipeAccordionBadge: {
     alignItems: "center",
     backgroundColor: theme.colors.primary,
     borderRadius: theme.radius.sm,
     justifyContent: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 4
+    minWidth: 34,
+    paddingHorizontal: 8,
+    paddingVertical: 5
   },
-  fitoBadgeText: {
+  recipeAccordionBadgeText: {
     color: theme.colors.textInverse
   },
-  fitoHeaderText: {
+  recipeAccordionCopy: {
     flex: 1,
-    gap: 2
+    gap: 3
+  },
+  recipeAccordionStatus: {
+    alignSelf: "flex-start",
+    borderRadius: theme.radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 2
+  },
+  recipeAccordionStatusComplete: {
+    backgroundColor: theme.colors.successMuted
+  },
+  recipeAccordionStatusPending: {
+    backgroundColor: theme.colors.warningMuted
+  },
+  recipeAccordionStatusText: {
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  recipeAccordionStatusTextComplete: {
+    color: theme.colors.success
+  },
+  recipeAccordionStatusTextPending: {
+    color: theme.colors.warning
+  },
+  recipeAccordionAction: {
+    alignSelf: "flex-start"
   },
   preventiveText: {
     color: theme.colors.primaryDark,
