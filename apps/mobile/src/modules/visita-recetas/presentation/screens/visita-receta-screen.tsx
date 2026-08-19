@@ -17,6 +17,7 @@ import {
   AppButton,
   AppCard,
   AppCollapsibleHeader,
+  AppInput,
   AppText,
   FormScrollView,
   ScreenContainer
@@ -55,7 +56,6 @@ import { generateOrdenMezcla } from "./visita-receta-order";
 import {
   buildCommercialSelectionPatch,
   buildIngredientSelectionPatch,
-  buildTypeSelectionPatch,
   getCommercialOptions,
   getIngredientOptions,
   resolveCommercialSelectionPatch
@@ -81,6 +81,7 @@ import {
 import {
   buildFertilizacionUnidadDosis,
   buildFitosanidadUnidadDosis,
+  applyDefaultFitosanidadControl,
   appendMezclasForNewFindings,
   calculateTotal,
   createEmptyFertilizacion,
@@ -100,6 +101,7 @@ import {
   deriveMezclaFactors,
   recalculateFertilizacion,
   recalculateIngrediente,
+  resolveDefaultControlId,
   restoreFertilizaciones,
   restoreFitosanidadApps,
   restoreMezclas,
@@ -313,26 +315,30 @@ export function VisitaRecetaScreen() {
     );
 
     setFitosanidadApps((currentApps) =>
-      currentApps.map((current) => {
-        return {
-          ...current,
-          ingredientes: current.ingredientes.map((ingredient) => {
-            const selectionPatch = resolveCommercialSelectionPatch(
-              ingredient.tipoProductoId,
-              ingredient.marcaProductoNombre,
-              catalogos.ingredientesActivos,
-              catalogos.marcasProducto
-            );
+      applyDefaultFitosanidadControl(
+        currentApps.map((current) => {
+          return {
+            ...current,
+            ingredientes: current.ingredientes.map((ingredient) => {
+              const selectionPatch = resolveCommercialSelectionPatch(
+                ingredient.tipoProductoId,
+                ingredient.marcaProductoNombre,
+                catalogos.ingredientesActivos,
+                catalogos.marcasProducto,
+                catalogos.tiposProducto
+              );
 
-            if (!selectionPatch) return ingredient;
+              if (!selectionPatch) return ingredient;
 
-            return {
-              ...ingredient,
-              ...selectionPatch
-            };
-          })
-        };
-      })
+              return {
+                ...ingredient,
+                ...selectionPatch
+              };
+            })
+          };
+        }),
+        catalogos.tiposControl
+      )
     );
 
     setFertilizaciones((currentItems) =>
@@ -404,6 +410,7 @@ export function VisitaRecetaScreen() {
           catalogos.ingredientesActivos,
           catalogos.marcasProducto,
           catalogos.fertilizantes,
+          catalogos.tiposControl,
           localConsData
         );
       } else if (localConsData) {
@@ -412,7 +419,11 @@ export function VisitaRecetaScreen() {
             parcela.id
           );
         }
-        initFitosanidadFromConsolidacion(localConsData, volumenPorDefecto.fitosanidad);
+        initFitosanidadFromConsolidacion(
+          localConsData,
+          catalogos.tiposControl,
+          volumenPorDefecto.fitosanidad
+        );
         setFertilizaciones(
           mergeNutritionFertilizations([], localConsData, volumenPorDefecto.fertilizacion)
         );
@@ -473,7 +484,12 @@ export function VisitaRecetaScreen() {
 
       setIsDraftReady(true);
       setIsLoading(false);
-      void refreshConsolidacionFromRemote(vId, localConsData, requestId);
+      void refreshConsolidacionFromRemote(
+        vId,
+        localConsData,
+        catalogos.tiposControl,
+        requestId
+      );
     } catch (err) {
       if (!isActiveLoad(requestId)) {
         return;
@@ -486,6 +502,7 @@ export function VisitaRecetaScreen() {
   async function refreshConsolidacionFromRemote(
     vId: string,
     localConsData: ConsolidacionHallazgo,
+    controlCatalog: TipoControlCatalogItem[],
     requestId: number
   ) {
     try {
@@ -515,7 +532,11 @@ export function VisitaRecetaScreen() {
 
       if (hasFitosanidadFindings(resolvedConsData)) {
         setFitosanidadApps((prev) => {
-          const merged = mergeMissingFitosanidadFindings(prev, resolvedConsData);
+          const merged = mergeMissingFitosanidadFindings(
+            prev,
+            resolvedConsData,
+            resolveDefaultControlId(controlCatalog)
+          );
           if (merged.addedCount === 0) return prev;
 
           setMezclas((current) =>
@@ -572,6 +593,7 @@ export function VisitaRecetaScreen() {
     ingredientCatalog: IngredienteActivoCatalogItem[],
     commercialCatalog: MarcaProductoCatalogItem[],
     fertilizerCatalog: FertilizanteCatalogItem[],
+    controlCatalog: TipoControlCatalogItem[],
     consolidationData: ConsolidacionHallazgo
   ) {
     const restoredApplications = restoreFitosanidadApps(
@@ -584,7 +606,9 @@ export function VisitaRecetaScreen() {
       consolidationData
     );
 
-    setFitosanidadApps(merged.applications);
+    setFitosanidadApps(
+      applyDefaultFitosanidadControl(merged.applications, controlCatalog)
+    );
     setMezclas(
       appendMezclasForNewFindings(restoreMezclas(receta.mezclas), merged.addedCount)
     );
@@ -604,9 +628,14 @@ export function VisitaRecetaScreen() {
 
   function initFitosanidadFromConsolidacion(
     cons: ConsolidacionHallazgo,
+    controlCatalog: TipoControlCatalogItem[],
     volumenPorDefecto = ""
   ) {
-    const merged = mergeMissingFitosanidadFindings([], cons);
+    const merged = mergeMissingFitosanidadFindings(
+      [],
+      cons,
+      resolveDefaultControlId(controlCatalog)
+    );
     setFitosanidadApps(merged.applications);
     setMezclas(
       deriveMezclaFactors(
@@ -743,7 +772,8 @@ export function VisitaRecetaScreen() {
       nextNumber,
       preventiveObjectiveType,
       target.id,
-      target.name
+      target.name,
+      resolveDefaultControlId(tiposControl)
     );
     const projected = [...fitosanidadApps, application];
     setFitosanidadApps(projected);
@@ -1600,16 +1630,19 @@ function IngredienteCard({
   onNavegarCatalogo: (tipo: string, ingredienteActivoId?: string) => void;
 }) {
   const ingredienteActivoOptions = getIngredientOptions(
-    value.tipoProductoId,
     ingredientesActivos,
-    marcasProducto
+    marcasProducto,
+    tiposProducto
   );
   const nombreComercialOptions = getCommercialOptions(
-    value.tipoProductoId,
     value.ingredienteActivoId,
     ingredientesActivos,
-    marcasProducto
+    marcasProducto,
+    tiposProducto
   );
+  const tipoProductoNombre = tiposProducto.find(
+    (item) => item.id === value.tipoProductoId
+  )?.name;
 
   function handleNombreComercialSelect(marcaProductoId: string) {
     const selected = nombreComercialOptions.find(
@@ -1617,7 +1650,11 @@ function IngredienteCard({
     );
     if (!selected) return;
 
-    const patch = buildCommercialSelectionPatch(selected, ingredientesActivos);
+    const patch = buildCommercialSelectionPatch(
+      selected,
+      ingredientesActivos,
+      tiposProducto
+    );
     if (patch) onChange(patch);
   }
 
@@ -1640,51 +1677,14 @@ function IngredienteCard({
       </View>
 
       <AppSelectField
-        icon="flask"
-        label="Tipo de producto"
-        options={tiposProducto.map((item) => ({ value: item.id, label: item.name }))}
-        placeholder="Seleccionar producto"
-        selectedLabel={
-          tiposProducto.find((item) => item.id === value.tipoProductoId)?.name
-        }
-        isOpen={openDropdown === `${prefix}_producto`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_producto`)}
-        onSelect={(tipoProductoId) =>
-          onChange(
-            buildTypeSelectionPatch(tipoProductoId, ingredientesActivos, marcasProducto)
-          )
-        }
-        searchable
-        searchPlaceholder="Buscar tipo de producto"
-      />
-
-      <AppSelectField
-        icon="move"
-        label="Modo de accion"
-        options={modosAccion.map((item) => ({ value: item.id, label: item.name }))}
-        placeholder="Seleccionar modo"
-        selectedLabel={modosAccion.find((item) => item.id === value.modoAccionId)?.name}
-        isOpen={openDropdown === `${prefix}_modo`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_modo`)}
-        onSelect={(modoAccionId) => onChange({ modoAccionId })}
-      />
-
-      <AppSelectField
-        disabled={!value.tipoProductoId}
-        emptyMessage="No hay ingredientes activos para el tipo seleccionado."
+        emptyMessage="No hay ingredientes activos relacionados con una marca vigente."
         icon="leaf-outline"
         label="Ingrediente activo (i.a.)"
         options={ingredienteActivoOptions.map((item) => ({
           value: item.id,
           label: item.name
         }))}
-        placeholder={
-          value.tipoProductoId
-            ? "Seleccionar ingrediente activo"
-            : "Selecciona primero tipo de producto"
-        }
+        placeholder="Seleccionar ingrediente activo"
         selectedLabel={value.ingredienteActivoNombre || undefined}
         isOpen={openDropdown === `${prefix}_ingrediente_activo`}
         onClose={onCloseDropdown}
@@ -1692,10 +1692,10 @@ function IngredienteCard({
         onSelect={(ingredienteActivoId) =>
           onChange(
             buildIngredientSelectionPatch(
-              value.tipoProductoId,
               ingredienteActivoId,
               ingredientesActivos,
-              marcasProducto
+              marcasProducto,
+              tiposProducto
             )
           )
         }
@@ -1712,22 +1712,26 @@ function IngredienteCard({
       />
 
       <AppSelectField
-        disabled={!value.tipoProductoId}
-        emptyMessage="No hay nombres comerciales relacionados con el tipo seleccionado."
+        emptyMessage={
+          value.ingredienteActivoId
+            ? "No hay nombres comerciales relacionados con el ingrediente."
+            : "No hay nombres comerciales vigentes."
+        }
         icon="pricetag-outline"
         label="Nombre comercial"
         options={nombreComercialOptions.map((item) => ({
           value: item.id,
           label: item.name,
-          helper: ingredientesActivos.find(
-            (ingrediente) => ingrediente.id === item.ingredienteActivoId
-          )?.name
+          helper: [
+            ingredientesActivos.find(
+              (ingrediente) => ingrediente.id === item.ingredienteActivoId
+            )?.name,
+            tiposProducto.find((tipo) => tipo.id === item.tipoProductoId)?.name
+          ]
+            .filter(Boolean)
+            .join(" · ")
         }))}
-        placeholder={
-          value.tipoProductoId
-            ? "Seleccionar nombre comercial"
-            : "Selecciona primero tipo de producto"
-        }
+        placeholder="Seleccionar nombre comercial"
         selectedLabel={value.marcaProductoNombre || undefined}
         isOpen={openDropdown === `${prefix}_nombre_comercial`}
         onClose={onCloseDropdown}
@@ -1743,6 +1747,26 @@ function IngredienteCard({
         onPress={() => onNavegarCatalogo("marca", value.ingredienteActivoId)}
         size="small"
         variant="outline"
+      />
+
+      <AppInput
+        accessibilityLabel="Tipo de producto calculado"
+        editable={false}
+        label="Tipo de producto"
+        placeholder="Se completa al elegir nombre comercial"
+        value={tipoProductoNombre ?? ""}
+      />
+
+      <AppSelectField
+        icon="move"
+        label="Modo de accion"
+        options={modosAccion.map((item) => ({ value: item.id, label: item.name }))}
+        placeholder="Seleccionar modo"
+        selectedLabel={modosAccion.find((item) => item.id === value.modoAccionId)?.name}
+        isOpen={openDropdown === `${prefix}_modo`}
+        onClose={onCloseDropdown}
+        onToggle={() => toggleDropdown(`${prefix}_modo`)}
+        onSelect={(modoAccionId) => onChange({ modoAccionId })}
       />
 
       <LabeledNumericInput

@@ -102,4 +102,5 @@ en la raíz.
 - [Spec 056: Acordeones intuitivos en labores y receta mobile](056-acordeones-intuitivos-labores-receta-mobile.md)
 - [Spec 057: Receta y mezclas independientes con cierre recuperable](057-receta-y-mezclas-independientes.md)
 - [Spec 058: Ajustes UX de receta y mezclas con dosis de coadyuvantes](058-ajustes-ux-receta-mezclas-y-dosis-coadyuvantes.md)
+- [Spec 059: Seleccion fitosanitaria simplificada en receta mobile](059-seleccion-fitosanitaria-simplificada.md)
 - [Plantilla](TEMPLATE.md)

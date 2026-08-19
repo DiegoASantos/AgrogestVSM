@@ -91,3 +91,7 @@ export function parseMixtureCount(raw: string) {
   if (!Number.isFinite(parsed)) return null;
   return Math.max(1, Math.min(20, parsed));
 }
+
+export function shouldShowMixtureNavigation(mixtureCount: number) {
+  return mixtureCount > 1;
+}

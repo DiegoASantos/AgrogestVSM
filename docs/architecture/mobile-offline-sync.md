@@ -349,15 +349,20 @@ descarga posterior a la reparación del backend. Cuando una descarga termina,
 una receta abierta relee SQLite y completa concentración y unidad de la
 selección existente, sin borrar recetas, catálogos ni operaciones pendientes.
 
-En el formulario de receta, tipo de producto sigue siendo el primer requisito
-fitosanitario. Despues puede elegirse ingrediente activo o Nombre comercial: si
-se comienza por ingrediente, las marcas se filtran por esa relacion; si se
-comienza por marca, la opcion completa el ingrediente relacionado, la
-concentracion y la unidad. Solo participan marcas cuyo ingrediente existe en el
-catalogo local vigente, y cada marca muestra ese ingrediente como texto
-auxiliar. Tipo de producto, ingrediente, Nombre comercial y fertilizante usan
-busqueda local que ignora mayusculas y tildes. Esta navegacion no cambia el
-formato persistido de la receta, SQLite ni la outbox.
+En el formulario de receta puede elegirse primero Ingrediente activo o Nombre
+comercial sin seleccionar antes un tipo de producto. Si se comienza por
+ingrediente, las marcas se filtran por esa relacion y una opcion unica se
+autoselecciona; si existen varias, el tecnico elige la marca. Si se comienza por
+marca, la fila exacta completa ingrediente, tipo de producto, concentracion y
+unidad. El tipo derivado se muestra como solo lectura y cada opcion comercial
+identifica ingrediente y tipo para distinguir nombres repetidos. Solo participan
+marcas cuyo ingrediente y tipo existen en los catalogos locales vigentes.
+
+Tipo de control usa Quimico como valor inicial, resuelto por nombre y no por un
+ID fijo. Un control ya seleccionado no se sobrescribe y el tecnico puede
+cambiarlo. Ingrediente, Nombre comercial y fertilizante usan busqueda local que
+ignora mayusculas y tildes. Esta navegacion no cambia el formato persistido de
+la receta, SQLite ni la outbox.
 
 Las tarjetas de objetivos fitosanitarios, mezclas y grupos de fertilizacion se
 presentan como un acordeon exclusivo: solo una puede estar abierta y, al

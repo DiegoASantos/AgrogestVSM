@@ -161,11 +161,30 @@ type RecetaDraftCatalogs = {
   fertilizantes: FertilizanteCatalogItem[];
 };
 
+export function resolveDefaultControlId(catalog: TipoControlCatalogItem[]) {
+  return catalog.find((item) => normalizeName(item.name) === "quimico")?.id ?? "";
+}
+
+export function applyDefaultFitosanidadControl(
+  applications: AppFitosanidad[],
+  catalog: TipoControlCatalogItem[]
+) {
+  const defaultControlId = resolveDefaultControlId(catalog);
+  if (!defaultControlId) return applications;
+
+  return applications.map((application) =>
+    application.tipoControlId
+      ? application
+      : { ...application, tipoControlId: defaultControlId }
+  );
+}
+
 export function sanitizeDraftFitosanidad(
   applications: AppFitosanidad[],
   catalogs: RecetaDraftCatalogs
 ): AppFitosanidad[] {
   const validControlIds = new Set(catalogs.tiposControl.map((item) => item.id));
+  const defaultControlId = resolveDefaultControlId(catalogs.tiposControl);
   const validModeIds = new Set(catalogs.modosAccion.map((item) => item.id));
   const validProductTypeIds = new Set(catalogs.tiposProducto.map((item) => item.id));
   const ingredientById = new Map(
@@ -176,27 +195,32 @@ export function sanitizeDraftFitosanidad(
     ...application,
     tipoControlId: validControlIds.has(application.tipoControlId)
       ? application.tipoControlId
-      : "",
+      : defaultControlId,
     ingredientes: application.ingredientes.map((ingredient) => {
       const tipoProductoId = validProductTypeIds.has(ingredient.tipoProductoId)
         ? ingredient.tipoProductoId
         : "";
-      const selectedIngredient = tipoProductoId
-        ? ingredientById.get(ingredient.ingredienteActivoId)
-        : undefined;
-      const selectedBrand = selectedIngredient
-        ? catalogs.marcasProducto.find(
+      const selectedIngredient = ingredientById.get(ingredient.ingredienteActivoId);
+      const brandCandidates = selectedIngredient
+        ? catalogs.marcasProducto.filter(
             (brand) =>
               normalizeName(brand.name) ===
                 normalizeName(ingredient.marcaProductoNombre) &&
-              brand.tipoProductoId === tipoProductoId &&
+              Boolean(
+                brand.tipoProductoId && validProductTypeIds.has(brand.tipoProductoId)
+              ) &&
               brand.ingredienteActivoId === selectedIngredient.id
           )
-        : undefined;
+        : [];
+      const selectedBrand = tipoProductoId
+        ? brandCandidates.find((brand) => brand.tipoProductoId === tipoProductoId)
+        : brandCandidates.length === 1
+          ? brandCandidates[0]
+          : undefined;
 
       return {
         ...ingredient,
-        tipoProductoId,
+        tipoProductoId: selectedBrand?.tipoProductoId ?? tipoProductoId,
         modoAccionId: validModeIds.has(ingredient.modoAccionId)
           ? ingredient.modoAccionId
           : "",
@@ -289,7 +313,8 @@ export function sanitizeDraftFertilizaciones(
 
 export function mergeMissingFitosanidadFindings(
   applications: AppFitosanidad[],
-  consolidation: ConsolidacionHallazgo
+  consolidation: ConsolidacionHallazgo,
+  defaultControlId = ""
 ): { applications: AppFitosanidad[]; addedCount: number } {
   const existingKeys = new Set(
     applications.map((application) =>
@@ -320,7 +345,7 @@ export function mergeMissingFitosanidadFindings(
       objetivoId: finding.objetivoId ?? null,
       incidenceGrade: finding.incidenceGrade,
       severityGrade: null,
-      tipoControlId: "",
+      tipoControlId: defaultControlId,
       disolvente: "Agua",
       ingredientes: [createEmptyIngrediente(0)]
     });
@@ -343,7 +368,8 @@ export function createPreventiveFitosanidad(
   numero: number,
   objetivo: AppFitosanidad["objetivo"],
   objetivoId: string,
-  objetivoNombre: string
+  objetivoNombre: string,
+  defaultControlId = ""
 ): AppFitosanidad {
   return {
     localId: createTransientId("fito-preventivo"),
@@ -354,7 +380,7 @@ export function createPreventiveFitosanidad(
     objetivoId,
     incidenceGrade: 0,
     severityGrade: 0,
-    tipoControlId: "",
+    tipoControlId: defaultControlId,
     disolvente: "Agua",
     ingredientes: [createEmptyIngrediente(0)]
   };

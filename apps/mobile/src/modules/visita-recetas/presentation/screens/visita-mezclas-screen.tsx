@@ -55,6 +55,7 @@ import {
   mixtureStatus,
   parseMixtureCount,
   requiresVolume,
+  shouldShowMixtureNavigation,
   validateMixtures,
   type EditableMixture,
   type MixtureAssignment,
@@ -752,19 +753,21 @@ export function VisitaMezclasScreen() {
                   })}
                 </View>
 
-                <View style={styles.navigationRow}>
-                  <AppButton
-                    disabled={activeNumber <= 1}
-                    label="Anterior"
-                    onPress={() => setActiveNumber((current) => current - 1)}
-                    variant="outline"
-                  />
-                  <AppButton
-                    disabled={activeNumber >= mixtures.length}
-                    label="Siguiente"
-                    onPress={() => setActiveNumber((current) => current + 1)}
-                  />
-                </View>
+                {shouldShowMixtureNavigation(mixtures.length) ? (
+                  <View style={styles.navigationRow}>
+                    <AppButton
+                      disabled={activeNumber <= 1}
+                      label="Anterior"
+                      onPress={() => setActiveNumber((current) => current - 1)}
+                      variant="outline"
+                    />
+                    <AppButton
+                      disabled={activeNumber >= mixtures.length}
+                      label="Siguiente"
+                      onPress={() => setActiveNumber((current) => current + 1)}
+                    />
+                  </View>
+                ) : null}
               </AppCard>
             ) : null}
           </>

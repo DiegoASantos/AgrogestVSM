@@ -1,7 +1,11 @@
-import type { IngredienteActivoCatalogItem, MarcaProductoCatalogItem } from "../../types";
+import type {
+  IngredienteActivoCatalogItem,
+  MarcaProductoCatalogItem,
+  TipoProductoFitosanitarioCatalogItem
+} from "../../types";
 
 export type RecipeSelectionPatch = {
-  tipoProductoId?: string;
+  tipoProductoId: string;
   ingredienteActivoId: string;
   ingredienteActivoNombre: string;
   marcaProductoNombre: string;
@@ -10,17 +14,16 @@ export type RecipeSelectionPatch = {
 };
 
 export function getIngredientOptions(
-  tipoProductoId: string,
   ingredientesActivos: IngredienteActivoCatalogItem[],
-  marcasProducto: MarcaProductoCatalogItem[]
+  marcasProducto: MarcaProductoCatalogItem[],
+  tiposProducto: TipoProductoFitosanitarioCatalogItem[]
 ) {
-  if (!tipoProductoId) {
-    return [];
-  }
-
+  const validProductTypeIds = new Set(tiposProducto.map((item) => item.id));
   const availableIds = new Set(
     marcasProducto
-      .filter((marca) => marca.tipoProductoId === tipoProductoId)
+      .filter((marca) =>
+        Boolean(marca.tipoProductoId && validProductTypeIds.has(marca.tipoProductoId))
+      )
       .map((marca) => marca.ingredienteActivoId)
       .filter((id): id is string => Boolean(id))
   );
@@ -29,22 +32,19 @@ export function getIngredientOptions(
 }
 
 export function getCommercialOptions(
-  tipoProductoId: string,
   ingredienteActivoId: string,
   ingredientesActivos: IngredienteActivoCatalogItem[],
-  marcasProducto: MarcaProductoCatalogItem[]
+  marcasProducto: MarcaProductoCatalogItem[],
+  tiposProducto: TipoProductoFitosanitarioCatalogItem[]
 ) {
-  if (!tipoProductoId) {
-    return [];
-  }
-
+  const validProductTypeIds = new Set(tiposProducto.map((item) => item.id));
   const validIngredientIds = new Set(
     ingredientesActivos.map((ingrediente) => ingrediente.id)
   );
 
   return marcasProducto.filter(
     (marca) =>
-      marca.tipoProductoId === tipoProductoId &&
+      Boolean(marca.tipoProductoId && validProductTypeIds.has(marca.tipoProductoId)) &&
       Boolean(
         marca.ingredienteActivoId && validIngredientIds.has(marca.ingredienteActivoId)
       ) &&
@@ -52,50 +52,17 @@ export function getCommercialOptions(
   );
 }
 
-export function buildTypeSelectionPatch(
-  tipoProductoId: string,
-  ingredientesActivos: IngredienteActivoCatalogItem[],
-  marcasProducto: MarcaProductoCatalogItem[]
-): RecipeSelectionPatch {
-  const patch: RecipeSelectionPatch = {
-    tipoProductoId,
-    ingredienteActivoId: "",
-    ingredienteActivoNombre: "",
-    marcaProductoNombre: "",
-    concentracionProducto: "",
-    unidadMedidaProducto: ""
-  };
-  const ingredientOptions = getIngredientOptions(
-    tipoProductoId,
-    ingredientesActivos,
-    marcasProducto
-  );
-
-  if (ingredientOptions.length !== 1 || !ingredientOptions[0]) {
-    return patch;
-  }
-
-  return {
-    ...patch,
-    ...buildIngredientSelectionPatch(
-      tipoProductoId,
-      ingredientOptions[0].id,
-      ingredientesActivos,
-      marcasProducto
-    )
-  };
-}
-
 export function buildIngredientSelectionPatch(
-  tipoProductoId: string,
   ingredienteActivoId: string,
   ingredientesActivos: IngredienteActivoCatalogItem[],
-  marcasProducto: MarcaProductoCatalogItem[]
+  marcasProducto: MarcaProductoCatalogItem[],
+  tiposProducto: TipoProductoFitosanitarioCatalogItem[]
 ): RecipeSelectionPatch {
   const selectedIngredient = ingredientesActivos.find(
     (ingrediente) => ingrediente.id === ingredienteActivoId
   );
   const patch: RecipeSelectionPatch = {
+    tipoProductoId: "",
     ingredienteActivoId: selectedIngredient?.id ?? "",
     ingredienteActivoNombre: selectedIngredient?.name ?? "",
     marcaProductoNombre: "",
@@ -108,10 +75,10 @@ export function buildIngredientSelectionPatch(
   }
 
   const commercialOptions = getCommercialOptions(
-    tipoProductoId,
     selectedIngredient.id,
     ingredientesActivos,
-    marcasProducto
+    marcasProducto,
+    tiposProducto
   );
 
   if (commercialOptions.length !== 1 || !commercialOptions[0]) {
@@ -120,7 +87,8 @@ export function buildIngredientSelectionPatch(
 
   const commercialPatch = buildCommercialSelectionPatch(
     commercialOptions[0],
-    ingredientesActivos
+    ingredientesActivos,
+    tiposProducto
   );
 
   return commercialPatch ? { ...patch, ...commercialPatch } : patch;
@@ -128,9 +96,11 @@ export function buildIngredientSelectionPatch(
 
 export function buildCommercialSelectionPatch(
   option: MarcaProductoCatalogItem,
-  ingredientesActivos: IngredienteActivoCatalogItem[]
+  ingredientesActivos: IngredienteActivoCatalogItem[],
+  tiposProducto: TipoProductoFitosanitarioCatalogItem[]
 ): Pick<
   RecipeSelectionPatch,
+  | "tipoProductoId"
   | "ingredienteActivoId"
   | "ingredienteActivoNombre"
   | "marcaProductoNombre"
@@ -141,11 +111,16 @@ export function buildCommercialSelectionPatch(
     (ingrediente) => ingrediente.id === option.ingredienteActivoId
   );
 
-  if (!selectedIngredient) {
+  if (
+    !selectedIngredient ||
+    !option.tipoProductoId ||
+    !tiposProducto.some((item) => item.id === option.tipoProductoId)
+  ) {
     return null;
   }
 
   return {
+    tipoProductoId: option.tipoProductoId,
     ingredienteActivoId: selectedIngredient.id,
     ingredienteActivoNombre: selectedIngredient.name,
     marcaProductoNombre: option.name,
@@ -159,19 +134,26 @@ export function resolveCommercialSelectionPatch(
   tipoProductoId: string,
   marcaProductoNombre: string,
   ingredientesActivos: IngredienteActivoCatalogItem[],
-  marcasProducto: MarcaProductoCatalogItem[]
+  marcasProducto: MarcaProductoCatalogItem[],
+  tiposProducto: TipoProductoFitosanitarioCatalogItem[]
 ) {
   const normalizedName = marcaProductoNombre.trim().toLowerCase();
   if (!normalizedName) return null;
 
   const selected = getCommercialOptions(
-    tipoProductoId,
     "",
     ingredientesActivos,
-    marcasProducto
-  ).find((option) => option.name.trim().toLowerCase() === normalizedName);
+    marcasProducto,
+    tiposProducto
+  ).find(
+    (option) =>
+      option.tipoProductoId === tipoProductoId &&
+      option.name.trim().toLowerCase() === normalizedName
+  );
 
-  return selected ? buildCommercialSelectionPatch(selected, ingredientesActivos) : null;
+  return selected
+    ? buildCommercialSelectionPatch(selected, ingredientesActivos, tiposProducto)
+    : null;
 }
 
 export function resolveIngredientId(

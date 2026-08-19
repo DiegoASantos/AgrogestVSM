@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RecetaFertilizacion, RecetaMezcla } from "../../types";
 import {
+  applyDefaultFitosanidadControl,
   applyFertilizacionApproachFactor,
   appendMezclasForNewFindings,
   buildFertilizacionesForSave,
@@ -21,6 +22,7 @@ import {
   mergeNutritionFertilizations,
   restoreFitosanidadApps,
   restoreMezclas,
+  resolveDefaultControlId,
   sanitizeDraftFertilizaciones,
   sanitizeDraftFitosanidad,
   sanitizeDraftMezclas
@@ -92,16 +94,38 @@ describe("receta con mezclas", () => {
   };
 
   it("agrega un diagnostico sanitario a una receta guardada sin fitosanidad", () => {
-    const merged = mergeMissingFitosanidadFindings([], consolidation);
+    const merged = mergeMissingFitosanidadFindings([], consolidation, "control-1");
     const mezclas = appendMezclasForNewFindings([], merged.addedCount);
 
     expect(merged.addedCount).toBe(1);
     expect(merged.applications[0]).toMatchObject({
       objetivo: "enfermedad",
       objetivoNombre: "Oidium",
-      incidenceGrade: 2
+      incidenceGrade: 2,
+      tipoControlId: "control-1"
     });
     expect(mezclas).toHaveLength(1);
+  });
+
+  it("resuelve Quimico por nombre y completa solo controles vacios", () => {
+    const controls = [
+      { id: "control-1", name: "Químico" },
+      { id: "control-2", name: "Biologico" }
+    ];
+    const applications = [
+      { ...restoreFitosanidadApps([mezcla], [], [])[0]!, tipoControlId: "" },
+      {
+        ...restoreFitosanidadApps([mezcla], [], [])[0]!,
+        localId: "app-biologica",
+        tipoControlId: "control-2"
+      }
+    ];
+
+    expect(resolveDefaultControlId(controls)).toBe("control-1");
+    expect(applyDefaultFitosanidadControl(applications, controls)).toEqual([
+      expect.objectContaining({ tipoControlId: "control-1" }),
+      expect.objectContaining({ tipoControlId: "control-2" })
+    ]);
   });
 
   it("no genera una recomendacion reactiva para hallazgos grado cero", () => {
@@ -419,6 +443,26 @@ describe("receta con mezclas", () => {
     ];
 
     const applications = sanitizeDraftFitosanidad(staleApplications, catalogs);
+    const ingredientOnly = sanitizeDraftFitosanidad(
+      [
+        {
+          ...staleApplications[0]!,
+          tipoControlId: "",
+          ingredientes: [
+            {
+              ...staleApplications[0]!.ingredientes[0]!,
+              tipoProductoId: "",
+              ingredienteActivoId: "ingredient-1",
+              ingredienteActivoNombre: "Abamectina",
+              marcaProductoNombre: "",
+              concentracionProducto: "",
+              unidadMedidaProducto: ""
+            }
+          ]
+        }
+      ],
+      catalogs
+    );
     const sanitizedMezclas = sanitizeDraftMezclas(
       [
         {
@@ -446,7 +490,18 @@ describe("receta con mezclas", () => {
       catalogs.fertilizantes
     );
 
-    expect(applications[0]).toMatchObject({ tipoControlId: "" });
+    expect(applications[0]).toMatchObject({ tipoControlId: "control-1" });
+    expect(ingredientOnly[0]).toMatchObject({
+      tipoControlId: "control-1",
+      ingredientes: [
+        expect.objectContaining({
+          tipoProductoId: "",
+          ingredienteActivoId: "ingredient-1",
+          ingredienteActivoNombre: "Abamectina",
+          marcaProductoNombre: ""
+        })
+      ]
+    });
     expect(applications[0]?.ingredientes[0]).toMatchObject({
       ingredienteActivoId: "",
       ingredienteActivoNombre: "",

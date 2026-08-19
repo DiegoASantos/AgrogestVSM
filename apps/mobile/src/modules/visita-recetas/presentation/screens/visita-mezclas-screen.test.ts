@@ -3,6 +3,7 @@ import {
   copyMixtureConfiguration,
   mixtureStatus,
   parseMixtureCount,
+  shouldShowMixtureNavigation,
   validateMixtures,
   type EditableMixture,
   type ProductOption
@@ -113,5 +114,10 @@ describe("formulario guiado de mezclas", () => {
     expect(parseMixtureCount("")).toBeNull();
     expect(parseMixtureCount("2")).toBe(2);
     expect(parseMixtureCount("25")).toBe(20);
+  });
+
+  it("oculta la navegacion cuando solo existe una mezcla", () => {
+    expect(shouldShowMixtureNavigation(1)).toBe(false);
+    expect(shouldShowMixtureNavigation(2)).toBe(true);
   });
 });

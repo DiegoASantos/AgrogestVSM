@@ -108,6 +108,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Acordeones intuitivos en labores y receta mobile](specs/056-acordeones-intuitivos-labores-receta-mobile.md)
 - [Receta y mezclas independientes con cierre recuperable](specs/057-receta-y-mezclas-independientes.md)
 - [Ajustes UX de receta y mezclas con dosis de coadyuvantes](specs/058-ajustes-ux-receta-mezclas-y-dosis-coadyuvantes.md)
+- [Seleccion fitosanitaria simplificada en receta mobile](specs/059-seleccion-fitosanitaria-simplificada.md)
 
 ## Runbooks
 

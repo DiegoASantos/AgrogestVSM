@@ -113,10 +113,13 @@ visible para el tecnico. Cada nombre comercial puede asociarse a un tipo de
 producto y a un ingrediente activo, y conserva la concentracion comercial como
 texto junto con su unidad de medida. El texto permite representar tanto valores
 decimales como composiciones o valores cualitativos sin interpretarlos
-parcialmente. Mobile resuelve la cascada tipo de producto, ingrediente activo y
-nombre comercial; cada nivel se filtra por los anteriores. La receta sigue
-guardando los nombres y, cuando es calculable, la concentracion numerica para
-compatibilidad offline e historica.
+parcialmente. Mobile permite iniciar por ingrediente activo o nombre comercial.
+La marca elegida determina su ingrediente y tipo de producto; un ingrediente
+con una sola marca la autoselecciona y, con varias, exige elegir una. El tipo se
+muestra como dato derivado de solo lectura. La receta sigue guardando los
+nombres y, cuando es calculable, la concentracion numerica para compatibilidad
+offline e historica. El tipo de control es independiente de esa relacion:
+Quimico es el valor inicial editable cuando la recomendacion no conserva otro.
 
 La identidad funcional de una marca fitosanitaria es la combinacion de nombre
 comercial y tipo de producto. Un mismo nombre puede existir varias veces cuando
