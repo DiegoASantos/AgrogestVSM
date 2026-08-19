@@ -160,6 +160,14 @@ compatibilidad historica, pero una finalizacion nueva exige texto no vacio para
 cada ID presente en `coadyuvantes_ids`. Al copiar una mezcla, seleccion y dosis
 se copian como datos independientes de la mezcla de origen.
 
+La receta compartida con el productor es una proyeccion resumida de este
+agregado y no una entidad adicional. Conserva el encabezado y el resumen del
+diagnostico; despues muestra solamente una tabla con el numero de mezcla, los
+productos, fertilizantes y coadyuvantes en el orden de preparacion registrado,
+y la dosis de cada elemento. `Agua` se omite de la tabla porque representa un
+paso de preparacion y no un producto dosificado. Los reportes mobile y web usan
+la misma regla funcional sin alterar la receta persistida ni sus calculos.
+
 Desde la spec 057, un mismo producto puede reutilizarse en varias mezclas con
 una dosis distinta en cada uso. `producto_ref` identifica la definicion estable
 del producto dentro de la receta; las filas repetidas representan sus usos y no

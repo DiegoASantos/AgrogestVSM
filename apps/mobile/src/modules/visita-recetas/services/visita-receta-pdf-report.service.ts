@@ -4,14 +4,7 @@ import { parcelasRepository } from "../../parcelas/repositories/parcelas.reposit
 import { productoresRepository } from "../../productores/repositories/productores.repository";
 import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
 import { REPORT_IMAGE_WIDTH } from "../../../shared/reporting/report-config";
-import {
-  formatDoseUnit,
-  formatFertilizacionDosis,
-  formatFitosanidadDosis,
-  getFertilizacionTotalUnit,
-  getFitosanidadAggregateUnit
-} from "../domain/dose-unit-format";
-import { formatRecommendationApproach } from "../domain/recommendation-approach";
+import { renderProducerMixturePlan } from "./producer-recipe-mixture-plan";
 
 declare const process:
   | {
@@ -80,6 +73,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
   const productor = parcela ? productoresRepository.getById(parcela.productorId) : null;
   const productorNombre = construirNombreProductor(productor);
   const consolidacion = visitaRecetasService.getConsolidacionLocal(visitaId);
+  const coadyuvantes = visitaRecetasService.getCatalogos().coadyuvantes;
   const iconBase64 = await getReportIconUri();
 
   return `<!DOCTYPE html>
@@ -134,26 +128,6 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       padding-bottom: 6px;
       border-bottom: 1px solid #e8efe9;
     }
-    h3 {
-      font-size: 13px;
-      color: #1b4332;
-      margin: 8px 0 4px 0;
-    }
-    .chip {
-      display: inline-block;
-      background: #d8f3dc;
-      color: #2d6a4f;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      margin-right: 4px;
-      margin-bottom: 4px;
-    }
-    .chip-warning {
-      background: #fef9e7;
-      color: #b45309;
-    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -169,6 +143,22 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       background: #eaf3dc;
       color: #1b4332;
       font-weight: 600;
+    }
+    .mixture-plan-table tr {
+      break-inside: avoid;
+    }
+    .mixture-plan-number {
+      width: 12%;
+      text-align: center;
+      font-weight: 700;
+      color: #1b4332;
+    }
+    .mixture-plan-item {
+      width: 58%;
+    }
+    .mixture-plan-dose {
+      width: 30%;
+      white-space: nowrap;
     }
     .field-row {
       display: flex;
@@ -204,9 +194,6 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       padding: 9px 10px;
       break-inside: avoid;
     }
-    .visit-data-card--wide {
-      grid-column: 1 / -1;
-    }
     .visit-data-title {
       color: #1b4332;
       font-size: 12px;
@@ -223,61 +210,6 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     .compact-list li {
       margin-bottom: 4px;
     }
-    .calculated {
-      background: #ebf5fb;
-      font-style: italic;
-      padding: 1px 6px;
-      border-radius: 4px;
-    }
-    .calc-hint {
-      color: #6b7a6f;
-      font-size: 10px;
-      margin-top: -4px;
-    }
-    .mezcla-box {
-      background: #fef9e7;
-      border: 1px solid #f3cd8c;
-      border-radius: 8px;
-      padding: 8px 12px;
-      margin: 8px 0;
-      font-size: 11px;
-    }
-    .mezcla-box h4 {
-      font-size: 11px;
-      color: #92400e;
-      margin-bottom: 4px;
-    }
-    .section-card {
-      background: #fafcfa;
-      border: 1px solid #e8efe9;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 10px;
-      font-weight: 700;
-      color: #fff;
-      background: #2d6a4f;
-    }
-    .footer {
-      margin-top: 24px;
-      padding-top: 12px;
-      border-top: 1px solid #d0ddd4;
-      font-size: 10px;
-      color: #6b7a6f;
-      text-align: center;
-    }
-    .producer-summary {
-      background: #f7fbf8;
-      border: 1px solid #b7d7c3;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 14px;
-    }
   </style>
 </head>
 <body>
@@ -289,32 +221,14 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       <p>AgroGest VSM - ${new Date().toLocaleDateString("es-PE")}</p>
     </div>
   </div>
-  ${renderResumenProductor(receta)}
   ${renderDatosVisita(visita, receta, consolidacion)}
-  ${renderFitosanidad(receta)}
-  ${renderFertilizacion(receta)}
-  ${renderRiego(receta)}
-  ${renderLabores(receta)}
-  <div class="footer">
-    Generado automaticamente por AgroGest VSM
-  </div>
+  ${renderProducerMixturePlan(receta, coadyuvantes)}
 </body>
 </html>`;
 }
 
 function findById<T extends { id: string }>(items: T[], id: string): T | undefined {
   return items.find((item) => item.id === id);
-}
-
-function parsePositiveDecimal(value: string | number | null | undefined): number | null {
-  if (value === null || value === undefined) return null;
-  const parsed = Number(String(value).replace(",", "."));
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function formatNumber(value: string | number | null | undefined, decimals = 2) {
-  const parsed = parsePositiveDecimal(value);
-  return parsed ? parsed.toFixed(decimals) : "-";
 }
 
 function renderDatosVisita(
@@ -537,242 +451,6 @@ function formatOrgano(organo: string) {
   return labels[organo] ?? organo;
 }
 
-function renderFitosanidad(receta: VisitaRecetaCompleta): string {
-  if (receta.mezclas.length === 0) return "";
-
-  let html = "<h2>Mezclas fitosanitarias</h2>";
-
-  for (const mezcla of receta.mezclas) {
-    html += `
-    <div class="section-card">
-      <h3><span class="badge">${String(mezcla.numero).padStart(2, "0")}</span> Mezcla ${mezcla.numero}</h3>
-      <table>
-        <tr><th>Campo</th><th>Valor</th></tr>
-        <tr><td>Volumen aplicacion</td><td>${mezcla.volumenAplicacion ?? "-"} cilindros/ha</td></tr>
-        <tr><td>Factor de incidencia</td><td>${mezcla.factor}</td></tr>
-      </table>`;
-
-    if (mezcla.coadyuvantesIds) {
-      html += `<p style="font-size:11px;margin-top:6px;"><strong>Coadyuvantes:</strong> ${renderCoadyuvantesFromIds(mezcla.coadyuvantesIds)}</p>`;
-    }
-
-    if (mezcla.ordenMezcla) {
-      const mezclaItems = parseJsonArray(mezcla.ordenMezcla);
-      if (mezclaItems.length > 0) {
-        html += `<div class="mezcla-box"><h4>Orden de mezcla</h4>`;
-        mezclaItems.forEach((item, i) => {
-          html += `<p>${i + 1}&deg; ${escapeHtml(item)}</p>`;
-        });
-        html += `</div>`;
-      }
-    }
-
-    html += `<table><tr><th>Objetivo / producto</th><th>Dosis comercial</th><th>Total por ha</th></tr>`;
-    for (const producto of mezcla.productos) {
-      const total =
-        calculateRecipeTotal(
-          producto.dosisProducto,
-          mezcla.volumenAplicacion,
-          mezcla.factor
-        ) ?? producto.cantidadTotalProducto;
-      html += `<tr>
-        <td><strong>${escapeHtml(formatRecommendationApproach(producto.enfoque, true))}</strong> · ${escapeHtml(producto.objetivoNombre)} / ${escapeHtml(producto.marcaProductoNombre ?? producto.ingredienteActivoNombre ?? "-")}</td>
-        <td>${producto.dosisProducto ?? "-"} ${escapeHtml(formatDoseUnit(producto.unidadDosis, "cilindro"))}</td>
-        <td class="calculated">${formatNumber(total)} ${escapeHtml(formatDoseUnit(producto.unidadDosis, "ha"))}</td>
-      </tr>`;
-    }
-    html += `</table>`;
-
-    const aggregateUnit = getFitosanidadAggregateUnit(
-      mezcla.productos.map((producto) => producto.unidadDosis)
-    );
-    if (mezcla.cantidadTotalProducto && aggregateUnit) {
-      html += `<p style="font-size:13px;margin-top:8px;"><strong>Cantidad total a aplicar:</strong> <span class="calculated">${formatNumber(mezcla.cantidadTotalProducto)} ${escapeHtml(aggregateUnit)}</span></p>`;
-    }
-
-    html += `</div>`;
-  }
-
-  return html;
-}
-
-function renderCoadyuvantesFromIds(idsJson: string): string {
-  try {
-    const ids = JSON.parse(idsJson) as string[];
-    const catalogos = visitaRecetasService.getCatalogos();
-    const names = ids
-      .map((id) => catalogos.coadyuvantes.find((c) => c.id === id)?.name ?? id)
-      .filter(Boolean);
-
-    return names.map((n) => `<span class="chip">${escapeHtml(n)}</span>`).join(" ");
-  } catch {
-    return escapeHtml(idsJson);
-  }
-}
-
-function renderFertilizacion(receta: VisitaRecetaCompleta): string {
-  if (receta.fertilizacion.length === 0) return "";
-
-  let html = "<h2>Fertilizacion</h2>";
-
-  for (const fert of receta.fertilizacion) {
-    const viaLabel = fert.viaAplicacion === "edafica" ? "Edafica" : "Foliar";
-    const tipoLabel = fert.tipoProducto === "liquido" ? "Liquido" : "Solido";
-    const total =
-      calculateRecipeTotal(
-        fert.dosis,
-        fert.viaAplicacion === "edafica"
-          ? fert.cantidadTotalPlantas
-          : fert.volumenAplicacion,
-        fert.factor
-      ) ?? fert.cantidadTotalFertilizante;
-    const unidadTotal = fert.unidadDosis?.split("/")[0] ?? "";
-    html += `
-    <div class="section-card">
-      <table>
-        <tr><th>Campo</th><th>Valor</th></tr>
-        <tr><td>Deficiencia</td><td><strong>${escapeHtml(fert.nutrienteNombre ?? "Deficiencia no registrada")}</strong></td></tr>
-        <tr><td>Enfoque</td><td><strong>${fert.enfoque === "preventivo" ? "Preventivo" : "Curativo"}</strong></td></tr>
-        <tr><td>Via de aplicacion</td><td>${viaLabel}</td></tr>
-        <tr><td>Fertilizante</td><td>${escapeHtml(fert.fertilizanteNombre ?? "-")}</td></tr>
-        <tr><td>Tipo de producto</td><td>${tipoLabel}</td></tr>
-        <tr><td>Dosis</td><td>${fert.dosis ?? "-"} ${escapeHtml(fert.unidadDosis ?? "")}</td></tr>
-        <tr><td>Factor de incidencia</td><td>${fert.factor}</td></tr>
-        ${fert.cantidadTotalPlantas ? `<tr><td>Cantidad total plantas</td><td>${fert.cantidadTotalPlantas}</td></tr>` : ""}
-        ${fert.volumenAplicacion ? `<tr><td>Volumen aplicacion</td><td>${fert.volumenAplicacion}</td></tr>` : ""}
-        <tr><td class="calculated">Cantidad total fertilizante</td><td class="calculated">${formatNumber(total)} ${escapeHtml(unidadTotal)}</td></tr>
-      </table>
-    </div>`;
-  }
-
-  return html;
-}
-
-function renderRiego(receta: VisitaRecetaCompleta): string {
-  if (!receta.riego) return "";
-
-  const labels: Record<string, string> = {
-    riego_pesado: "Riego pesado",
-    riego_ligero: "Riego ligero",
-    inicio_agoste: "Agoste",
-    ruptura_agoste: "Agoste"
-  };
-  const descriptions: Record<string, string> = {
-    riego_pesado: "Aplicar grandes volumenes de agua sobre la superficie del terreno.",
-    riego_ligero:
-      "Aplicar una lamina de agua de bajo volumen para humedecer superficialmente.",
-    inicio_agoste:
-      "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo.",
-    ruptura_agoste:
-      "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo."
-  };
-
-  return `
-    <h2>Recomendacion de riego</h2>
-    <div class="section-card">
-      <h3>${labels[receta.riego.tipoRecomendacion] ?? receta.riego.tipoRecomendacion}</h3>
-      <p style="font-size:11px;color:#6b7a6f;">${descriptions[receta.riego.tipoRecomendacion] ?? ""}</p>
-    </div>`;
-}
-
-function renderLabores(receta: VisitaRecetaCompleta): string {
-  if (receta.labores.length === 0) return "";
-
-  const labels: Record<string, string> = {
-    limpieza_maleza_pala: "Limpieza de maleza con pala",
-    limpieza_maleza_motoguadana: "Limpieza de maleza con motoguadana",
-    horqueteo: "Horqueteo",
-    enzunchado: "Enzunchado",
-    recoleccion_frutos: "Recoleccion y manejo de frutos caidos",
-    trampas_mosca: "Colocacion de trampas de mosca de la fruta"
-  };
-
-  let html = '<h2>Recomendacion de labores</h2><div class="section-card">';
-
-  for (const labor of receta.labores) {
-    html += `<p><span class="chip">${escapeHtml(labels[labor.labor] ?? labor.labor)}</span></p>`;
-  }
-
-  html += "</div>";
-
-  return html;
-}
-
-function renderResumenProductor(receta: VisitaRecetaCompleta): string {
-  if (receta.mezclas.length === 0 && receta.fertilizacion.length === 0) {
-    return "";
-  }
-
-  return `
-    <h2>Resumen para el productor</h2>
-    <div class="producer-summary">
-      ${renderResumenFitosanitario(receta)}
-      ${renderResumenFertilizacion(receta)}
-    </div>`;
-}
-
-function renderResumenFitosanitario(receta: VisitaRecetaCompleta): string {
-  if (receta.mezclas.length === 0) {
-    return "";
-  }
-
-  return `
-    <h3>Productos fitosanitarios</h3>
-    <table>
-      <tr><th>Objetivo</th><th>Nombre comercial</th><th>Dosis</th></tr>
-      ${receta.mezclas
-        .flatMap((mezcla) => mezcla.productos)
-        .map(
-          (item) => `
-            <tr>
-              <td>${escapeHtml(item.objetivoNombre)}</td>
-              <td>${escapeHtml(item.marcaProductoNombre ?? "-")}</td>
-              <td>${escapeHtml(formatFitosanidadDosis(item))}</td>
-            </tr>`
-        )
-        .join("")}
-    </table>`;
-}
-
-function renderResumenFertilizacion(receta: VisitaRecetaCompleta): string {
-  if (receta.fertilizacion.length === 0) {
-    return "";
-  }
-
-  return `
-    <h3>Fertilizantes</h3>
-    <table>
-      <tr><th>Deficiencia</th><th>Enfoque</th><th>Fertilizante</th><th>Via</th><th>Dosis</th><th>Factor</th><th>Total</th></tr>
-      ${receta.fertilizacion
-        .map(
-          (item) => `
-            <tr>
-              <td>${escapeHtml(item.nutrienteNombre ?? "Deficiencia no registrada")}</td>
-              <td>${item.enfoque === "preventivo" ? "Preventivo" : "Curativo"}</td>
-              <td>${escapeHtml(item.fertilizanteNombre ?? "-")}</td>
-              <td>${escapeHtml(item.viaAplicacion === "edafica" ? "Edafica" : "Foliar")}</td>
-              <td>${escapeHtml(formatFertilizacionDosis(item))}</td>
-              <td>${item.factor}</td>
-              <td>${item.cantidadTotalFertilizante ?? "-"} ${escapeHtml(getFertilizacionTotalUnit(item.unidadDosis, item.tipoProducto))}</td>
-            </tr>`
-        )
-        .join("")}
-    </table>`;
-}
-
-function calculateRecipeTotal(
-  dosis: number | null | undefined,
-  volumen: number | null | undefined,
-  factor: number
-) {
-  return dosis !== null &&
-    dosis !== undefined &&
-    volumen !== null &&
-    volumen !== undefined
-    ? dosis * volumen * factor
-    : null;
-}
-
 async function getReportIconUri(): Promise<string | null> {
   if (process?.env?.VITEST) {
     return null;
@@ -797,16 +475,6 @@ function escapeHtml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function parseJsonArray(value: string): string[] {
-  try {
-    const parsed = JSON.parse(value);
-
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
 }
 
 function construirNombreProductor(

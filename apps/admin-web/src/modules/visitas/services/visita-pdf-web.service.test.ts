@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildProducerMixtureRows,
   createPrintablePdfWindow,
   openDiagnosticPdf,
   openRecipePdf,
   showPrintablePdfError,
   type PrintablePdfWindow
 } from "./visita-pdf-web.service";
+import type { VisitaRecetaCompleta } from "../types/visitas.types";
 
 type MockPopup = PrintablePdfWindow & {
   _written: string[];
@@ -29,8 +31,12 @@ function makeMockPopup(): MockPopup {
       close: vi.fn(),
       title: ""
     } as unknown as Document,
-    focus: vi.fn(() => { popup._focused = true; }),
-    print: vi.fn(() => { popup._printed = true; })
+    focus: vi.fn(() => {
+      popup._focused = true;
+    }),
+    print: vi.fn(() => {
+      popup._printed = true;
+    })
   } as unknown as MockPopup;
 
   return popup;
@@ -90,8 +96,20 @@ function makeDiagnosticDetail(overrides: Record<string, unknown> = {}) {
         publicId: "pub-prod1",
         email: null
       },
-      campaign: { id: "camp1", name: "Campania 2026", cultivoId: "c1", startDate: "2026-01-01", endDate: "2026-12-31" },
-      phenologicalStage: { id: "stage1", name: "Floracion", cultivoId: "c1", description: "Etapa de floracion", isActive: true },
+      campaign: {
+        id: "camp1",
+        name: "Campania 2026",
+        cultivoId: "c1",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31"
+      },
+      phenologicalStage: {
+        id: "stage1",
+        name: "Floracion",
+        cultivoId: "c1",
+        description: "Etapa de floracion",
+        isActive: true
+      },
       subEtapas: [],
       pestDiseases: [],
       incidenceLevels: [],
@@ -100,7 +118,11 @@ function makeDiagnosticDetail(overrides: Record<string, unknown> = {}) {
   };
 
   if (overrides.lookups) {
-    return { ...base, ...overrides, lookups: { ...base.lookups, ...(overrides.lookups as Record<string, unknown>) } };
+    return {
+      ...base,
+      ...overrides,
+      lookups: { ...base.lookups, ...(overrides.lookups as Record<string, unknown>) }
+    };
   }
 
   return { ...base, ...overrides };
@@ -133,7 +155,9 @@ describe("visitaPdfWebService", () => {
   describe("#createPrintablePdfWindow", () => {
     it("should open a popup and write placeholder HTML", () => {
       const popup = makeMockPopup();
-      (window as unknown as { open: ReturnType<typeof vi.fn> }).open = vi.fn(() => popup as unknown as Window);
+      (window as unknown as { open: ReturnType<typeof vi.fn> }).open = vi.fn(
+        () => popup as unknown as Window
+      );
 
       const result = createPrintablePdfWindow();
 
@@ -204,6 +228,69 @@ describe("visitaPdfWebService", () => {
       const html = popup._written[popup._written.length - 1];
       expect(html).toContain("Sin receta disponible");
     });
+
+    it("renders the compact producer recipe with ordered mixtures and doses", () => {
+      const popup = makeMockPopup();
+
+      openRecipePdf(
+        makeDiagnosticDetail(),
+        makeRecipe(),
+        makeConsolidacion(),
+        [
+          { id: "ph", name: "Corrector de pH", description: null },
+          { id: "adh", name: "Adherente", description: null }
+        ],
+        popup
+      );
+
+      const html = popup._written[popup._written.length - 1];
+      expect(html).toContain("Receta de recomendaciones tecnicas");
+      expect(html).toContain("Resumen del Diagnostico");
+      expect(html).toContain("Mezclas y dosis");
+      expect(html).toContain("Productos y coadyuvantes (en orden)");
+      expect(html.indexOf("Corrector de pH")).toBeLessThan(html.indexOf("Fungi Max"));
+      expect(html.indexOf("Fungi Max")).toBeLessThan(html.indexOf("Urea"));
+      expect(html).toContain("50 ml/cilindro");
+      expect(html).toContain("100 ml");
+      expect(html).not.toContain("Aplicaciones fitosanitarias");
+      expect(html).not.toContain("<h2>Fertilizacion</h2>");
+      expect(html).not.toContain("Recomendacion de riego");
+      expect(html).not.toContain("Recomendacion de labores");
+      expect(html).not.toContain("Resumen para el productor");
+      expect(html).not.toContain("Cantidad total producto");
+    });
+
+    it("keeps the legacy fitosanidad projection readable", () => {
+      const receta = makeRecipe();
+      receta.mezclas = undefined;
+      receta.fertilizacion = [];
+      receta.fitosanidad = [
+        {
+          id: "legacy-product",
+          numero: 2,
+          objetivo: "plaga",
+          objetivoNombre: "Trips",
+          tipoControlId: null,
+          tipoProductoId: null,
+          disolvente: "Agua",
+          modoAccionId: null,
+          ingredienteActivoNombre: "Spinosad",
+          dosisIa: 25,
+          unidadDosis: "ml/cilindro",
+          volumenAplicacion: null,
+          cantidadTotalIa: null,
+          marcaProductoNombre: "Spino Max",
+          concentracionProducto: null,
+          cantidadTotalProducto: null,
+          coadyuvantesIds: null,
+          ordenMezcla: JSON.stringify(["Agua", "Spino Max"])
+        }
+      ];
+
+      expect(buildProducerMixtureRows(receta, [])).toEqual([
+        { mixtureNumber: 2, order: 1, item: "Spino Max", dose: "25 ml/cilindro" }
+      ]);
+    });
   });
 
   describe("#showPrintablePdfError", () => {
@@ -228,3 +315,52 @@ describe("visitaPdfWebService", () => {
     });
   });
 });
+
+function makeRecipe() {
+  return {
+    id: "recipe-1",
+    visitaId: "v1",
+    etapaFenologica: "Floracion",
+    version: 1,
+    mezclas: [
+      {
+        id: "mix-1",
+        numero: 1,
+        coadyuvantesIds: JSON.stringify(["ph", "adh"]),
+        coadyuvantesDosis: JSON.stringify({ ph: "20 ml", adh: "100 ml" }),
+        ordenMezcla: JSON.stringify([
+          "Agua",
+          "Corrector de pH",
+          "Fungi Max",
+          "Urea",
+          "Adherente"
+        ]),
+        productos: [
+          {
+            id: "product-1",
+            objetivo: "enfermedad",
+            objetivoNombre: "Oidium",
+            ingredienteActivoNombre: "Azoxistrobina",
+            dosisProducto: 50,
+            unidadDosis: "ml/cilindro",
+            marcaProductoNombre: "Fungi Max"
+          }
+        ]
+      }
+    ],
+    fitosanidad: [],
+    fertilizacion: [
+      {
+        id: "fert-1",
+        mezclaNumero: 1,
+        fertilizanteNombre: "Urea",
+        dosis: 2,
+        unidadDosis: "kg/ha"
+      }
+    ],
+    riego: { id: "riego-1", tipoRecomendacion: "riego_ligero" },
+    labores: [{ id: "labor-1", labor: "horqueteo" }],
+    createdAt: "2026-08-19T00:00:00.000Z",
+    updatedAt: "2026-08-19T00:00:00.000Z"
+  } as unknown as VisitaRecetaCompleta;
+}

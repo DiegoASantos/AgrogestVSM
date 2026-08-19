@@ -3,6 +3,7 @@ import type {
   ConsolidacionHallazgo,
   IncidenceLevelLookupItem,
   PestDiseaseLookupItem,
+  RecetaMezcla,
   TipoRiegoLookupItem,
   VisitaDetailData,
   VisitaEvaluacion,
@@ -73,11 +74,7 @@ export function showPrintablePdfError(popup: PrintablePdfWindow, message: string
   );
 }
 
-function openPrintableDocument(
-  popup: PrintablePdfWindow,
-  html: string,
-  title: string
-) {
+function openPrintableDocument(popup: PrintablePdfWindow, html: string, title: string) {
   writePopupHtml(popup, html, title);
   popup.focus();
 
@@ -163,22 +160,14 @@ function buildDiagnosticHtml(detail: VisitaDetailData) {
 
     ${renderSection(
       "Paso 2 - Plagas",
-      renderSanitaryObservations(
-        plagas,
-        pestDiseaseMap,
-        levelMap,
-        "plagas"
-      ) + renderStepNote(stepNotes.get(2))
+      renderSanitaryObservations(plagas, pestDiseaseMap, levelMap, "plagas") +
+        renderStepNote(stepNotes.get(2))
     )}
 
     ${renderSection(
       "Paso 3 - Enfermedades",
-      renderSanitaryObservations(
-        enfermedades,
-        pestDiseaseMap,
-        levelMap,
-        "enfermedades"
-      ) + renderStepNote(stepNotes.get(3))
+      renderSanitaryObservations(enfermedades, pestDiseaseMap, levelMap, "enfermedades") +
+        renderStepNote(stepNotes.get(3))
     )}
 
     ${renderSection(
@@ -215,21 +204,9 @@ function buildRecipeHtml(
     </body></html>`;
   }
 
-  const calculationAreaHectares = resolveCalculationAreaHectares(
-    detail.lookups.parcela?.areaHectares,
-    detail.visita.areaHectares
-  );
-
   return wrapRecipeHtml(`
     ${renderDatosVisitaReceta(detail, receta, consolidacion)}
-    ${renderFitosanidad(receta, calculationAreaHectares, coadyuvantes)}
-    ${renderFertilizacion(receta)}
-    ${renderRecipeRiego(receta)}
-    ${renderRecipeLabores(receta)}
-    ${renderResumenProductor(receta)}
-    <div class="footer">
-      Generado automaticamente por AgroGest VSM
-    </div>`);
+    ${renderPlanMezclasProductor(receta, coadyuvantes)}`);
 }
 
 function wrapDiagnosticHtml(title: string, body: string) {
@@ -402,22 +379,6 @@ function wrapRecipeHtml(body: string) {
       padding-bottom: 6px;
       border-bottom: 1px solid #e8efe9;
     }
-    h3 {
-      font-size: 13px;
-      color: #1b4332;
-      margin: 8px 0 4px 0;
-    }
-    .chip {
-      display: inline-block;
-      background: #d8f3dc;
-      color: #2d6a4f;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      margin-right: 4px;
-      margin-bottom: 4px;
-    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -433,6 +394,22 @@ function wrapRecipeHtml(body: string) {
       background: #eaf3dc;
       color: #1b4332;
       font-weight: 600;
+    }
+    .mixture-plan-table tr {
+      break-inside: avoid;
+    }
+    .mixture-plan-number {
+      width: 12%;
+      text-align: center;
+      font-weight: 700;
+      color: #1b4332;
+    }
+    .mixture-plan-item {
+      width: 58%;
+    }
+    .mixture-plan-dose {
+      width: 30%;
+      white-space: nowrap;
     }
     .field-row {
       display: flex;
@@ -480,61 +457,6 @@ function wrapRecipeHtml(body: string) {
       font-size: 10.5px;
     }
     .compact-list li { margin-bottom: 4px; }
-    .calculated {
-      background: #ebf5fb;
-      font-style: italic;
-      padding: 1px 6px;
-      border-radius: 4px;
-    }
-    .calc-hint {
-      color: #6b7a6f;
-      font-size: 10px;
-      margin-top: -4px;
-    }
-    .mezcla-box {
-      background: #fef9e7;
-      border: 1px solid #f3cd8c;
-      border-radius: 8px;
-      padding: 8px 12px;
-      margin: 8px 0;
-      font-size: 11px;
-    }
-    .mezcla-box h4 {
-      font-size: 11px;
-      color: #92400e;
-      margin-bottom: 4px;
-    }
-    .section-card {
-      background: #fafcfa;
-      border: 1px solid #e8efe9;
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 10px;
-      font-size: 10px;
-      font-weight: 700;
-      color: #fff;
-      background: #2d6a4f;
-    }
-    .footer {
-      margin-top: 24px;
-      padding-top: 12px;
-      border-top: 1px solid #d0ddd4;
-      font-size: 10px;
-      color: #6b7a6f;
-      text-align: center;
-    }
-    .producer-summary {
-      background: #f7fbf8;
-      border: 1px solid #b7d7c3;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 14px;
-    }
   </style>
 </head>
 <body>
@@ -698,9 +620,21 @@ function renderDiagnosticRiego(
 
   return renderFields([
     ["Tipo de riego", tipoRiegoLabel, true],
-    ["Fuente de agua", riego.fuenteAgua ? formatCatalogValue(riego.fuenteAgua) : "No registrada", true],
-    ["Tipo de suelo", riego.tipoSuelo ? formatCatalogValue(riego.tipoSuelo) : "No registrado", true],
-    ["Humedad del suelo", riego.humedadSuelo ? formatCatalogValue(riego.humedadSuelo) : "No registrada", true],
+    [
+      "Fuente de agua",
+      riego.fuenteAgua ? formatCatalogValue(riego.fuenteAgua) : "No registrada",
+      true
+    ],
+    [
+      "Tipo de suelo",
+      riego.tipoSuelo ? formatCatalogValue(riego.tipoSuelo) : "No registrado",
+      true
+    ],
+    [
+      "Humedad del suelo",
+      riego.humedadSuelo ? formatCatalogValue(riego.humedadSuelo) : "No registrada",
+      true
+    ],
     [
       "Estres hidrico intencional",
       riego.estresHidrico === null ? "No registrado" : riego.estresHidrico ? "Si" : "No",
@@ -905,241 +839,197 @@ function renderLaboresVisitDataCard(items: ConsolidacionHallazgo["labores"]) {
           )
           .join("")}
       </ul>
-    </div>`;
+  </div>`;
 }
 
-function renderFitosanidad(
+export type ProducerMixtureRow = {
+  dose: string;
+  item: string;
+  mixtureNumber: number | null;
+  order: number;
+};
+
+type ProducerMixtureItem = Pick<ProducerMixtureRow, "dose" | "item">;
+
+export function buildProducerMixtureRows(
   receta: VisitaRecetaCompleta,
-  calculationAreaHectares: number | null,
   coadyuvantes: CoadyuvanteCatalogItem[]
-) {
-  if (receta.fitosanidad.length === 0) return "";
+): ProducerMixtureRow[] {
+  const mixtures = getRecipeMixtures(receta);
+  const rows = mixtures
+    .slice()
+    .sort((a, b) => a.numero - b.numero)
+    .flatMap((mezcla) => {
+      const fertilizers = receta.fertilizacion.filter(
+        (item) => item.mezclaNumero === mezcla.numero
+      );
+      const items: ProducerMixtureItem[] = [
+        ...mezcla.productos.map((producto) => ({
+          item:
+            producto.marcaProductoNombre ??
+            producto.ingredienteActivoNombre ??
+            "Producto sin nombre",
+          dose: formatProductDose(producto.dosisProducto, producto.unidadDosis)
+        })),
+        ...fertilizers.map((fertilizer) => ({
+          item: fertilizer.fertilizanteNombre ?? "Fertilizante sin nombre",
+          dose: formatDose(fertilizer.dosis, fertilizer.unidadDosis)
+        })),
+        ...buildCoadjuvantItems(mezcla, coadyuvantes)
+      ];
+      const orderedItems = orderProducerMixtureItems(
+        parseJsonArray(mezcla.ordenMezcla ?? "[]"),
+        items
+      );
 
-  let html = "<h2>Aplicaciones fitosanitarias</h2>";
+      return (orderedItems.length > 0 ? orderedItems : [{ item: "-", dose: "-" }]).map(
+        (item, index) => ({
+          ...item,
+          mixtureNumber: mezcla.numero,
+          order: index + 1
+        })
+      );
+    });
+  const mixtureNumbers = new Set(mixtures.map((mezcla) => mezcla.numero));
+  const unassignedFertilizers = receta.fertilizacion
+    .filter(
+      (item) =>
+        typeof item.mezclaNumero !== "number" || !mixtureNumbers.has(item.mezclaNumero)
+    )
+    .map((item, index) => ({
+      item: item.fertilizanteNombre ?? "Fertilizante sin nombre",
+      dose: formatDose(item.dosis, item.unidadDosis),
+      mixtureNumber: null,
+      order: index + 1
+    }));
 
-  for (const app of receta.fitosanidad) {
-    const calculatedTotalIa =
-      calculateTotalIa(app.dosisIa, app.volumenAplicacion, calculationAreaHectares) ??
-      app.cantidadTotalIa;
-    const calculatedTotalProducto =
-      calculateTotalProducto(calculatedTotalIa, app.concentracionProducto) ??
-      app.cantidadTotalProducto;
-
-    html += `
-    <div class="section-card">
-      <h3>
-        <span class="badge">${String(app.numero).padStart(2, "0")}</span>
-        ${escapeHtml(app.objetivoNombre)} (${app.objetivo === "plaga" ? "Plaga" : "Enfermedad"})
-      </h3>
-      <table>
-        <tr><th>Campo</th><th>Valor</th></tr>
-        <tr><td>Disolvente</td><td>${escapeHtml(app.disolvente)}</td></tr>
-        <tr><td>Ingrediente activo</td><td>${escapeHtml(app.ingredienteActivoNombre ?? "-")}</td></tr>
-        <tr><td>Dosis i.a.</td><td>${app.dosisIa ?? "-"} mg o mL/cilindro</td></tr>
-        <tr><td>Volumen aplicacion</td><td>${app.volumenAplicacion ?? "-"} cilindros/ha</td></tr>
-        <tr><td class="calculated">Cantidad total i.a.</td><td class="calculated">${formatNumber(calculatedTotalIa)} mg o mL</td></tr>
-        <tr><td>Nombre comercial</td><td>${escapeHtml(app.marcaProductoNombre ?? "-")}</td></tr>
-        <tr><td>Concentracion en producto</td><td>${app.concentracionProducto ?? "-"} mg o mL i.a./L</td></tr>
-        <tr><td class="calculated">Cantidad total producto</td><td class="calculated">${formatNumber(calculatedTotalProducto)} L</td></tr>
-      </table>`;
-
-    if (calculationAreaHectares !== null) {
-      html += `<p class="calc-hint">Area usada para el calculo: ${formatNumber(calculationAreaHectares)} ha.</p>`;
-    }
-
-    if (app.coadyuvantesIds) {
-      html += `<p style="font-size:11px;margin-top:6px;"><strong>Coadyuvantes:</strong> ${renderCoadyuvantesFromIds(app.coadyuvantesIds, coadyuvantes)}</p>`;
-    }
-
-    if (app.ordenMezcla) {
-      const mezclaItems = parseJsonArray(app.ordenMezcla);
-      if (mezclaItems.length > 0) {
-        html += `<div class="mezcla-box"><h4>Orden de mezcla</h4>`;
-        mezclaItems.forEach((item, index) => {
-          html += `<p>${index + 1}&deg; ${escapeHtml(item)}</p>`;
-        });
-        html += `</div>`;
-      }
-    }
-
-    html += `</div>`;
-  }
-
-  return html;
+  return [...rows, ...unassignedFertilizers];
 }
 
-function renderCoadyuvantesFromIds(
-  idsJson: string,
+function renderPlanMezclasProductor(
+  receta: VisitaRecetaCompleta,
   coadyuvantes: CoadyuvanteCatalogItem[]
 ) {
+  const rows = buildProducerMixtureRows(receta, coadyuvantes);
+
+  if (rows.length === 0) {
+    return "";
+  }
+
+  return `
+    <h2>Mezclas y dosis</h2>
+    <table class="mixture-plan-table">
+      <thead>
+        <tr><th>Mezcla</th><th>Productos y coadyuvantes (en orden)</th><th>Dosis</th></tr>
+      </thead>
+      <tbody>
+        ${rows
+          .map(
+            (row) => `
+              <tr>
+                <td class="mixture-plan-number">${row.mixtureNumber ?? "Sin mezcla"}</td>
+                <td class="mixture-plan-item">${row.order}&deg; ${escapeHtml(row.item)}</td>
+                <td class="mixture-plan-dose">${escapeHtml(row.dose)}</td>
+              </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`;
+}
+
+function getRecipeMixtures(receta: VisitaRecetaCompleta): RecetaMezcla[] {
+  if (receta.mezclas?.length) {
+    return receta.mezclas;
+  }
+
+  const mixtures = new Map<number, RecetaMezcla>();
+
+  for (const product of receta.fitosanidad) {
+    const current = mixtures.get(product.numero) ?? {
+      id: `legacy-${product.numero}`,
+      numero: product.numero,
+      coadyuvantesIds: product.coadyuvantesIds,
+      coadyuvantesDosis: null,
+      ordenMezcla: product.ordenMezcla,
+      productos: []
+    };
+    current.productos.push({
+      id: product.id,
+      objetivo: product.objetivo,
+      objetivoNombre: product.objetivoNombre,
+      ingredienteActivoNombre: product.ingredienteActivoNombre,
+      dosisProducto: product.dosisIa,
+      unidadDosis: product.unidadDosis,
+      marcaProductoNombre: product.marcaProductoNombre
+    });
+    mixtures.set(product.numero, current);
+  }
+
+  return [...mixtures.values()];
+}
+
+function buildCoadjuvantItems(
+  mezcla: RecetaMezcla,
+  coadyuvantes: CoadyuvanteCatalogItem[]
+): ProducerMixtureItem[] {
+  const doses = parseJsonRecord(mezcla.coadyuvantesDosis);
+
+  return parseJsonArray(mezcla.coadyuvantesIds ?? "[]").map((id) => ({
+    item: coadyuvantes.find((coadyuvante) => coadyuvante.id === id)?.name ?? id,
+    dose: doses[id]?.trim() || "-"
+  }));
+}
+
+function orderProducerMixtureItems(
+  order: string[],
+  items: ProducerMixtureItem[]
+): ProducerMixtureItem[] {
+  const remaining = [...items];
+  const ordered: ProducerMixtureItem[] = [];
+
+  for (const label of order) {
+    if (normalizeText(label) === "agua") continue;
+    const index = remaining.findIndex(
+      (item) => normalizeText(item.item) === normalizeText(label)
+    );
+    const matched = index >= 0 ? remaining.splice(index, 1)[0] : undefined;
+    ordered.push(matched ?? { item: label, dose: "-" });
+  }
+
+  return [...ordered, ...remaining];
+}
+
+function formatProductDose(
+  value: number | null | undefined,
+  unit: string | null | undefined
+) {
+  const numerator = unit?.split("/")[0]?.trim().toLowerCase();
+
+  return formatDose(value, `${numerator || "mg o ml"}/cilindro`);
+}
+
+function formatDose(value: number | null | undefined, unit: string | null | undefined) {
+  return value === null || value === undefined
+    ? "-"
+    : [String(value), unit?.trim()].filter(Boolean).join(" ");
+}
+
+function parseJsonRecord(value: string | null | undefined): Record<string, string> {
+  if (!value) return {};
+
   try {
-    const ids = JSON.parse(idsJson) as string[];
-    const names = ids
-      .map((id) => coadyuvantes.find((coadyuvante) => coadyuvante.id === id)?.name ?? id)
-      .filter(Boolean);
+    const parsed = JSON.parse(value) as unknown;
 
-    return names.map((name) => `<span class="chip">${escapeHtml(name)}</span>`).join(" ");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string"
+      )
+    );
   } catch {
-    return escapeHtml(idsJson);
+    return {};
   }
-}
-
-function renderFertilizacion(receta: VisitaRecetaCompleta) {
-  if (receta.fertilizacion.length === 0) return "";
-
-  let html = "<h2>Fertilizacion</h2>";
-
-  for (const fert of receta.fertilizacion) {
-    const viaLabel = fert.viaAplicacion === "edafica" ? "Edafica" : "Foliar";
-    const tipoLabel = fert.tipoProducto === "liquido" ? "Liquido" : "Solido";
-    html += `
-    <div class="section-card">
-      <table>
-        <tr><th>Campo</th><th>Valor</th></tr>
-        <tr><td>Deficiencia</td><td>${escapeHtml(fert.nutrienteNombre ?? "Deficiencia no registrada")}</td></tr>
-        <tr><td>Enfoque</td><td>${fert.enfoque === "preventivo" ? "Preventivo" : "Curativo"}</td></tr>
-        <tr><td>Via de aplicacion</td><td>${viaLabel}</td></tr>
-        <tr><td>Fertilizante</td><td>${escapeHtml(fert.fertilizanteNombre ?? "-")}</td></tr>
-        <tr><td>Tipo de producto</td><td>${tipoLabel}</td></tr>
-        <tr><td>Dosis</td><td>${fert.dosis ?? "-"} ${escapeHtml(fert.unidadDosis ?? "")}</td></tr>
-        ${fert.cantidadTotalPlantas ? `<tr><td>Cantidad total plantas</td><td>${fert.cantidadTotalPlantas}</td></tr>` : ""}
-        ${fert.volumenAplicacion ? `<tr><td>Volumen aplicacion</td><td>${fert.volumenAplicacion}</td></tr>` : ""}
-        <tr><td class="calculated">Cantidad total fertilizante</td><td class="calculated">${fert.cantidadTotalFertilizante ?? "-"}</td></tr>
-      </table>
-    </div>`;
-  }
-
-  return html;
-}
-
-function renderRecipeRiego(receta: VisitaRecetaCompleta) {
-  if (!receta.riego) return "";
-
-  const labels: Record<string, string> = {
-    riego_pesado: "Riego pesado",
-    riego_ligero: "Riego ligero",
-    inicio_agoste: "Agoste",
-    ruptura_agoste: "Agoste"
-  };
-  const descriptions: Record<string, string> = {
-    riego_pesado: "Aplicar grandes volumenes de agua sobre la superficie del terreno.",
-    riego_ligero: "Aplicar una lamina de agua de bajo volumen para humedecer superficialmente.",
-    inicio_agoste:
-      "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo.",
-    ruptura_agoste:
-      "Suspension o restriccion controlada del riego para inducir el manejo fenologico del cultivo."
-  };
-
-  return `
-    <h2>Recomendacion de riego</h2>
-    <div class="section-card">
-      <h3>${labels[receta.riego.tipoRecomendacion] ?? receta.riego.tipoRecomendacion}</h3>
-      <p style="font-size:11px;color:#6b7a6f;">${descriptions[receta.riego.tipoRecomendacion] ?? ""}</p>
-    </div>`;
-}
-
-function renderRecipeLabores(receta: VisitaRecetaCompleta) {
-  if (receta.labores.length === 0) return "";
-
-  const labels: Record<string, string> = {
-    limpieza_maleza_pala: "Limpieza de maleza con pala",
-    limpieza_maleza_motoguadana: "Limpieza de maleza con motoguadana",
-    horqueteo: "Horqueteo",
-    enzunchado: "Enzunchado",
-    recoleccion_frutos: "Recoleccion y manejo de frutos caidos",
-    trampas_mosca: "Colocacion de trampas de mosca de la fruta"
-  };
-
-  let html = '<h2>Recomendacion de labores</h2><div class="section-card">';
-
-  for (const labor of receta.labores) {
-    html += `<p><span class="chip">${escapeHtml(labels[labor.labor] ?? labor.labor)}</span></p>`;
-  }
-
-  html += "</div>";
-
-  return html;
-}
-
-function renderResumenProductor(receta: VisitaRecetaCompleta) {
-  if (receta.fitosanidad.length === 0 && receta.fertilizacion.length === 0) {
-    return "";
-  }
-
-  return `
-    <h2>Resumen para el productor</h2>
-    <div class="producer-summary">
-      ${renderResumenFitosanitario(receta)}
-      ${renderResumenFertilizacion(receta)}
-    </div>`;
-}
-
-function renderResumenFitosanitario(receta: VisitaRecetaCompleta) {
-  if (receta.fitosanidad.length === 0) {
-    return "";
-  }
-
-  return `
-    <h3>Productos fitosanitarios</h3>
-    <table>
-      <tr><th>Objetivo</th><th>Nombre comercial</th><th>Dosis</th></tr>
-      ${receta.fitosanidad
-        .map(
-          (item) => `
-            <tr>
-              <td>${escapeHtml(item.objetivoNombre)}</td>
-              <td>${escapeHtml(item.marcaProductoNombre ?? "-")}</td>
-              <td>${escapeHtml(formatFitosanidadDosis(item))}</td>
-            </tr>`
-        )
-        .join("")}
-    </table>`;
-}
-
-function renderResumenFertilizacion(receta: VisitaRecetaCompleta) {
-  if (receta.fertilizacion.length === 0) {
-    return "";
-  }
-
-  return `
-    <h3>Fertilizantes</h3>
-    <table>
-      <tr><th>Deficiencia</th><th>Enfoque</th><th>Fertilizante</th><th>Via</th><th>Dosis</th></tr>
-      ${receta.fertilizacion
-        .map(
-          (item) => `
-            <tr>
-              <td>${escapeHtml(item.nutrienteNombre ?? "Deficiencia no registrada")}</td>
-              <td>${item.enfoque === "preventivo" ? "Preventivo" : "Curativo"}</td>
-              <td>${escapeHtml(item.fertilizanteNombre ?? "-")}</td>
-              <td>${escapeHtml(item.viaAplicacion === "edafica" ? "Edafica" : "Foliar")}</td>
-              <td>${escapeHtml(formatFertilizacionDosis(item))}</td>
-            </tr>`
-        )
-        .join("")}
-    </table>`;
-}
-
-function formatFitosanidadDosis(
-  item: VisitaRecetaCompleta["fitosanidad"][number]
-) {
-  if (item.cantidadTotalProducto !== null && item.cantidadTotalProducto !== undefined) {
-    return `${item.cantidadTotalProducto} L`;
-  }
-
-  if (item.dosisIa !== null && item.dosisIa !== undefined) {
-    return `${item.dosisIa} mg o mL/cilindro`;
-  }
-
-  return "-";
-}
-
-function formatFertilizacionDosis(
-  item: VisitaRecetaCompleta["fertilizacion"][number]
-) {
-  const parts = [item.dosis, item.unidadDosis].filter(Boolean);
-
-  return parts.length > 0 ? parts.join(" ") : "-";
 }
 
 function createMap<T extends { id: string }>(items: T[]) {
@@ -1263,51 +1153,6 @@ function normalizeText(value: string) {
     .replace(/[^a-zA-Z0-9]+/g, " ")
     .trim()
     .toLowerCase();
-}
-
-function resolveCalculationAreaHectares(
-  parcelaArea: string | number | null | undefined,
-  visitaArea: string | number | null | undefined
-) {
-  return parsePositiveDecimal(parcelaArea) ?? parsePositiveDecimal(visitaArea);
-}
-
-function parsePositiveDecimal(value: string | number | null | undefined) {
-  if (value === null || value === undefined) return null;
-  const parsed = Number(String(value).replace(",", "."));
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function getEffectiveCalculationArea(areaHectares: number | null) {
-  return areaHectares ?? 1;
-}
-
-function calculateTotalIa(
-  dosisIa: string | number | null | undefined,
-  volumenAplicacion: string | number | null | undefined,
-  areaHectares: number | null
-) {
-  const dosis = parsePositiveDecimal(dosisIa);
-  const volumen = parsePositiveDecimal(volumenAplicacion);
-
-  return dosis && volumen
-    ? dosis * volumen * getEffectiveCalculationArea(areaHectares)
-    : null;
-}
-
-function calculateTotalProducto(
-  cantidadTotalIa: string | number | null | undefined,
-  concentracionProducto: string | number | null | undefined
-) {
-  const totalIa = parsePositiveDecimal(cantidadTotalIa);
-  const concentracion = parsePositiveDecimal(concentracionProducto);
-
-  return totalIa && concentracion ? totalIa / concentracion : null;
-}
-
-function formatNumber(value: string | number | null | undefined, decimals = 2) {
-  const parsed = parsePositiveDecimal(value);
-  return parsed ? parsed.toFixed(decimals) : "-";
 }
 
 function parseJsonArray(value: string) {

@@ -413,6 +413,7 @@ export type RecetaFitosanidad = {
   modoAccionId: string | null;
   ingredienteActivoNombre: string | null;
   dosisIa: number | null;
+  unidadDosis?: string | null;
   volumenAplicacion: number | null;
   cantidadTotalIa: number | null;
   marcaProductoNombre: string | null;
@@ -422,8 +423,29 @@ export type RecetaFitosanidad = {
   ordenMezcla: string | null;
 };
 
+export type RecetaMezclaProducto = {
+  id: string;
+  productoRef?: string;
+  objetivo: "plaga" | "enfermedad";
+  objetivoNombre: string;
+  ingredienteActivoNombre: string | null;
+  dosisProducto: number | null;
+  unidadDosis?: string | null;
+  marcaProductoNombre: string | null;
+};
+
+export type RecetaMezcla = {
+  id: string;
+  numero: number;
+  coadyuvantesIds: string | null;
+  coadyuvantesDosis?: string | null;
+  ordenMezcla: string | null;
+  productos: RecetaMezclaProducto[];
+};
+
 export type RecetaFertilizacion = {
   id: string;
+  mezclaNumero?: number | null;
   enfoque?: "reactivo" | "preventivo";
   nutrienteId?: string | null;
   nutrienteNombre?: string | null;
@@ -453,6 +475,7 @@ export type VisitaRecetaCompleta = {
   visitaId: string;
   etapaFenologica: string | null;
   version: number;
+  mezclas?: RecetaMezcla[];
   fitosanidad: RecetaFitosanidad[];
   fertilizacion: RecetaFertilizacion[];
   riego: RecetaRiego | null;
