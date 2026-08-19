@@ -25,6 +25,7 @@ export type SaveRecetaData = {
     factorEditable: boolean;
     cantidadTotalProducto: number | null;
     productos: Array<{
+      productoRef: string;
       objetivo: "plaga" | "enfermedad";
       objetivoNombre: string;
       enfoque: "reactivo" | "preventivo";
@@ -44,6 +45,8 @@ export type SaveRecetaData = {
     }>;
   }>;
   fertilizacion: Array<{
+    productoRef: string;
+    mezclaNumero: number | null;
     enfoque: "reactivo" | "preventivo";
     nutrienteId: string | null;
     nutrienteNombre?: string | null;
@@ -249,6 +252,7 @@ export const visitaRecetasService = {
         factorEditable: mezcla.factorEditable,
         cantidadTotalProducto: mezcla.cantidadTotalProducto ?? undefined,
         productos: mezcla.productos.map((f) => ({
+          productoRef: f.productoRef,
           objetivo: f.objetivo,
           objetivoNombre: f.objetivoNombre,
           enfoque: f.enfoque,
@@ -268,6 +272,8 @@ export const visitaRecetasService = {
         }))
       })),
       fertilizacion: data.fertilizacion.map((f) => ({
+        productoRef: f.productoRef,
+        mezclaNumero: f.mezclaNumero ?? undefined,
         enfoque: f.enfoque,
         nutrienteId: f.nutrienteId ?? undefined,
         viaAplicacion: f.viaAplicacion,

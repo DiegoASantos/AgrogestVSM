@@ -53,7 +53,12 @@ function makeReceta(overrides: Partial<VisitaRecetaEntity> = {}): VisitaRecetaEn
 }
 
 function makeVisita(): VisitaCampoEntity {
-  return { id: "10", cultivoId: "5" } as VisitaCampoEntity;
+  return {
+    id: "10",
+    cultivoId: "5",
+    horaVisitaInicio: "08:00",
+    horaVisitaFin: null
+  } as VisitaCampoEntity;
 }
 
 function makeValidDto(): CreateVisitaRecetaDto {
@@ -149,6 +154,33 @@ describe("VisitaRecetasService", () => {
       laborRepo as unknown as Repository<VisitaRecetaLaborEntity>,
       historialRepo as unknown as Repository<VisitaRecetaHistorialEntity>
     );
+  });
+
+  describe("finalize", () => {
+    it("rechaza una hora final anterior a la hora inicial", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      const dto = Object.assign(makeValidDto(), { endVisitTime: "07:59" });
+
+      await expect(service.finalize("10", dto)).rejects.toThrow(
+        "mayor o igual a la hora de inicio"
+      );
+      expect(recetaRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it("rechaza productos sin ninguna mezcla", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      const dto = Object.assign(makeValidDto(), {
+        endVisitTime: "09:00",
+        mezclas: [],
+        fertilizacion: [
+          { ...makeValidDto().fertilizacion[0], mezclaNumero: undefined }
+        ]
+      });
+
+      await expect(service.finalize("10", dto)).rejects.toThrow(
+        "Registra al menos una mezcla"
+      );
+    });
   });
 
   describe("save", () => {

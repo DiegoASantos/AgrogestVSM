@@ -99,4 +99,6 @@ en la raíz.
 - [Spec 053: Fertilizantes por deficiencia nutricional](053-fertilizantes-por-deficiencia-nutricional.md)
 - [Spec 054: Ajustes de captura en evaluaciones mobile](054-ajustes-captura-evaluaciones-mobile.md)
 - [Spec 055: Acordeones exclusivos en receta mobile](055-acordeones-exclusivos-receta-mobile.md)
+- [Spec 056: Acordeones intuitivos en labores y receta mobile](056-acordeones-intuitivos-labores-receta-mobile.md)
+- [Spec 057: Receta y mezclas independientes con cierre recuperable](057-receta-y-mezclas-independientes.md)
 - [Plantilla](TEMPLATE.md)

@@ -21,6 +21,9 @@ export class VisitaRecetaFitosanidadEntity {
   @Column({ name: "mezcla_id", type: "bigint", nullable: true })
   mezclaId!: string | null;
 
+  @Column({ name: "producto_ref", type: "varchar", length: 100 })
+  productoRef!: string;
+
   @Column({ name: "numero", type: "integer", default: 1 })
   numero!: number;
 

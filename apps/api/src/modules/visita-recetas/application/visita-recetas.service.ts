@@ -13,6 +13,7 @@ import {
   type FitosanidadProductoDto,
   type MezclaDto
 } from "../presentation/dto/create-visita-receta.dto";
+import { FinalizarVisitaRecetaDto } from "../presentation/dto/finalizar-visita-receta.dto";
 import { VisitaRecetaEntity } from "../infrastructure/persistence/entities/visita-receta.entity";
 import { VisitaRecetaFitosanidadEntity } from "../infrastructure/persistence/entities/visita-receta-fitosanidad.entity";
 import { VisitaRecetaFertilizacionEntity } from "../infrastructure/persistence/entities/visita-receta-fertilizacion.entity";
@@ -98,6 +99,27 @@ export class VisitaRecetasService {
     return createSuccessResponse(this.toResponse(saved));
   }
 
+  async finalize(visitaId: string, dto: FinalizarVisitaRecetaDto) {
+    const visita = await this.visitaRepository.findOne({ where: { id: visitaId } });
+    if (!visita) {
+      throw new BadRequestException("Visita de campo not found.");
+    }
+
+    const normalizedEnd = dto.endVisitTime.slice(0, 5);
+    const normalizedStart = visita.horaVisitaInicio.slice(0, 5);
+    if (normalizedEnd < normalizedStart) {
+      throw new BadRequestException(
+        "La hora de fin debe ser mayor o igual a la hora de inicio."
+      );
+    }
+
+    assertFinalMixtures(dto);
+    const result = await this.save(visitaId, dto);
+    visita.horaVisitaFin = normalizedEnd;
+    await this.visitaRepository.save(visita);
+    return result;
+  }
+
   async findByVisitaId(visitaId: string) {
     const visita = await this.visitaRepository.findOne({
       where: { id: visitaId }
@@ -152,8 +174,8 @@ export class VisitaRecetasService {
 
     const saved = await this.recetaRepository.save(receta);
 
-    await this.createMezclas(saved.id, mezclas);
-    await this.createFertilizacion(saved.id, dto.fertilizacion);
+    const mezclaIds = await this.createMezclas(saved.id, mezclas);
+    await this.createFertilizacion(saved.id, dto.fertilizacion, mezclaIds);
 
     if (dto.riego) {
       await this.createRiego(saved.id, dto.riego);
@@ -183,13 +205,13 @@ export class VisitaRecetasService {
     const saved = await this.recetaRepository.save(receta);
 
     await this.fitosanidadRepository.delete({ recetaId: saved.id });
-    await this.mezclaRepository.delete({ recetaId: saved.id });
     await this.fertilizacionRepository.delete({ recetaId: saved.id });
+    await this.mezclaRepository.delete({ recetaId: saved.id });
     await this.riegoRepository.delete({ recetaId: saved.id });
     await this.laborRepository.delete({ recetaId: saved.id });
 
-    await this.createMezclas(saved.id, mezclas);
-    await this.createFertilizacion(saved.id, dto.fertilizacion);
+    const mezclaIds = await this.createMezclas(saved.id, mezclas);
+    await this.createFertilizacion(saved.id, dto.fertilizacion, mezclaIds);
 
     if (dto.riego) {
       await this.createRiego(saved.id, dto.riego);
@@ -210,6 +232,7 @@ export class VisitaRecetasService {
   }
 
   private async createMezclas(recetaId: string, mezclas: NormalizedMezcla[]) {
+    const mezclaIds = new Map<number, string>();
     for (const mezcla of mezclas) {
       const savedMezcla = await this.mezclaRepository.save(
         this.mezclaRepository.create({
@@ -223,6 +246,7 @@ export class VisitaRecetasService {
           cantidadTotalProducto: mezcla.cantidadTotalProducto ?? null
         })
       );
+      mezclaIds.set(mezcla.numero, savedMezcla.id);
 
       const productos = mezcla.productos.map((item) => {
         const calculatedTotal = calculateTotal(
@@ -234,6 +258,12 @@ export class VisitaRecetasService {
         return this.fitosanidadRepository.create({
           recetaId,
           mezclaId: savedMezcla.id,
+          productoRef:
+            item.productoRef ??
+            `legacy-${mezcla.numero}-${item.objetivo}-${item.objetivoNombre}-${item.marcaProductoNombre ?? item.ingredienteActivoNombre ?? "producto"}`.slice(
+              0,
+              100
+            ),
           numero: mezcla.numero,
           objetivo: item.objetivo,
           objetivoNombre: item.objetivoNombre,
@@ -267,11 +297,13 @@ export class VisitaRecetasService {
         await this.fitosanidadRepository.save(productos);
       }
     }
+    return mezclaIds;
   }
 
   private async createFertilizacion(
     recetaId: string,
-    items: CreateVisitaRecetaDto["fertilizacion"]
+    items: CreateVisitaRecetaDto["fertilizacion"],
+    mezclaIds: Map<number, string>
   ) {
     if (!items.length) return;
 
@@ -279,6 +311,12 @@ export class VisitaRecetasService {
       assertFertilizacionDoseUnit(item);
       return this.fertilizacionRepository.create({
         recetaId,
+        mezclaId: item.mezclaNumero
+          ? (mezclaIds.get(item.mezclaNumero) ?? null)
+          : null,
+        productoRef:
+          item.productoRef ??
+          `legacy-fert-${item.fertilizanteNombre ?? "producto"}`.slice(0, 100),
         enfoque: item.enfoque ?? "reactivo",
         nutrienteId: item.nutrienteId ?? null,
         nutrienteNombre:
@@ -366,6 +404,7 @@ export class VisitaRecetasService {
           cantidadTotalProducto: mezcla.cantidadTotalProducto,
           productos: (mezcla.productos ?? []).map((producto) => ({
             id: producto.id,
+            productoRef: producto.productoRef,
             objetivo: producto.objetivo,
             objetivoNombre: producto.objetivoNombre,
             enfoque: producto.enfoque,
@@ -411,6 +450,10 @@ export class VisitaRecetasService {
       })),
       fertilizacion: (receta.fertilizacion ?? []).map((f) => ({
         id: f.id,
+        productoRef: f.productoRef,
+        mezclaNumero:
+          (receta.mezclas ?? []).find((mezcla) => mezcla.id === f.mezclaId)?.numero ??
+          null,
         enfoque: f.enfoque,
         nutrienteId: f.nutrienteId,
         nutrienteNombre: f.nutrienteNombre,
@@ -697,5 +740,60 @@ function assertFertilizacionDoseUnit(
     throw new BadRequestException(
       "La unidad de dosis no corresponde al tipo de producto y via de fertilizacion."
     );
+  }
+}
+
+function assertFinalMixtures(dto: FinalizarVisitaRecetaDto) {
+  const mezclas = dto.mezclas ?? [];
+  const fitosanidadCount = mezclas.reduce(
+    (total, mezcla) => total + mezcla.productos.length,
+    0
+  );
+  const fertilizacionCount = dto.fertilizacion.filter(
+    (item) => Boolean(item.fertilizanteNombre?.trim())
+  ).length;
+  const productCount = fitosanidadCount + fertilizacionCount;
+
+  if (productCount > 0 && mezclas.length === 0) {
+    throw new BadRequestException(
+      "Registra al menos una mezcla cuando la receta contiene productos."
+    );
+  }
+
+  const fertilizerCountByMixture = new Map<number, number>();
+  for (const item of dto.fertilizacion) {
+    if (!item.fertilizanteNombre?.trim()) continue;
+    if (!item.mezclaNumero) {
+      throw new BadRequestException(
+        "Todos los fertilizantes deben estar asignados a una mezcla."
+      );
+    }
+    fertilizerCountByMixture.set(
+      item.mezclaNumero,
+      (fertilizerCountByMixture.get(item.mezclaNumero) ?? 0) + 1
+    );
+  }
+
+  for (const mezcla of mezclas) {
+    if (
+      mezcla.productos.length === 0 &&
+      (fertilizerCountByMixture.get(mezcla.numero) ?? 0) === 0
+    ) {
+      throw new BadRequestException(`La mezcla ${mezcla.numero} no puede quedar vacia.`);
+    }
+
+    const refs = [
+      ...mezcla.productos.map(
+        (item, index) => item.productoRef ?? `fito-${index}`
+      ),
+      ...dto.fertilizacion
+        .filter((item) => item.mezclaNumero === mezcla.numero)
+        .map((item, index) => item.productoRef ?? `fert-${index}`)
+    ];
+    if (new Set(refs).size !== refs.length) {
+      throw new BadRequestException(
+        `Un producto no puede repetirse dentro de la mezcla ${mezcla.numero}.`
+      );
+    }
   }
 }

@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   AppButton,
   AppCard,
+  AppCollapsibleHeader,
   AppEmptyState,
   AppText,
   FormScrollView,
@@ -36,6 +37,11 @@ import {
 import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import { laboresCulturalesVisitaService } from "../../services";
 import type { LaborCulturalCatalogItem } from "../../types";
+import {
+  findFirstLaborCategoryWithoutSelection,
+  findNextLaborCategoryWithoutSelection,
+  toLaborAccordionGroups
+} from "../labor-cultural-accordion";
 import { getDefaultLaborSelectionIds } from "../labor-cultural-defaults";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -81,6 +87,9 @@ export function VisitaLaboresCulturalesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isDraftReady, setIsDraftReady] = useState(false);
+  const [expandedCategoryCode, setExpandedCategoryCode] = useState<string | null>(
+    null
+  );
   const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
     () =>
       session.user?.publicId && visitaId
@@ -238,11 +247,17 @@ export function VisitaLaboresCulturalesScreen() {
               {laborGroups.map((group) => (
                 <CategoryOptionGroup
                   group={group}
-                  initiallyExpanded={laborGroups.length === 1}
                   isComplete={selectedCategoryCodes.has(group.categoryCode)}
+                  isExpanded={expandedCategoryCode === group.categoryCode}
                   key={group.categoryCode}
+                  onClear={() => clearLaborCategory(group)}
                   onHelpPress={setHelpItem}
                   onSelect={toggleLabor}
+                  onToggle={() =>
+                    setExpandedCategoryCode((current) =>
+                      current === group.categoryCode ? null : group.categoryCode
+                    )
+                  }
                   selectedLaborIds={selectedLaborIds}
                 />
               ))}
@@ -320,6 +335,7 @@ export function VisitaLaboresCulturalesScreen() {
   async function loadStep(id: string) {
     setIsLoading(true);
     setIsDraftReady(false);
+    setExpandedCategoryCode(null);
     setError(null);
     setSubmitError(null);
 
@@ -356,15 +372,22 @@ export function VisitaLaboresCulturalesScreen() {
         ? readVisitFormDraft<LaboresFormDraft>(draftIdentity)
         : null;
       const activeIds = new Set(activeLabores.map((labor) => labor.id));
-      setLabores(activeLabores);
-      setSelectedLaborIds(
-        draft
+      const nextSelection = draft
           ? new Set(
               (draft.selectedLaborIds ?? []).filter((laborId) => activeIds.has(laborId))
             )
           : existingLabores.length > 0
             ? new Set(existingLabores.map((labor) => labor.laborCulturalId))
-            : getDefaultLaborSelectionIds(activeLabores)
+            : getDefaultLaborSelectionIds(activeLabores);
+      const nextGroups = groupLabores(activeLabores);
+
+      setLabores(activeLabores);
+      setSelectedLaborIds(nextSelection);
+      setExpandedCategoryCode(
+        findFirstLaborCategoryWithoutSelection(
+          toLaborAccordionGroups(nextGroups),
+          nextSelection
+        )
       );
       setScoreValue(draft ? draft.scoreValue : (currentCalificacion?.puntaje ?? null));
       setScoreJustificado(
@@ -405,24 +428,36 @@ export function VisitaLaboresCulturalesScreen() {
 
   function toggleLabor(labor: LaborCulturalCatalogItem) {
     setSubmitError(null);
-    setSelectedLaborIds((currentSelection) => {
-      const nextSelection = new Set(currentSelection);
-      const sameCategoryIds = labores
-        .filter((item) => item.categoryCode === labor.categoryCode)
-        .map((item) => item.id);
+    const nextSelection = new Set(selectedLaborIds);
+    const sameCategoryIds = labores
+      .filter((item) => item.categoryCode === labor.categoryCode)
+      .map((item) => item.id);
 
-      if (nextSelection.has(labor.id)) {
-        return nextSelection;
-      }
+    if (nextSelection.has(labor.id)) return;
 
-      for (const sameCategoryId of sameCategoryIds) {
-        nextSelection.delete(sameCategoryId);
-      }
+    for (const sameCategoryId of sameCategoryIds) {
+      nextSelection.delete(sameCategoryId);
+    }
 
-      nextSelection.add(labor.id);
+    nextSelection.add(labor.id);
+    setSelectedLaborIds(nextSelection);
+    setExpandedCategoryCode(
+      findNextLaborCategoryWithoutSelection(
+        toLaborAccordionGroups(laborGroups),
+        nextSelection,
+        labor.categoryCode ?? ""
+      )
+    );
+  }
 
-      return nextSelection;
-    });
+  function clearLaborCategory(group: LaborGroup) {
+    setSubmitError(null);
+    const nextSelection = new Set(selectedLaborIds);
+    for (const item of group.items) {
+      nextSelection.delete(item.id);
+    }
+    setSelectedLaborIds(nextSelection);
+    setExpandedCategoryCode(group.categoryCode);
   }
 
   function goBackToStep4() {
@@ -560,88 +595,76 @@ function SelectionProgressSummary({
 
 function CategoryOptionGroup({
   group,
-  initiallyExpanded,
   isComplete,
+  isExpanded,
+  onClear,
   onHelpPress,
   onSelect,
+  onToggle,
   selectedLaborIds
 }: {
   group: LaborGroup;
-  initiallyExpanded: boolean;
   isComplete: boolean;
+  isExpanded: boolean;
+  onClear: () => void;
   onHelpPress: (item: LaborCulturalCatalogItem) => void;
   onSelect: (item: LaborCulturalCatalogItem) => void;
+  onToggle: () => void;
   selectedLaborIds: Set<string>;
 }) {
-  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
   const selectedItem = group.items.find((item) => selectedLaborIds.has(item.id));
 
   return (
-    <View style={styles.categoryBlock}>
-      <Pressable
-        accessibilityLabel={`${isExpanded ? "Contraer" : "Expandir"} ${group.categoryName}`}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isExpanded }}
-        onPress={() => setIsExpanded((current) => !current)}
-        style={({ pressed }) => [styles.categoryHeader, pressed && styles.pressed]}
-      >
-        <View style={styles.categoryHeading}>
-          <View style={styles.categoryIcon}>
-            <Ionicons
-              color={theme.colors.primaryDark}
-              name={getLaborIcon(group.categoryName)}
-              size={24}
-            />
-          </View>
-          <View style={styles.categoryCopy}>
-            <AppText style={styles.categoryTitle} variant="heading">
-              {group.categoryName}
-            </AppText>
-            <AppText style={styles.categorySubtitle} variant="caption">
-              {selectedItem
-                ? `Seleccionado: ${selectedItem.optionLabel ?? selectedItem.name}`
-                : "Elige una opcion"}
-            </AppText>
-          </View>
-        </View>
-        <View style={styles.categoryHeaderStatus}>
-          <View
-            style={[
-              styles.categoryBadge,
-              isComplete ? styles.categoryBadgeComplete : styles.categoryBadgePending
-            ]}
-          >
-            <AppText
-              style={[
-                styles.categoryBadgeText,
-                isComplete
-                  ? styles.categoryBadgeTextComplete
-                  : styles.categoryBadgeTextPending
-              ]}
-              variant="caption"
-            >
-              {isComplete ? "Completo" : "Pendiente"}
-            </AppText>
-          </View>
-          <Ionicons
-            color={theme.colors.primaryDark}
-            name={isExpanded ? "chevron-up" : "chevron-down"}
-            size={20}
-          />
-        </View>
-      </Pressable>
+    <View
+      style={[styles.categoryBlock, isExpanded && styles.categoryBlockExpanded]}
+    >
+      <AppCollapsibleHeader
+        icon={getLaborIcon(group.categoryName)}
+        isExpanded={isExpanded}
+        onToggle={onToggle}
+        statusLabel={isComplete ? "Completo" : "Sin registros"}
+        statusTone={isComplete ? "success" : "warning"}
+        subtitle={
+          selectedItem
+            ? `Seleccionado: ${selectedItem.optionLabel ?? selectedItem.name}`
+            : "Selecciona una opcion para completar la categoria"
+        }
+        title={group.categoryName}
+      />
 
       {isExpanded ? (
-        <View style={styles.optionList}>
-          {group.items.map((labor) => (
-            <LaborOptionRow
-              isSelected={selectedLaborIds.has(labor.id)}
-              item={labor}
-              key={labor.id}
-              onHelpPress={onHelpPress}
-              onPress={() => onSelect(labor)}
-            />
-          ))}
+        <View style={styles.categoryContent}>
+          <View style={styles.optionList}>
+            {group.items.map((labor) => (
+              <LaborOptionRow
+                isSelected={selectedLaborIds.has(labor.id)}
+                item={labor}
+                key={labor.id}
+                onHelpPress={onHelpPress}
+                onPress={() => onSelect(labor)}
+              />
+            ))}
+          </View>
+          {selectedItem ? (
+            <Pressable
+              accessibilityLabel={`Quitar seleccion de ${group.categoryName}`}
+              accessibilityRole="button"
+              onPress={onClear}
+              style={({ pressed }) => [
+                styles.clearSelectionButton,
+                pressed && styles.pressed
+              ]}
+            >
+              <Ionicons
+                color={theme.colors.error}
+                name="close-circle-outline"
+                size={20}
+              />
+              <AppText style={styles.clearSelectionText} variant="label">
+                Quitar seleccion
+              </AppText>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -905,74 +928,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16
   },
-  categoryBadge: {
-    borderRadius: theme.radius.full,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5
-  },
-  categoryBadgeComplete: {
-    backgroundColor: theme.colors.successMuted,
-    borderColor: theme.colors.success
-  },
-  categoryBadgePending: {
-    backgroundColor: theme.colors.warningMuted,
-    borderColor: theme.colors.warning
-  },
-  categoryBadgeText: {
-    fontSize: 12
-  },
-  categoryBadgeTextComplete: {
-    color: theme.colors.primaryDark
-  },
-  categoryBadgeTextPending: {
-    color: "#7a4d00"
-  },
   categoryBlock: {
     backgroundColor: theme.colors.surfaceElevated,
     borderColor: theme.colors.borderLight,
     borderRadius: theme.radius.md,
     borderWidth: 1,
     gap: 12,
-    padding: 12
+    padding: 14
   },
-  categoryCopy: {
-    flex: 1,
-    gap: 2
+  categoryBlockExpanded: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.primary,
+    borderWidth: 1.5,
+    ...theme.shadow.sm
   },
-  categoryHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: 10,
-    justifyContent: "space-between"
+  categoryContent: {
+    borderTopColor: theme.colors.borderLight,
+    borderTopWidth: 1,
+    gap: 12,
+    paddingTop: 12
   },
-  categoryHeaderStatus: {
+  clearSelectionButton: {
     alignItems: "center",
+    alignSelf: "flex-start",
+    borderColor: theme.colors.error,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
     flexDirection: "row",
-    gap: 8
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 8
   },
-  categoryHeading: {
-    alignItems: "center",
-    flex: 1,
-    flexDirection: "row",
-    gap: 10
-  },
-  categoryIcon: {
-    alignItems: "center",
-    backgroundColor: "#eaf3dc",
-    borderRadius: theme.radius.full,
-    height: 44,
-    justifyContent: "center",
-    width: 44
-  },
-  categorySubtitle: {
-    color: theme.colors.textMuted,
-    lineHeight: 18
-  },
-  categoryTitle: {
-    color: theme.colors.primaryDark,
-    fontSize: 17,
-    lineHeight: 22
+  clearSelectionText: {
+    color: theme.colors.error
   },
   completionCount: {
     color: theme.colors.primaryDark,

@@ -66,6 +66,7 @@ export type AppMezcla = {
 
 export type AppFertilizacion = {
   localId: string;
+  mezclaNumero: number;
   enfoque?: RecommendationApproach;
   nutrienteId: string | null;
   nutrienteNombre: string;
@@ -128,6 +129,7 @@ export function createEmptyFertilizacion(
   const grade = target?.incidenceGrade ?? 0;
   return {
     localId: createTransientId("fertilizante"),
+    mezclaNumero: 0,
     enfoque: target?.enfoque ?? "reactivo",
     nutrienteId: target?.nutrienteId ?? null,
     nutrienteNombre: target?.nutrienteNombre ?? "",
@@ -251,6 +253,7 @@ export function sanitizeDraftFertilizaciones(
     .map((fertilizacion) => {
       const normalized = {
         ...fertilizacion,
+        mezclaNumero: fertilizacion.mezclaNumero ?? 0,
         nutrienteId: fertilizacion.nutrienteId ?? null,
         nutrienteNombre: fertilizacion.nutrienteNombre ?? "",
         incidenceGrade: fertilizacion.incidenceGrade ?? null
@@ -435,7 +438,9 @@ export function restoreFitosanidadApps(
       const existing = groups.get(key);
 
       if (existing) {
-        existing.ingredientes.push(ingredient);
+        if (!existing.ingredientes.some((item) => item.localId === ingredient.localId)) {
+          existing.ingredientes.push(ingredient);
+        }
       } else {
         groups.set(key, {
           localId: `fito_${row.id}`,
@@ -474,14 +479,18 @@ export function restoreFertilizaciones(
   rows: RecetaFertilizacion[],
   fertilizerCatalog: FertilizanteCatalogItem[]
 ): AppFertilizacion[] {
-  return rows.map((row) => {
+  const uniqueRows = [
+    ...new Map(rows.map((row) => [row.productoRef ?? `legacy-fert-${row.id}`, row])).values()
+  ];
+  return uniqueRows.map((row) => {
     const catalogProduct = fertilizerCatalog.find(
       (product) =>
         normalizeName(product.name) === normalizeName(row.fertilizanteNombre ?? "")
     );
 
     return {
-      localId: `fertilizante_${row.id}`,
+      localId: row.productoRef ?? `legacy-fert-${row.id}`,
+      mezclaNumero: row.mezclaNumero ?? 0,
       enfoque: row.enfoque ?? "reactivo",
       nutrienteId: row.nutrienteId ?? null,
       nutrienteNombre: row.nutrienteNombre ?? "",
@@ -511,6 +520,7 @@ export function buildMezclasForSave(
       application.ingredientes
         .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
         .map((ingredient) => ({
+          productoRef: ingredient.localId,
           objetivo: application.objetivo,
           objetivoNombre: application.objetivoNombre,
           enfoque: application.enfoque ?? "reactivo",
@@ -558,6 +568,8 @@ export function buildFertilizacionesForSave(
     .map((fertilizacion) => {
       const unidadDosis = getUnidadDosis(fertilizacion);
       return {
+        productoRef: fertilizacion.localId,
+        mezclaNumero: fertilizacion.mezclaNumero || null,
         enfoque: fertilizacion.enfoque ?? "reactivo",
         nutrienteId: fertilizacion.nutrienteId,
         nutrienteNombre: fertilizacion.nutrienteNombre || null,
@@ -867,7 +879,7 @@ function restoreIngrediente(
       normalizeName(product.name) === normalizeName(row.marcaProductoNombre ?? "")
   );
   return {
-    localId: `ingrediente_${row.id}`,
+    localId: row.productoRef ?? `legacy-fito-${row.id}`,
     mezclaNumero,
     tipoProductoId: row.tipoProductoId ?? "",
     modoAccionId: row.modoAccionId ?? "",

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put } from "@nestjs/common";
 import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
@@ -13,6 +13,7 @@ import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { VisitaRecetasService } from "../application/visita-recetas.service";
 import { VisitaRecetasConsolidacionService } from "../application/visita-recetas-consolidacion.service";
 import { CreateVisitaRecetaDto } from "./dto/create-visita-receta.dto";
+import { FinalizarVisitaRecetaDto } from "./dto/finalizar-visita-receta.dto";
 
 @ApiTags("Recetas de visita")
 @Controller("visitas-campo")
@@ -32,6 +33,18 @@ export class VisitaCampoRecetasController {
     @Body() dto: CreateVisitaRecetaDto
   ) {
     return this.recetasService.save(visitaId, dto);
+  }
+
+  @Put(":visitaId/receta/finalizacion")
+  @ApiOperation({ summary: "Finaliza la receta y registra la hora de cierre." })
+  @ApiParam({ name: "visitaId", type: String, example: "1" })
+  @ApiOkResponse({ description: "Receta y visita finalizadas." })
+  @ApiBadRequestResponse({ description: "Receta incompleta u hora final invalida." })
+  finalizarReceta(
+    @Param("visitaId", ParseEntityIdPipe) visitaId: string,
+    @Body() dto: FinalizarVisitaRecetaDto
+  ) {
+    return this.recetasService.finalize(visitaId, dto);
   }
 
   @Get(":visitaId/receta")

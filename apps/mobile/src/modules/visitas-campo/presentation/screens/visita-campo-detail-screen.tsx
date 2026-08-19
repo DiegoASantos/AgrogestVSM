@@ -15,6 +15,10 @@ import {
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
+import {
+  buildVisitDraftScopeKey,
+  readVisitFormDraft
+} from "../../../../shared/database/visit-form-drafts";
 import { useConnectivity } from "../../../../shared/connectivity/use-connectivity";
 import { toApiError } from "../../../../shared/services";
 import { retryTransientSyncFailures, scheduleSync } from "../../../../shared/sync";
@@ -128,6 +132,16 @@ export function VisitaCampoDetailScreen() {
         currentUserId: session.user?.userId
       })
     : false;
+  const resumeModule = useMemo(() => {
+    if (!visitaId || !session.user?.publicId) return null;
+    const base = {
+      ownerUserId: session.user.publicId,
+      scopeKey: buildVisitDraftScopeKey(visitaId)
+    };
+    if (readVisitFormDraft({ ...base, moduleKey: "mezclas" })) return "mezclas";
+    if (readVisitFormDraft({ ...base, moduleKey: "receta" })) return "receta";
+    return null;
+  }, [detail, session.user?.publicId, visitaId]);
   const visitMapPoints = useMemo(() => {
     if (!visita?.visitLocation) {
       return [];
@@ -375,6 +389,25 @@ export function VisitaCampoDetailScreen() {
             */}
 
             <View style={styles.bottomActions}>
+              {resumeModule && visitaId ? (
+                <AppButton
+                  icon="play-circle-outline"
+                  label={
+                    resumeModule === "mezclas"
+                      ? "Continuar mezclas"
+                      : "Continuar receta"
+                  }
+                  onPress={() =>
+                    router.push({
+                      pathname:
+                        resumeModule === "mezclas"
+                          ? "/visitas-campo/[id]/mezclas"
+                          : "/visitas-campo/[id]/receta",
+                      params: { id: visitaId }
+                    })
+                  }
+                />
+              ) : null}
               {canDeleteVisit ? (
                 <AppButton
                   disabled={isDeleting}

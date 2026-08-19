@@ -1,6 +1,7 @@
 export * from "./app-button";
 export * from "./app-bottom-navigation";
 export * from "./app-card";
+export * from "./app-collapsible-header";
 export * from "./app-detail-row";
 export * from "./app-divider";
 export * from "./app-empty-state";

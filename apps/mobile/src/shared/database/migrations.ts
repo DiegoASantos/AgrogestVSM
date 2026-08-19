@@ -1536,7 +1536,7 @@ const MIGRATIONS: Migration[] = [
       `CREATE TABLE IF NOT EXISTS visit_form_drafts (
         owner_user_id TEXT NOT NULL,
         scope_key TEXT NOT NULL,
-        module_key TEXT NOT NULL CHECK(module_key IN ('datos','plagas','enfermedades','nutricion','riego','labores','receta')),
+        module_key TEXT NOT NULL CHECK(module_key IN ('datos','plagas','enfermedades','nutricion','riego','labores','receta','mezclas')),
         payload_json TEXT NOT NULL,
         schema_version INTEGER NOT NULL DEFAULT 1 CHECK(schema_version > 0),
         updated_at TEXT NOT NULL,
@@ -1559,6 +1559,46 @@ const MIGRATIONS: Migration[] = [
       db.execSync(
         "CREATE INDEX IF NOT EXISTS idx_visita_receta_fertilizacion_nutriente ON visita_receta_fertilizacion(nutriente_id)"
       );
+    }
+  },
+  {
+    version: 65,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "visita_receta_fitosanidad", "producto_ref", "TEXT");
+      addColumnIfMissing(db, "visita_receta_fertilizacion", "mezcla_local_id", "TEXT");
+      addColumnIfMissing(db, "visita_receta_fertilizacion", "producto_ref", "TEXT");
+      db.execSync(`
+        UPDATE visita_receta_fitosanidad
+           SET producto_ref = 'legacy-fito-' || local_id
+         WHERE producto_ref IS NULL OR producto_ref = '';
+        UPDATE visita_receta_fertilizacion
+           SET producto_ref = 'legacy-fert-' || local_id
+         WHERE producto_ref IS NULL OR producto_ref = '';
+        CREATE INDEX IF NOT EXISTS idx_receta_fitosanidad_producto_ref
+          ON visita_receta_fitosanidad(receta_local_id, producto_ref);
+        CREATE INDEX IF NOT EXISTS idx_receta_fertilizacion_producto_ref
+          ON visita_receta_fertilizacion(receta_local_id, producto_ref);
+        CREATE INDEX IF NOT EXISTS idx_receta_fertilizacion_mezcla
+          ON visita_receta_fertilizacion(mezcla_local_id);
+
+        CREATE TABLE IF NOT EXISTS visit_form_drafts_v65 (
+          owner_user_id TEXT NOT NULL,
+          scope_key TEXT NOT NULL,
+          module_key TEXT NOT NULL CHECK(module_key IN ('datos','plagas','enfermedades','nutricion','riego','labores','receta','mezclas')),
+          payload_json TEXT NOT NULL,
+          schema_version INTEGER NOT NULL DEFAULT 1 CHECK(schema_version > 0),
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (owner_user_id, scope_key, module_key)
+        );
+        INSERT OR REPLACE INTO visit_form_drafts_v65
+          (owner_user_id, scope_key, module_key, payload_json, schema_version, updated_at)
+        SELECT owner_user_id, scope_key, module_key, payload_json, schema_version, updated_at
+          FROM visit_form_drafts;
+        DROP TABLE visit_form_drafts;
+        ALTER TABLE visit_form_drafts_v65 RENAME TO visit_form_drafts;
+        CREATE INDEX IF NOT EXISTS idx_visit_form_drafts_owner_scope
+          ON visit_form_drafts(owner_user_id, scope_key);
+      `);
     }
   }
 ];

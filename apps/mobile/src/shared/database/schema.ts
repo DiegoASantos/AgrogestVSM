@@ -412,6 +412,7 @@ export const SQL_SCHEMA = [
     server_id TEXT,
     receta_local_id TEXT NOT NULL,
     mezcla_local_id TEXT,
+    producto_ref TEXT NOT NULL,
     numero INTEGER NOT NULL DEFAULT 1,
     objetivo TEXT NOT NULL CHECK(objetivo IN ('plaga', 'enfermedad')),
     objetivo_nombre TEXT NOT NULL,
@@ -444,6 +445,8 @@ export const SQL_SCHEMA = [
     local_id TEXT PRIMARY KEY NOT NULL,
     server_id TEXT,
     receta_local_id TEXT NOT NULL,
+    mezcla_local_id TEXT,
+    producto_ref TEXT NOT NULL,
     enfoque TEXT NOT NULL DEFAULT 'reactivo' CHECK(enfoque IN ('reactivo', 'preventivo')),
     nutriente_id TEXT,
     nutriente_nombre TEXT,
@@ -459,7 +462,8 @@ export const SQL_SCHEMA = [
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE
+    FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE,
+    FOREIGN KEY (mezcla_local_id) REFERENCES visita_receta_mezcla(local_id) ON DELETE CASCADE
   )`,
   `CREATE INDEX IF NOT EXISTS idx_visita_receta_fertilizacion_nutriente
     ON visita_receta_fertilizacion(nutriente_id)`,
@@ -509,7 +513,7 @@ export const SQL_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS visit_form_drafts (
     owner_user_id TEXT NOT NULL,
     scope_key TEXT NOT NULL,
-    module_key TEXT NOT NULL CHECK(module_key IN ('datos','plagas','enfermedades','nutricion','riego','labores','receta')),
+    module_key TEXT NOT NULL CHECK(module_key IN ('datos','plagas','enfermedades','nutricion','riego','labores','receta','mezclas')),
     payload_json TEXT NOT NULL,
     schema_version INTEGER NOT NULL DEFAULT 1 CHECK(schema_version > 0),
     updated_at TEXT NOT NULL,

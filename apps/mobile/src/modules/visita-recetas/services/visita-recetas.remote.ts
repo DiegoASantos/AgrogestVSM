@@ -22,6 +22,7 @@ export type SaveRecetaInput = {
     factorEditable: boolean;
     cantidadTotalProducto?: number | null;
     productos: Array<{
+      productoRef?: string;
       objetivo: "plaga" | "enfermedad";
       objetivoNombre: string;
       enfoque?: "reactivo" | "preventivo";
@@ -41,6 +42,8 @@ export type SaveRecetaInput = {
     }>;
   }>;
   fertilizacion: Array<{
+    productoRef?: string;
+    mezclaNumero?: number;
     enfoque?: "reactivo" | "preventivo";
     nutrienteId?: string | null;
     viaAplicacion: "edafica" | "foliar";
@@ -108,6 +111,21 @@ export const visitaRecetasRemote = {
       body: input,
       ...context
     });
+  },
+
+  finalize(
+    visitaId: string,
+    input: SaveRecetaInput & { endVisitTime: string },
+    context: ApiRequestContext = {}
+  ) {
+    return apiRequest<VisitaRecetaCompleta>(
+      `/visitas-campo/${visitaId}/receta/finalizacion`,
+      {
+        method: "PUT",
+        body: input,
+        ...context
+      }
+    );
   },
 
   crearIngredienteActivo(draft: Record<string, unknown>) {

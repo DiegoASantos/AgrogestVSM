@@ -336,9 +336,11 @@ vi.mock("../../modules/visita-recetas/repositories/visita-recetas.repository", (
 }));
 
 const recetaRemoteSave = vi.fn(async () => ({ id: "server-receta-1" }));
+const recetaRemoteFinalize = vi.fn(async () => ({ id: "server-receta-1" }));
 vi.mock("../../modules/visita-recetas/services/visita-recetas.remote", () => ({
   visitaRecetasRemote: {
-    save: recetaRemoteSave
+    save: recetaRemoteSave,
+    finalize: recetaRemoteFinalize
   }
 }));
 
@@ -617,9 +619,10 @@ describe("offline/online sync with complete visit data", () => {
       },
       { signal: undefined }
     );
-    expect(recetaRemoteSave).toHaveBeenCalledWith(
+    expect(recetaRemoteFinalize).toHaveBeenCalledWith(
       "server-visita-1",
       expect.objectContaining({
+        endVisitTime: "10:30",
         mezclas: [
           expect.objectContaining({
             productos: [
@@ -665,5 +668,6 @@ describe("offline/online sync with complete visit data", () => {
     expect(riegoRemoteCreate).not.toHaveBeenCalled();
     expect(laborRemoteCreate).not.toHaveBeenCalled();
     expect(recetaRemoteSave).not.toHaveBeenCalled();
+    expect(recetaRemoteFinalize).not.toHaveBeenCalled();
   });
 });

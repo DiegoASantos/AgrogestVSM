@@ -149,6 +149,16 @@ conserva la unidad seleccionada y se muestra por hectarea; se recalcula como
 `dosis_producto * volumen_aplicacion * factor`, sin usar el area ni la
 concentracion comercial y sin convertir unidades.
 
+Desde la spec 057, un mismo producto puede reutilizarse en varias mezclas con
+una dosis distinta en cada uso. `producto_ref` identifica la definicion estable
+del producto dentro de la receta; las filas repetidas representan sus usos y no
+productos de catalogo nuevos. Los fertilizantes, tanto edaficos como foliares,
+tambien referencian su mezcla mediante `mezcla_local_id` en SQLite y
+`mezcla_id` en PostgreSQL. La relacion queda nullable para historia y clientes
+anteriores, pero una finalizacion nueva exige que todo producto este asignado,
+que ninguna mezcla quede vacia y que cada uso complete plantas o volumen segun
+su via.
+
 El factor se deriva del grado de incidencia: grados 0 y 1 usan 1, grado 2 usa
 1.2 y grado 3 parte de 1.5 y permite ajuste manual. Una mezcla con varios
 objetivos adopta el factor mayor. Fertilizacion persiste su propio factor y usa

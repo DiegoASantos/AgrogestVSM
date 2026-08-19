@@ -12,7 +12,8 @@ export type VisitFormDraftModule =
   | "nutricion"
   | "riego"
   | "labores"
-  | "receta";
+  | "receta"
+  | "mezclas";
 
 export type VisitFormDraftIdentity = {
   ownerUserId: string;

@@ -54,6 +54,7 @@ export type RecetaFitosanidad = {
   serverId: string | null;
   recetaLocalId: string;
   mezclaLocalId: string | null;
+  productoRef?: string;
   numero: number;
   objetivo: "plaga" | "enfermedad";
   objetivoNombre: string;
@@ -97,6 +98,9 @@ export type RecetaFertilizacion = {
   id: string;
   serverId: string | null;
   recetaLocalId: string;
+  mezclaLocalId?: string | null;
+  mezclaNumero?: number | null;
+  productoRef?: string;
   enfoque?: RecommendationApproach;
   nutrienteId?: string | null;
   nutrienteNombre?: string | null;

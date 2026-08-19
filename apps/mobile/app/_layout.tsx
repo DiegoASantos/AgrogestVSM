@@ -154,6 +154,12 @@ function AppNavigation() {
           }}
         />
         <Stack.Screen
+          name="visitas-campo/[id]/mezclas"
+          options={{
+            title: "Mezclas"
+          }}
+        />
+        <Stack.Screen
           name="productores/nuevo"
           options={{
             title: "Nuevo productor"

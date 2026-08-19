@@ -1003,8 +1003,7 @@ async function handleReceta(
     return { status: "skipped" };
   }
 
-  const response = await visitaRecetasRemote.save(
-    visitaPadre.serverId,
+  const recetaPayload =
     {
       etapaFenologica: receta.etapaFenologica,
       mezclas: receta.mezclas.map((mezcla) => ({
@@ -1016,6 +1015,7 @@ async function handleReceta(
         factorEditable: mezcla.factorEditable,
         cantidadTotalProducto: mezcla.cantidadTotalProducto ?? undefined,
         productos: mezcla.productos.map((f) => ({
+          productoRef: f.productoRef,
           objetivo: f.objetivo,
           objetivoNombre: f.objetivoNombre,
           enfoque: f.enfoque,
@@ -1035,6 +1035,8 @@ async function handleReceta(
         }))
       })),
       fertilizacion: receta.fertilizacion.map((f) => ({
+        productoRef: f.productoRef,
+        mezclaNumero: f.mezclaNumero ?? undefined,
         enfoque: f.enfoque,
         nutrienteId: f.nutrienteId,
         viaAplicacion: f.viaAplicacion,
@@ -1051,7 +1053,17 @@ async function handleReceta(
         ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
         : undefined,
       labores: receta.labores.map((l) => ({ labor: l.labor }))
-    },
+    };
+
+  const response = visitaPadre.endVisitTime
+    ? await visitaRecetasRemote.finalize(
+        visitaPadre.serverId,
+        { ...recetaPayload, endVisitTime: visitaPadre.endVisitTime },
+        context
+      )
+    : await visitaRecetasRemote.save(
+    visitaPadre.serverId,
+    recetaPayload,
     context
   );
 

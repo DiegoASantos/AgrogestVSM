@@ -11,7 +11,6 @@ import {
   type ReactNode
 } from "react";
 import {
-  Alert,
   ImageBackground,
   Pressable,
   StyleSheet,
@@ -23,6 +22,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   AppButton,
   AppCard,
+  AppCollapsibleHeader,
   AppText,
   FormScrollView,
   ScreenContainer
@@ -33,32 +33,18 @@ import { useCatalogDownloadStatus } from "../../../../shared/database/catalog-do
 import {
   buildVisitDraftScopeKey,
   readVisitFormDraft,
+  writeVisitFormDraft,
   type VisitFormDraftIdentity
 } from "../../../../shared/database/visit-form-drafts";
 import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft";
 import { toApiError } from "../../../../shared/services";
-import { scheduleSync } from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
-import {
-  formatEditable12HourInput,
-  formatTimeFor12HourInput,
-  normalize12HourTimeForApi,
-  normalizeTyped12HourInput,
-  resolveInitialEndVisitTime,
-  validateVisitEndTime,
-  type TimePeriod
-} from "../../../visitas-campo/domain/time-input";
-import { Time12HourInput } from "../../../visitas-campo/presentation/components/time-12-hour-input";
+import type { TimePeriod } from "../../../visitas-campo/domain/time-input";
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
-import { visitasCampoService } from "../../../visitas-campo/services/visitas-campo.service";
 import type { PestDiseaseCatalogItem } from "../../../observaciones-sanitarias/types";
 import type { NutrientCatalogItem } from "../../../nutricion/types";
-import {
-  construirMensajeAdvertencia,
-  validarMezcla
-} from "../../domain/validacion-mezclas";
-import { visitaRecetasService, type SaveRecetaData } from "../../services";
+import { visitaRecetasService } from "../../services";
 import {
   LABOR_RECOMENDACION_LABELS,
   RIEGO_RECOMENDACION_LABELS
@@ -75,9 +61,7 @@ import type {
   VisitaRecetaCompleta
 } from "../../types";
 import {
-  generateOrdenMezcla,
-  isOrdenMezclaFixedItem,
-  swapOrdenMezclaItems
+  generateOrdenMezcla
 } from "./visita-receta-order";
 import {
   buildCommercialSelectionPatch,
@@ -92,24 +76,24 @@ import {
   findFirstIncompleteRecipeCard,
   getFertilizacionCardKey,
   getFitosanidadCardKey,
-  getMezclaCardKey,
   groupRecipeFertilizaciones,
   isFertilizacionGroupComplete,
   isFitosanidadCardComplete,
-  isMezclaCardComplete,
   resolveRecipeCardAfterRemoval,
   toggleActiveRecipeCard,
   type RecipeCardKey
 } from "./visita-receta-accordion";
 import {
-  buildFertilizacionesForSave,
-  buildMezclasForSave,
+  buildConsolidacionSummary,
+  buildLaboresSummary,
+  buildOptionalRecipeSectionStatus,
+  buildRiegoSummary
+} from "./visita-receta-collapsible";
+import {
   buildFertilizacionUnidadDosis,
   buildFitosanidadUnidadDosis,
   appendMezclasForNewFindings,
   calculateTotal,
-  collectNomenclaturaPorMezcla,
-  createEmptyMezcla,
   createEmptyFertilizacion,
   createPreventiveFertilizacion,
   createEmptyIngrediente,
@@ -124,7 +108,6 @@ import {
   isValidFertilizacionUnidadDosis,
   mergeMissingFitosanidadFindings,
   mergeNutritionFertilizations,
-  parsePositiveDecimal,
   deriveMezclaFactors,
   recalculateFertilizacion,
   recalculateIngrediente,
@@ -151,9 +134,9 @@ const VALID_LABOR_RECOMMENDATIONS = new Set(
 );
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
-type RecetaFormDraft = {
-  endVisitTimeInput: string;
-  endVisitTimePeriod: TimePeriod;
+export type RecetaFormDraft = {
+  endVisitTimeInput?: string;
+  endVisitTimePeriod?: TimePeriod;
   preventiveObjectiveType: "plaga" | "enfermedad";
   preventiveTargetId: string;
   preventiveNutrientId: string;
@@ -180,13 +163,8 @@ export function VisitaRecetaScreen() {
   const visitaId = toSingleParam(params.id);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [startVisitTime, setStartVisitTime] = useState("");
-  const [endVisitTimeInput, setEndVisitTimeInput] = useState("");
-  const [endVisitTimePeriod, setEndVisitTimePeriod] = useState<TimePeriod>("AM");
-  const [endVisitTimeError, setEndVisitTimeError] = useState<string | null>(null);
   const [consolidacion, setConsolidacion] = useState<ConsolidacionHallazgo | null>(null);
   const [recetaData, setRecetaData] = useState<VisitaRecetaCompleta | null>(null);
 
@@ -220,11 +198,9 @@ export function VisitaRecetaScreen() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [activeRecipeCardKey, setActiveRecipeCardKey] =
     useState<RecipeCardKey | null>(null);
-  const [ordenExchangeResetToken, setOrdenExchangeResetToken] = useState(0);
   const [isDraftReady, setIsDraftReady] = useState(false);
   const loadRequestRef = useRef(0);
   const accordionInitializedRef = useRef(false);
-  const compatibilityAlertOpenRef = useRef(false);
   const catalogDownloadStatus = useCatalogDownloadStatus();
   const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
   const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
@@ -240,8 +216,6 @@ export function VisitaRecetaScreen() {
   );
   const draftValue = useMemo<RecetaFormDraft>(
     () => ({
-      endVisitTimeInput,
-      endVisitTimePeriod,
       preventiveObjectiveType,
       preventiveTargetId,
       preventiveNutrientId,
@@ -252,8 +226,6 @@ export function VisitaRecetaScreen() {
       laborSelections: Array.from(laborSelections).sort()
     }),
     [
-      endVisitTimeInput,
-      endVisitTimePeriod,
       fertilizaciones,
       fitosanidadApps,
       laborSelections,
@@ -264,7 +236,7 @@ export function VisitaRecetaScreen() {
       riegoSelection
     ]
   );
-  const { clearDraft } = useVisitFormDraft({
+  const { flushDraft } = useVisitFormDraft({
     enabled: isDraftReady && !isLoading && !error,
     identity: draftIdentity,
     value: draftValue
@@ -294,8 +266,8 @@ export function VisitaRecetaScreen() {
     [fertilizaciones]
   );
   const recipeAccordionCards = useMemo(
-    () => buildRecipeAccordionCards(fitosanidadApps, mezclas, fertilizaciones),
-    [fertilizaciones, fitosanidadApps, mezclas]
+    () => buildRecipeAccordionCards(fitosanidadApps, [], fertilizaciones),
+    [fertilizaciones, fitosanidadApps]
   );
 
   useEffect(() => {
@@ -442,17 +414,6 @@ export function VisitaRecetaScreen() {
 
       setConsolidacion(localConsData);
 
-      if (visita) {
-        const resolvedEndVisitTime = resolveInitialEndVisitTime(
-          visita.endVisitTime,
-          new Date()
-        );
-        const displayEndVisitTime = formatTimeFor12HourInput(resolvedEndVisitTime);
-        setStartVisitTime(visita.startVisitTime);
-        setEndVisitTimeInput(displayEndVisitTime.time);
-        setEndVisitTimePeriod(displayEndVisitTime.period);
-      }
-
       let volumenPorDefecto = { fitosanidad: "", fertilizacion: "" };
 
       if (recetaData) {
@@ -505,8 +466,6 @@ export function VisitaRecetaScreen() {
             target.type === preventiveObjectiveType
         );
 
-        setEndVisitTimeInput(draft.endVisitTimeInput ?? "");
-        setEndVisitTimePeriod(draft.endVisitTimePeriod ?? "AM");
         setPreventiveObjectiveType(preventiveObjectiveType);
         setPreventiveTargetId(
           preventiveTargetIsValid ? (draft.preventiveTargetId ?? "") : ""
@@ -787,76 +746,6 @@ export function VisitaRecetaScreen() {
     });
   }
 
-  function updateMezcla(index: number, patch: Partial<AppMezcla>) {
-    const next = mezclas.map((mezcla, currentIndex) =>
-      currentIndex === index ? { ...mezcla, ...patch } : mezcla
-    );
-    const resolved =
-      patch.coadyuvantesIds !== undefined
-        ? regenerateMezclas(next, fitosanidadApps)
-        : deriveMezclaFactors(fitosanidadApps, next);
-    setMezclas(resolved);
-    setFitosanidadApps((applications) =>
-      applications.map((application) => ({
-        ...application,
-        ingredientes: application.ingredientes.map((ingredient) =>
-          recalculateIngrediente(
-            ingredient,
-            resolved.find((mezcla) => mezcla.numero === ingredient.mezclaNumero)
-          )
-        )
-      }))
-    );
-  }
-
-  function asignarProductoMezcla(ingredientLocalId: string, mezclaNumero: number) {
-    setFitosanidadApps((prev) => {
-      const next = prev.map((app) => ({
-        ...app,
-        ingredientes: app.ingredientes.map((ing) => {
-          if (ing.localId !== ingredientLocalId) return ing;
-          const estaAsignado = ing.mezclaNumero === mezclaNumero;
-          return { ...ing, mezclaNumero: estaAsignado ? 0 : mezclaNumero };
-        })
-      }));
-      setMezclas((currentMezclas) => deriveMezclaFactors(next, currentMezclas));
-      return next;
-    });
-  }
-
-  function updateMezclaCount(value: string) {
-    const parsed = Number.parseInt(value, 10);
-    const count = Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(20, parsed));
-    if (count === 0) {
-      setMezclas([]);
-      reconcileActiveRecipeCard(fitosanidadApps, [], fertilizaciones);
-      return;
-    }
-    const next = Array.from(
-      { length: count },
-      (_, index) =>
-        mezclas[index] ??
-        createEmptyMezcla(index + 1, mezclas[0]?.volumenAplicacion ?? "")
-    );
-    const projected = fitosanidadApps.map((application) => ({
-      ...application,
-      ingredientes: application.ingredientes.map((ingredient) => ({
-        ...ingredient,
-        mezclaNumero: Math.min(ingredient.mezclaNumero, count)
-      }))
-    }));
-    const resolved = regenerateMezclas(next, projected);
-    setFitosanidadApps(projected);
-    setMezclas(resolved);
-
-    if (count > mezclas.length) {
-      const firstAdded = resolved[mezclas.length];
-      if (firstAdded) openRecipeCard(getMezclaCardKey(firstAdded.localId));
-    } else if (count < mezclas.length) {
-      reconcileActiveRecipeCard(projected, resolved, fertilizaciones);
-    }
-  }
-
   function addPreventiveFitosanidad() {
     closeDropdown();
     const target = availablePreventiveTargets.find(
@@ -899,7 +788,7 @@ export function VisitaRecetaScreen() {
     const nextMezclas = regenerateMezclas(mezclas, projected);
     setFitosanidadApps(projected);
     setMezclas(nextMezclas);
-    reconcileActiveRecipeCard(projected, nextMezclas, fertilizaciones);
+    reconcileActiveRecipeCard(projected, fertilizaciones);
   }
 
   function addPreventiveFertilizacion() {
@@ -956,7 +845,7 @@ export function VisitaRecetaScreen() {
         )
     );
     setFertilizaciones(projected);
-    reconcileActiveRecipeCard(fitosanidadApps, mezclas, projected);
+    reconcileActiveRecipeCard(fitosanidadApps, projected);
   }
 
   function updateFertilizacion(index: number, patch: Partial<AppFertilizacion>) {
@@ -996,26 +885,9 @@ export function VisitaRecetaScreen() {
   }
 
   function handleSave() {
-    if (!visitaId || isSaving || compatibilityAlertOpenRef.current) return;
-    resetOrdenExchangeState();
-    const normalizedEndVisitTime = normalize12HourTimeForApi(
-      endVisitTimeInput,
-      endVisitTimePeriod
-    );
-    const visitEndTimeValidation = validateVisitEndTime(
-      startVisitTime,
-      normalizedEndVisitTime
-    );
-    setEndVisitTimeError(visitEndTimeValidation);
-
-    if (visitEndTimeValidation) {
-      setSubmitError(visitEndTimeValidation);
-      return;
-    }
-
-    const recetaValidation = validateRequiredRecipe(
+    if (!visitaId) return;
+    const recetaValidation = validateRecipeRecommendations(
       fitosanidadApps,
-      mezclas,
       fertilizaciones,
       riegoSelection,
       laborSelections
@@ -1026,132 +898,17 @@ export function VisitaRecetaScreen() {
       return;
     }
 
-    const advertencias = collectNomenclaturaPorMezcla(
-      fitosanidadApps,
-      mezclas,
-      coadyuvantes
-    ).flatMap(({ numero, nombres }) =>
-      validarMezcla(nombres).map((advertencia) => ({
-        ...advertencia,
-        mezclaNumero: numero
-      }))
-    );
-
-    if (advertencias.length > 0) {
-      compatibilityAlertOpenRef.current = true;
-      Alert.alert(
-        "Revisar compatibilidad de la mezcla",
-        construirMensajeAdvertencia(advertencias),
-        [
-          {
-            text: "Volver a editar",
-            style: "cancel",
-            onPress: () => {
-              compatibilityAlertOpenRef.current = false;
-            }
-          },
-          {
-            text: "Continuar de todos modos",
-            onPress: () => {
-              compatibilityAlertOpenRef.current = false;
-              void persistReceta(visitaId, normalizedEndVisitTime);
-            }
-          }
-        ],
-        {
-          cancelable: true,
-          onDismiss: () => {
-            compatibilityAlertOpenRef.current = false;
-          }
-        }
-      );
-      return;
+    flushDraft();
+    if (draftIdentity) {
+      writeVisitFormDraft(draftIdentity, draftValue);
     }
-
-    void persistReceta(visitaId, normalizedEndVisitTime);
-  }
-
-  async function persistReceta(vId: string, normalizedEndVisitTime: string) {
-    setIsSaving(true);
-    setSubmitError(null);
-
-    try {
-      const data: SaveRecetaData = {
-        etapaFenologica: consolidacion?.etapaFenologica ?? null,
-        mezclas: buildMezclasForSave(fitosanidadApps, mezclas),
-        fertilizacion: buildFertilizacionesForSave(fertilizaciones),
-        riego: riegoSelection ? { tipoRecomendacion: riegoSelection } : null,
-        labores: Array.from(laborSelections)
-      };
-
-      visitaRecetasService.save(vId, data);
-      clearDraft();
-
-      const updated = visitaRecetasService.getByVisitaId(vId);
-      setRecetaData(updated);
-
-      Alert.alert("Finalizar receta", "Desea finalizar y enviar la receta?", [
-        {
-          text: "Seguir editando",
-          style: "cancel"
-        },
-        {
-          text: "Enviar",
-          onPress: () => {
-            void finalizeVisitAndSend(vId, normalizedEndVisitTime);
-          }
-        }
-      ]);
-    } catch (err) {
-      setSubmitError(toApiError(err).message || "No se pudo guardar la receta.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function finalizeVisitAndSend(vId: string, normalizedEndVisitTime: string) {
-    setIsSaving(true);
-    setSubmitError(null);
-    try {
-      await visitasCampoService.update(vId, {
-        endVisitTime: normalizedEndVisitTime
-      });
-      void scheduleSync({ immediate: true });
-      router.replace("/visitas-campo/historial");
-    } catch (reason) {
-      setSubmitError(
-        toApiError(reason).message || "No se pudo guardar la hora de fin."
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  function handleEndVisitTimeChange(value: string) {
-    const nextValue = formatEditable12HourInput(endVisitTimeInput, value);
-    setEndVisitTimeInput(nextValue);
-    setEndVisitTimeError(null);
-    setSubmitError(null);
-  }
-
-  function handleEndVisitTimeEndEditing() {
-    const normalizedValue = normalizeTyped12HourInput(endVisitTimeInput);
-    const apiValue = normalize12HourTimeForApi(
-      normalizedValue,
-      endVisitTimePeriod
-    );
-    setEndVisitTimeInput(normalizedValue);
-    setEndVisitTimeError(validateVisitEndTime(startVisitTime, apiValue));
-  }
-
-  function handleEndVisitTimePeriodChange(period: TimePeriod) {
-    setEndVisitTimePeriod(period);
-    const apiValue = normalize12HourTimeForApi(endVisitTimeInput, period);
-    setEndVisitTimeError(validateVisitEndTime(startVisitTime, apiValue));
+    router.push({
+      pathname: "/visitas-campo/[id]/mezclas",
+      params: { id: visitaId }
+    });
   }
 
   function goBackToSteps() {
-    resetOrdenExchangeState();
     if (!visitaId) {
       router.back();
       return;
@@ -1163,7 +920,6 @@ export function VisitaRecetaScreen() {
   }
 
   function toggleDropdown(key: string) {
-    resetOrdenExchangeState();
     setOpenDropdown((prev) => (prev === key ? null : key));
   }
 
@@ -1173,33 +929,26 @@ export function VisitaRecetaScreen() {
 
   function openRecipeCard(key: RecipeCardKey) {
     closeDropdown();
-    resetOrdenExchangeState();
     setActiveRecipeCardKey(key);
   }
 
   function toggleRecipeCard(key: RecipeCardKey) {
     closeDropdown();
-    resetOrdenExchangeState();
     setActiveRecipeCardKey((current) => toggleActiveRecipeCard(current, key));
   }
 
   function reconcileActiveRecipeCard(
     applications: AppFitosanidad[],
-    currentMezclas: AppMezcla[],
     currentFertilizaciones: AppFertilizacion[]
   ) {
     const cards = buildRecipeAccordionCards(
       applications,
-      currentMezclas,
+      [],
       currentFertilizaciones
     );
     setActiveRecipeCardKey((current) =>
       resolveRecipeCardAfterRemoval(current, cards)
     );
-  }
-
-  function resetOrdenExchangeState() {
-    setOrdenExchangeResetToken((value) => value + 1);
   }
 
   if (isLoading) {
@@ -1289,7 +1038,6 @@ export function VisitaRecetaScreen() {
                 }
                 key={app.localId}
                 marcasProducto={marcasProducto}
-                mezclas={mezclas}
                 modosAccion={modosAccion}
                 onAddIngrediente={() => addIngrediente(index)}
                 onChange={(patch) => updateFitosanidadApp(index, patch)}
@@ -1378,39 +1126,6 @@ export function VisitaRecetaScreen() {
               onPress={addPreventiveFitosanidad}
             />
           </AppCard>
-
-          {fitosanidadApps.length > 0 ? (
-            <>
-              <SectionHeader
-                icon="beaker"
-                label="Mezclas"
-                subtitle={`${mezclas.length} tanque(s) de preparación`}
-              />
-              <LabeledNumericInput
-                label="¿Cuántas mezclas va a preparar?"
-                value={String(mezclas.length)}
-                onChangeText={updateMezclaCount}
-              />
-              {mezclas.map((mezcla, index) => (
-                <MezclaCard
-                  coadyuvantes={coadyuvantes}
-                  fitosanidadApps={fitosanidadApps}
-                  isComplete={isMezclaCardComplete(mezcla, fitosanidadApps)}
-                  isExpanded={
-                    activeRecipeCardKey === getMezclaCardKey(mezcla.localId)
-                  }
-                  key={mezcla.localId}
-                  onChange={(patch) => updateMezcla(index, patch)}
-                  onAsignarProducto={asignarProductoMezcla}
-                  onToggle={() =>
-                    toggleRecipeCard(getMezclaCardKey(mezcla.localId))
-                  }
-                  resetToken={ordenExchangeResetToken}
-                  value={mezcla}
-                />
-              ))}
-            </>
-          ) : null}
 
           <SectionHeader
             icon="nutrition"
@@ -1540,15 +1255,7 @@ export function VisitaRecetaScreen() {
             />
           </View>
 
-          <SectionHeader icon="water" label="Riego" subtitle="Recomendacion de riego" />
-
           <RiegoSection onSelect={setRiegoSelection} selected={riegoSelection} />
-
-          <SectionHeader
-            icon="construct"
-            label="Labores"
-            subtitle="Recomendacion de labores culturales"
-          />
 
           <LaboresSection
             onToggle={(labor) => {
@@ -1564,26 +1271,6 @@ export function VisitaRecetaScreen() {
             }}
             selected={laborSelections}
           />
-
-          <SectionHeader
-            icon="time"
-            label="Cierre de visita"
-            subtitle="Confirma la hora real en que termino la atencion"
-          />
-          <AppCard style={styles.endVisitTimeCard}>
-            <Time12HourInput
-              error={endVisitTimeError}
-              label="Hora de fin"
-              onChangeText={handleEndVisitTimeChange}
-              onEndEditing={handleEndVisitTimeEndEditing}
-              onPeriodChange={handleEndVisitTimePeriodChange}
-              period={endVisitTimePeriod}
-              value={endVisitTimeInput}
-            />
-            <AppText style={styles.endVisitTimeHint} variant="caption">
-              Se guardara al confirmar Enviar y puede corregirse antes de finalizar.
-            </AppText>
-          </AppCard>
 
           {submitError ? (
             <View style={styles.errorBanner}>
@@ -1603,10 +1290,8 @@ export function VisitaRecetaScreen() {
 
           <View style={styles.actions}>
             <Pressable
-              accessibilityLabel="Finalizar receta"
+              accessibilityLabel="Continuar a mezclas"
               accessibilityRole="button"
-              accessibilityState={{ disabled: isSaving }}
-              disabled={isSaving}
               onPress={handleSave}
               style={({ pressed }) => [
                 styles.continueButton,
@@ -1614,9 +1299,9 @@ export function VisitaRecetaScreen() {
               ]}
             >
               <AppText style={styles.continueButtonText} variant="heading">
-                {isSaving ? "Guardando..." : "Finalizar receta"}
+                Continuar a mezclas
               </AppText>
-              <Ionicons color="#ffffff" name="checkmark-circle" size={22} />
+              <Ionicons color="#ffffff" name="arrow-forward" size={22} />
             </Pressable>
           </View>
         </View>
@@ -1650,12 +1335,27 @@ function SectionHeader({
 }
 
 function ConsolidacionPanel({ data }: { data: ConsolidacionHallazgo }) {
-  return (
-    <View style={styles.consolidacionCard}>
-      <AppText style={styles.consolidacionTitle} variant="heading">
-        Hallazgos consolidados
-      </AppText>
+  const [isExpanded, setIsExpanded] = useState(false);
 
+  return (
+    <View
+      style={[
+        styles.consolidacionCard,
+        isExpanded && styles.collapsibleSectionCardExpanded
+      ]}
+    >
+      <AppCollapsibleHeader
+        closeLabel="Ocultar detalles"
+        icon="clipboard-outline"
+        isExpanded={isExpanded}
+        onToggle={() => setIsExpanded((current) => !current)}
+        openLabel="Ver detalles"
+        subtitle={buildConsolidacionSummary(data)}
+        title="Hallazgos consolidados"
+      />
+
+      {isExpanded ? (
+        <View style={styles.collapsibleSectionContent}>
       {data.etapaFenologica ? (
         <AppText variant="muted" style={styles.consolidacionLine}>
           Etapa fenologica: {data.etapaFenologica}
@@ -1717,6 +1417,8 @@ function ConsolidacionPanel({ data }: { data: ConsolidacionHallazgo }) {
           ))}
         </View>
       ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1739,54 +1441,16 @@ function RecipeAccordionHeader({
   title: string;
 }) {
   return (
-    <View style={styles.recipeAccordionHeader}>
-      <Pressable
-        accessibilityLabel={`${isExpanded ? "Contraer" : "Expandir"} ${title}`}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isExpanded }}
-        onPress={onToggle}
-        style={({ pressed }) => [
-          styles.recipeAccordionButton,
-          pressed && styles.recipeAccordionButtonPressed
-        ]}
-      >
-        <View style={styles.recipeAccordionBadge}>
-          <AppText style={styles.recipeAccordionBadgeText} variant="eyebrow">
-            {badge}
-          </AppText>
-        </View>
-        <View style={styles.recipeAccordionCopy}>
-          <AppText variant="heading">{title}</AppText>
-          <AppText variant="caption">{subtitle}</AppText>
-          <View
-            style={[
-              styles.recipeAccordionStatus,
-              isComplete
-                ? styles.recipeAccordionStatusComplete
-                : styles.recipeAccordionStatusPending
-            ]}
-          >
-            <AppText
-              style={[
-                styles.recipeAccordionStatusText,
-                isComplete
-                  ? styles.recipeAccordionStatusTextComplete
-                  : styles.recipeAccordionStatusTextPending
-              ]}
-              variant="caption"
-            >
-              {isComplete ? "Completo" : "Pendiente"}
-            </AppText>
-          </View>
-        </View>
-        <Ionicons
-          color={theme.colors.primary}
-          name={isExpanded ? "chevron-up" : "chevron-down"}
-          size={22}
-        />
-      </Pressable>
-      {action ? <View style={styles.recipeAccordionAction}>{action}</View> : null}
-    </View>
+    <AppCollapsibleHeader
+      action={action}
+      badge={badge}
+      isExpanded={isExpanded}
+      onToggle={onToggle}
+      statusLabel={isComplete ? "Completo" : "Incompleto"}
+      statusTone={isComplete ? "success" : "warning"}
+      subtitle={subtitle}
+      title={title}
+    />
   );
 }
 
@@ -1800,7 +1464,6 @@ function FitosanidadCard({
   tiposControl,
   tiposProducto,
   modosAccion,
-  mezclas,
   openDropdown,
   onAddIngrediente,
   onChange,
@@ -1821,7 +1484,6 @@ function FitosanidadCard({
   tiposControl: TipoControlCatalogItem[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
-  mezclas: AppMezcla[];
   openDropdown: string | null;
   onAddIngrediente: () => void;
   onChange: (patch: Partial<AppFitosanidad>) => void;
@@ -1879,7 +1541,6 @@ function FitosanidadCard({
                 ingredientesActivos={ingredientesActivos}
                 key={ingredient.localId}
                 marcasProducto={marcasProducto}
-                mezclas={mezclas}
                 modosAccion={modosAccion}
                 onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
                 onCloseDropdown={onCloseDropdown}
@@ -1915,7 +1576,6 @@ function IngredienteCard({
   ingredientesActivos,
   marcasProducto,
   modosAccion,
-  mezclas,
   tiposProducto,
   openDropdown,
   onChange,
@@ -1932,7 +1592,6 @@ function IngredienteCard({
   ingredientesActivos: IngredienteActivoCatalogItem[];
   marcasProducto: MarcaProductoCatalogItem[];
   modosAccion: ModoAccionCatalogItem[];
-  mezclas: AppMezcla[];
   tiposProducto: TipoProductoFitosanitarioCatalogItem[];
   openDropdown: string | null;
   onChange: (patch: Partial<AppIngrediente>) => void;
@@ -1980,25 +1639,6 @@ function IngredienteCard({
           />
         ) : null}
       </View>
-
-      <AppSelectField
-        icon="beaker"
-        label="Mezcla"
-        options={[
-          { value: "0", label: "Sin asignar" },
-          ...mezclas.map((m) => ({ value: String(m.numero), label: `Mezcla ${m.numero}` }))
-        ]}
-        placeholder="Asignar a una mezcla"
-        selectedLabel={
-          value.mezclaNumero === 0
-            ? "Sin asignar"
-            : `Mezcla ${value.mezclaNumero}`
-        }
-        isOpen={openDropdown === `${prefix}_mezcla`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_mezcla`)}
-        onSelect={(v) => onChange({ mezclaNumero: Number(v) })}
-      />
 
       <AppSelectField
         icon="flask"
@@ -2136,395 +1776,36 @@ function IngredienteCard({
   );
 }
 
-function renderProductosMezcla(
-  mezcla: AppMezcla,
-  applications: AppFitosanidad[],
-  onAsignarProducto: (ingredientLocalId: string, mezclaNumero: number) => void
-) {
-  const todos = applications.flatMap((application) =>
-    application.ingredientes
-      .filter((ingredient) => ingredient.ingredienteActivoNombre || ingredient.marcaProductoNombre)
-      .map((ingredient) => ({
-        localId: ingredient.localId,
-        nombre: ingredient.marcaProductoNombre || ingredient.ingredienteActivoNombre || "Sin nombre",
-        objetivo: application.objetivoNombre || application.objetivo,
-        asignado: ingredient.mezclaNumero === mezcla.numero,
-        sinAsignar: ingredient.mezclaNumero === 0
-      }))
-  );
-
-  if (todos.length === 0) return null;
-
-  const asignados = todos.filter((p) => p.asignado);
-  const sinAsignar = todos.filter((p) => p.sinAsignar);
-
-  return (
-    <View style={styles.totalRow}>
-      <AppText variant="label">Productos en esta mezcla</AppText>
-      {todos.map((producto) => (
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: producto.asignado }}
-          key={producto.localId}
-          onPress={() => onAsignarProducto(producto.localId, mezcla.numero)}
-          style={[
-            styles.productoCheckRow,
-            producto.asignado && styles.productoCheckRowSelected,
-            producto.sinAsignar && styles.productoCheckRowUnassigned
-          ]}
-        >
-          <Ionicons
-            color={producto.asignado ? theme.colors.primary : producto.sinAsignar ? theme.colors.warning : theme.colors.textMuted}
-            name={producto.asignado ? "checkbox" : "square-outline"}
-            size={20}
-          />
-          <View style={{ flex: 1 }}>
-            <AppText
-              style={producto.asignado ? { color: theme.colors.primary } : producto.sinAsignar ? { color: theme.colors.warning } : undefined}
-              variant="caption"
-            >
-              {producto.nombre}
-            </AppText>
-            <AppText variant="muted" style={{ fontSize: 11 }}>
-              {producto.objetivo}
-              {producto.sinAsignar ? " — Sin mezcla asignada" : ""}
-            </AppText>
-          </View>
-        </Pressable>
-      ))}
-      {asignados.length > 0 ? (
-        <View style={{ marginTop: 8 }}>
-          <AppText variant="caption" style={{ color: theme.colors.textMuted }}>
-            {asignados.length} producto(s) asignado(s)
-          </AppText>
-        </View>
-      ) : null}
-      {sinAsignar.length > 0 ? (
-        <View style={{ marginTop: 4 }}>
-          <AppText variant="caption" style={{ color: theme.colors.warning }}>
-            {sinAsignar.length} producto(s) sin asignar
-          </AppText>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function MezclaCard({
-  value,
-  coadyuvantes,
-  resetToken,
-  fitosanidadApps,
-  isComplete,
-  isExpanded,
-  onChange,
-  onAsignarProducto,
-  onToggle
-}: {
-  value: AppMezcla;
-  coadyuvantes: CoadyuvanteCatalogItem[];
-  resetToken: number;
-  fitosanidadApps: AppFitosanidad[];
-  isComplete: boolean;
-  isExpanded: boolean;
-  onChange: (patch: Partial<AppMezcla>) => void;
-  onAsignarProducto: (ingredientLocalId: string, mezclaNumero: number) => void;
-  onToggle: () => void;
-}) {
-  const [isExchangeMode, setIsExchangeMode] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-
-  useEffect(() => {
-    setIsExchangeMode(false);
-    setSelectedIndex(null);
-  }, [resetToken, value.coadyuvantesIds]);
-
-  const movableCount = value.ordenMezcla.filter(
-    (item) => !isOrdenMezclaFixedItem(item)
-  ).length;
-  const assignedProductCount = fitosanidadApps.reduce(
-    (total, application) =>
-      total +
-      application.ingredientes.filter(
-        (ingredient) => ingredient.mezclaNumero === value.numero
-      ).length,
-    0
-  );
-
-  function exchange(index: number) {
-    if (!isExchangeMode || isOrdenMezclaFixedItem(value.ordenMezcla[index] ?? "")) {
-      return;
-    }
-    if (selectedIndex === null) {
-      setSelectedIndex(index);
-      return;
-    }
-    onChange({
-      ordenMezcla: swapOrdenMezclaItems(value.ordenMezcla, selectedIndex, index)
-    });
-    setSelectedIndex(null);
-  }
-
-  return (
-    <View style={styles.fitosanidadCard}>
-      <RecipeAccordionHeader
-        badge={String(value.numero)}
-        isComplete={isComplete}
-        isExpanded={isExpanded}
-        onToggle={onToggle}
-        subtitle={`${assignedProductCount} producto(s) · ${
-          value.volumenAplicacion
-            ? `${value.volumenAplicacion} cilindro(s)/ha`
-            : "Volumen pendiente"
-        }`}
-        title={`Mezcla ${value.numero}`}
-      />
-
-      {isExpanded ? (
-        <>
-      <LabeledNumericInput
-        label="Volumen de aplicación (cilindros/ha)"
-        value={value.volumenAplicacion}
-        onChangeText={(volumenAplicacion) => onChange({ volumenAplicacion })}
-      />
-      <LabeledNumericInput
-        editable={value.factorEditable}
-        label="Factor de incidencia"
-        value={value.factor}
-        onChangeText={(factor) => onChange({ factor })}
-      />
-      <AppText variant="caption">
-        {value.factorEditable
-          ? "Incidencia grado 3: puede ajustar el factor."
-          : "Factor calculado automáticamente según la mayor incidencia de la mezcla."}
-      </AppText>
-
-      {renderProductosMezcla(value, fitosanidadApps, onAsignarProducto)}
-
-      <AppText variant="label" style={styles.fieldLabel}>
-        Coadyuvantes
-      </AppText>
-      <View style={styles.chipContainer}>
-        {coadyuvantes.map((coadyuvante) => {
-          const selected = value.coadyuvantesIds.includes(coadyuvante.id);
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              key={coadyuvante.id}
-              onPress={() =>
-                onChange({
-                  coadyuvantesIds: selected
-                    ? value.coadyuvantesIds.filter((id) => id !== coadyuvante.id)
-                    : [...value.coadyuvantesIds, coadyuvante.id]
-                })
-              }
-              style={[styles.chip, selected && styles.chipSelected]}
-            >
-              <AppText
-                style={[styles.chipText, selected && styles.chipTextSelected]}
-                variant="caption"
-              >
-                {selected ? "✓ " : ""}
-                {coadyuvante.name}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {value.ordenMezcla.length > 0 ? (
-        <View style={styles.ordenContainer}>
-          <View style={styles.ordenHeader}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Ionicons color={theme.colors.warning} name="swap-vertical-outline" size={18} />
-              <AppText variant="label">Orden de mezcla</AppText>
-            </View>
-            {movableCount >= 2 ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setIsExchangeMode((current) => !current);
-                  setSelectedIndex(null);
-                }}
-                style={[
-                  styles.ordenExchangeButton,
-                  isExchangeMode && styles.ordenExchangeButtonActive
-                ]}
-              >
-                <Ionicons
-                  color={isExchangeMode ? theme.colors.textInverse : theme.colors.primary}
-                  name="swap-horizontal"
-                  size={16}
-                />
-                <AppText
-                  style={
-                    isExchangeMode
-                      ? styles.ordenExchangeButtonTextActive
-                      : styles.ordenExchangeButtonText
-                  }
-                  variant="caption"
-                >
-                  {isExchangeMode ? "Listo" : "Reordenar"}
-                </AppText>
-              </Pressable>
-            ) : null}
-          </View>
-          {movableCount >= 2 && !isExchangeMode ? (
-            <AppText variant="muted" style={{ fontSize: 12, marginTop: -4 }}>
-              Toca "Reordenar" para intercambiar posiciones
-            </AppText>
-          ) : null}
-          {isExchangeMode && selectedIndex !== null ? (
-            <AppText variant="caption" style={{ color: theme.colors.primary, fontStyle: "italic" }}>
-              Ahora toca el item con el que quieres intercambiar
-            </AppText>
-          ) : null}
-          {value.ordenMezcla.map((item, index) => {
-            const isFixed = isOrdenMezclaFixedItem(item);
-            return (
-              <Pressable
-                accessibilityRole="button"
-                disabled={!isExchangeMode || isFixed}
-                key={`${item}_${index}`}
-                onPress={() => exchange(index)}
-                style={[
-                  styles.ordenItem,
-                  isExchangeMode && !isFixed && styles.ordenItemSelectable,
-                  selectedIndex === index && styles.ordenItemSelected,
-                  isFixed && styles.ordenItemFixed
-                ]}
-              >
-                <View style={styles.ordenItemNumberBadge}>
-                  <AppText
-                    style={[
-                      { color: isFixed ? theme.colors.textMuted : theme.colors.primary, fontSize: 12, fontWeight: "700" },
-                      selectedIndex === index && { color: theme.colors.primaryDark }
-                    ]}
-                  >
-                    {index + 1}°
-                  </AppText>
-                </View>
-                <AppText
-                  style={[
-                    styles.ordenItemText,
-                    isFixed && { color: theme.colors.textMuted },
-                    !isFixed && { fontWeight: "500" },
-                    selectedIndex === index && styles.ordenItemTextSelected
-                  ]}
-                  variant="muted"
-                >
-                  {item}
-                </AppText>
-                {isFixed ? (
-                  <Ionicons color={theme.colors.textMuted} name="lock-closed-outline" size={14} />
-                ) : isExchangeMode ? (
-                  <View style={styles.ordenSwapIndicator}>
-                    <Ionicons
-                      color={selectedIndex === index ? theme.colors.primary : theme.colors.textMuted}
-                      name="swap-horizontal"
-                      size={18}
-                    />
-                  </View>
-                ) : (
-                  <Ionicons
-                    color={theme.colors.borderLight}
-                    name="reorder-three-outline"
-                    size={16}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
-        </>
-      ) : null}
-    </View>
-  );
-}
-
-function validateRequiredRecipe(
+function validateRecipeRecommendations(
   fitosanidadApps: AppFitosanidad[],
-  mezclas: AppMezcla[],
   fertilizaciones: AppFertilizacion[],
   riegoSelection: string | null,
   laborSelections: Set<string>
 ) {
-  const hasFitosanidad = hasFitosanidadData(fitosanidadApps);
-  const hasFertilizacion = hasFertilizacionData(fertilizaciones);
-  const hasRiego = Boolean(riegoSelection);
-  const hasLabores = laborSelections.size > 0;
-
-  if (!hasFitosanidad && !hasFertilizacion && !hasRiego && !hasLabores) {
-    return "La receta es obligatoria. Registra al menos una recomendacion tecnica antes de finalizar.";
+  if (
+    !hasFitosanidadData(fitosanidadApps) &&
+    !hasFertilizacionData(fertilizaciones) &&
+    !riegoSelection &&
+    laborSelections.size === 0
+  ) {
+    return "La receta es obligatoria. Registra al menos una recomendacion tecnica antes de continuar.";
   }
 
-  if (hasFitosanidad) {
-    const invalidPreventive = fitosanidadApps.find(
-      (application) =>
-        application.enfoque === "preventivo" &&
-        (!application.objetivoId ||
-          application.incidenceGrade !== 0 ||
-          application.severityGrade !== 0)
-    );
-    if (invalidPreventive) {
-      return "La recomendacion preventiva debe conservar incidencia y severidad grado 0.";
-    }
+  const incompleteFito = fitosanidadApps.some((application) =>
+    application.ingredientes.some(
+      (ingredient) =>
+        Boolean(ingredient.dosisProducto.trim()) && !getDosisUnit(ingredient.unidadDosis)
+    )
+  );
+  if (incompleteFito) return "Selecciona la unidad de cada dosis fitosanitaria.";
 
-    const hasUnassigned = fitosanidadApps.some((application) =>
-      application.ingredientes.some(
-        (ingredient) =>
-          (ingredient.ingredienteActivoNombre || ingredient.marcaProductoNombre) &&
-          ingredient.mezclaNumero === 0
-      )
-    );
-    if (hasUnassigned) return "Asigna todos los productos con nombre a una mezcla.";
-
-    const assigned = new Set(
-      fitosanidadApps.flatMap((application) =>
-        application.ingredientes.map((ingredient) => ingredient.mezclaNumero)
-      )
-    );
-    const empty = mezclas.find((mezcla) => !assigned.has(mezcla.numero));
-    if (empty) return `Asigna al menos un producto a la mezcla ${empty.numero}.`;
-    const missingVolume = mezclas.find(
-      (mezcla) => !parsePositiveDecimal(mezcla.volumenAplicacion)
-    );
-    if (missingVolume) {
-      return `Ingresa el volumen de aplicación de la mezcla ${missingVolume.numero}.`;
-    }
-
-    const missingUnit = fitosanidadApps
-      .flatMap((application) => application.ingredientes)
-      .find(
-        (ingredient) =>
-          Boolean(parsePositiveDecimal(ingredient.dosisProducto)) &&
-          !getDosisUnit(ingredient.unidadDosis)
-      );
-    if (missingUnit) return "Selecciona la unidad de cada dosis fitosanitaria.";
+  const incompleteFertilizer = fertilizaciones.some(
+    (item) =>
+      Boolean(item.dosis.trim()) && !isValidFertilizacionUnidadDosis(item)
+  );
+  if (incompleteFertilizer) {
+    return "Selecciona una unidad valida para cada dosis de fertilizacion.";
   }
-
-  if (hasFertilizacion) {
-    const invalidPreventive = fertilizaciones.find(
-      (fertilizacion) =>
-        fertilizacion.enfoque === "preventivo" &&
-        parsePositiveDecimal(fertilizacion.factor) !== 1
-    );
-    if (invalidPreventive) {
-      return "La fertilizacion preventiva debe usar factor 1.";
-    }
-
-    const missingUnit = fertilizaciones.find(
-      (fertilizacion) =>
-        Boolean(parsePositiveDecimal(fertilizacion.dosis)) &&
-        !isValidFertilizacionUnidadDosis(fertilizacion)
-    );
-    if (missingUnit) {
-      return "Selecciona una unidad valida para cada dosis de fertilizacion.";
-    }
-  }
-
   return null;
 }
 
@@ -2775,6 +2056,7 @@ function RiegoSection({
   selected: string | null;
   onSelect: (value: string) => void;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const options: Array<{
     key: string;
     label: string;
@@ -2802,34 +2084,56 @@ function RiegoSection({
       icon: "pause-circle-outline"
     }
   ];
+  const selectedLabel = options.find((option) => option.key === selected)?.label ?? null;
+  const status = buildOptionalRecipeSectionStatus(Boolean(selected));
 
   return (
-    <View style={styles.riegoCard}>
-      {options.map((opt) => {
-        const isSel = selected === opt.key;
-        return (
-          <Pressable
-            key={opt.key}
-            onPress={() => onSelect(opt.key)}
-            style={[styles.riegoOption, isSel && styles.riegoOptionSelected]}
-          >
-            <Ionicons
-              color={isSel ? theme.colors.primary : theme.colors.textMuted}
-              name={opt.icon}
-              size={28}
-            />
-            <View style={styles.riegoOptionText}>
-              <AppText variant="label" style={isSel && { color: theme.colors.primary }}>
-                {opt.label}
-              </AppText>
-              <AppText variant="muted">{opt.description}</AppText>
-            </View>
-            {isSel ? (
-              <Ionicons color={theme.colors.primary} name="checkmark-circle" size={24} />
-            ) : null}
-          </Pressable>
-        );
-      })}
+    <View
+      style={[
+        styles.collapsibleSectionCard,
+        isExpanded && styles.collapsibleSectionCardExpanded
+      ]}
+    >
+      <AppCollapsibleHeader
+        icon="water-outline"
+        isExpanded={isExpanded}
+        onToggle={() => setIsExpanded((current) => !current)}
+        statusLabel={status.label}
+        statusTone={status.tone}
+        subtitle={buildRiegoSummary(selectedLabel)}
+        title="Riego"
+      />
+      {isExpanded ? (
+        <View style={styles.collapsibleSectionContent}>
+          {options.map((opt) => {
+            const isSel = selected === opt.key;
+            return (
+              <Pressable
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isSel }}
+                key={opt.key}
+                onPress={() => onSelect(opt.key)}
+                style={[styles.riegoOption, isSel && styles.riegoOptionSelected]}
+              >
+                <Ionicons
+                  color={isSel ? theme.colors.primary : theme.colors.textMuted}
+                  name={opt.icon}
+                  size={28}
+                />
+                <View style={styles.riegoOptionText}>
+                  <AppText variant="label" style={isSel && { color: theme.colors.primary }}>
+                    {opt.label}
+                  </AppText>
+                  <AppText variant="muted">{opt.description}</AppText>
+                </View>
+                {isSel ? (
+                  <Ionicons color={theme.colors.primary} name="checkmark-circle" size={24} />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -2841,6 +2145,7 @@ function LaboresSection({
   selected: Set<string>;
   onToggle: (labor: string) => void;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const options: Array<{
     key: string;
     label: string;
@@ -2886,36 +2191,57 @@ function LaboresSection({
       icon: "bug-outline"
     }
   ];
+  const status = buildOptionalRecipeSectionStatus(selected.size > 0);
 
   return (
-    <View style={styles.laboresCard}>
-      {options.map((opt) => {
-        const isSel = selected.has(opt.key);
-        return (
-          <Pressable
-            key={opt.key}
-            onPress={() => onToggle(opt.key)}
-            style={[styles.laborOption, isSel && styles.laborOptionSelected]}
-          >
-            <Ionicons
-              color={isSel ? theme.colors.primary : theme.colors.textMuted}
-              name={opt.icon}
-              size={26}
-            />
-            <View style={styles.laborOptionText}>
-              <AppText variant="label" style={isSel && { color: theme.colors.primary }}>
-                {opt.label}
-              </AppText>
-              <AppText variant="muted">{opt.description}</AppText>
-            </View>
-            <Ionicons
-              color={isSel ? theme.colors.primary : theme.colors.border}
-              name={isSel ? "checkbox" : "square-outline"}
-              size={24}
-            />
-          </Pressable>
-        );
-      })}
+    <View
+      style={[
+        styles.collapsibleSectionCard,
+        isExpanded && styles.collapsibleSectionCardExpanded
+      ]}
+    >
+      <AppCollapsibleHeader
+        icon="construct-outline"
+        isExpanded={isExpanded}
+        onToggle={() => setIsExpanded((current) => !current)}
+        statusLabel={status.label}
+        statusTone={status.tone}
+        subtitle={buildLaboresSummary(selected.size)}
+        title="Labores culturales"
+      />
+      {isExpanded ? (
+        <View style={styles.collapsibleSectionContent}>
+          {options.map((opt) => {
+            const isSel = selected.has(opt.key);
+            return (
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSel }}
+                key={opt.key}
+                onPress={() => onToggle(opt.key)}
+                style={[styles.laborOption, isSel && styles.laborOptionSelected]}
+              >
+                <Ionicons
+                  color={isSel ? theme.colors.primary : theme.colors.textMuted}
+                  name={opt.icon}
+                  size={26}
+                />
+                <View style={styles.laborOptionText}>
+                  <AppText variant="label" style={isSel && { color: theme.colors.primary }}>
+                    {opt.label}
+                  </AppText>
+                  <AppText variant="muted">{opt.description}</AppText>
+                </View>
+                <Ionicons
+                  color={isSel ? theme.colors.primary : theme.colors.border}
+                  name={isSel ? "checkbox" : "square-outline"}
+                  size={24}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -3073,9 +2399,24 @@ const styles = StyleSheet.create({
     padding: 16,
     ...theme.shadow.sm
   },
-  consolidacionTitle: {
-    color: theme.colors.primaryDark,
-    fontSize: 16
+  collapsibleSectionCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16,
+    ...theme.shadow.sm
+  },
+  collapsibleSectionCardExpanded: {
+    borderColor: theme.colors.primary,
+    borderWidth: 1.5
+  },
+  collapsibleSectionContent: {
+    borderTopColor: theme.colors.borderLight,
+    borderTopWidth: 1,
+    gap: 8,
+    paddingTop: 12
   },
   consolidacionLine: {
     paddingLeft: 4
@@ -3091,64 +2432,6 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 16,
     ...theme.shadow.sm
-  },
-  recipeAccordionHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 8
-  },
-  recipeAccordionButton: {
-    alignItems: "center",
-    borderRadius: theme.radius.md,
-    flex: 1,
-    flexDirection: "row",
-    gap: 12,
-    minHeight: 58,
-    paddingVertical: 4
-  },
-  recipeAccordionButtonPressed: {
-    opacity: 0.72
-  },
-  recipeAccordionBadge: {
-    alignItems: "center",
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.radius.sm,
-    justifyContent: "center",
-    minWidth: 34,
-    paddingHorizontal: 8,
-    paddingVertical: 5
-  },
-  recipeAccordionBadgeText: {
-    color: theme.colors.textInverse
-  },
-  recipeAccordionCopy: {
-    flex: 1,
-    gap: 3
-  },
-  recipeAccordionStatus: {
-    alignSelf: "flex-start",
-    borderRadius: theme.radius.full,
-    paddingHorizontal: 8,
-    paddingVertical: 2
-  },
-  recipeAccordionStatusComplete: {
-    backgroundColor: theme.colors.successMuted
-  },
-  recipeAccordionStatusPending: {
-    backgroundColor: theme.colors.warningMuted
-  },
-  recipeAccordionStatusText: {
-    fontSize: 11,
-    fontWeight: "700"
-  },
-  recipeAccordionStatusTextComplete: {
-    color: theme.colors.success
-  },
-  recipeAccordionStatusTextPending: {
-    color: theme.colors.warning
-  },
-  recipeAccordionAction: {
-    alignSelf: "flex-start"
   },
   preventiveText: {
     color: theme.colors.primaryDark,
@@ -3436,15 +2719,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textAlign: "center"
   },
-  riegoCard: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.borderLight,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    gap: 8,
-    padding: 16,
-    ...theme.shadow.sm
-  },
   riegoOption: {
     alignItems: "center",
     borderColor: theme.colors.borderLight,
@@ -3460,15 +2734,6 @@ const styles = StyleSheet.create({
   },
   riegoOptionText: {
     flex: 1
-  },
-  laboresCard: {
-    backgroundColor: theme.colors.surface,
-    borderColor: theme.colors.borderLight,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    gap: 8,
-    padding: 16,
-    ...theme.shadow.sm
   },
   laborOption: {
     alignItems: "center",

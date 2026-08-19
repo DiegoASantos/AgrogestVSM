@@ -105,6 +105,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Fertilizantes por deficiencia nutricional](specs/053-fertilizantes-por-deficiencia-nutricional.md)
 - [Ajustes de captura en evaluaciones mobile](specs/054-ajustes-captura-evaluaciones-mobile.md)
 - [Acordeones exclusivos en receta mobile](specs/055-acordeones-exclusivos-receta-mobile.md)
+- [Acordeones intuitivos en labores y receta mobile](specs/056-acordeones-intuitivos-labores-receta-mobile.md)
+- [Receta y mezclas independientes con cierre recuperable](specs/057-receta-y-mezclas-independientes.md)
 
 ## Runbooks
 

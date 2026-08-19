@@ -123,11 +123,26 @@ sincronizacion, por lo que el servidor puede clasificar curativo por la mera
 existencia de la evaluacion, incluido grado 0. Despliegue: migracion PostgreSQL
 052, API compatible y finalmente mobile/admin.
 
-Al confirmar `Enviar` al final de Receta, mobile actualiza `endVisitTime` de la
-visita con la hora propuesta por el dispositivo o corregida por el tecnico. El
-update reutiliza la operacion de `visitas_campo` y se registra antes de programar
-la sincronizacion; `Seguir editando` no cambia la visita. La receta conserva su
-propia operacion padre y ambas quedan recuperables si no hay conexion.
+Desde la spec 057, Receta y Mezclas son pasos independientes. Receta conserva
+su borrador con productos, riego y labores; Mezclas usa un segundo borrador con
+cantidad, asignaciones, dosis por uso, plantas o volumen, coadyuvantes, orden,
+mezcla activa y hora final. Ambos borradores usan el propietario de la sesion y
+la visita como alcance. Volver, cerrar la app o pasarla a segundo plano no los
+elimina; el detalle de la visita reanuda primero Mezclas cuando ese avance
+existe.
+
+Un `producto_ref` estable permite que un producto fitosanitario o fertilizante
+aparezca en varias mezclas. Cada aparicion se persiste como uso independiente,
+con su dosis y `mezcla_local_id`, mientras el editor de Receta mantiene una sola
+definicion del producto. La migracion SQLite 65 agrega estas referencias y
+habilita `mezclas` en `visit_form_drafts` sin recrear recetas ni outbox.
+
+Al finalizar Mezclas, mobile guarda el agregado de receta, actualiza
+`endVisitTime` y solo entonces elimina ambos borradores. Si cualquiera de esos
+pasos falla, el avance de Mezclas permanece recuperable. El handler de la unica
+operacion `visita_recetas` usa el endpoint de finalizacion cuando la visita ya
+tiene hora final; este endpoint vuelve a exigir la hora en API. Los clientes
+anteriores conservan el endpoint de guardado sin cierre.
 
 ## Disparadores
 
@@ -341,6 +356,16 @@ cargar, se prioriza la primera incompleta. La clave activa es estado efimero de
 presentacion y no forma parte del borrador, SQLite, payload ni outbox. El input
 de disolvente ya no se renderiza; las altas mantienen `Agua` por defecto y un
 valor historico distinto se restaura y serializa sin sobrescribirlo.
+
+Las cabeceras colapsables de mobile muestran siempre una accion textual junto
+al chevron, un resumen y un estado que no depende solo del color. En Labores
+Culturales solo una categoria permanece abierta: al cargar se prioriza la
+primera sin registros y, al completarla, se abre la siguiente. En Receta,
+Hallazgos consolidados, Riego y Labores inician comprimidos y se expanden de
+forma independiente del acordeon exclusivo de recomendaciones. Riego y Labores
+siguen siendo opcionales y distinguen `Sin registros` de `Registrado`. Todos
+los estados de expansion son efimeros: no forman parte del borrador, SQLite,
+payload ni outbox.
 
 La migracion PostgreSQL 051 agrega de forma idempotente marcas e ingredientes
 del catalogo agroquimico. No cambia SQLite ni crea operaciones de outbox: una

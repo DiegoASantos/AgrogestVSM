@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -17,6 +16,15 @@ import {
 } from "class-validator";
 
 export class FitosanidadProductoDto {
+  @ApiPropertyOptional({
+    example: "producto-fito-1",
+    description: "Referencia estable del producto dentro de la receta."
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  productoRef?: string;
+
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @IsInt()
@@ -240,7 +248,6 @@ export class MezclaDto {
     description: "Productos comerciales que comparten el tanque."
   })
   @IsArray()
-  @ArrayMinSize(1)
   @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => FitosanidadProductoDto)
@@ -248,6 +255,25 @@ export class MezclaDto {
 }
 
 export class FertilizacionDto {
+  @ApiPropertyOptional({
+    example: "producto-fert-1",
+    description: "Referencia estable del fertilizante dentro de la receta."
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  productoRef?: string;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: "Numero de mezcla donde se aplicara este uso del fertilizante."
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  mezclaNumero?: number;
+
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @IsInt()
