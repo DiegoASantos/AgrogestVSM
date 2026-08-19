@@ -11,7 +11,7 @@ export function formatRecommendationApproach(
   includePreventiveGrades = false
 ) {
   if (normalizeRecommendationApproach(approach) === "reactivo") {
-    return "Reactivo";
+    return "Curativo";
   }
   return includePreventiveGrades
     ? "Preventivo · Incidencia grado 0 · Severidad grado 0"

@@ -1003,57 +1003,57 @@ async function handleReceta(
     return { status: "skipped" };
   }
 
-  const recetaPayload =
-    {
-      etapaFenologica: receta.etapaFenologica,
-      mezclas: receta.mezclas.map((mezcla) => ({
-        numero: mezcla.numero,
-        coadyuvantesIds: mezcla.coadyuvantesIds ?? undefined,
-        ordenMezcla: mezcla.ordenMezcla ?? undefined,
-        volumenAplicacion: mezcla.volumenAplicacion ?? undefined,
-        factor: mezcla.factor,
-        factorEditable: mezcla.factorEditable,
-        cantidadTotalProducto: mezcla.cantidadTotalProducto ?? undefined,
-        productos: mezcla.productos.map((f) => ({
-          productoRef: f.productoRef,
-          objetivo: f.objetivo,
-          objetivoNombre: f.objetivoNombre,
-          enfoque: f.enfoque,
-          objetivoId: f.objetivoId ? Number(f.objetivoId) : undefined,
-          incidenciaGrado: f.incidenciaGrado ?? undefined,
-          severidadGrado: f.severidadGrado ?? undefined,
-          tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
-          tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
-          disolvente: f.disolvente,
-          modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
-          ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
-          dosisProducto: f.dosisProducto ?? undefined,
-          unidadDosis: f.unidadDosis ?? undefined,
-          marcaProductoNombre: f.marcaProductoNombre ?? undefined,
-          concentracionProducto: f.concentracionProducto ?? undefined,
-          cantidadTotalProducto: f.cantidadTotalProducto ?? undefined
-        }))
-      })),
-      fertilizacion: receta.fertilizacion.map((f) => ({
+  const recetaPayload = {
+    etapaFenologica: receta.etapaFenologica,
+    mezclas: receta.mezclas.map((mezcla) => ({
+      numero: mezcla.numero,
+      coadyuvantesIds: mezcla.coadyuvantesIds ?? undefined,
+      coadyuvantesDosis: mezcla.coadyuvantesDosis ?? undefined,
+      ordenMezcla: mezcla.ordenMezcla ?? undefined,
+      volumenAplicacion: mezcla.volumenAplicacion ?? undefined,
+      factor: mezcla.factor,
+      factorEditable: mezcla.factorEditable,
+      cantidadTotalProducto: mezcla.cantidadTotalProducto ?? undefined,
+      productos: mezcla.productos.map((f) => ({
         productoRef: f.productoRef,
-        mezclaNumero: f.mezclaNumero ?? undefined,
+        objetivo: f.objetivo,
+        objetivoNombre: f.objetivoNombre,
         enfoque: f.enfoque,
-        nutrienteId: f.nutrienteId,
-        viaAplicacion: f.viaAplicacion,
-        fertilizanteNombre: f.fertilizanteNombre ?? undefined,
-        tipoProducto: f.tipoProducto ?? undefined,
-        dosis: f.dosis ?? undefined,
+        objetivoId: f.objetivoId ? Number(f.objetivoId) : undefined,
+        incidenciaGrado: f.incidenciaGrado ?? undefined,
+        severidadGrado: f.severidadGrado ?? undefined,
+        tipoControlId: f.tipoControlId ? Number(f.tipoControlId) : undefined,
+        tipoProductoId: f.tipoProductoId ? Number(f.tipoProductoId) : undefined,
+        disolvente: f.disolvente,
+        modoAccionId: f.modoAccionId ? Number(f.modoAccionId) : undefined,
+        ingredienteActivoNombre: f.ingredienteActivoNombre ?? undefined,
+        dosisProducto: f.dosisProducto ?? undefined,
         unidadDosis: f.unidadDosis ?? undefined,
-        cantidadTotalPlantas: f.cantidadTotalPlantas ?? undefined,
-        volumenAplicacion: f.volumenAplicacion ?? undefined,
-        cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined,
-        factor: f.factor
-      })),
-      riego: receta.riego
-        ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
-        : undefined,
-      labores: receta.labores.map((l) => ({ labor: l.labor }))
-    };
+        marcaProductoNombre: f.marcaProductoNombre ?? undefined,
+        concentracionProducto: f.concentracionProducto ?? undefined,
+        cantidadTotalProducto: f.cantidadTotalProducto ?? undefined
+      }))
+    })),
+    fertilizacion: receta.fertilizacion.map((f) => ({
+      productoRef: f.productoRef,
+      mezclaNumero: f.mezclaNumero ?? undefined,
+      enfoque: f.enfoque,
+      nutrienteId: f.nutrienteId,
+      viaAplicacion: f.viaAplicacion,
+      fertilizanteNombre: f.fertilizanteNombre ?? undefined,
+      tipoProducto: f.tipoProducto ?? undefined,
+      dosis: f.dosis ?? undefined,
+      unidadDosis: f.unidadDosis ?? undefined,
+      cantidadTotalPlantas: f.cantidadTotalPlantas ?? undefined,
+      volumenAplicacion: f.volumenAplicacion ?? undefined,
+      cantidadTotalFertilizante: f.cantidadTotalFertilizante ?? undefined,
+      factor: f.factor
+    })),
+    riego: receta.riego
+      ? { tipoRecomendacion: receta.riego.tipoRecomendacion }
+      : undefined,
+    labores: receta.labores.map((l) => ({ labor: l.labor }))
+  };
 
   const response = visitaPadre.endVisitTime
     ? await visitaRecetasRemote.finalize(
@@ -1061,11 +1061,7 @@ async function handleReceta(
         { ...recetaPayload, endVisitTime: visitaPadre.endVisitTime },
         context
       )
-    : await visitaRecetasRemote.save(
-    visitaPadre.serverId,
-    recetaPayload,
-    context
-  );
+    : await visitaRecetasRemote.save(visitaPadre.serverId, recetaPayload, context);
 
   visitaRecetasRepository.markSynced(receta.id, response.id, response.mezclas ?? []);
 

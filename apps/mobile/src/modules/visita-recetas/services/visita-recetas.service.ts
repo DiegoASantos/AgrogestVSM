@@ -19,6 +19,7 @@ export type SaveRecetaData = {
   mezclas: Array<{
     numero: number;
     coadyuvantesIds: string | null;
+    coadyuvantesDosis: string | null;
     ordenMezcla: string | null;
     volumenAplicacion: number | null;
     factor: number;
@@ -114,9 +115,7 @@ export const visitaRecetasService = {
     const laboresSeleccionadas =
       laboresCulturalesVisitaRepository.getByVisitaLocalId(visitaId);
     const evaluaciones = evaluacionesRepository.getByVisitaLocalId(visitaId);
-    const nutrients = visita
-      ? nutricionService.getNutrientsByCrop(visita.cropId)
-      : [];
+    const nutrients = visita ? nutricionService.getNutrientsByCrop(visita.cropId) : [];
     const nutrientById = new Map(nutrients.map((nutrient) => [nutrient.id, nutrient]));
     const pestById = new Map(pestDiseases.map((pest) => [pest.id, pest]));
     const levelById = new Map(incidenceLevels.map((level) => [level.id, level]));
@@ -246,6 +245,7 @@ export const visitaRecetasService = {
       mezclas: data.mezclas.map((mezcla) => ({
         numero: mezcla.numero,
         coadyuvantesIds: mezcla.coadyuvantesIds ?? undefined,
+        coadyuvantesDosis: mezcla.coadyuvantesDosis ?? undefined,
         ordenMezcla: mezcla.ordenMezcla ?? undefined,
         volumenAplicacion: mezcla.volumenAplicacion ?? undefined,
         factor: mezcla.factor,

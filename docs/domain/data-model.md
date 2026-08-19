@@ -149,6 +149,14 @@ conserva la unidad seleccionada y se muestra por hectarea; se recalcula como
 `dosis_producto * volumen_aplicacion * factor`, sin usar el area ni la
 concentracion comercial y sin convertir unidades.
 
+Cada coadyuvante seleccionado puede tener una dosis tecnica propia de la
+mezcla. `coadyuvantes_dosis` serializa un mapa entre ID y texto libre, por
+ejemplo `{"4":"100 ml/cilindro"}`; cantidad y unidad son digitadas juntas y
+no se convierten ni intervienen en formulas. La columna es nullable para
+compatibilidad historica, pero una finalizacion nueva exige texto no vacio para
+cada ID presente en `coadyuvantes_ids`. Al copiar una mezcla, seleccion y dosis
+se copian como datos independientes de la mezcla de origen.
+
 Desde la spec 057, un mismo producto puede reutilizarse en varias mezclas con
 una dosis distinta en cada uso. `producto_ref` identifica la definicion estable
 del producto dentro de la receta; las filas repetidas representan sus usos y no
@@ -177,6 +185,10 @@ y la recomendacion permanecen como conceptos separados. El API rechaza una
 prevencion cuando la misma visita ya tiene incidencia positiva para el
 objetivo. Una mezcla formada solo por prevenciones usa factor 1; en una mezcla
 mixta, el factor sigue derivandose del mayor hallazgo reactivo.
+
+En las interfaces de usuario, el enfoque `reactivo` se presenta como
+`Curativo`. El nombre persistido no cambia para conservar compatibilidad entre
+clientes instalados, API y recetas historicas.
 
 En fertilizacion, cada fila de producto puede referenciar `nutriente_id` y
 conserva `nutriente_nombre` como instantanea historica. Mobile agrupa las filas

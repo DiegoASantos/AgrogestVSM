@@ -83,6 +83,7 @@ export type RecetaMezcla = {
   recetaLocalId: string;
   numero: number;
   coadyuvantesIds: string | null;
+  coadyuvantesDosis?: string | null;
   ordenMezcla: string | null;
   volumenAplicacion: number | null;
   factor: number;

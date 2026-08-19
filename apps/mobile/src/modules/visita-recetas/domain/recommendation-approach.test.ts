@@ -6,9 +6,9 @@ import {
 } from "./recommendation-approach";
 
 describe("recommendation approach", () => {
-  it("treats historical missing values as reactive", () => {
+  it("mantiene el valor historico y lo presenta como curativo", () => {
     expect(normalizeRecommendationApproach(undefined)).toBe("reactivo");
-    expect(formatRecommendationApproach(null)).toBe("Reactivo");
+    expect(formatRecommendationApproach(null)).toBe("Curativo");
   });
 
   it("identifies preventive phytosanitary recommendations with grade zero", () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   copyMixtureConfiguration,
   mixtureStatus,
+  parseMixtureCount,
   validateMixtures,
   type EditableMixture,
   type ProductOption
@@ -36,6 +37,7 @@ function mixture(numero: number): EditableMixture {
     numero,
     volumenAplicacion: "2",
     coadyuvantesIds: ["c1"],
+    coadyuvantesDosis: { c1: "100 ml/cilindro" },
     ordenMezcla: ["Agua", "Producto A"],
     factor: "1",
     factorEditable: false,
@@ -81,9 +83,11 @@ describe("formulario guiado de mezclas", () => {
     const copied = copyMixtureConfiguration(source);
     copied.assignments[0]!.dose = "5";
     copied.coadyuvantesIds.push("c2");
+    copied.coadyuvantesDosis.c1 = "200 ml/cilindro";
 
     expect(source.assignments[0]!.dose).toBe("1");
     expect(source.coadyuvantesIds).toEqual(["c1"]);
+    expect(source.coadyuvantesDosis).toEqual({ c1: "100 ml/cilindro" });
   });
 
   it("rechaza productos sin asignar y mezclas vacias", () => {
@@ -97,5 +101,17 @@ describe("formulario guiado de mezclas", () => {
         new Set(["fito-1", "fert-1"])
       )
     ).toContain("no puede quedar vacia");
+  });
+
+  it("mantiene incompleta la mezcla mientras un coadyuvante no tenga dosis", () => {
+    expect(
+      mixtureStatus({ ...mixture(1), coadyuvantesDosis: { c1: "" } }, products)
+    ).toBe("En progreso");
+  });
+
+  it("permite vaciar temporalmente la cantidad antes de confirmar otro valor", () => {
+    expect(parseMixtureCount("")).toBeNull();
+    expect(parseMixtureCount("2")).toBe(2);
+    expect(parseMixtureCount("25")).toBe(20);
   });
 });

@@ -16,6 +16,7 @@ export type SaveRecetaInput = {
   mezclas: Array<{
     numero: number;
     coadyuvantesIds?: string | null;
+    coadyuvantesDosis?: string | null;
     ordenMezcla?: string | null;
     volumenAplicacion?: number | null;
     factor: number;

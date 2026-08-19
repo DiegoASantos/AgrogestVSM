@@ -87,9 +87,7 @@ export function VisitaLaboresCulturalesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isDraftReady, setIsDraftReady] = useState(false);
-  const [expandedCategoryCode, setExpandedCategoryCode] = useState<string | null>(
-    null
-  );
+  const [expandedCategoryCode, setExpandedCategoryCode] = useState<string | null>(null);
   const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
     () =>
       session.user?.publicId && visitaId
@@ -134,10 +132,6 @@ export function VisitaLaboresCulturalesScreen() {
       ),
     [labores, selectedLaborIds]
   );
-  const completedCategoriesCount = laborGroups.filter((group) =>
-    selectedCategoryCodes.has(group.categoryCode)
-  ).length;
-
   useEffect(() => {
     if (!visitaId) {
       setIsLoading(false);
@@ -238,11 +232,6 @@ export function VisitaLaboresCulturalesScreen() {
                   </AppText>
                 </View>
               </View>
-
-              <SelectionProgressSummary
-                completedCount={completedCategoriesCount}
-                totalCount={laborGroups.length}
-              />
 
               {laborGroups.map((group) => (
                 <CategoryOptionGroup
@@ -373,12 +362,12 @@ export function VisitaLaboresCulturalesScreen() {
         : null;
       const activeIds = new Set(activeLabores.map((labor) => labor.id));
       const nextSelection = draft
-          ? new Set(
-              (draft.selectedLaborIds ?? []).filter((laborId) => activeIds.has(laborId))
-            )
-          : existingLabores.length > 0
-            ? new Set(existingLabores.map((labor) => labor.laborCulturalId))
-            : getDefaultLaborSelectionIds(activeLabores);
+        ? new Set(
+            (draft.selectedLaborIds ?? []).filter((laborId) => activeIds.has(laborId))
+          )
+        : existingLabores.length > 0
+          ? new Set(existingLabores.map((labor) => labor.laborCulturalId))
+          : getDefaultLaborSelectionIds(activeLabores);
       const nextGroups = groupLabores(activeLabores);
 
       setLabores(activeLabores);
@@ -563,36 +552,6 @@ export function VisitaLaboresCulturalesScreen() {
   }
 }
 
-function SelectionProgressSummary({
-  completedCount,
-  totalCount
-}: {
-  completedCount: number;
-  totalCount: number;
-}) {
-  const completionPercent =
-    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-  return (
-    <View style={styles.completionPanel}>
-      <View style={styles.completionHeader}>
-        <AppText style={styles.completionTitle} variant="label">
-          Avance del paso 6
-        </AppText>
-        <AppText style={styles.completionCount} variant="label">
-          {completedCount}/{totalCount}
-        </AppText>
-      </View>
-      <View style={styles.completionTrack}>
-        <View style={[styles.completionFill, { width: `${completionPercent}%` }]} />
-      </View>
-      <AppText style={styles.completionHint} variant="caption">
-        Completa todas las categorias para guardar la visita.
-      </AppText>
-    </View>
-  );
-}
-
 function CategoryOptionGroup({
   group,
   isComplete,
@@ -615,9 +574,7 @@ function CategoryOptionGroup({
   const selectedItem = group.items.find((item) => selectedLaborIds.has(item.id));
 
   return (
-    <View
-      style={[styles.categoryBlock, isExpanded && styles.categoryBlockExpanded]}
-    >
+    <View style={[styles.categoryBlock, isExpanded && styles.categoryBlockExpanded]}>
       <AppCollapsibleHeader
         icon={getLaborIcon(group.categoryName)}
         isExpanded={isExpanded}
@@ -962,42 +919,6 @@ const styles = StyleSheet.create({
   },
   clearSelectionText: {
     color: theme.colors.error
-  },
-  completionCount: {
-    color: theme.colors.primaryDark,
-    fontSize: 17
-  },
-  completionFill: {
-    backgroundColor: theme.colors.primaryDark,
-    borderRadius: theme.radius.full,
-    height: "100%"
-  },
-  completionHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between"
-  },
-  completionHint: {
-    color: theme.colors.textMuted,
-    lineHeight: 18
-  },
-  completionPanel: {
-    backgroundColor: "#f7fbf4",
-    borderColor: theme.colors.primaryLight,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    gap: 8,
-    padding: 12
-  },
-  completionTitle: {
-    color: theme.colors.primaryDark,
-    fontSize: 16
-  },
-  completionTrack: {
-    backgroundColor: theme.colors.borderLight,
-    borderRadius: theme.radius.full,
-    height: 9,
-    overflow: "hidden"
   },
   container: {
     paddingHorizontal: 0,

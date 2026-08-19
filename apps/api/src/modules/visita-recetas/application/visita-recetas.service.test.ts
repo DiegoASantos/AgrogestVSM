@@ -68,6 +68,7 @@ function makeValidDto(): CreateVisitaRecetaDto {
       {
         numero: 1,
         coadyuvantesIds: "[1, 4]",
+        coadyuvantesDosis: '{"1":"100 ml/cilindro","4":"50 ml/cilindro"}',
         ordenMezcla: '["Agua","Agrimec"]',
         volumenAplicacion: 2,
         factor: 1.2,
@@ -172,13 +173,30 @@ describe("VisitaRecetasService", () => {
       const dto = Object.assign(makeValidDto(), {
         endVisitTime: "09:00",
         mezclas: [],
-        fertilizacion: [
-          { ...makeValidDto().fertilizacion[0], mezclaNumero: undefined }
-        ]
+        fertilizacion: [{ ...makeValidDto().fertilizacion[0], mezclaNumero: undefined }]
       });
 
       await expect(service.finalize("10", dto)).rejects.toThrow(
         "Registra al menos una mezcla"
+      );
+    });
+
+    it("rechaza un coadyuvante seleccionado sin dosis libre", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      const dto = Object.assign(makeValidDto(), {
+        endVisitTime: "09:00",
+        fertilizacion: makeValidDto().fertilizacion.map((item) => ({
+          ...item,
+          mezclaNumero: 1
+        })),
+        mezclas: makeValidDto().mezclas?.map((mezcla) => ({
+          ...mezcla,
+          coadyuvantesDosis: '{"1":"100 ml/cilindro"}'
+        }))
+      });
+
+      await expect(service.finalize("10", dto)).rejects.toThrow(
+        "Completa la dosis de todos los coadyuvantes"
       );
     });
   });
@@ -254,9 +272,7 @@ describe("VisitaRecetasService", () => {
         severidadGrado: 0
       });
 
-      await expect(service.save("10", dto)).rejects.toThrow(
-        "reactivo y preventivo"
-      );
+      await expect(service.save("10", dto)).rejects.toThrow("reactivo y preventivo");
       expect(observacionSanitariaRepo.findOne).not.toHaveBeenCalled();
     });
 

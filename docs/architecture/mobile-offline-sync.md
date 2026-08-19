@@ -137,6 +137,15 @@ con su dosis y `mezcla_local_id`, mientras el editor de Receta mantiene una sola
 definicion del producto. La migracion SQLite 65 agrega estas referencias y
 habilita `mezclas` en `visit_form_drafts` sin recrear recetas ni outbox.
 
+La migracion SQLite 66 agrega `coadyuvantes_dosis` a la cabecera de cada mezcla
+sin reescribir recetas ni operaciones pendientes. Mobile conserva un mapa entre
+el ID del coadyuvante seleccionado y la dosis libre digitada, incluida su
+unidad. El mapa se guarda en el borrador, se copia junto con la mezcla y viaja
+como `mezclas[].coadyuvantesDosis` dentro de la misma operacion padre
+`visita_recetas`; no crea operaciones de outbox por coadyuvante. Las filas
+historicas sin este dato siguen siendo legibles, pero una finalizacion nueva
+exige una dosis no vacia por cada coadyuvante seleccionado.
+
 Al finalizar Mezclas, mobile guarda el agregado de receta, actualiza
 `endVisitTime` y solo entonces elimina ambos borradores. Si cualquiera de esos
 pasos falla, el avance de Mezclas permanece recuperable. El handler de la unica
@@ -366,6 +375,12 @@ forma independiente del acordeon exclusivo de recomendaciones. Riego y Labores
 siguen siendo opcionales y distinguen `Sin registros` de `Registrado`. Todos
 los estados de expansion son efimeros: no forman parte del borrador, SQLite,
 payload ni outbox.
+
+Las altas preventivas de fitosanidad y fertilizacion se presentan comprimidas
+y marcadas como opcionales. La UI denomina `Curativo` al enfoque persistido
+como `reactivo`; esta traduccion visual no modifica SQLite, payloads ni datos
+historicos. En Mezclas, el orden puede intercambiarse manualmente entre items
+movibles, mientras Agua permanece fija.
 
 La migracion PostgreSQL 051 agrega de forma idempotente marcas e ingredientes
 del catalogo agroquimico. No cambia SQLite ni crea operaciones de outbox: una

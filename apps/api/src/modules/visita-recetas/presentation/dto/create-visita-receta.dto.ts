@@ -45,8 +45,7 @@ export class FitosanidadProductoDto {
 
   @ApiPropertyOptional({
     example: "preventivo",
-    description:
-      "Enfoque de la recomendacion. Si se omite se interpreta como reactivo."
+    description: "Enfoque de la recomendacion. Si se omite se interpreta como reactivo."
   })
   @IsOptional()
   @IsIn(["reactivo", "preventivo"])
@@ -202,6 +201,16 @@ export class MezclaDto {
   @IsString()
   @MaxLength(4000)
   coadyuvantesIds?: string;
+
+  @ApiPropertyOptional({
+    example: '{"1":"100 ml/cilindro","4":"50 ml/cilindro"}',
+    description:
+      "JSON object que relaciona cada id de coadyuvante seleccionado con su dosis libre."
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  coadyuvantesDosis?: string;
 
   @ApiPropertyOptional({
     example: '["Agua","Corrector de pH","Agrimec","Adherente"]',
@@ -391,7 +400,10 @@ export class RiegoDto {
   })
   @IsIn(["riego_pesado", "riego_ligero", "inicio_agoste", "ruptura_agoste"])
   tipoRecomendacion!:
-    "riego_pesado" | "riego_ligero" | "inicio_agoste" | "ruptura_agoste";
+    | "riego_pesado"
+    | "riego_ligero"
+    | "inicio_agoste"
+    | "ruptura_agoste";
 }
 
 export class LaborDto {

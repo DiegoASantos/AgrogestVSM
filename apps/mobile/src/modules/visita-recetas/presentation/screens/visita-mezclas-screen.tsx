@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import {
@@ -36,7 +36,11 @@ import { Time12HourInput } from "../../../visitas-campo/presentation/components/
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import { visitasCampoService } from "../../../visitas-campo/services/visitas-campo.service";
 import { visitaRecetasService } from "../../services";
-import { generateOrdenMezcla } from "./visita-receta-order";
+import {
+  generateOrdenMezcla,
+  isOrdenMezclaFixedItem,
+  swapOrdenMezclaItems
+} from "./visita-receta-order";
 import {
   buildFertilizacionesForSave,
   buildMezclasForSave,
@@ -49,6 +53,7 @@ import type { RecetaFormDraft } from "./visita-receta-screen";
 import {
   copyMixtureConfiguration,
   mixtureStatus,
+  parseMixtureCount,
   requiresVolume,
   validateMixtures,
   type EditableMixture,
@@ -74,7 +79,10 @@ export function VisitaMezclasScreen() {
   const visitaId = singleParam(params.id);
   const [recipeDraft, setRecipeDraft] = useState<RecetaFormDraft | null>(null);
   const [mixtures, setMixtures] = useState<EditableMixture[]>([]);
+  const [mixtureCountInput, setMixtureCountInput] = useState("1");
   const [activeNumber, setActiveNumber] = useState(1);
+  const [isReordering, setIsReordering] = useState(false);
+  const [selectedOrderIndex, setSelectedOrderIndex] = useState<number | null>(null);
   const [startVisitTime, setStartVisitTime] = useState("");
   const [endVisitTimeInput, setEndVisitTimeInput] = useState("");
   const [endVisitTimePeriod, setEndVisitTimePeriod] = useState<TimePeriod>("AM");
@@ -82,6 +90,7 @@ export function VisitaMezclasScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const isCountConfirmationOpen = useRef(false);
 
   const recipeIdentity = useMemo<VisitFormDraftIdentity | null>(
     () =>
@@ -135,6 +144,7 @@ export function VisitaMezclasScreen() {
     if (saved) {
       const restored = sanitizeMixtures(saved.mixtures, validRefs, options);
       setMixtures(restored);
+      setMixtureCountInput(String(restored.length || 1));
       setActiveNumber(
         restored.some((item) => item.numero === saved.activeNumber)
           ? saved.activeNumber
@@ -145,6 +155,7 @@ export function VisitaMezclasScreen() {
     } else {
       const initialized = initializeMixtures(currentRecipeDraft, options);
       setMixtures(initialized);
+      setMixtureCountInput(String(initialized.length || 1));
       setActiveNumber(initialized[0]?.numero ?? 1);
       setEndVisitTimeInput(currentRecipeDraft.endVisitTimeInput || suggested.time);
       setEndVisitTimePeriod(currentRecipeDraft.endVisitTimePeriod ?? suggested.period);
@@ -153,9 +164,17 @@ export function VisitaMezclasScreen() {
   }, [mixtureIdentity, recipeIdentity, visitaId]);
 
   const activeMixture = mixtures.find((item) => item.numero === activeNumber) ?? null;
+  const movableOrderCount =
+    activeMixture?.ordenMezcla.filter((item) => !isOrdenMezclaFixedItem(item)).length ??
+    0;
   const assignedRefs = new Set(
     mixtures.flatMap((mixture) => mixture.assignments.map((item) => item.productRef))
   );
+
+  useEffect(() => {
+    setIsReordering(false);
+    setSelectedOrderIndex(null);
+  }, [activeNumber]);
 
   function updateActive(patch: Partial<EditableMixture>) {
     setMixtures((current) =>
@@ -164,20 +183,52 @@ export function VisitaMezclasScreen() {
     setError(null);
   }
 
-  function updateCount(raw: string) {
-    const parsed = Math.max(1, Math.min(20, Number(raw.replace(/\D/g, "")) || 1));
+  function updateCountInput(raw: string) {
+    setMixtureCountInput(raw.replace(/\D/g, "").slice(0, 2));
+  }
+
+  function commitCount() {
+    const parsed = parseMixtureCount(mixtureCountInput);
+    if (parsed === null) {
+      setMixtureCountInput(String(mixtures.length || 1));
+      return;
+    }
     if (parsed < mixtures.length) {
       const removedWithData = mixtures
         .slice(parsed)
         .some((item) => item.assignments.length > 0 || item.coadyuvantesIds.length > 0);
       if (removedWithData) {
+        if (isCountConfirmationOpen.current) {
+          return;
+        }
+        isCountConfirmationOpen.current = true;
         Alert.alert(
           "Reducir cantidad de mezclas",
           "Las mezclas retiradas tienen datos. Esta accion no se puede deshacer.",
           [
-            { text: "Cancelar", style: "cancel" },
-            { text: "Reducir", style: "destructive", onPress: () => applyCount(parsed) }
-          ]
+            {
+              text: "Cancelar",
+              style: "cancel",
+              onPress: () => {
+                isCountConfirmationOpen.current = false;
+                setMixtureCountInput(String(mixtures.length));
+              }
+            },
+            {
+              text: "Reducir",
+              style: "destructive",
+              onPress: () => {
+                isCountConfirmationOpen.current = false;
+                applyCount(parsed);
+              }
+            }
+          ],
+          {
+            cancelable: true,
+            onDismiss: () => {
+              isCountConfirmationOpen.current = false;
+            }
+          }
         );
         return;
       }
@@ -192,7 +243,10 @@ export function VisitaMezclasScreen() {
         return existing ?? { ...createEmptyMezcla(index + 1), assignments: [] };
       })
     );
+    setMixtureCountInput(String(count));
     setActiveNumber((current) => Math.min(current, count));
+    setIsReordering(false);
+    setSelectedOrderIndex(null);
   }
 
   function toggleProduct(option: ProductOption) {
@@ -216,6 +270,8 @@ export function VisitaMezclasScreen() {
       assignments,
       ordenMezcla: buildOrder(assignments, activeMixture.coadyuvantesIds)
     });
+    setIsReordering(false);
+    setSelectedOrderIndex(null);
   }
 
   function updateAssignment(productRef: string, patch: Partial<MixtureAssignment>) {
@@ -232,10 +288,44 @@ export function VisitaMezclasScreen() {
     const selected = activeMixture.coadyuvantesIds.includes(id)
       ? activeMixture.coadyuvantesIds.filter((item) => item !== id)
       : [...activeMixture.coadyuvantesIds, id];
+    const doses = { ...(activeMixture.coadyuvantesDosis ?? {}) };
+    if (selected.includes(id)) doses[id] ??= "";
+    else delete doses[id];
     updateActive({
       coadyuvantesIds: selected,
+      coadyuvantesDosis: doses,
       ordenMezcla: buildOrder(activeMixture.assignments, selected)
     });
+    setIsReordering(false);
+    setSelectedOrderIndex(null);
+  }
+
+  function updateCoadjuvantDose(id: string, dose: string) {
+    if (!activeMixture) return;
+    updateActive({
+      coadyuvantesDosis: {
+        ...(activeMixture.coadyuvantesDosis ?? {}),
+        [id]: dose
+      }
+    });
+  }
+
+  function exchangeOrderItem(index: number) {
+    if (!activeMixture || !isReordering) return;
+    const item = activeMixture.ordenMezcla[index] ?? "";
+    if (isOrdenMezclaFixedItem(item)) return;
+    if (selectedOrderIndex === null) {
+      setSelectedOrderIndex(index);
+      return;
+    }
+    updateActive({
+      ordenMezcla: swapOrdenMezclaItems(
+        activeMixture.ordenMezcla,
+        selectedOrderIndex,
+        index
+      )
+    });
+    setSelectedOrderIndex(null);
   }
 
   function copyFrom(source: EditableMixture) {
@@ -357,12 +447,35 @@ export function VisitaMezclasScreen() {
           </AppCard>
         ) : (
           <>
-            <AppInput
-              keyboardType="number-pad"
-              label="Cantidad de mezclas"
-              onChangeText={updateCount}
-              value={String(mixtures.length)}
-            />
+            <AppCard style={styles.countCard}>
+              <View style={styles.sectionHeading}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons
+                    color={theme.colors.primary}
+                    name="layers-outline"
+                    size={20}
+                  />
+                </View>
+                <View style={styles.flex}>
+                  <AppText variant="label">Cantidad de mezclas</AppText>
+                  <AppText variant="caption">
+                    Escribe un valor de 1 a 20 y luego aplícalo.
+                  </AppText>
+                </View>
+              </View>
+              <View style={styles.countRow}>
+                <View style={styles.flex}>
+                  <AppInput
+                    accessibilityLabel="Cantidad de mezclas"
+                    keyboardType="number-pad"
+                    onChangeText={updateCountInput}
+                    onEndEditing={commitCount}
+                    value={mixtureCountInput}
+                  />
+                </View>
+                <AppButton label="Aplicar" onPress={commitCount} size="small" />
+              </View>
+            </AppCard>
 
             <ScrollView
               horizontal
@@ -398,7 +511,7 @@ export function VisitaMezclasScreen() {
             </ScrollView>
 
             {activeMixture ? (
-              <AppCard>
+              <AppCard style={styles.mixtureCard}>
                 <View style={styles.cardTitleRow}>
                   <View>
                     <AppText variant="heading">Mezcla {activeMixture.numero}</AppText>
@@ -432,59 +545,75 @@ export function VisitaMezclasScreen() {
                   </View>
                 ) : null}
 
-                <AppText variant="label">Productos de la receta</AppText>
-                {productOptions.map((option) => {
-                  const assignment = activeMixture.assignments.find(
-                    (item) => item.productRef === option.ref
-                  );
-                  return (
-                    <View
-                      key={`${activeMixture.localId}-${option.ref}`}
-                      style={styles.productBlock}
-                    >
-                      <Pressable
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: Boolean(assignment) }}
-                        onPress={() => toggleProduct(option)}
-                        style={styles.productRow}
-                      >
-                        <Ionicons
-                          color={
-                            assignment ? theme.colors.primary : theme.colors.textMuted
-                          }
-                          name={assignment ? "checkbox" : "square-outline"}
-                          size={24}
-                        />
-                        <View style={styles.flex}>
-                          <AppText variant="label">{option.label}</AppText>
-                          <AppText variant="caption">{option.subtitle}</AppText>
-                        </View>
-                      </Pressable>
-                      {assignment ? (
-                        <View style={styles.assignmentFields}>
-                          <AppInput
-                            keyboardType="decimal-pad"
-                            label={`Dosis (${assignment.unit || "unidad definida en Receta"})`}
-                            onChangeText={(dose) =>
-                              updateAssignment(option.ref, { dose })
-                            }
-                            value={assignment.dose}
-                          />
-                          {option.viaAplicacion === "edafica" ? (
-                            <AppInput
-                              keyboardType="number-pad"
-                              label="Cantidad de plantas"
-                              onChangeText={(plants) =>
-                                updateAssignment(option.ref, { plants })
-                              }
-                              value={assignment.plants}
-                            />
-                          ) : null}
-                        </View>
-                      ) : null}
+                <View style={styles.sectionBlock}>
+                  <View style={styles.sectionHeading}>
+                    <View style={styles.sectionIcon}>
+                      <Ionicons
+                        color={theme.colors.primary}
+                        name="cube-outline"
+                        size={20}
+                      />
                     </View>
-                  );
-                })}
+                    <View style={styles.flex}>
+                      <AppText variant="label">Productos de la receta</AppText>
+                      <AppText variant="caption">
+                        Selecciona los que se usarán en esta mezcla.
+                      </AppText>
+                    </View>
+                  </View>
+                  {productOptions.map((option) => {
+                    const assignment = activeMixture.assignments.find(
+                      (item) => item.productRef === option.ref
+                    );
+                    return (
+                      <View
+                        key={`${activeMixture.localId}-${option.ref}`}
+                        style={styles.productBlock}
+                      >
+                        <Pressable
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: Boolean(assignment) }}
+                          onPress={() => toggleProduct(option)}
+                          style={styles.productRow}
+                        >
+                          <Ionicons
+                            color={
+                              assignment ? theme.colors.primary : theme.colors.textMuted
+                            }
+                            name={assignment ? "checkbox" : "square-outline"}
+                            size={24}
+                          />
+                          <View style={styles.flex}>
+                            <AppText variant="label">{option.label}</AppText>
+                            <AppText variant="caption">{option.subtitle}</AppText>
+                          </View>
+                        </Pressable>
+                        {assignment ? (
+                          <View style={styles.assignmentFields}>
+                            <AppInput
+                              keyboardType="decimal-pad"
+                              label={`Dosis (${assignment.unit || "unidad definida en Receta"})`}
+                              onChangeText={(dose) =>
+                                updateAssignment(option.ref, { dose })
+                              }
+                              value={assignment.dose}
+                            />
+                            {option.viaAplicacion === "edafica" ? (
+                              <AppInput
+                                keyboardType="number-pad"
+                                label="Cantidad de plantas"
+                                onChangeText={(plants) =>
+                                  updateAssignment(option.ref, { plants })
+                                }
+                                value={assignment.plants}
+                              />
+                            ) : null}
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </View>
 
                 {requiresVolume(activeMixture, productOptions) ? (
                   <AppInput
@@ -497,36 +626,130 @@ export function VisitaMezclasScreen() {
                   />
                 ) : null}
 
-                <AppText variant="label">Coadyuvantes de esta mezcla</AppText>
-                <View style={styles.wrapRow}>
-                  {visitaRecetasService.getCatalogos().coadyuvantes.map((item) => {
-                    const selected = activeMixture.coadyuvantesIds.includes(item.id);
-                    return (
-                      <Pressable
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: selected }}
-                        key={item.id}
-                        onPress={() => toggleCoadjuvant(item.id)}
-                        style={[styles.optionChip, selected && styles.optionChipSelected]}
-                      >
-                        <AppText
-                          style={selected ? styles.optionTextSelected : undefined}
-                          variant="label"
+                <View style={[styles.sectionBlock, styles.coadjuvantSection]}>
+                  <View style={styles.sectionHeading}>
+                    <View style={styles.sectionIcon}>
+                      <Ionicons
+                        color={theme.colors.info}
+                        name="water-outline"
+                        size={20}
+                      />
+                    </View>
+                    <View style={styles.flex}>
+                      <AppText variant="label">Coadyuvantes de esta mezcla</AppText>
+                      <AppText variant="caption">
+                        La dosis y unidad son obligatorias para cada selección.
+                      </AppText>
+                    </View>
+                  </View>
+                  <View style={styles.wrapRow}>
+                    {visitaRecetasService.getCatalogos().coadyuvantes.map((item) => {
+                      const selected = activeMixture.coadyuvantesIds.includes(item.id);
+                      return (
+                        <Pressable
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: selected }}
+                          key={item.id}
+                          onPress={() => toggleCoadjuvant(item.id)}
+                          style={[
+                            styles.optionChip,
+                            selected && styles.optionChipSelected
+                          ]}
                         >
-                          {item.name}
-                        </AppText>
-                      </Pressable>
+                          <AppText
+                            style={selected ? styles.optionTextSelected : undefined}
+                            variant="label"
+                          >
+                            {item.name}
+                          </AppText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  {activeMixture.coadyuvantesIds.map((id) => {
+                    const coadyuvante = visitaRecetasService
+                      .getCatalogos()
+                      .coadyuvantes.find((item) => item.id === id);
+                    return (
+                      <AppInput
+                        error={
+                          activeMixture.coadyuvantesDosis?.[id]?.trim()
+                            ? null
+                            : "Ingresa dosis y unidad."
+                        }
+                        key={`${activeMixture.localId}-dose-${id}`}
+                        label={`Dosis de ${coadyuvante?.name ?? "coadyuvante"}`}
+                        onChangeText={(dose) => updateCoadjuvantDose(id, dose)}
+                        placeholder="Ej. 100 ml/cilindro"
+                        value={activeMixture.coadyuvantesDosis?.[id] ?? ""}
+                      />
                     );
                   })}
                 </View>
 
                 <View style={styles.orderBlock}>
-                  <AppText variant="label">Orden de preparacion</AppText>
-                  {activeMixture.ordenMezcla.map((item, index) => (
-                    <AppText key={`${item}-${index}`} variant="muted">
-                      {index + 1}. {item}
+                  <View style={styles.orderHeader}>
+                    <View style={styles.flex}>
+                      <AppText variant="label">Orden de preparación</AppText>
+                      <AppText variant="caption">
+                        Agua permanece fija. Intercambia dos elementos para reordenar.
+                      </AppText>
+                    </View>
+                    {movableOrderCount >= 2 ? (
+                      <AppButton
+                        label={isReordering ? "Listo" : "Reordenar"}
+                        onPress={() => {
+                          setIsReordering((current) => !current);
+                          setSelectedOrderIndex(null);
+                        }}
+                        size="small"
+                        variant={isReordering ? "primary" : "outline"}
+                      />
+                    ) : null}
+                  </View>
+                  {isReordering ? (
+                    <AppText style={styles.reorderHint} variant="caption">
+                      {selectedOrderIndex === null
+                        ? "Toca el primer elemento que deseas mover."
+                        : "Ahora toca el elemento con el que deseas intercambiarlo."}
                     </AppText>
-                  ))}
+                  ) : null}
+                  {activeMixture.ordenMezcla.map((item, index) => {
+                    const fixed = isOrdenMezclaFixedItem(item);
+                    const selected = selectedOrderIndex === index;
+                    return (
+                      <Pressable
+                        accessibilityLabel={`${index + 1}. ${item}${fixed ? ", posicion fija" : ""}`}
+                        accessibilityRole="button"
+                        accessibilityState={{
+                          disabled: !isReordering || fixed,
+                          selected
+                        }}
+                        disabled={!isReordering || fixed}
+                        key={`${item}-${index}`}
+                        onPress={() => exchangeOrderItem(index)}
+                        style={[
+                          styles.orderItem,
+                          fixed && styles.orderItemFixed,
+                          isReordering && !fixed && styles.orderItemMovable,
+                          selected && styles.orderItemSelected
+                        ]}
+                      >
+                        <View style={styles.orderNumber}>
+                          <AppText variant="caption">{index + 1}</AppText>
+                        </View>
+                        <AppText style={styles.orderItemText} variant="label">
+                          {item}
+                        </AppText>
+                        <Ionicons
+                          color={fixed ? theme.colors.textMuted : theme.colors.primary}
+                          name={fixed ? "lock-closed-outline" : "swap-vertical-outline"}
+                          size={18}
+                        />
+                      </Pressable>
+                    );
+                  })}
                 </View>
 
                 <View style={styles.navigationRow}>
@@ -698,6 +921,11 @@ function sanitizeMixtures(
   return current.slice(0, 20).map((mixture, index) => ({
     ...mixture,
     numero: index + 1,
+    coadyuvantesDosis: Object.fromEntries(
+      Object.entries(mixture.coadyuvantesDosis ?? {}).filter(([id]) =>
+        mixture.coadyuvantesIds.includes(id)
+      )
+    ),
     assignments: mixture.assignments.filter((item) => validRefs.has(item.productRef))
   }));
 }
@@ -755,11 +983,24 @@ function expandFertilizers(
 
 function StatusPill({ label }: { label: string }) {
   const ready = label === "Lista";
+  const empty = label === "Sin configurar";
   return (
-    <View style={[styles.statusPill, ready && styles.statusPillReady]}>
+    <View
+      style={[
+        styles.statusPill,
+        ready && styles.statusPillReady,
+        empty && styles.statusPillEmpty
+      ]}
+    >
       <Ionicons
-        color={ready ? theme.colors.success : theme.colors.warning}
-        name={ready ? "checkmark-circle" : "create-outline"}
+        color={
+          ready
+            ? theme.colors.success
+            : empty
+              ? theme.colors.textMuted
+              : theme.colors.warning
+        }
+        name={ready ? "checkmark-circle" : empty ? "ellipse-outline" : "create-outline"}
         size={16}
       />
       <AppText variant="caption">{label}</AppText>
@@ -772,6 +1013,11 @@ const styles = StyleSheet.create({
   content: { padding: theme.spacing.md, gap: theme.spacing.md, paddingBottom: 40 },
   guideCard: { backgroundColor: theme.colors.infoMuted },
   guideTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
+  countCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.primaryLight
+  },
+  countRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   stepList: { gap: 8, paddingVertical: 4 },
   stepChip: {
     minWidth: 128,
@@ -787,6 +1033,11 @@ const styles = StyleSheet.create({
   stepChipSelected: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary
+  },
+  mixtureCard: {
+    borderTopWidth: 4,
+    borderTopColor: theme.colors.primary,
+    gap: theme.spacing.md
   },
   selectedText: { color: theme.colors.textInverse },
   cardTitleRow: {
@@ -805,6 +1056,28 @@ const styles = StyleSheet.create({
     paddingVertical: 6
   },
   statusPillReady: { backgroundColor: theme.colors.successMuted },
+  statusPillEmpty: { backgroundColor: theme.colors.borderLight },
+  sectionBlock: {
+    gap: 12,
+    padding: 12,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    backgroundColor: theme.colors.surfaceElevated
+  },
+  coadjuvantSection: {
+    borderColor: theme.colors.info,
+    backgroundColor: theme.colors.infoMuted
+  },
+  sectionHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
+  sectionIcon: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.primaryMuted
+  },
   copyBlock: {
     gap: 8,
     padding: 12,
@@ -842,11 +1115,41 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: { color: theme.colors.primaryDark },
   orderBlock: {
-    gap: 6,
+    gap: 10,
     padding: 12,
-    backgroundColor: theme.colors.surfaceElevated,
-    borderRadius: theme.radius.md
+    backgroundColor: theme.colors.warningMuted,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.warning
   },
+  orderHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  reorderHint: { color: theme.colors.primaryDark },
+  orderItem: {
+    minHeight: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface
+  },
+  orderItemFixed: { backgroundColor: theme.colors.borderLight },
+  orderItemMovable: { borderColor: theme.colors.primary },
+  orderItemSelected: {
+    borderColor: theme.colors.primaryDark,
+    backgroundColor: theme.colors.primaryMuted
+  },
+  orderNumber: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.warningMuted
+  },
+  orderItemText: { flex: 1 },
   navigationRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
   actions: { gap: 12 },
   errorBanner: {

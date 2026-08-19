@@ -64,7 +64,8 @@ describe("visitaRecetasRepository", () => {
               server_id: null,
               receta_local_id: "r1",
               numero: 1,
-              coadyuvantes_ids: null,
+              coadyuvantes_ids: '["8"]',
+              coadyuvantes_dosis: '{"8":"100 ml/cilindro"}',
               orden_mezcla: null,
               volumen_aplicacion: "2",
               factor: "1",
@@ -116,6 +117,10 @@ describe("visitaRecetasRepository", () => {
 
       const result = visitaRecetasRepository.getRecetaByVisitaLocalId("v1");
 
+      expect(result?.mezclas[0]).toMatchObject({
+        coadyuvantesIds: '["8"]',
+        coadyuvantesDosis: '{"8":"100 ml/cilindro"}'
+      });
       expect(result?.mezclas[0]?.productos[0]).toMatchObject({
         unidadDosis: "g/cilindro",
         enfoque: "preventivo",

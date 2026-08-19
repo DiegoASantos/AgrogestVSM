@@ -397,6 +397,7 @@ export const SQL_SCHEMA = [
     receta_local_id TEXT NOT NULL,
     numero INTEGER NOT NULL CHECK(numero > 0),
     coadyuvantes_ids TEXT,
+    coadyuvantes_dosis TEXT,
     orden_mezcla TEXT,
     volumen_aplicacion TEXT,
     factor TEXT NOT NULL DEFAULT '1',

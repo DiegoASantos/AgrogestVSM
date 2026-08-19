@@ -101,4 +101,5 @@ en la raíz.
 - [Spec 055: Acordeones exclusivos en receta mobile](055-acordeones-exclusivos-receta-mobile.md)
 - [Spec 056: Acordeones intuitivos en labores y receta mobile](056-acordeones-intuitivos-labores-receta-mobile.md)
 - [Spec 057: Receta y mezclas independientes con cierre recuperable](057-receta-y-mezclas-independientes.md)
+- [Spec 058: Ajustes UX de receta y mezclas con dosis de coadyuvantes](058-ajustes-ux-receta-mezclas-y-dosis-coadyuvantes.md)
 - [Plantilla](TEMPLATE.md)

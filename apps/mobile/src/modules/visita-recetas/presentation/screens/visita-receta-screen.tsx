@@ -10,13 +10,7 @@ import {
   type ComponentProps,
   type ReactNode
 } from "react";
-import {
-  ImageBackground,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View
-} from "react-native";
+import { ImageBackground, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -45,10 +39,7 @@ import { visitasCampoRepository } from "../../../visitas-campo/repositories/visi
 import type { PestDiseaseCatalogItem } from "../../../observaciones-sanitarias/types";
 import type { NutrientCatalogItem } from "../../../nutricion/types";
 import { visitaRecetasService } from "../../services";
-import {
-  LABOR_RECOMENDACION_LABELS,
-  RIEGO_RECOMENDACION_LABELS
-} from "../../types";
+import { LABOR_RECOMENDACION_LABELS, RIEGO_RECOMENDACION_LABELS } from "../../types";
 import type {
   ConsolidacionHallazgo,
   CoadyuvanteCatalogItem,
@@ -60,9 +51,7 @@ import type {
   FertilizanteCatalogItem,
   VisitaRecetaCompleta
 } from "../../types";
-import {
-  generateOrdenMezcla
-} from "./visita-receta-order";
+import { generateOrdenMezcla } from "./visita-receta-order";
 import {
   buildCommercialSelectionPatch,
   buildIngredientSelectionPatch,
@@ -126,12 +115,8 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
-const VALID_RIEGO_RECOMMENDATIONS = new Set(
-  Object.keys(RIEGO_RECOMENDACION_LABELS)
-);
-const VALID_LABOR_RECOMMENDATIONS = new Set(
-  Object.keys(LABOR_RECOMENDACION_LABELS)
-);
+const VALID_RIEGO_RECOMMENDATIONS = new Set(Object.keys(RIEGO_RECOMENDACION_LABELS));
+const VALID_LABOR_RECOMMENDATIONS = new Set(Object.keys(LABOR_RECOMENDACION_LABELS));
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 export type RecetaFormDraft = {
@@ -179,9 +164,9 @@ export function VisitaRecetaScreen() {
     TipoProductoFitosanitarioCatalogItem[]
   >([]);
   const [fertilizantes, setFertilizantes] = useState<FertilizanteCatalogItem[]>([]);
-  const [preventiveTargets, setPreventiveTargets] = useState<
-    PestDiseaseCatalogItem[]
-  >([]);
+  const [preventiveTargets, setPreventiveTargets] = useState<PestDiseaseCatalogItem[]>(
+    []
+  );
   const [preventiveObjectiveType, setPreventiveObjectiveType] = useState<
     "plaga" | "enfermedad"
   >("plaga");
@@ -196,8 +181,12 @@ export function VisitaRecetaScreen() {
   const [laborSelections, setLaborSelections] = useState<Set<string>>(() => new Set());
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-  const [activeRecipeCardKey, setActiveRecipeCardKey] =
-    useState<RecipeCardKey | null>(null);
+  const [isPreventiveFitoExpanded, setIsPreventiveFitoExpanded] = useState(false);
+  const [isPreventiveFertilizationExpanded, setIsPreventiveFertilizationExpanded] =
+    useState(false);
+  const [activeRecipeCardKey, setActiveRecipeCardKey] = useState<RecipeCardKey | null>(
+    null
+  );
   const [isDraftReady, setIsDraftReady] = useState(false);
   const loadRequestRef = useRef(0);
   const accordionInitializedRef = useRef(false);
@@ -249,12 +238,7 @@ export function VisitaRecetaScreen() {
       fitosanidadApps,
       preventiveObjectiveType
     );
-  }, [
-    consolidacion,
-    fitosanidadApps,
-    preventiveObjectiveType,
-    preventiveTargets
-  ]);
+  }, [consolidacion, fitosanidadApps, preventiveObjectiveType, preventiveTargets]);
 
   const availablePreventiveNutrients = useMemo(
     () => getAvailablePreventiveNutrients(nutrients, consolidacion, fertilizaciones),
@@ -325,9 +309,7 @@ export function VisitaRecetaScreen() {
     setFertilizantes(catalogos.fertilizantes);
     const visita = visitaId ? visitasCampoRepository.getById(visitaId) : null;
     setPreventiveTargets(
-      visitaRecetasService.getPreventivePestDiseases(
-        visita?.phenologicalStageId ?? null
-      )
+      visitaRecetasService.getPreventivePestDiseases(visita?.phenologicalStageId ?? null)
     );
 
     setFitosanidadApps((currentApps) =>
@@ -399,10 +381,9 @@ export function VisitaRecetaScreen() {
         ? visitaRecetasService.getNutrientsByCrop(visita.cropId)
         : [];
       setNutrients(currentNutrients);
-      const currentPreventiveTargets =
-        visitaRecetasService.getPreventivePestDiseases(
-          visita?.phenologicalStageId ?? null
-        );
+      const currentPreventiveTargets = visitaRecetasService.getPreventivePestDiseases(
+        visita?.phenologicalStageId ?? null
+      );
       setPreventiveTargets(currentPreventiveTargets);
       const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
       const localConsData = visitaRecetasService.getConsolidacionLocal(vId);
@@ -433,11 +414,7 @@ export function VisitaRecetaScreen() {
         }
         initFitosanidadFromConsolidacion(localConsData, volumenPorDefecto.fitosanidad);
         setFertilizaciones(
-          mergeNutritionFertilizations(
-            [],
-            localConsData,
-            volumenPorDefecto.fertilizacion
-          )
+          mergeNutritionFertilizations([], localConsData, volumenPorDefecto.fertilizacion)
         );
       }
 
@@ -481,17 +458,15 @@ export function VisitaRecetaScreen() {
           mergeNutritionFertilizations(draftFertilizaciones, localConsData)
         );
         setRiegoSelection(
-          draft.riegoSelection &&
-            VALID_RIEGO_RECOMMENDATIONS.has(draft.riegoSelection)
+          draft.riegoSelection && VALID_RIEGO_RECOMMENDATIONS.has(draft.riegoSelection)
             ? draft.riegoSelection
             : null
         );
         setLaborSelections(
           new Set(
-            (Array.isArray(draft.laborSelections)
-              ? draft.laborSelections
-              : []
-            ).filter((labor) => VALID_LABOR_RECOMMENDATIONS.has(labor))
+            (Array.isArray(draft.laborSelections) ? draft.laborSelections : []).filter(
+              (labor) => VALID_LABOR_RECOMMENDATIONS.has(labor)
+            )
           )
         );
       }
@@ -578,23 +553,17 @@ export function VisitaRecetaScreen() {
     );
     const merged = remote.map((item) => {
       if (item.nutrienteId) return item;
-      const localItem = localByName.get(
-        item.elemento.trim().toLocaleLowerCase("es")
-      );
+      const localItem = localByName.get(item.elemento.trim().toLocaleLowerCase("es"));
       return localItem?.nutrienteId
         ? { ...item, nutrienteId: localItem.nutrienteId }
         : item;
     });
     const remoteIds = new Set(
-      merged
-        .map((item) => item.nutrienteId)
-        .filter((id): id is string => Boolean(id))
+      merged.map((item) => item.nutrienteId).filter((id): id is string => Boolean(id))
     );
     return [
       ...merged,
-      ...local.filter(
-        (item) => item.nutrienteId && !remoteIds.has(item.nutrienteId)
-      )
+      ...local.filter((item) => item.nutrienteId && !remoteIds.has(item.nutrienteId))
     ];
   }
 
@@ -663,10 +632,7 @@ export function VisitaRecetaScreen() {
       index === applicationIndex
         ? {
             ...application,
-            ingredientes: [
-              ...application.ingredientes,
-              createEmptyIngrediente(0)
-            ]
+            ingredientes: [...application.ingredientes, createEmptyIngrediente(0)]
           }
         : application
     );
@@ -734,9 +700,21 @@ export function VisitaRecetaScreen() {
           .filter(Boolean)
       );
       const totalProductos = applications.reduce((sum, application) => {
-        return sum + application.ingredientes
-          .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
-          .reduce((acc, ing) => acc + (calculateTotal(ing.dosisProducto, mezcla.volumenAplicacion, mezcla.factor) || 0), 0);
+        return (
+          sum +
+          application.ingredientes
+            .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
+            .reduce(
+              (acc, ing) =>
+                acc +
+                (calculateTotal(
+                  ing.dosisProducto,
+                  mezcla.volumenAplicacion,
+                  mezcla.factor
+                ) || 0),
+              0
+            )
+        );
       }, 0);
       return {
         ...mezcla,
@@ -776,6 +754,7 @@ export function VisitaRecetaScreen() {
       )
     );
     openRecipeCard(getFitosanidadCardKey(application.localId));
+    setIsPreventiveFitoExpanded(false);
     setPreventiveTargetId("");
     setSubmitError(null);
   }
@@ -807,6 +786,7 @@ export function VisitaRecetaScreen() {
     setFertilizaciones((prev) => [...prev, fertilizacion]);
     const group = groupRecipeFertilizaciones([fertilizacion])[0];
     if (group) openRecipeCard(getFertilizacionCardKey(group.key));
+    setIsPreventiveFertilizationExpanded(false);
     setPreventiveNutrientId("");
     setSubmitError(null);
   }
@@ -840,8 +820,7 @@ export function VisitaRecetaScreen() {
     const projected = fertilizaciones.filter(
       (item) =>
         !(
-          item.nutrienteId === reference.nutrienteId &&
-          item.enfoque === reference.enfoque
+          item.nutrienteId === reference.nutrienteId && item.enfoque === reference.enfoque
         )
     );
     setFertilizaciones(projected);
@@ -941,14 +920,8 @@ export function VisitaRecetaScreen() {
     applications: AppFitosanidad[],
     currentFertilizaciones: AppFertilizacion[]
   ) {
-    const cards = buildRecipeAccordionCards(
-      applications,
-      [],
-      currentFertilizaciones
-    );
-    setActiveRecipeCardKey((current) =>
-      resolveRecipeCardAfterRemoval(current, cards)
-    );
+    const cards = buildRecipeAccordionCards(applications, [], currentFertilizaciones);
+    setActiveRecipeCardKey((current) => resolveRecipeCardAfterRemoval(current, cards));
   }
 
   if (isLoading) {
@@ -1033,9 +1006,7 @@ export function VisitaRecetaScreen() {
                 index={index}
                 ingredientesActivos={ingredientesActivos}
                 isComplete={isFitosanidadCardComplete(app)}
-                isExpanded={
-                  activeRecipeCardKey === getFitosanidadCardKey(app.localId)
-                }
+                isExpanded={activeRecipeCardKey === getFitosanidadCardKey(app.localId)}
                 key={app.localId}
                 marcasProducto={marcasProducto}
                 modosAccion={modosAccion}
@@ -1045,9 +1016,7 @@ export function VisitaRecetaScreen() {
                   updateIngrediente(index, ingredientIndex, patch)
                 }
                 onCloseDropdown={closeDropdown}
-                onToggle={() =>
-                  toggleRecipeCard(getFitosanidadCardKey(app.localId))
-                }
+                onToggle={() => toggleRecipeCard(getFitosanidadCardKey(app.localId))}
                 onRemoveIngrediente={(ingredientIndex) =>
                   removeIngrediente(index, ingredientIndex)
                 }
@@ -1074,57 +1043,70 @@ export function VisitaRecetaScreen() {
             ))
           )}
 
-          <AppCard>
-            <AppText variant="heading">Agregar prevencion</AppText>
-            <AppText variant="muted">
-              Selecciona un objetivo sin incidencia positiva en esta visita.
-            </AppText>
-            <AppSelectField
-              icon="shield-outline"
-              label="Tipo de objetivo"
-              options={[
-                { value: "plaga", label: "Plaga" },
-                { value: "enfermedad", label: "Enfermedad" }
-              ]}
-              placeholder="Seleccionar tipo"
-              selectedLabel={
-                preventiveObjectiveType === "plaga" ? "Plaga" : "Enfermedad"
-              }
-              isOpen={openDropdown === "preventive_type"}
-              onClose={closeDropdown}
-              onToggle={() => toggleDropdown("preventive_type")}
-              onSelect={(value) => {
-                setPreventiveObjectiveType(value as "plaga" | "enfermedad");
-                setPreventiveTargetId("");
+          <AppCard style={styles.optionalActionCard}>
+            <AppCollapsibleHeader
+              closeLabel="Ocultar"
+              icon="shield-checkmark-outline"
+              isExpanded={isPreventiveFitoExpanded}
+              onToggle={() => {
+                closeDropdown();
+                setIsPreventiveFitoExpanded((current) => !current);
               }}
+              openLabel="Agregar"
+              statusLabel="Opcional"
+              subtitle="Úsala solo cuando necesites prevenir una plaga o enfermedad."
+              title="Agregar prevención fitosanitaria"
             />
-            <AppSelectField
-              icon="leaf-outline"
-              label="Objetivo preventivo"
-              options={availablePreventiveTargets.map((target) => ({
-                value: target.id,
-                label: target.name
-              }))}
-              placeholder={
-                availablePreventiveTargets.length > 0
-                  ? "Seleccionar objetivo"
-                  : "No hay objetivos disponibles"
-              }
-              selectedLabel={
-                availablePreventiveTargets.find(
-                  (target) => target.id === preventiveTargetId
-                )?.name
-              }
-              isOpen={openDropdown === "preventive_target"}
-              onClose={closeDropdown}
-              onToggle={() => toggleDropdown("preventive_target")}
-              onSelect={setPreventiveTargetId}
-            />
-            <AddItemButton
-              accessibilityLabel="Agregar recomendacion fitosanitaria preventiva"
-              label="Agregar prevencion"
-              onPress={addPreventiveFitosanidad}
-            />
+            {isPreventiveFitoExpanded ? (
+              <View style={styles.optionalActionContent}>
+                <AppSelectField
+                  icon="shield-outline"
+                  label="Tipo de objetivo"
+                  options={[
+                    { value: "plaga", label: "Plaga" },
+                    { value: "enfermedad", label: "Enfermedad" }
+                  ]}
+                  placeholder="Seleccionar tipo"
+                  selectedLabel={
+                    preventiveObjectiveType === "plaga" ? "Plaga" : "Enfermedad"
+                  }
+                  isOpen={openDropdown === "preventive_type"}
+                  onClose={closeDropdown}
+                  onToggle={() => toggleDropdown("preventive_type")}
+                  onSelect={(value) => {
+                    setPreventiveObjectiveType(value as "plaga" | "enfermedad");
+                    setPreventiveTargetId("");
+                  }}
+                />
+                <AppSelectField
+                  icon="leaf-outline"
+                  label="Objetivo preventivo"
+                  options={availablePreventiveTargets.map((target) => ({
+                    value: target.id,
+                    label: target.name
+                  }))}
+                  placeholder={
+                    availablePreventiveTargets.length > 0
+                      ? "Seleccionar objetivo"
+                      : "No hay objetivos disponibles"
+                  }
+                  selectedLabel={
+                    availablePreventiveTargets.find(
+                      (target) => target.id === preventiveTargetId
+                    )?.name
+                  }
+                  isOpen={openDropdown === "preventive_target"}
+                  onClose={closeDropdown}
+                  onToggle={() => toggleDropdown("preventive_target")}
+                  onSelect={setPreventiveTargetId}
+                />
+                <AddItemButton
+                  accessibilityLabel="Agregar recomendacion fitosanitaria preventiva"
+                  label="Agregar prevencion"
+                  onPress={addPreventiveFitosanidad}
+                />
+              </View>
+            ) : null}
           </AppCard>
 
           <SectionHeader
@@ -1175,40 +1157,38 @@ export function VisitaRecetaScreen() {
                       ? ` · Grado ${reference.incidenceGrade}`
                       : ""
                   } · ${group.productos.length} producto(s)`}
-                  title={
-                    reference.nutrienteNombre || "Deficiencia no registrada"
-                  }
+                  title={reference.nutrienteNombre || "Deficiencia no registrada"}
                 />
 
                 {isExpanded
                   ? group.productos.map((fertilizacion, productIndex) => {
-                  const index = fertilizaciones.findIndex(
-                    (item) => item.localId === fertilizacion.localId
-                  );
-                  return (
-                    <FertilizacionCard
-                      canRemove={group.productos.length > 1}
-                      fertilizantes={fertilizantes}
-                      index={index}
-                      key={fertilizacion.localId}
-                      productIndex={productIndex}
-                      onChange={(patch) => updateFertilizacion(index, patch)}
-                      onCloseDropdown={closeDropdown}
-                      onRemove={() => removeFertilizacion(fertilizacion.localId)}
-                      openDropdown={openDropdown}
-                      toggleDropdown={toggleDropdown}
-                      onNavegarCatalogo={(tipo, ingredienteActivoId) =>
-                        router.push(
-                          `/productos/nuevo?tipoPredefinido=${tipo}${
-                            ingredienteActivoId
-                              ? `&ingredienteActivoId=${encodeURIComponent(ingredienteActivoId)}`
-                              : ""
-                          }`
-                        )
-                      }
-                      value={fertilizacion}
-                    />
-                  );
+                      const index = fertilizaciones.findIndex(
+                        (item) => item.localId === fertilizacion.localId
+                      );
+                      return (
+                        <FertilizacionCard
+                          canRemove={group.productos.length > 1}
+                          fertilizantes={fertilizantes}
+                          index={index}
+                          key={fertilizacion.localId}
+                          productIndex={productIndex}
+                          onChange={(patch) => updateFertilizacion(index, patch)}
+                          onCloseDropdown={closeDropdown}
+                          onRemove={() => removeFertilizacion(fertilizacion.localId)}
+                          openDropdown={openDropdown}
+                          toggleDropdown={toggleDropdown}
+                          onNavegarCatalogo={(tipo, ingredienteActivoId) =>
+                            router.push(
+                              `/productos/nuevo?tipoPredefinido=${tipo}${
+                                ingredienteActivoId
+                                  ? `&ingredienteActivoId=${encodeURIComponent(ingredienteActivoId)}`
+                                  : ""
+                              }`
+                            )
+                          }
+                          value={fertilizacion}
+                        />
+                      );
                     })
                   : null}
                 {isExpanded && reference.nutrienteId ? (
@@ -1223,36 +1203,49 @@ export function VisitaRecetaScreen() {
           })}
 
           <View style={styles.preventiveFertilizationCard}>
-            <AppText variant="label">Agregar recomendación preventiva</AppText>
-            <AppText variant="caption">
-              Solo se muestran nutrientes del cultivo que no fueron evaluados.
-            </AppText>
-            <AppSelectField
-              icon="nutrition-outline"
-              label="Nutriente"
-              options={availablePreventiveNutrients.map((item) => ({
-                value: item.id,
-                label: item.name
-              }))}
-              placeholder="Seleccionar nutriente"
-              selectedLabel={
-                nutrients.find((item) => item.id === preventiveNutrientId)?.name
-              }
-              isOpen={openDropdown === "preventive_nutrient"}
-              onClose={closeDropdown}
-              onToggle={() => toggleDropdown("preventive_nutrient")}
-              onSelect={setPreventiveNutrientId}
-              searchable
-              searchPlaceholder="Buscar nutriente"
-            />
-            <AppButton
-              disabled={!preventiveNutrientId}
+            <AppCollapsibleHeader
+              closeLabel="Ocultar"
               icon="add-circle-outline"
-              label="Agregar preventiva"
-              onPress={addPreventiveFertilizacion}
-              size="small"
-              variant="outline"
+              isExpanded={isPreventiveFertilizationExpanded}
+              onToggle={() => {
+                closeDropdown();
+                setIsPreventiveFertilizationExpanded((current) => !current);
+              }}
+              openLabel="Agregar"
+              statusLabel="Opcional"
+              subtitle="Solo para nutrientes del cultivo que no fueron evaluados."
+              title="Agregar fertilización preventiva"
             />
+            {isPreventiveFertilizationExpanded ? (
+              <View style={styles.optionalActionContent}>
+                <AppSelectField
+                  icon="nutrition-outline"
+                  label="Nutriente"
+                  options={availablePreventiveNutrients.map((item) => ({
+                    value: item.id,
+                    label: item.name
+                  }))}
+                  placeholder="Seleccionar nutriente"
+                  selectedLabel={
+                    nutrients.find((item) => item.id === preventiveNutrientId)?.name
+                  }
+                  isOpen={openDropdown === "preventive_nutrient"}
+                  onClose={closeDropdown}
+                  onToggle={() => toggleDropdown("preventive_nutrient")}
+                  onSelect={setPreventiveNutrientId}
+                  searchable
+                  searchPlaceholder="Buscar nutriente"
+                />
+                <AppButton
+                  disabled={!preventiveNutrientId}
+                  icon="add-circle-outline"
+                  label="Agregar preventiva"
+                  onPress={addPreventiveFertilizacion}
+                  size="small"
+                  variant="outline"
+                />
+              </View>
+            ) : null}
           </View>
 
           <RiegoSection onSelect={setRiegoSelection} selected={riegoSelection} />
@@ -1289,6 +1282,12 @@ export function VisitaRecetaScreen() {
           ) : null}
 
           <View style={styles.actions}>
+            <AppButton
+              icon="arrow-back-outline"
+              label="Volver a Labores"
+              onPress={goBackToSteps}
+              variant="outline"
+            />
             <Pressable
               accessibilityLabel="Continuar a mezclas"
               accessibilityRole="button"
@@ -1356,67 +1355,67 @@ function ConsolidacionPanel({ data }: { data: ConsolidacionHallazgo }) {
 
       {isExpanded ? (
         <View style={styles.collapsibleSectionContent}>
-      {data.etapaFenologica ? (
-        <AppText variant="muted" style={styles.consolidacionLine}>
-          Etapa fenologica: {data.etapaFenologica}
-        </AppText>
-      ) : null}
-
-      {data.plagas.length > 0 ? (
-        <View style={styles.consolidacionGroup}>
-          <AppText variant="label">Plagas detectadas</AppText>
-          {data.plagas.map((p, i) => (
-            <AppText key={i} variant="muted">
-              - {p.nombre}: Incidencia {p.incidencia}, Severidad {p.severidad}
-              {p.organos.length > 0 ? ` (${p.organos.join(", ")})` : ""}
+          {data.etapaFenologica ? (
+            <AppText variant="muted" style={styles.consolidacionLine}>
+              Etapa fenologica: {data.etapaFenologica}
             </AppText>
-          ))}
-        </View>
-      ) : null}
+          ) : null}
 
-      {data.enfermedades.length > 0 ? (
-        <View style={styles.consolidacionGroup}>
-          <AppText variant="label">Enfermedades detectadas</AppText>
-          {data.enfermedades.map((e, i) => (
-            <AppText key={i} variant="muted">
-              - {e.nombre}: Incidencia {e.incidencia}, Severidad {e.severidad}
-              {e.organos.length > 0 ? ` (${e.organos.join(", ")})` : ""}
-            </AppText>
-          ))}
-        </View>
-      ) : null}
+          {data.plagas.length > 0 ? (
+            <View style={styles.consolidacionGroup}>
+              <AppText variant="label">Plagas detectadas</AppText>
+              {data.plagas.map((p, i) => (
+                <AppText key={i} variant="muted">
+                  - {p.nombre}: Incidencia {p.incidencia}, Severidad {p.severidad}
+                  {p.organos.length > 0 ? ` (${p.organos.join(", ")})` : ""}
+                </AppText>
+              ))}
+            </View>
+          ) : null}
 
-      {data.nutricion.length > 0 ? (
-        <View style={styles.consolidacionGroup}>
-          <AppText variant="label">Elementos deficitarios</AppText>
-          {data.nutricion.map((n, i) => (
-            <AppText key={i} variant="muted">
-              - {n.elemento}: Incidencia {n.incidencia}, Severidad {n.severidad}
-            </AppText>
-          ))}
-        </View>
-      ) : null}
+          {data.enfermedades.length > 0 ? (
+            <View style={styles.consolidacionGroup}>
+              <AppText variant="label">Enfermedades detectadas</AppText>
+              {data.enfermedades.map((e, i) => (
+                <AppText key={i} variant="muted">
+                  - {e.nombre}: Incidencia {e.incidencia}, Severidad {e.severidad}
+                  {e.organos.length > 0 ? ` (${e.organos.join(", ")})` : ""}
+                </AppText>
+              ))}
+            </View>
+          ) : null}
 
-      {data.riego.humedadSuelo ? (
-        <View style={styles.consolidacionGroup}>
-          <AppText variant="label">Riego</AppText>
-          <AppText variant="muted">
-            Humedad del suelo: {data.riego.humedadSuelo}
-            {data.riego.estresHidrico ? " (estres hidrico)" : ""}
-          </AppText>
-        </View>
-      ) : null}
+          {data.nutricion.length > 0 ? (
+            <View style={styles.consolidacionGroup}>
+              <AppText variant="label">Elementos deficitarios</AppText>
+              {data.nutricion.map((n, i) => (
+                <AppText key={i} variant="muted">
+                  - {n.elemento}: Incidencia {n.incidencia}, Severidad {n.severidad}
+                </AppText>
+              ))}
+            </View>
+          ) : null}
 
-      {data.labores.length > 0 ? (
-        <View style={styles.consolidacionGroup}>
-          <AppText variant="label">Labores detectadas</AppText>
-          {data.labores.map((l, i) => (
-            <AppText key={i} variant="muted">
-              - {l.nombre} ({l.categoria})
-            </AppText>
-          ))}
-        </View>
-      ) : null}
+          {data.riego.humedadSuelo ? (
+            <View style={styles.consolidacionGroup}>
+              <AppText variant="label">Riego</AppText>
+              <AppText variant="muted">
+                Humedad del suelo: {data.riego.humedadSuelo}
+                {data.riego.estresHidrico ? " (estres hidrico)" : ""}
+              </AppText>
+            </View>
+          ) : null}
+
+          {data.labores.length > 0 ? (
+            <View style={styles.consolidacionGroup}>
+              <AppText variant="label">Labores detectadas</AppText>
+              {data.labores.map((l, i) => (
+                <AppText key={i} variant="muted">
+                  - {l.nombre} ({l.categoria})
+                </AppText>
+              ))}
+            </View>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -1514,7 +1513,7 @@ function FitosanidadCard({
         isExpanded={isExpanded}
         onToggle={onToggle}
         subtitle={`${value.ingredientes.length} producto(s) · ${
-          value.enfoque === "preventivo" ? "Preventivo" : "Reactivo"
+          value.enfoque === "preventivo" ? "Preventivo" : "Curativo"
         }`}
         title={`${value.objetivoNombre} (${value.objetivo === "plaga" ? "Plaga" : "Enfermedad"})`}
       />
@@ -1800,8 +1799,7 @@ function validateRecipeRecommendations(
   if (incompleteFito) return "Selecciona la unidad de cada dosis fitosanitaria.";
 
   const incompleteFertilizer = fertilizaciones.some(
-    (item) =>
-      Boolean(item.dosis.trim()) && !isValidFertilizacionUnidadDosis(item)
+    (item) => Boolean(item.dosis.trim()) && !isValidFertilizacionUnidadDosis(item)
   );
   if (incompleteFertilizer) {
     return "Selecciona una unidad valida para cada dosis de fertilizacion.";
@@ -2121,13 +2119,20 @@ function RiegoSection({
                   size={28}
                 />
                 <View style={styles.riegoOptionText}>
-                  <AppText variant="label" style={isSel && { color: theme.colors.primary }}>
+                  <AppText
+                    variant="label"
+                    style={isSel && { color: theme.colors.primary }}
+                  >
                     {opt.label}
                   </AppText>
                   <AppText variant="muted">{opt.description}</AppText>
                 </View>
                 {isSel ? (
-                  <Ionicons color={theme.colors.primary} name="checkmark-circle" size={24} />
+                  <Ionicons
+                    color={theme.colors.primary}
+                    name="checkmark-circle"
+                    size={24}
+                  />
                 ) : null}
               </Pressable>
             );
@@ -2227,7 +2232,10 @@ function LaboresSection({
                   size={26}
                 />
                 <View style={styles.laborOptionText}>
-                  <AppText variant="label" style={isSel && { color: theme.colors.primary }}>
+                  <AppText
+                    variant="label"
+                    style={isSel && { color: theme.colors.primary }}
+                  >
                     {opt.label}
                   </AppText>
                   <AppText variant="muted">{opt.description}</AppText>
@@ -2662,12 +2670,20 @@ const styles = StyleSheet.create({
     padding: 14
   },
   preventiveFertilizationCard: {
-    backgroundColor: theme.colors.primaryMuted,
-    borderColor: theme.colors.borderLight,
+    backgroundColor: theme.colors.infoMuted,
+    borderColor: theme.colors.info,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     gap: 12,
     padding: 16
+  },
+  optionalActionCard: {
+    backgroundColor: theme.colors.infoMuted,
+    borderColor: theme.colors.info
+  },
+  optionalActionContent: {
+    gap: 12,
+    paddingTop: 8
   },
   addItemButton: {
     alignItems: "center",
@@ -2768,6 +2784,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted
   },
   actions: {
+    gap: 12,
     paddingVertical: 16
   },
   continueButton: {

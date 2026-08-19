@@ -58,6 +58,7 @@ export type AppMezcla = {
   numero: number;
   volumenAplicacion: string;
   coadyuvantesIds: string[];
+  coadyuvantesDosis?: Record<string, string>;
   ordenMezcla: string[];
   factor: string;
   factorEditable: boolean;
@@ -110,6 +111,7 @@ export function createEmptyMezcla(numero: number, volumenAplicacion = ""): AppMe
     numero,
     volumenAplicacion,
     coadyuvantesIds: [],
+    coadyuvantesDosis: {},
     ordenMezcla: [],
     factor: "1",
     factorEditable: false,
@@ -143,8 +145,7 @@ export function createEmptyFertilizacion(
     unidadDosis: "",
     cantidadTotalPlantas: "",
     volumenAplicacion,
-    factor:
-      target?.enfoque === "preventivo" ? "1" : factorFromGrade(grade).toString(),
+    factor: target?.enfoque === "preventivo" ? "1" : factorFromGrade(grade).toString(),
     factorEditable: target?.enfoque !== "preventivo" && grade === 3,
     cantidadTotalFertilizante: ""
   };
@@ -240,6 +241,11 @@ export function sanitizeDraftMezclas(
     return {
       ...mezcla,
       coadyuvantesIds,
+      coadyuvantesDosis: Object.fromEntries(
+        Object.entries(mezcla.coadyuvantesDosis ?? {}).filter(([id]) =>
+          coadyuvantesIds.includes(id)
+        )
+      ),
       ordenMezcla: mezcla.ordenMezcla.filter((item) => allowedOrderItems.has(item))
     };
   });
@@ -264,8 +270,7 @@ export function sanitizeDraftFertilizaciones(
 
       const selected = catalog.find(
         (item) =>
-          normalizeName(item.name) ===
-          normalizeName(normalized.fertilizanteNombre)
+          normalizeName(item.name) === normalizeName(normalized.fertilizanteNombre)
       );
 
       return {
@@ -278,8 +283,7 @@ export function sanitizeDraftFertilizaciones(
     })
     .filter(
       (fertilizacion) =>
-        Boolean(fertilizacion.nutrienteId) ||
-        hasFertilizacionProductData(fertilizacion)
+        Boolean(fertilizacion.nutrienteId) || hasFertilizacionProductData(fertilizacion)
     );
 }
 
@@ -468,6 +472,7 @@ export function restoreMezclas(rows: RecetaMezcla[]): AppMezcla[] {
     numero: row.numero,
     volumenAplicacion: row.volumenAplicacion?.toString() ?? "",
     coadyuvantesIds: parseJsonArray(row.coadyuvantesIds),
+    coadyuvantesDosis: parseJsonRecord(row.coadyuvantesDosis ?? null),
     ordenMezcla: parseJsonArray(row.ordenMezcla),
     factor: row.factor.toString(),
     factorEditable: row.factorEditable,
@@ -480,7 +485,9 @@ export function restoreFertilizaciones(
   fertilizerCatalog: FertilizanteCatalogItem[]
 ): AppFertilizacion[] {
   const uniqueRows = [
-    ...new Map(rows.map((row) => [row.productoRef ?? `legacy-fert-${row.id}`, row])).values()
+    ...new Map(
+      rows.map((row) => [row.productoRef ?? `legacy-fert-${row.id}`, row])
+    ).values()
   ];
   return uniqueRows.map((row) => {
     const catalogProduct = fertilizerCatalog.find(
@@ -548,6 +555,10 @@ export function buildMezclasForSave(
       numero: mezcla.numero,
       coadyuvantesIds:
         mezcla.coadyuvantesIds.length > 0 ? JSON.stringify(mezcla.coadyuvantesIds) : null,
+      coadyuvantesDosis:
+        mezcla.coadyuvantesIds.length > 0
+          ? JSON.stringify(mezcla.coadyuvantesDosis ?? {})
+          : null,
       ordenMezcla:
         mezcla.ordenMezcla.length > 0 ? JSON.stringify(mezcla.ordenMezcla) : null,
       volumenAplicacion: parsePositiveDecimal(mezcla.volumenAplicacion),
@@ -563,29 +574,27 @@ export function buildMezclasForSave(
 export function buildFertilizacionesForSave(
   fertilizaciones: AppFertilizacion[]
 ): SaveRecetaData["fertilizacion"] {
-  return fertilizaciones
-    .filter(hasFertilizacionProductData)
-    .map((fertilizacion) => {
-      const unidadDosis = getUnidadDosis(fertilizacion);
-      return {
-        productoRef: fertilizacion.localId,
-        mezclaNumero: fertilizacion.mezclaNumero || null,
-        enfoque: fertilizacion.enfoque ?? "reactivo",
-        nutrienteId: fertilizacion.nutrienteId,
-        nutrienteNombre: fertilizacion.nutrienteNombre || null,
-        viaAplicacion: fertilizacion.viaAplicacion,
-        fertilizanteNombre: fertilizacion.fertilizanteNombre || null,
-        tipoProducto: fertilizacion.tipoProducto,
-        dosis: parsePositiveDecimal(fertilizacion.dosis),
-        unidadDosis: unidadDosis || null,
-        cantidadTotalPlantas: toPositiveInteger(fertilizacion.cantidadTotalPlantas),
-        volumenAplicacion: parsePositiveDecimal(fertilizacion.volumenAplicacion),
-        factor: parsePositiveDecimal(fertilizacion.factor) ?? 1,
-        cantidadTotalFertilizante: parsePositiveDecimal(
-          fertilizacion.cantidadTotalFertilizante
-        )
-      };
-    });
+  return fertilizaciones.filter(hasFertilizacionProductData).map((fertilizacion) => {
+    const unidadDosis = getUnidadDosis(fertilizacion);
+    return {
+      productoRef: fertilizacion.localId,
+      mezclaNumero: fertilizacion.mezclaNumero || null,
+      enfoque: fertilizacion.enfoque ?? "reactivo",
+      nutrienteId: fertilizacion.nutrienteId,
+      nutrienteNombre: fertilizacion.nutrienteNombre || null,
+      viaAplicacion: fertilizacion.viaAplicacion,
+      fertilizanteNombre: fertilizacion.fertilizanteNombre || null,
+      tipoProducto: fertilizacion.tipoProducto,
+      dosis: parsePositiveDecimal(fertilizacion.dosis),
+      unidadDosis: unidadDosis || null,
+      cantidadTotalPlantas: toPositiveInteger(fertilizacion.cantidadTotalPlantas),
+      volumenAplicacion: parsePositiveDecimal(fertilizacion.volumenAplicacion),
+      factor: parsePositiveDecimal(fertilizacion.factor) ?? 1,
+      cantidadTotalFertilizante: parsePositiveDecimal(
+        fertilizacion.cantidadTotalFertilizante
+      )
+    };
+  });
 }
 
 export function collectNomenclaturaPorMezcla(
@@ -660,9 +669,7 @@ export function applyFertilizacionApproachFactor(
         })();
 
   return fertilizaciones.map((item, currentIndex) =>
-    currentIndex === changedIndex
-      ? recalculateFertilizacion(approachAdjusted)
-      : item
+    currentIndex === changedIndex ? recalculateFertilizacion(approachAdjusted) : item
   );
 }
 
@@ -723,9 +730,9 @@ export function hasFertilizacionData(fertilizaciones: AppFertilizacion[]) {
 function hasFertilizacionProductData(fertilizacion: AppFertilizacion) {
   return Boolean(
     fertilizacion.fertilizanteNombre.trim() ||
-      fertilizacion.dosis.trim() ||
-      fertilizacion.cantidadTotalPlantas.trim() ||
-      fertilizacion.volumenAplicacion.trim()
+    fertilizacion.dosis.trim() ||
+    fertilizacion.cantidadTotalPlantas.trim() ||
+    fertilizacion.volumenAplicacion.trim()
   );
 }
 
@@ -799,7 +806,8 @@ export function getAvailablePreventiveNutrients(
       .filter((id): id is string => Boolean(id))
   );
   return nutrients.filter(
-    (nutrient) => nutrient.isActive && !evaluatedIds.has(nutrient.id) && !usedIds.has(nutrient.id)
+    (nutrient) =>
+      nutrient.isActive && !evaluatedIds.has(nutrient.id) && !usedIds.has(nutrient.id)
   );
 }
 
@@ -941,6 +949,21 @@ function parseJsonArray(value: string | null): string[] {
       : [];
   } catch {
     return [];
+  }
+}
+
+function parseJsonRecord(value: string | null): Record<string, string> {
+  if (!value) return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string"
+      )
+    );
+  } catch {
+    return {};
   }
 }
 

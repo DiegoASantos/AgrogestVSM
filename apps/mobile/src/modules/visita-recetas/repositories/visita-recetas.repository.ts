@@ -98,6 +98,7 @@ type MezclaRow = {
   receta_local_id: string;
   numero: number;
   coadyuvantes_ids: string | null;
+  coadyuvantes_dosis: string | null;
   orden_mezcla: string | null;
   volumen_aplicacion: string | null;
   factor: string;
@@ -366,6 +367,7 @@ export const visitaRecetasRepository = {
       mezclas: Array<{
         numero: number;
         coadyuvantesIds: string | null;
+        coadyuvantesDosis: string | null;
         ordenMezcla: string | null;
         volumenAplicacion: number | null;
         factor: number;
@@ -473,12 +475,12 @@ export const visitaRecetasRepository = {
       if (data.mezclas.length > 0) {
         const stmtMezcla = db.prepareSync(
           `INSERT INTO visita_receta_mezcla
-         (local_id, server_id, receta_local_id, numero, coadyuvantes_ids, orden_mezcla,
+         (local_id, server_id, receta_local_id, numero, coadyuvantes_ids, coadyuvantes_dosis, orden_mezcla,
           volumen_aplicacion, factor, factor_editable, cantidad_total_producto, sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
         );
         const stmtFito = db.prepareSync(
-         `INSERT INTO visita_receta_fitosanidad
+          `INSERT INTO visita_receta_fitosanidad
          (local_id, server_id, receta_local_id, mezcla_local_id, producto_ref, numero, objetivo, objetivo_nombre,
           enfoque, objetivo_id, incidencia_grado, severidad_grado, tipo_control_id, tipo_producto_id,
           disolvente, modo_accion_id, ingrediente_activo_nombre, dosis_ia, dosis_producto, unidad_dosis, volumen_aplicacion,
@@ -495,6 +497,7 @@ export const visitaRecetasRepository = {
             recetaLocalId,
             mezcla.numero,
             mezcla.coadyuvantesIds,
+            mezcla.coadyuvantesDosis,
             mezcla.ordenMezcla,
             mezcla.volumenAplicacion?.toString() ?? null,
             mezcla.factor.toString(),
@@ -718,6 +721,7 @@ function mapMezclaRow(row: MezclaRow, productos: FitosanidadRow[]): RecetaMezcla
     recetaLocalId: row.receta_local_id,
     numero: row.numero,
     coadyuvantesIds: row.coadyuvantes_ids,
+    coadyuvantesDosis: row.coadyuvantes_dosis,
     ordenMezcla: row.orden_mezcla,
     volumenAplicacion: parseNullableNumeric(row.volumen_aplicacion),
     factor: parseNullableNumeric(row.factor) ?? 1,

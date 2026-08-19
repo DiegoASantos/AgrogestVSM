@@ -239,6 +239,7 @@ export class VisitaRecetasService {
           recetaId,
           numero: mezcla.numero,
           coadyuvantesIds: mezcla.coadyuvantesIds ?? null,
+          coadyuvantesDosis: mezcla.coadyuvantesDosis ?? null,
           ordenMezcla: mezcla.ordenMezcla ?? null,
           volumenAplicacion: mezcla.volumenAplicacion ?? null,
           factor: mezcla.factor,
@@ -311,9 +312,7 @@ export class VisitaRecetasService {
       assertFertilizacionDoseUnit(item);
       return this.fertilizacionRepository.create({
         recetaId,
-        mezclaId: item.mezclaNumero
-          ? (mezclaIds.get(item.mezclaNumero) ?? null)
-          : null,
+        mezclaId: item.mezclaNumero ? (mezclaIds.get(item.mezclaNumero) ?? null) : null,
         productoRef:
           item.productoRef ??
           `legacy-fert-${item.fertilizanteNombre ?? "producto"}`.slice(0, 100),
@@ -397,6 +396,7 @@ export class VisitaRecetasService {
           id: mezcla.id,
           numero: mezcla.numero,
           coadyuvantesIds: mezcla.coadyuvantesIds,
+          coadyuvantesDosis: mezcla.coadyuvantesDosis,
           ordenMezcla: mezcla.ordenMezcla,
           volumenAplicacion: mezcla.volumenAplicacion,
           factor: mezcla.factor,
@@ -493,6 +493,7 @@ export class VisitaRecetasService {
         }
         numeros.add(mezcla.numero);
         assertSerializedArray(mezcla.coadyuvantesIds, "coadyuvantesIds");
+        assertSerializedObject(mezcla.coadyuvantesDosis, "coadyuvantesDosis");
         assertSerializedArray(mezcla.ordenMezcla, "ordenMezcla");
       }
       return dto.mezclas;
@@ -534,10 +535,7 @@ export class VisitaRecetasService {
     const products = mezclas.flatMap((mezcla) => mezcla.productos);
     const reactiveTargetIds = new Set(
       products
-        .filter(
-          (item) =>
-            (item.enfoque ?? "reactivo") === "reactivo" && item.objetivoId
-        )
+        .filter((item) => (item.enfoque ?? "reactivo") === "reactivo" && item.objetivoId)
         .map((item) => String(item.objetivoId))
     );
     const reactiveTargetNames = new Set(
@@ -566,11 +564,7 @@ export class VisitaRecetasService {
       }
 
       for (const item of preventiveProducts) {
-        if (
-          !item.objetivoId ||
-          item.incidenciaGrado !== 0 ||
-          item.severidadGrado !== 0
-        ) {
+        if (!item.objetivoId || item.incidenciaGrado !== 0 || item.severidadGrado !== 0) {
           throw new BadRequestException(
             "Una recomendacion fitosanitaria preventiva requiere objetivo e incidencia y severidad grado 0."
           );
@@ -598,8 +592,7 @@ export class VisitaRecetasService {
         }
 
         item.objetivoNombre = target.name;
-        const targetNameKey =
-          `${target.type}::${target.name.trim().toLocaleLowerCase("es")}`;
+        const targetNameKey = `${target.type}::${target.name.trim().toLocaleLowerCase("es")}`;
         if (reactiveTargetIds.has(id) || reactiveTargetNames.has(targetNameKey)) {
           throw new BadRequestException(
             "Un mismo objetivo no puede recomendarse como reactivo y preventivo en la receta."
@@ -614,8 +607,8 @@ export class VisitaRecetasService {
           });
           hasPositiveDiagnosis = Boolean(
             observation &&
-              (Number(observation.incidencePercentage ?? 0) > 0 ||
-                (observation.nivelIncidencia?.grade ?? 0) > 0)
+            (Number(observation.incidencePercentage ?? 0) > 0 ||
+              (observation.nivelIncidencia?.grade ?? 0) > 0)
           );
           positiveDiagnosisCache.set(id, hasPositiveDiagnosis);
         }
@@ -662,9 +655,7 @@ export class VisitaRecetasService {
 
       const factor = item.factor ?? 1;
       if (evaluation) {
-        const grade = resolveNutritionGrade(
-          Number(evaluation.incidencePercentage ?? 0)
-        );
+        const grade = resolveNutritionGrade(Number(evaluation.incidencePercentage ?? 0));
         const expectedFactor = grade >= 3 ? null : grade === 2 ? 1.2 : 1;
         if (expectedFactor !== null && factor !== expectedFactor) {
           throw new BadRequestException(
@@ -725,6 +716,19 @@ function assertSerializedArray(value: string | undefined, field: string) {
   }
 }
 
+function assertSerializedObject(value: string | undefined, field: string) {
+  if (value === undefined) return;
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+      throw new Error("not-object");
+    }
+  } catch {
+    throw new BadRequestException(`${field} debe contener un objeto JSON valido.`);
+  }
+}
+
 function assertFertilizacionDoseUnit(
   item: CreateVisitaRecetaDto["fertilizacion"][number]
 ) {
@@ -732,8 +736,7 @@ function assertFertilizacionDoseUnit(
 
   const [rawUnit, denominator] = item.unidadDosis.split("/");
   const unit = rawUnit?.toLowerCase();
-  const allowedUnits =
-    item.tipoProducto === "liquido" ? ["ml", "l"] : ["mg", "g", "kg"];
+  const allowedUnits = item.tipoProducto === "liquido" ? ["ml", "l"] : ["mg", "g", "kg"];
   const expectedDenominator = item.viaAplicacion === "edafica" ? "planta" : "cilindro";
 
   if (!unit || !allowedUnits.includes(unit) || denominator !== expectedDenominator) {
@@ -749,8 +752,8 @@ function assertFinalMixtures(dto: FinalizarVisitaRecetaDto) {
     (total, mezcla) => total + mezcla.productos.length,
     0
   );
-  const fertilizacionCount = dto.fertilizacion.filter(
-    (item) => Boolean(item.fertilizanteNombre?.trim())
+  const fertilizacionCount = dto.fertilizacion.filter((item) =>
+    Boolean(item.fertilizanteNombre?.trim())
   ).length;
   const productCount = fitosanidadCount + fertilizacionCount;
 
@@ -783,9 +786,7 @@ function assertFinalMixtures(dto: FinalizarVisitaRecetaDto) {
     }
 
     const refs = [
-      ...mezcla.productos.map(
-        (item, index) => item.productoRef ?? `fito-${index}`
-      ),
+      ...mezcla.productos.map((item, index) => item.productoRef ?? `fito-${index}`),
       ...dto.fertilizacion
         .filter((item) => item.mezclaNumero === mezcla.numero)
         .map((item, index) => item.productoRef ?? `fert-${index}`)
@@ -795,5 +796,52 @@ function assertFinalMixtures(dto: FinalizarVisitaRecetaDto) {
         `Un producto no puede repetirse dentro de la mezcla ${mezcla.numero}.`
       );
     }
+
+    assertRequiredCoadjuvantDoses(mezcla);
+  }
+}
+
+function assertRequiredCoadjuvantDoses(mezcla: MezclaDto) {
+  const ids = parseStringArray(mezcla.coadyuvantesIds);
+  if (ids.length === 0) return;
+
+  const doses = parseStringRecord(mezcla.coadyuvantesDosis);
+  const missing = ids.find((id) => !doses[id]?.trim());
+  if (missing) {
+    throw new BadRequestException(
+      `Completa la dosis de todos los coadyuvantes de la mezcla ${mezcla.numero}.`
+    );
+  }
+}
+
+function parseStringArray(value: string | undefined): string[] {
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed
+          .filter(
+            (item): item is string | number =>
+              typeof item === "string" || typeof item === "number"
+          )
+          .map(String)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseStringRecord(value: string | undefined): Record<string, string> {
+  if (!value) return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string"
+      )
+    );
+  } catch {
+    return {};
   }
 }

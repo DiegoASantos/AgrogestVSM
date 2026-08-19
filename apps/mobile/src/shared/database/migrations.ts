@@ -1550,12 +1550,7 @@ const MIGRATIONS: Migration[] = [
     version: 64,
     run(db: SQLiteDatabase) {
       addColumnIfMissing(db, "visita_receta_fertilizacion", "nutriente_id", "TEXT");
-      addColumnIfMissing(
-        db,
-        "visita_receta_fertilizacion",
-        "nutriente_nombre",
-        "TEXT"
-      );
+      addColumnIfMissing(db, "visita_receta_fertilizacion", "nutriente_nombre", "TEXT");
       db.execSync(
         "CREATE INDEX IF NOT EXISTS idx_visita_receta_fertilizacion_nutriente ON visita_receta_fertilizacion(nutriente_id)"
       );
@@ -1599,6 +1594,12 @@ const MIGRATIONS: Migration[] = [
         CREATE INDEX IF NOT EXISTS idx_visit_form_drafts_owner_scope
           ON visit_form_drafts(owner_user_id, scope_key);
       `);
+    }
+  },
+  {
+    version: 66,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "visita_receta_mezcla", "coadyuvantes_dosis", "TEXT");
     }
   }
 ];

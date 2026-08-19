@@ -39,7 +39,12 @@ export function mixtureStatus(mixture: EditableMixture, options: ProductOption[]
   const completeVolume =
     !requiresVolume(mixture, options) ||
     Boolean(parsePositiveDecimal(mixture.volumenAplicacion));
-  return completeDose && completePlants && completeVolume ? "Lista" : "En progreso";
+  const completeCoadjuvants = mixture.coadyuvantesIds.every((id) =>
+    Boolean(mixture.coadyuvantesDosis?.[id]?.trim())
+  );
+  return completeDose && completePlants && completeVolume && completeCoadjuvants
+    ? "Lista"
+    : "En progreso";
 }
 
 export function requiresVolume(mixture: EditableMixture, options: ProductOption[]) {
@@ -71,10 +76,18 @@ export function copyMixtureConfiguration(source: EditableMixture) {
   return {
     volumenAplicacion: source.volumenAplicacion,
     coadyuvantesIds: [...source.coadyuvantesIds],
+    coadyuvantesDosis: { ...(source.coadyuvantesDosis ?? {}) },
     ordenMezcla: [...source.ordenMezcla],
     factor: source.factor,
     factorEditable: source.factorEditable,
     cantidadTotalProducto: source.cantidadTotalProducto,
     assignments: source.assignments.map((item) => ({ ...item }))
   };
+}
+
+export function parseMixtureCount(raw: string) {
+  if (!raw.trim()) return null;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(1, Math.min(20, parsed));
 }
