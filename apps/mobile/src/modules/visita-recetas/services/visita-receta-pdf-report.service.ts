@@ -148,17 +148,20 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
       break-inside: avoid;
     }
     .mixture-plan-number {
-      width: 12%;
+      width: 10%;
       text-align: center;
       vertical-align: middle;
       font-weight: 700;
       color: #1b4332;
     }
     .mixture-plan-item {
-      width: 58%;
+      width: 42%;
+    }
+    .mixture-plan-active-ingredient {
+      width: 28%;
     }
     .mixture-plan-dose {
-      width: 30%;
+      width: 20%;
       white-space: nowrap;
     }
     .field-row {

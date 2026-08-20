@@ -164,11 +164,13 @@ La receta compartida con el productor es una proyeccion resumida de este
 agregado y no una entidad adicional. Conserva el encabezado y el resumen del
 diagnostico; despues muestra solamente una tabla con el numero de mezcla, los
 productos, fertilizantes y coadyuvantes en el orden de preparacion registrado,
-y la dosis de cada elemento. El numero se presenta una sola vez por mezcla en
-una celda agrupada que abarca todos sus elementos. `Agua` se omite de la tabla
-porque representa un paso de preparacion y no un producto dosificado. Los
-reportes mobile y web usan la misma regla funcional sin alterar la receta
-persistida ni sus calculos.
+el ingrediente activo y la dosis de cada elemento. El ingrediente activo se
+muestra para productos fitosanitarios; fertilizantes, coadyuvantes y productos
+sin ese dato muestran `-`. El numero se presenta una sola vez por mezcla en una
+celda agrupada que abarca todos sus elementos. `Agua` se omite de la tabla porque
+representa un paso de preparacion y no un producto dosificado. Los reportes
+mobile y web usan la misma regla funcional sin alterar la receta persistida ni
+sus calculos.
 
 Desde la spec 057, un mismo producto puede reutilizarse en varias mezclas con
 una dosis distinta en cada uso. `producto_ref` identifica la definicion estable

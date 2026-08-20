@@ -399,17 +399,20 @@ function wrapRecipeHtml(body: string) {
       break-inside: avoid;
     }
     .mixture-plan-number {
-      width: 12%;
+      width: 10%;
       text-align: center;
       vertical-align: middle;
       font-weight: 700;
       color: #1b4332;
     }
     .mixture-plan-item {
-      width: 58%;
+      width: 42%;
+    }
+    .mixture-plan-active-ingredient {
+      width: 28%;
     }
     .mixture-plan-dose {
-      width: 30%;
+      width: 20%;
       white-space: nowrap;
     }
     .field-row {
@@ -844,13 +847,14 @@ function renderLaboresVisitDataCard(items: ConsolidacionHallazgo["labores"]) {
 }
 
 export type ProducerMixtureRow = {
+  activeIngredient: string;
   dose: string;
   item: string;
   mixtureNumber: number | null;
   order: number;
 };
 
-type ProducerMixtureItem = Pick<ProducerMixtureRow, "dose" | "item">;
+type ProducerMixtureItem = Pick<ProducerMixtureRow, "activeIngredient" | "dose" | "item">;
 type ProducerMixtureGroup = {
   mixtureNumber: number | null;
   rows: ProducerMixtureRow[];
@@ -874,10 +878,12 @@ export function buildProducerMixtureRows(
             producto.marcaProductoNombre ??
             producto.ingredienteActivoNombre ??
             "Producto sin nombre",
+          activeIngredient: producto.ingredienteActivoNombre?.trim() || "-",
           dose: formatProductDose(producto.dosisProducto, producto.unidadDosis)
         })),
         ...fertilizers.map((fertilizer) => ({
           item: fertilizer.fertilizanteNombre ?? "Fertilizante sin nombre",
+          activeIngredient: "-",
           dose: formatDose(fertilizer.dosis, fertilizer.unidadDosis)
         })),
         ...buildCoadjuvantItems(mezcla, coadyuvantes)
@@ -887,13 +893,15 @@ export function buildProducerMixtureRows(
         items
       );
 
-      return (orderedItems.length > 0 ? orderedItems : [{ item: "-", dose: "-" }]).map(
-        (item, index) => ({
-          ...item,
-          mixtureNumber: mezcla.numero,
-          order: index + 1
-        })
-      );
+      return (
+        orderedItems.length > 0
+          ? orderedItems
+          : [{ item: "-", activeIngredient: "-", dose: "-" }]
+      ).map((item, index) => ({
+        ...item,
+        mixtureNumber: mezcla.numero,
+        order: index + 1
+      }));
     });
   const mixtureNumbers = new Set(mixtures.map((mezcla) => mezcla.numero));
   const unassignedFertilizers = receta.fertilizacion
@@ -903,6 +911,7 @@ export function buildProducerMixtureRows(
     )
     .map((item, index) => ({
       item: item.fertilizanteNombre ?? "Fertilizante sin nombre",
+      activeIngredient: "-",
       dose: formatDose(item.dosis, item.unidadDosis),
       mixtureNumber: null,
       order: index + 1
@@ -925,7 +934,7 @@ function renderPlanMezclasProductor(
     <h2>Mezclas y dosis</h2>
     <table class="mixture-plan-table">
       <thead>
-        <tr><th>Mezcla</th><th>Productos y coadyuvantes (en orden)</th><th>Dosis</th></tr>
+        <tr><th>Mezcla</th><th>Productos y coadyuvantes (en orden)</th><th>Ingrediente activo</th><th>Dosis</th></tr>
       </thead>
       <tbody>
         ${groupProducerMixtureRows(rows)
@@ -940,6 +949,7 @@ function renderPlanMezclasProductor(
                           : ""
                       }
                       <td class="mixture-plan-item">${row.order}&deg; ${escapeHtml(row.item)}</td>
+                      <td class="mixture-plan-active-ingredient">${escapeHtml(row.activeIngredient)}</td>
                       <td class="mixture-plan-dose">${escapeHtml(row.dose)}</td>
                     </tr>`
               )
@@ -1005,6 +1015,7 @@ function buildCoadjuvantItems(
 
   return parseJsonArray(mezcla.coadyuvantesIds ?? "[]").map((id) => ({
     item: coadyuvantes.find((coadyuvante) => coadyuvante.id === id)?.name ?? id,
+    activeIngredient: "-",
     dose: doses[id]?.trim() || "-"
   }));
 }
@@ -1022,7 +1033,7 @@ function orderProducerMixtureItems(
       (item) => normalizeText(item.item) === normalizeText(label)
     );
     const matched = index >= 0 ? remaining.splice(index, 1)[0] : undefined;
-    ordered.push(matched ?? { item: label, dose: "-" });
+    ordered.push(matched ?? { item: label, activeIngredient: "-", dose: "-" });
   }
 
   return [...ordered, ...remaining];

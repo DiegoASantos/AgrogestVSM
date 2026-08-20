@@ -248,6 +248,8 @@ describe("visitaPdfWebService", () => {
       expect(html).toContain("Resumen del Diagnostico");
       expect(html).toContain("Mezclas y dosis");
       expect(html).toContain("Productos y coadyuvantes (en orden)");
+      expect(html).toContain("Ingrediente activo");
+      expect(html).toContain("Azoxistrobina");
       expect(html.indexOf("Corrector de pH")).toBeLessThan(html.indexOf("Fungi Max"));
       expect(html.indexOf("Fungi Max")).toBeLessThan(html.indexOf("Urea"));
       expect(html).toContain("50 ml/cilindro");
@@ -290,7 +292,13 @@ describe("visitaPdfWebService", () => {
       ];
 
       expect(buildProducerMixtureRows(receta, [])).toEqual([
-        { mixtureNumber: 2, order: 1, item: "Spino Max", dose: "25 ml/cilindro" }
+        {
+          mixtureNumber: 2,
+          order: 1,
+          item: "Spino Max",
+          activeIngredient: "Spinosad",
+          dose: "25 ml/cilindro"
+        }
       ]);
     });
   });

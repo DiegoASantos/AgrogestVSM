@@ -43,14 +43,17 @@ sola tabla que indique que preparar, en que orden y con que dosis.
 
 - RF-001: despues del encabezado se mostrara el resumen del diagnostico vigente.
 - RF-002: la unica seccion posterior sera `Mezclas y dosis`, con columnas
-  `Mezcla`, `Productos y coadyuvantes (en orden)` y `Dosis`. El numero de cada
-  mezcla se mostrara una sola vez en una celda agrupada que abarque todas sus
-  filas.
+  `Mezcla`, `Productos y coadyuvantes (en orden)`, `Ingrediente activo` y
+  `Dosis`. El numero de cada mezcla se mostrara una sola vez en una celda
+  agrupada que abarque todas sus filas.
 - RF-003: cada producto fitosanitario mostrara nombre comercial, o ingrediente
-  activo cuando no exista marca, junto con su dosis comercial y unidad.
+  activo cuando no exista marca, su ingrediente activo en una columna propia y
+  su dosis comercial con unidad. Si no existe ingrediente activo se mostrara
+  `-`.
 - RF-004: cada fertilizante asignado mostrara su nombre y dosis con unidad.
 - RF-005: cada coadyuvante mostrara el nombre del catalogo y la dosis libre
-  registrada en la mezcla.
+  registrada en la mezcla. Fertilizantes y coadyuvantes mostraran `-` en la
+  columna `Ingrediente activo` porque el modelo no les asigna ese dato.
 - RF-006: el orden persistido prevalecera; `Agua` no se mostrara como producto
   y cualquier elemento no reconocido conservara su posicion con dosis `-`.
 - RF-007: un elemento vigente que no figure en un orden historico se agregara al
@@ -81,7 +84,7 @@ anteriores de mobile y admin web.
 
 - [x] CA-001: encabezado y resumen del diagnostico siguen presentes.
 - [x] CA-002: la tabla muestra una celda agrupada por mezcla, elementos
-      ordenados y dosis alineadas.
+      ordenados, ingrediente activo y dosis alineadas.
 - [x] CA-003: productos, fertilizantes y coadyuvantes aparecen una sola vez.
 - [x] CA-004: no aparecen las secciones detalladas de fitosanidad,
       fertilizacion, riego, labores, calculos ni resumen duplicado.

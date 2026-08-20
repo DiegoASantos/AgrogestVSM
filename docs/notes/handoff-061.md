@@ -23,9 +23,9 @@ coadyuvantes en su orden de preparacion, y la dosis correspondiente.
   historicas que todavia solo incluyen `fitosanidad`;
 - tabla: incluye fitosanitarios, fertilizantes y coadyuvantes, excluye `Agua`,
   conserva el orden registrado, agrupa el numero en una sola celda vertical y
-  evita omitir elementos vigentes;
-- pruebas: cubren orden, dosis, datos historicos, contenido permitido y
-  secciones excluidas;
+  muestra el ingrediente activo de cada fitosanitario;
+- pruebas: cubren orden, ingrediente activo, dosis, datos historicos, contenido
+  permitido y secciones excluidas;
 - documentacion: Spec 061, indices y modelo de dominio.
 
 ## Contratos y datos afectados

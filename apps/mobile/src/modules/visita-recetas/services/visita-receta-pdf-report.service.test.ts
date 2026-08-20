@@ -14,10 +14,34 @@ describe("producer recipe mixture plan", () => {
     ]);
 
     expect(rows).toEqual([
-      { mixtureNumber: 1, order: 1, item: "Corrector de pH", dose: "20 ml" },
-      { mixtureNumber: 1, order: 2, item: "Fungi Max", dose: "50 ml/cilindro" },
-      { mixtureNumber: 1, order: 3, item: "Urea", dose: "2 kg/ha" },
-      { mixtureNumber: 1, order: 4, item: "Adherente", dose: "100 ml" }
+      {
+        mixtureNumber: 1,
+        order: 1,
+        item: "Corrector de pH",
+        activeIngredient: "-",
+        dose: "20 ml"
+      },
+      {
+        mixtureNumber: 1,
+        order: 2,
+        item: "Fungi Max",
+        activeIngredient: "Azoxistrobina",
+        dose: "50 ml/cilindro"
+      },
+      {
+        mixtureNumber: 1,
+        order: 3,
+        item: "Urea",
+        activeIngredient: "-",
+        dose: "2 kg/ha"
+      },
+      {
+        mixtureNumber: 1,
+        order: 4,
+        item: "Adherente",
+        activeIngredient: "-",
+        dose: "100 ml"
+      }
     ]);
   });
 
@@ -34,6 +58,7 @@ describe("producer recipe mixture plan", () => {
       mixtureNumber: 1,
       order: 1,
       item: "Producto historico",
+      activeIngredient: "-",
       dose: "-"
     });
     expect(rows.map((row) => row.item)).toEqual([
@@ -53,11 +78,24 @@ describe("producer recipe mixture plan", () => {
 
     expect(html).toContain("Mezclas y dosis");
     expect(html).toContain("Productos y coadyuvantes (en orden)");
+    expect(html).toContain("Ingrediente activo");
+    expect(html).toContain("Azoxistrobina");
     expect(html).toContain("50 ml/cilindro");
     expect(html).toContain('rowspan="4">1</td>');
     expect(html.match(/mixture-plan-number/g)).toHaveLength(1);
     expect(html).not.toContain("Cantidad total");
     expect(html).not.toContain("Factor de incidencia");
+  });
+
+  it("uses a dash when a product has no active ingredient", () => {
+    const receta = buildRecipe();
+    receta.mezclas[0].productos[0].ingredienteActivoNombre = null;
+
+    const product = buildProducerMixtureRows(receta, []).find(
+      (row) => row.item === "Fungi Max"
+    );
+
+    expect(product?.activeIngredient).toBe("-");
   });
 });
 
