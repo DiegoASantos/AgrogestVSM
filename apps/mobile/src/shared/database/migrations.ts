@@ -1601,6 +1601,12 @@ const MIGRATIONS: Migration[] = [
     run(db: SQLiteDatabase) {
       addColumnIfMissing(db, "visita_receta_mezcla", "coadyuvantes_dosis", "TEXT");
     }
+  },
+  {
+    version: 67,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(db, "visita_receta_mezcla", "frecuencia_dosis", "TEXT");
+    }
   }
 ];
 

@@ -67,6 +67,7 @@ function makeValidDto(): CreateVisitaRecetaDto {
     mezclas: [
       {
         numero: 1,
+        frecuenciaDosis: "Cada 7 dias",
         coadyuvantesIds: "[1, 4]",
         coadyuvantesDosis: '{"1":"100 ml/cilindro","4":"50 ml/cilindro"}',
         ordenMezcla: '["Agua","Agrimec"]',
@@ -199,6 +200,38 @@ describe("VisitaRecetasService", () => {
         "Completa la dosis de todos los coadyuvantes"
       );
     });
+
+    it("rechaza una mezcla sin frecuencia de dosis", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      const dto = Object.assign(makeValidDto(), {
+        endVisitTime: "09:00",
+        fertilizacion: [],
+        mezclas: makeValidDto().mezclas?.map((mezcla) => ({
+          ...mezcla,
+          frecuenciaDosis: " "
+        }))
+      });
+
+      await expect(service.finalize("10", dto)).rejects.toThrow(
+        "Completa la frecuencia de dosis"
+      );
+    });
+
+    it("rechaza una frecuencia de dosis mayor a 200 caracteres", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      const dto = Object.assign(makeValidDto(), {
+        endVisitTime: "09:00",
+        fertilizacion: [],
+        mezclas: makeValidDto().mezclas?.map((mezcla) => ({
+          ...mezcla,
+          frecuenciaDosis: "x".repeat(201)
+        }))
+      });
+
+      await expect(service.finalize("10", dto)).rejects.toThrow(
+        "no puede superar 200 caracteres"
+      );
+    });
   });
 
   describe("save", () => {
@@ -207,6 +240,23 @@ describe("VisitaRecetasService", () => {
 
       await expect(service.save("999", makeValidDto())).rejects.toThrow(
         BadRequestException
+      );
+    });
+
+    it("mantiene compatible el guardado legacy sin frecuencia de dosis", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      recetaRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(makeReceta());
+      recetaRepo.create.mockReturnValue(makeReceta());
+      recetaRepo.save.mockResolvedValue(makeReceta());
+      historialRepo.create.mockReturnValue({});
+      historialRepo.save.mockResolvedValue({});
+      const dto = makeValidDto();
+      dto.mezclas![0]!.frecuenciaDosis = "   ";
+
+      await service.save("10", dto);
+
+      expect(mezclaRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ frecuenciaDosis: null })
       );
     });
 
@@ -384,6 +434,9 @@ describe("VisitaRecetasService", () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();
+      expect(mezclaRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ frecuenciaDosis: "Cada 7 dias" })
+      );
       expect(fitosanidadRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           dosisProducto: 250,

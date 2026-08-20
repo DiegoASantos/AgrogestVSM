@@ -338,7 +338,8 @@ export function VisitaMezclasScreen() {
     };
     if (
       activeMixture.assignments.length > 0 ||
-      activeMixture.coadyuvantesIds.length > 0
+      activeMixture.coadyuvantesIds.length > 0 ||
+      Boolean(activeMixture.frecuenciaDosis?.trim())
     ) {
       Alert.alert(
         `Reemplazar Mezcla ${activeMixture.numero}`,
@@ -626,6 +627,21 @@ export function VisitaMezclasScreen() {
                     value={activeMixture.volumenAplicacion}
                   />
                 ) : null}
+
+                <AppInput
+                  error={
+                    !activeMixture.frecuenciaDosis?.trim()
+                      ? "Ingresa la frecuencia de dosis."
+                      : activeMixture.frecuenciaDosis.trim().length > 200
+                        ? "Usa como maximo 200 caracteres."
+                        : null
+                  }
+                  label="Frecuencia de dosis"
+                  maxLength={200}
+                  onChangeText={(frecuenciaDosis) => updateActive({ frecuenciaDosis })}
+                  placeholder="Ej. Cada 7 dias"
+                  value={activeMixture.frecuenciaDosis ?? ""}
+                />
 
                 <View style={[styles.sectionBlock, styles.coadjuvantSection]}>
                   <View style={styles.sectionHeading}>

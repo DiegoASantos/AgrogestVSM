@@ -29,6 +29,9 @@ export class VisitaRecetaMezclaEntity {
   @Column({ name: "coadyuvantes_dosis", type: "text", nullable: true })
   coadyuvantesDosis!: string | null;
 
+  @Column({ name: "frecuencia_dosis", type: "text", nullable: true })
+  frecuenciaDosis!: string | null;
+
   @Column({ name: "orden_mezcla", type: "text", nullable: true })
   ordenMezcla!: string | null;
 

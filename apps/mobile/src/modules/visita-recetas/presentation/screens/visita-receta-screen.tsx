@@ -1417,7 +1417,7 @@ function ConsolidacionPanel({ data }: { data: ConsolidacionHallazgo }) {
 
           {data.nutricion.length > 0 ? (
             <View style={styles.consolidacionGroup}>
-              <AppText variant="label">Elementos deficitarios</AppText>
+              <AppText variant="label">Nutricion</AppText>
               {data.nutricion.map((n, i) => (
                 <AppText key={i} variant="muted">
                   - {n.elemento}: Incidencia {n.incidencia}, Severidad {n.severidad}

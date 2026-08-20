@@ -64,6 +64,7 @@ describe("visitaRecetasRepository", () => {
               server_id: null,
               receta_local_id: "r1",
               numero: 1,
+              frecuencia_dosis: "Cada 7 dias",
               coadyuvantes_ids: '["8"]',
               coadyuvantes_dosis: '{"8":"100 ml/cilindro"}',
               orden_mezcla: null,
@@ -118,6 +119,7 @@ describe("visitaRecetasRepository", () => {
       const result = visitaRecetasRepository.getRecetaByVisitaLocalId("v1");
 
       expect(result?.mezclas[0]).toMatchObject({
+        frecuenciaDosis: "Cada 7 dias",
         coadyuvantesIds: '["8"]',
         coadyuvantesDosis: '{"8":"100 ml/cilindro"}'
       });

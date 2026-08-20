@@ -97,6 +97,7 @@ type MezclaRow = {
   server_id: string | null;
   receta_local_id: string;
   numero: number;
+  frecuencia_dosis: string | null;
   coadyuvantes_ids: string | null;
   coadyuvantes_dosis: string | null;
   orden_mezcla: string | null;
@@ -366,6 +367,7 @@ export const visitaRecetasRepository = {
       etapaFenologica: string | null;
       mezclas: Array<{
         numero: number;
+        frecuenciaDosis: string;
         coadyuvantesIds: string | null;
         coadyuvantesDosis: string | null;
         ordenMezcla: string | null;
@@ -475,9 +477,9 @@ export const visitaRecetasRepository = {
       if (data.mezclas.length > 0) {
         const stmtMezcla = db.prepareSync(
           `INSERT INTO visita_receta_mezcla
-         (local_id, server_id, receta_local_id, numero, coadyuvantes_ids, coadyuvantes_dosis, orden_mezcla,
-          volumen_aplicacion, factor, factor_editable, cantidad_total_producto, sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+         (local_id, server_id, receta_local_id, numero, frecuencia_dosis, coadyuvantes_ids, coadyuvantes_dosis, orden_mezcla,
+           volumen_aplicacion, factor, factor_editable, cantidad_total_producto, sync_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
         );
         const stmtFito = db.prepareSync(
           `INSERT INTO visita_receta_fitosanidad
@@ -496,6 +498,7 @@ export const visitaRecetasRepository = {
             null,
             recetaLocalId,
             mezcla.numero,
+            mezcla.frecuenciaDosis,
             mezcla.coadyuvantesIds,
             mezcla.coadyuvantesDosis,
             mezcla.ordenMezcla,
@@ -720,6 +723,7 @@ function mapMezclaRow(row: MezclaRow, productos: FitosanidadRow[]): RecetaMezcla
     serverId: row.server_id,
     recetaLocalId: row.receta_local_id,
     numero: row.numero,
+    frecuenciaDosis: row.frecuencia_dosis,
     coadyuvantesIds: row.coadyuvantes_ids,
     coadyuvantesDosis: row.coadyuvantes_dosis,
     ordenMezcla: row.orden_mezcla,

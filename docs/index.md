@@ -112,6 +112,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Seleccion fitosanitaria simplificada en receta mobile](specs/059-seleccion-fitosanitaria-simplificada.md)
 - [Conectividad mobile sin falsos cambios a offline](specs/060-conectividad-mobile-sin-falsos-offline.md)
 - [Receta para productor resumida por mezclas](specs/061-receta-productor-resumida-por-mezclas.md)
+- [Frecuencia de dosis por mezcla](specs/062-frecuencia-dosis-por-mezcla.md)
 
 ## Runbooks
 

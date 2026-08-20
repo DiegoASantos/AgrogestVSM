@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-19
+last_reviewed: 2026-08-20
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -146,6 +146,13 @@ como `mezclas[].coadyuvantesDosis` dentro de la misma operacion padre
 `visita_recetas`; no crea operaciones de outbox por coadyuvante. Las filas
 historicas sin este dato siguen siendo legibles, pero una finalizacion nueva
 exige una dosis no vacia por cada coadyuvante seleccionado.
+
+La migracion SQLite 67 agrega `frecuencia_dosis` como texto nullable a la
+cabecera de cada mezcla. Mobile exige una frecuencia no vacia de hasta 200
+caracteres para finalizar, la conserva en el borrador y al copiar la mezcla, y
+la envia como `mezclas[].frecuenciaDosis` dentro de la misma operacion padre.
+Recetas y outbox historicos no se reescriben; cuando el valor no existe los
+reportes muestran `-`.
 
 Al finalizar Mezclas, mobile guarda el agregado de receta, actualiza
 `endVisitTime` y solo entonces elimina ambos borradores. Si cualquiera de esos

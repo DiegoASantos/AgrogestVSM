@@ -4,6 +4,7 @@ import type { CoadyuvanteCatalogItem, VisitaRecetaCompleta } from "../types";
 export type ProducerMixtureRow = {
   activeIngredient: string;
   dose: string;
+  doseFrequency: string;
   item: string;
   mixtureNumber: number | null;
   order: number;
@@ -56,6 +57,7 @@ export function buildProducerMixtureRows(
           : [{ item: "-", activeIngredient: "-", dose: "-" }]
       ).map((item, index) => ({
         ...item,
+        doseFrequency: mezcla.frecuenciaDosis?.trim() || "-",
         mixtureNumber: mezcla.numero,
         order: index + 1
       }));
@@ -70,6 +72,7 @@ export function buildProducerMixtureRows(
       item: item.fertilizanteNombre ?? "Fertilizante sin nombre",
       activeIngredient: "-",
       dose: formatDose(item.dosis, item.unidadDosis),
+      doseFrequency: "-",
       mixtureNumber: null,
       order: index + 1
     }));
@@ -91,7 +94,7 @@ export function renderProducerMixturePlan(
     <h2>Mezclas y dosis</h2>
     <table class="mixture-plan-table">
       <thead>
-        <tr><th>Mezcla</th><th>Productos y coadyuvantes (en orden)</th><th>Ingrediente activo</th><th>Dosis</th></tr>
+        <tr><th>Mezcla</th><th>Productos y coadyuvantes (en orden)</th><th>Ingrediente activo</th><th>Dosis</th><th>Frecuencia de dosis</th></tr>
       </thead>
       <tbody>
         ${groupProducerMixtureRows(rows)
@@ -108,6 +111,11 @@ export function renderProducerMixturePlan(
                       <td class="mixture-plan-item">${row.order}&deg; ${escapeHtml(row.item)}</td>
                       <td class="mixture-plan-active-ingredient">${escapeHtml(row.activeIngredient)}</td>
                       <td class="mixture-plan-dose">${escapeHtml(row.dose)}</td>
+                      ${
+                        index === 0
+                          ? `<td class="mixture-plan-frequency" rowspan="${group.rows.length}">${escapeHtml(row.doseFrequency)}</td>`
+                          : ""
+                      }
                     </tr>`
               )
               .join("")

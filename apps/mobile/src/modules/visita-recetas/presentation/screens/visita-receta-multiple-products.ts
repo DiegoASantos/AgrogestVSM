@@ -56,6 +56,7 @@ export type AppFitosanidad = {
 export type AppMezcla = {
   localId: string;
   numero: number;
+  frecuenciaDosis: string;
   volumenAplicacion: string;
   coadyuvantesIds: string[];
   coadyuvantesDosis?: Record<string, string>;
@@ -109,6 +110,7 @@ export function createEmptyMezcla(numero: number, volumenAplicacion = ""): AppMe
   return {
     localId: createTransientId("mezcla"),
     numero,
+    frecuenciaDosis: "",
     volumenAplicacion,
     coadyuvantesIds: [],
     coadyuvantesDosis: {},
@@ -264,6 +266,7 @@ export function sanitizeDraftMezclas(
 
     return {
       ...mezcla,
+      frecuenciaDosis: mezcla.frecuenciaDosis ?? "",
       coadyuvantesIds,
       coadyuvantesDosis: Object.fromEntries(
         Object.entries(mezcla.coadyuvantesDosis ?? {}).filter(([id]) =>
@@ -496,6 +499,7 @@ export function restoreMezclas(rows: RecetaMezcla[]): AppMezcla[] {
   return rows.map((row) => ({
     localId: `mezcla_${row.id}`,
     numero: row.numero,
+    frecuenciaDosis: row.frecuenciaDosis ?? "",
     volumenAplicacion: row.volumenAplicacion?.toString() ?? "",
     coadyuvantesIds: parseJsonArray(row.coadyuvantesIds),
     coadyuvantesDosis: parseJsonRecord(row.coadyuvantesDosis ?? null),
@@ -579,6 +583,7 @@ export function buildMezclasForSave(
     );
     return {
       numero: mezcla.numero,
+      frecuenciaDosis: (mezcla.frecuenciaDosis ?? "").trim(),
       coadyuvantesIds:
         mezcla.coadyuvantesIds.length > 0 ? JSON.stringify(mezcla.coadyuvantesIds) : null,
       coadyuvantesDosis:

@@ -35,6 +35,7 @@ const mezcla: RecetaMezcla = {
   serverId: null,
   recetaLocalId: "receta-1",
   numero: 1,
+  frecuenciaDosis: "Cada 7 dias",
   coadyuvantesIds: '["coad-1"]',
   ordenMezcla: '["Agua","Agrimec"]',
   volumenAplicacion: 2,
@@ -468,6 +469,7 @@ describe("receta con mezclas", () => {
         {
           localId: "mix-1",
           numero: 1,
+          frecuenciaDosis: "",
           volumenAplicacion: "2",
           coadyuvantesIds: ["coad-1", "deleted-coad"],
           ordenMezcla: ["Agua", "Marca eliminada", "Adherente"],

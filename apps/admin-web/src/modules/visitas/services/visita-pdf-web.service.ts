@@ -399,21 +399,26 @@ function wrapRecipeHtml(body: string) {
       break-inside: avoid;
     }
     .mixture-plan-number {
-      width: 10%;
+      width: 8%;
       text-align: center;
       vertical-align: middle;
       font-weight: 700;
       color: #1b4332;
     }
     .mixture-plan-item {
-      width: 42%;
+      width: 34%;
     }
     .mixture-plan-active-ingredient {
-      width: 28%;
+      width: 23%;
     }
     .mixture-plan-dose {
-      width: 20%;
+      width: 15%;
       white-space: nowrap;
+    }
+    .mixture-plan-frequency {
+      width: 20%;
+      text-align: center;
+      vertical-align: middle;
     }
     .field-row {
       display: flex;
@@ -780,7 +785,7 @@ function renderNutricionVisitDataCard(items: ConsolidacionHallazgo["nutricion"])
 
   return `
     <div class="visit-data-card">
-      <p class="visit-data-title">Elementos deficitarios</p>
+      <p class="visit-data-title">Nutricion</p>
       <ul class="compact-list">
         ${items
           .map(
@@ -849,6 +854,7 @@ function renderLaboresVisitDataCard(items: ConsolidacionHallazgo["labores"]) {
 export type ProducerMixtureRow = {
   activeIngredient: string;
   dose: string;
+  doseFrequency: string;
   item: string;
   mixtureNumber: number | null;
   order: number;
@@ -899,6 +905,7 @@ export function buildProducerMixtureRows(
           : [{ item: "-", activeIngredient: "-", dose: "-" }]
       ).map((item, index) => ({
         ...item,
+        doseFrequency: mezcla.frecuenciaDosis?.trim() || "-",
         mixtureNumber: mezcla.numero,
         order: index + 1
       }));
@@ -913,6 +920,7 @@ export function buildProducerMixtureRows(
       item: item.fertilizanteNombre ?? "Fertilizante sin nombre",
       activeIngredient: "-",
       dose: formatDose(item.dosis, item.unidadDosis),
+      doseFrequency: "-",
       mixtureNumber: null,
       order: index + 1
     }));
@@ -934,7 +942,7 @@ function renderPlanMezclasProductor(
     <h2>Mezclas y dosis</h2>
     <table class="mixture-plan-table">
       <thead>
-        <tr><th>Mezcla</th><th>Productos y coadyuvantes (en orden)</th><th>Ingrediente activo</th><th>Dosis</th></tr>
+        <tr><th>Mezcla</th><th>Productos y coadyuvantes (en orden)</th><th>Ingrediente activo</th><th>Dosis</th><th>Frecuencia de dosis</th></tr>
       </thead>
       <tbody>
         ${groupProducerMixtureRows(rows)
@@ -951,6 +959,11 @@ function renderPlanMezclasProductor(
                       <td class="mixture-plan-item">${row.order}&deg; ${escapeHtml(row.item)}</td>
                       <td class="mixture-plan-active-ingredient">${escapeHtml(row.activeIngredient)}</td>
                       <td class="mixture-plan-dose">${escapeHtml(row.dose)}</td>
+                      ${
+                        index === 0
+                          ? `<td class="mixture-plan-frequency" rowspan="${group.rows.length}">${escapeHtml(row.doseFrequency)}</td>`
+                          : ""
+                      }
                     </tr>`
               )
               .join("")

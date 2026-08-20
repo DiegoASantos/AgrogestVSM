@@ -238,6 +238,7 @@ export class VisitaRecetasService {
         this.mezclaRepository.create({
           recetaId,
           numero: mezcla.numero,
+          frecuenciaDosis: mezcla.frecuenciaDosis ?? null,
           coadyuvantesIds: mezcla.coadyuvantesIds ?? null,
           coadyuvantesDosis: mezcla.coadyuvantesDosis ?? null,
           ordenMezcla: mezcla.ordenMezcla ?? null,
@@ -395,6 +396,7 @@ export class VisitaRecetasService {
         .map((mezcla) => ({
           id: mezcla.id,
           numero: mezcla.numero,
+          frecuenciaDosis: mezcla.frecuenciaDosis,
           coadyuvantesIds: mezcla.coadyuvantesIds,
           coadyuvantesDosis: mezcla.coadyuvantesDosis,
           ordenMezcla: mezcla.ordenMezcla,
@@ -496,7 +498,10 @@ export class VisitaRecetasService {
         assertSerializedObject(mezcla.coadyuvantesDosis, "coadyuvantesDosis");
         assertSerializedArray(mezcla.ordenMezcla, "ordenMezcla");
       }
-      return dto.mezclas;
+      return dto.mezclas.map((mezcla) => ({
+        ...mezcla,
+        frecuenciaDosis: mezcla.frecuenciaDosis?.trim() || undefined
+      }));
     }
 
     const grouped = new Map<string, NormalizedMezcla>();
@@ -778,6 +783,18 @@ function assertFinalMixtures(dto: FinalizarVisitaRecetaDto) {
   }
 
   for (const mezcla of mezclas) {
+    const frecuenciaDosis = mezcla.frecuenciaDosis?.trim();
+    if (!frecuenciaDosis) {
+      throw new BadRequestException(
+        `Completa la frecuencia de dosis de la mezcla ${mezcla.numero}.`
+      );
+    }
+    if (frecuenciaDosis.length > 200) {
+      throw new BadRequestException(
+        `La frecuencia de dosis de la mezcla ${mezcla.numero} no puede superar 200 caracteres.`
+      );
+    }
+
     if (
       mezcla.productos.length === 0 &&
       (fertilizerCountByMixture.get(mezcla.numero) ?? 0) === 0

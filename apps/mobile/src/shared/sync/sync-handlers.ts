@@ -1007,6 +1007,7 @@ async function handleReceta(
     etapaFenologica: receta.etapaFenologica,
     mezclas: receta.mezclas.map((mezcla) => ({
       numero: mezcla.numero,
+      frecuenciaDosis: mezcla.frecuenciaDosis ?? undefined,
       coadyuvantesIds: mezcla.coadyuvantesIds ?? undefined,
       coadyuvantesDosis: mezcla.coadyuvantesDosis ?? undefined,
       ordenMezcla: mezcla.ordenMezcla ?? undefined,

@@ -36,6 +36,7 @@ function mixture(numero: number): EditableMixture {
   return {
     localId: `m-${numero}`,
     numero,
+    frecuenciaDosis: "Cada 7 dias",
     volumenAplicacion: "2",
     coadyuvantesIds: ["c1"],
     coadyuvantesDosis: { c1: "100 ml/cilindro" },
@@ -83,10 +84,12 @@ describe("formulario guiado de mezclas", () => {
     const source = mixture(1);
     const copied = copyMixtureConfiguration(source);
     copied.assignments[0]!.dose = "5";
+    copied.frecuenciaDosis = "Cada 15 dias";
     copied.coadyuvantesIds.push("c2");
     copied.coadyuvantesDosis.c1 = "200 ml/cilindro";
 
     expect(source.assignments[0]!.dose).toBe("1");
+    expect(source.frecuenciaDosis).toBe("Cada 7 dias");
     expect(source.coadyuvantesIds).toEqual(["c1"]);
     expect(source.coadyuvantesDosis).toEqual({ c1: "100 ml/cilindro" });
   });
@@ -108,6 +111,12 @@ describe("formulario guiado de mezclas", () => {
     expect(
       mixtureStatus({ ...mixture(1), coadyuvantesDosis: { c1: "" } }, products)
     ).toBe("En progreso");
+  });
+
+  it("mantiene incompleta la mezcla mientras no tenga frecuencia de dosis", () => {
+    expect(mixtureStatus({ ...mixture(1), frecuenciaDosis: "   " }, products)).toBe(
+      "En progreso"
+    );
   });
 
   it("permite vaciar temporalmente la cantidad antes de confirmar otro valor", () => {

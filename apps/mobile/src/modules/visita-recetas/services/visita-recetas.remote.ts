@@ -15,6 +15,7 @@ export type SaveRecetaInput = {
   etapaFenologica?: string | null;
   mezclas: Array<{
     numero: number;
+    frecuenciaDosis?: string | null;
     coadyuvantesIds?: string | null;
     coadyuvantesDosis?: string | null;
     ordenMezcla?: string | null;

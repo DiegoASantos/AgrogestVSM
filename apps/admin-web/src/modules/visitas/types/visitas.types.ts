@@ -437,6 +437,7 @@ export type RecetaMezclaProducto = {
 export type RecetaMezcla = {
   id: string;
   numero: number;
+  frecuenciaDosis?: string | null;
   coadyuvantesIds: string | null;
   coadyuvantesDosis?: string | null;
   ordenMezcla: string | null;

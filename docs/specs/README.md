@@ -105,4 +105,5 @@ en la raíz.
 - [Spec 059: Seleccion fitosanitaria simplificada en receta mobile](059-seleccion-fitosanitaria-simplificada.md)
 - [Spec 060: Conectividad mobile sin falsos cambios a offline](060-conectividad-mobile-sin-falsos-offline.md)
 - [Spec 061: Receta para productor resumida por mezclas](061-receta-productor-resumida-por-mezclas.md)
+- [Spec 062: Frecuencia de dosis por mezcla](062-frecuencia-dosis-por-mezcla.md)
 - [Plantilla](TEMPLATE.md)

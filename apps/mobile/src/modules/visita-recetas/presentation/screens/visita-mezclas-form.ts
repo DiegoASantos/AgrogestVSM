@@ -42,7 +42,13 @@ export function mixtureStatus(mixture: EditableMixture, options: ProductOption[]
   const completeCoadjuvants = mixture.coadyuvantesIds.every((id) =>
     Boolean(mixture.coadyuvantesDosis?.[id]?.trim())
   );
-  return completeDose && completePlants && completeVolume && completeCoadjuvants
+  const frequency = (mixture.frecuenciaDosis ?? "").trim();
+  const completeFrequency = frequency.length > 0 && frequency.length <= 200;
+  return completeDose &&
+    completePlants &&
+    completeVolume &&
+    completeCoadjuvants &&
+    completeFrequency
     ? "Lista"
     : "En progreso";
 }
@@ -74,6 +80,7 @@ export function validateMixtures(
 
 export function copyMixtureConfiguration(source: EditableMixture) {
   return {
+    frecuenciaDosis: source.frecuenciaDosis ?? "",
     volumenAplicacion: source.volumenAplicacion,
     coadyuvantesIds: [...source.coadyuvantesIds],
     coadyuvantesDosis: { ...(source.coadyuvantesDosis ?? {}) },

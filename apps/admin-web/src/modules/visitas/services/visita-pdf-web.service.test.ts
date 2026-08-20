@@ -231,11 +231,17 @@ describe("visitaPdfWebService", () => {
 
     it("renders the compact producer recipe with ordered mixtures and doses", () => {
       const popup = makeMockPopup();
+      const consolidacion = makeConsolidacion();
+      consolidacion.nutricion.push({
+        elemento: "Boro",
+        incidencia: "10%",
+        severidad: "Leve"
+      });
 
       openRecipePdf(
         makeDiagnosticDetail(),
         makeRecipe(),
-        makeConsolidacion(),
+        consolidacion,
         [
           { id: "ph", name: "Corrector de pH", description: null },
           { id: "adh", name: "Adherente", description: null }
@@ -246,15 +252,21 @@ describe("visitaPdfWebService", () => {
       const html = popup._written[popup._written.length - 1];
       expect(html).toContain("Receta de recomendaciones tecnicas");
       expect(html).toContain("Resumen del Diagnostico");
+      expect(html).toContain('<p class="visit-data-title">Nutricion</p>');
+      expect(html).not.toContain("Elementos deficitarios");
       expect(html).toContain("Mezclas y dosis");
       expect(html).toContain("Productos y coadyuvantes (en orden)");
       expect(html).toContain("Ingrediente activo");
+      expect(html).toContain("Frecuencia de dosis");
       expect(html).toContain("Azoxistrobina");
       expect(html.indexOf("Corrector de pH")).toBeLessThan(html.indexOf("Fungi Max"));
       expect(html.indexOf("Fungi Max")).toBeLessThan(html.indexOf("Urea"));
       expect(html).toContain("50 ml/cilindro");
       expect(html).toContain("100 ml");
       expect(html).toContain('rowspan="4">1</td>');
+      expect(html).toContain(
+        'class="mixture-plan-frequency" rowspan="4">Cada 7 dias</td>'
+      );
       expect(html.match(/mixture-plan-number/g)).toHaveLength(2);
       expect(html).not.toContain("Aplicaciones fitosanitarias");
       expect(html).not.toContain("<h2>Fertilizacion</h2>");
@@ -297,7 +309,8 @@ describe("visitaPdfWebService", () => {
           order: 1,
           item: "Spino Max",
           activeIngredient: "Spinosad",
-          dose: "25 ml/cilindro"
+          dose: "25 ml/cilindro",
+          doseFrequency: "-"
         }
       ]);
     });
@@ -336,6 +349,7 @@ function makeRecipe() {
       {
         id: "mix-1",
         numero: 1,
+        frecuenciaDosis: "Cada 7 dias",
         coadyuvantesIds: JSON.stringify(["ph", "adh"]),
         coadyuvantesDosis: JSON.stringify({ ph: "20 ml", adh: "100 ml" }),
         ordenMezcla: JSON.stringify([

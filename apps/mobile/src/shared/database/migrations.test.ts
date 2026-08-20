@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 66;
+const LATEST_MIGRATION_VERSION = 67;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1727,6 +1727,24 @@ describe("runMigrations", () => {
     expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
     expect(db.executedStatements).toContain(
       "ALTER TABLE visita_receta_mezcla ADD COLUMN coadyuvantes_dosis TEXT"
+    );
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(visita_recetas|visita_receta_mezcla|sync_outbox)/iu.test(
+          statement
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("adds dose frequency without deleting recipe or outbox data", () => {
+    const db = createFakeDatabase(66);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visita_receta_mezcla ADD COLUMN frecuencia_dosis TEXT"
     );
     expect(
       db.executedStatements.some((statement) =>

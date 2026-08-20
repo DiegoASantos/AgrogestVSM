@@ -18,6 +18,7 @@ export type SaveRecetaData = {
   etapaFenologica: string | null;
   mezclas: Array<{
     numero: number;
+    frecuenciaDosis: string;
     coadyuvantesIds: string | null;
     coadyuvantesDosis: string | null;
     ordenMezcla: string | null;
@@ -244,6 +245,7 @@ export const visitaRecetasService = {
       etapaFenologica: data.etapaFenologica ?? undefined,
       mezclas: data.mezclas.map((mezcla) => ({
         numero: mezcla.numero,
+        frecuenciaDosis: mezcla.frecuenciaDosis,
         coadyuvantesIds: mezcla.coadyuvantesIds ?? undefined,
         coadyuvantesDosis: mezcla.coadyuvantesDosis ?? undefined,
         ordenMezcla: mezcla.ordenMezcla ?? undefined,

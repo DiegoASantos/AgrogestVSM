@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   ArrayMaxSize,
   IsArray,
@@ -192,6 +192,16 @@ export class MezclaDto {
   @IsInt()
   @Min(1)
   numero!: number;
+
+  @ApiPropertyOptional({
+    example: "Cada 7 dias",
+    description: "Frecuencia con la que debe repetirse la dosis de la mezcla."
+  })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  @IsString()
+  @MaxLength(200)
+  frecuenciaDosis?: string;
 
   @ApiPropertyOptional({
     example: "[1, 4]",

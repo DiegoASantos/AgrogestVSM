@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-19
+last_reviewed: 2026-08-20
 ---
 
 # Modelo del dominio
@@ -171,6 +171,13 @@ celda agrupada que abarca todos sus elementos. `Agua` se omite de la tabla porqu
 representa un paso de preparacion y no un producto dosificado. Los reportes
 mobile y web usan la misma regla funcional sin alterar la receta persistida ni
 sus calculos.
+
+Cada cabecera de mezcla puede conservar `frecuencia_dosis`, texto tecnico libre
+que indica cada cuanto se repite la dosis del tanque completo. Una finalizacion
+nueva exige de 1 a 200 caracteres, mientras la columna permanece nullable para
+recetas historicas y clientes anteriores. En los reportes mobile y web la
+frecuencia aparece a la derecha de `Dosis`, una sola vez por mezcla mediante una
+celda agrupada; si falta en datos historicos se muestra `-`.
 
 Desde la spec 057, un mismo producto puede reutilizarse en varias mezclas con
 una dosis distinta en cada uso. `producto_ref` identifica la definicion estable

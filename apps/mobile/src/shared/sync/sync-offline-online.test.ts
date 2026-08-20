@@ -487,6 +487,7 @@ function seedOfflineCompleteVisit() {
         serverId: null,
         recetaLocalId: "receta-local-1",
         numero: 1,
+        frecuenciaDosis: "Cada 7 dias",
         coadyuvantesIds: '["8"]',
         coadyuvantesDosis: '{"8":"100 ml/cilindro"}',
         ordenMezcla: '["Agua","Producto X"]',
@@ -626,6 +627,7 @@ describe("offline/online sync with complete visit data", () => {
         endVisitTime: "10:30",
         mezclas: [
           expect.objectContaining({
+            frecuenciaDosis: "Cada 7 dias",
             coadyuvantesDosis: '{"8":"100 ml/cilindro"}',
             productos: [
               expect.objectContaining({

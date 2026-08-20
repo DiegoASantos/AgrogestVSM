@@ -19,28 +19,32 @@ describe("producer recipe mixture plan", () => {
         order: 1,
         item: "Corrector de pH",
         activeIngredient: "-",
-        dose: "20 ml"
+        dose: "20 ml",
+        doseFrequency: "Cada 7 dias"
       },
       {
         mixtureNumber: 1,
         order: 2,
         item: "Fungi Max",
         activeIngredient: "Azoxistrobina",
-        dose: "50 ml/cilindro"
+        dose: "50 ml/cilindro",
+        doseFrequency: "Cada 7 dias"
       },
       {
         mixtureNumber: 1,
         order: 3,
         item: "Urea",
         activeIngredient: "-",
-        dose: "2 kg/ha"
+        dose: "2 kg/ha",
+        doseFrequency: "Cada 7 dias"
       },
       {
         mixtureNumber: 1,
         order: 4,
         item: "Adherente",
         activeIngredient: "-",
-        dose: "100 ml"
+        dose: "100 ml",
+        doseFrequency: "Cada 7 dias"
       }
     ]);
   });
@@ -59,7 +63,8 @@ describe("producer recipe mixture plan", () => {
       order: 1,
       item: "Producto historico",
       activeIngredient: "-",
-      dose: "-"
+      dose: "-",
+      doseFrequency: "Cada 7 dias"
     });
     expect(rows.map((row) => row.item)).toEqual([
       "Producto historico",
@@ -70,7 +75,7 @@ describe("producer recipe mixture plan", () => {
     ]);
   });
 
-  it("renders only the three requested mixture columns", () => {
+  it("renders dose frequency once in the rightmost grouped column", () => {
     const html = renderProducerMixturePlan(buildRecipe(), [
       { id: "ph", name: "Corrector de pH", description: null },
       { id: "adh", name: "Adherente", description: null }
@@ -79,9 +84,11 @@ describe("producer recipe mixture plan", () => {
     expect(html).toContain("Mezclas y dosis");
     expect(html).toContain("Productos y coadyuvantes (en orden)");
     expect(html).toContain("Ingrediente activo");
+    expect(html).toContain("Frecuencia de dosis");
     expect(html).toContain("Azoxistrobina");
     expect(html).toContain("50 ml/cilindro");
     expect(html).toContain('rowspan="4">1</td>');
+    expect(html).toContain('class="mixture-plan-frequency" rowspan="4">Cada 7 dias</td>');
     expect(html.match(/mixture-plan-number/g)).toHaveLength(1);
     expect(html).not.toContain("Cantidad total");
     expect(html).not.toContain("Factor de incidencia");
@@ -97,6 +104,16 @@ describe("producer recipe mixture plan", () => {
 
     expect(product?.activeIngredient).toBe("-");
   });
+
+  it("escapes the grouped dose frequency", () => {
+    const receta = buildRecipe();
+    receta.mezclas[0].frecuenciaDosis = "<script>alert('x')</script>";
+
+    const html = renderProducerMixturePlan(receta, []);
+
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;alert(&#039;x&#039;)&lt;/script&gt;");
+  });
 });
 
 function buildRecipe() {
@@ -104,6 +121,7 @@ function buildRecipe() {
     mezclas: [
       {
         numero: 1,
+        frecuenciaDosis: "Cada 7 dias",
         coadyuvantesIds: JSON.stringify(["ph", "adh"]),
         coadyuvantesDosis: JSON.stringify({ ph: "20 ml", adh: "100 ml" }),
         ordenMezcla: JSON.stringify([
