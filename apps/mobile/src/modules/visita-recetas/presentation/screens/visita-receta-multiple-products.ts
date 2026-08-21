@@ -399,6 +399,41 @@ export function discardEmptyReactiveApplicationsForDeletedTargets(
   );
 }
 
+export function discardEmptyReactiveApplicationsWithoutActiveFindings(
+  applications: AppFitosanidad[],
+  consolidation: ConsolidacionHallazgo
+) {
+  const activeTargetIds = new Set<string>();
+  const activeTargetKeys = new Set<string>();
+  const addFinding = (
+    objetivo: AppFitosanidad["objetivo"],
+    finding: ConsolidacionHallazgo["plagas"][number]
+  ) => {
+    if (finding.incidenceGrade <= 0) return;
+    if (finding.objetivoId) activeTargetIds.add(finding.objetivoId);
+    activeTargetKeys.add([objetivo, normalizeName(finding.nombre)].join("::"));
+  };
+
+  consolidation.plagas.forEach((finding) => addFinding("plaga", finding));
+  consolidation.enfermedades.forEach((finding) => addFinding("enfermedad", finding));
+
+  return applications.filter((application) => {
+    if (application.enfoque === "preventivo" || hasFitosanidadData([application])) {
+      return true;
+    }
+
+    const targetKey = [
+      application.objetivo,
+      normalizeName(application.objetivoNombre)
+    ].join("::");
+
+    return Boolean(
+      (application.objetivoId && activeTargetIds.has(application.objetivoId)) ||
+      activeTargetKeys.has(targetKey)
+    );
+  });
+}
+
 export function createPreventiveFitosanidad(
   numero: number,
   objetivo: AppFitosanidad["objetivo"],

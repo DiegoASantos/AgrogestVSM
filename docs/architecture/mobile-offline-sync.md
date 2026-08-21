@@ -104,9 +104,13 @@ SQLite y conserva un `delete` durable con visita, objetivo e identidad remota.
 Mientras ese borrado permanezca en `sync_outbox` o `sync_failures`, Receta lo
 trata como un tombstone local: filtra el hallazgo de una consolidacion remota
 atrasada y descarta un borrador reactivo vacio, sin eliminar productos ya
-digitados ni recomendaciones preventivas. Si el objetivo vuelve a evaluarse
-antes de sincronizar, la nueva observacion local invalida el tombstone solo para
-la UI; la cola conserva el orden borrado anterior y alta nueva.
+digitados ni recomendaciones preventivas. Cuando el borrado ya fue sincronizado,
+Receta vuelve a contrastar las tarjetas reactivas vacias del borrador o de la
+sesion contra la consolidacion sanitaria activa, por lo que una tarjeta historica
+no reaparece solo porque el tombstone ya salio de la cola. Si el objetivo vuelve
+a evaluarse antes de sincronizar, la nueva observacion local invalida el
+tombstone solo para la UI; la cola conserva el orden borrado anterior y alta
+nueva.
 
 Cada producto fitosanitario conserva `unidad_dosis` dentro del mismo agregado
 y la envia como `mezclas[].productos[].unidadDosis`. La migracion SQLite 61 es

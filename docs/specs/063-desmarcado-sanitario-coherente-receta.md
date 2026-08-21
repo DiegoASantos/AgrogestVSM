@@ -120,3 +120,10 @@ de borrado ya encoladas siguen siendo validas para versiones anteriores.
 - [x] Runbook: no cambia.
 - [x] ADR: no corresponde.
 - [x] Variables o despliegue: no agrega variables; compatible con OTA.
+
+## Correccion posterior a la implementacion
+
+La reconciliacion de Receta tambien elimina tarjetas reactivas vacias que ya no
+corresponden a un hallazgo sanitario activo despues de que el `delete` termino
+de sincronizarse y su tombstone salio de la cola. Se mantienen los productos ya
+digitados y las recomendaciones preventivas, conforme al alcance original.

@@ -91,6 +91,7 @@ import {
   createEmptyIngrediente,
   createPreventiveFitosanidad,
   discardEmptyReactiveApplicationsForDeletedTargets,
+  discardEmptyReactiveApplicationsWithoutActiveFindings,
   excludeLocallyDeletedFitosanidadFindings,
   getDosisUnit,
   getAvailablePreventiveTargets,
@@ -441,12 +442,15 @@ export function VisitaRecetaScreen() {
       if (draft) {
         const preventiveObjectiveType =
           draft.preventiveObjectiveType === "enfermedad" ? "enfermedad" : "plaga";
-        const draftFitosanidad = discardEmptyReactiveApplicationsForDeletedTargets(
-          sanitizeDraftFitosanidad(
-            Array.isArray(draft.fitosanidadApps) ? draft.fitosanidadApps : [],
-            catalogos
+        const draftFitosanidad = discardEmptyReactiveApplicationsWithoutActiveFindings(
+          discardEmptyReactiveApplicationsForDeletedTargets(
+            sanitizeDraftFitosanidad(
+              Array.isArray(draft.fitosanidadApps) ? draft.fitosanidadApps : [],
+              catalogos
+            ),
+            locallyDeletedTargetIds
           ),
-          locallyDeletedTargetIds
+          localConsData
         );
         const draftMezclas = sanitizeDraftMezclas(
           Array.isArray(draft.mezclas) ? draft.mezclas : [],
@@ -544,21 +548,25 @@ export function VisitaRecetaScreen() {
         mergeNutritionFertilizations(current, resolvedConsData)
       );
 
-      if (hasFitosanidadFindings(resolvedConsData)) {
-        setFitosanidadApps((prev) => {
-          const merged = mergeMissingFitosanidadFindings(
-            prev,
-            resolvedConsData,
-            resolveDefaultControlId(controlCatalog)
-          );
-          if (merged.addedCount === 0) return prev;
+      setFitosanidadApps((prev) => {
+        const reconciled = discardEmptyReactiveApplicationsWithoutActiveFindings(
+          prev,
+          resolvedConsData
+        );
+        const merged = mergeMissingFitosanidadFindings(
+          reconciled,
+          resolvedConsData,
+          resolveDefaultControlId(controlCatalog)
+        );
+        if (merged.addedCount === 0 && reconciled.length === prev.length) return prev;
 
+        if (merged.addedCount > 0) {
           setMezclas((current) =>
             appendMezclasForNewFindings(current, merged.addedCount)
           );
-          return merged.applications;
-        });
-      }
+        }
+        return merged.applications;
+      });
     } catch {
       // La receta ya funciona con datos locales; la red no debe bloquear esta vista.
     }
@@ -610,10 +618,9 @@ export function VisitaRecetaScreen() {
     controlCatalog: TipoControlCatalogItem[],
     consolidationData: ConsolidacionHallazgo
   ) {
-    const restoredApplications = restoreFitosanidadApps(
-      receta.mezclas,
-      ingredientCatalog,
-      commercialCatalog
+    const restoredApplications = discardEmptyReactiveApplicationsWithoutActiveFindings(
+      restoreFitosanidadApps(receta.mezclas, ingredientCatalog, commercialCatalog),
+      consolidationData
     );
     const merged = mergeMissingFitosanidadFindings(
       restoredApplications,

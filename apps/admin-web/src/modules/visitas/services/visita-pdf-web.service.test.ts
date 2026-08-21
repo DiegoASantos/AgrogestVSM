@@ -8,7 +8,7 @@ import {
   showPrintablePdfError,
   type PrintablePdfWindow
 } from "./visita-pdf-web.service";
-import type { VisitaRecetaCompleta } from "../types/visitas.types";
+import type { ConsolidacionHallazgo, VisitaRecetaCompleta } from "../types/visitas.types";
 
 type MockPopup = PrintablePdfWindow & {
   _written: string[];
@@ -128,7 +128,7 @@ function makeDiagnosticDetail(overrides: Record<string, unknown> = {}) {
   return { ...base, ...overrides };
 }
 
-function makeConsolidacion() {
+function makeConsolidacion(): ConsolidacionHallazgo {
   return {
     etapaFenologica: null,
     plagas: [],

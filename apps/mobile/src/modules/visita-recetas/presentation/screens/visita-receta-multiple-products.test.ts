@@ -14,6 +14,7 @@ import {
   createPreventiveFertilizacion,
   createPreventiveFitosanidad,
   discardEmptyReactiveApplicationsForDeletedTargets,
+  discardEmptyReactiveApplicationsWithoutActiveFindings,
   deriveMezclaFactors,
   diseaseFactorFromPercentage,
   excludeLocallyDeletedFitosanidadFindings,
@@ -187,6 +188,37 @@ describe("receta con mezclas", () => {
         new Set(["pest-1", "disease-1"])
       )
     ).toEqual([reactiveWithProduct, preventive]);
+  });
+
+  it("descarta una tarjeta reactiva vacia aunque el borrado ya salio de la cola", () => {
+    const emptyReactive = mergeMissingFitosanidadFindings([], consolidation)
+      .applications[0]!;
+
+    expect(
+      discardEmptyReactiveApplicationsWithoutActiveFindings([emptyReactive], {
+        ...consolidation,
+        enfermedades: []
+      })
+    ).toEqual([]);
+  });
+
+  it("reconcilia hallazgos activos por nombre y conserva datos digitados", () => {
+    const activeWithoutId = {
+      ...mergeMissingFitosanidadFindings([], consolidation).applications[0]!,
+      objetivoId: null,
+      objetivoNombre: "OIDIUM"
+    };
+    const staleWithProduct = {
+      ...restoreFitosanidadApps([mezcla], [], [])[0]!,
+      objetivoId: "pest-stale"
+    };
+
+    expect(
+      discardEmptyReactiveApplicationsWithoutActiveFindings(
+        [activeWithoutId, staleWithProduct],
+        consolidation
+      )
+    ).toEqual([activeWithoutId, staleWithProduct]);
   });
 
   it("ofrece para prevencion solo objetivos sin incidencia positiva ni duplicados", () => {
