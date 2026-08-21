@@ -11,9 +11,12 @@ import {
   buildMezclasForSave,
   calculateTotal,
   createEmptyFertilizacion,
+  createPreventiveFertilizacion,
   createPreventiveFitosanidad,
+  discardEmptyReactiveApplicationsForDeletedTargets,
   deriveMezclaFactors,
   diseaseFactorFromPercentage,
+  excludeLocallyDeletedFitosanidadFindings,
   getUnidadDosis,
   getAvailablePreventiveTargets,
   getAvailablePreventiveNutrients,
@@ -145,6 +148,47 @@ describe("receta con mezclas", () => {
     expect(merged).toMatchObject({ addedCount: 0, applications: [] });
   });
 
+  it("excluye un hallazgo remoto mientras su borrado local sigue pendiente", () => {
+    const filtered = excludeLocallyDeletedFitosanidadFindings(
+      consolidation,
+      new Set(["disease-1"])
+    );
+
+    expect(filtered.enfermedades).toEqual([]);
+  });
+
+  it("descarta el borrador reactivo vacio de un objetivo eliminado", () => {
+    const emptyReactive = mergeMissingFitosanidadFindings([], consolidation)
+      .applications[0]!;
+
+    expect(
+      discardEmptyReactiveApplicationsForDeletedTargets(
+        [emptyReactive],
+        new Set(["disease-1"])
+      )
+    ).toEqual([]);
+  });
+
+  it("conserva productos digitados y recomendaciones preventivas", () => {
+    const reactiveWithProduct = {
+      ...restoreFitosanidadApps([mezcla], [], [])[0]!,
+      objetivoId: "pest-1"
+    };
+    const preventive = createPreventiveFitosanidad(
+      2,
+      "enfermedad",
+      "disease-1",
+      "Oidium"
+    );
+
+    expect(
+      discardEmptyReactiveApplicationsForDeletedTargets(
+        [reactiveWithProduct, preventive],
+        new Set(["pest-1", "disease-1"])
+      )
+    ).toEqual([reactiveWithProduct, preventive]);
+  });
+
   it("ofrece para prevencion solo objetivos sin incidencia positiva ni duplicados", () => {
     const preventive = createPreventiveFitosanidad(
       2,
@@ -180,12 +224,7 @@ describe("receta con mezclas", () => {
   });
 
   it("guarda una prevencion en grado cero sin elevar el factor de mezcla", () => {
-    const preventive = createPreventiveFitosanidad(
-      1,
-      "plaga",
-      "pest-2",
-      "Chinche"
-    );
+    const preventive = createPreventiveFitosanidad(1, "plaga", "pest-2", "Chinche");
     preventive.ingredientes[0]!.mezclaNumero = 1;
     const mezclaPreventiva = { ...restoreMezclas([mezcla])[0]!, factor: "1" };
 
@@ -199,7 +238,9 @@ describe("receta con mezclas", () => {
         [mezclaPreventiva]
       )[0]
     ).toMatchObject({ factor: "1.2", factorEditable: false });
-    expect(buildMezclasForSave([preventive], [mezclaPreventiva])[0]?.productos[0]).toMatchObject({
+    expect(
+      buildMezclasForSave([preventive], [mezclaPreventiva])[0]?.productos[0]
+    ).toMatchObject({
       enfoque: "preventivo",
       objetivoId: "pest-2",
       incidenciaGrado: 0,
@@ -549,15 +590,47 @@ describe("receta con mezclas", () => {
 
   it("solo ofrece como preventivos nutrientes no evaluados ni usados", () => {
     const nutrients = [
-      { id: "boro", cultivoId: "mango", code: null, name: "Boro", description: null, isActive: true, details: [] },
-      { id: "zinc", cultivoId: "mango", code: null, name: "Zinc", description: null, isActive: true, details: [] },
-      { id: "calcio", cultivoId: "mango", code: null, name: "Calcio", description: null, isActive: true, details: [] }
+      {
+        id: "boro",
+        cultivoId: "mango",
+        code: null,
+        name: "Boro",
+        description: null,
+        isActive: true,
+        details: []
+      },
+      {
+        id: "zinc",
+        cultivoId: "mango",
+        code: null,
+        name: "Zinc",
+        description: null,
+        isActive: true,
+        details: []
+      },
+      {
+        id: "calcio",
+        cultivoId: "mango",
+        code: null,
+        name: "Calcio",
+        description: null,
+        isActive: true,
+        details: []
+      }
     ];
     const available = getAvailablePreventiveNutrients(
       nutrients,
       {
         ...consolidation,
-        nutricion: [{ nutrienteId: "boro", elemento: "Boro", incidencia: "0%", severidad: "-", incidenceGrade: 0 }]
+        nutricion: [
+          {
+            nutrienteId: "boro",
+            elemento: "Boro",
+            incidencia: "0%",
+            severidad: "-",
+            incidenceGrade: 0
+          }
+        ]
       },
       [
         createEmptyFertilizacion("", {
@@ -570,6 +643,30 @@ describe("receta con mezclas", () => {
     );
 
     expect(available.map((item) => item.id)).toEqual(["calcio"]);
+  });
+
+  it("crea y serializa una fertilizacion general sin inventar un nutriente", () => {
+    const general = createPreventiveFertilizacion(null, "2");
+    Object.assign(general, {
+      fertilizanteNombre: "Urea",
+      dosis: "1",
+      unidadDosis: "kg/planta",
+      cantidadTotalPlantas: "100"
+    });
+
+    expect(general).toMatchObject({
+      enfoque: "preventivo",
+      nutrienteId: null,
+      nutrienteNombre: "",
+      factor: "1",
+      factorEditable: false
+    });
+    expect(buildFertilizacionesForSave([general])[0]).toMatchObject({
+      enfoque: "preventivo",
+      nutrienteId: null,
+      nutrienteNombre: null,
+      factor: 1
+    });
   });
 
   it("serializa varios productos con el mismo nutriente y enfoque", () => {

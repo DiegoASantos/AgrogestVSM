@@ -106,4 +106,6 @@ en la raíz.
 - [Spec 060: Conectividad mobile sin falsos cambios a offline](060-conectividad-mobile-sin-falsos-offline.md)
 - [Spec 061: Receta para productor resumida por mezclas](061-receta-productor-resumida-por-mezclas.md)
 - [Spec 062: Frecuencia de dosis por mezcla](062-frecuencia-dosis-por-mezcla.md)
+- [Spec 063: Desmarcado sanitario coherente con receta mobile](063-desmarcado-sanitario-coherente-receta.md)
+- [Spec 064: Fertilización general sin deficiencia nutricional](064-fertilizacion-general-sin-deficiencia.md)
 - [Plantilla](TEMPLATE.md)

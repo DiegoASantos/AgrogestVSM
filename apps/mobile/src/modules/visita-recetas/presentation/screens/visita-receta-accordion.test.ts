@@ -5,6 +5,7 @@ import {
   findFirstIncompleteRecipeCard,
   getFitosanidadCardKey,
   getMezclaCardKey,
+  groupRecipeFertilizaciones,
   resolveRecipeCardAfterRemoval,
   toggleActiveRecipeCard
 } from "./visita-receta-accordion";
@@ -94,5 +95,33 @@ describe("acordeones de receta", () => {
 
     expect(toggleActiveRecipeCard(first, second)).toBe(second);
     expect(toggleActiveRecipeCard(second, second)).toBeNull();
+  });
+
+  it("agrupa productos preventivos sin nutriente en una fertilizacion general", () => {
+    const first = createEmptyFertilizacion("", {
+      nutrienteId: null,
+      nutrienteNombre: "",
+      enfoque: "preventivo",
+      incidenceGrade: 0
+    });
+    const second = createEmptyFertilizacion("", {
+      nutrienteId: null,
+      nutrienteNombre: "",
+      enfoque: "preventivo",
+      incidenceGrade: 0
+    });
+
+    expect(groupRecipeFertilizaciones([first, second])).toEqual([
+      { key: "preventivo:general", productos: [first, second] }
+    ]);
+  });
+
+  it("mantiene separados los registros reactivos historicos sin nutriente", () => {
+    const first = createEmptyFertilizacion();
+    const second = createEmptyFertilizacion();
+
+    expect(groupRecipeFertilizaciones([first, second]).map((group) => group.key)).toEqual(
+      [`legacy:${first.localId}`, `legacy:${second.localId}`]
+    );
   });
 });

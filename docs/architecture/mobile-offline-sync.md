@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-20
+last_reviewed: 2026-08-21
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -97,6 +97,17 @@ receta, y confirma en conjunto todos los detalles. Un reintento conserva una
 sola operacion padre: no crea outbox independientes para las mezclas ni para
 sus productos.
 
+Los pasos Plagas y Enfermedades reconcilian al confirmar tanto las selecciones
+activas como las observaciones que fueron desmarcadas. Una observacion local sin
+identidad remota cancela su alta pendiente; una ya sincronizada se elimina de
+SQLite y conserva un `delete` durable con visita, objetivo e identidad remota.
+Mientras ese borrado permanezca en `sync_outbox` o `sync_failures`, Receta lo
+trata como un tombstone local: filtra el hallazgo de una consolidacion remota
+atrasada y descarta un borrador reactivo vacio, sin eliminar productos ya
+digitados ni recomendaciones preventivas. Si el objetivo vuelve a evaluarse
+antes de sincronizar, la nueva observacion local invalida el tombstone solo para
+la UI; la cola conserva el orden borrado anterior y alta nueva.
+
 Cada producto fitosanitario conserva `unidad_dosis` dentro del mismo agregado
 y la envia como `mezclas[].productos[].unidadDosis`. La migracion SQLite 61 es
 aditiva y deja `NULL` en recetas historicas; no recrea tablas ni toca outbox.
@@ -123,6 +134,14 @@ devuelve como instantanea. Evaluaciones y receta mantienen el orden actual de
 sincronizacion, por lo que el servidor puede clasificar curativo por la mera
 existencia de la evaluacion, incluido grado 0. Despliegue: migracion PostgreSQL
 052, API compatible y finalmente mobile/admin.
+
+La receta tambien admite una fertilizacion preventiva general sin evaluacion
+ni nutriente asociado. Mobile agrupa sus productos en una sola tarjeta y guarda
+en cada fila enfoque `preventivo`, nutriente y nombre nulos y factor 1. Estas
+filas viajan dentro de la misma operacion padre `visita_recetas`; no crean
+evaluaciones nutricionales, hijos de outbox ni contratos nuevos. Una fila
+reactiva historica sin nutriente permanece separada y se presenta como
+`Deficiencia no registrada`.
 
 Desde la spec 057, Receta y Mezclas son pasos independientes. Receta conserva
 su borrador con productos, riego y labores; Mezclas usa un segundo borrador con

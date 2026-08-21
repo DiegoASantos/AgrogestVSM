@@ -4,7 +4,10 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppText } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
-import { formatRecommendationApproach } from "../../../visita-recetas/domain/recommendation-approach";
+import {
+  formatFertilizationTarget,
+  formatRecommendationApproach
+} from "../../../visita-recetas/domain/recommendation-approach";
 import type { CalificacionModulo, RecetaAnterior } from "../../types";
 
 type PreviousRecipeSummaryCardProps = {
@@ -115,7 +118,7 @@ function buildDetails(receta: RecetaAnterior | null, modulo: CalificacionModulo)
   if (modulo === "nutricion") {
     return (receta.fertilizacion ?? []).map((item) =>
       [
-        item.nutrienteNombre ?? "Deficiencia no registrada",
+        formatFertilizationTarget(item.enfoque, item.nutrienteId, item.nutrienteNombre),
         item.enfoque === "preventivo" ? "Preventivo" : "Curativo",
         item.fertilizanteNombre,
         item.viaAplicacion,

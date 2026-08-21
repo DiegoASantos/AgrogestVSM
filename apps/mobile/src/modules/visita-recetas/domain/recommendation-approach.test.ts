@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatFertilizationTarget,
   formatRecommendationApproach,
   normalizeRecommendationApproach
 } from "./recommendation-approach";
@@ -19,5 +20,21 @@ describe("recommendation approach", () => {
 
   it("identifies preventive fertilizer without inventing a deficiency", () => {
     expect(formatRecommendationApproach("preventivo")).toBe("Preventivo");
+  });
+
+  it("identifica una fertilizacion preventiva sin nutriente como general", () => {
+    expect(formatFertilizationTarget("preventivo", null, null)).toBe(
+      "Fertilización general"
+    );
+  });
+
+  it("conserva la advertencia historica para registros reactivos sin nutriente", () => {
+    expect(formatFertilizationTarget("reactivo", null, "")).toBe(
+      "Deficiencia no registrada"
+    );
+  });
+
+  it("prioriza el nombre registrado del nutriente", () => {
+    expect(formatFertilizationTarget("preventivo", "12", " Boro ")).toBe("Boro");
   });
 });

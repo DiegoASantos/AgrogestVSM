@@ -2,7 +2,7 @@
 title: Métricas del flujo asistido por IA
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-19
+last_reviewed: 2026-08-21
 ---
 
 # Métricas del flujo asistido por IA
@@ -34,6 +34,7 @@ un coste de coordinación mayor que su beneficio.
 | 2026-06-25 | Spec 003 / piloto Fase 2 | crítica    | no medido retrospectivo | 174.49 s                                         | 67 839 entrada; 6 183 salida; 5 631 razonamiento; 772 480 cache-read; USD 0.042588385  | 1 alta, 2 medias, 2 bajas | 2         | 3          | 0 al cierre          |
 | 2026-08-18 | Spec 053                 | alta       | no medido               | intento mayor a 120 s, sin veredicto recuperable | no reportado                                                                           | no evaluado               | 0         | 0          | 0 al cierre          |
 | 2026-08-19 | Spec 060                 | media      | no medido               | 220.81 s                                         | 43 514 entrada; 2 439 salida; 11 252 razonamiento; 451 328 cache-read; USD 0.032475824 | 1 baja; 1 observacion     | 2         | 0          | 0 al cierre          |
+| 2026-08-21 | Spec 064                 | media      | no medido               | 343.95 s; veredicto correcto                     | no reportado por fallo de exportacion posterior al veredicto                           | 3 bajas; 1 informativa    | 0         | 2          | 0 al cierre          |
 
 ## Resultado del piloto crítico
 

@@ -58,6 +58,7 @@ import {
   resolveDiseaseIncidenceDescription,
   resolveDiseaseIncidenceGrade
 } from "../../domain/disease-incidence";
+import { getSanitaryObservationIdsToDelete } from "../../domain/sanitary-observation-reconciliation";
 import { getLevelOptionsForItem } from "../../domain/stage-level-options";
 import type {
   IncidenceLevelCatalogItem,
@@ -734,6 +735,21 @@ export function VisitaObservacionesSanitariasScreen({
             selection.organosAfectados.length > 0
           )
       );
+      const selectedPestDiseaseIds = new Set(
+        selectedEntries.map(([pestDiseaseId]) => pestDiseaseId)
+      );
+      const observationIdsToDelete = getSanitaryObservationIdsToDelete(
+        observaciones,
+        activeItemIds,
+        selectedPestDiseaseIds
+      );
+
+      for (const observationId of observationIdsToDelete) {
+        await observacionesSanitariasService.remove(observationId);
+        setObservaciones((current) =>
+          current.filter((observation) => observation.id !== observationId)
+        );
+      }
 
       for (const [pestDiseaseId, selection] of selectedEntries) {
         const existingObservacion = observaciones.find(

@@ -338,6 +338,39 @@ describe("VisitaRecetasService", () => {
       expect(recetaRepo.findOne).not.toHaveBeenCalled();
     });
 
+    it("acepta fertilizacion preventiva general sin nutriente", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      recetaRepo.findOne.mockResolvedValueOnce(null);
+      recetaRepo.create.mockReturnValue(makeReceta());
+      recetaRepo.save.mockResolvedValue(makeReceta());
+      recetaRepo.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(makeReceta())
+        .mockResolvedValueOnce(makeReceta());
+      historialRepo.create.mockReturnValue({});
+      historialRepo.save.mockResolvedValue({});
+      const dto = makeValidDto();
+      Object.assign(dto.fertilizacion[0]!, {
+        enfoque: "preventivo",
+        nutrienteId: undefined,
+        factor: 1
+      });
+
+      const result = await service.save("10", dto);
+
+      expect(result.success).toBe(true);
+      expect(nutrienteRepo.findOne).not.toHaveBeenCalled();
+      expect(evaluacionRepo.findOne).not.toHaveBeenCalled();
+      expect(fertilizacionRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          enfoque: "preventivo",
+          nutrienteId: null,
+          nutrienteNombre: null,
+          factor: 1
+        })
+      );
+    });
+
     it("clasifica como curativo un nutriente evaluado aunque tenga grado cero", async () => {
       visitaRepo.findOne.mockResolvedValue(makeVisita());
       nutrienteRepo.findOne.mockResolvedValue({

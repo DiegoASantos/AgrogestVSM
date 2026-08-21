@@ -17,3 +17,16 @@ export function formatRecommendationApproach(
     ? "Preventivo · Incidencia grado 0 · Severidad grado 0"
     : "Preventivo";
 }
+
+export function formatFertilizationTarget(
+  approach: RecommendationApproach | null | undefined,
+  nutrientId: string | null | undefined,
+  nutrientName: string | null | undefined
+) {
+  const normalizedName = nutrientName?.trim();
+  if (normalizedName) return normalizedName;
+
+  return normalizeRecommendationApproach(approach) === "preventivo" && !nutrientId
+    ? "Fertilización general"
+    : "Deficiencia no registrada";
+}

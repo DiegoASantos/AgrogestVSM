@@ -41,7 +41,9 @@ export function groupRecipeFertilizaciones(
   for (const item of fertilizaciones) {
     const key = item.nutrienteId
       ? `${item.enfoque ?? "reactivo"}:${item.nutrienteId}`
-      : `legacy:${item.localId}`;
+      : item.enfoque === "preventivo"
+        ? "preventivo:general"
+        : `legacy:${item.localId}`;
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
 

@@ -1,4 +1,5 @@
 import { getDatabase } from "../../../shared/database/connection";
+import { getCatalogSessionUserId } from "../../../shared/database/catalog-session";
 import { insertSyncOutboxEntry } from "../../../shared/database/sync-outbox";
 import {
   fromSqliteBoolean,
@@ -28,6 +29,14 @@ type ObservacionRow = {
   sync_status: SyncStatus;
   created_at: string;
   updated_at: string;
+};
+
+type SanitaryDeleteRow = {
+  payload: string | null;
+};
+
+type ActiveSanitaryTargetRow = {
+  pest_disease_id: string;
 };
 
 type ObservacionOrganoRow = {
@@ -137,6 +146,56 @@ export const observacionesSanitariasRepository = {
     return rows.map((row) =>
       mapObservacionRow(row, getOrganosByObservacionId(row.local_id))
     );
+  },
+
+  getLocallyDeletedPestDiseaseIds(visitaLocalId: string) {
+    const db = getDatabase();
+    const ownerUserId = getCatalogSessionUserId(db);
+
+    if (!ownerUserId) {
+      return new Set<string>();
+    }
+
+    const rows = [
+      ...db.getAllSync<SanitaryDeleteRow>(
+        `SELECT payload
+         FROM sync_outbox
+         WHERE owner_user_id = ?
+           AND entity_type = 'visita_observaciones_sanitarias'
+           AND operation = 'delete'`,
+        ownerUserId
+      ),
+      ...db.getAllSync<SanitaryDeleteRow>(
+        `SELECT payload
+         FROM sync_failures
+         WHERE owner_user_id = ?
+           AND entity_type = 'visita_observaciones_sanitarias'
+           AND operation = 'delete'`,
+        ownerUserId
+      )
+    ];
+    const deletedIds = new Set<string>();
+
+    for (const row of rows) {
+      const payload = parseSanitaryDeletePayload(row.payload);
+
+      if (payload?.visitaId === visitaLocalId && payload.pestDiseaseId) {
+        deletedIds.add(payload.pestDiseaseId);
+      }
+    }
+
+    const activeTargets = db.getAllSync<ActiveSanitaryTargetRow>(
+      `SELECT DISTINCT pest_disease_id
+       FROM visita_observaciones_sanitarias
+       WHERE visita_local_id = ?`,
+      visitaLocalId
+    );
+
+    for (const target of activeTargets) {
+      deletedIds.delete(target.pest_disease_id);
+    }
+
+    return deletedIds;
   },
 
   insert(input: CreateObservacionInput, visitaLocalId: string) {
@@ -425,6 +484,19 @@ function getOrganosByObservacionId(localId: string) {
   );
 
   return rows.map((row) => row.organo);
+}
+
+function parseSanitaryDeletePayload(payload: string | null) {
+  if (!payload) return null;
+
+  try {
+    return JSON.parse(payload) as {
+      visitaId?: string;
+      pestDiseaseId?: string;
+    };
+  } catch {
+    return null;
+  }
 }
 
 function replaceOrganosByObservacionId(

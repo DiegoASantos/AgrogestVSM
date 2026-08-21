@@ -367,6 +367,38 @@ export function mergeMissingFitosanidadFindings(
   };
 }
 
+export function excludeLocallyDeletedFitosanidadFindings(
+  consolidation: ConsolidacionHallazgo,
+  deletedTargetIds: ReadonlySet<string>
+): ConsolidacionHallazgo {
+  if (deletedTargetIds.size === 0) return consolidation;
+
+  return {
+    ...consolidation,
+    plagas: consolidation.plagas.filter(
+      (finding) => !finding.objetivoId || !deletedTargetIds.has(finding.objetivoId)
+    ),
+    enfermedades: consolidation.enfermedades.filter(
+      (finding) => !finding.objetivoId || !deletedTargetIds.has(finding.objetivoId)
+    )
+  };
+}
+
+export function discardEmptyReactiveApplicationsForDeletedTargets(
+  applications: AppFitosanidad[],
+  deletedTargetIds: ReadonlySet<string>
+) {
+  if (deletedTargetIds.size === 0) return applications;
+
+  return applications.filter(
+    (application) =>
+      application.enfoque === "preventivo" ||
+      !application.objetivoId ||
+      !deletedTargetIds.has(application.objetivoId) ||
+      hasFitosanidadData([application])
+  );
+}
+
 export function createPreventiveFitosanidad(
   numero: number,
   objetivo: AppFitosanidad["objetivo"],
@@ -843,12 +875,12 @@ export function getAvailablePreventiveNutrients(
 }
 
 export function createPreventiveFertilizacion(
-  nutrient: NutrientCatalogItem,
+  nutrient: NutrientCatalogItem | null,
   defaultVolume = ""
 ) {
   return createEmptyFertilizacion(defaultVolume, {
-    nutrienteId: nutrient.id,
-    nutrienteNombre: nutrient.name,
+    nutrienteId: nutrient?.id ?? null,
+    nutrienteNombre: nutrient?.name ?? "",
     enfoque: "preventivo",
     incidenceGrade: 0
   });

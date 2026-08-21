@@ -43,6 +43,10 @@ export const observacionesSanitariasService = {
     );
   },
 
+  getLocallyDeletedPestDiseaseIds(visitaId: string) {
+    return observacionesSanitariasRepository.getLocallyDeletedPestDiseaseIds(visitaId);
+  },
+
   getStepNote(visitaId: string, stepNumber: number) {
     return Promise.resolve(
       visitaStepNotesRepository.getByVisitaAndStep(visitaId, stepNumber)

@@ -34,11 +34,13 @@ import {
 import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft";
 import { toApiError } from "../../../../shared/services";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
+import { observacionesSanitariasService } from "../../../observaciones-sanitarias/services";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
 import type { TimePeriod } from "../../../visitas-campo/domain/time-input";
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import type { PestDiseaseCatalogItem } from "../../../observaciones-sanitarias/types";
 import type { NutrientCatalogItem } from "../../../nutricion/types";
+import { formatFertilizationTarget } from "../../domain/recommendation-approach";
 import { visitaRecetasService } from "../../services";
 import { LABOR_RECOMENDACION_LABELS, RIEGO_RECOMENDACION_LABELS } from "../../types";
 import type {
@@ -88,6 +90,8 @@ import {
   createPreventiveFertilizacion,
   createEmptyIngrediente,
   createPreventiveFitosanidad,
+  discardEmptyReactiveApplicationsForDeletedTargets,
+  excludeLocallyDeletedFitosanidadFindings,
   getDosisUnit,
   getAvailablePreventiveTargets,
   getAvailablePreventiveNutrients,
@@ -392,6 +396,8 @@ export function VisitaRecetaScreen() {
       );
       setPreventiveTargets(currentPreventiveTargets);
       const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
+      const locallyDeletedTargetIds =
+        observacionesSanitariasService.getLocallyDeletedPestDiseaseIds(vId);
       const localConsData = visitaRecetasService.getConsolidacionLocal(vId);
       const recetaData = visitaRecetasService.getByVisitaId(vId);
 
@@ -435,9 +441,12 @@ export function VisitaRecetaScreen() {
       if (draft) {
         const preventiveObjectiveType =
           draft.preventiveObjectiveType === "enfermedad" ? "enfermedad" : "plaga";
-        const draftFitosanidad = sanitizeDraftFitosanidad(
-          Array.isArray(draft.fitosanidadApps) ? draft.fitosanidadApps : [],
-          catalogos
+        const draftFitosanidad = discardEmptyReactiveApplicationsForDeletedTargets(
+          sanitizeDraftFitosanidad(
+            Array.isArray(draft.fitosanidadApps) ? draft.fitosanidadApps : [],
+            catalogos
+          ),
+          locallyDeletedTargetIds
         );
         const draftMezclas = sanitizeDraftMezclas(
           Array.isArray(draft.mezclas) ? draft.mezclas : [],
@@ -488,7 +497,8 @@ export function VisitaRecetaScreen() {
         vId,
         localConsData,
         catalogos.tiposControl,
-        requestId
+        requestId,
+        locallyDeletedTargetIds
       );
     } catch (err) {
       if (!isActiveLoad(requestId)) {
@@ -503,10 +513,14 @@ export function VisitaRecetaScreen() {
     vId: string,
     localConsData: ConsolidacionHallazgo,
     controlCatalog: TipoControlCatalogItem[],
-    requestId: number
+    requestId: number,
+    locallyDeletedTargetIds: ReadonlySet<string>
   ) {
     try {
-      const remoteConsData = await visitaRecetasService.fetchConsolidacionFromRemote(vId);
+      const remoteConsData = excludeLocallyDeletedFitosanidadFindings(
+        await visitaRecetasService.fetchConsolidacionFromRemote(vId),
+        locallyDeletedTargetIds
+      );
 
       if (!isActiveLoad(requestId)) {
         return;
@@ -802,15 +816,15 @@ export function VisitaRecetaScreen() {
 
   function addPreventiveFertilizacion() {
     closeDropdown();
-    const nutrient = availablePreventiveNutrients.find(
-      (item) => item.id === preventiveNutrientId
-    );
-    if (!nutrient) {
-      setSubmitError("Selecciona el nutriente de la recomendacion preventiva.");
+    const nutrient = preventiveNutrientId
+      ? availablePreventiveNutrients.find((item) => item.id === preventiveNutrientId)
+      : null;
+    if (preventiveNutrientId && !nutrient) {
+      setSubmitError("El nutriente seleccionado ya no esta disponible.");
       return;
     }
     const fertilizacion = createPreventiveFertilizacion(
-      nutrient,
+      nutrient ?? null,
       fertilizaciones[0]?.volumenAplicacion ?? ""
     );
     setFertilizaciones((prev) => [...prev, fertilizacion]);
@@ -1164,6 +1178,11 @@ export function VisitaRecetaScreen() {
           {fertilizacionGroups.map((group, groupIndex) => {
             const reference = group.productos[0]!;
             const isPreventive = reference.enfoque === "preventivo";
+            const targetLabel = formatFertilizationTarget(
+              reference.enfoque,
+              reference.nutrienteId,
+              reference.nutrienteNombre
+            );
             const cardKey = getFertilizacionCardKey(group.key);
             const isExpanded = activeRecipeCardKey === cardKey;
             return (
@@ -1172,7 +1191,7 @@ export function VisitaRecetaScreen() {
                   action={
                     isPreventive ? (
                       <RemoveItemButton
-                        accessibilityLabel={`Quitar recomendación preventiva de ${reference.nutrienteNombre}`}
+                        accessibilityLabel={`Quitar recomendación preventiva de ${targetLabel}`}
                         label="Quitar"
                         onPress={() => removeFertilizacionGroup(reference)}
                       />
@@ -1187,7 +1206,7 @@ export function VisitaRecetaScreen() {
                       ? ` · Grado ${reference.incidenceGrade}`
                       : ""
                   } · ${group.productos.length} producto(s)`}
-                  title={reference.nutrienteNombre || "Deficiencia no registrada"}
+                  title={targetLabel}
                 />
 
                 {isExpanded
@@ -1221,9 +1240,9 @@ export function VisitaRecetaScreen() {
                       );
                     })
                   : null}
-                {isExpanded && reference.nutrienteId ? (
+                {isExpanded && (reference.nutrienteId || isPreventive) ? (
                   <AddItemButton
-                    accessibilityLabel={`Agregar fertilizante para ${reference.nutrienteNombre}`}
+                    accessibilityLabel={`Agregar fertilizante para ${targetLabel}`}
                     label="Agregar otro producto"
                     onPress={() => addFertilizacionProduct(reference)}
                   />
@@ -1243,19 +1262,19 @@ export function VisitaRecetaScreen() {
               }}
               openLabel="Agregar"
               statusLabel="Opcional"
-              subtitle="Solo para nutrientes del cultivo que no fueron evaluados."
-              title="Agregar fertilización preventiva"
+              subtitle="Puedes asociarla a un nutriente no evaluado o dejarla como general."
+              title="Agregar fertilización"
             />
             {isPreventiveFertilizationExpanded ? (
               <View style={styles.optionalActionContent}>
                 <AppSelectField
                   icon="nutrition-outline"
-                  label="Nutriente"
+                  label="Nutriente (opcional)"
                   options={availablePreventiveNutrients.map((item) => ({
                     value: item.id,
                     label: item.name
                   }))}
-                  placeholder="Seleccionar nutriente"
+                  placeholder="Sin nutriente: fertilización general"
                   selectedLabel={
                     nutrients.find((item) => item.id === preventiveNutrientId)?.name
                   }
@@ -1267,9 +1286,8 @@ export function VisitaRecetaScreen() {
                   searchPlaceholder="Buscar nutriente"
                 />
                 <AppButton
-                  disabled={!preventiveNutrientId}
                   icon="add-circle-outline"
-                  label="Agregar preventiva"
+                  label="Agregar fertilización"
                   onPress={addPreventiveFertilizacion}
                   size="small"
                   variant="outline"

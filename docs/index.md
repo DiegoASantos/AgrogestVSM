@@ -113,6 +113,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Conectividad mobile sin falsos cambios a offline](specs/060-conectividad-mobile-sin-falsos-offline.md)
 - [Receta para productor resumida por mezclas](specs/061-receta-productor-resumida-por-mezclas.md)
 - [Frecuencia de dosis por mezcla](specs/062-frecuencia-dosis-por-mezcla.md)
+- [Desmarcado sanitario coherente con receta mobile](specs/063-desmarcado-sanitario-coherente-receta.md)
+- [Fertilización general sin deficiencia nutricional](specs/064-fertilizacion-general-sin-deficiencia.md)
 
 ## Runbooks
 
