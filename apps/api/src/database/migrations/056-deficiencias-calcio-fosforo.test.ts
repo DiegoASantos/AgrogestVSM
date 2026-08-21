@@ -5,8 +5,11 @@ import { DEFICIENCIAS_CALCIO_FOSFORO_MIGRATION } from "./056-deficiencias-calcio
 describe("056 deficiencias de Calcio y Fósforo", () => {
   const sql = DEFICIENCIAS_CALCIO_FOSFORO_MIGRATION.sql;
 
-  it("limita la carga al cultivo Mango y usa códigos estables", () => {
-    expect(sql).toContain("lower(btrim(codigo)) = 'mango'");
+  it("limita la carga al código canónico MNG y usa códigos estables", () => {
+    expect(sql).toContain("lower(btrim(codigo)) = 'mng'");
+    expect(sql).toContain("lower(btrim(cultivo.codigo)) = 'mng'");
+    expect(sql.match(/lower\(btrim\((?:cultivo\.)?codigo\)\) = 'mng'/g)).toHaveLength(4);
+    expect(sql).not.toMatch(/lower\(btrim\((?:cultivo\.)?codigo\)\) = 'mango'/);
     expect(sql).toContain("('calcio'::varchar, 'Calcio'::varchar)");
     expect(sql).toContain("('fosforo'::varchar, 'Fósforo'::varchar)");
   });

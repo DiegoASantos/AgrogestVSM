@@ -19,7 +19,7 @@ export const DEFICIENCIAS_CALCIO_FOSFORO_MIGRATION: DatabaseMigration = {
         INTO mango_count, mango_id
       FROM cultivos
       WHERE activo = true
-        AND lower(btrim(codigo)) = 'mango';
+        AND lower(btrim(codigo)) = 'mng';
 
       IF mango_count <> 1 THEN
         RAISE EXCEPTION
@@ -125,7 +125,7 @@ export const DEFICIENCIAS_CALCIO_FOSFORO_MIGRATION: DatabaseMigration = {
       ON template.nutriente_id = nitrogeno.id
      AND template.activo = true
     WHERE cultivo.activo = true
-      AND lower(btrim(cultivo.codigo)) = 'mango'
+      AND lower(btrim(cultivo.codigo)) = 'mng'
       AND target.codigo IN ('calcio', 'fosforo')
     ON CONFLICT ON CONSTRAINT detalle_nutrientes_nutriente_nombre_key
     DO UPDATE SET
@@ -145,7 +145,7 @@ export const DEFICIENCIAS_CALCIO_FOSFORO_MIGRATION: DatabaseMigration = {
       AND nitrogeno.codigo = 'nitrogeno'
       AND nitrogeno.activo = true
       AND cultivo.activo = true
-      AND lower(btrim(cultivo.codigo)) = 'mango'
+      AND lower(btrim(cultivo.codigo)) = 'mng'
       AND target.codigo IN ('calcio', 'fosforo')
       AND target_detail.activo = true
       AND NOT EXISTS (
@@ -166,7 +166,7 @@ export const DEFICIENCIAS_CALCIO_FOSFORO_MIGRATION: DatabaseMigration = {
       SELECT id INTO STRICT mango_id
       FROM cultivos
       WHERE activo = true
-        AND lower(btrim(codigo)) = 'mango';
+        AND lower(btrim(codigo)) = 'mng';
 
       SELECT count(*) INTO template_detail_count
       FROM detalle_nutrientes detail

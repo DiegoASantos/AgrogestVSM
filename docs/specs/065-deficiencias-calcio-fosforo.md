@@ -130,3 +130,11 @@ compatible.
 - [x] ADR: no corresponde.
 - [x] Variables o despliegue: no agrega variables; documentar el orden de
       despliegue compatible.
+
+## Corrección posterior al despliegue
+
+El primer despliegue de la migración 056 abortó sin cambios parciales porque
+intentaba resolver Mango con el valor `mango` en `cultivos.codigo`. El catálogo
+productivo usa el código canónico `MNG` y el nombre visible `MANGO`. La
+migración y su verificación automatizada se corrigieron para normalizar y usar
+`mng` en todas sus consultas internas; no se crea ni modifica el cultivo.

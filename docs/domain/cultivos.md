@@ -2,7 +2,7 @@
 title: Cultivos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-08
+last_reviewed: 2026-08-21
 ---
 
 # Cultivos
@@ -40,6 +40,8 @@ Restricciones y comportamiento actual:
   caracteres.
 - `code` y `name` son únicos según las restricciones de base usadas por el
   servicio de cultivos.
+- el código canónico del cultivo Mango es `MNG`; `MANGO` es su nombre visible
+  y no debe usarse como código en migraciones o integraciones.
 - eliminar un cultivo desde la API lo desactiva; no hace borrado físico.
 - el listado del backend se ordena por `name` ascendente y usa paginación.
 
