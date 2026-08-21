@@ -72,6 +72,10 @@ const DEFAULT_NUTRIENT_IMAGE = require("../../../../../assets/images/adaptive_ic
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const BORO_IMAGE = require("../../../../../assets/images/boro.webp");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
+const CALCIO_IMAGE = require("../../../../../assets/images/calcio.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const FOSFORO_IMAGE = require("../../../../../assets/images/fosforo.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const HIERRO_IMAGE = require("../../../../../assets/images/hierro.webp");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const MAGNESIO_IMAGE = require("../../../../../assets/images/magnesio.webp");
@@ -91,7 +95,9 @@ const NUTRIENT_DISPLAY_ORDER = [
   "potasio",
   "hierro",
   "zinc",
-  "boro"
+  "boro",
+  "calcio",
+  "fosforo"
 ];
 
 const WIZARD_STEPS = [
@@ -108,6 +114,8 @@ const NUTRIENT_IMAGES: Array<{
   source: ImageSourcePropType;
 }> = [
   { patterns: ["boro"], source: BORO_IMAGE },
+  { patterns: ["calcio"], source: CALCIO_IMAGE },
+  { patterns: ["fosforo"], source: FOSFORO_IMAGE },
   { patterns: ["hierro"], source: HIERRO_IMAGE },
   { patterns: ["magnesio"], source: MAGNESIO_IMAGE },
   { patterns: ["nitrogeno"], source: NITROGENO_IMAGE },

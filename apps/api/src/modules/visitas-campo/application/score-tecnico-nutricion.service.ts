@@ -44,11 +44,13 @@ const NUTRITION_DEFINITIONS = [
   { key: "potasio", name: "Potasio" },
   { key: "hierro", name: "Hierro" },
   { key: "zinc", name: "Zinc" },
-  { key: "boro", name: "Boro" }
+  { key: "boro", name: "Boro" },
+  { key: "calcio", name: "Calcio" },
+  { key: "fosforo", name: "Fósforo" }
 ] as const;
 
 const NUTRITION_MODULE_FORMULA =
-  "ScoreNutricion = MIN(nota de Nitrógeno, nota de Magnesio, nota de Potasio, nota de Hierro, nota de Zinc, nota de Boro)";
+  "ScoreNutricion = MIN(nota de Nitrógeno, nota de Magnesio, nota de Potasio, nota de Hierro, nota de Zinc, nota de Boro, nota de Calcio, nota de Fósforo)";
 
 @Injectable()
 export class ScoreTecnicoNutricionService {

@@ -42,7 +42,7 @@ describe("calculo local de scores tecnicos", () => {
     expect(result.detalleEnfermedades?.moduleScore).toBe(3);
     expect(result.detalleEnfermedades?.diseaseScores).toHaveLength(4);
     expect(result.detalleNutricion?.moduleScore).toBe(3);
-    expect(result.detalleNutricion?.nutritionScores).toHaveLength(6);
+    expect(result.detalleNutricion?.nutritionScores).toHaveLength(8);
     expect(result.detalleRiego?.moduleScore).toBe(3);
   });
 
@@ -127,6 +127,31 @@ describe("calculo local de scores tecnicos", () => {
     ).toMatchObject({ incidenceGrade: 3, score: 0 });
     expect(result.detalleNutricion?.moduleScore).toBe(0);
     expect(result.detalleNutricion?.semaphore).toBe("rojo");
+  });
+
+  it.each([
+    ["calcio", "Calcio"],
+    ["fosforo", "Fósforo"]
+  ])("incluye la nueva deficiencia %s en el score local", (code, name) => {
+    const result = calculateLocalTechnicalScores(
+      buildInput({
+        finalizedSteps: [4],
+        nutritionObservations: [
+          {
+            nutrientId: `${code}-1`,
+            code,
+            name,
+            description: `Nutricion - ${name}: Incidencia 6%`,
+            incidencePercentage: 6
+          }
+        ]
+      })
+    );
+
+    expect(
+      result.detalleNutricion?.nutritionScores.find((item) => item.key === code)
+    ).toMatchObject({ name, evaluated: true, incidenceGrade: 2, score: 1 });
+    expect(result.detalleNutricion?.nutritionScores).toHaveLength(8);
   });
 
   it.each([

@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-20
+last_reviewed: 2026-08-21
 ---
 
 # Modelo del dominio
@@ -302,10 +302,10 @@ Para Nutrición, cada evaluación se vincula a un nutriente mediante
 El porcentaje deriva la incidencia con los mismos límites: 0%→grado 0,
 1–5%→grado 1, 6–20%→grado 2 y 21–100%→grado 3. La nota individual es
 `3 - incidencia`. El módulo siempre consolida Nitrógeno, Magnesio, Potasio,
-Hierro, Zinc y Boro; cada deficiencia sin registro aporta incidencia 0 y nota 3.
-`ScoreNutricion` es el mínimo de las seis notas y se publica al finalizar el
-paso 4 o al existir una receta para la visita. La severidad y los órganos
-afectados no intervienen en esta fórmula.
+Hierro, Zinc, Boro, Calcio y Fósforo; cada deficiencia sin registro aporta
+incidencia 0 y nota 3. `ScoreNutricion` es el mínimo de las ocho notas y se
+publica al finalizar el paso 4 o al existir una receta para la visita. La
+severidad y los órganos afectados no intervienen en esta fórmula.
 
 Mobile no solicita el órgano en la captura nutricional. Al ingresar cualquier
 incidencia, incluido 0%, usa `hoja_tierna` cuando la evaluación todavía no tiene

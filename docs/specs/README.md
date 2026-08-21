@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-19
+last_reviewed: 2026-08-21
 ---
 
 # Especificaciones
@@ -108,4 +108,5 @@ en la raíz.
 - [Spec 062: Frecuencia de dosis por mezcla](062-frecuencia-dosis-por-mezcla.md)
 - [Spec 063: Desmarcado sanitario coherente con receta mobile](063-desmarcado-sanitario-coherente-receta.md)
 - [Spec 064: Fertilización general sin deficiencia nutricional](064-fertilizacion-general-sin-deficiencia.md)
+- [Spec 065: Deficiencias nutricionales de Calcio y Fósforo](065-deficiencias-calcio-fosforo.md)
 - [Plantilla](TEMPLATE.md)

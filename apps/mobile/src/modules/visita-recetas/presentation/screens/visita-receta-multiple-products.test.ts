@@ -588,6 +588,46 @@ describe("receta con mezclas", () => {
     });
   });
 
+  it("crea recomendaciones curativas para Calcio y Fósforo evaluados", () => {
+    const fertilizaciones = mergeNutritionFertilizations([], {
+      ...consolidation,
+      nutricion: [
+        {
+          nutrienteId: "nut-calcio",
+          elemento: "Calcio",
+          incidencia: "6%",
+          severidad: "Leve",
+          incidenceGrade: 2
+        },
+        {
+          nutrienteId: "nut-fosforo",
+          elemento: "Fósforo",
+          incidencia: "21%",
+          severidad: "Severo",
+          incidenceGrade: 3
+        }
+      ]
+    });
+
+    expect(fertilizaciones).toHaveLength(2);
+    expect(fertilizaciones).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          nutrienteId: "nut-calcio",
+          nutrienteNombre: "Calcio",
+          enfoque: "reactivo",
+          incidenceGrade: 2
+        }),
+        expect.objectContaining({
+          nutrienteId: "nut-fosforo",
+          nutrienteNombre: "Fósforo",
+          enfoque: "reactivo",
+          incidenceGrade: 3
+        })
+      ])
+    );
+  });
+
   it("solo ofrece como preventivos nutrientes no evaluados ni usados", () => {
     const nutrients = [
       {

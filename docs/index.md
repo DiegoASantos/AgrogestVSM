@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-19
+last_reviewed: 2026-08-21
 ---
 
 # Documentación de AgroGest VSM
@@ -115,6 +115,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Frecuencia de dosis por mezcla](specs/062-frecuencia-dosis-por-mezcla.md)
 - [Desmarcado sanitario coherente con receta mobile](specs/063-desmarcado-sanitario-coherente-receta.md)
 - [Fertilización general sin deficiencia nutricional](specs/064-fertilizacion-general-sin-deficiencia.md)
+- [Deficiencias nutricionales de Calcio y Fósforo](specs/065-deficiencias-calcio-fosforo.md)
 
 ## Runbooks
 

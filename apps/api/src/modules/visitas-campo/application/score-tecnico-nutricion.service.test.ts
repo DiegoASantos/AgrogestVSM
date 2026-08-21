@@ -42,16 +42,16 @@ function nutritionEvaluation(code: string, percentage: number) {
 }
 
 describe("ScoreTecnicoNutricionService", () => {
-  it("consolida seis nutrientes y asigna nota 3 a los no evaluados", async () => {
+  it("consolida ocho nutrientes y asigna nota 3 a los no evaluados", async () => {
     const result = await buildService({
       evaluations: [nutritionEvaluation("magnesio", 12)]
     }).resolveVisitScore("visit-1");
 
     expect(result.score).toBe(1);
     expect(result.detail?.appliedFormula).toBe(
-      "ScoreNutricion = MIN(3, 1, 3, 3, 3, 3) = 1"
+      "ScoreNutricion = MIN(3, 1, 3, 3, 3, 3, 3, 3) = 1"
     );
-    expect(result.detail?.nutritionScores).toHaveLength(6);
+    expect(result.detail?.nutritionScores).toHaveLength(8);
     expect(result.detail?.nutritionScores[1]).toMatchObject({
       key: "magnesio",
       evaluated: true,
@@ -70,7 +70,7 @@ describe("ScoreTecnicoNutricionService", () => {
 
     expect(result.score).toBe(3);
     expect(result.detail?.appliedFormula).toBe(
-      "ScoreNutricion = MIN(3, 3, 3, 3, 3, 3) = 3"
+      "ScoreNutricion = MIN(3, 3, 3, 3, 3, 3, 3, 3) = 3"
     );
     expect(result.detail?.semaphore).toBe("verde");
   });
@@ -113,6 +113,25 @@ describe("ScoreTecnicoNutricionService", () => {
       incidenceGrade: 1,
       score: 2
     });
+  });
+
+  it.each([
+    ["calcio", "Calcio"],
+    ["fosforo", "Fósforo"]
+  ])("incluye la nueva deficiencia %s en el score", async (code, name) => {
+    const result = await buildService({
+      evaluations: [nutritionEvaluation(code, 6)]
+    }).resolveVisitScore("visit-1");
+
+    expect(result.detail?.nutritionScores.find((item) => item.key === code)).toMatchObject(
+      {
+        name,
+        evaluated: true,
+        incidencePercentage: 6,
+        incidenceGrade: 2,
+        score: 1
+      }
+    );
   });
 
   it.each([

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 67;
+const LATEST_MIGRATION_VERSION = 68;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1749,6 +1749,23 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+(visita_recetas|visita_receta_mezcla|sync_outbox)/iu.test(
+          statement
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("invalidates nutrition catalogs without deleting offline data", () => {
+    const db = createFakeDatabase(67);
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-08-21T17:00:00.000Z");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(nutrientes|detalle_nutrientes|visita_evaluaciones|visita_recetas|sync_outbox)/iu.test(
           statement
         )
       )

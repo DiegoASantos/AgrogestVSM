@@ -1607,6 +1607,10 @@ const MIGRATIONS: Migration[] = [
     run(db: SQLiteDatabase) {
       addColumnIfMissing(db, "visita_receta_mezcla", "frecuencia_dosis", "TEXT");
     }
+  },
+  {
+    version: 68,
+    statements: ["DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"]
   }
 ];
 

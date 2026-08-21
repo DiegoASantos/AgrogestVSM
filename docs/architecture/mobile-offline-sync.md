@@ -143,6 +143,14 @@ evaluaciones nutricionales, hijos de outbox ni contratos nuevos. Una fila
 reactiva historica sin nutriente permanece separada y se presenta como
 `Deficiencia no registrada`.
 
+La migración SQLite 68 invalida solamente `catalogs_downloaded_at` para que las
+instalaciones existentes descarguen Calcio y Fósforo, junto con las severidades
+del catálogo nutricional de Mango. No inserta catálogos locales, no modifica
+evaluaciones, recetas u operaciones pendientes y puede completarse sin red; la
+descarga se reintenta mediante el flujo normal al recuperar conectividad. El
+despliegue compatible aplica primero la migración PostgreSQL 056 y la API, y
+después publica mobile.
+
 Desde la spec 057, Receta y Mezclas son pasos independientes. Receta conserva
 su borrador con productos, riego y labores; Mezclas usa un segundo borrador con
 cantidad, asignaciones, dosis por uso, plantas o volumen, coadyuvantes, orden,
