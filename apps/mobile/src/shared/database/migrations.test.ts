@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 68;
+const LATEST_MIGRATION_VERSION = 69;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1766,6 +1766,26 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+(nutrientes|detalle_nutrientes|visita_evaluaciones|visita_recetas|sync_outbox)/iu.test(
+          statement
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("versiona el score técnico local sin borrar visitas ni pendientes", () => {
+    const db = createFakeDatabase(68);
+    db.appMetaRows.set("catalogs_downloaded_at", "2026-08-22T17:00:00.000Z");
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.executedStatements).toContain(
+      "ALTER TABLE visitas_campo ADD COLUMN version_score_tecnico INTEGER NOT NULL DEFAULT 1 CHECK(version_score_tecnico IN (1, 2))"
+    );
+    expect(db.appMetaRows.has("catalogs_downloaded_at")).toBe(false);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(visitas_campo|visita_observaciones_sanitarias|sync_outbox)/iu.test(
           statement
         )
       )
