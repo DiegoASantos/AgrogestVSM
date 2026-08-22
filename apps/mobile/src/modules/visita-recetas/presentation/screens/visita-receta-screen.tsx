@@ -10,7 +10,15 @@ import {
   type ComponentProps,
   type ReactNode
 } from "react";
-import { ImageBackground, Pressable, StyleSheet, TextInput, View } from "react-native";
+import {
+  ImageBackground,
+  type LayoutChangeEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -64,6 +72,7 @@ import {
 } from "./visita-receta-selection";
 import {
   buildRecipeAccordionCards,
+  findFirstRecipeDoseIssue,
   findFirstIncompleteRecipeCard,
   getFertilizacionCardKey,
   getFitosanidadCardKey,
@@ -157,6 +166,10 @@ export function VisitaRecetaScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [recipeFieldError, setRecipeFieldError] = useState<string | null>(null);
+  const [pendingRecipeIssue, setPendingRecipeIssue] = useState<
+    ReturnType<typeof findFirstRecipeDoseIssue>
+  >(null);
   const [consolidacion, setConsolidacion] = useState<ConsolidacionHallazgo | null>(null);
   const [recetaData, setRecetaData] = useState<VisitaRecetaCompleta | null>(null);
 
@@ -197,6 +210,10 @@ export function VisitaRecetaScreen() {
   const [isDraftReady, setIsDraftReady] = useState(false);
   const loadRequestRef = useRef(0);
   const accordionInitializedRef = useRef(false);
+  const formScrollRef = useRef<ScrollView>(null);
+  const doseInputRefs = useRef<Record<string, TextInput | null>>({});
+  const recipeCardOffsets = useRef<Record<RecipeCardKey, number>>({});
+  const recipeFieldOffsets = useRef<Record<string, number>>({});
   const catalogDownloadStatus = useCatalogDownloadStatus();
   const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
   const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
@@ -267,6 +284,29 @@ export function VisitaRecetaScreen() {
     accordionInitializedRef.current = true;
     setActiveRecipeCardKey(findFirstIncompleteRecipeCard(recipeAccordionCards));
   }, [isDraftReady, recipeAccordionCards]);
+
+  useEffect(() => {
+    if (!pendingRecipeIssue) return;
+
+    const frame = requestAnimationFrame(() => {
+      const offset =
+        pendingRecipeIssue.field === "dosis"
+          ? recipeFieldOffsets.current[pendingRecipeIssue.fieldKey]
+          : recipeCardOffsets.current[pendingRecipeIssue.cardKey];
+      if (offset !== undefined) {
+        formScrollRef.current?.scrollTo({
+          y: Math.max(0, offset - 96),
+          animated: true
+        });
+      }
+      if (pendingRecipeIssue.field === "dosis") {
+        doseInputRefs.current[pendingRecipeIssue.fieldKey]?.focus();
+      }
+      setPendingRecipeIssue(null);
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [pendingRecipeIssue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -916,6 +956,18 @@ export function VisitaRecetaScreen() {
 
   function handleSave() {
     if (!visitaId) return;
+    const doseIssue = findFirstRecipeDoseIssue(fitosanidadApps, fertilizaciones);
+    if (doseIssue) {
+      closeDropdown();
+      setActiveRecipeCardKey(doseIssue.cardKey);
+      setRecipeFieldError(doseIssue.fieldKey);
+      setSubmitError(doseIssue.message);
+      if (doseIssue.field === "unidad") {
+        setOpenDropdown(`${doseIssue.fieldKey}:selector`);
+      }
+      setPendingRecipeIssue(doseIssue);
+      return;
+    }
     const recetaValidation = validateRecipeRecommendations(
       fitosanidadApps,
       fertilizaciones,
@@ -1000,7 +1052,7 @@ export function VisitaRecetaScreen() {
   return (
     <ScreenContainer contentStyle={styles.container}>
       <StatusBar style="light" />
-      <FormScrollView contentContainerStyle={styles.scrollContent}>
+      <FormScrollView contentContainerStyle={styles.scrollContent} ref={formScrollRef}>
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
@@ -1067,6 +1119,20 @@ export function VisitaRecetaScreen() {
                   updateIngrediente(index, ingredientIndex, patch)
                 }
                 onCloseDropdown={closeDropdown}
+                onClearFieldError={(fieldKey) => {
+                  setRecipeFieldError((current) =>
+                    current === fieldKey ? null : current
+                  );
+                }}
+                onCardLayout={(cardKey, y) => {
+                  recipeCardOffsets.current[cardKey] = y;
+                }}
+                onDoseInputLayout={(fieldKey, y) => {
+                  recipeFieldOffsets.current[fieldKey] = y;
+                }}
+                onDoseInputRef={(fieldKey, ref) => {
+                  doseInputRefs.current[fieldKey] = ref;
+                }}
                 onToggle={() => toggleRecipeCard(getFitosanidadCardKey(app.localId))}
                 onRemoveIngrediente={(ingredientIndex) =>
                   removeIngrediente(index, ingredientIndex)
@@ -1077,6 +1143,7 @@ export function VisitaRecetaScreen() {
                     : undefined
                 }
                 openDropdown={openDropdown}
+                recipeFieldError={recipeFieldError}
                 tiposControl={tiposControl}
                 tiposProducto={tiposProducto}
                 toggleDropdown={toggleDropdown}
@@ -1193,7 +1260,13 @@ export function VisitaRecetaScreen() {
             const cardKey = getFertilizacionCardKey(group.key);
             const isExpanded = activeRecipeCardKey === cardKey;
             return (
-              <View key={group.key} style={styles.fertilizacionGroupCard}>
+              <View
+                key={group.key}
+                onLayout={(event) => {
+                  recipeCardOffsets.current[cardKey] = event.nativeEvent.layout.y;
+                }}
+                style={styles.fertilizacionGroupCard}
+              >
                 <RecipeAccordionHeader
                   action={
                     isPreventive ? (
@@ -1230,8 +1303,20 @@ export function VisitaRecetaScreen() {
                           productIndex={productIndex}
                           onChange={(patch) => updateFertilizacion(index, patch)}
                           onCloseDropdown={closeDropdown}
+                          onClearFieldError={(fieldKey) => {
+                            setRecipeFieldError((current) =>
+                              current === fieldKey ? null : current
+                            );
+                          }}
+                          onDoseInputLayout={(fieldKey, y) => {
+                            recipeFieldOffsets.current[fieldKey] = y;
+                          }}
+                          onDoseInputRef={(fieldKey, ref) => {
+                            doseInputRefs.current[fieldKey] = ref;
+                          }}
                           onRemove={() => removeFertilizacion(fertilizacion.localId)}
                           openDropdown={openDropdown}
+                          recipeFieldError={recipeFieldError}
                           toggleDropdown={toggleDropdown}
                           onNavegarCatalogo={(tipo, ingredienteActivoId) =>
                             router.push(
@@ -1523,9 +1608,14 @@ function FitosanidadCard({
   onChange,
   onChangeIngrediente,
   onCloseDropdown,
+  onCardLayout,
+  onClearFieldError,
+  onDoseInputLayout,
+  onDoseInputRef,
   onRemoveApplication,
   onRemoveIngrediente,
   onToggle,
+  recipeFieldError,
   toggleDropdown,
   onNavegarCatalogo
 }: {
@@ -1543,16 +1633,26 @@ function FitosanidadCard({
   onChange: (patch: Partial<AppFitosanidad>) => void;
   onChangeIngrediente: (index: number, patch: Partial<AppIngrediente>) => void;
   onCloseDropdown: () => void;
+  onCardLayout: (cardKey: RecipeCardKey, y: number) => void;
+  onClearFieldError: (fieldKey: string) => void;
+  onDoseInputLayout: (fieldKey: string, y: number) => void;
+  onDoseInputRef: (fieldKey: string, ref: TextInput | null) => void;
   onRemoveApplication?: () => void;
   onRemoveIngrediente: (index: number) => void;
   onToggle: () => void;
+  recipeFieldError: string | null;
   toggleDropdown: (key: string) => void;
   onNavegarCatalogo: (tipo: string, ingredienteActivoId?: string) => void;
 }) {
   const prefix = `fito_${index}`;
 
   return (
-    <View style={styles.fitosanidadCard}>
+    <View
+      onLayout={(event) =>
+        onCardLayout(getFitosanidadCardKey(value.localId), event.nativeEvent.layout.y)
+      }
+      style={styles.fitosanidadCard}
+    >
       <RecipeAccordionHeader
         action={
           onRemoveApplication ? (
@@ -1598,14 +1698,19 @@ function FitosanidadCard({
                 modosAccion={modosAccion}
                 onChange={(patch) => onChangeIngrediente(ingredientIndex, patch)}
                 onCloseDropdown={onCloseDropdown}
+                onClearFieldError={onClearFieldError}
+                onDoseInputLayout={onDoseInputLayout}
+                onDoseInputRef={onDoseInputRef}
                 onRemove={() => onRemoveIngrediente(ingredientIndex)}
                 openDropdown={openDropdown}
                 prefix={`${prefix}_ingrediente_${ingredientIndex}`}
+                recipeFieldError={recipeFieldError}
                 tiposProducto={tiposProducto}
                 toggleDropdown={toggleDropdown}
                 onNavegarCatalogo={onNavegarCatalogo}
                 total={value.ingredientes.length}
                 value={ingredient}
+                fieldPrefix={`fitosanidad:${value.localId}:${ingredient.localId}`}
               />
             ))}
           </View>
@@ -1626,6 +1731,7 @@ function IngredienteCard({
   index,
   total,
   prefix,
+  fieldPrefix,
   canRemove,
   ingredientesActivos,
   marcasProducto,
@@ -1634,14 +1740,19 @@ function IngredienteCard({
   openDropdown,
   onChange,
   onCloseDropdown,
+  onClearFieldError,
+  onDoseInputLayout,
+  onDoseInputRef,
   onRemove,
   toggleDropdown,
-  onNavegarCatalogo
+  onNavegarCatalogo,
+  recipeFieldError
 }: {
   value: AppIngrediente;
   index: number;
   total: number;
   prefix: string;
+  fieldPrefix: string;
   canRemove: boolean;
   ingredientesActivos: IngredienteActivoCatalogItem[];
   marcasProducto: MarcaProductoCatalogItem[];
@@ -1650,9 +1761,13 @@ function IngredienteCard({
   openDropdown: string | null;
   onChange: (patch: Partial<AppIngrediente>) => void;
   onCloseDropdown: () => void;
+  onClearFieldError: (fieldKey: string) => void;
+  onDoseInputLayout: (fieldKey: string, y: number) => void;
+  onDoseInputRef: (fieldKey: string, ref: TextInput | null) => void;
   onRemove: () => void;
   toggleDropdown: (key: string) => void;
   onNavegarCatalogo: (tipo: string, ingredienteActivoId?: string) => void;
+  recipeFieldError: string | null;
 }) {
   const ingredienteActivoOptions = getIngredientOptions(
     ingredientesActivos,
@@ -1795,31 +1910,51 @@ function IngredienteCard({
       />
 
       <LabeledNumericInput
+        error={recipeFieldError === `${fieldPrefix}:dosis` ? "Dosis obligatoria" : null}
         label="Dosis de producto comercial"
+        onChangeText={(dosisProducto) => {
+          onClearFieldError(`${fieldPrefix}:dosis`);
+          onChange({ dosisProducto });
+        }}
+        onLayout={(event) =>
+          onDoseInputLayout(`${fieldPrefix}:dosis`, event.nativeEvent.layout.y)
+        }
+        inputRef={(ref) => onDoseInputRef(`${fieldPrefix}:dosis`, ref)}
         value={value.dosisProducto}
-        onChangeText={(dosisProducto) => onChange({ dosisProducto })}
       />
 
-      <AppSelectField
-        icon="speedometer-outline"
-        label="Unidad de dosis"
-        options={(["mg", "g", "kg", "ml", "l"] as const).map((unit) => ({
-          value: unit,
-          label: `${unit}/cilindro`
-        }))}
-        placeholder="Seleccionar unidad"
-        selectedLabel={value.unidadDosis || undefined}
-        isOpen={openDropdown === `${prefix}_unidad_dosis`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_unidad_dosis`)}
-        onSelect={(unit) =>
-          onChange({
-            unidadDosis: buildFitosanidadUnidadDosis(
-              unit as "mg" | "g" | "kg" | "ml" | "l"
-            )
-          })
+      <View
+        onLayout={(event) =>
+          onDoseInputLayout(`${fieldPrefix}:unidad`, event.nativeEvent.layout.y)
         }
-      />
+      >
+        <AppSelectField
+          error={
+            recipeFieldError === `${fieldPrefix}:unidad`
+              ? "Unidad de dosis obligatoria"
+              : null
+          }
+          icon="speedometer-outline"
+          label="Unidad de dosis"
+          options={(["mg", "g", "kg", "ml", "l"] as const).map((unit) => ({
+            value: unit,
+            label: `${unit}/cilindro`
+          }))}
+          placeholder="Seleccionar unidad"
+          selectedLabel={value.unidadDosis || undefined}
+          isOpen={openDropdown === `${fieldPrefix}:unidad:selector`}
+          onClose={onCloseDropdown}
+          onToggle={() => toggleDropdown(`${fieldPrefix}:unidad:selector`)}
+          onSelect={(unit) => {
+            onClearFieldError(`${fieldPrefix}:unidad`);
+            onChange({
+              unidadDosis: buildFitosanidadUnidadDosis(
+                unit as "mg" | "g" | "kg" | "ml" | "l"
+              )
+            });
+          }}
+        />
+      </View>
     </View>
   );
 }
@@ -1865,7 +2000,11 @@ function FertilizacionCard({
   openDropdown,
   onChange,
   onCloseDropdown,
+  onClearFieldError,
+  onDoseInputLayout,
+  onDoseInputRef,
   onRemove,
+  recipeFieldError,
   toggleDropdown,
   onNavegarCatalogo
 }: {
@@ -1877,11 +2016,16 @@ function FertilizacionCard({
   openDropdown: string | null;
   onChange: (patch: Partial<AppFertilizacion>) => void;
   onCloseDropdown: () => void;
+  onClearFieldError: (fieldKey: string) => void;
+  onDoseInputLayout: (fieldKey: string, y: number) => void;
+  onDoseInputRef: (fieldKey: string, ref: TextInput | null) => void;
   onRemove: () => void;
+  recipeFieldError: string | null;
   toggleDropdown: (key: string) => void;
   onNavegarCatalogo: (tipo: string, ingredienteActivoId?: string) => void;
 }) {
   const prefix = `fert_${index}`;
+  const fieldPrefix = `fertilizacion:${value.localId}`;
   const unidadDosis = getUnidadDosis(value);
   const unidadBase = getDosisUnit(unidadDosis);
 
@@ -1991,32 +2135,52 @@ function FertilizacionCard({
       />
 
       <LabeledNumericInput
+        error={recipeFieldError === `${fieldPrefix}:dosis` ? "Dosis obligatoria" : null}
         label="Dosis"
+        onChangeText={(dosis) => {
+          onClearFieldError(`${fieldPrefix}:dosis`);
+          onChange({ dosis });
+        }}
+        onLayout={(event) =>
+          onDoseInputLayout(`${fieldPrefix}:dosis`, event.nativeEvent.layout.y)
+        }
+        inputRef={(ref) => onDoseInputRef(`${fieldPrefix}:dosis`, ref)}
         value={value.dosis}
-        onChangeText={(v) => onChange({ dosis: v })}
       />
 
-      <AppSelectField
-        icon="speedometer-outline"
-        label="Unidad de dosis"
-        options={getFertilizacionDosisUnits(value.tipoProducto).map((unit) => ({
-          value: unit,
-          label: buildFertilizacionUnidadDosis(unit, value.viaAplicacion)
-        }))}
-        placeholder="Seleccionar unidad"
-        selectedLabel={unidadDosis || undefined}
-        isOpen={openDropdown === `${prefix}_unidad_dosis`}
-        onClose={onCloseDropdown}
-        onToggle={() => toggleDropdown(`${prefix}_unidad_dosis`)}
-        onSelect={(unit) =>
-          onChange({
-            unidadDosis: buildFertilizacionUnidadDosis(
-              unit as "mg" | "g" | "kg" | "ml" | "l",
-              value.viaAplicacion
-            )
-          })
+      <View
+        onLayout={(event) =>
+          onDoseInputLayout(`${fieldPrefix}:unidad`, event.nativeEvent.layout.y)
         }
-      />
+      >
+        <AppSelectField
+          error={
+            recipeFieldError === `${fieldPrefix}:unidad`
+              ? "Unidad de dosis obligatoria"
+              : null
+          }
+          icon="speedometer-outline"
+          label="Unidad de dosis"
+          options={getFertilizacionDosisUnits(value.tipoProducto).map((unit) => ({
+            value: unit,
+            label: buildFertilizacionUnidadDosis(unit, value.viaAplicacion)
+          }))}
+          placeholder="Seleccionar unidad"
+          selectedLabel={unidadDosis || undefined}
+          isOpen={openDropdown === `${fieldPrefix}:unidad:selector`}
+          onClose={onCloseDropdown}
+          onToggle={() => toggleDropdown(`${fieldPrefix}:unidad:selector`)}
+          onSelect={(unit) => {
+            onClearFieldError(`${fieldPrefix}:unidad`);
+            onChange({
+              unidadDosis: buildFertilizacionUnidadDosis(
+                unit as "mg" | "g" | "kg" | "ml" | "l",
+                value.viaAplicacion
+              )
+            });
+          }}
+        />
+      </View>
 
       <LabeledNumericInput
         editable={value.factorEditable}
@@ -2308,16 +2472,22 @@ function LabeledNumericInput({
   value,
   onChangeText,
   editable = true,
-  placeholder = "0"
+  placeholder = "0",
+  error = null,
+  inputRef,
+  onLayout
 }: {
   label: string;
   value: string;
   onChangeText?: (v: string) => void;
   editable?: boolean;
   placeholder?: string;
+  error?: string | null;
+  inputRef?: (ref: TextInput | null) => void;
+  onLayout?: (event: LayoutChangeEvent) => void;
 }) {
   return (
-    <View style={styles.fieldWrapper}>
+    <View onLayout={onLayout} style={styles.fieldWrapper}>
       <AppText variant="label" style={styles.fieldLabel}>
         {label}
       </AppText>
@@ -2329,9 +2499,15 @@ function LabeledNumericInput({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={theme.colors.textMuted}
-        style={styles.textInput}
+        ref={inputRef}
+        style={[styles.textInput, error && styles.textInputError]}
         value={value}
       />
+      {error ? (
+        <AppText style={styles.fieldErrorText} variant="caption">
+          {error}
+        </AppText>
+      ) : null}
     </View>
   );
 }
@@ -2543,6 +2719,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     paddingHorizontal: 14,
     paddingVertical: 12
+  },
+  textInputError: {
+    backgroundColor: theme.colors.errorMuted,
+    borderColor: theme.colors.error,
+    borderWidth: 1.5
+  },
+  fieldErrorText: {
+    color: theme.colors.error
   },
   readonlyField: {
     backgroundColor: theme.colors.infoMuted,

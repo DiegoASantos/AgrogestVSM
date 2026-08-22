@@ -1,5 +1,6 @@
 import {
   getDosisUnit,
+  isValidFertilizacionUnidadDosis,
   parsePositiveDecimal,
   type AppFertilizacion,
   type AppFitosanidad,
@@ -14,6 +15,13 @@ export type RecipeCardKey =
 export type RecipeAccordionCardState = {
   key: RecipeCardKey;
   isComplete: boolean;
+};
+
+export type RecipeDoseIssue = {
+  cardKey: RecipeCardKey;
+  fieldKey: string;
+  field: "dosis" | "unidad";
+  message: string;
 };
 
 export type RecipeFertilizacionGroup = {
@@ -142,4 +150,62 @@ export function isFertilizacionGroupComplete(productos: AppFertilizacion[]) {
       );
     })
   );
+}
+
+export function findFirstRecipeDoseIssue(
+  fitosanidadApps: AppFitosanidad[],
+  fertilizaciones: AppFertilizacion[]
+): RecipeDoseIssue | null {
+  for (const application of fitosanidadApps) {
+    for (const ingredient of application.ingredientes) {
+      if (!ingredient.marcaProductoNombre.trim()) continue;
+
+      const fieldKey = `fitosanidad:${application.localId}:${ingredient.localId}`;
+      if (!parsePositiveDecimal(ingredient.dosisProducto)) {
+        return {
+          cardKey: getFitosanidadCardKey(application.localId),
+          fieldKey: `${fieldKey}:dosis`,
+          field: "dosis",
+          message: "Ingresa una dosis mayor a cero para este producto."
+        };
+      }
+      if (!getDosisUnit(ingredient.unidadDosis)) {
+        return {
+          cardKey: getFitosanidadCardKey(application.localId),
+          fieldKey: `${fieldKey}:unidad`,
+          field: "unidad",
+          message: "Selecciona la unidad de dosis para este producto."
+        };
+      }
+    }
+  }
+
+  for (const fertilizacion of fertilizaciones) {
+    if (!fertilizacion.fertilizanteNombre.trim()) continue;
+
+    const groupKey = fertilizacion.nutrienteId
+      ? `${fertilizacion.enfoque ?? "reactivo"}:${fertilizacion.nutrienteId}`
+      : fertilizacion.enfoque === "preventivo"
+        ? "preventivo:general"
+        : `legacy:${fertilizacion.localId}`;
+    const fieldKey = `fertilizacion:${fertilizacion.localId}`;
+    if (!parsePositiveDecimal(fertilizacion.dosis)) {
+      return {
+        cardKey: getFertilizacionCardKey(groupKey),
+        fieldKey: `${fieldKey}:dosis`,
+        field: "dosis",
+        message: "Ingresa una dosis mayor a cero para este producto."
+      };
+    }
+    if (!isValidFertilizacionUnidadDosis(fertilizacion)) {
+      return {
+        cardKey: getFertilizacionCardKey(groupKey),
+        fieldKey: `${fieldKey}:unidad`,
+        field: "unidad",
+        message: "Selecciona la unidad de dosis para este producto."
+      };
+    }
+  }
+
+  return null;
 }

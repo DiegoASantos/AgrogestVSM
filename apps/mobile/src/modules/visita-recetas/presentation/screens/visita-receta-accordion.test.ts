@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildRecipeAccordionCards,
+  findFirstRecipeDoseIssue,
   findFirstIncompleteRecipeCard,
   getFitosanidadCardKey,
   getMezclaCardKey,
@@ -123,5 +124,51 @@ describe("acordeones de receta", () => {
     expect(groupRecipeFertilizaciones([first, second]).map((group) => group.key)).toEqual(
       [`legacy:${first.localId}`, `legacy:${second.localId}`]
     );
+  });
+
+  it("guia a la primera dosis faltante de un producto seleccionado", () => {
+    const fitosanidad = completeFitosanidad("fito-1");
+    const ingredient = fitosanidad.ingredientes[0]!;
+    fitosanidad.ingredientes[0] = { ...ingredient, dosisProducto: "" };
+
+    expect(findFirstRecipeDoseIssue([fitosanidad], [])).toMatchObject({
+      cardKey: getFitosanidadCardKey("fito-1"),
+      field: "dosis",
+      fieldKey: `fitosanidad:fito-1:${ingredient.localId}:dosis`
+    });
+  });
+
+  it("guia a la unidad faltante antes de validar fertilizantes posteriores", () => {
+    const fitosanidad = completeFitosanidad("fito-1");
+    const ingredient = fitosanidad.ingredientes[0]!;
+    fitosanidad.ingredientes[0] = { ...ingredient, unidadDosis: "" };
+    const fertilizacion = {
+      ...createEmptyFertilizacion(),
+      fertilizanteNombre: "Urea",
+      dosis: "",
+      unidadDosis: "kg/planta",
+      cantidadTotalPlantas: "100"
+    };
+
+    expect(findFirstRecipeDoseIssue([fitosanidad], [fertilizacion])).toMatchObject({
+      cardKey: getFitosanidadCardKey("fito-1"),
+      field: "unidad",
+      fieldKey: `fitosanidad:fito-1:${ingredient.localId}:unidad`
+    });
+  });
+
+  it("requiere dosis positiva y unidad para cada fertilizante seleccionado", () => {
+    const fertilizacion = {
+      ...createEmptyFertilizacion(),
+      fertilizanteNombre: "Urea",
+      dosis: "0",
+      unidadDosis: "kg/planta",
+      cantidadTotalPlantas: "100"
+    };
+
+    expect(findFirstRecipeDoseIssue([], [fertilizacion])).toMatchObject({
+      field: "dosis",
+      fieldKey: `fertilizacion:${fertilizacion.localId}:dosis`
+    });
   });
 });
