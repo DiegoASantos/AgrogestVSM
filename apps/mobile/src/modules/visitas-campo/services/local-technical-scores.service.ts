@@ -45,6 +45,7 @@ export const localTechnicalScoresService = {
 
     return {
       scores: calculateLocalTechnicalScores({
+        technicalScoreVersion: detail.visita.technicalScoreVersion ?? 1,
         isActive: detail.visita.isActive,
         hasRecipe: recipe !== null,
         finalizedSteps: detail.stepNotes
@@ -93,9 +94,7 @@ export const localTechnicalScoresService = {
         labores: laboresCulturalesVisitaRepository
           .getLaboresCulturales()
           .filter((catalog) =>
-            detail.laboresCulturales.some(
-              (vlc) => vlc.laborCulturalId === catalog.id
-            )
+            detail.laboresCulturales.some((vlc) => vlc.laborCulturalId === catalog.id)
           )
           .map((catalog) => ({
             categoryCode: catalog.categoryCode,

@@ -819,6 +819,7 @@ function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft
 
   return {
     publicId: visita.publicId,
+    technicalScoreVersion: visita.technicalScoreVersion ?? 1,
     cropId: visita.cropId,
     varietyId: visita.varietyId,
     parcelaId: visita.parcelaId,

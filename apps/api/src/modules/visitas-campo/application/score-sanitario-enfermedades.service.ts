@@ -39,11 +39,18 @@ type DiseaseModuleScore = {
   detail: DiseaseModuleScoreDetail | null;
 };
 
-const DISEASE_DEFINITIONS = [
+const DISEASE_DEFINITIONS_V1 = [
   { key: "oidium", name: "Oidium" },
   { key: "antracnosis", name: "Antracnosis" },
   { key: "muerte_regresiva", name: "Muerte regresiva" },
   { key: "alternaria", name: "Alternaria" }
+] as const;
+
+const DISEASE_DEFINITIONS_V2 = [
+  ...DISEASE_DEFINITIONS_V1,
+  { key: "fusariosis", name: "Fusariosis" },
+  { key: "botritis", name: "Botritis" },
+  { key: "fumagina", name: "Fumagina" }
 ] as const;
 
 const DISEASE_MODULE_FORMULA =
@@ -79,10 +86,12 @@ export class ScoreSanitarioEnfermedadesService {
         nivelSeveridad: true
       }
     });
+    const diseaseDefinitions =
+      visit.technicalScoreVersion === 2 ? DISEASE_DEFINITIONS_V2 : DISEASE_DEFINITIONS_V1;
     const diseaseRows = rows.filter(
       (row) => row.plagaEnfermedad.type.toLowerCase() === "enfermedad"
     );
-    const diseaseScores = DISEASE_DEFINITIONS.map((definition) => {
+    const diseaseScores = diseaseDefinitions.map((definition) => {
       const row = diseaseRows.find(
         (candidate) => candidate.plagaEnfermedad.code === definition.key
       );
@@ -112,7 +121,10 @@ export class ScoreSanitarioEnfermedadesService {
       score,
       percentage,
       detail: {
-        moduleFormula: DISEASE_MODULE_FORMULA,
+        moduleFormula:
+          visit.technicalScoreVersion === 2
+            ? `MIN(${diseaseDefinitions.map((item) => `nota de ${item.name}`).join(", ")})`
+            : DISEASE_MODULE_FORMULA,
         appliedFormula: `MIN(${diseaseScores.map((item) => item.score).join(", ")}) = ${score}`,
         moduleScore: score,
         modulePercentage: percentage,

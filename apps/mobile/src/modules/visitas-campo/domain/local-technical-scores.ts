@@ -28,6 +28,7 @@ type NutritionObservationInput = {
 };
 
 export type LocalTechnicalScoreInput = {
+  technicalScoreVersion: 1 | 2;
   isActive: boolean;
   hasRecipe: boolean;
   finalizedSteps: number[];
@@ -46,7 +47,7 @@ export type LocalTechnicalScoreInput = {
   }>;
 };
 
-const PEST_DEFINITIONS = [
+const PEST_DEFINITIONS_V1 = [
   { key: "trips", name: "Trips", aliases: ["trips", "thrips"] },
   { key: "queresas", name: "Queresas", aliases: ["queresa", "queresas"] },
   { key: "acaros", name: "Ácaros", aliases: ["acaro", "acaros"] },
@@ -63,7 +64,23 @@ const PEST_DEFINITIONS = [
   }
 ] as const;
 
-const DISEASE_DEFINITIONS = [
+const PEST_DEFINITIONS_V2 = [
+  ...PEST_DEFINITIONS_V1,
+  { key: "aranita_roja", name: "Arañita roja", aliases: ["aranita roja"] },
+  { key: "mosca_blanca", name: "Mosca blanca", aliases: ["mosca blanca"] },
+  {
+    key: "gusano_barrenador",
+    name: "Gusano barrenador",
+    aliases: ["gusano barrenador"]
+  },
+  {
+    key: "hormiga_arriera",
+    name: "Hormiga arriera",
+    aliases: ["hormiga arriera"]
+  }
+] as const;
+
+const DISEASE_DEFINITIONS_V1 = [
   { key: "oidium", name: "Oidium", aliases: ["oidium", "oidio"] },
   { key: "antracnosis", name: "Antracnosis", aliases: ["antracnosis"] },
   {
@@ -72,6 +89,13 @@ const DISEASE_DEFINITIONS = [
     aliases: ["muerte regresiva"]
   },
   { key: "alternaria", name: "Alternaria", aliases: ["alternaria"] }
+] as const;
+
+const DISEASE_DEFINITIONS_V2 = [
+  ...DISEASE_DEFINITIONS_V1,
+  { key: "fusariosis", name: "Fusariosis", aliases: ["fusariosis"] },
+  { key: "botritis", name: "Botritis", aliases: ["botritis"] },
+  { key: "fumagina", name: "Fumagina", aliases: ["fumagina"] }
 ] as const;
 
 const NUTRITION_DEFINITIONS = [
@@ -106,7 +130,9 @@ function calculatePestDetail(
   const rows = input.sanitaryObservations.filter(
     (observation) => observation.type.toLowerCase() === "plaga"
   );
-  const pestScores = PEST_DEFINITIONS.map((definition) => {
+  const pestDefinitions =
+    input.technicalScoreVersion === 2 ? PEST_DEFINITIONS_V2 : PEST_DEFINITIONS_V1;
+  const pestScores = pestDefinitions.map((definition) => {
     const row = rows.find((observation) => matchesDefinition(observation, definition));
     const incidenceGrade = row?.incidenceGrade ?? 0;
     const severityGrade = row?.severityGrade ?? 0;
@@ -135,7 +161,9 @@ function calculatePestDetail(
   const semaphore = resolvePestSemaphore(moduleScore);
   return {
     moduleFormula:
-      "MIN(nota de Trips, nota de Queresas, nota de Ácaros, nota de Cochinilla, nota de Chinche, nota de Mosca de la fruta)",
+      input.technicalScoreVersion === 2
+        ? `MIN(${pestDefinitions.map((item) => `nota de ${item.name}`).join(", ")})`
+        : "MIN(nota de Trips, nota de Queresas, nota de Ácaros, nota de Cochinilla, nota de Chinche, nota de Mosca de la fruta)",
     appliedFormula: `MIN(${pestScores.map((item) => item.score).join(", ")}) = ${moduleScore}`,
     moduleScore,
     modulePercentage: percentage(moduleScore),
@@ -153,7 +181,9 @@ function calculateDiseaseDetail(
   const rows = input.sanitaryObservations.filter(
     (observation) => observation.type.toLowerCase() === "enfermedad"
   );
-  const diseaseScores = DISEASE_DEFINITIONS.map((definition) => {
+  const diseaseDefinitions =
+    input.technicalScoreVersion === 2 ? DISEASE_DEFINITIONS_V2 : DISEASE_DEFINITIONS_V1;
+  const diseaseScores = diseaseDefinitions.map((definition) => {
     const row = rows.find((observation) => matchesDefinition(observation, definition));
     const incidencePercentage = row?.incidencePercentage ?? 0;
     const incidenceGrade = resolveDiseaseIncidenceGrade(incidencePercentage);
@@ -175,7 +205,9 @@ function calculateDiseaseDetail(
   const semaphore = resolveDiseaseSemaphore(moduleScore);
   return {
     moduleFormula:
-      "MIN(nota de Oidium, nota de Antracnosis, nota de Muerte regresiva, nota de Alternaria)",
+      input.technicalScoreVersion === 2
+        ? `MIN(${diseaseDefinitions.map((item) => `nota de ${item.name}`).join(", ")})`
+        : "MIN(nota de Oidium, nota de Antracnosis, nota de Muerte regresiva, nota de Alternaria)",
     appliedFormula: `MIN(${diseaseScores.map((item) => item.score).join(", ")}) = ${moduleScore}`,
     moduleScore,
     modulePercentage: percentage(moduleScore),
@@ -395,9 +427,7 @@ function calculateLaborDetail(
     return null;
   }
   const selected = new Map(
-    input.labores
-      .filter((l) => l.categoryCode)
-      .map((l) => [l.categoryCode!, l])
+    input.labores.filter((l) => l.categoryCode).map((l) => [l.categoryCode!, l])
   );
   if (Object.keys(LABOR_WEIGHTS).some((category) => !selected.has(category))) return null;
 

@@ -189,6 +189,9 @@ export class VisitaCampoEntity {
   })
   isActive!: boolean;
 
+  @Column({ name: "version_score_tecnico", type: "smallint", default: 2 })
+  technicalScoreVersion!: number;
+
   @Column({
     name: "creado_at",
     type: "timestamptz",
@@ -279,10 +282,7 @@ export class VisitaCampoEntity {
   })
   subEtapa!: SubEtapaEntity | null;
 
-  @OneToMany(
-    () => VisitaEvaluacionEntity,
-    (visitaEvaluacion) => visitaEvaluacion.visita
-  )
+  @OneToMany(() => VisitaEvaluacionEntity, (visitaEvaluacion) => visitaEvaluacion.visita)
   evaluaciones!: VisitaEvaluacionEntity[];
 
   @OneToMany(
@@ -291,10 +291,7 @@ export class VisitaCampoEntity {
   )
   observacionesSanitarias!: VisitaObservacionSanitariaEntity[];
 
-  @OneToMany(
-    () => VisitaPasoObservacionEntity,
-    (stepNote) => stepNote.visita
-  )
+  @OneToMany(() => VisitaPasoObservacionEntity, (stepNote) => stepNote.visita)
   stepNotes!: VisitaPasoObservacionEntity[];
 
   @OneToMany(() => VisitaRiegoEntity, (riego) => riego.visita)

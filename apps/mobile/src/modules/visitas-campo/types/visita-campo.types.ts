@@ -34,6 +34,7 @@ export type VisitaCampo = {
   synchronizedAt: string | null;
   syncErrorMessage?: string | null;
   isActive: boolean;
+  technicalScoreVersion?: 1 | 2;
   createdAt: string;
   updatedAt: string;
   recetaAnteriorJson: string | null;
@@ -180,7 +181,11 @@ export type TechnicalVisitScores = {
 
 export type MobileTechnicalScoreDetails = Pick<
   TechnicalVisitScores,
-  "detallePlagas" | "detalleEnfermedades" | "detalleNutricion" | "detalleRiego" | "detalleLabores"
+  | "detallePlagas"
+  | "detalleEnfermedades"
+  | "detalleNutricion"
+  | "detalleRiego"
+  | "detalleLabores"
 >;
 
 export type MobileTechnicalScoreView = MobileTechnicalScoreDetails & {
@@ -190,6 +195,7 @@ export type MobileTechnicalScoreView = MobileTechnicalScoreDetails & {
 
 export type CreateVisitaCampoDraft = {
   publicId?: string;
+  technicalScoreVersion?: 1 | 2;
   cropId: string;
   varietyId: string;
   parcelaId: string;

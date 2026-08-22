@@ -91,6 +91,20 @@ const ANTRACNOSIS_IMAGE = require("../../../../../assets/images/Antracnosis.webp
 const MUERTE_REGRESIVA_IMAGE = require("../../../../../assets/images/muerte_regresiva.webp");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const OIDIUM_IMAGE = require("../../../../../assets/images/Oidiun.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ARANITA_ROJA_IMAGE = require("../../../../../assets/images/arañita_roja.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const MOSCA_BLANCA_IMAGE = require("../../../../../assets/images/mosca_blanca.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const GUSANO_BARRENADOR_IMAGE = require("../../../../../assets/images/gusano_barrenador.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const HORMIGA_ARRIERA_IMAGE = require("../../../../../assets/images/hormiga_arriera.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const FUSARIOSIS_IMAGE = require("../../../../../assets/images/fusariosis.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const BOTRITIS_IMAGE = require("../../../../../assets/images/botritis.webp");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const FUMAGINA_IMAGE = require("../../../../../assets/images/fumagina.webp");
 
 const PEST_DISEASE_IMAGES: Array<{
   patterns: string[];
@@ -105,7 +119,14 @@ const PEST_DISEASE_IMAGES: Array<{
   { patterns: ["alternaria"], source: ALTERNARIA_IMAGE },
   { patterns: ["antracnosis"], source: ANTRACNOSIS_IMAGE },
   { patterns: ["muerte regresiva"], source: MUERTE_REGRESIVA_IMAGE },
-  { patterns: ["oidium", "oidio", "oidiun"], source: OIDIUM_IMAGE }
+  { patterns: ["oidium", "oidio", "oidiun"], source: OIDIUM_IMAGE },
+  { patterns: ["aranita roja"], source: ARANITA_ROJA_IMAGE },
+  { patterns: ["mosca blanca"], source: MOSCA_BLANCA_IMAGE },
+  { patterns: ["gusano barrenador"], source: GUSANO_BARRENADOR_IMAGE },
+  { patterns: ["hormiga arriera"], source: HORMIGA_ARRIERA_IMAGE },
+  { patterns: ["fusariosis"], source: FUSARIOSIS_IMAGE },
+  { patterns: ["botritis"], source: BOTRITIS_IMAGE },
+  { patterns: ["fumagina"], source: FUMAGINA_IMAGE }
 ];
 
 type SanitarySelection = {

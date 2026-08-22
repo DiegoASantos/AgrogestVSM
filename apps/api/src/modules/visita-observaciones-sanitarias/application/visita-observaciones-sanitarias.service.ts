@@ -42,7 +42,9 @@ export class VisitaObservacionesSanitariasService {
     if (pestDisease.type.toLowerCase() !== "enfermedad") {
       await this.ensureNivelIncidenciaExists(createDto.incidenceLevelId, "incidencia");
     }
-    await this.ensureNivelIncidenciaExists(createDto.severityLevelId, "severidad");
+    if (createDto.severityLevelId !== null && createDto.severityLevelId !== undefined) {
+      await this.ensureNivelIncidenciaExists(createDto.severityLevelId, "severidad");
+    }
     await this.ensurePestDiseaseMatchesVisitStage(visita, createDto.pestDiseaseId);
     await this.ensureUniquePestDisease(visitaId, createDto.pestDiseaseId);
     const resolvedLevels = await this.resolveDiseaseObservationLevels({
@@ -280,10 +282,37 @@ export class VisitaObservacionesSanitariasService {
     organosAfectados: string[];
   }) {
     if (input.pestDisease.type.toLowerCase() !== "enfermedad") {
+      if (input.incidenceLevelId === null || input.incidenceLevelId === undefined) {
+        throw new BadRequestException("La incidencia es obligatoria para una plaga.");
+      }
+      const incidenceLevel = await this.nivelesIncidenciaRepository.findOne({
+        where: { id: input.incidenceLevelId }
+      });
+      if (!incidenceLevel || incidenceLevel.type !== "incidencia") {
+        throw new BadRequestException("La incidencia es obligatoria para una plaga.");
+      }
+      if (incidenceLevel.grade === 0) {
+        return {
+          incidenceLevelId: incidenceLevel.id,
+          severityLevelId: null,
+          incidencePercentage: null,
+          organosAfectados: []
+        };
+      }
+      if (input.severityLevelId === null || input.severityLevelId === undefined) {
+        throw new BadRequestException(
+          "La severidad es obligatoria cuando existe una plaga."
+        );
+      }
+      if (input.organosAfectados.length === 0) {
+        throw new BadRequestException(
+          "Debe registrar al menos un órgano afectado cuando existe una plaga."
+        );
+      }
       return {
-        incidenceLevelId: input.incidenceLevelId ?? null,
-        severityLevelId: input.severityLevelId ?? null,
-        incidencePercentage: input.incidencePercentage,
+        incidenceLevelId: incidenceLevel.id,
+        severityLevelId: input.severityLevelId,
+        incidencePercentage: null,
         organosAfectados: input.organosAfectados
       };
     }

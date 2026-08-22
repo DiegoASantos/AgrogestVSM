@@ -56,6 +56,7 @@ type VisitaCampoRow = {
   synchronized_at: string | null;
   sync_error_message: string | null;
   is_active: number;
+  version_score_tecnico: 1 | 2;
   sync_status: SyncStatus;
   created_at: string;
   updated_at: string;
@@ -154,6 +155,7 @@ type UpdateVisitaCampoInput = Partial<{
   visitLocation: GeoJsonPointGeometry | null;
   synchronizedAt: string | null;
   isActive: boolean;
+  technicalScoreVersion: 1 | 2;
 }>;
 
 const VISITA_COLUMNS = `
@@ -183,6 +185,7 @@ const VISITA_COLUMNS = `
   synchronized_at,
   sync_error_message,
   is_active,
+  version_score_tecnico,
   sync_status,
   created_at,
   updated_at
@@ -348,10 +351,11 @@ export const visitasCampoRepository = {
           visit_location,
           synchronized_at,
           is_active,
+          version_score_tecnico,
           sync_status,
           created_at,
           updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         null,
         publicId,
@@ -378,6 +382,7 @@ export const visitasCampoRepository = {
         stringifyNullableJson(input.visitLocation ?? null),
         null,
         1,
+        input.technicalScoreVersion ?? 2,
         "pending",
         timestamp,
         timestamp
@@ -823,6 +828,7 @@ function mapVisitaCampoRow(row: VisitaCampoRow): VisitaCampo {
     synchronizedAt: row.synchronized_at,
     syncErrorMessage: row.sync_error_message,
     isActive: fromSqliteBoolean(row.is_active),
+    technicalScoreVersion: row.version_score_tecnico,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

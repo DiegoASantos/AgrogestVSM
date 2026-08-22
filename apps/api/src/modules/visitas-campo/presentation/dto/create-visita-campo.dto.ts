@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsDateString,
   IsInt,
+  IsIn,
   IsNotEmpty,
   IsObject,
   IsOptional,
@@ -17,6 +18,15 @@ import {
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateVisitaCampoDto {
+  @ApiPropertyOptional({
+    example: 2,
+    description: "Versión de regla técnica usada al crear la visita."
+  })
+  @IsOptional()
+  @IsInt()
+  @IsIn([1, 2])
+  technicalScoreVersion?: number;
+
   @ApiPropertyOptional({
     example: "9f6c2d56-4b6e-4a96-a48b-f55eb0f25281",
     description: "Id publico del cliente para idempotencia de sincronizacion."

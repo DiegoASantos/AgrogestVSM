@@ -135,7 +135,8 @@ export class VisitasCampoService {
       firmaProductorNombre: normalizedDto.producerSignatureName ?? null,
       ubicacionVisita: validatePointGeometry(normalizedDto.visitLocation),
       sincronizadoAt: null,
-      isActive: true
+      isActive: true,
+      technicalScoreVersion: normalizedDto.technicalScoreVersion ?? 2
     });
 
     try {
@@ -862,6 +863,7 @@ export class VisitasCampoService {
     return {
       id: visitaCampo.id,
       publicId: visitaCampo.publicId,
+      technicalScoreVersion: visitaCampo.technicalScoreVersion,
       nroFicha: visitaCampo.nroFicha,
       cropId: visitaCampo.cultivoId,
       varietyId: visitaCampo.variedadId,

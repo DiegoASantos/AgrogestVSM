@@ -1611,6 +1611,18 @@ const MIGRATIONS: Migration[] = [
   {
     version: 68,
     statements: ["DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"]
+  },
+  {
+    version: 69,
+    run(db: SQLiteDatabase) {
+      addColumnIfMissing(
+        db,
+        "visitas_campo",
+        "version_score_tecnico",
+        "INTEGER NOT NULL DEFAULT 1 CHECK(version_score_tecnico IN (1, 2))"
+      );
+      db.execSync("DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'");
+    }
   }
 ];
 

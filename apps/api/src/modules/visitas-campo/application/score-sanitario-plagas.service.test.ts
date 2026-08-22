@@ -36,9 +36,15 @@ function buildObservation({
   };
 }
 
-function buildService(observations: unknown[], departmentCode = "15") {
+function buildService(
+  observations: unknown[],
+  departmentCode = "15",
+  technicalScoreVersion = 1
+) {
   const visits = {
-    findOne: vi.fn().mockResolvedValue({ id: "visit-1", isActive: true }),
+    findOne: vi
+      .fn()
+      .mockResolvedValue({ id: "visit-1", isActive: true, technicalScoreVersion }),
     createQueryBuilder: vi.fn().mockReturnValue(buildQueryBuilder(departmentCode))
   };
   const steps = {
@@ -108,6 +114,28 @@ describe("ScoreSanitarioPlagasService", () => {
       modulePercentage: 100,
       semaphore: "verde"
     });
+  });
+
+  it("incluye las diez plagas de la versión 2 sin alterar el universo histórico", async () => {
+    const result = await buildService(
+      [
+        buildObservation({
+          id: "pest-aranita",
+          name: "Arañita roja",
+          code: "aranita_roja",
+          incidence: 3,
+          severity: 2
+        })
+      ],
+      "15",
+      2
+    ).resolveVisitScore("visit-1");
+
+    expect(result.detail?.pestScores).toHaveLength(10);
+    expect(result.detail?.pestScores).toContainEqual(
+      expect.objectContaining({ key: "aranita_roja", evaluated: true, score: 0 })
+    );
+    expect(result.detail?.moduleFormula).toContain("Hormiga arriera");
   });
 
   it("aplica la regla especial de Mosca de la fruta antes del mínimo", async () => {

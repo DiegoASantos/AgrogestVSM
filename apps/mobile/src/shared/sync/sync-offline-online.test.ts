@@ -406,6 +406,7 @@ function seedOfflineCompleteVisit() {
     synchronizedAt: null,
     syncErrorMessage: null,
     isActive: true,
+    technicalScoreVersion: 2,
     createdAt: now,
     updatedAt: now,
     recetaAnteriorJson: null
@@ -604,7 +605,8 @@ describe("offline/online sync with complete visit data", () => {
         cropId: "1",
         parcelaId: "3",
         visitDate: "2026-06-17",
-        publicId: "550e8400-e29b-41d4-a716-446655440000"
+        publicId: "550e8400-e29b-41d4-a716-446655440000",
+        technicalScoreVersion: 2
       }),
       { accessToken: "token-online" },
       { signal: undefined }

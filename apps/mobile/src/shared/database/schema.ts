@@ -227,6 +227,7 @@ export const SQL_SCHEMA = [
     receta_anterior_json TEXT,
     synchronized_at TEXT,
     is_active INTEGER NOT NULL DEFAULT 1,
+    version_score_tecnico INTEGER NOT NULL DEFAULT 2 CHECK(version_score_tecnico IN (1, 2)),
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,

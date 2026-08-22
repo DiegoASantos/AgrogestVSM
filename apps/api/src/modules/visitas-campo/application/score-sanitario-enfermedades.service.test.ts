@@ -8,9 +8,14 @@ import {
 function buildService(options: {
   finalized?: boolean;
   observations?: Array<Record<string, unknown>>;
+  technicalScoreVersion?: 1 | 2;
 }) {
   const visits = {
-    findOne: vi.fn().mockResolvedValue({ id: "visit-1", isActive: true })
+    findOne: vi.fn().mockResolvedValue({
+      id: "visit-1",
+      isActive: true,
+      technicalScoreVersion: options.technicalScoreVersion ?? 1
+    })
   };
   const steps = {
     findOne: vi
@@ -79,6 +84,21 @@ describe("ScoreSanitarioEnfermedadesService", () => {
     expect(result.score).toBe(3);
     expect(result.detail?.appliedFormula).toBe("MIN(3, 3, 3, 3) = 3");
     expect(result.detail?.semaphore).toBe("verde");
+  });
+
+  it("incluye las siete enfermedades para visitas creadas con la versión 2", async () => {
+    const result = await buildService({
+      technicalScoreVersion: 2,
+      observations: [
+        diseaseObservation({ code: "botritis", percentage: 21, severityGrade: 2 })
+      ]
+    }).resolveVisitScore("visit-1");
+
+    expect(result.detail?.diseaseScores).toHaveLength(7);
+    expect(result.detail?.diseaseScores).toContainEqual(
+      expect.objectContaining({ key: "botritis", evaluated: true, score: 0 })
+    );
+    expect(result.detail?.moduleFormula).toContain("Fumagina");
   });
 
   it("no calcula el módulo antes de finalizar el paso de enfermedades", async () => {

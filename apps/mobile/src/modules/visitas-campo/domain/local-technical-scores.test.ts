@@ -9,6 +9,7 @@ function buildInput(
   overrides: Partial<LocalTechnicalScoreInput> = {}
 ): LocalTechnicalScoreInput {
   return {
+    technicalScoreVersion: 1,
     isActive: true,
     hasRecipe: false,
     finalizedSteps: [],
@@ -22,6 +23,17 @@ function buildInput(
 }
 
 describe("calculo local de scores tecnicos", () => {
+  it("amplía el score sanitario para una visita v2", () => {
+    const result = calculateLocalTechnicalScores(
+      buildInput({ technicalScoreVersion: 2, finalizedSteps: [2, 3] })
+    );
+
+    expect(result.detallePlagas?.pestScores).toHaveLength(10);
+    expect(result.detalleEnfermedades?.diseaseScores).toHaveLength(7);
+    expect(result.detallePlagas?.moduleFormula).toContain("Hormiga arriera");
+    expect(result.detalleEnfermedades?.moduleFormula).toContain("Botritis");
+  });
+
   it("mantiene los modulos pendientes antes de finalizar o crear una receta", () => {
     const result = calculateLocalTechnicalScores(buildInput());
 

@@ -496,6 +496,14 @@ la actualización de catálogos o en la recarga automática posterior a 24 horas
 La descarga conserva observaciones y outbox porque estas relaciones son
 catálogos de solo lectura.
 
+La migración SQLite 69 agrega `version_score_tecnico` a `visitas_campo`: las
+visitas locales existentes reciben v1 y las nuevas se insertan como v2. El valor
+viaja en la operación padre de outbox, por lo que el cálculo local usa el mismo
+universo que la API aun antes de sincronizar. También invalida solo la marca de
+descarga de catálogos para obtener las siete fichas sanitarias de Mango; no toca
+observaciones, recetas ni pendientes. El despliegue exige primero PostgreSQL 057
+y la API compatible, y luego la OTA/APK móvil.
+
 ## Cambios críticos
 
 ### Eliminacion autorizada de visitas

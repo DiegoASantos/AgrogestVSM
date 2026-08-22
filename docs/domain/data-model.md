@@ -272,11 +272,26 @@ y Mosca de la fruta. La ausencia de registro equivale en el cálculo a grados
 score del módulo es el mínimo de las seis notas. El contrato devuelve el
 desglose y el semáforo para que web y mobile presenten el mismo resultado.
 
+El universo del score técnico queda fijado por `version_score_tecnico` de la
+visita. La migración 057 marca las visitas existentes como v1 (seis plagas y
+cuatro enfermedades) y toda visita creada después usa v2 (diez plagas y siete
+enfermedades: Arañita roja, Mosca blanca, Gusano barrenador, Hormiga arriera,
+Fusariosis, Botritis y Fumagina). La versión se asigna al crear la visita, viaja
+en el agregado offline y no se modifica al editarla; así la lectura posterior no
+recalcula históricos con el universo nuevo. Ambas versiones conservan la nota
+individual `3 - MAX(incidencia, severidad)` y la ausencia equivale a nota 3.
+
 El universo de captura sanitaria de mango no se restringe por etapa: todas las
 plagas y enfermedades activas se relacionan con todas las etapas y labores
 activas del cultivo. Cada combinación ofrece los cuatro grados globales de
 incidencia y los cuatro de severidad. Esta disponibilidad de captura es distinta
 del universo fijo que utiliza cada macro-score.
+
+Las plagas registran la incidencia con grado manual 0 a 3. Las enfermedades
+derivan el grado desde el porcentaje de árboles afectados: 0%, 1–5%, 6–20% y
+21–100% equivalen respectivamente a los grados 0, 1, 2 y 3. En cualquier tipo,
+una incidencia positiva exige severidad y al menos un órgano afectado; el grado
+cero limpia esos campos.
 
 Mobile también deriva en lectura el detalle de estos cuatro módulos desde las
 capturas SQLite, sin persistir el resultado ni esperar un `serverId`. El valor

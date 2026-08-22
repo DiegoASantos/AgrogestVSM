@@ -116,6 +116,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Desmarcado sanitario coherente con receta mobile](specs/063-desmarcado-sanitario-coherente-receta.md)
 - [Fertilización general sin deficiencia nutricional](specs/064-fertilizacion-general-sin-deficiencia.md)
 - [Deficiencias nutricionales de Calcio y Fósforo](specs/065-deficiencias-calcio-fosforo.md)
+- [Catálogo sanitario Mango y score técnico versionado](specs/066-catalogo-sanitario-mango-score-versionado.md)
 
 ## Runbooks
 

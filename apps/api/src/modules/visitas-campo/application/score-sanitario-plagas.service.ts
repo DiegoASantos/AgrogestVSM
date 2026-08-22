@@ -47,7 +47,7 @@ type PestDefinition = {
   codes: string[];
 };
 
-const PEST_DEFINITIONS: PestDefinition[] = [
+const PEST_DEFINITIONS_V1: PestDefinition[] = [
   { key: "trips", name: "Trips", aliases: ["trips"], codes: ["trips"] },
   {
     key: "queresas",
@@ -78,6 +78,34 @@ const PEST_DEFINITIONS: PestDefinition[] = [
     name: "Mosca de la fruta",
     aliases: ["mosca de la fruta", "mosca fruta"],
     codes: ["mosca_fruta"]
+  }
+];
+
+const PEST_DEFINITIONS_V2: PestDefinition[] = [
+  ...PEST_DEFINITIONS_V1,
+  {
+    key: "aranita_roja",
+    name: "Arañita roja",
+    aliases: ["aranita roja", "arañita roja"],
+    codes: ["aranita_roja"]
+  },
+  {
+    key: "mosca_blanca",
+    name: "Mosca blanca",
+    aliases: ["mosca blanca"],
+    codes: ["mosca_blanca"]
+  },
+  {
+    key: "gusano_barrenador",
+    name: "Gusano barrenador",
+    aliases: ["gusano barrenador"],
+    codes: ["gusano_barrenador"]
+  },
+  {
+    key: "hormiga_arriera",
+    name: "Hormiga arriera",
+    aliases: ["hormiga arriera"],
+    codes: ["hormiga_arriera"]
   }
 ];
 
@@ -167,8 +195,10 @@ export class ScoreSanitarioPlagasService {
       where: { visitaId },
       relations: { plagaEnfermedad: true, nivelIncidencia: true, nivelSeveridad: true }
     });
+    const pestDefinitions =
+      visit.technicalScoreVersion === 2 ? PEST_DEFINITIONS_V2 : PEST_DEFINITIONS_V1;
     const pestRows = rows.filter((row) => row.plagaEnfermedad.type === "plaga");
-    const pestScores = PEST_DEFINITIONS.map((definition) => {
+    const pestScores = pestDefinitions.map((definition) => {
       const row = pestRows.find((candidate) =>
         matchesPestDefinition(candidate, definition)
       );
@@ -200,7 +230,10 @@ export class ScoreSanitarioPlagasService {
     const percentage = roundHalfUp((score / 3) * 100);
     const semaphore = resolvePestSemaphore(score);
     const detail: PestModuleScoreDetail = {
-      moduleFormula: PEST_MODULE_FORMULA,
+      moduleFormula:
+        visit.technicalScoreVersion === 2
+          ? `MIN(${pestDefinitions.map((item) => `nota de ${item.name}`).join(", ")})`
+          : PEST_MODULE_FORMULA,
       appliedFormula: `MIN(${pestScores.map((item) => item.score).join(", ")}) = ${score}`,
       moduleScore: score,
       modulePercentage: percentage,

@@ -35,13 +35,15 @@ function buildFixture() {
   const visits = { findOne: vi.fn().mockResolvedValue(visit) };
   const diseases = { findOne: vi.fn().mockResolvedValue(disease) };
   const levels = {
-    findOne: vi.fn().mockImplementation(({ where }) =>
-      Promise.resolve(
-        where.grade === undefined
-          ? severity
-          : incidenceLevels.find((level) => level.grade === where.grade) ?? null
+    findOne: vi
+      .fn()
+      .mockImplementation(({ where }) =>
+        Promise.resolve(
+          where.grade === undefined
+            ? severity
+            : (incidenceLevels.find((level) => level.grade === where.grade) ?? null)
+        )
       )
-    )
   };
   const diseaseStageLevels = {
     findOne: vi.fn().mockResolvedValue({ id: "stage-relation" }),
@@ -61,10 +63,43 @@ function buildFixture() {
     organs as never
   );
 
-  return { service, observations, diseaseStageLevels, organs, severity };
+  return {
+    service,
+    observations,
+    diseases,
+    levels,
+    diseaseStageLevels,
+    organs,
+    severity
+  };
 }
 
 describe("VisitaObservacionesSanitariasService enfermedades", () => {
+  it("exige severidad y órganos afectados para una plaga con incidencia positiva", async () => {
+    const { service, diseases, levels } = buildFixture();
+    diseases.findOne.mockResolvedValue({ id: "pest-1", type: "plaga" });
+    levels.findOne.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.id === 11
+          ? { id: 11, type: "incidencia", grade: 1 }
+          : where.id === 22
+            ? { id: 22, type: "severidad", grade: 2 }
+            : null
+      )
+    );
+
+    await expect(
+      service.create("visit-1", {
+        pestDiseaseId: "pest-1",
+        incidenceLevelId: 11,
+        severityLevelId: 22,
+        organosAfectados: []
+      })
+    ).rejects.toThrow(
+      "Debe registrar al menos un órgano afectado cuando existe una plaga."
+    );
+  });
+
   it("exige el porcentaje de árboles enfermos", async () => {
     const { service } = buildFixture();
 

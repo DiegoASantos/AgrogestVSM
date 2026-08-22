@@ -109,4 +109,5 @@ en la raíz.
 - [Spec 063: Desmarcado sanitario coherente con receta mobile](063-desmarcado-sanitario-coherente-receta.md)
 - [Spec 064: Fertilización general sin deficiencia nutricional](064-fertilizacion-general-sin-deficiencia.md)
 - [Spec 065: Deficiencias nutricionales de Calcio y Fósforo](065-deficiencias-calcio-fosforo.md)
+- [Spec 066: Catálogo sanitario Mango y score técnico versionado](066-catalogo-sanitario-mango-score-versionado.md)
 - [Plantilla](TEMPLATE.md)
