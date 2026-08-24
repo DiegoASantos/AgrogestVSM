@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource } from "typeorm";
 
@@ -6,6 +6,10 @@ import {
   type ProductorRankingItem,
   VisitaCalificacionesService
 } from "../../visita-calificaciones/application/visita-calificaciones.service";
+import type {
+  DashboardDateRangeQueryDto,
+  DashboardParcelasPorEtapaQueryDto
+} from "../presentation/dto/dashboard-metrics-query.dto";
 
 type VisitasPorMes = {
   mes: string;
@@ -83,6 +87,26 @@ export type DashboardResumenData = {
   };
 };
 
+type DashboardVisitaPorAgronomo = {
+  agronomistUserId: string;
+  agronomistName: string;
+  count: number;
+};
+
+type DashboardEtapaOption = {
+  id: string;
+  name: string;
+  type: "Etapa" | "Labor";
+};
+
+type DashboardParcelaPorEtapa = {
+  etapaFenologicaId: string;
+  name: string;
+  type: "Etapa" | "Labor";
+  count: number;
+  parcelas: string[];
+};
+
 @Injectable()
 export class DashboardService {
   constructor(
@@ -102,6 +126,128 @@ export class DashboardService {
     ]);
 
     return { kpis, charts, actividadReciente, rankingProductores };
+  }
+
+  async getVisitasPorAgronomo(
+    query: DashboardDateRangeQueryDto
+  ): Promise<{ items: DashboardVisitaPorAgronomo[] }> {
+    this.ensureDateRange(query);
+
+    const parameters: Record<string, string> = {};
+    const filters = this.buildVisitDateFilters("v", query, parameters);
+    const rows = await this.dataSource
+      .createQueryBuilder()
+      .select("v.agronomo_usuario_id", "agronomistUserId")
+      .addSelect(
+        "COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.nombres, u.apellidos)), ''), u.email, 'Sin agronomo')",
+        "agronomistName"
+      )
+      .addSelect("COUNT(*)", "count")
+      .from("visitas_campo", "v")
+      .leftJoin("usuarios", "u", "u.id = v.agronomo_usuario_id")
+      .where(filters)
+      .setParameters(parameters)
+      .groupBy("v.agronomo_usuario_id")
+      .addGroupBy("u.nombres")
+      .addGroupBy("u.apellidos")
+      .addGroupBy("u.email")
+      .orderBy("count", "DESC")
+      .addOrderBy("agronomistName", "ASC")
+      .getRawMany<{
+        agronomistUserId: string;
+        agronomistName: string;
+        count: string;
+      }>();
+
+    return {
+      items: rows.map((row) => ({ ...row, count: Number(row.count) }))
+    };
+  }
+
+  async getParcelasPorEtapa(
+    query: DashboardParcelasPorEtapaQueryDto
+  ): Promise<{ etapas: DashboardEtapaOption[]; items: DashboardParcelaPorEtapa[] }> {
+    this.ensureDateRange(query);
+
+    const etapas = await this.dataSource
+      .createQueryBuilder()
+      .select("e.id", "id")
+      .addSelect("e.nombre", "name")
+      .addSelect("e.tipo", "type")
+      .from("etapas_fenologicas", "e")
+      .where("e.activo = true")
+      .orderBy("e.cultivo_id", "ASC")
+      .addOrderBy("e.orden", "ASC", "NULLS LAST")
+      .addOrderBy("e.nombre", "ASC")
+      .getRawMany<DashboardEtapaOption>();
+
+    const values: string[] = [];
+    const filters = ["v.activo = true"];
+    if (query.fecha_desde) {
+      values.push(query.fecha_desde);
+      filters.push(`v.fecha_visita >= $${values.length}`);
+    }
+    if (query.fecha_hasta) {
+      values.push(query.fecha_hasta);
+      filters.push(`v.fecha_visita <= $${values.length}`);
+    }
+    let stageJoinFilter = "";
+    if (query.etapa_fenologica_id) {
+      values.push(query.etapa_fenologica_id);
+      stageJoinFilter = ` AND e.id = $${values.length}`;
+    }
+
+    const rows = await this.dataSource.query<
+      Array<{
+        etapaFenologicaId: string;
+        name: string;
+        type: "Etapa" | "Labor";
+        parcela: string;
+      }>
+    >(
+      `WITH ultimas_visitas AS (
+        SELECT DISTINCT ON (v.parcela_id)
+          v.parcela_id,
+          v.etapa_fenologica_id
+        FROM visitas_campo v
+        WHERE ${filters.join(" AND ")}
+          AND v.etapa_fenologica_id IS NOT NULL
+        ORDER BY v.parcela_id, v.fecha_visita DESC, v.id DESC
+      )
+      SELECT
+        e.id AS "etapaFenologicaId",
+        e.nombre AS "name",
+        e.tipo AS "type",
+        CASE
+          WHEN p.nombre IS NULL OR BTRIM(p.nombre) = '' THEN p.codigo
+          ELSE p.codigo || ' - ' || p.nombre
+        END AS "parcela"
+      FROM ultimas_visitas uv
+      INNER JOIN etapas_fenologicas e ON e.id = uv.etapa_fenologica_id AND e.activo = true${stageJoinFilter}
+      INNER JOIN parcelas p ON p.id = uv.parcela_id
+      ORDER BY e.orden ASC NULLS LAST, e.nombre ASC, "parcela" ASC`,
+      values
+    );
+
+    const grouped = new Map<string, DashboardParcelaPorEtapa>();
+    for (const row of rows) {
+      const current = grouped.get(row.etapaFenologicaId);
+      if (current) {
+        current.parcelas.push(row.parcela);
+        current.count += 1;
+        continue;
+      }
+
+      grouped.set(row.etapaFenologicaId, {
+        etapaFenologicaId: row.etapaFenologicaId,
+        name: row.name,
+        type: row.type,
+        count: 1,
+        parcelas: [row.parcela]
+      });
+    }
+
+    return { etapas, items: [...grouped.values()] };
   }
 
   private async getKpis() {
@@ -161,6 +307,34 @@ export class DashboardService {
       recetasEmitidas,
       cumplimientoPromedio
     };
+  }
+
+  private ensureDateRange(query: DashboardDateRangeQueryDto) {
+    if (query.fecha_desde && query.fecha_hasta && query.fecha_desde > query.fecha_hasta) {
+      throw new BadRequestException(
+        "fecha_hasta must be greater than or equal to fecha_desde."
+      );
+    }
+  }
+
+  private buildVisitDateFilters(
+    alias: string,
+    query: DashboardDateRangeQueryDto,
+    parameters: Record<string, string>
+  ) {
+    const filters = [`${alias}.activo = true`];
+
+    if (query.fecha_desde) {
+      filters.push(`${alias}.fecha_visita >= :startDate`);
+      parameters.startDate = query.fecha_desde;
+    }
+
+    if (query.fecha_hasta) {
+      filters.push(`${alias}.fecha_visita <= :endDate`);
+      parameters.endDate = query.fecha_hasta;
+    }
+
+    return filters;
   }
 
   private async getCharts(year: number) {

@@ -8,6 +8,35 @@ export type VisitasPorCampania = {
   count: number;
 };
 
+export type DashboardDateRange = {
+  startDate: string;
+  endDate: string;
+};
+
+export type VisitasPorAgronomo = {
+  agronomistUserId: string;
+  agronomistName: string;
+  count: number;
+};
+
+export type EtapaFenologicaDashboardOption = {
+  id: string;
+  name: string;
+  type: "Etapa" | "Labor";
+};
+
+export type ParcelasPorEtapa = {
+  etapaFenologicaId: string;
+  name: string;
+  type: "Etapa" | "Labor";
+  count: number;
+  parcelas: string[];
+};
+
+export type DashboardParcelasPorEtapaFilters = DashboardDateRange & {
+  phenologicalStageId: string;
+};
+
 export type PlagaFrecuente = {
   plaga: string;
   count: number;

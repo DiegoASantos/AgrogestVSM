@@ -16,6 +16,15 @@ import { ChartVisitasPorCampania } from "./chart-visitas-por-campania";
 import { ChartPlagasFrecuentes } from "./chart-plagas-frecuentes";
 import { ChartDeficienciasNutrientes } from "./chart-deficiencias-nutrientes";
 import { TopProductores } from "./actividad-reciente";
+import { ChartVisitasPorAgronomo, currentMonthRange } from "./chart-visitas-por-agronomo";
+import { ChartParcelasPorEtapa } from "./chart-parcelas-por-etapa";
+import type {
+  DashboardDateRange,
+  DashboardParcelasPorEtapaFilters,
+  EtapaFenologicaDashboardOption,
+  ParcelasPorEtapa,
+  VisitasPorAgronomo
+} from "../types/dashboard.types";
 
 const DASHBOARD_YEAR = 2026;
 const chartCardClassName =
@@ -27,6 +36,18 @@ export function DashboardOverview() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [year, setYear] = useState(DASHBOARD_YEAR);
+  const [agronomistFilters, setAgronomistFilters] =
+    useState<DashboardDateRange>(currentMonthRange);
+  const [stageFilters, setStageFilters] = useState<DashboardParcelasPorEtapaFilters>(
+    () => ({ ...currentMonthRange(), phenologicalStageId: "" })
+  );
+  const [visitasPorAgronomo, setVisitasPorAgronomo] = useState<VisitasPorAgronomo[]>([]);
+  const [parcelasPorEtapa, setParcelasPorEtapa] = useState<ParcelasPorEtapa[]>([]);
+  const [etapas, setEtapas] = useState<EtapaFenologicaDashboardOption[]>([]);
+  const [isLoadingAgronomists, setIsLoadingAgronomists] = useState(true);
+  const [isLoadingStages, setIsLoadingStages] = useState(true);
+  const [agronomistsError, setAgronomistsError] = useState<string | null>(null);
+  const [stagesError, setStagesError] = useState<string | null>(null);
 
   const loadData = useCallback(
     async (y: number) => {
@@ -50,6 +71,18 @@ export function DashboardOverview() {
   useEffect(() => {
     void loadData(year);
   }, [loadData, year]);
+
+  useEffect(() => {
+    if (!session) return;
+
+    void loadVisitasPorAgronomo(agronomistFilters);
+  }, [agronomistFilters, session]);
+
+  useEffect(() => {
+    if (!session) return;
+
+    void loadParcelasPorEtapa(stageFilters);
+  }, [session, stageFilters]);
 
   if (isLoading) {
     return (
@@ -124,6 +157,25 @@ export function DashboardOverview() {
         <div className={chartCardClassName}>
           <ChartDeficienciasNutrientes data={data.charts.deficienciasNutrientes} />
         </div>
+        <div className={chartCardClassName}>
+          <ChartVisitasPorAgronomo
+            data={visitasPorAgronomo}
+            errorMessage={agronomistsError}
+            isLoading={isLoadingAgronomists}
+            onApply={setAgronomistFilters}
+            range={agronomistFilters}
+          />
+        </div>
+        <div className={chartCardClassName}>
+          <ChartParcelasPorEtapa
+            data={parcelasPorEtapa}
+            errorMessage={stagesError}
+            etapas={etapas}
+            filters={stageFilters}
+            isLoading={isLoadingStages}
+            onApply={setStageFilters}
+          />
+        </div>
       </div>
 
       <div className={chartCardClassName}>
@@ -134,4 +186,43 @@ export function DashboardOverview() {
       </div>
     </div>
   );
+
+  async function loadVisitasPorAgronomo(filters: DashboardDateRange) {
+    if (!session) return;
+
+    try {
+      setIsLoadingAgronomists(true);
+      setAgronomistsError(null);
+      const response = await dashboardService.getVisitasPorAgronomo(session, filters);
+      setVisitasPorAgronomo(response.items);
+    } catch (err) {
+      const apiError = toApiError(err);
+      if (apiError.statusCode !== 401) {
+        setAgronomistsError(
+          apiError.message || "No se pudo cargar las visitas por agrónomo."
+        );
+      }
+    } finally {
+      setIsLoadingAgronomists(false);
+    }
+  }
+
+  async function loadParcelasPorEtapa(filters: DashboardParcelasPorEtapaFilters) {
+    if (!session) return;
+
+    try {
+      setIsLoadingStages(true);
+      setStagesError(null);
+      const response = await dashboardService.getParcelasPorEtapa(session, filters);
+      setParcelasPorEtapa(response.items);
+      setEtapas(response.etapas);
+    } catch (err) {
+      const apiError = toApiError(err);
+      if (apiError.statusCode !== 401) {
+        setStagesError(apiError.message || "No se pudo cargar las parcelas por etapa.");
+      }
+    } finally {
+      setIsLoadingStages(false);
+    }
+  }
 }

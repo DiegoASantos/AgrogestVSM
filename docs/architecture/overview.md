@@ -62,7 +62,8 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 
 `apps/admin-web` usa Next.js App Router:
 
-- dashboard y reportes;
+- dashboard y reportes, incluyendo métricas filtrables de visitas por agrónomo
+  y parcelas por etapa fenológica;
 - gestión de visitas;
 - mantenimiento de catálogos;
 - usuarios y roles;
