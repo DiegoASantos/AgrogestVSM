@@ -55,6 +55,10 @@ type PestDiseaseRow = {
   is_active: number;
 };
 
+type PestDiseaseByStageRow = PestDiseaseRow & {
+  stage_is_active: number;
+};
+
 type PestDiseaseStageLevelRow = {
   id: string;
   pest_disease_id: string;
@@ -395,17 +399,21 @@ export const observacionesSanitariasRepository = {
   },
 
   getPestDiseasesByPhenologicalStage(
-    phenologicalStageId: string
+    phenologicalStageId: string,
+    includeOptional = false
   ): PestDiseaseByStageItem[] {
     const db = getDatabase();
-    const rows = db.getAllSync<PestDiseaseRow>(
-      `SELECT DISTINCT pest.id, pest.code, pest.scientific_name, pest.name, pest.type, pest.is_active
+    const relationVisibilityClause = includeOptional ? "" : "AND relation.is_active = 1";
+    const rows = db.getAllSync<PestDiseaseByStageRow>(
+      `SELECT pest.id, pest.code, pest.scientific_name, pest.name, pest.type, pest.is_active,
+              MIN(relation.is_active) AS stage_is_active
        FROM pest_diseases pest
        INNER JOIN pest_disease_stage_levels relation
          ON relation.pest_disease_id = pest.id
        WHERE relation.phenological_stage_id = ?
-         AND relation.is_active = 1
          AND pest.is_active = 1
+         ${relationVisibilityClause}
+       GROUP BY pest.id, pest.code, pest.scientific_name, pest.name, pest.type, pest.is_active
        ORDER BY pest.type ASC, pest.name ASC, pest.id ASC`,
       phenologicalStageId
     );
@@ -417,15 +425,22 @@ export const observacionesSanitariasRepository = {
       name: row.name,
       type: row.type,
       isActive: fromSqliteBoolean(row.is_active),
-      stageLevels: this.getStageLevelsByPestDiseaseAndStage(row.id, phenologicalStageId)
+      isStageActive: fromSqliteBoolean(row.stage_is_active),
+      stageLevels: this.getStageLevelsByPestDiseaseAndStage(
+        row.id,
+        phenologicalStageId,
+        includeOptional
+      )
     }));
   },
 
   getStageLevelsByPestDiseaseAndStage(
     pestDiseaseId: string,
-    phenologicalStageId: string
+    phenologicalStageId: string,
+    includeOptional = false
   ): PestDiseaseStageLevelCatalogItem[] {
     const db = getDatabase();
+    const levelVisibilityClause = includeOptional ? "" : "AND is_active = 1";
     const rows = db.getAllSync<PestDiseaseStageLevelRow>(
       `SELECT id,
               pest_disease_id,
@@ -436,7 +451,7 @@ export const observacionesSanitariasRepository = {
        FROM pest_disease_stage_levels
        WHERE pest_disease_id = ?
          AND phenological_stage_id = ?
-         AND is_active = 1
+         ${levelVisibilityClause}
        ORDER BY incidence_severity_level_id ASC`,
       pestDiseaseId,
       phenologicalStageId

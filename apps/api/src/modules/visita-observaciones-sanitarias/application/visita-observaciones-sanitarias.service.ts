@@ -319,8 +319,7 @@ export class VisitaObservacionesSanitariasService {
     const stageLevels = await this.plagasEnfermedadesEtapasNivelesRepository.find({
       where: {
         plagaEnfermedadId: input.pestDisease.id,
-        etapaFenologicaId: input.visit.etapaFenologicaId!,
-        isActive: true
+        etapaFenologicaId: input.visit.etapaFenologicaId!
       },
       relations: { nivelIncidenciaSeveridad: true },
       order: { id: "ASC" }
@@ -418,14 +417,13 @@ export class VisitaObservacionesSanitariasService {
     const relation = await this.plagasEnfermedadesEtapasNivelesRepository.findOne({
       where: {
         plagaEnfermedadId,
-        etapaFenologicaId: visita.etapaFenologicaId,
-        isActive: true
+        etapaFenologicaId: visita.etapaFenologicaId
       }
     });
 
     if (!relation) {
       throw new BadRequestException(
-        "Pest disease is not available for the visit phenological stage."
+        "Pest disease is not configured for the visit phenological stage."
       );
     }
   }

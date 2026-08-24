@@ -281,11 +281,13 @@ en el agregado offline y no se modifica al editarla; así la lectura posterior n
 recalcula históricos con el universo nuevo. Ambas versiones conservan la nota
 individual `3 - MAX(incidencia, severidad)` y la ausencia equivale a nota 3.
 
-El universo de captura sanitaria de mango no se restringe por etapa: todas las
-plagas y enfermedades activas se relacionan con todas las etapas y labores
-activas del cultivo. Cada combinación ofrece los cuatro grados globales de
-incidencia y los cuatro de severidad. Esta disponibilidad de captura es distinta
-del universo fijo que utiliza cada macro-score.
+El universo de captura sanitaria de mango conserva relaciones con todas las
+etapas y labores activas del cultivo. El estado de la relación determina su
+prioridad de captura: `activo = true` la presenta como común y `activo = false`
+la deja disponible como opción excepcional mediante “Ver más”. Cada combinación
+conserva los cuatro grados globales de incidencia y los cuatro de severidad.
+Esta prioridad de interfaz no restringe el registro ni altera el universo fijo
+que utiliza cada macro-score.
 
 Las plagas registran la incidencia con grado manual 0 a 3. Las enfermedades
 derivan el grado desde el porcentaje de árboles afectados: 0%, 1–5%, 6–20% y

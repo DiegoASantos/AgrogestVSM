@@ -110,4 +110,5 @@ en la raíz.
 - [Spec 064: Fertilización general sin deficiencia nutricional](064-fertilizacion-general-sin-deficiencia.md)
 - [Spec 065: Deficiencias nutricionales de Calcio y Fósforo](065-deficiencias-calcio-fosforo.md)
 - [Spec 066: Catálogo sanitario Mango y score técnico versionado](066-catalogo-sanitario-mango-score-versionado.md)
+- [Spec 067: Catálogo sanitario común por etapa y labor](067-catalogo-sanitario-comun-por-etapa.md)
 - [Plantilla](TEMPLATE.md)

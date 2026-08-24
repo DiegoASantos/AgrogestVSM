@@ -117,6 +117,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Fertilización general sin deficiencia nutricional](specs/064-fertilizacion-general-sin-deficiencia.md)
 - [Deficiencias nutricionales de Calcio y Fósforo](specs/065-deficiencias-calcio-fosforo.md)
 - [Catálogo sanitario Mango y score técnico versionado](specs/066-catalogo-sanitario-mango-score-versionado.md)
+- [Catálogo sanitario común por etapa y labor](specs/067-catalogo-sanitario-comun-por-etapa.md)
 
 ## Runbooks
 

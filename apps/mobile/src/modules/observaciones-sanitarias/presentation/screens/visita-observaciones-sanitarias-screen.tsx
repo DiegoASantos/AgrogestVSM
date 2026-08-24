@@ -60,6 +60,7 @@ import {
 } from "../../domain/disease-incidence";
 import { getSanitaryObservationIdsToDelete } from "../../domain/sanitary-observation-reconciliation";
 import { getLevelOptionsForItem } from "../../domain/stage-level-options";
+import { partitionPestDiseasesByStagePriority } from "../../domain/stage-priority";
 import type {
   IncidenceLevelCatalogItem,
   OrganoAfectado,
@@ -270,6 +271,14 @@ export function VisitaObservacionesSanitariasScreen({
     () => pestDiseases.filter((item) => item.type === "enfermedad"),
     [pestDiseases]
   );
+  const plagasByStagePriority = useMemo(
+    () => partitionPestDiseasesByStagePriority(plagas),
+    [plagas]
+  );
+  const enfermedadesByStagePriority = useMemo(
+    () => partitionPestDiseasesByStagePriority(enfermedades),
+    [enfermedades]
+  );
   const activePestDiseases = mode === "plagas" ? plagas : enfermedades;
   const modeLabel = mode === "plagas" ? "plagas" : "enfermedades";
   const modeTitle = mode === "plagas" ? "Plagas" : "Enfermedades";
@@ -346,11 +355,12 @@ export function VisitaObservacionesSanitariasScreen({
               icon="bug-outline"
               incidenceLevels={incidenceLevels}
               isCompactLayout={isCompactLayout}
-              items={plagas}
+              items={plagasByStagePriority.common}
               onImagePress={setImagePreview}
               onIncidencePercentageChange={handleIncidencePercentageChange}
               onSelectLevel={handleSelectLevel}
               onToggleOrgano={handleToggleOrgano}
+              optionalItems={plagasByStagePriority.optional}
               selections={selections}
               title="PLAGAS"
             />
@@ -361,11 +371,12 @@ export function VisitaObservacionesSanitariasScreen({
               icon="leaf-outline"
               incidenceLevels={incidenceLevels}
               isCompactLayout={isCompactLayout}
-              items={enfermedades}
+              items={enfermedadesByStagePriority.common}
               onImagePress={setImagePreview}
               onIncidencePercentageChange={handleIncidencePercentageChange}
               onSelectLevel={handleSelectLevel}
               onToggleOrgano={handleToggleOrgano}
+              optionalItems={enfermedadesByStagePriority.optional}
               selections={selections}
               title="ENFERMEDADES"
             />
@@ -468,7 +479,8 @@ export function VisitaObservacionesSanitariasScreen({
       const [nextPestDiseases, nextIncidenceLevels, nextObservaciones, nextStepNote] =
         await Promise.all([
           observacionesSanitariasService.getPestDiseasesByPhenologicalStage(
-            visita.phenologicalStageId
+            visita.phenologicalStageId,
+            true
           ),
           observacionesSanitariasService.getIncidenceLevels(),
           observacionesSanitariasService.getByVisitaId(id),
@@ -482,7 +494,8 @@ export function VisitaObservacionesSanitariasScreen({
           await downloadAllCatalogs();
           resolvedPestDiseases =
             await observacionesSanitariasService.getPestDiseasesByPhenologicalStage(
-              visita.phenologicalStageId
+              visita.phenologicalStageId,
+              true
             );
         } catch {
           // Conservamos el resultado local si la recarga falla.
@@ -843,6 +856,7 @@ type SanitarySectionProps = {
     levelId: string
   ) => void;
   onToggleOrgano: (pestDiseaseId: string, organo: OrganoAfectado) => void;
+  optionalItems: PestDiseaseByStageItem[];
   selections: Record<string, SanitarySelection>;
   title: string;
 };
@@ -856,18 +870,22 @@ function SanitarySection({
   onIncidencePercentageChange,
   onSelectLevel,
   onToggleOrgano,
+  optionalItems,
   selections,
   title
 }: SanitarySectionProps) {
+  const [areOptionalItemsVisible, setAreOptionalItemsVisible] = useState(false);
+  const visibleItems = areOptionalItemsVisible ? [...items, ...optionalItems] : items;
+  const visibleItemIds = visibleItems.map((item) => item.id).join(",");
   const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(
-    () => new Set(items.length === 1 ? [items[0].id] : [])
+    () => new Set(visibleItems.length === 1 ? [visibleItems[0].id] : [])
   );
 
   useEffect(() => {
-    setExpandedItemIds(new Set(items.length === 1 ? [items[0].id] : []));
-  }, [items]);
+    setExpandedItemIds(new Set(visibleItems.length === 1 ? [visibleItems[0].id] : []));
+  }, [visibleItemIds]);
 
-  const hasMultipleItems = items.length > 1;
+  const hasMultipleItems = visibleItems.length > 1;
 
   return (
     <View style={styles.sectionGroup}>
@@ -887,7 +905,7 @@ function SanitarySection({
         </AppText>
       </View>
 
-      {items.map((item) => {
+      {visibleItems.map((item) => {
         const isExpanded = expandedItemIds.has(item.id);
 
         return (
@@ -916,6 +934,28 @@ function SanitarySection({
           />
         );
       })}
+
+      {optionalItems.length > 0 ? (
+        <Pressable
+          accessibilityLabel={
+            areOptionalItemsVisible
+              ? `Ver menos ${title.toLowerCase()}`
+              : `Ver más ${optionalItems.length} ${title.toLowerCase()}`
+          }
+          accessibilityRole="button"
+          onPress={() => setAreOptionalItemsVisible((current) => !current)}
+          style={({ pressed }) => [styles.optionalItemsButton, pressed && styles.pressed]}
+        >
+          <AppText style={styles.optionalItemsButtonText} variant="label">
+            {areOptionalItemsVisible ? "Ver menos" : `Ver más (${optionalItems.length})`}
+          </AppText>
+          <Ionicons
+            color={theme.colors.primary}
+            name={areOptionalItemsVisible ? "chevron-up" : "chevron-down"}
+            size={18}
+          />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -2184,6 +2224,18 @@ const styles = StyleSheet.create({
   organosBlock: {
     gap: 7,
     paddingTop: 2
+  },
+  optionalItemsButton: {
+    alignItems: "center",
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: 6,
+    minHeight: 42,
+    paddingHorizontal: 14
+  },
+  optionalItemsButtonText: {
+    color: theme.colors.primary,
+    fontSize: 14
   },
   organosBlockDisabled: {
     opacity: 0.55

@@ -83,7 +83,8 @@ async function buildVisitReportHtml(visitaId: string) {
     : [];
   const pestDiseases =
     observacionesSanitariasRepository.getPestDiseasesByPhenologicalStage(
-      visita.phenologicalStageId ?? ""
+      visita.phenologicalStageId ?? "",
+      true
     );
   const incidenceLevels = observacionesSanitariasRepository.getIncidenceLevels();
   const tiposRiego = riegosRepository.getTiposRiego();

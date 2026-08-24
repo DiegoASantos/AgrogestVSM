@@ -427,6 +427,7 @@ describe("visitaPdfReportService", () => {
         name: "Trips",
         type: "Plaga",
         isActive: true,
+        isStageActive: true,
         stageLevels: [
           {
             id: "rel-inc-baja",
@@ -453,6 +454,7 @@ describe("visitaPdfReportService", () => {
         name: "Oidio",
         type: "Enfermedad",
         isActive: true,
+        isStageActive: true,
         stageLevels: [
           {
             id: "rel-disease-inc-baja",

@@ -157,6 +157,34 @@ describe("VisitaObservacionesSanitariasService enfermedades", () => {
     );
   });
 
+  it("acepta una relación opcional configurada para la etapa", async () => {
+    const { service, diseaseStageLevels } = buildFixture();
+
+    await expect(
+      service.create("visit-1", {
+        pestDiseaseId: "disease-1",
+        severityLevelId: 22,
+        incidencePercentage: 12,
+        organosAfectados: ["hoja_madura"]
+      })
+    ).resolves.toBeDefined();
+
+    expect(diseaseStageLevels.findOne).toHaveBeenCalledWith({
+      where: {
+        plagaEnfermedadId: "disease-1",
+        etapaFenologicaId: "stage-1"
+      }
+    });
+    expect(diseaseStageLevels.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          plagaEnfermedadId: "disease-1",
+          etapaFenologicaId: "stage-1"
+        }
+      })
+    );
+  });
+
   it("rechaza una severidad ajena a la enfermedad y etapa", async () => {
     const { service, diseaseStageLevels } = buildFixture();
     diseaseStageLevels.find.mockResolvedValue(

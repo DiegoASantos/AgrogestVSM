@@ -33,6 +33,8 @@ export type PestDiseaseStageLevelCatalogItem = {
 };
 
 export type PestDiseaseByStageItem = PestDiseaseCatalogItem & {
+  /** Indica si el objetivo es común para la etapa/labor actual. */
+  isStageActive: boolean;
   stageLevels: PestDiseaseStageLevelCatalogItem[];
 };
 

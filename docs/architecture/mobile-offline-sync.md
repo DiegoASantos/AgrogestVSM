@@ -496,6 +496,14 @@ la actualización de catálogos o en la recarga automática posterior a 24 horas
 La descarga conserva observaciones y outbox porque estas relaciones son
 catálogos de solo lectura.
 
+La migración PostgreSQL 058 clasifica estas relaciones como comunes u
+opcionales por etapa o labor, sin eliminarlas. SQLite ya conserva `is_active`
+por relación: mobile muestra primero las comunes y mantiene las opcionales tras
+un control “Ver más”. La migración SQLite 70 solo invalida la frescura del
+catálogo; no modifica observaciones, borradores ni outbox. Una opción
+excepcional elegida offline usa los mismos niveles y se sincroniza como una
+observación normal.
+
 La migración SQLite 69 agrega `version_score_tecnico` a `visitas_campo`: las
 visitas locales existentes reciben v1 y las nuevas se insertan como v2. El valor
 viaja en la operación padre de outbox, por lo que el cálculo local usa el mismo

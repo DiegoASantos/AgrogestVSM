@@ -24,6 +24,7 @@ function catalogItem(type: "plaga" | "enfermedad", levelIds: string[]) {
     scientificName: null,
     type,
     isActive: true,
+    isStageActive: true,
     stageLevels: levelIds.map((nivelIncidenciaSeveridadId, index) => ({
       id: `relation-${index}`,
       plagaEnfermedadId: `${type}-1`,

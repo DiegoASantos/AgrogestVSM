@@ -25,10 +25,14 @@ export const observacionesSanitariasService = {
     return Promise.resolve(observacionesSanitariasRepository.getPestDiseases());
   },
 
-  getPestDiseasesByPhenologicalStage(phenologicalStageId: string) {
+  getPestDiseasesByPhenologicalStage(
+    phenologicalStageId: string,
+    includeOptional = false
+  ) {
     return Promise.resolve(
       observacionesSanitariasRepository.getPestDiseasesByPhenologicalStage(
-        phenologicalStageId
+        phenologicalStageId,
+        includeOptional
       )
     );
   },
