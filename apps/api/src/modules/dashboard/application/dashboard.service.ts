@@ -6,10 +6,7 @@ import {
   type ProductorRankingItem,
   VisitaCalificacionesService
 } from "../../visita-calificaciones/application/visita-calificaciones.service";
-import type {
-  DashboardDateRangeQueryDto,
-  DashboardParcelasPorEtapaQueryDto
-} from "../presentation/dto/dashboard-metrics-query.dto";
+import type { DashboardDateRangeQueryDto } from "../presentation/dto/dashboard-metrics-query.dto";
 
 type VisitasPorMes = {
   mes: string;
@@ -93,12 +90,6 @@ type DashboardVisitaPorAgronomo = {
   count: number;
 };
 
-type DashboardEtapaOption = {
-  id: string;
-  name: string;
-  type: "Etapa" | "Labor";
-};
-
 type DashboardParcelaPorEtapa = {
   etapaFenologicaId: string;
   name: string;
@@ -152,7 +143,7 @@ export class DashboardService {
       .addGroupBy("u.apellidos")
       .addGroupBy("u.email")
       .orderBy("count", "DESC")
-      .addOrderBy("agronomistName", "ASC")
+      .addOrderBy('"agronomistName"', "ASC")
       .getRawMany<{
         agronomistUserId: string;
         agronomistName: string;
@@ -165,21 +156,9 @@ export class DashboardService {
   }
 
   async getParcelasPorEtapa(
-    query: DashboardParcelasPorEtapaQueryDto
-  ): Promise<{ etapas: DashboardEtapaOption[]; items: DashboardParcelaPorEtapa[] }> {
+    query: DashboardDateRangeQueryDto
+  ): Promise<{ items: DashboardParcelaPorEtapa[] }> {
     this.ensureDateRange(query);
-
-    const etapas = await this.dataSource
-      .createQueryBuilder()
-      .select("e.id", "id")
-      .addSelect("e.nombre", "name")
-      .addSelect("e.tipo", "type")
-      .from("etapas_fenologicas", "e")
-      .where("e.activo = true")
-      .orderBy("e.cultivo_id", "ASC")
-      .addOrderBy("e.orden", "ASC", "NULLS LAST")
-      .addOrderBy("e.nombre", "ASC")
-      .getRawMany<DashboardEtapaOption>();
 
     const values: string[] = [];
     const filters = ["v.activo = true"];
@@ -191,12 +170,6 @@ export class DashboardService {
       values.push(query.fecha_hasta);
       filters.push(`v.fecha_visita <= $${values.length}`);
     }
-    let stageJoinFilter = "";
-    if (query.etapa_fenologica_id) {
-      values.push(query.etapa_fenologica_id);
-      stageJoinFilter = ` AND e.id = $${values.length}`;
-    }
-
     const rows = await this.dataSource.query<
       Array<{
         etapaFenologicaId: string;
@@ -223,7 +196,7 @@ export class DashboardService {
           'Productor sin nombre'
         ) AS "productor"
       FROM ultimas_visitas uv
-      INNER JOIN etapas_fenologicas e ON e.id = uv.etapa_fenologica_id AND e.activo = true${stageJoinFilter}
+      INNER JOIN etapas_fenologicas e ON e.id = uv.etapa_fenologica_id AND e.activo = true
       INNER JOIN parcelas p ON p.id = uv.parcela_id
       INNER JOIN productores productor ON productor.id = p.productor_id
       ORDER BY e.orden ASC NULLS LAST, e.nombre ASC, "productor" ASC`,
@@ -248,7 +221,7 @@ export class DashboardService {
       });
     }
 
-    return { etapas, items: [...grouped.values()] };
+    return { items: [...grouped.values()] };
   }
 
   private async getKpis() {

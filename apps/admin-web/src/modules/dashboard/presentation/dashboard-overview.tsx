@@ -20,8 +20,6 @@ import { ChartVisitasPorAgronomo, currentMonthRange } from "./chart-visitas-por-
 import { ChartParcelasPorEtapa } from "./chart-parcelas-por-etapa";
 import type {
   DashboardDateRange,
-  DashboardParcelasPorEtapaFilters,
-  EtapaFenologicaDashboardOption,
   ParcelasPorEtapa,
   VisitasPorAgronomo
 } from "../types/dashboard.types";
@@ -38,12 +36,9 @@ export function DashboardOverview() {
   const [year, setYear] = useState(DASHBOARD_YEAR);
   const [agronomistFilters, setAgronomistFilters] =
     useState<DashboardDateRange>(currentMonthRange);
-  const [stageFilters, setStageFilters] = useState<DashboardParcelasPorEtapaFilters>(
-    () => ({ ...currentMonthRange(), phenologicalStageId: "" })
-  );
+  const [stageFilters, setStageFilters] = useState<DashboardDateRange>(currentMonthRange);
   const [visitasPorAgronomo, setVisitasPorAgronomo] = useState<VisitasPorAgronomo[]>([]);
   const [parcelasPorEtapa, setParcelasPorEtapa] = useState<ParcelasPorEtapa[]>([]);
-  const [etapas, setEtapas] = useState<EtapaFenologicaDashboardOption[]>([]);
   const [isLoadingAgronomists, setIsLoadingAgronomists] = useState(true);
   const [isLoadingStages, setIsLoadingStages] = useState(true);
   const [agronomistsError, setAgronomistsError] = useState<string | null>(null);
@@ -170,7 +165,6 @@ export function DashboardOverview() {
           <ChartParcelasPorEtapa
             data={parcelasPorEtapa}
             errorMessage={stagesError}
-            etapas={etapas}
             filters={stageFilters}
             isLoading={isLoadingStages}
             onApply={setStageFilters}
@@ -207,7 +201,7 @@ export function DashboardOverview() {
     }
   }
 
-  async function loadParcelasPorEtapa(filters: DashboardParcelasPorEtapaFilters) {
+  async function loadParcelasPorEtapa(filters: DashboardDateRange) {
     if (!session) return;
 
     try {
@@ -215,7 +209,6 @@ export function DashboardOverview() {
       setStagesError(null);
       const response = await dashboardService.getParcelasPorEtapa(session, filters);
       setParcelasPorEtapa(response.items);
-      setEtapas(response.etapas);
     } catch (err) {
       const apiError = toApiError(err);
       if (apiError.statusCode !== 401) {

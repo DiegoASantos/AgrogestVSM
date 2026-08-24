@@ -1,5 +1,5 @@
 import { Transform } from "class-transformer";
-import { IsDateString, IsOptional, Matches } from "class-validator";
+import { IsDateString, IsOptional } from "class-validator";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export class DashboardDateRangeQueryDto {
@@ -14,16 +14,6 @@ export class DashboardDateRangeQueryDto {
   @IsOptional()
   @IsDateString({}, { message: "fecha_hasta must be a valid ISO 8601 date string." })
   fecha_hasta?: string;
-}
-
-export class DashboardParcelasPorEtapaQueryDto extends DashboardDateRangeQueryDto {
-  @ApiPropertyOptional({ name: "etapa_fenologica_id", example: "1" })
-  @Transform(({ value }) => trimOptionalString(value))
-  @IsOptional()
-  @Matches(/^[1-9]\d*$/, {
-    message: "etapa_fenologica_id must be a positive integer."
-  })
-  etapa_fenologica_id?: string;
 }
 
 function trimOptionalString(value: unknown): string | undefined {

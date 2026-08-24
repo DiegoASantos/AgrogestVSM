@@ -22,8 +22,6 @@ rango de fechas.
 
 - Gráfico de visitas activas agrupadas por agrónomo y rango de fechas.
 - Gráfico de parcelas por la etapa de su última visita activa en el rango.
-- Filtro opcional con todas las filas activas de `etapas_fenologicas`, mostrando
-  nombre y tipo.
 - Tarjeta fija con los apellidos y nombres de los productores correspondientes
   a cada barra.
 
@@ -40,19 +38,15 @@ rango de fechas.
   a menor cantidad.
 - RF-003: El gráfico por etapa considera una sola visita por parcela: la más
   reciente por fecha y, ante empate, la de mayor ID.
-- RF-004: El filtro de etapa muestra todas las filas activas de
-  `etapas_fenologicas`, incluidas las de tipo `Labor`.
-- RF-005: La tarjeta de detalle no sigue el puntero y muestra solo apellidos y
+- RF-004: La tarjeta de detalle no sigue el puntero y muestra solo apellidos y
   nombres de productores, sin códigos ni nombres de parcelas.
-- RF-006: Una etapa de tipo `Labor` solo mostrará resultados si una visita ya la
-  referencia; la regla actual de alta de visitas no se modifica.
 
 ## Contratos afectados
 
 - `GET /dashboard/visitas-por-agronomo?fecha_desde&fecha_hasta` devuelve
   agrónomo, ID y cantidad de visitas.
-- `GET /dashboard/parcelas-por-etapa?fecha_desde&fecha_hasta&etapa_fenologica_id?`
-  devuelve opciones del catálogo y grupos con etapa, tipo, cantidad y productores.
+- `GET /dashboard/parcelas-por-etapa?fecha_desde&fecha_hasta` devuelve grupos
+  con etapa, tipo, cantidad y productores.
 - Ambos parámetros de fecha son ISO opcionales, inclusivos y deben respetar
   `fecha_desde <= fecha_hasta`.
 
@@ -73,9 +67,7 @@ datos ni clientes mobile.
 - [x] CA-001: Se muestran visitas por agrónomo para un rango independiente.
 - [x] CA-002: Se muestran parcelas por etapa según su última visita del rango.
 - [x] CA-003: La tarjeta fija de cada etapa enumera los productores.
-- [x] CA-004: El catálogo de filtro incluye nombre y tipo de todas las etapas
-      activas.
-- [x] CA-005: Fechas invertidas se rechazan antes de consultar datos.
+- [x] CA-004: Fechas invertidas se rechazan antes de consultar datos.
 
 ## Pruebas
 

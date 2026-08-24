@@ -45,14 +45,13 @@ describe("dashboardService", () => {
     expect(fetchUrl()).toContain("fecha_hasta=2026-08-24");
   });
 
-  it("requests parcels per stage with the optional stage filter", async () => {
+  it("requests parcels per stage with its date range", async () => {
     await dashboardService.getParcelasPorEtapa(session, {
       startDate: "2026-08-01",
-      endDate: "2026-08-24",
-      phenologicalStageId: "12"
+      endDate: "2026-08-24"
     });
 
     expect(fetchUrl()).toContain("/dashboard/parcelas-por-etapa?");
-    expect(fetchUrl()).toContain("etapa_fenologica_id=12");
+    expect(fetchUrl()).not.toContain("etapa_fenologica_id");
   });
 });

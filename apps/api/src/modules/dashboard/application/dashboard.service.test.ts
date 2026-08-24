@@ -63,6 +63,7 @@ describe("DashboardService", () => {
 
   it("passes the visit filters as a single SQL condition for agronomist metrics", async () => {
     const where = vi.fn();
+    const addOrderBy = vi.fn();
     const builder = {
       select: () => builder,
       addSelect: () => builder,
@@ -76,7 +77,10 @@ describe("DashboardService", () => {
       groupBy: () => builder,
       addGroupBy: () => builder,
       orderBy: () => builder,
-      addOrderBy: () => builder,
+      addOrderBy: (...args: unknown[]) => {
+        addOrderBy(...args);
+        return builder;
+      },
       getRawMany: () =>
         Promise.resolve([
           { agronomistUserId: "7", agronomistName: "Ana Lopez", count: "2" }
@@ -95,16 +99,13 @@ describe("DashboardService", () => {
     expect(where).toHaveBeenCalledWith(
       "v.activo = true AND v.fecha_visita >= :startDate AND v.fecha_visita <= :endDate"
     );
+    expect(addOrderBy).toHaveBeenCalledWith('"agronomistName"', "ASC");
     expect(result.items).toEqual([
       { agronomistUserId: "7", agronomistName: "Ana Lopez", count: 2 }
     ]);
   });
 
   it("groups parcels returned from their latest visits by phenological stage", async () => {
-    const catalogBuilder = createMetricQueryBuilder([
-      { id: "1", name: "Floración", type: "Etapa" },
-      { id: "2", name: "Poda", type: "Labor" }
-    ]);
     const query = vi.fn().mockResolvedValue([
       {
         etapaFenologicaId: "1",
@@ -119,21 +120,15 @@ describe("DashboardService", () => {
         productor: "Perez Juan"
       }
     ]);
-    const service = new DashboardService(
-      { createQueryBuilder: () => catalogBuilder, query } as never,
-      {} as never
-    );
+    const service = new DashboardService({ query } as never, {} as never);
 
     const result = await service.getParcelasPorEtapa({
       fecha_desde: "2026-08-01",
-      fecha_hasta: "2026-08-24",
-      etapa_fenologica_id: "1"
+      fecha_hasta: "2026-08-24"
     });
 
     expect(query.mock.calls[0]?.[0]).toContain("DISTINCT ON (v.parcela_id)");
-    expect(query.mock.calls[0]?.[0]).toContain("e.activo = true AND e.id = $3");
-    expect(query.mock.calls[0]?.[1]).toEqual(["2026-08-01", "2026-08-24", "1"]);
-    expect(result.etapas).toHaveLength(2);
+    expect(query.mock.calls[0]?.[1]).toEqual(["2026-08-01", "2026-08-24"]);
     expect(result.items).toEqual([
       {
         etapaFenologicaId: "1",
@@ -179,17 +174,3 @@ describe("DashboardService", () => {
     ]);
   });
 });
-
-function createMetricQueryBuilder(rows: unknown[]) {
-  const builder = {
-    select: () => builder,
-    addSelect: () => builder,
-    from: () => builder,
-    where: () => builder,
-    orderBy: () => builder,
-    addOrderBy: () => builder,
-    getRawMany: () => Promise.resolve(rows)
-  };
-
-  return builder;
-}

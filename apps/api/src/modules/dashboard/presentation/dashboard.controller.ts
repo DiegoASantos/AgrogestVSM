@@ -2,10 +2,7 @@ import { Controller, Get, Query } from "@nestjs/common";
 import { ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 
 import { DashboardService } from "../application/dashboard.service";
-import {
-  DashboardDateRangeQueryDto,
-  DashboardParcelasPorEtapaQueryDto
-} from "./dto/dashboard-metrics-query.dto";
+import { DashboardDateRangeQueryDto } from "./dto/dashboard-metrics-query.dto";
 
 @ApiTags("Dashboard")
 @Controller("dashboard")
@@ -40,7 +37,7 @@ export class DashboardController {
     summary:
       "Agrupa parcelas por la etapa de su visita activa mas reciente dentro de un rango."
   })
-  async getParcelasPorEtapa(@Query() query: DashboardParcelasPorEtapaQueryDto) {
+  async getParcelasPorEtapa(@Query() query: DashboardDateRangeQueryDto) {
     const data = await this.dashboardService.getParcelasPorEtapa(query);
     return { success: true, data };
   }

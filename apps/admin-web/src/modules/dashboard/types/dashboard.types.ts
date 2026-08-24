@@ -19,22 +19,12 @@ export type VisitasPorAgronomo = {
   count: number;
 };
 
-export type EtapaFenologicaDashboardOption = {
-  id: string;
-  name: string;
-  type: "Etapa" | "Labor";
-};
-
 export type ParcelasPorEtapa = {
   etapaFenologicaId: string;
   name: string;
   type: "Etapa" | "Labor";
   count: number;
   productores: string[];
-};
-
-export type DashboardParcelasPorEtapaFilters = DashboardDateRange & {
-  phenologicalStageId: string;
 };
 
 export type PlagaFrecuente = {

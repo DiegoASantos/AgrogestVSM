@@ -4,9 +4,7 @@ import type { AuthSession } from "../../auth/types/auth.types";
 type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 import type {
   DashboardDateRange,
-  DashboardParcelasPorEtapaFilters,
   DashboardResumen,
-  EtapaFenologicaDashboardOption,
   ParcelasPorEtapa,
   VisitasPorAgronomo
 } from "../types/dashboard.types";
@@ -33,19 +31,14 @@ export const dashboardService = {
 
   async getParcelasPorEtapa(
     session: AuthSessionInput,
-    filters: DashboardParcelasPorEtapaFilters
-  ): Promise<{ etapas: EtapaFenologicaDashboardOption[]; items: ParcelasPorEtapa[] }> {
-    const searchParams = new URLSearchParams(buildDateRangeQuery(filters));
-    if (filters.phenologicalStageId) {
-      searchParams.set("etapa_fenologica_id", filters.phenologicalStageId);
-    }
-
-    return apiRequest<{
-      etapas: EtapaFenologicaDashboardOption[];
-      items: ParcelasPorEtapa[];
-    }>(`/dashboard/parcelas-por-etapa?${searchParams.toString()}`, {
-      headers: createAuthHeaders(session.accessToken, session.tokenType)
-    });
+    filters: DashboardDateRange
+  ): Promise<{ items: ParcelasPorEtapa[] }> {
+    return apiRequest<{ items: ParcelasPorEtapa[] }>(
+      `/dashboard/parcelas-por-etapa?${buildDateRangeQuery(filters)}`,
+      {
+        headers: createAuthHeaders(session.accessToken, session.tokenType)
+      }
+    );
   }
 };
 

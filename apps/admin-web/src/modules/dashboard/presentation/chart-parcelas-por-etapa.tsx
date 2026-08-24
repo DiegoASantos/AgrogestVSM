@@ -11,24 +11,18 @@ import {
 } from "recharts";
 
 import { currentMonthRange } from "./chart-visitas-por-agronomo";
-import type {
-  DashboardParcelasPorEtapaFilters,
-  EtapaFenologicaDashboardOption,
-  ParcelasPorEtapa
-} from "../types/dashboard.types";
+import type { DashboardDateRange, ParcelasPorEtapa } from "../types/dashboard.types";
 
 type Props = {
   data: ParcelasPorEtapa[];
-  etapas: EtapaFenologicaDashboardOption[];
   errorMessage: string | null;
-  filters: DashboardParcelasPorEtapaFilters;
+  filters: DashboardDateRange;
   isLoading: boolean;
-  onApply: (filters: DashboardParcelasPorEtapaFilters) => void;
+  onApply: (filters: DashboardDateRange) => void;
 };
 
 export function ChartParcelasPorEtapa({
   data,
-  etapas,
   errorMessage,
   filters,
   isLoading,
@@ -55,7 +49,7 @@ export function ChartParcelasPorEtapa({
 
   function clear() {
     setValidationError(null);
-    onApply({ ...currentMonthRange(), phenologicalStageId: "" });
+    onApply(currentMonthRange());
   }
 
   return (
@@ -68,7 +62,7 @@ export function ChartParcelasPorEtapa({
           Estado de la última visita activa de cada parcela en el rango seleccionado.
         </p>
       </div>
-      <div className="grid grid-cols-[minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(12rem,1.25fr)] gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <label className="field-group">
           <span className="field-group__label">Fecha desde</span>
           <input
@@ -85,23 +79,7 @@ export function ChartParcelasPorEtapa({
             value={draft.endDate}
           />
         </label>
-        <label className="field-group">
-          <span className="field-group__label">Etapa o labor</span>
-          <select
-            onChange={(event) =>
-              setDraft({ ...draft, phenologicalStageId: event.target.value })
-            }
-            value={draft.phenologicalStageId}
-          >
-            <option value="">Todas</option>
-            {etapas.map((etapa) => (
-              <option key={etapa.id} value={etapa.id}>
-                {etapa.name} ({etapa.type})
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="col-span-3 flex gap-2">
+        <div className="col-span-2 flex gap-2">
           <button
             className="ui-button ui-button--ghost ui-button--compact"
             onClick={clear}
