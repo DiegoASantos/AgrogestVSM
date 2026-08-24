@@ -76,3 +76,10 @@ crear, corregir y eliminar exclusivamente lecturas manuales de reservorios. La
 API exige una marca explícita en esos handlers además de `@Roles("ADMIN",
 "ANALISTA")`; el guard global mantiene el bloqueo de cualquier otra mutación.
 AGRONOMO conserva acceso de solo lectura.
+
+## Excepción posterior: lookup de agrónomos
+
+La spec 069 habilita a `ANALISTA` exclusivamente para leer el lookup mínimo de
+agrónomos activos usado por el listado de visitas. No autoriza el listado ni el
+detalle administrativo de usuarios y no expone correo, teléfono, roles o
+permisos.

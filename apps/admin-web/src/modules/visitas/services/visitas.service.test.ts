@@ -10,7 +10,11 @@ type FetchResponse = {
   text: () => Promise<string>;
 };
 
-function apiResponse(data: unknown, status = 200, meta?: Record<string, unknown>): FetchResponse {
+function apiResponse(
+  data: unknown,
+  status = 200,
+  meta?: Record<string, unknown>
+): FetchResponse {
   return {
     ok: status >= 200 && status < 300,
     status,
@@ -70,18 +74,21 @@ describe("visitasService", () => {
     });
 
     it("should build query string with all filter params", async () => {
-      fetchMock.mockResolvedValue(
-        apiResponse([], 200, { total: 0 })
-      );
+      fetchMock.mockResolvedValue(apiResponse([], 200, { total: 0 }));
 
-      await visitasService.getList(session, {
-        agronomistUserId: "user-1",
-        productorId: "100",
-        campaignId: "200",
-        parcelaId: "300",
-        startDate: "2026-01-01",
-        endDate: "2026-06-30"
-      }, 1, 50);
+      await visitasService.getList(
+        session,
+        {
+          agronomistUserId: "user-1",
+          productorId: "100",
+          campaignId: "200",
+          parcelaId: "300",
+          startDate: "2026-01-01",
+          endDate: "2026-06-30"
+        },
+        1,
+        50
+      );
 
       const calls = fetchMock.mock.calls;
       const [url] = calls[0] as [string];
@@ -118,12 +125,65 @@ describe("visitasService", () => {
   });
 
   describe("#getFilterCatalogs", () => {
-    it("should fetch productores, campanias, parcelas, and usuarios in parallel", async () => {
+    it("should fetch productores, campanias, parcelas, and the restricted agronomist lookup in parallel", async () => {
       fetchMock
-        .mockResolvedValueOnce(apiResponse([{ id: "1", firstName: "Juan", lastName: "Perez", documentNumber: null, email: null, publicId: "pub-1" }], 200, { total: 1 }))
-        .mockResolvedValueOnce(apiResponse([{ id: "10", name: "Campania 2026", cultivoId: "5", startDate: "2026-01-01", endDate: null }], 200, { total: 1 }))
-        .mockResolvedValueOnce(apiResponse([{ id: "100", code: "P-001", name: "Parcela Norte", productorId: "1", sectorId: "50", areaHectares: "2.5" }], 200, { total: 1 }))
-        .mockResolvedValueOnce(apiResponse([{ id: "user-1", displayName: "Carlos Lopez", email: "carlos@test.com", isActive: true }]));
+        .mockResolvedValueOnce(
+          apiResponse(
+            [
+              {
+                id: "1",
+                firstName: "Juan",
+                lastName: "Perez",
+                documentNumber: null,
+                email: null,
+                publicId: "pub-1"
+              }
+            ],
+            200,
+            { total: 1 }
+          )
+        )
+        .mockResolvedValueOnce(
+          apiResponse(
+            [
+              {
+                id: "10",
+                name: "Campania 2026",
+                cultivoId: "5",
+                startDate: "2026-01-01",
+                endDate: null
+              }
+            ],
+            200,
+            { total: 1 }
+          )
+        )
+        .mockResolvedValueOnce(
+          apiResponse(
+            [
+              {
+                id: "100",
+                code: "P-001",
+                name: "Parcela Norte",
+                productorId: "1",
+                sectorId: "50",
+                areaHectares: "2.5"
+              }
+            ],
+            200,
+            { total: 1 }
+          )
+        )
+        .mockResolvedValueOnce(
+          apiResponse([
+            {
+              id: "user-1",
+              displayName: "Carlos Lopez",
+              email: "carlos@test.com",
+              isActive: true
+            }
+          ])
+        );
 
       const result = await visitasService.getFilterCatalogs(session);
 
@@ -134,11 +194,27 @@ describe("visitasService", () => {
       expect(result.parcelas).toHaveLength(1);
       expect(result.parcelas[0].label).toBe("P-001 - Parcela Norte");
       expect(result.agronomos).toHaveLength(1);
+      expectGetRequest(fetchMock, "/usuarios/agronomos");
     });
 
     it("should build productor label from documentNumber when name is missing", async () => {
       fetchMock
-        .mockResolvedValueOnce(apiResponse([{ id: "1", firstName: null, lastName: null, documentNumber: "12345678", email: null, publicId: "pub-1" }], 200, { total: 1 }))
+        .mockResolvedValueOnce(
+          apiResponse(
+            [
+              {
+                id: "1",
+                firstName: null,
+                lastName: null,
+                documentNumber: "12345678",
+                email: null,
+                publicId: "pub-1"
+              }
+            ],
+            200,
+            { total: 1 }
+          )
+        )
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
         .mockResolvedValueOnce(apiResponse([]));
@@ -153,10 +229,17 @@ describe("visitasService", () => {
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
-        .mockResolvedValueOnce(apiResponse([
-          { id: "u1", displayName: "Active", email: "active@test.com", isActive: true },
-          { id: "u2", displayName: "Inactive", email: "inactive@test.com", isActive: false }
-        ]));
+        .mockResolvedValueOnce(
+          apiResponse([
+            { id: "u1", displayName: "Active", email: "active@test.com", isActive: true },
+            {
+              id: "u2",
+              displayName: "Inactive",
+              email: "inactive@test.com",
+              isActive: false
+            }
+          ])
+        );
 
       const result = await visitasService.getFilterCatalogs(session);
 
@@ -168,23 +251,38 @@ describe("visitasService", () => {
   describe("#getFullDetail", () => {
     it("should fetch detail and all lookup data", async () => {
       fetchMock
-        .mockResolvedValueOnce(apiResponse({
-          visita: { id: "v1", agronomistUserId: "u1", cropId: "c1", varietyId: "var1", parcelaId: "p1", campaignId: "camp1", phenologicalStageId: "stage1", visitDate: "2026-06-01" },
-          evaluaciones: [],
-          observacionesSanitarias: [],
-          riego: null,
-          laboresCulturales: [],
-          calificaciones: []
-        }))
+        .mockResolvedValueOnce(
+          apiResponse({
+            visita: {
+              id: "v1",
+              agronomistUserId: "u1",
+              cropId: "c1",
+              varietyId: "var1",
+              parcelaId: "p1",
+              campaignId: "camp1",
+              phenologicalStageId: "stage1",
+              visitDate: "2026-06-01"
+            },
+            evaluaciones: [],
+            observacionesSanitarias: [],
+            riego: null,
+            laboresCulturales: [],
+            calificaciones: []
+          })
+        )
         .mockResolvedValueOnce(apiResponse({ id: "u1", displayName: "Carlos" }))
         .mockResolvedValueOnce(apiResponse({ id: "c1", name: "Banano" }))
         .mockResolvedValueOnce(apiResponse({ id: "var1", name: "Criolla" }))
-        .mockResolvedValueOnce(apiResponse({ id: "p1", productorId: "prod1", sectorId: "s1", code: "P-001" }))
+        .mockResolvedValueOnce(
+          apiResponse({ id: "p1", productorId: "prod1", sectorId: "s1", code: "P-001" })
+        )
         .mockResolvedValueOnce(apiResponse({ id: "camp1", name: "Campania 2026" }))
         .mockResolvedValueOnce(apiResponse({ id: "stage1", name: "Floracion" }))
         .mockResolvedValueOnce(apiResponse({ id: "prod1", firstName: "Juan" }))
         .mockResolvedValueOnce(apiResponse([{ id: "sub1", name: "Sub-etapa 1" }]))
-        .mockResolvedValueOnce(apiResponse([{ id: "pd1", name: "Plaga A", type: "plaga" }]))
+        .mockResolvedValueOnce(
+          apiResponse([{ id: "pd1", name: "Plaga A", type: "plaga" }])
+        )
         .mockResolvedValueOnce(apiResponse([{ id: "lvl1", name: "Bajo" }]))
         .mockResolvedValueOnce(apiResponse([{ id: "tr1", name: "Goteo" }]))
         .mockResolvedValueOnce(apiResponse([]))
@@ -201,14 +299,30 @@ describe("visitasService", () => {
 
     it("should handle missing phenological stage gracefully", async () => {
       fetchMock
-        .mockResolvedValueOnce(apiResponse({
-          visita: { id: "v2", agronomistUserId: "u1", cropId: "c1", varietyId: "var1", parcelaId: "p1", campaignId: "camp1", phenologicalStageId: null },
-          evaluaciones: [], observacionesSanitarias: [], riego: null, laboresCulturales: [], calificaciones: []
-        }))
+        .mockResolvedValueOnce(
+          apiResponse({
+            visita: {
+              id: "v2",
+              agronomistUserId: "u1",
+              cropId: "c1",
+              varietyId: "var1",
+              parcelaId: "p1",
+              campaignId: "camp1",
+              phenologicalStageId: null
+            },
+            evaluaciones: [],
+            observacionesSanitarias: [],
+            riego: null,
+            laboresCulturales: [],
+            calificaciones: []
+          })
+        )
         .mockResolvedValueOnce(apiResponse({ id: "u1", displayName: "Carlos" }))
         .mockResolvedValueOnce(apiResponse({ id: "c1", name: "Banano" }))
         .mockResolvedValueOnce(apiResponse({ id: "var1", name: "Criolla" }))
-        .mockResolvedValueOnce(apiResponse({ id: "p1", productorId: null, sectorId: "s1", code: "P-001" }))
+        .mockResolvedValueOnce(
+          apiResponse({ id: "p1", productorId: null, sectorId: "s1", code: "P-001" })
+        )
         .mockResolvedValueOnce(apiResponse({ id: "camp1", name: "Campania 2026" }))
         .mockResolvedValueOnce(apiResponse([]));
 
@@ -254,19 +368,32 @@ describe("visitasService", () => {
   describe("#getHistoryByProductor", () => {
     it("should fetch history with filters and pagination", async () => {
       fetchMock.mockResolvedValueOnce(
-        apiResponse({
-          productor: { id: "100" },
-          filters: {},
-          visitas: [{ id: "v1", visitDate: "2026-01-01" }, { id: "v2", visitDate: "2026-01-02" }]
-        }, 200, { total: 15 })
+        apiResponse(
+          {
+            productor: { id: "100" },
+            filters: {},
+            visitas: [
+              { id: "v1", visitDate: "2026-01-01" },
+              { id: "v2", visitDate: "2026-01-02" }
+            ]
+          },
+          200,
+          { total: 15 }
+        )
       );
 
-      const result = await visitasService.getHistoryByProductor(session, "100", {
-        campaignId: "camp1",
-        agronomistUserId: "u1",
-        startDate: "2026-01-01",
-        endDate: "2026-06-30"
-      }, 2, 10);
+      const result = await visitasService.getHistoryByProductor(
+        session,
+        "100",
+        {
+          campaignId: "camp1",
+          agronomistUserId: "u1",
+          startDate: "2026-01-01",
+          endDate: "2026-06-30"
+        },
+        2,
+        10
+      );
 
       const calls = fetchMock.mock.calls;
       const [url] = calls[0] as [string];
@@ -301,17 +428,39 @@ describe("visitasService", () => {
   describe("#getParcelasVisitadasByAgronomo", () => {
     it("should group visitas by parcela and sort by lastVisitDate DESC", async () => {
       fetchMock
-        .mockResolvedValueOnce(apiResponse([
-          { id: "v1", parcelaId: "p1", visitDate: "2026-03-01" },
-          { id: "v2", parcelaId: "p1", visitDate: "2026-06-01" },
-          { id: "v3", parcelaId: "p2", visitDate: "2026-01-15" }
-        ]))
-        .mockResolvedValueOnce(apiResponse([
-          { id: "p1", code: "P-001", name: "Parcela Norte", productorId: "1", sectorId: "s1", areaHectares: "2" },
-          { id: "p2", code: "P-002", name: "Parcela Sur", productorId: "1", sectorId: "s1", areaHectares: "3" }
-        ]));
+        .mockResolvedValueOnce(
+          apiResponse([
+            { id: "v1", parcelaId: "p1", visitDate: "2026-03-01" },
+            { id: "v2", parcelaId: "p1", visitDate: "2026-06-01" },
+            { id: "v3", parcelaId: "p2", visitDate: "2026-01-15" }
+          ])
+        )
+        .mockResolvedValueOnce(
+          apiResponse([
+            {
+              id: "p1",
+              code: "P-001",
+              name: "Parcela Norte",
+              productorId: "1",
+              sectorId: "s1",
+              areaHectares: "2"
+            },
+            {
+              id: "p2",
+              code: "P-002",
+              name: "Parcela Sur",
+              productorId: "1",
+              sectorId: "s1",
+              areaHectares: "3"
+            }
+          ])
+        );
 
-      const result = await visitasService.getParcelasVisitadasByAgronomo(session, "u1", "Carlos");
+      const result = await visitasService.getParcelasVisitadasByAgronomo(
+        session,
+        "u1",
+        "Carlos"
+      );
 
       expect(result.agronomistLabel).toBe("Carlos");
       expect(result.totalVisitas).toBe(3);
@@ -325,10 +474,16 @@ describe("visitasService", () => {
 
     it("should fallback label when parcela not found", async () => {
       fetchMock
-        .mockResolvedValueOnce(apiResponse([{ id: "v1", parcelaId: "p99", visitDate: "2026-01-01" }]))
+        .mockResolvedValueOnce(
+          apiResponse([{ id: "v1", parcelaId: "p99", visitDate: "2026-01-01" }])
+        )
         .mockResolvedValueOnce(apiResponse([]));
 
-      const result = await visitasService.getParcelasVisitadasByAgronomo(session, "u1", "Carlos");
+      const result = await visitasService.getParcelasVisitadasByAgronomo(
+        session,
+        "u1",
+        "Carlos"
+      );
 
       expect(result.parcelas[0].parcelaLabel).toBe("Parcela #p99");
     });
@@ -337,10 +492,16 @@ describe("visitasService", () => {
   describe("#getHistoryByParcela", () => {
     it("should fetch parcela history with sector lookup", async () => {
       fetchMock
-        .mockResolvedValueOnce(apiResponse({
-          parcela: { id: "p1", sectorId: "s1", code: "P-001" },
-          visitas: [{ id: "v1" }, { id: "v2" }]
-        }, 200, { total: 8 }))
+        .mockResolvedValueOnce(
+          apiResponse(
+            {
+              parcela: { id: "p1", sectorId: "s1", code: "P-001" },
+              visitas: [{ id: "v1" }, { id: "v2" }]
+            },
+            200,
+            { total: 8 }
+          )
+        )
         .mockResolvedValueOnce(apiResponse({ id: "s1", name: "Sector Norte" }));
 
       const result = await visitasService.getHistoryByParcela(session, "p1", 1, 10);
@@ -352,10 +513,16 @@ describe("visitasService", () => {
 
     it("should handle missing sector gracefully", async () => {
       fetchMock
-        .mockResolvedValueOnce(apiResponse({
-          parcela: { id: "p1", sectorId: "s99", code: "P-001" },
-          visitas: []
-        }, 200, { total: 0 }))
+        .mockResolvedValueOnce(
+          apiResponse(
+            {
+              parcela: { id: "p1", sectorId: "s99", code: "P-001" },
+              visitas: []
+            },
+            200,
+            { total: 0 }
+          )
+        )
         .mockRejectedValueOnce(new Error("Not found"));
 
       const result = await visitasService.getHistoryByParcela(session, "p1");

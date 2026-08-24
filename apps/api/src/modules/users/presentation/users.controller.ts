@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post
-} from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post } from "@nestjs/common";
 import {
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -48,6 +40,18 @@ export class UsersController {
   })
   getUsers() {
     return this.usersService.findAllAdmin();
+  }
+
+  @Get("agronomos")
+  @Roles("ADMIN", "ANALISTA")
+  @ApiOperation({
+    summary: "Lista la identidad minima de los agronomos activos para filtros."
+  })
+  @ApiOkResponse({
+    description: "Lista de agronomos activos con ID y nombre visible."
+  })
+  getActiveAgronomists() {
+    return this.usersService.findActiveAgronomistLookups();
   }
 
   @Get(":id")

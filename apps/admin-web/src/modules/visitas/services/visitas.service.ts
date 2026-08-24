@@ -75,6 +75,8 @@ type UserApiItem = {
   isActive: boolean;
 };
 
+type AgronomistApiItem = Pick<UserApiItem, "id" | "displayName" | "isActive">;
+
 type SectorApiItem = {
   id: string;
   name: string;
@@ -118,7 +120,7 @@ export const visitasService = {
       fetchAllPaginated<ProductorApiItem>("/productores", { headers }),
       fetchAllPaginated<CampaniaApiItem>("/campanias", { headers }),
       fetchAllPaginated<ParcelaApiItem>("/parcelas", { headers }),
-      safeRequestList<UserApiItem>(session, "/usuarios")
+      safeRequestList<AgronomistApiItem>(session, "/usuarios/agronomos")
     ]);
 
     return {
@@ -138,10 +140,7 @@ export const visitasService = {
     };
   },
 
-  async getFullDetail(
-    session: AuthSessionInput,
-    id: string
-  ): Promise<VisitaDetailData> {
+  async getFullDetail(session: AuthSessionInput, id: string): Promise<VisitaDetailData> {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
     const detail = await apiRequest<FullDetailApiResponse>(
       `/visitas-campo/${id}/detalle-completo`,
@@ -156,7 +155,10 @@ export const visitasService = {
         safeRequest<CropLookupItem>(session, `/cultivos/${detail.visita.cropId}`),
         safeRequest<VarietyLookupItem>(session, `/variedades/${detail.visita.varietyId}`),
         safeRequest<ParcelaLookupItem>(session, `/parcelas/${detail.visita.parcelaId}`),
-        safeRequest<CampaignLookupItem>(session, `/campanias/${detail.visita.campaignId}`),
+        safeRequest<CampaignLookupItem>(
+          session,
+          `/campanias/${detail.visita.campaignId}`
+        ),
         detail.visita.phenologicalStageId
           ? safeRequest<PhenologicalStageLookupItem>(
               session,
@@ -165,36 +167,39 @@ export const visitasService = {
           : Promise.resolve(null)
       ]);
 
-    const [productor, subEtapas, pestDiseases, incidenceLevels, tiposRiego, stepNotes, technicalScores] =
-      await Promise.all([
-        parcela?.productorId
-          ? safeRequest<ProductorLookupItem>(session, `/productores/${parcela.productorId}`)
-          : Promise.resolve(null),
-        detail.visita.phenologicalStageId
-          ? safeRequestAll<SubEtapaLookupItem>(
-              session,
-              `/sub-etapas?etapa_fenologica_id=${detail.visita.phenologicalStageId}&estado=true`
-            )
-          : Promise.resolve([]),
-        safeRequestAll<PestDiseaseLookupItem>(session, "/plagas-enfermedades"),
-        safeRequestAll<IncidenceLevelLookupItem>(
-          session,
-          "/niveles-incidencia-severidad"
-        ),
-        safeRequestAll<TipoRiegoLookupItem>(session, "/tipos-riego"),
-        safeRequestList<VisitaStepNote>(
-          session,
-          `/visitas-campo/${id}/paso-observaciones`
-        ),
-        safeRequest<TechnicalVisitScores>(session, `/visitas-campo/${id}/scores-tecnicos`)
-      ]);
+    const [
+      productor,
+      subEtapas,
+      pestDiseases,
+      incidenceLevels,
+      tiposRiego,
+      stepNotes,
+      technicalScores
+    ] = await Promise.all([
+      parcela?.productorId
+        ? safeRequest<ProductorLookupItem>(session, `/productores/${parcela.productorId}`)
+        : Promise.resolve(null),
+      detail.visita.phenologicalStageId
+        ? safeRequestAll<SubEtapaLookupItem>(
+            session,
+            `/sub-etapas?etapa_fenologica_id=${detail.visita.phenologicalStageId}&estado=true`
+          )
+        : Promise.resolve([]),
+      safeRequestAll<PestDiseaseLookupItem>(session, "/plagas-enfermedades"),
+      safeRequestAll<IncidenceLevelLookupItem>(session, "/niveles-incidencia-severidad"),
+      safeRequestAll<TipoRiegoLookupItem>(session, "/tipos-riego"),
+      safeRequestList<VisitaStepNote>(session, `/visitas-campo/${id}/paso-observaciones`),
+      safeRequest<TechnicalVisitScores>(session, `/visitas-campo/${id}/scores-tecnicos`)
+    ]);
 
     return {
       ...detail,
       stepNotes,
       technicalScores,
       lookups: {
-        agronomist: agronomist ? { id: agronomist.id, name: agronomist.displayName } : null,
+        agronomist: agronomist
+          ? { id: agronomist.id, name: agronomist.displayName }
+          : null,
         crop,
         variety,
         parcela,
@@ -213,12 +218,9 @@ export const visitasService = {
     session: AuthSessionInput,
     visitaId: string
   ): Promise<VisitaRecetaCompleta | null> {
-    return apiRequest<VisitaRecetaCompleta | null>(
-      `/visitas-campo/${visitaId}/receta`,
-      {
-        headers: createAuthHeaders(session.accessToken, session.tokenType)
-      }
-    );
+    return apiRequest<VisitaRecetaCompleta | null>(`/visitas-campo/${visitaId}/receta`, {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
   },
 
   async getRecetaConsolidacion(
@@ -275,9 +277,7 @@ export const visitasService = {
     campaignId?: string
   ): Promise<ProductorCalificacion> {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
-    const params = campaignId
-      ? `?campania_id=${encodeURIComponent(campaignId)}`
-      : "";
+    const params = campaignId ? `?campania_id=${encodeURIComponent(campaignId)}` : "";
 
     return apiRequest<ProductorCalificacion>(
       `/productores/${productorId}/calificacion${params}`,
@@ -411,11 +411,7 @@ function buildHistoryQueryString(
   return searchParams.toString();
 }
 
-function appendQueryParam(
-  searchParams: URLSearchParams,
-  key: string,
-  value: string
-) {
+function appendQueryParam(searchParams: URLSearchParams, key: string, value: string) {
   const normalizedValue = value.trim();
 
   if (!normalizedValue) {
@@ -461,7 +457,7 @@ function buildParcelaLabel(parcela: ParcelaApiItem): string {
   return parcela.code;
 }
 
-function buildAgronomistOptions(users: UserApiItem[]): AgronomistFilterOption[] {
+function buildAgronomistOptions(users: AgronomistApiItem[]): AgronomistFilterOption[] {
   return [...users]
     .filter((user) => user.isActive)
     .sort((leftUser, rightUser) =>
@@ -469,18 +465,8 @@ function buildAgronomistOptions(users: UserApiItem[]): AgronomistFilterOption[] 
     )
     .map((user) => ({
       id: user.id,
-      label: buildAgronomistLabel(user)
+      label: user.displayName
     }));
-}
-
-function buildAgronomistLabel(user: UserApiItem) {
-  const displayName = user.displayName.trim();
-
-  if (displayName && displayName.toLowerCase() !== user.email.toLowerCase()) {
-    return `${displayName} (${user.email})`;
-  }
-
-  return user.email;
 }
 
 async function safeRequest<T>(
@@ -496,10 +482,7 @@ async function safeRequest<T>(
   }
 }
 
-async function safeRequestList<T>(
-  session: AuthSessionInput,
-  path: string
-): Promise<T[]> {
+async function safeRequestList<T>(session: AuthSessionInput, path: string): Promise<T[]> {
   try {
     return await apiRequest<T[]>(path, {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
@@ -509,10 +492,7 @@ async function safeRequestList<T>(
   }
 }
 
-async function safeRequestAll<T>(
-  session: AuthSessionInput,
-  path: string
-): Promise<T[]> {
+async function safeRequestAll<T>(session: AuthSessionInput, path: string): Promise<T[]> {
   try {
     return await fetchAllPaginated<T>(path, {
       headers: createAuthHeaders(session.accessToken, session.tokenType)

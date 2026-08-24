@@ -119,6 +119,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Catálogo sanitario Mango y score técnico versionado](specs/066-catalogo-sanitario-mango-score-versionado.md)
 - [Catálogo sanitario común por etapa y labor](specs/067-catalogo-sanitario-comun-por-etapa.md)
 - [Dashboard de visitas por agrónomo y parcelas por etapa](specs/068-dashboard-visitas-y-etapas.md)
+- [Lookup de agrónomos para visitas con rol analista](specs/069-lookup-agronomos-analista.md)
 
 ## Runbooks
 

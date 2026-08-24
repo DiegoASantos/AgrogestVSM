@@ -55,6 +55,17 @@ function makeAdminQueryBuilder(users: UserEntity[]) {
   };
 }
 
+function makeAgronomistLookupQueryBuilder(users: UserEntity[]) {
+  return {
+    innerJoin: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    andWhere: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    addOrderBy: vi.fn().mockReturnThis(),
+    getMany: vi.fn().mockResolvedValue(users)
+  };
+}
+
 function makeUser(overrides: Partial<UserEntity> = {}): UserEntity {
   return {
     id: "1",
@@ -233,6 +244,27 @@ describe("UsersService", () => {
 
       expect(result.data).toEqual([]);
       expect(result.meta).toEqual({ count: 0 });
+    });
+  });
+
+  describe("#findActiveAgronomistLookups", () => {
+    it("returns only the minimum active agronomist identity for read-only filters", async () => {
+      const user = makeUser({ firstName: "Ana", lastName: "Lopez" });
+      const qb = makeAgronomistLookupQueryBuilder([user]);
+      repo.createQueryBuilder.mockReturnValue(qb);
+
+      const result = await service.findActiveAgronomistLookups();
+
+      expect(qb.innerJoin).toHaveBeenCalledWith("user.userRoles", "userRole");
+      expect(qb.innerJoin).toHaveBeenCalledWith("userRole.role", "role");
+      expect(qb.andWhere).toHaveBeenCalledWith("role.codigo = :roleCode", {
+        roleCode: "AGRONOMO"
+      });
+      expect(result.data).toEqual([
+        { id: "1", displayName: "Ana Lopez", isActive: true }
+      ]);
+      expect(result.data[0]).not.toHaveProperty("email");
+      expect(result.data[0]).not.toHaveProperty("phone");
     });
   });
 

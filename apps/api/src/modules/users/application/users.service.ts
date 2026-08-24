@@ -70,6 +70,27 @@ export class UsersService {
     );
   }
 
+  async findActiveAgronomistLookups() {
+    const users = await this.usersRepository
+      .createQueryBuilder("user")
+      .innerJoin("user.userRoles", "userRole")
+      .innerJoin("userRole.role", "role")
+      .where("user.activo = true")
+      .andWhere("role.codigo = :roleCode", { roleCode: "AGRONOMO" })
+      .orderBy("user.apellidos", "ASC")
+      .addOrderBy("user.nombres", "ASC")
+      .getMany();
+
+    return createSuccessResponse(
+      users.map((user) => ({
+        id: user.id,
+        displayName: `${user.firstName} ${user.lastName}`.trim(),
+        isActive: user.isActive
+      })),
+      { count: users.length }
+    );
+  }
+
   async findAdminById(id: string) {
     const user = await this.findAdminEntityById(id);
 
