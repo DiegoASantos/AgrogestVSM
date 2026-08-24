@@ -17,7 +17,8 @@ describe("058 catálogo sanitario común por etapa", () => {
     expect(sql).toContain("SET activo = true");
     expect(sql).toContain("('queresas', NULL)");
     expect(sql).toContain("('trips', 'floracion')");
-    expect(sql).toContain("('alternaria', 'desarrollo de fruto')");
+    expect(sql).toContain("('trips', 'cuajado y amarre')");
+    expect(sql).toContain("('alternaria', 'desarrollo del fruto')");
     expect(sql).toContain("('antracnosis', 'cosecha')");
   });
 

@@ -90,8 +90,9 @@ registro.
 
 ## Resultado de implementación
 
-- PostgreSQL 058 valida 17 objetivos, ocho etapas/labores y 1,088 relaciones
-  antes de clasificar la matriz aprobada; las combinaciones no listadas quedan
+- PostgreSQL 058 usa los nombres productivos `CUAJADO Y AMARRE` y `DESARROLLO
+  DEL FRUTO`, valida 17 objetivos, ocho etapas/labores y 1,088 relaciones antes
+  de clasificar la matriz aprobada; las combinaciones no listadas quedan
   opcionales sin eliminar sus niveles.
 - SQLite 70 fuerza la recarga del catálogo y conserva observaciones, borradores
   y outbox.

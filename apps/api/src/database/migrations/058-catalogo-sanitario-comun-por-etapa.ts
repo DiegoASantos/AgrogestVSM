@@ -29,7 +29,7 @@ export const CATALOGO_SANITARIO_COMUN_POR_ETAPA_MIGRATION: DatabaseMigration = {
          AND lower(btrim(etapa.tipo)) IN ('etapa', 'labor')
          AND lower(translate(btrim(etapa.nombre), 'áéíóúÁÉÍÓÚ', 'aeiouAEIOU')) IN (
            'poda', 'brotamiento', 'maduracion del brote', 'induccion floral',
-           'floracion', 'amarre y cuajado', 'desarrollo de fruto', 'cosecha'
+           'floracion', 'cuajado y amarre', 'desarrollo del fruto', 'cosecha'
          );
       IF stage_count <> 8 THEN
         RAISE EXCEPTION 'Se requieren las ocho etapas/labores Mango configuradas; encontradas %', stage_count;
@@ -63,7 +63,7 @@ export const CATALOGO_SANITARIO_COMUN_POR_ETAPA_MIGRATION: DatabaseMigration = {
          AND etapa.activo = true AND lower(btrim(etapa.tipo)) IN ('etapa', 'labor')
          AND lower(translate(btrim(etapa.nombre), 'áéíóúÁÉÍÓÚ', 'aeiouAEIOU')) IN (
            'poda', 'brotamiento', 'maduracion del brote', 'induccion floral',
-           'floracion', 'amarre y cuajado', 'desarrollo de fruto', 'cosecha'
+           'floracion', 'cuajado y amarre', 'desarrollo del fruto', 'cosecha'
          );
       expected_relation_count := 17 * 8 * 8;
       IF actual_relation_count <> expected_relation_count THEN
@@ -87,11 +87,11 @@ export const CATALOGO_SANITARIO_COMUN_POR_ETAPA_MIGRATION: DatabaseMigration = {
     WITH comunes(codigo, etapa) AS (
       VALUES
         ('queresas', NULL), ('cochinilla', NULL), ('fumagina', NULL), ('muerte_regresiva', NULL),
-        ('trips', 'floracion'), ('trips', 'amarre y cuajado'),
-        ('chinche', 'floracion'), ('chinche', 'amarre y cuajado'),
-        ('acaros', 'floracion'), ('acaros', 'amarre y cuajado'),
-        ('mosca_fruta', 'desarrollo de fruto'), ('mosca_fruta', 'cosecha'),
-        ('mosca_blanca', 'desarrollo de fruto'), ('mosca_blanca', 'cosecha'),
+        ('trips', 'floracion'), ('trips', 'cuajado y amarre'),
+        ('chinche', 'floracion'), ('chinche', 'cuajado y amarre'),
+        ('acaros', 'floracion'), ('acaros', 'cuajado y amarre'),
+        ('mosca_fruta', 'desarrollo del fruto'), ('mosca_fruta', 'cosecha'),
+        ('mosca_blanca', 'desarrollo del fruto'), ('mosca_blanca', 'cosecha'),
         ('aranita_roja', 'brotamiento'), ('aranita_roja', 'maduracion del brote'),
         ('aranita_roja', 'induccion floral'), ('aranita_roja', 'floracion'),
         ('hormiga_arriera', 'brotamiento'), ('hormiga_arriera', 'maduracion del brote'),
@@ -99,9 +99,9 @@ export const CATALOGO_SANITARIO_COMUN_POR_ETAPA_MIGRATION: DatabaseMigration = {
         ('gusano_barrenador', 'floracion'), ('oidium', 'floracion'),
         ('alternaria', 'brotamiento'), ('alternaria', 'maduracion del brote'),
         ('alternaria', 'induccion floral'), ('alternaria', 'floracion'),
-        ('alternaria', 'amarre y cuajado'), ('alternaria', 'desarrollo de fruto'),
+        ('alternaria', 'cuajado y amarre'), ('alternaria', 'desarrollo del fruto'),
         ('alternaria', 'cosecha'),
-        ('antracnosis', 'desarrollo de fruto'), ('antracnosis', 'cosecha'),
+        ('antracnosis', 'desarrollo del fruto'), ('antracnosis', 'cosecha'),
         ('fusariosis', 'floracion'), ('botritis', 'floracion')
     )
     UPDATE plagas_enfermedades_etapas_niveles relacion
