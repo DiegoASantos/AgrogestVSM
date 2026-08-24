@@ -6,7 +6,6 @@ import {
   BarChart,
   CartesianGrid,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis
 } from "recharts";
@@ -37,8 +36,12 @@ export function ChartParcelasPorEtapa({
 }: Props) {
   const [draft, setDraft] = useState(filters);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ParcelasPorEtapa | null>(
+    data[0] ?? null
+  );
 
   useEffect(() => setDraft(filters), [filters]);
+  useEffect(() => setSelectedItem(data[0] ?? null), [data]);
 
   function apply() {
     if (draft.startDate > draft.endDate) {
@@ -65,7 +68,7 @@ export function ChartParcelasPorEtapa({
           Estado de la última visita activa de cada parcela en el rango seleccionado.
         </p>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-[minmax(9rem,1fr)_minmax(9rem,1fr)_minmax(12rem,1.25fr)] gap-2">
         <label className="field-group">
           <span className="field-group__label">Fecha desde</span>
           <input
@@ -82,7 +85,7 @@ export function ChartParcelasPorEtapa({
             value={draft.endDate}
           />
         </label>
-        <label className="field-group sm:col-span-2">
+        <label className="field-group">
           <span className="field-group__label">Etapa o labor</span>
           <select
             onChange={(event) =>
@@ -98,7 +101,7 @@ export function ChartParcelasPorEtapa({
             ))}
           </select>
         </label>
-        <div className="flex gap-2 sm:col-span-2">
+        <div className="col-span-3 flex gap-2">
           <button
             className="ui-button ui-button--ghost ui-button--compact"
             onClick={clear}
@@ -148,41 +151,36 @@ export function ChartParcelasPorEtapa({
               type="category"
               width={135}
             />
-            <Tooltip content={<ParcelasTooltip />} />
             <Bar
               dataKey="count"
               fill="var(--chart-2)"
               name="Parcelas"
+              onMouseEnter={(bar) =>
+                setSelectedItem((bar.payload as ParcelasPorEtapa | undefined) ?? null)
+              }
               radius={[0, 4, 4, 0]}
             />
           </BarChart>
         </ResponsiveContainer>
       ) : null}
+      {selectedItem ? <ProductoresCard item={selectedItem} /> : null}
     </div>
   );
 }
 
-function ParcelasTooltip({
-  active,
-  payload
-}: {
-  active?: boolean;
-  payload?: Array<{ payload?: ParcelasPorEtapa }>;
-}) {
-  const item = payload?.[0]?.payload;
-  if (!active || !item) return null;
-
+function ProductoresCard({ item }: { item: ParcelasPorEtapa }) {
   return (
-    <div className="max-w-xs rounded-md border border-border bg-popover p-3 text-xs text-popover-foreground shadow-md">
+    <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-foreground">
       <p className="font-semibold">
         {item.name} ({item.type})
       </p>
       <p className="mt-1">
         {item.count} parcela{item.count === 1 ? "" : "s"}
       </p>
-      <ul className="mt-2 max-h-36 list-disc space-y-1 overflow-y-auto pl-4">
-        {item.parcelas.map((parcela) => (
-          <li key={parcela}>{parcela}</li>
+      <p className="mt-2 font-medium">Productores</p>
+      <ul className="mt-1 max-h-36 list-disc space-y-1 overflow-y-auto pl-4">
+        {item.productores.map((productor, index) => (
+          <li key={`${productor}-${index}`}>{productor}</li>
         ))}
       </ul>
     </div>

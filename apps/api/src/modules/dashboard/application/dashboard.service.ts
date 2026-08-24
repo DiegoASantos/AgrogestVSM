@@ -104,7 +104,7 @@ type DashboardParcelaPorEtapa = {
   name: string;
   type: "Etapa" | "Labor";
   count: number;
-  parcelas: string[];
+  productores: string[];
 };
 
 @Injectable()
@@ -145,7 +145,7 @@ export class DashboardService {
       .addSelect("COUNT(*)", "count")
       .from("visitas_campo", "v")
       .leftJoin("usuarios", "u", "u.id = v.agronomo_usuario_id")
-      .where(filters)
+      .where(filters.join(" AND "))
       .setParameters(parameters)
       .groupBy("v.agronomo_usuario_id")
       .addGroupBy("u.nombres")
@@ -202,7 +202,7 @@ export class DashboardService {
         etapaFenologicaId: string;
         name: string;
         type: "Etapa" | "Labor";
-        parcela: string;
+        productor: string;
       }>
     >(
       `WITH ultimas_visitas AS (
@@ -218,14 +218,15 @@ export class DashboardService {
         e.id AS "etapaFenologicaId",
         e.nombre AS "name",
         e.tipo AS "type",
-        CASE
-          WHEN p.nombre IS NULL OR BTRIM(p.nombre) = '' THEN p.codigo
-          ELSE p.codigo || ' - ' || p.nombre
-        END AS "parcela"
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', productor.apellidos, productor.nombres)), ''),
+          'Productor sin nombre'
+        ) AS "productor"
       FROM ultimas_visitas uv
       INNER JOIN etapas_fenologicas e ON e.id = uv.etapa_fenologica_id AND e.activo = true${stageJoinFilter}
       INNER JOIN parcelas p ON p.id = uv.parcela_id
-      ORDER BY e.orden ASC NULLS LAST, e.nombre ASC, "parcela" ASC`,
+      INNER JOIN productores productor ON productor.id = p.productor_id
+      ORDER BY e.orden ASC NULLS LAST, e.nombre ASC, "productor" ASC`,
       values
     );
 
@@ -233,7 +234,7 @@ export class DashboardService {
     for (const row of rows) {
       const current = grouped.get(row.etapaFenologicaId);
       if (current) {
-        current.parcelas.push(row.parcela);
+        current.productores.push(row.productor);
         current.count += 1;
         continue;
       }
@@ -243,7 +244,7 @@ export class DashboardService {
         name: row.name,
         type: row.type,
         count: 1,
-        parcelas: [row.parcela]
+        productores: [row.productor]
       });
     }
 

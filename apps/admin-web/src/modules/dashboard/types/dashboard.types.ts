@@ -30,7 +30,7 @@ export type ParcelasPorEtapa = {
   name: string;
   type: "Etapa" | "Labor";
   count: number;
-  parcelas: string[];
+  productores: string[];
 };
 
 export type DashboardParcelasPorEtapaFilters = DashboardDateRange & {

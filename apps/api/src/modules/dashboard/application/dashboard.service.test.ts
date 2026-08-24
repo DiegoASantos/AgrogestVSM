@@ -61,6 +61,45 @@ describe("DashboardService", () => {
     ).rejects.toThrow("fecha_hasta must be greater than or equal to fecha_desde.");
   });
 
+  it("passes the visit filters as a single SQL condition for agronomist metrics", async () => {
+    const where = vi.fn();
+    const builder = {
+      select: () => builder,
+      addSelect: () => builder,
+      from: () => builder,
+      leftJoin: () => builder,
+      where: (...args: unknown[]) => {
+        where(...args);
+        return builder;
+      },
+      setParameters: () => builder,
+      groupBy: () => builder,
+      addGroupBy: () => builder,
+      orderBy: () => builder,
+      addOrderBy: () => builder,
+      getRawMany: () =>
+        Promise.resolve([
+          { agronomistUserId: "7", agronomistName: "Ana Lopez", count: "2" }
+        ])
+    };
+    const service = new DashboardService(
+      { createQueryBuilder: () => builder } as never,
+      {} as never
+    );
+
+    const result = await service.getVisitasPorAgronomo({
+      fecha_desde: "2026-08-01",
+      fecha_hasta: "2026-08-24"
+    });
+
+    expect(where).toHaveBeenCalledWith(
+      "v.activo = true AND v.fecha_visita >= :startDate AND v.fecha_visita <= :endDate"
+    );
+    expect(result.items).toEqual([
+      { agronomistUserId: "7", agronomistName: "Ana Lopez", count: 2 }
+    ]);
+  });
+
   it("groups parcels returned from their latest visits by phenological stage", async () => {
     const catalogBuilder = createMetricQueryBuilder([
       { id: "1", name: "Floración", type: "Etapa" },
@@ -71,9 +110,14 @@ describe("DashboardService", () => {
         etapaFenologicaId: "1",
         name: "Floración",
         type: "Etapa",
-        parcela: "P-01 - Norte"
+        productor: "Lopez Ana"
       },
-      { etapaFenologicaId: "1", name: "Floración", type: "Etapa", parcela: "P-02 - Sur" }
+      {
+        etapaFenologicaId: "1",
+        name: "Floración",
+        type: "Etapa",
+        productor: "Perez Juan"
+      }
     ]);
     const service = new DashboardService(
       { createQueryBuilder: () => catalogBuilder, query } as never,
@@ -96,7 +140,7 @@ describe("DashboardService", () => {
         name: "Floración",
         type: "Etapa",
         count: 2,
-        parcelas: ["P-01 - Norte", "P-02 - Sur"]
+        productores: ["Lopez Ana", "Perez Juan"]
       }
     ]);
   });
