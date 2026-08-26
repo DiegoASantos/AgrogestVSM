@@ -79,12 +79,7 @@ export const visitaRecetasService = {
     };
   },
 
-  getPreventivePestDiseases(phenologicalStageId: string | null) {
-    if (phenologicalStageId) {
-      return observacionesSanitariasRepository.getPestDiseasesByPhenologicalStage(
-        phenologicalStageId
-      );
-    }
+  getPreventivePestDiseases() {
     return observacionesSanitariasRepository
       .getPestDiseases()
       .filter((item) => item.isActive);

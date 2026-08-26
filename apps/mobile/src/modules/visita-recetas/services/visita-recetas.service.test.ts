@@ -88,6 +88,40 @@ vi.mock("./visita-recetas.remote", () => ({
 }));
 
 describe("visitaRecetasService", () => {
+  it("lists every active pest and disease for preventive recommendations", () => {
+    mocks.getPestDiseases.mockReturnValue([
+      {
+        id: "pest-optional-for-stage",
+        code: "mosca-fruta",
+        scientificName: null,
+        name: "Mosca de la fruta",
+        type: "plaga",
+        isActive: true
+      },
+      {
+        id: "disease-inactive-global",
+        code: "alternaria",
+        scientificName: null,
+        name: "Alternaria",
+        type: "enfermedad",
+        isActive: false
+      },
+      {
+        id: "disease-optional-for-stage",
+        code: "botritis",
+        scientificName: null,
+        name: "Botritis",
+        type: "enfermedad",
+        isActive: true
+      }
+    ]);
+
+    expect(visitaRecetasService.getPreventivePestDiseases().map((item) => item.id)).toEqual([
+      "pest-optional-for-stage",
+      "disease-optional-for-stage"
+    ]);
+  });
+
   it("builds local fitosanidad consolidation from step 2 observations", () => {
     mocks.getById.mockReturnValue({
       id: "visita-local-1",

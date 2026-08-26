@@ -354,10 +354,7 @@ export function VisitaRecetaScreen() {
     setTiposControl(catalogos.tiposControl);
     setTiposProducto(catalogos.tiposProducto);
     setFertilizantes(catalogos.fertilizantes);
-    const visita = visitaId ? visitasCampoRepository.getById(visitaId) : null;
-    setPreventiveTargets(
-      visitaRecetasService.getPreventivePestDiseases(visita?.phenologicalStageId ?? null)
-    );
+    setPreventiveTargets(visitaRecetasService.getPreventivePestDiseases());
 
     setFitosanidadApps((currentApps) =>
       applyDefaultFitosanidadControl(
@@ -432,9 +429,7 @@ export function VisitaRecetaScreen() {
         ? visitaRecetasService.getNutrientsByCrop(visita.cropId)
         : [];
       setNutrients(currentNutrients);
-      const currentPreventiveTargets = visitaRecetasService.getPreventivePestDiseases(
-        visita?.phenologicalStageId ?? null
-      );
+      const currentPreventiveTargets = visitaRecetasService.getPreventivePestDiseases();
       setPreventiveTargets(currentPreventiveTargets);
       const parcela = visita ? parcelasRepository.getById(visita.parcelaId) : null;
       const locallyDeletedTargetIds =
