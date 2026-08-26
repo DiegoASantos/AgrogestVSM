@@ -283,6 +283,7 @@ export function MapasOverview() {
         />
 
         <FilterBar
+          className="map-overview__filter-bar"
           actions={
             <>
               <button
