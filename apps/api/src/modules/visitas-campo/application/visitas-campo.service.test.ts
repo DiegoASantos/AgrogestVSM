@@ -219,6 +219,27 @@ describe("VisitasCampoService", () => {
           agronomoUsuario: { firstName: "Ana", lastName: "Lopez" },
           campania: { name: "Mango 2026" },
           etapaFenologica: { type: "Etapa", name: "Floracion" },
+          observacionesSanitarias: [
+            { id: "1", plagaEnfermedad: { type: "plaga", name: "Mosca de la fruta" } },
+            { id: "2", plagaEnfermedad: { type: "plaga", name: "Trips" } },
+            { id: "3", plagaEnfermedad: { type: "enfermedad", name: "Antracnosis" } }
+          ],
+          evaluaciones: [
+            {
+              id: "2",
+              order: 2,
+              nutrientId: "nutrient-2",
+              description: "Nutricion - Zinc",
+              nutrient: { name: "Zinc" }
+            },
+            {
+              id: "1",
+              order: 1,
+              nutrientId: "nutrient-1",
+              description: "Nutricion - Calcio",
+              nutrient: { name: "Calcio" }
+            }
+          ],
           parcela: {
             code: "PAR-100",
             name: "Predio Norte",
@@ -239,6 +260,10 @@ describe("VisitasCampoService", () => {
           where: expect.objectContaining({
             isActive: true,
             agronomoUsuarioId: "7"
+          }),
+          relations: expect.objectContaining({
+            observacionesSanitarias: { plagaEnfermedad: true },
+            evaluaciones: { nutrient: true }
           })
         })
       );
@@ -258,11 +283,13 @@ describe("VisitasCampoService", () => {
         "Productor",
         "Sector",
         "Parcela",
-        "Campaña",
-        "Etapa/Labor",
         "Hora inicio",
+        "Etapa fenológica",
         "Hora fin",
-        "Estado"
+        "Estado",
+        "Plagas",
+        "Enfermedades",
+        "Nutrición"
       ];
 
       for (const [index, value] of headerValues.entries()) {
@@ -270,6 +297,52 @@ describe("VisitasCampoService", () => {
       }
 
       expect(worksheet!.getRow(5).getCell(3).value).toBe("Ana Lopez");
+      expect(worksheet!.getRow(5).getCell(8).value).toBe("Floracion");
+      expect(worksheet!.getRow(5).getCell(11).value).toBe("Mosca de la fruta");
+      expect(worksheet!.getRow(6).getCell(11).value).toBe("Trips");
+      expect(worksheet!.getRow(5).getCell(12).value).toBe("Antracnosis");
+      expect(worksheet!.getRow(6).getCell(12).value).toBe("");
+      expect(worksheet!.getRow(5).getCell(13).value).toBe("Calcio");
+      expect(worksheet!.getRow(6).getCell(13).value).toBe("Zinc");
+      expect(worksheet!.getCell("A5").isMerged).toBe(true);
+      expect(worksheet!.getCell("A6").isMerged).toBe(true);
+      expect(worksheet!.getCell("J5").alignment.vertical).toBe("middle");
+    });
+
+    it("should show the absence labels when a visit has no diagnoses", async () => {
+      repo.find.mockResolvedValue([
+        {
+          ...makeVisita(),
+          fechaVisita: "2026-08-15",
+          horaVisitaInicio: "08:00",
+          horaVisitaFin: null,
+          agronomoUsuario: { firstName: "Ana", lastName: "Lopez" },
+          etapaFenologica: { type: "Etapa", name: "Floracion" },
+          observacionesSanitarias: [],
+          evaluaciones: [],
+          parcela: {
+            code: "PAR-100",
+            name: "Predio Norte",
+            productor: { firstName: "Rosa", lastName: "Diaz", documentNumber: null },
+            subsector: { sector: { name: "Sector Norte" } }
+          }
+        }
+      ]);
+
+      const report = await service.exportExcelReport({
+        fecha_desde: "2026-08-01",
+        fecha_hasta: "2026-08-31"
+      });
+      const workbook = new ExcelJS.Workbook();
+      const xlsxContent = report.content as unknown as Parameters<typeof workbook.xlsx.load>[0];
+      await workbook.xlsx.load(xlsxContent);
+      const worksheet = workbook.getWorksheet("Visitas");
+
+      expect(worksheet!.getRow(5).getCell(11).value).toBe("Sin plagas");
+      expect(worksheet!.getRow(5).getCell(12).value).toBe("Sin enfermedades");
+      expect(worksheet!.getRow(5).getCell(13).value).toBe(
+        "Sin deficiencias nutricionales"
+      );
     });
 
     it("should reject an inverted date range before querying visits", async () => {

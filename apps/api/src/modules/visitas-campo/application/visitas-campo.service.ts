@@ -52,6 +52,12 @@ type VisitasExcelReport = {
   fileName: string;
 };
 
+type ExcelDiagnosisRow = {
+  pest: string;
+  disease: string;
+  nutrition: string;
+};
+
 @Injectable()
 export class VisitasCampoService {
   constructor(
@@ -298,8 +304,13 @@ export class VisitasCampoService {
       where,
       relations: {
         agronomoUsuario: true,
-        campania: true,
         etapaFenologica: true,
+        observacionesSanitarias: {
+          plagaEnfermedad: true
+        },
+        evaluaciones: {
+          nutrient: true
+        },
         parcela: {
           productor: true,
           subsector: {
@@ -319,7 +330,7 @@ export class VisitasCampoService {
     workbook.created = new Date();
 
     const worksheet = workbook.addWorksheet("Visitas");
-    worksheet.mergeCells("A1:K1");
+    worksheet.mergeCells("A1:M1");
     worksheet.getCell("A1").value = "Reporte de visitas de campo";
     worksheet.getCell("A1").font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
     worksheet.getCell("A1").fill = {
@@ -328,9 +339,9 @@ export class VisitasCampoService {
       fgColor: { argb: "FF166534" }
     };
     worksheet.getCell("A1").alignment = { horizontal: "center" };
-    worksheet.mergeCells("A2:K2");
+    worksheet.mergeCells("A2:M2");
     worksheet.getCell("A2").value = `Periodo: ${query.fecha_desde} al ${query.fecha_hasta}`;
-    worksheet.mergeCells("A3:K3");
+    worksheet.mergeCells("A3:M3");
     worksheet.getCell("A3").value = `Agrónomo: ${
       agronomistUserId ? "seleccionado" : "Todos"
     } | Visitas activas: ${visitas.length}`;
@@ -342,11 +353,13 @@ export class VisitasCampoService {
       "Productor",
       "Sector",
       "Parcela",
-      "Campaña",
-      "Etapa/Labor",
       "Hora inicio",
+      "Etapa fenológica",
       "Hora fin",
-      "Estado"
+      "Estado",
+      "Plagas",
+      "Enfermedades",
+      "Nutrición"
     ];
     const headerRow = worksheet.addRow(headers);
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -355,22 +368,45 @@ export class VisitasCampoService {
       pattern: "solid",
       fgColor: { argb: "FF2F6B4F" }
     };
-    headerRow.alignment = { vertical: "middle" };
+    headerRow.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
 
     for (const visita of visitas) {
-      worksheet.addRow([
-        toWorksheetText(visita.fechaVisita),
-        toWorksheetText(visita.nroFicha ?? visita.publicId),
-        toWorksheetText(buildUserLabel(visita.agronomoUsuario)),
-        toWorksheetText(buildProductorLabel(visita.parcela?.productor)),
-        toWorksheetText(visita.parcela?.subsector?.sector?.name ?? "No registrado"),
-        toWorksheetText(buildParcelaLabel(visita.parcela)),
-        toWorksheetText(visita.campania?.name ?? "No registrada"),
-        toWorksheetText(buildEtapaLabel(visita.etapaFenologica)),
-        toWorksheetText(visita.horaVisitaInicio),
-        toWorksheetText(visita.horaVisitaFin ?? "No registrada"),
-        "Activa"
-      ]);
+      const diagnosisRows = buildExcelDiagnosisRows(visita);
+      const firstWorksheetRow = worksheet.rowCount + 1;
+
+      for (const [index, diagnosis] of diagnosisRows.entries()) {
+        worksheet.addRow([
+          index === 0 ? toWorksheetText(visita.fechaVisita) : "",
+          index === 0 ? toWorksheetText(visita.nroFicha ?? visita.publicId) : "",
+          index === 0 ? toWorksheetText(buildUserLabel(visita.agronomoUsuario)) : "",
+          index === 0 ? toWorksheetText(buildProductorLabel(visita.parcela?.productor)) : "",
+          index === 0
+            ? toWorksheetText(visita.parcela?.subsector?.sector?.name ?? "No registrado")
+            : "",
+          index === 0 ? toWorksheetText(buildParcelaLabel(visita.parcela)) : "",
+          index === 0 ? toWorksheetText(visita.horaVisitaInicio) : "",
+          index === 0 ? toWorksheetText(buildEtapaLabel(visita.etapaFenologica)) : "",
+          index === 0 ? toWorksheetText(visita.horaVisitaFin ?? "No registrado") : "",
+          index === 0 ? "Activa" : "",
+          toWorksheetText(diagnosis.pest),
+          toWorksheetText(diagnosis.disease),
+          toWorksheetText(diagnosis.nutrition)
+        ]);
+      }
+
+      const lastWorksheetRow = worksheet.rowCount;
+
+      for (let column = 1; column <= 10; column += 1) {
+        if (lastWorksheetRow > firstWorksheetRow) {
+          worksheet.mergeCells(firstWorksheetRow, column, lastWorksheetRow, column);
+        }
+
+        worksheet.getCell(firstWorksheetRow, column).alignment = {
+          horizontal: "center",
+          vertical: "middle",
+          wrapText: true
+        };
+      }
     }
 
     worksheet.columns = [
@@ -380,14 +416,16 @@ export class VisitasCampoService {
       { width: 28 },
       { width: 22 },
       { width: 28 },
-      { width: 24 },
+      { width: 14 },
       { width: 24 },
       { width: 14 },
-      { width: 14 },
-      { width: 12 }
+      { width: 12 },
+      { width: 28 },
+      { width: 28 },
+      { width: 28 }
     ];
     worksheet.views = [{ state: "frozen", ySplit: 4 }];
-    worksheet.autoFilter = { from: "A4", to: "K4" };
+    worksheet.autoFilter = { from: "A4", to: "M4" };
 
     return {
       content: Buffer.from(await workbook.xlsx.writeBuffer()),
@@ -1174,7 +1212,52 @@ function buildParcelaLabel(parcela: ParcelaEntity | null | undefined) {
 }
 
 function buildEtapaLabel(etapa: EtapaFenologicaEntity | null | undefined) {
-  return etapa ? `${etapa.type}: ${etapa.name}` : "No registrada";
+  return etapa?.name ?? "No registrada";
+}
+
+function buildExcelDiagnosisRows(visita: VisitaCampoEntity): ExcelDiagnosisRow[] {
+  const pests = uniqueExcelDiagnosisNames(
+    (visita.observacionesSanitarias ?? [])
+      .filter((observation) => observation.plagaEnfermedad?.type === "plaga")
+      .map((observation) => observation.plagaEnfermedad?.name ?? "No registrada")
+  );
+  const diseases = uniqueExcelDiagnosisNames(
+    (visita.observacionesSanitarias ?? [])
+      .filter((observation) => observation.plagaEnfermedad?.type === "enfermedad")
+      .map((observation) => observation.plagaEnfermedad?.name ?? "No registrada")
+  );
+  const nutrition = uniqueExcelDiagnosisNames(
+    (visita.evaluaciones ?? [])
+      .filter(
+        (evaluation) =>
+          Boolean(evaluation.nutrientId) ||
+          evaluation.description?.startsWith("Nutricion - ")
+      )
+      .sort((left, right) => left.order - right.order || compareEntityIds(left.id, right.id))
+      .map((evaluation) => {
+        const descriptionParts = evaluation.description.split(" - ");
+
+        return evaluation.nutrient?.name ?? descriptionParts[1] ?? evaluation.description;
+      })
+  );
+  const rowCount = Math.max(pests.length, diseases.length, nutrition.length, 1);
+
+  return Array.from({ length: rowCount }, (_, index) => ({
+    pest: pests[index] ?? (index === 0 && pests.length === 0 ? "Sin plagas" : ""),
+    disease:
+      diseases[index] ?? (index === 0 && diseases.length === 0 ? "Sin enfermedades" : ""),
+    nutrition:
+      nutrition[index] ??
+      (index === 0 && nutrition.length === 0 ? "Sin deficiencias nutricionales" : "")
+  }));
+}
+
+function uniqueExcelDiagnosisNames(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function compareEntityIds(left: string, right: string) {
+  return left.localeCompare(right, undefined, { numeric: true });
 }
 
 function toWorksheetText(value: string) {

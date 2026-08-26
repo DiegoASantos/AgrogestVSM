@@ -22,7 +22,8 @@ los agrónomos dentro de un rango de fechas, sin limitarse a la página visible.
 - Descarga autenticada de un archivo `.xlsx` desde la API.
 - Rango inclusivo obligatorio y filtro opcional por agrónomo.
 - Una hoja operativa con fecha, ficha, agrónomo, productor, sector, parcela,
-  campaña, etapa/labor, horas y estado.
+  horas, etapa fenológica, estado y diagnósticos de plagas, enfermedades y
+  nutrición.
 - Botón de exportación en la pantalla administrativa de Visitas.
 
 ### Excluido
@@ -35,6 +36,9 @@ los agrónomos dentro de un rango de fechas, sin limitarse a la página visible.
 - RF-001: permitir todos los agrónomos o uno seleccionado dentro del rango.
 - RF-002: exportar todas las visitas activas coincidentes, sin paginación.
 - RF-003: devolver una hoja válida aun cuando no haya filas.
+- RF-004: agrupar visualmente los datos generales de cada ficha cuando tenga
+  múltiples diagnósticos, mostrando plagas, enfermedades y nutrición en filas
+  paralelas.
 - RNF-001: validar fechas ISO y que la fecha inicial no supere la final.
 
 ## Contratos afectados
@@ -61,7 +65,8 @@ los agrónomos dentro de un rango de fechas, sin limitarse a la página visible.
 ## Criterios de aceptación
 
 - [x] CA-001: el usuario puede descargar por agrónomo o todos en un rango.
-- [x] CA-002: el archivo contiene las columnas operativas acordadas.
+- [x] CA-002: el archivo contiene las columnas operativas y diagnósticos
+  acordados, sin columna de campaña.
 - [x] CA-003: fechas inválidas o invertidas se rechazan sin generar archivo.
 
 ## Pruebas
