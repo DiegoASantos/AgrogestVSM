@@ -1,7 +1,15 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Alert,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from "react-native";
 
 import {
   AppButton,
@@ -36,6 +44,13 @@ import { Time12HourInput } from "../../../visitas-campo/presentation/components/
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import { visitasCampoService } from "../../../visitas-campo/services/visitas-campo.service";
 import { visitaRecetasService } from "../../services";
+import {
+  buildMixtureTutorialSteps,
+  getNextTutorialStep,
+  takePreviousTutorialStep,
+  type MixtureTutorialFieldId
+} from "../../domain/recipe-tutorial";
+import { GuidedFormTutorial } from "../../../visitas-campo/presentation/components/guided-form-tutorial";
 import {
   generateOrdenMezcla,
   isOrdenMezclaFixedItem,
@@ -92,6 +107,16 @@ export function VisitaMezclasScreen() {
   const [isReady, setIsReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const isCountConfirmationOpen = useRef(false);
+  const formScrollRef = useRef<ScrollView>(null);
+  const tutorialTargets = useRef<Partial<Record<MixtureTutorialFieldId, View | null>>>(
+    {}
+  );
+  const [tutorialScrollY, setTutorialScrollY] = useState(0);
+  const [tutorialStepId, setTutorialStepId] = useState<MixtureTutorialFieldId | null>(
+    null
+  );
+  const [tutorialHistory, setTutorialHistory] = useState<MixtureTutorialFieldId[]>([]);
+  const [tutorialNotice, setTutorialNotice] = useState<string | null>(null);
 
   const recipeIdentity = useMemo<VisitFormDraftIdentity | null>(
     () =>
@@ -110,6 +135,13 @@ export function VisitaMezclasScreen() {
   );
 
   const productOptions = useMemo(() => buildProductOptions(recipeDraft), [recipeDraft]);
+  const tutorialSteps = useMemo(
+    () => buildMixtureTutorialSteps(productOptions.length > 0),
+    [productOptions.length]
+  );
+  const currentTutorialStep = tutorialStepId
+    ? (tutorialSteps.find((step) => step.id === tutorialStepId) ?? null)
+    : null;
   const draftValue = useMemo<MezclasFormDraft>(
     () => ({ mixtures, activeNumber, endVisitTimeInput, endVisitTimePeriod }),
     [activeNumber, endVisitTimeInput, endVisitTimePeriod, mixtures]
@@ -409,6 +441,46 @@ export function VisitaMezclasScreen() {
     }
   }
 
+  function handleTutorialScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    setTutorialScrollY(event.nativeEvent.contentOffset.y);
+  }
+
+  function openTutorial() {
+    setTutorialNotice(null);
+    setTutorialHistory([]);
+    setTutorialStepId(tutorialSteps[0]?.id ?? null);
+  }
+
+  function closeTutorial() {
+    setTutorialStepId(null);
+    setTutorialHistory([]);
+  }
+
+  function goToPreviousTutorialStep() {
+    const { previousId, remainingHistory } = takePreviousTutorialStep(tutorialHistory);
+    if (!previousId) return;
+
+    setTutorialHistory(remainingHistory);
+    setTutorialStepId(previousId);
+  }
+
+  function goToNextTutorialStep() {
+    if (!currentTutorialStep) return;
+
+    const nextStep = getNextTutorialStep(tutorialSteps, currentTutorialStep.id);
+    if (!nextStep) {
+      setTutorialStepId(null);
+      setTutorialHistory([]);
+      setTutorialNotice(
+        "Tutorial terminado. Revisa cada mezcla y finaliza la visita cuando estes listo."
+      );
+      return;
+    }
+
+    setTutorialHistory((history) => [...history, currentTutorialStep.id]);
+    setTutorialStepId(nextStep.id);
+  }
+
   if (!isReady) {
     return (
       <ScreenContainer contentStyle={styles.container}>
@@ -419,11 +491,32 @@ export function VisitaMezclasScreen() {
 
   return (
     <ScreenContainer contentStyle={styles.container}>
-      <FormScrollView contentContainerStyle={styles.content}>
+      <FormScrollView
+        contentContainerStyle={styles.content}
+        onScroll={handleTutorialScroll}
+        ref={formScrollRef}
+        scrollEnabled={tutorialStepId === null}
+      >
         <AppHeader
           title="Mezclas"
           subtitle="Paso 2 de 2 · Configura una mezcla a la vez"
         />
+
+        <Pressable
+          accessibilityLabel="Iniciar tutorial de mezclas"
+          accessibilityRole="button"
+          onPress={openTutorial}
+          style={styles.tutorialButton}
+        >
+          <Ionicons
+            color={theme.colors.primaryDark}
+            name="help-circle-outline"
+            size={21}
+          />
+          <AppText style={styles.tutorialButtonText} variant="label">
+            Tutorial paso a paso
+          </AppText>
+        </Pressable>
 
         <AppCard style={styles.guideCard}>
           <View style={styles.guideTitle}>
@@ -449,68 +542,80 @@ export function VisitaMezclasScreen() {
           </AppCard>
         ) : (
           <>
-            <AppCard style={styles.countCard}>
-              <View style={styles.sectionHeading}>
-                <View style={styles.sectionIcon}>
-                  <Ionicons
-                    color={theme.colors.primary}
-                    name="layers-outline"
-                    size={20}
-                  />
-                </View>
-                <View style={styles.flex}>
-                  <AppText variant="label">Cantidad de mezclas</AppText>
-                  <AppText variant="caption">
-                    Escribe un valor de 1 a 20 y luego aplícalo.
-                  </AppText>
-                </View>
-              </View>
-              <View style={styles.countRow}>
-                <View style={styles.flex}>
-                  <AppInput
-                    accessibilityLabel="Cantidad de mezclas"
-                    keyboardType="number-pad"
-                    onChangeText={updateCountInput}
-                    onEndEditing={commitCount}
-                    value={mixtureCountInput}
-                  />
-                </View>
-                <AppButton label="Aplicar" onPress={commitCount} size="small" />
-              </View>
-            </AppCard>
-
-            <ScrollView
-              horizontal
-              contentContainerStyle={styles.stepList}
-              showsHorizontalScrollIndicator={false}
+            <View
+              ref={(node) => {
+                tutorialTargets.current.mixtureCount = node;
+              }}
             >
-              {mixtures.map((mixture) => {
-                const status = mixtureStatus(mixture, productOptions);
-                const selected = mixture.numero === activeNumber;
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    key={mixture.localId}
-                    onPress={() => setActiveNumber(mixture.numero)}
-                    style={[styles.stepChip, selected && styles.stepChipSelected]}
-                  >
-                    <AppText
-                      style={selected ? styles.selectedText : undefined}
-                      variant="label"
-                    >
-                      Mezcla {mixture.numero}
+              <AppCard style={styles.countCard}>
+                <View style={styles.sectionHeading}>
+                  <View style={styles.sectionIcon}>
+                    <Ionicons
+                      color={theme.colors.primary}
+                      name="layers-outline"
+                      size={20}
+                    />
+                  </View>
+                  <View style={styles.flex}>
+                    <AppText variant="label">Cantidad de mezclas</AppText>
+                    <AppText variant="caption">
+                      Escribe un valor de 1 a 20 y luego aplícalo.
                     </AppText>
-                    <AppText
-                      style={selected ? styles.selectedText : undefined}
-                      variant="caption"
+                  </View>
+                </View>
+                <View style={styles.countRow}>
+                  <View style={styles.flex}>
+                    <AppInput
+                      accessibilityLabel="Cantidad de mezclas"
+                      keyboardType="number-pad"
+                      onChangeText={updateCountInput}
+                      onEndEditing={commitCount}
+                      value={mixtureCountInput}
+                    />
+                  </View>
+                  <AppButton label="Aplicar" onPress={commitCount} size="small" />
+                </View>
+              </AppCard>
+            </View>
+
+            <View
+              ref={(node) => {
+                tutorialTargets.current.mixtureSelection = node;
+              }}
+            >
+              <ScrollView
+                horizontal
+                contentContainerStyle={styles.stepList}
+                showsHorizontalScrollIndicator={false}
+              >
+                {mixtures.map((mixture) => {
+                  const status = mixtureStatus(mixture, productOptions);
+                  const selected = mixture.numero === activeNumber;
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      key={mixture.localId}
+                      onPress={() => setActiveNumber(mixture.numero)}
+                      style={[styles.stepChip, selected && styles.stepChipSelected]}
                     >
-                      {status}
-                    </AppText>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+                      <AppText
+                        style={selected ? styles.selectedText : undefined}
+                        variant="label"
+                      >
+                        Mezcla {mixture.numero}
+                      </AppText>
+                      <AppText
+                        style={selected ? styles.selectedText : undefined}
+                        variant="caption"
+                      >
+                        {status}
+                      </AppText>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
 
             {activeMixture ? (
               <AppCard style={styles.mixtureCard}>
@@ -548,7 +653,12 @@ export function VisitaMezclasScreen() {
                 ) : null}
 
                 <View style={styles.sectionBlock}>
-                  <View style={styles.sectionHeading}>
+                  <View
+                    ref={(node) => {
+                      tutorialTargets.current.products = node;
+                    }}
+                    style={styles.sectionHeading}
+                  >
                     <View style={styles.sectionIcon}>
                       <Ionicons
                         color={theme.colors.primary}
@@ -628,23 +738,34 @@ export function VisitaMezclasScreen() {
                   />
                 ) : null}
 
-                <AppInput
-                  error={
-                    !activeMixture.frecuenciaDosis?.trim()
-                      ? "Ingresa la frecuencia de dosis."
-                      : activeMixture.frecuenciaDosis.trim().length > 200
-                        ? "Usa como maximo 200 caracteres."
-                        : null
-                  }
-                  label="Frecuencia de dosis"
-                  maxLength={200}
-                  onChangeText={(frecuenciaDosis) => updateActive({ frecuenciaDosis })}
-                  placeholder="Ej. Cada 7 dias"
-                  value={activeMixture.frecuenciaDosis ?? ""}
-                />
+                <View
+                  ref={(node) => {
+                    tutorialTargets.current.frequency = node;
+                  }}
+                >
+                  <AppInput
+                    error={
+                      !activeMixture.frecuenciaDosis?.trim()
+                        ? "Ingresa la frecuencia de dosis."
+                        : activeMixture.frecuenciaDosis.trim().length > 200
+                          ? "Usa como maximo 200 caracteres."
+                          : null
+                    }
+                    label="Frecuencia de dosis"
+                    maxLength={200}
+                    onChangeText={(frecuenciaDosis) => updateActive({ frecuenciaDosis })}
+                    placeholder="Ej. Cada 7 dias"
+                    value={activeMixture.frecuenciaDosis ?? ""}
+                  />
+                </View>
 
                 <View style={[styles.sectionBlock, styles.coadjuvantSection]}>
-                  <View style={styles.sectionHeading}>
+                  <View
+                    ref={(node) => {
+                      tutorialTargets.current.coadyuvants = node;
+                    }}
+                    style={styles.sectionHeading}
+                  >
                     <View style={styles.sectionIcon}>
                       <Ionicons
                         color={theme.colors.info}
@@ -706,7 +827,12 @@ export function VisitaMezclasScreen() {
                 </View>
 
                 <View style={styles.orderBlock}>
-                  <View style={styles.orderHeader}>
+                  <View
+                    ref={(node) => {
+                      tutorialTargets.current.preparationOrder = node;
+                    }}
+                    style={styles.orderHeader}
+                  >
                     <View style={styles.flex}>
                       <AppText variant="label">Orden de preparación</AppText>
                       <AppText variant="caption">
@@ -789,33 +915,39 @@ export function VisitaMezclasScreen() {
           </>
         )}
 
-        <AppCard>
-          <AppText variant="heading">Cierre de visita</AppText>
-          <AppText variant="muted">
-            Confirma la hora real. Es obligatoria para finalizar.
-          </AppText>
-          <Time12HourInput
-            error={endVisitTimeError}
-            label="Hora de fin"
-            onChangeText={handleEndTime}
-            onEndEditing={() => {
-              const normalized = normalizeTyped12HourInput(endVisitTimeInput);
-              setEndVisitTimeInput(normalized);
-              setEndVisitTimeError(
-                validateVisitEndTime(
-                  startVisitTime,
-                  normalize12HourTimeForApi(normalized, endVisitTimePeriod)
-                )
-              );
-            }}
-            onPeriodChange={(period) => {
-              setEndVisitTimePeriod(period);
-              setEndVisitTimeError(null);
-            }}
-            period={endVisitTimePeriod}
-            value={endVisitTimeInput}
-          />
-        </AppCard>
+        <View
+          ref={(node) => {
+            tutorialTargets.current.endTime = node;
+          }}
+        >
+          <AppCard>
+            <AppText variant="heading">Cierre de visita</AppText>
+            <AppText variant="muted">
+              Confirma la hora real. Es obligatoria para finalizar.
+            </AppText>
+            <Time12HourInput
+              error={endVisitTimeError}
+              label="Hora de fin"
+              onChangeText={handleEndTime}
+              onEndEditing={() => {
+                const normalized = normalizeTyped12HourInput(endVisitTimeInput);
+                setEndVisitTimeInput(normalized);
+                setEndVisitTimeError(
+                  validateVisitEndTime(
+                    startVisitTime,
+                    normalize12HourTimeForApi(normalized, endVisitTimePeriod)
+                  )
+                );
+              }}
+              onPeriodChange={(period) => {
+                setEndVisitTimePeriod(period);
+                setEndVisitTimeError(null);
+              }}
+              period={endVisitTimePeriod}
+              value={endVisitTimeInput}
+            />
+          </AppCard>
+        </View>
 
         {error ? (
           <View style={styles.errorBanner}>
@@ -825,7 +957,12 @@ export function VisitaMezclasScreen() {
           </View>
         ) : null}
 
-        <View style={styles.actions}>
+        <View
+          ref={(node) => {
+            tutorialTargets.current.finish = node;
+          }}
+          style={styles.actions}
+        >
           <AppButton
             label="Volver a Receta"
             onPress={() => {
@@ -845,6 +982,30 @@ export function VisitaMezclasScreen() {
           />
         </View>
       </FormScrollView>
+      {tutorialNotice ? (
+        <View style={styles.tutorialNotice}>
+          <AppText style={styles.tutorialNoticeText} variant="label">
+            {tutorialNotice}
+          </AppText>
+        </View>
+      ) : null}
+      {currentTutorialStep ? (
+        <GuidedFormTutorial
+          canGoBack={tutorialHistory.length > 0}
+          currentPosition={
+            tutorialSteps.findIndex((step) => step.id === currentTutorialStep.id) + 1
+          }
+          onBack={goToPreviousTutorialStep}
+          onClose={closeTutorial}
+          onNext={goToNextTutorialStep}
+          refreshKey={currentTutorialStep.id}
+          scrollRef={formScrollRef}
+          scrollY={tutorialScrollY}
+          step={currentTutorialStep}
+          target={tutorialTargets.current[currentTutorialStep.id] ?? null}
+          totalSteps={tutorialSteps.length}
+        />
+      ) : null}
     </ScreenContainer>
   );
 
@@ -1030,6 +1191,34 @@ function StatusPill({ label }: { label: string }) {
 const styles = StyleSheet.create({
   container: { backgroundColor: theme.colors.background },
   content: { padding: theme.spacing.md, gap: theme.spacing.md, paddingBottom: 40 },
+  tutorialButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primaryLight,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 7,
+    minHeight: 42,
+    paddingHorizontal: 14
+  },
+  tutorialButtonText: {
+    color: theme.colors.primaryDark,
+    fontWeight: "800"
+  },
+  tutorialNotice: {
+    backgroundColor: theme.colors.infoMuted,
+    borderColor: theme.colors.info,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    bottom: 16,
+    left: 16,
+    padding: 12,
+    position: "absolute",
+    right: 16
+  },
+  tutorialNoticeText: { color: theme.colors.primaryDark },
   guideCard: { backgroundColor: theme.colors.infoMuted },
   guideTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
   countCard: {

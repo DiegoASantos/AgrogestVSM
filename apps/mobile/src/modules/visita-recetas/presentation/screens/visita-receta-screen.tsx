@@ -13,6 +13,8 @@ import {
 import {
   ImageBackground,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -49,7 +51,14 @@ import { visitasCampoRepository } from "../../../visitas-campo/repositories/visi
 import type { PestDiseaseCatalogItem } from "../../../observaciones-sanitarias/types";
 import type { NutrientCatalogItem } from "../../../nutricion/types";
 import { formatFertilizationTarget } from "../../domain/recommendation-approach";
+import {
+  buildRecipeTutorialSteps,
+  getNextTutorialStep,
+  takePreviousTutorialStep,
+  type RecipeTutorialFieldId
+} from "../../domain/recipe-tutorial";
 import { visitaRecetasService } from "../../services";
+import { GuidedFormTutorial } from "../../../visitas-campo/presentation/components/guided-form-tutorial";
 import { LABOR_RECOMENDACION_LABELS, RIEGO_RECOMENDACION_LABELS } from "../../types";
 import type {
   ConsolidacionHallazgo,
@@ -167,9 +176,8 @@ export function VisitaRecetaScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [recipeFieldError, setRecipeFieldError] = useState<string | null>(null);
-  const [pendingRecipeIssue, setPendingRecipeIssue] = useState<
-    ReturnType<typeof findFirstRecipeDoseIssue>
-  >(null);
+  const [pendingRecipeIssue, setPendingRecipeIssue] =
+    useState<ReturnType<typeof findFirstRecipeDoseIssue>>(null);
   const [consolidacion, setConsolidacion] = useState<ConsolidacionHallazgo | null>(null);
   const [recetaData, setRecetaData] = useState<VisitaRecetaCompleta | null>(null);
 
@@ -214,6 +222,13 @@ export function VisitaRecetaScreen() {
   const doseInputRefs = useRef<Record<string, TextInput | null>>({});
   const recipeCardOffsets = useRef<Record<RecipeCardKey, number>>({});
   const recipeFieldOffsets = useRef<Record<string, number>>({});
+  const tutorialTargets = useRef<Partial<Record<RecipeTutorialFieldId, View | null>>>({});
+  const [tutorialScrollY, setTutorialScrollY] = useState(0);
+  const [tutorialStepId, setTutorialStepId] = useState<RecipeTutorialFieldId | null>(
+    null
+  );
+  const [tutorialHistory, setTutorialHistory] = useState<RecipeTutorialFieldId[]>([]);
+  const [tutorialNotice, setTutorialNotice] = useState<string | null>(null);
   const catalogDownloadStatus = useCatalogDownloadStatus();
   const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
   const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
@@ -277,6 +292,10 @@ export function VisitaRecetaScreen() {
     () => buildRecipeAccordionCards(fitosanidadApps, [], fertilizaciones),
     [fertilizaciones, fitosanidadApps]
   );
+  const tutorialSteps = useMemo(() => buildRecipeTutorialSteps(), []);
+  const currentTutorialStep = tutorialStepId
+    ? (tutorialSteps.find((step) => step.id === tutorialStepId) ?? null)
+    : null;
 
   useEffect(() => {
     if (!isDraftReady || accordionInitializedRef.current) return;
@@ -1022,6 +1041,46 @@ export function VisitaRecetaScreen() {
     setActiveRecipeCardKey((current) => resolveRecipeCardAfterRemoval(current, cards));
   }
 
+  function handleTutorialScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    setTutorialScrollY(event.nativeEvent.contentOffset.y);
+  }
+
+  function openTutorial() {
+    setTutorialNotice(null);
+    setTutorialHistory([]);
+    setTutorialStepId(tutorialSteps[0]?.id ?? null);
+  }
+
+  function closeTutorial() {
+    setTutorialStepId(null);
+    setTutorialHistory([]);
+  }
+
+  function goToPreviousTutorialStep() {
+    const { previousId, remainingHistory } = takePreviousTutorialStep(tutorialHistory);
+    if (!previousId) return;
+
+    setTutorialHistory(remainingHistory);
+    setTutorialStepId(previousId);
+  }
+
+  function goToNextTutorialStep() {
+    if (!currentTutorialStep) return;
+
+    const nextStep = getNextTutorialStep(tutorialSteps, currentTutorialStep.id);
+    if (!nextStep) {
+      setTutorialStepId(null);
+      setTutorialHistory([]);
+      setTutorialNotice(
+        "Tutorial terminado. Revisa las recomendaciones y continua a mezclas cuando estes listo."
+      );
+      return;
+    }
+
+    setTutorialHistory((history) => [...history, currentTutorialStep.id]);
+    setTutorialStepId(nextStep.id);
+  }
+
   if (isLoading) {
     return (
       <ScreenContainer>
@@ -1047,7 +1106,12 @@ export function VisitaRecetaScreen() {
   return (
     <ScreenContainer contentStyle={styles.container}>
       <StatusBar style="light" />
-      <FormScrollView contentContainerStyle={styles.scrollContent} ref={formScrollRef}>
+      <FormScrollView
+        contentContainerStyle={styles.scrollContent}
+        onScroll={handleTutorialScroll}
+        ref={formScrollRef}
+        scrollEnabled={tutorialStepId === null}
+      >
         <ImageBackground
           imageStyle={styles.heroImage}
           resizeMode="cover"
@@ -1067,6 +1131,17 @@ export function VisitaRecetaScreen() {
               <AppText style={styles.topBarTitle} variant="heading">
                 Receta
               </AppText>
+              <Pressable
+                accessibilityLabel="Iniciar tutorial de receta"
+                accessibilityRole="button"
+                onPress={openTutorial}
+                style={styles.tutorialButton}
+              >
+                <Ionicons color="#ffffff" name="help-circle-outline" size={19} />
+                <AppText style={styles.tutorialButtonText} variant="label">
+                  Tutorial
+                </AppText>
+              </Pressable>
             </View>
           </SafeAreaView>
 
@@ -1083,14 +1158,20 @@ export function VisitaRecetaScreen() {
         <View style={styles.body}>
           {consolidacion ? <ConsolidacionPanel data={consolidacion} /> : null}
 
-          <SectionHeader
-            icon="flask"
-            label="Fitosanidad"
-            subtitle={`${fitosanidadApps.reduce(
-              (total, application) => total + application.ingredientes.length,
-              0
-            )} producto(s) en ${fitosanidadApps.length} aplicación(es)`}
-          />
+          <View
+            ref={(node) => {
+              tutorialTargets.current.fitosanidad = node;
+            }}
+          >
+            <SectionHeader
+              icon="flask"
+              label="Fitosanidad"
+              subtitle={`${fitosanidadApps.reduce(
+                (total, application) => total + application.ingredientes.length,
+                0
+              )} producto(s) en ${fitosanidadApps.length} aplicación(es)`}
+            />
+          </View>
 
           {fitosanidadApps.length === 0 ? (
             <AppCard>
@@ -1222,11 +1303,17 @@ export function VisitaRecetaScreen() {
             ) : null}
           </AppCard>
 
-          <SectionHeader
-            icon="nutrition"
-            label="Fertilización"
-            subtitle={`${fertilizacionGroups.length} deficiencia(s) atendida(s)`}
-          />
+          <View
+            ref={(node) => {
+              tutorialTargets.current.fertilizacion = node;
+            }}
+          >
+            <SectionHeader
+              icon="nutrition"
+              label="Fertilización"
+              subtitle={`${fertilizacionGroups.length} deficiencia(s) atendida(s)`}
+            />
+          </View>
 
           {fertilizacionGroups.length === 0 ? (
             <View style={styles.emptyProductsCard}>
@@ -1383,22 +1470,34 @@ export function VisitaRecetaScreen() {
             ) : null}
           </View>
 
-          <RiegoSection onSelect={setRiegoSelection} selected={riegoSelection} />
-
-          <LaboresSection
-            onToggle={(labor) => {
-              setLaborSelections((prev) => {
-                const next = new Set(prev);
-                if (next.has(labor)) {
-                  next.delete(labor);
-                } else {
-                  next.add(labor);
-                }
-                return next;
-              });
+          <View
+            ref={(node) => {
+              tutorialTargets.current.riego = node;
             }}
-            selected={laborSelections}
-          />
+          >
+            <RiegoSection onSelect={setRiegoSelection} selected={riegoSelection} />
+          </View>
+
+          <View
+            ref={(node) => {
+              tutorialTargets.current.labores = node;
+            }}
+          >
+            <LaboresSection
+              onToggle={(labor) => {
+                setLaborSelections((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(labor)) {
+                    next.delete(labor);
+                  } else {
+                    next.add(labor);
+                  }
+                  return next;
+                });
+              }}
+              selected={laborSelections}
+            />
+          </View>
 
           {submitError ? (
             <View style={styles.errorBanner}>
@@ -1416,7 +1515,12 @@ export function VisitaRecetaScreen() {
             </View>
           ) : null}
 
-          <View style={styles.actions}>
+          <View
+            ref={(node) => {
+              tutorialTargets.current.continue = node;
+            }}
+            style={styles.actions}
+          >
             <AppButton
               icon="arrow-back-outline"
               label="Volver a Labores"
@@ -1440,6 +1544,30 @@ export function VisitaRecetaScreen() {
           </View>
         </View>
       </FormScrollView>
+      {tutorialNotice ? (
+        <View style={styles.tutorialNotice}>
+          <AppText style={styles.tutorialNoticeText} variant="label">
+            {tutorialNotice}
+          </AppText>
+        </View>
+      ) : null}
+      {currentTutorialStep ? (
+        <GuidedFormTutorial
+          canGoBack={tutorialHistory.length > 0}
+          currentPosition={
+            tutorialSteps.findIndex((step) => step.id === currentTutorialStep.id) + 1
+          }
+          onBack={goToPreviousTutorialStep}
+          onClose={closeTutorial}
+          onNext={goToNextTutorialStep}
+          refreshKey={currentTutorialStep.id}
+          scrollRef={formScrollRef}
+          scrollY={tutorialScrollY}
+          step={currentTutorialStep}
+          target={tutorialTargets.current[currentTutorialStep.id] ?? null}
+          totalSteps={tutorialSteps.length}
+        />
+      ) : null}
     </ScreenContainer>
   );
 }
@@ -2582,6 +2710,7 @@ const styles = StyleSheet.create({
   },
   topBarTitle: {
     color: theme.colors.textInverse,
+    flex: 1,
     fontSize: 22
   },
   backIconButton: {
@@ -2592,10 +2721,37 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44
   },
+  tutorialButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.35)",
+    borderRadius: theme.radius.full,
+    flexDirection: "row",
+    gap: 4,
+    minHeight: 38,
+    paddingHorizontal: 10
+  },
+  tutorialButtonText: {
+    color: theme.colors.textInverse,
+    fontWeight: "700"
+  },
   body: {
     gap: 20,
     padding: theme.spacing.md,
     paddingTop: 24
+  },
+  tutorialNotice: {
+    backgroundColor: theme.colors.infoMuted,
+    borderColor: theme.colors.info,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    bottom: 16,
+    left: 16,
+    padding: 12,
+    position: "absolute",
+    right: 16
+  },
+  tutorialNoticeText: {
+    color: theme.colors.primaryDark
   },
   sectionHeader: {
     alignItems: "center",

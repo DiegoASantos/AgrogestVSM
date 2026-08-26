@@ -340,13 +340,25 @@ export class VisitasCampoService {
       pattern: "solid",
       fgColor: { argb: "FF166534" }
     };
-    worksheet.getCell("A1").alignment = { horizontal: "center" };
+    worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getRow(1).height = 28;
     worksheet.mergeCells("A2:P2");
     worksheet.getCell("A2").value = `Periodo: ${query.fecha_desde} al ${query.fecha_hasta}`;
+    worksheet.getCell("A2").font = { bold: true, color: { argb: "FF166534" } };
+    worksheet.getCell("A2").fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFF0FDF4" }
+    };
+    worksheet.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getRow(2).height = 22;
     worksheet.mergeCells("A3:P3");
     worksheet.getCell("A3").value = `Agrónomo: ${
       agronomistUserId ? "seleccionado" : "Todos"
     } | Visitas activas: ${visitas.length}`;
+    worksheet.getCell("A3").font = { italic: true, color: { argb: "FF475569" } };
+    worksheet.getCell("A3").alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getRow(3).height = 20;
 
     const headers = [
       "Fecha",
@@ -367,13 +379,34 @@ export class VisitasCampoService {
       "Estado"
     ];
     const headerRow = worksheet.addRow(headers);
-    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    headerRow.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FF2F6B4F" }
+    headerRow.height = 32;
+
+    for (let column = 1; column <= headers.length; column += 1) {
+      const cell = headerRow.getCell(column);
+
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF2F6B4F" }
+      };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+      cell.border = {
+        top: { style: "thin", color: { argb: "FF1E4D38" } },
+        left: { style: "thin", color: { argb: "FF1E4D38" } },
+        bottom: { style: "thin", color: { argb: "FF1E4D38" } },
+        right: { style: "thin", color: { argb: "FF1E4D38" } }
+      };
+    }
+
+    const reportColumnFills: Record<number, string> = {
+      11: "FFFFF7ED",
+      12: "FFFEF2F2",
+      13: "FFECFDF5",
+      14: "FFEFF6FF",
+      15: "FFEFF6FF",
+      16: "FFF0FDF4"
     };
-    headerRow.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
 
     for (const visita of visitas) {
       const diagnosisRows = buildExcelDiagnosisRows(visita);
@@ -403,6 +436,37 @@ export class VisitasCampoService {
       }
 
       const lastWorksheetRow = worksheet.rowCount;
+
+      for (let row = firstWorksheetRow; row <= lastWorksheetRow; row += 1) {
+        const worksheetRow = worksheet.getRow(row);
+        worksheetRow.height = 23;
+
+        for (let column = 1; column <= headers.length; column += 1) {
+          const cell = worksheetRow.getCell(column);
+          const columnFill = reportColumnFills[column];
+
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFE2E8F0" } },
+            left: { style: "thin", color: { argb: "FFE2E8F0" } },
+            bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+            right: { style: "thin", color: { argb: "FFE2E8F0" } }
+          };
+          cell.alignment = {
+            ...(cell.alignment ?? {}),
+            ...(column >= 11 && column <= 13 ? { horizontal: "center" as const } : {}),
+            vertical: "middle",
+            wrapText: true
+          };
+
+          if (columnFill) {
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: columnFill }
+            };
+          }
+        }
+      }
 
       for (const column of [
         ...Array.from({ length: 10 }, (_, index) => index + 1),

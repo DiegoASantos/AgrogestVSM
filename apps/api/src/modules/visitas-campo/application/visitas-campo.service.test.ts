@@ -299,6 +299,14 @@ describe("VisitasCampoService", () => {
       for (const [index, value] of headerValues.entries()) {
         expect(worksheet!.getRow(4).getCell(index + 1).value).toBe(value);
       }
+      expect(worksheet!.getRow(4).height).toBe(32);
+      expect(worksheet!.getCell("P4").fill).toMatchObject({
+        fgColor: { argb: "FF2F6B4F" }
+      });
+      expect(worksheet!.getCell("P4").font).toMatchObject({
+        bold: true,
+        color: { argb: "FFFFFFFF" }
+      });
 
       expect(worksheet!.getRow(5).getCell(3).value).toBe("Mango");
       expect(worksheet!.getRow(5).getCell(4).value).toBe("Ana Lopez");
@@ -325,6 +333,9 @@ describe("VisitasCampoService", () => {
       expect(worksheet!.getCell("M5").alignment).toMatchObject({
         horizontal: "center",
         vertical: "middle"
+      });
+      expect(worksheet!.getCell("K5").fill).toMatchObject({
+        fgColor: { argb: "FFFFF7ED" }
       });
     });
 

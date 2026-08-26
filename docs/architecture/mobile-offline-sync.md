@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-21
+last_reviewed: 2026-08-26
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -31,13 +31,22 @@ la API cuando vuelva a tener conectividad.
 6. Se sincronizan evaluaciones, sanidad, notas, riego, labores y receta.
 7. Los registros pasan a `synced`, quedan `pending` o terminan en `error`.
 
-### Captura guiada de datos basicos
+### Tutoriales guiados de visita
 
 El paso 1 de una visita ofrece un tutorial visual manual y completamente local.
 La guia recorre solo los campos pendientes en el orden del formulario, desplaza
 la pantalla, atenua el resto de la interfaz y mantiene interactivo el control
 resaltado. No registra progreso, no solicita permisos y no modifica SQLite ni
 la outbox.
+
+Receta y Mezclas incluyen ademas un boton manual `Tutorial`. Cada recorrido
+explica visualmente el orden de configuracion, desplaza la vista hasta la
+seccion correspondiente y permite avanzar, volver o salir sin alterar el
+borrador. La guia de Receta cubre fitosanidad, fertilizacion, riego, labores y
+el paso a Mezclas; la de Mezclas cubre cantidad, seleccion y dosificacion de
+productos, coadyuvantes, orden de preparacion y cierre de la visita. Cuando no
+hay productos para mezclar, el recorrido se limita al cierre seguro de la
+visita. Funciona por completo sin red y no persiste progreso ni telemetria.
 
 Numero de plantas, area en hectareas y fecha de siembra son obligatorios tanto
 con tutorial como sin el. Hora de fin pertenece exclusivamente al cierre de

@@ -9,7 +9,17 @@ import {
 } from "react-native";
 
 import { AppText } from "../../../../shared/components";
-import type { StepOneTutorialStep } from "../../domain/step-one-tutorial";
+export type GuidedFormTutorialStep = {
+  id: string;
+  title: string;
+  instruction: string;
+  isComplete: boolean;
+  isEnabled: boolean;
+  isExpanded: boolean;
+  isLoading: boolean;
+  isOptional: boolean;
+  nextLabel?: string;
+};
 
 type TargetRect = {
   x: number;
@@ -27,7 +37,7 @@ type GuidedFormTutorialProps = {
   refreshKey: string;
   scrollRef: RefObject<ScrollView | null>;
   scrollY: number;
-  step: StepOneTutorialStep;
+  step: GuidedFormTutorialStep;
   target: View | null;
   totalSteps: number;
 };
@@ -114,9 +124,7 @@ export function GuidedFormTutorial({
 
   const buttonLabel = step.isLoading
     ? "Cargando..."
-    : step.isOptional && !step.isComplete
-      ? "Omitir"
-      : "Siguiente";
+    : (step.nextLabel ?? (step.isOptional && !step.isComplete ? "Omitir" : "Siguiente"));
 
   return (
     <View
@@ -224,7 +232,7 @@ type TutorialCardProps = {
   onClose: () => void;
   onNext: () => void;
   rootHeight: number;
-  step: StepOneTutorialStep;
+  step: GuidedFormTutorialStep;
   targetRect: TargetRect;
   totalSteps: number;
 };
