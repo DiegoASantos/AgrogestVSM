@@ -62,6 +62,7 @@ export type VisitaMapApiItem = {
   parcelaId: string;
   campaignId: string;
   agronomistUserId: string;
+  phenologicalStageId: string | null;
   visitDate: string;
   visitLocation: GeoJsonPointGeometry | null;
   geo?: {
@@ -72,6 +73,16 @@ export type VisitaMapApiItem = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type PhenologicalStageMapApiItem = {
+  id: string;
+  name: string;
+  sortOrder: number | null;
+  type: "Etapa" | "Labor";
+  isActive: boolean;
+};
+
+export type PhenologicalStageMapItem = PhenologicalStageMapApiItem;
 
 export type VisitaMapItem = {
   id: string;
@@ -85,6 +96,9 @@ export type VisitaMapItem = {
   campaignName: string | null;
   agronomistUserId: string;
   agronomistName: string | null;
+  phenologicalStageId: string | null;
+  phenologicalStageName: string | null;
+  phenologicalStageType: PhenologicalStageMapItem["type"] | null;
   productorLabel: string | null;
   visitDate: string;
   visitLocation: GeoJsonPointGeometry | null;
@@ -106,6 +120,7 @@ export type VisitasMapData = {
 export type MapasOverviewData = {
   parcelas: ParcelasMapData;
   visitas: VisitasMapData;
+  phenologicalStages: PhenologicalStageMapItem[];
 };
 
 export type SelectedMapFeature =

@@ -53,6 +53,7 @@ function makeVisitaApiItem(overrides: Record<string, unknown> = {}) {
     parcelaId: "p1",
     campaignId: "camp1",
     agronomistUserId: "u1",
+    phenologicalStageId: "stage-1",
     visitDate: "2026-06-01",
     isActive: true,
     visitLocation: { type: "Point", coordinates: [-77.04, -12.05] },
@@ -69,11 +70,23 @@ function makeSectorApiItem(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function makePhenologicalStageApiItem(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "stage-1",
+    name: "Floracion",
+    sortOrder: 2,
+    type: "Etapa",
+    isActive: true,
+    ...overrides
+  };
+}
+
 describe("mapasService", () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
     fetchMock.mockReset();
+    fetchMock.mockResolvedValue(apiResponse([]));
     vi.stubGlobal("fetch", fetchMock);
   });
 
@@ -89,7 +102,8 @@ describe("mapasService", () => {
         .mockResolvedValueOnce(apiResponse([makeSectorApiItem()]))
         .mockResolvedValueOnce(apiResponse([{ id: "prod1", firstName: "Juan", lastName: "Perez", documentNumber: null, publicId: "pub-prod1" }]))
         .mockResolvedValueOnce(apiResponse([{ id: "camp1", name: "Campania 2026" }]))
-        .mockResolvedValueOnce(apiResponse([{ id: "u1", displayName: "Carlos Lopez", email: "carlos@test.com", isActive: true }]));
+        .mockResolvedValueOnce(apiResponse([{ id: "u1", displayName: "Carlos Lopez", email: "carlos@test.com", isActive: true }]))
+        .mockResolvedValueOnce(apiResponse([makePhenologicalStageApiItem()]));
 
       const result = await mapasService.getOverview(session);
 
@@ -100,6 +114,22 @@ describe("mapasService", () => {
       expect(result.parcelas.totals.polygonParcelasCount).toBe(1);
       expect(result.visitas.items).toHaveLength(1);
       expect(result.visitas.mappableItems).toHaveLength(1);
+      expect(result.visitas.items[0]?.agronomistName).toBe("Carlos Lopez");
+      expect(result.visitas.items[0]?.phenologicalStageName).toBe("Floracion");
+      expect(result.visitas.items[0]?.phenologicalStageType).toBe("Etapa");
+      expect(result.phenologicalStages).toEqual([makePhenologicalStageApiItem()]);
+      expect(
+        fetchMock.mock.calls.some(
+          ([path]) => String(path) === "http://127.0.0.1:3001/usuarios/agronomos"
+        )
+      ).toBe(true);
+      expect(
+        fetchMock.mock.calls.some(
+          ([path]) =>
+            String(path) ===
+            "http://127.0.0.1:3001/etapas-fenologicas?page=1&limit=200"
+        )
+      ).toBe(true);
 
       const parcelaItem = result.parcelas.items[0];
       expect(parcelaItem.productorLabel).toBe("Juan Perez");

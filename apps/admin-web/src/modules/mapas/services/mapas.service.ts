@@ -12,25 +12,37 @@ import type {
   MapasOverviewData,
   ParcelaMapApiItem,
   ParcelaMapItem,
+  PhenologicalStageMapApiItem,
+  PhenologicalStageMapItem,
   VisitaMapApiItem,
   VisitaMapItem
 } from "../types/mapas.types";
 
 type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
+type AgronomistLookupItem = Pick<SecurityUserItem, "id" | "displayName" | "isActive">;
 
 export const mapasService = {
   async getOverview(session: AuthSessionInput): Promise<MapasOverviewData> {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
     // Paginated endpoints must be walked page-by-page so the map view sees
     // every record; catalog endpoints are capped server-side.
-    const [parcelas, visitas, sectores, productores, campanias, usuarios] =
+    const [
+      parcelas,
+      visitas,
+      sectores,
+      productores,
+      campanias,
+      usuarios,
+      phenologicalStages
+    ] =
       await Promise.all([
         fetchAllPaginated<ParcelaMapApiItem>("/parcelas?activo=true", { headers }),
         fetchAllPaginated<VisitaMapApiItem>("/visitas-campo?activo=true", { headers }),
         safeFetchAllPages<SectorListItem>("/sectores", headers),
         safeFetchAllPages<ProductorListItem>("/productores", headers),
         safeRequestList<CampaniaCatalogItem>("/campanias", headers),
-        safeRequestList<SecurityUserItem>("/usuarios", headers)
+        safeRequestList<AgronomistLookupItem>("/usuarios/agronomos", headers),
+        safeFetchAllPages<PhenologicalStageMapApiItem>("/etapas-fenologicas", headers)
       ]);
 
     const sectoresById = new Map(sectores.map((sector) => [sector.id, sector]));
@@ -41,6 +53,12 @@ export const mapasService = {
       campanias.map((campania) => [campania.id, campania])
     );
     const usuariosById = new Map(usuarios.map((usuario) => [usuario.id, usuario]));
+    const phenologicalStageItems = phenologicalStages
+      .map(normalizePhenologicalStageMapItem)
+      .sort(comparePhenologicalStages);
+    const phenologicalStagesById = new Map(
+      phenologicalStageItems.map((stage) => [stage.id, stage])
+    );
 
     const parcelaItems = parcelas
       .map((parcela) =>
@@ -51,7 +69,13 @@ export const mapasService = {
 
     const visitaItems = visitas
       .map((visita) =>
-        normalizeVisitaMapItem(visita, parcelasById, campaniasById, usuariosById)
+        normalizeVisitaMapItem(
+          visita,
+          parcelasById,
+          campaniasById,
+          usuariosById,
+          phenologicalStagesById
+        )
       )
       .sort((leftItem, rightItem) =>
         rightItem.visitDate.localeCompare(leftItem.visitDate, "es")
@@ -77,6 +101,7 @@ export const mapasService = {
           missingGeodataCount: missingParcelas.length
         }
       },
+      phenologicalStages: phenologicalStageItems,
       visitas: {
         items: visitaItems,
         mappableItems: mappableVisitas,
@@ -130,11 +155,15 @@ function normalizeVisitaMapItem(
   visita: VisitaMapApiItem,
   parcelasById: Map<string, ParcelaMapItem>,
   campaniasById: Map<string, CampaniaCatalogItem>,
-  usuariosById: Map<string, SecurityUserItem>
+  usuariosById: Map<string, AgronomistLookupItem>,
+  phenologicalStagesById: Map<string, PhenologicalStageMapItem>
 ): VisitaMapItem {
   const parcela = parcelasById.get(visita.parcelaId) ?? null;
   const campania = campaniasById.get(visita.campaignId) ?? null;
   const agronomist = usuariosById.get(visita.agronomistUserId) ?? null;
+  const phenologicalStage = visita.phenologicalStageId
+    ? (phenologicalStagesById.get(visita.phenologicalStageId) ?? null)
+    : null;
   const visitLocation = normalizePointGeometry(
     visita.geo?.point ?? visita.visitLocation ?? null
   );
@@ -151,12 +180,43 @@ function normalizeVisitaMapItem(
     campaignName: campania?.name ?? null,
     agronomistUserId: visita.agronomistUserId,
     agronomistName: agronomist?.displayName ?? null,
+    phenologicalStageId: visita.phenologicalStageId,
+    phenologicalStageName: phenologicalStage?.name ?? null,
+    phenologicalStageType: phenologicalStage?.type ?? null,
     productorLabel: parcela?.productorLabel ?? null,
     visitDate: visita.visitDate,
     visitLocation,
     isActive: visita.isActive,
     hasGeodata: visitLocation !== null
   };
+}
+
+function normalizePhenologicalStageMapItem(
+  phenologicalStage: PhenologicalStageMapApiItem
+): PhenologicalStageMapItem {
+  return {
+    id: phenologicalStage.id,
+    name: phenologicalStage.name,
+    sortOrder: phenologicalStage.sortOrder,
+    type: phenologicalStage.type,
+    isActive: phenologicalStage.isActive
+  };
+}
+
+function comparePhenologicalStages(
+  leftStage: PhenologicalStageMapItem,
+  rightStage: PhenologicalStageMapItem
+) {
+  const typeComparison = leftStage.type.localeCompare(rightStage.type, "es");
+
+  if (typeComparison !== 0) {
+    return typeComparison;
+  }
+
+  const leftOrder = leftStage.sortOrder ?? Number.MAX_SAFE_INTEGER;
+  const rightOrder = rightStage.sortOrder ?? Number.MAX_SAFE_INTEGER;
+
+  return leftOrder - rightOrder || leftStage.name.localeCompare(rightStage.name, "es");
 }
 
 function buildProductorLabel(productor: ProductorListItem) {

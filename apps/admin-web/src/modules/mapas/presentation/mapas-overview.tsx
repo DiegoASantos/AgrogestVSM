@@ -21,9 +21,11 @@ import { mapasService } from "../services/mapas.service";
 import type {
   MapasOverviewData,
   ParcelaMapItem,
+  PhenologicalStageMapItem,
   SelectedMapFeature,
   VisitaMapItem
 } from "../types/mapas.types";
+import { buildPhenologicalStageColorLookup } from "../utils/phenological-stage-colors";
 import {
   buildAdminMapHref,
   emptyAdminMapFilters,
@@ -75,6 +77,11 @@ export function MapasOverview() {
 
   const parcelas = overviewData?.parcelas.items ?? [];
   const visitas = overviewData?.visitas.items ?? [];
+  const phenologicalStages = overviewData?.phenologicalStages ?? [];
+  const phenologicalStageColors = useMemo(
+    () => buildPhenologicalStageColorLookup(phenologicalStages),
+    [phenologicalStages]
+  );
   const filteredVisitas = useMemo(
     () => filterVisitas(visitas, appliedFilters),
     [appliedFilters, visitas]
@@ -131,10 +138,6 @@ export function MapasOverview() {
     () => buildSectorOptions(parcelas, draftFilters.productorId),
     [draftFilters.productorId, parcelas]
   );
-  const parcelaOptions = useMemo(
-    () => buildParcelaOptions(parcelas, draftFilters),
-    [draftFilters, parcelas]
-  );
   const campaignOptions = useMemo(
     () => buildCampaignOptions(visitas, draftFilters),
     [draftFilters, visitas]
@@ -142,6 +145,13 @@ export function MapasOverview() {
   const agronomistOptions = useMemo(
     () => buildAgronomistOptions(visitas, draftFilters),
     [draftFilters, visitas]
+  );
+  const selectedPhenologicalStages = useMemo(
+    () =>
+      appliedFilters.phenologicalStageIds
+        .map((stageId) => phenologicalStages.find((stage) => stage.id === stageId))
+        .filter((stage): stage is PhenologicalStageMapItem => Boolean(stage)),
+    [appliedFilters.phenologicalStageIds, phenologicalStages]
   );
   const mapPolygons = useMemo(
     () =>
@@ -190,7 +200,12 @@ export function MapasOverview() {
             ({
               id: `visita-${item.id}`,
               geometry: item.visitLocation!,
-              color: VISITA_POINT_COLOR,
+              color:
+                item.phenologicalStageId &&
+                appliedFilters.phenologicalStageIds.length > 0
+                  ? (phenologicalStageColors.get(item.phenologicalStageId) ??
+                    VISITA_POINT_COLOR)
+                  : VISITA_POINT_COLOR,
               radius: 6,
               isSelected:
                 selectedFeature?.kind === "visita" && selectedFeature.id === item.id,
@@ -202,7 +217,13 @@ export function MapasOverview() {
             }) satisfies AdminMapPoint
         )
     ],
-    [filteredParcelas, filteredVisitas, selectedFeature]
+    [
+      appliedFilters.phenologicalStageIds.length,
+      filteredParcelas,
+      filteredVisitas,
+      phenologicalStageColors,
+      selectedFeature
+    ]
   );
 
   if (isLoading) {
@@ -289,8 +310,7 @@ export function MapasOverview() {
               setDraftFilters((current) => ({
                 ...current,
                 productorId: value,
-                sectorId: "",
-                parcelaId: ""
+                sectorId: ""
               }))
             }
           />
@@ -301,17 +321,8 @@ export function MapasOverview() {
             onChange={(value) =>
               setDraftFilters((current) => ({
                 ...current,
-                sectorId: value,
-                parcelaId: ""
+                sectorId: value
               }))
-            }
-          />
-          <FieldSelect
-            label="Parcela"
-            options={parcelaOptions}
-            value={draftFilters.parcelaId}
-            onChange={(value) =>
-              setDraftFilters((current) => ({ ...current, parcelaId: value }))
             }
           />
           <FieldSelect
@@ -329,6 +340,14 @@ export function MapasOverview() {
             onChange={(value) =>
               setDraftFilters((current) => ({ ...current, campaignId: value }))
             }
+          />
+          <PhenologicalStageMultiSelect
+            colorLookup={phenologicalStageColors}
+            onChange={(phenologicalStageIds) =>
+              setDraftFilters((current) => ({ ...current, phenologicalStageIds }))
+            }
+            stages={phenologicalStages}
+            value={draftFilters.phenologicalStageIds}
           />
           <FieldDate
             label="Fecha desde"
@@ -387,10 +406,22 @@ export function MapasOverview() {
                   <span className="map-legend__swatch map-legend__swatch--point" />
                   Parcela punto
                 </span>
-                <span className="map-legend__item">
-                  <span className="map-legend__swatch map-legend__swatch--visit" />
-                  Visita
-                </span>
+                {selectedPhenologicalStages.length === 0 ? (
+                  <span className="map-legend__item">
+                    <span className="map-legend__swatch map-legend__swatch--visit" />
+                    Visita
+                  </span>
+                ) : (
+                  selectedPhenologicalStages.map((stage) => (
+                    <span className="map-legend__item" key={stage.id}>
+                      <span
+                        className="map-legend__swatch"
+                        style={{ backgroundColor: phenologicalStageColors.get(stage.id) }}
+                      />
+                      {stage.type}: {stage.name} ({countVisitsForStage(filteredVisitas, stage.id)})
+                    </span>
+                  ))
+                )}
               </div>
             </div>
             <AdminMap
@@ -545,6 +576,87 @@ function FieldDate({
   );
 }
 
+function PhenologicalStageMultiSelect({
+  colorLookup,
+  onChange,
+  stages,
+  value
+}: {
+  colorLookup: Map<string, string>;
+  onChange: (value: string[]) => void;
+  stages: PhenologicalStageMapItem[];
+  value: string[];
+}) {
+  const selectedIds = new Set(value);
+  const stageGroups = ["Etapa", "Labor"] as const;
+  const selectedLabel =
+    value.length === 0
+      ? "Todas las etapas y labores"
+      : `${value.length} seleccionada${value.length === 1 ? "" : "s"}`;
+
+  function toggleStage(stageId: string) {
+    onChange(
+      selectedIds.has(stageId)
+        ? value.filter((selectedId) => selectedId !== stageId)
+        : [...value, stageId]
+    );
+  }
+
+  return (
+    <fieldset className="field-group map-stage-filter">
+      <legend>Etapas y labores</legend>
+      <details className="map-stage-filter__details">
+        <summary>
+          <span>{selectedLabel}</span>
+          <span aria-hidden="true" className="map-stage-filter__chevron">⌄</span>
+        </summary>
+        <div className="map-stage-filter__panel">
+          <div className="map-stage-filter__actions">
+            <button onClick={() => onChange(stages.map((stage) => stage.id))} type="button">
+              Seleccionar todas
+            </button>
+            <button onClick={() => onChange([])} type="button">
+              Limpiar
+            </button>
+          </div>
+          {stageGroups.map((type) => {
+            const groupedStages = stages.filter((stage) => stage.type === type);
+
+            if (groupedStages.length === 0) {
+              return null;
+            }
+
+            return (
+              <section className="map-stage-filter__group" key={type}>
+                <p>{type === "Etapa" ? "Etapas" : "Labores"}</p>
+                {groupedStages.map((stage) => (
+                  <label className="map-stage-filter__option" key={stage.id}>
+                    <input
+                      checked={selectedIds.has(stage.id)}
+                      onChange={() => toggleStage(stage.id)}
+                      type="checkbox"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="map-stage-filter__color"
+                      style={{ backgroundColor: colorLookup.get(stage.id) }}
+                    />
+                    <span>{stage.name}</span>
+                    {!stage.isActive ? <small>Inactiva</small> : null}
+                  </label>
+                ))}
+              </section>
+            );
+          })}
+          {stages.length === 0 ? (
+            <p className="map-stage-filter__empty">No hay etapas ni labores disponibles.</p>
+          ) : null}
+        </div>
+      </details>
+    </fieldset>
+  );
+}
+
 function SummaryCard({
   label,
   value,
@@ -638,6 +750,10 @@ function SelectedVisitaPanel({ item }: { item: VisitaMapItem }) {
           <dd>{item.campaignName || `Campaña #${item.campaignId}`}</dd>
         </div>
         <div>
+          <dt>Etapa/Labor</dt>
+          <dd>{item.phenologicalStageName || "No registrada"}</dd>
+        </div>
+        <div>
           <dt>Estado</dt>
           <dd>{item.isActive ? "Activa" : "Inactiva"}</dd>
         </div>
@@ -686,17 +802,6 @@ function buildSectorOptions(items: ParcelaMapItem[], productorId: string) {
       }))
   );
 }
-function buildParcelaOptions(items: ParcelaMapItem[], filters: AdminMapFilterState) {
-  return toOptions(
-    items
-      .filter(
-        (item) =>
-          (!filters.productorId || item.productorId === filters.productorId) &&
-          (!filters.sectorId || item.sectorId === filters.sectorId)
-      )
-      .map((item) => ({ value: item.id, label: buildParcelaTitle(item) }))
-  );
-}
 function buildCampaignOptions(items: VisitaMapItem[], filters: AdminMapFilterState) {
   return toOptions(
     filterVisitas(items, { ...filters, campaignId: "" }).map((item) => ({
@@ -722,8 +827,7 @@ function filterParcelas(items: ParcelaMapItem[], filters: AdminMapFilterState) {
   return items.filter(
     (item) =>
       (!filters.productorId || item.productorId === filters.productorId) &&
-      (!filters.sectorId || item.sectorId === filters.sectorId) &&
-      (!filters.parcelaId || item.id === filters.parcelaId)
+      (!filters.sectorId || item.sectorId === filters.sectorId)
   );
 }
 function filterVisitas(items: VisitaMapItem[], filters: AdminMapFilterState) {
@@ -731,17 +835,26 @@ function filterVisitas(items: VisitaMapItem[], filters: AdminMapFilterState) {
     (item) =>
       (!filters.productorId || item.productorId === filters.productorId) &&
       (!filters.sectorId || item.sectorId === filters.sectorId) &&
-      (!filters.parcelaId || item.parcelaId === filters.parcelaId) &&
       (!filters.agronomistUserId || item.agronomistUserId === filters.agronomistUserId) &&
       (!filters.campaignId || item.campaignId === filters.campaignId) &&
+      (!filters.phenologicalStageIds.length ||
+        (item.phenologicalStageId !== null &&
+          filters.phenologicalStageIds.includes(item.phenologicalStageId))) &&
       (!filters.startDate || item.visitDate >= filters.startDate) &&
       (!filters.endDate || item.visitDate <= filters.endDate)
   );
 }
 function hasVisitFilters(filters: AdminMapFilterState) {
   return Boolean(
-    filters.agronomistUserId || filters.campaignId || filters.startDate || filters.endDate
+    filters.agronomistUserId ||
+      filters.campaignId ||
+      filters.phenologicalStageIds.length > 0 ||
+      filters.startDate ||
+      filters.endDate
   );
+}
+function countVisitsForStage(items: VisitaMapItem[], stageId: string) {
+  return items.filter((item) => item.phenologicalStageId === stageId).length;
 }
 function resolveSelectedFeature(
   currentSelection: SelectedMapFeature | null,
@@ -801,6 +914,7 @@ function buildVisitaPopup(item: VisitaMapItem) {
     item.productorLabel ? `Productor: ${item.productorLabel}` : null,
     `Parcela: ${item.parcelaLabel || `#${item.parcelaId}`}`,
     `Campaña: ${item.campaignName || `#${item.campaignId}`}`,
+    `Etapa/Labor: ${item.phenologicalStageName || "No registrada"}`,
     `Estado: ${item.isActive ? "Activa" : "Inactiva"}`
   ]
     .filter(Boolean)
