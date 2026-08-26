@@ -347,11 +347,11 @@ const styles = StyleSheet.create({
     position: "absolute"
   },
   targetOutline: {
-    borderColor: "#f4c95d",
+    borderColor: "#1b4332",
     borderRadius: 16,
     borderWidth: 3,
     position: "absolute",
-    shadowColor: "#f4c95d",
+    shadowColor: "#1b4332",
     shadowOffset: { height: 0, width: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 9
@@ -415,7 +415,8 @@ const styles = StyleSheet.create({
     width: 38
   },
   cardTitle: {
-    color: "#18392d",
+    color: "#1b4332",
+    fontWeight: "800",
     marginTop: 10
   },
   cardInstruction: {

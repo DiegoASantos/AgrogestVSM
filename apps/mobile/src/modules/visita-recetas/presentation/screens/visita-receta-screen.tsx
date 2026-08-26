@@ -166,11 +166,16 @@ function toSingleParam(value: string | string[] | undefined): string | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
-function getRecipeTutorialTargetId(
-  id: RecipeTutorialFieldId
-): "fitosanidad" | "fertilizacion" | "riego" | "labores" | "continue" {
-  if (id.startsWith("fito")) return "fitosanidad";
-  if (id.startsWith("fertil")) return "fertilizacion";
+type RecipeTutorialTargetId =
+  | "fitoCard"
+  | "fertilizerCard"
+  | "riego"
+  | "labores"
+  | "continue";
+
+function getRecipeTutorialTargetId(id: RecipeTutorialFieldId): RecipeTutorialTargetId {
+  if (id.startsWith("fito")) return "fitoCard";
+  if (id.startsWith("fertil")) return "fertilizerCard";
   return id as "riego" | "labores" | "continue";
 }
 
@@ -230,7 +235,9 @@ export function VisitaRecetaScreen() {
   const doseInputRefs = useRef<Record<string, TextInput | null>>({});
   const recipeCardOffsets = useRef<Record<RecipeCardKey, number>>({});
   const recipeFieldOffsets = useRef<Record<string, number>>({});
-  const tutorialTargets = useRef<Partial<Record<RecipeTutorialFieldId, View | null>>>({});
+  const tutorialTargets = useRef<Partial<Record<RecipeTutorialTargetId, View | null>>>(
+    {}
+  );
   const [tutorialScrollY, setTutorialScrollY] = useState(0);
   const [tutorialStepId, setTutorialStepId] = useState<RecipeTutorialFieldId | null>(
     null
@@ -1166,20 +1173,14 @@ export function VisitaRecetaScreen() {
         <View style={styles.body}>
           {consolidacion ? <ConsolidacionPanel data={consolidacion} /> : null}
 
-          <View
-            ref={(node) => {
-              tutorialTargets.current.fitosanidad = node;
-            }}
-          >
-            <SectionHeader
-              icon="flask"
-              label="Fitosanidad"
-              subtitle={`${fitosanidadApps.reduce(
-                (total, application) => total + application.ingredientes.length,
-                0
-              )} producto(s) en ${fitosanidadApps.length} aplicación(es)`}
-            />
-          </View>
+          <SectionHeader
+            icon="flask"
+            label="Fitosanidad"
+            subtitle={`${fitosanidadApps.reduce(
+              (total, application) => total + application.ingredientes.length,
+              0
+            )} producto(s) en ${fitosanidadApps.length} aplicación(es)`}
+          />
 
           {fitosanidadApps.length === 0 ? (
             <AppCard>
@@ -1189,59 +1190,65 @@ export function VisitaRecetaScreen() {
             </AppCard>
           ) : (
             fitosanidadApps.map((app, index) => (
-              <FitosanidadCard
-                index={index}
-                ingredientesActivos={ingredientesActivos}
-                isComplete={isFitosanidadCardComplete(app)}
-                isExpanded={activeRecipeCardKey === getFitosanidadCardKey(app.localId)}
+              <View
                 key={app.localId}
-                marcasProducto={marcasProducto}
-                modosAccion={modosAccion}
-                onAddIngrediente={() => addIngrediente(index)}
-                onChange={(patch) => updateFitosanidadApp(index, patch)}
-                onChangeIngrediente={(ingredientIndex, patch) =>
-                  updateIngrediente(index, ingredientIndex, patch)
-                }
-                onCloseDropdown={closeDropdown}
-                onClearFieldError={(fieldKey) => {
-                  setRecipeFieldError((current) =>
-                    current === fieldKey ? null : current
-                  );
+                ref={(node) => {
+                  if (index === 0) tutorialTargets.current.fitoCard = node;
                 }}
-                onCardLayout={(cardKey, y) => {
-                  recipeCardOffsets.current[cardKey] = y;
-                }}
-                onDoseInputLayout={(fieldKey, y) => {
-                  recipeFieldOffsets.current[fieldKey] = y;
-                }}
-                onDoseInputRef={(fieldKey, ref) => {
-                  doseInputRefs.current[fieldKey] = ref;
-                }}
-                onToggle={() => toggleRecipeCard(getFitosanidadCardKey(app.localId))}
-                onRemoveIngrediente={(ingredientIndex) =>
-                  removeIngrediente(index, ingredientIndex)
-                }
-                onRemoveApplication={
-                  app.enfoque === "preventivo"
-                    ? () => removePreventiveFitosanidad(index)
-                    : undefined
-                }
-                openDropdown={openDropdown}
-                recipeFieldError={recipeFieldError}
-                tiposControl={tiposControl}
-                tiposProducto={tiposProducto}
-                toggleDropdown={toggleDropdown}
-                onNavegarCatalogo={(tipo, ingredienteActivoId) =>
-                  router.push(
-                    `/productos/nuevo?tipoPredefinido=${tipo}${
-                      ingredienteActivoId
-                        ? `&ingredienteActivoId=${encodeURIComponent(ingredienteActivoId)}`
-                        : ""
-                    }`
-                  )
-                }
-                value={app}
-              />
+              >
+                <FitosanidadCard
+                  index={index}
+                  ingredientesActivos={ingredientesActivos}
+                  isComplete={isFitosanidadCardComplete(app)}
+                  isExpanded={activeRecipeCardKey === getFitosanidadCardKey(app.localId)}
+                  marcasProducto={marcasProducto}
+                  modosAccion={modosAccion}
+                  onAddIngrediente={() => addIngrediente(index)}
+                  onChange={(patch) => updateFitosanidadApp(index, patch)}
+                  onChangeIngrediente={(ingredientIndex, patch) =>
+                    updateIngrediente(index, ingredientIndex, patch)
+                  }
+                  onCloseDropdown={closeDropdown}
+                  onClearFieldError={(fieldKey) => {
+                    setRecipeFieldError((current) =>
+                      current === fieldKey ? null : current
+                    );
+                  }}
+                  onCardLayout={(cardKey, y) => {
+                    recipeCardOffsets.current[cardKey] = y;
+                  }}
+                  onDoseInputLayout={(fieldKey, y) => {
+                    recipeFieldOffsets.current[fieldKey] = y;
+                  }}
+                  onDoseInputRef={(fieldKey, ref) => {
+                    doseInputRefs.current[fieldKey] = ref;
+                  }}
+                  onToggle={() => toggleRecipeCard(getFitosanidadCardKey(app.localId))}
+                  onRemoveIngrediente={(ingredientIndex) =>
+                    removeIngrediente(index, ingredientIndex)
+                  }
+                  onRemoveApplication={
+                    app.enfoque === "preventivo"
+                      ? () => removePreventiveFitosanidad(index)
+                      : undefined
+                  }
+                  openDropdown={openDropdown}
+                  recipeFieldError={recipeFieldError}
+                  tiposControl={tiposControl}
+                  tiposProducto={tiposProducto}
+                  toggleDropdown={toggleDropdown}
+                  onNavegarCatalogo={(tipo, ingredienteActivoId) =>
+                    router.push(
+                      `/productos/nuevo?tipoPredefinido=${tipo}${
+                        ingredienteActivoId
+                          ? `&ingredienteActivoId=${encodeURIComponent(ingredienteActivoId)}`
+                          : ""
+                      }`
+                    )
+                  }
+                  value={app}
+                />
+              </View>
             ))
           )}
 
@@ -1311,17 +1318,11 @@ export function VisitaRecetaScreen() {
             ) : null}
           </AppCard>
 
-          <View
-            ref={(node) => {
-              tutorialTargets.current.fertilizacion = node;
-            }}
-          >
-            <SectionHeader
-              icon="nutrition"
-              label="Fertilización"
-              subtitle={`${fertilizacionGroups.length} deficiencia(s) atendida(s)`}
-            />
-          </View>
+          <SectionHeader
+            icon="nutrition"
+            label="Fertilización"
+            subtitle={`${fertilizacionGroups.length} deficiencia(s) atendida(s)`}
+          />
 
           {fertilizacionGroups.length === 0 ? (
             <View style={styles.emptyProductsCard}>
@@ -1352,6 +1353,9 @@ export function VisitaRecetaScreen() {
             return (
               <View
                 key={group.key}
+                ref={(node) => {
+                  if (groupIndex === 0) tutorialTargets.current.fertilizerCard = node;
+                }}
                 onLayout={(event) => {
                   recipeCardOffsets.current[cardKey] = event.nativeEvent.layout.y;
                 }}
