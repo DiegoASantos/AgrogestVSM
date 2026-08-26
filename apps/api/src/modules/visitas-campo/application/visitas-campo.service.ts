@@ -304,6 +304,7 @@ export class VisitasCampoService {
       where,
       relations: {
         agronomoUsuario: true,
+        cultivo: true,
         etapaFenologica: true,
         observacionesSanitarias: {
           plagaEnfermedad: true
@@ -311,6 +312,7 @@ export class VisitasCampoService {
         evaluaciones: {
           nutrient: true
         },
+        riego: true,
         parcela: {
           productor: true,
           subsector: {
@@ -330,7 +332,7 @@ export class VisitasCampoService {
     workbook.created = new Date();
 
     const worksheet = workbook.addWorksheet("Visitas");
-    worksheet.mergeCells("A1:M1");
+    worksheet.mergeCells("A1:P1");
     worksheet.getCell("A1").value = "Reporte de visitas de campo";
     worksheet.getCell("A1").font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
     worksheet.getCell("A1").fill = {
@@ -339,9 +341,9 @@ export class VisitasCampoService {
       fgColor: { argb: "FF166534" }
     };
     worksheet.getCell("A1").alignment = { horizontal: "center" };
-    worksheet.mergeCells("A2:M2");
+    worksheet.mergeCells("A2:P2");
     worksheet.getCell("A2").value = `Periodo: ${query.fecha_desde} al ${query.fecha_hasta}`;
-    worksheet.mergeCells("A3:M3");
+    worksheet.mergeCells("A3:P3");
     worksheet.getCell("A3").value = `Agrónomo: ${
       agronomistUserId ? "seleccionado" : "Todos"
     } | Visitas activas: ${visitas.length}`;
@@ -349,17 +351,20 @@ export class VisitasCampoService {
     const headers = [
       "Fecha",
       "N.° ficha",
+      "Cultivo",
       "Agrónomo",
       "Productor",
       "Sector",
       "Parcela",
       "Hora inicio",
-      "Etapa fenológica",
       "Hora fin",
-      "Estado",
+      "Etapa fenológica",
       "Plagas",
       "Enfermedades",
-      "Nutrición"
+      "Nutrición",
+      "Humedad del suelo",
+      "Estrés hídrico intencional",
+      "Estado"
     ];
     const headerRow = worksheet.addRow(headers);
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -378,6 +383,7 @@ export class VisitasCampoService {
         worksheet.addRow([
           index === 0 ? toWorksheetText(visita.fechaVisita) : "",
           index === 0 ? toWorksheetText(visita.nroFicha ?? visita.publicId) : "",
+          index === 0 ? toWorksheetText(visita.cultivo?.name ?? "No registrado") : "",
           index === 0 ? toWorksheetText(buildUserLabel(visita.agronomoUsuario)) : "",
           index === 0 ? toWorksheetText(buildProductorLabel(visita.parcela?.productor)) : "",
           index === 0
@@ -385,18 +391,25 @@ export class VisitasCampoService {
             : "",
           index === 0 ? toWorksheetText(buildParcelaLabel(visita.parcela)) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaInicio) : "",
-          index === 0 ? toWorksheetText(buildEtapaLabel(visita.etapaFenologica)) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaFin ?? "No registrado") : "",
-          index === 0 ? "Activa" : "",
+          index === 0 ? toWorksheetText(buildEtapaLabel(visita.etapaFenologica)) : "",
           toWorksheetText(diagnosis.pest),
           toWorksheetText(diagnosis.disease),
-          toWorksheetText(diagnosis.nutrition)
+          toWorksheetText(diagnosis.nutrition),
+          index === 0 ? toWorksheetText(visita.riego?.[0]?.humedadSuelo ?? "No registrado") : "",
+          index === 0 ? toWorksheetText(visita.riego?.[0]?.estresHidrico ? "Sí" : "No") : "",
+          index === 0 ? "Activa" : ""
         ]);
       }
 
       const lastWorksheetRow = worksheet.rowCount;
 
-      for (let column = 1; column <= 10; column += 1) {
+      for (const column of [
+        ...Array.from({ length: 10 }, (_, index) => index + 1),
+        14,
+        15,
+        16
+      ]) {
         if (lastWorksheetRow > firstWorksheetRow) {
           worksheet.mergeCells(firstWorksheetRow, column, lastWorksheetRow, column);
         }
@@ -407,25 +420,37 @@ export class VisitasCampoService {
           wrapText: true
         };
       }
+
+      for (const column of [11, 12, 13]) {
+        mergeAndCenterSingleDiagnosis(
+          worksheet,
+          firstWorksheetRow,
+          lastWorksheetRow,
+          column
+        );
+      }
     }
 
     worksheet.columns = [
       { width: 14 },
       { width: 18 },
+      { width: 22 },
       { width: 26 },
       { width: 28 },
       { width: 22 },
       { width: 28 },
       { width: 14 },
-      { width: 24 },
       { width: 14 },
-      { width: 12 },
+      { width: 24 },
       { width: 28 },
       { width: 28 },
-      { width: 28 }
+      { width: 28 },
+      { width: 24 },
+      { width: 26 },
+      { width: 12 }
     ];
     worksheet.views = [{ state: "frozen", ySplit: 4 }];
-    worksheet.autoFilter = { from: "A4", to: "M4" };
+    worksheet.autoFilter = { from: "A4", to: "P4" };
 
     return {
       content: Buffer.from(await workbook.xlsx.writeBuffer()),
@@ -1258,6 +1283,34 @@ function uniqueExcelDiagnosisNames(values: string[]) {
 
 function compareEntityIds(left: string, right: string) {
   return left.localeCompare(right, undefined, { numeric: true });
+}
+
+function mergeAndCenterSingleDiagnosis(
+  worksheet: ExcelJS.Worksheet,
+  firstRow: number,
+  lastRow: number,
+  column: number
+) {
+  const diagnosisRows = Array.from(
+    { length: lastRow - firstRow + 1 },
+    (_, index) => firstRow + index
+  ).filter((row) => {
+    const value = worksheet.getCell(row, column).value;
+
+    return typeof value === "string" && value.trim() !== "";
+  });
+
+  if (diagnosisRows.length === 1 && lastRow > firstRow) {
+    worksheet.mergeCells(firstRow, column, lastRow, column);
+  }
+
+  for (const row of diagnosisRows) {
+    worksheet.getCell(row, column).alignment = {
+      horizontal: "center",
+      vertical: "middle",
+      wrapText: true
+    };
+  }
 }
 
 function toWorksheetText(value: string) {

@@ -21,9 +21,13 @@ los agrónomos dentro de un rango de fechas, sin limitarse a la página visible.
 
 - Descarga autenticada de un archivo `.xlsx` desde la API.
 - Rango inclusivo obligatorio y filtro opcional por agrónomo.
-- Una hoja operativa con fecha, ficha, agrónomo, productor, sector, parcela,
+- Una hoja operativa con fecha, ficha, cultivo, agrónomo, productor, sector, parcela,
   horas, etapa fenológica, estado y diagnósticos de plagas, enfermedades y
-  nutrición.
+  nutrición, humedad del suelo y estrés hídrico intencional.
+- Tras añadir Cultivo después de N.° ficha, Hora fin ocupa la columna I, Etapa
+  fenológica la J y Estado queda al final;
+  las columnas de diagnóstico se centran y se combinan cuando una categoría
+  tiene un único valor dentro de la ficha.
 - Botón de exportación en la pantalla administrativa de Visitas.
 
 ### Excluido

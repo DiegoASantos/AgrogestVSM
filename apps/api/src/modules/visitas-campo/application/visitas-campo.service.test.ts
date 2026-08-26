@@ -217,21 +217,19 @@ describe("VisitasCampoService", () => {
           horaVisitaInicio: "08:00",
           horaVisitaFin: "09:30",
           agronomoUsuario: { firstName: "Ana", lastName: "Lopez" },
+          cultivo: { name: "Mango" },
           campania: { name: "Mango 2026" },
           etapaFenologica: { type: "Etapa", name: "Floracion" },
           observacionesSanitarias: [
             { id: "1", plagaEnfermedad: { type: "plaga", name: "Mosca de la fruta" } },
             { id: "2", plagaEnfermedad: { type: "plaga", name: "Trips" } },
-            { id: "3", plagaEnfermedad: { type: "enfermedad", name: "Antracnosis" } }
+            { id: "3", plagaEnfermedad: { type: "plaga", name: "Acaros" } },
+            { id: "4", plagaEnfermedad: { type: "plaga", name: "Cochinilla" } },
+            { id: "5", plagaEnfermedad: { type: "enfermedad", name: "Antracnosis" } },
+            { id: "6", plagaEnfermedad: { type: "enfermedad", name: "Oidio" } },
+            { id: "7", plagaEnfermedad: { type: "enfermedad", name: "Mildiu" } }
           ],
           evaluaciones: [
-            {
-              id: "2",
-              order: 2,
-              nutrientId: "nutrient-2",
-              description: "Nutricion - Zinc",
-              nutrient: { name: "Zinc" }
-            },
             {
               id: "1",
               order: 1,
@@ -240,6 +238,7 @@ describe("VisitasCampoService", () => {
               nutrient: { name: "Calcio" }
             }
           ],
+          riego: [{ humedadSuelo: "Húmedo", estresHidrico: true }],
           parcela: {
             code: "PAR-100",
             name: "Predio Norte",
@@ -262,8 +261,10 @@ describe("VisitasCampoService", () => {
             agronomoUsuarioId: "7"
           }),
           relations: expect.objectContaining({
+            cultivo: true,
             observacionesSanitarias: { plagaEnfermedad: true },
-            evaluaciones: { nutrient: true }
+            evaluaciones: { nutrient: true },
+            riego: true
           })
         })
       );
@@ -279,34 +280,52 @@ describe("VisitasCampoService", () => {
       const headerValues = [
         "Fecha",
         "N.° ficha",
+        "Cultivo",
         "Agrónomo",
         "Productor",
         "Sector",
         "Parcela",
         "Hora inicio",
-        "Etapa fenológica",
         "Hora fin",
-        "Estado",
+        "Etapa fenológica",
         "Plagas",
         "Enfermedades",
-        "Nutrición"
+        "Nutrición",
+        "Humedad del suelo",
+        "Estrés hídrico intencional",
+        "Estado"
       ];
 
       for (const [index, value] of headerValues.entries()) {
         expect(worksheet!.getRow(4).getCell(index + 1).value).toBe(value);
       }
 
-      expect(worksheet!.getRow(5).getCell(3).value).toBe("Ana Lopez");
-      expect(worksheet!.getRow(5).getCell(8).value).toBe("Floracion");
+      expect(worksheet!.getRow(5).getCell(3).value).toBe("Mango");
+      expect(worksheet!.getRow(5).getCell(4).value).toBe("Ana Lopez");
+      expect(worksheet!.getRow(5).getCell(9).value).toBe("09:30");
+      expect(worksheet!.getRow(5).getCell(10).value).toBe("Floracion");
       expect(worksheet!.getRow(5).getCell(11).value).toBe("Mosca de la fruta");
       expect(worksheet!.getRow(6).getCell(11).value).toBe("Trips");
+      expect(worksheet!.getRow(7).getCell(11).value).toBe("Acaros");
+      expect(worksheet!.getRow(8).getCell(11).value).toBe("Cochinilla");
       expect(worksheet!.getRow(5).getCell(12).value).toBe("Antracnosis");
-      expect(worksheet!.getRow(6).getCell(12).value).toBe("");
+      expect(worksheet!.getRow(6).getCell(12).value).toBe("Oidio");
+      expect(worksheet!.getRow(7).getCell(12).value).toBe("Mildiu");
+      expect(worksheet!.getRow(8).getCell(12).value).toBe("");
       expect(worksheet!.getRow(5).getCell(13).value).toBe("Calcio");
-      expect(worksheet!.getRow(6).getCell(13).value).toBe("Zinc");
+      expect(worksheet!.getRow(5).getCell(14).value).toBe("Húmedo");
+      expect(worksheet!.getRow(5).getCell(15).value).toBe("Sí");
+      expect(worksheet!.getCell("M5").isMerged).toBe(true);
+      expect(worksheet!.getCell("M8").isMerged).toBe(true);
+      expect(worksheet!.getCell("N5").isMerged).toBe(true);
+      expect(worksheet!.getCell("O5").isMerged).toBe(true);
+      expect(worksheet!.getCell("P5").isMerged).toBe(true);
       expect(worksheet!.getCell("A5").isMerged).toBe(true);
-      expect(worksheet!.getCell("A6").isMerged).toBe(true);
-      expect(worksheet!.getCell("J5").alignment.vertical).toBe("middle");
+      expect(worksheet!.getCell("A8").isMerged).toBe(true);
+      expect(worksheet!.getCell("M5").alignment).toMatchObject({
+        horizontal: "center",
+        vertical: "middle"
+      });
     });
 
     it("should show the absence labels when a visit has no diagnoses", async () => {
@@ -343,6 +362,52 @@ describe("VisitasCampoService", () => {
       expect(worksheet!.getRow(5).getCell(13).value).toBe(
         "Sin deficiencias nutricionales"
       );
+      expect(worksheet!.getRow(5).getCell(14).value).toBe("No registrado");
+      expect(worksheet!.getRow(5).getCell(15).value).toBe("No");
+    });
+
+    it("should center absence labels across all rows created by pest diagnoses", async () => {
+      repo.find.mockResolvedValue([
+        {
+          ...makeVisita(),
+          fechaVisita: "2026-08-15",
+          horaVisitaInicio: "08:00",
+          horaVisitaFin: null,
+          agronomoUsuario: { firstName: "Ana", lastName: "Lopez" },
+          etapaFenologica: { type: "Etapa", name: "Floracion" },
+          observacionesSanitarias: [
+            { id: "1", plagaEnfermedad: { type: "plaga", name: "Trips" } },
+            { id: "2", plagaEnfermedad: { type: "plaga", name: "Acaros" } }
+          ],
+          evaluaciones: [],
+          parcela: {
+            code: "PAR-100",
+            name: "Predio Norte",
+            productor: { firstName: "Rosa", lastName: "Diaz", documentNumber: null },
+            subsector: { sector: { name: "Sector Norte" } }
+          }
+        }
+      ]);
+
+      const report = await service.exportExcelReport({
+        fecha_desde: "2026-08-01",
+        fecha_hasta: "2026-08-31"
+      });
+      const workbook = new ExcelJS.Workbook();
+      const xlsxContent = report.content as unknown as Parameters<typeof workbook.xlsx.load>[0];
+      await workbook.xlsx.load(xlsxContent);
+      const worksheet = workbook.getWorksheet("Visitas");
+
+      expect(worksheet!.getRow(5).getCell(11).value).toBe("Trips");
+      expect(worksheet!.getRow(6).getCell(11).value).toBe("Acaros");
+      expect(worksheet!.getCell("L5").isMerged).toBe(true);
+      expect(worksheet!.getCell("L6").isMerged).toBe(true);
+      expect(worksheet!.getCell("M5").isMerged).toBe(true);
+      expect(worksheet!.getCell("M6").isMerged).toBe(true);
+      expect(worksheet!.getCell("L5").alignment).toMatchObject({
+        horizontal: "center",
+        vertical: "middle"
+      });
     });
 
     it("should reject an inverted date range before querying visits", async () => {
