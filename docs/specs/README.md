@@ -113,4 +113,5 @@ en la raíz.
 - [Spec 067: Catálogo sanitario común por etapa y labor](067-catalogo-sanitario-comun-por-etapa.md)
 - [Spec 068: Dashboard de visitas por agrónomo y parcelas por etapa](068-dashboard-visitas-y-etapas.md)
 - [Spec 069: Lookup de agrónomos para visitas con rol analista](069-lookup-agronomos-analista.md)
+- [Spec 070: Reporte Excel de visitas por agrónomo](070-reporte-excel-visitas-por-agronomo.md)
 - [Plantilla](TEMPLATE.md)

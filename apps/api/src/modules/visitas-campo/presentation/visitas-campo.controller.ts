@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from "@nestjs/common";
 import {
   ApiBadRequestResponse,
   ApiConflictResponse,
@@ -8,15 +8,18 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiProduces,
   ApiQuery,
   ApiTags
 } from "@nestjs/swagger";
+import type { FastifyReply } from "fastify";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
 import { CurrentAuthUser } from "../../auth/presentation/decorators/current-auth-user.decorator";
 import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { VisitasCampoService } from "../application/visitas-campo.service";
 import { CreateVisitaCampoDto } from "./dto/create-visita-campo.dto";
+import { ExportVisitasExcelQueryDto } from "./dto/export-visitas-excel-query.dto";
 import { FindVisitasCampoQueryDto } from "./dto/find-visitas-campo-query.dto";
 import { UpdateVisitaCampoDto } from "./dto/update-visita-campo.dto";
 
@@ -134,6 +137,27 @@ export class VisitasCampoController {
   })
   getVisitasCampoMap(@Query() query: FindVisitasCampoQueryDto) {
     return this.visitasCampoService.findMap(query);
+  }
+
+  @Get("reporte-excel")
+  @ApiOperation({ summary: "Exporta visitas activas a Excel por rango y agrónomo." })
+  @ApiProduces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+  @ApiOkResponse({ description: "Archivo Excel de visitas." })
+  @ApiBadRequestResponse({ description: "Rango de fechas inválido." })
+  async exportVisitasExcel(
+    @Query() query: ExportVisitasExcelQueryDto,
+    @Res() reply: FastifyReply,
+    @CurrentAuthUser() currentUser?: AccessTokenPayload
+  ) {
+    const report = await this.visitasCampoService.exportExcelReport(query, currentUser);
+
+    return reply
+      .header(
+        "Content-Disposition",
+        `attachment; filename="${report.fileName}"`
+      )
+      .type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .send(report.content);
   }
 
   @Get(":id")

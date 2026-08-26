@@ -14,6 +14,11 @@ export type ApiSuccessResponse<T> = {
   timestamp: string;
 };
 
+export type ApiDownloadResponse = {
+  blob: Blob;
+  fileName: string | null;
+};
+
 type ApiFailureResponse = {
   success: false;
   error?: {
@@ -27,6 +32,41 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const success = await apiRequestEnvelope<T>(path, options);
 
   return success.data;
+}
+
+/**
+ * Downloads an authenticated binary response while preserving the same API
+ * error and session-expiration behavior as JSON requests.
+ */
+export async function apiDownload(
+  path: string,
+  options: ApiRequestOptions = {}
+): Promise<ApiDownloadResponse> {
+  const response = await fetch(buildApiUrl(path), {
+    method: options.method ?? "GET",
+    headers: options.headers ?? {},
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    const rawPayload = await response.text();
+    const failure = parseJson(rawPayload) as ApiFailureResponse | null;
+
+    if (response.status === 401 && unauthorizedHandler) {
+      unauthorizedHandler();
+    }
+
+    throw new ApiError(
+      failure?.error?.message ?? "No se pudo descargar el archivo.",
+      failure?.error?.statusCode ?? response.status,
+      failure?.error?.details
+    );
+  }
+
+  return {
+    blob: await response.blob(),
+    fileName: readAttachmentFileName(response.headers.get("content-disposition"))
+  };
 }
 
 type UnauthorizedHandler = () => void;
@@ -146,5 +186,23 @@ function parseJson(value: string) {
     return JSON.parse(value) as unknown;
   } catch {
     return null;
+  }
+}
+
+function readAttachmentFileName(contentDisposition: string | null) {
+  if (!contentDisposition) {
+    return null;
+  }
+
+  const match = /filename\*?=(?:UTF-8''|")?([^;"]+)/i.exec(contentDisposition);
+
+  if (!match?.[1]) {
+    return null;
+  }
+
+  try {
+    return decodeURIComponent(match[1].trim());
+  } catch {
+    return match[1].trim();
   }
 }

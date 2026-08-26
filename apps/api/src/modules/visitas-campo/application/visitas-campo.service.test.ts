@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   NotFoundException
 } from "@nestjs/common";
+import ExcelJS from "exceljs";
 import { QueryFailedError } from "typeorm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -173,6 +174,132 @@ describe("VisitasCampoService", () => {
       repo.findOne.mockResolvedValue(null);
 
       await expect(service.findById("999")).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("#getFullDetail", () => {
+    it("should include every recorded irrigation context field", async () => {
+      repo.findOne
+        .mockResolvedValueOnce(makeVisita())
+        .mockResolvedValueOnce({
+          id: "riego-1",
+          visitaId: "1",
+          tipoRiegoId: "tipo-1",
+          fuenteAgua: "subterranea",
+          tipoSuelo: "franco",
+          humedadSuelo: "optimo",
+          estresHidrico: false
+        })
+        .mockResolvedValueOnce({ id: "50", name: "Floracion" });
+      repo.find.mockResolvedValue([]);
+
+      const result = await service.getFullDetail("1");
+
+      expect(result.data.riego).toEqual({
+        id: "riego-1",
+        visitaId: "1",
+        tipoRiegoId: "tipo-1",
+        fuenteAgua: "subterranea",
+        tipoSuelo: "franco",
+        humedadSuelo: "optimo",
+        estresHidrico: false
+      });
+    });
+  });
+
+  describe("#exportExcelReport", () => {
+    it("should generate an operational workbook for the requested date range", async () => {
+      repo.find.mockResolvedValue([
+        {
+          ...makeVisita(),
+          nroFicha: "F-100",
+          fechaVisita: "2026-08-15",
+          horaVisitaInicio: "08:00",
+          horaVisitaFin: "09:30",
+          agronomoUsuario: { firstName: "Ana", lastName: "Lopez" },
+          campania: { name: "Mango 2026" },
+          etapaFenologica: { type: "Etapa", name: "Floracion" },
+          parcela: {
+            code: "PAR-100",
+            name: "Predio Norte",
+            productor: { firstName: "Rosa", lastName: "Diaz", documentNumber: null },
+            subsector: { sector: { name: "Sector Norte" } }
+          }
+        }
+      ]);
+
+      const report = await service.exportExcelReport({
+        fecha_desde: "2026-08-01",
+        fecha_hasta: "2026-08-31",
+        agronomo_usuario_id: "7"
+      });
+
+      expect(repo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isActive: true,
+            agronomoUsuarioId: "7"
+          })
+        })
+      );
+      expect(report.fileName).toBe("reporte-visitas_2026-08-01_2026-08-31.xlsx");
+      expect(report.content.subarray(0, 2)).toEqual(Buffer.from("PK"));
+
+      const workbook = new ExcelJS.Workbook();
+      const xlsxContent = report.content as unknown as Parameters<typeof workbook.xlsx.load>[0];
+      await workbook.xlsx.load(xlsxContent);
+      const worksheet = workbook.getWorksheet("Visitas");
+
+      expect(worksheet).toBeDefined();
+      const headerValues = [
+        "Fecha",
+        "N.° ficha",
+        "Agrónomo",
+        "Productor",
+        "Sector",
+        "Parcela",
+        "Campaña",
+        "Etapa/Labor",
+        "Hora inicio",
+        "Hora fin",
+        "Estado"
+      ];
+
+      for (const [index, value] of headerValues.entries()) {
+        expect(worksheet!.getRow(4).getCell(index + 1).value).toBe(value);
+      }
+
+      expect(worksheet!.getRow(5).getCell(3).value).toBe("Ana Lopez");
+    });
+
+    it("should reject an inverted date range before querying visits", async () => {
+      await expect(
+        service.exportExcelReport({
+          fecha_desde: "2026-08-31",
+          fecha_hasta: "2026-08-01"
+        })
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(repo.find).not.toHaveBeenCalled();
+    });
+
+    it("should constrain an agronomist to their own visits", async () => {
+      repo.find.mockResolvedValue([]);
+
+      await service.exportExcelReport(
+        {
+          fecha_desde: "2026-01-01",
+          fecha_hasta: "2026-01-31",
+          agronomo_usuario_id: "another-agronomist"
+        },
+        { userId: "current-agronomist", roles: ["AGRONOMO"] }
+      );
+
+      expect(repo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ agronomoUsuarioId: "current-agronomist" })
+        })
+      );
     });
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Filter, Map, Search, User } from "lucide-react";
+import { Calendar, Download, Filter, Map, Search, User } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -47,6 +47,8 @@ export function VisitasOverview() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -86,6 +88,9 @@ export function VisitasOverview() {
   const resultsSummary = `${count} visita${count === 1 ? "" : "s"} encontrada${count === 1 ? "" : "s"}${
     totalPages > 1 ? ` -- Mostrando ${fromItem} - ${toItem}` : ""
   }.`;
+  const canExport = Boolean(
+    appliedFilters.startDate && appliedFilters.endDate && !isExporting
+  );
 
   return (
     <section className="panel-grid">
@@ -93,6 +98,20 @@ export function VisitasOverview() {
         <ToolbarActions
           actions={
             <>
+              <button
+                className="ui-button ui-button--primary"
+                disabled={!canExport}
+                onClick={() => void handleExportExcel()}
+                title={
+                  canExport
+                    ? "Descargar las visitas del rango aplicado"
+                    : "Aplica una fecha desde y hasta para exportar"
+                }
+                type="button"
+              >
+                <Download size={15} />
+                {isExporting ? "Generando Excel..." : "Exportar Excel"}
+              </button>
               <Link
                 className="ui-button ui-button--ghost"
                 href={buildAdminMapHref({
@@ -240,6 +259,10 @@ export function VisitasOverview() {
               Aplicar filtros
             </button>
           </div>
+          {exportError ? <p className="form-error">{exportError}</p> : null}
+          {!appliedFilters.startDate || !appliedFilters.endDate ? (
+            <p className="form-hint">Aplica una fecha desde y hasta para habilitar la exportacion.</p>
+          ) : null}
         </div>
 
         {catalogError ? (
@@ -325,12 +348,14 @@ export function VisitasOverview() {
     }
 
     setValidationError(null);
+    setExportError(null);
     setPage(1);
     setAppliedFilters(draftFilters);
   }
 
   function handleClearFilters() {
     setValidationError(null);
+    setExportError(null);
     setDraftFilters(emptyFilters);
     setPage(1);
     setAppliedFilters(emptyFilters);
@@ -357,6 +382,38 @@ export function VisitasOverview() {
       setCatalogError(apiError.message);
     } finally {
       setIsLoadingCatalogs(false);
+    }
+  }
+
+  async function handleExportExcel() {
+    if (!session || !appliedFilters.startDate || !appliedFilters.endDate) {
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      setExportError(null);
+      const report = await visitasService.exportExcelReport(session, appliedFilters);
+      const downloadUrl = URL.createObjectURL(report.blob);
+      const downloadLink = document.createElement("a");
+
+      downloadLink.href = downloadUrl;
+      downloadLink.download = report.fileName ?? "reporte-visitas.xlsx";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      const apiError = toApiError(error);
+
+      if (apiError.statusCode === 401) {
+        logout();
+        return;
+      }
+
+      setExportError(apiError.message);
+    } finally {
+      setIsExporting(false);
     }
   }
 

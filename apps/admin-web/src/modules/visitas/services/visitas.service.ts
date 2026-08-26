@@ -1,6 +1,7 @@
 import type { AuthSession } from "../../auth/types/auth.types";
 import {
   apiRequest,
+  apiDownload,
   apiRequestEnvelope,
   createAuthHeaders,
   fetchAllPaginated,
@@ -92,6 +93,17 @@ type FullDetailApiResponse = {
 };
 
 export const visitasService = {
+  async exportExcelReport(
+    session: AuthSessionInput,
+    filters: Pick<VisitaListFilters, "agronomistUserId" | "startDate" | "endDate">
+  ) {
+    const query = buildExcelReportQueryString(filters);
+
+    return apiDownload(`/visitas-campo/reporte-excel?${query}`, {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+  },
+
   async getList(
     session: AuthSessionInput,
     filters: VisitaListFilters,
@@ -387,6 +399,18 @@ function buildQueryString(filters: VisitaListFilters, page: number, limit: numbe
   appendQueryParam(searchParams, "fecha_hasta", filters.endDate);
   searchParams.set("page", String(page));
   searchParams.set("limit", String(limit));
+
+  return searchParams.toString();
+}
+
+function buildExcelReportQueryString(
+  filters: Pick<VisitaListFilters, "agronomistUserId" | "startDate" | "endDate">
+) {
+  const searchParams = new URLSearchParams();
+
+  appendQueryParam(searchParams, "agronomo_usuario_id", filters.agronomistUserId);
+  appendQueryParam(searchParams, "fecha_desde", filters.startDate);
+  appendQueryParam(searchParams, "fecha_hasta", filters.endDate);
 
   return searchParams.toString();
 }

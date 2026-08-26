@@ -3731,6 +3731,13 @@ canvas {
   background: var(--surface-strong);
 }
 
+.form-hint {
+  margin: 0;
+  padding: 0 16px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .field-group__label {
   display: inline-flex;
   align-items: center;

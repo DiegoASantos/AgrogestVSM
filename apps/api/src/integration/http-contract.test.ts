@@ -44,6 +44,7 @@ const visitasCampoService = {
   create: vi.fn(),
   findAll: vi.fn(),
   findMap: vi.fn(),
+  exportExcelReport: vi.fn(),
   findById: vi.fn(),
   getFullDetail: vi.fn(),
   update: vi.fn(),
@@ -333,6 +334,44 @@ describe("API critical HTTP integration contract", () => {
 
     expect(response.statusCode).toBe(400);
     expect(visitasCampoService.create).not.toHaveBeenCalled();
+  });
+
+  it("downloads the visitas Excel report with validated query filters", async () => {
+    visitasCampoService.exportExcelReport.mockResolvedValue({
+      content: Buffer.from("xlsx-content"),
+      fileName: "reporte-visitas_2026-08-01_2026-08-31.xlsx"
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/visitas-campo/reporte-excel?fecha_desde=2026-08-01&fecha_hasta=2026-08-31&agronomo_usuario_id=7"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-disposition"]).toBe(
+      'attachment; filename="reporte-visitas_2026-08-01_2026-08-31.xlsx"'
+    );
+    expect(response.headers["content-type"]).toContain(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    expect(visitasCampoService.exportExcelReport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fecha_desde: "2026-08-01",
+        fecha_hasta: "2026-08-31",
+        agronomo_usuario_id: "7"
+      }),
+      undefined
+    );
+  });
+
+  it("rejects an Excel report request without its mandatory date range", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/visitas-campo/reporte-excel?fecha_desde=2026-08-01"
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(visitasCampoService.exportExcelReport).not.toHaveBeenCalled();
   });
 
   it("rejects invalid visita ids through ParseEntityIdPipe", async () => {

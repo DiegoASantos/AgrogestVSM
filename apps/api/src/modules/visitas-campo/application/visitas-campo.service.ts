@@ -6,8 +6,9 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
+import ExcelJS from "exceljs";
 import type { FindOptionsWhere, Repository, SelectQueryBuilder } from "typeorm";
-import { QueryFailedError } from "typeorm";
+import { Between, QueryFailedError } from "typeorm";
 
 import {
   createPaginatedMeta,
@@ -30,6 +31,7 @@ import { VisitaLaborCulturalEntity } from "../../visita-labores-culturales/infra
 import { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
 import { VisitaRiegoEntity } from "../../visita-riegos/infrastructure/persistence/entities/visita-riego.entity";
 import { CreateVisitaCampoDto } from "../presentation/dto/create-visita-campo.dto";
+import { ExportVisitasExcelQueryDto } from "../presentation/dto/export-visitas-excel-query.dto";
 import { FindHistorialVisitasProductorQueryDto } from "../presentation/dto/find-historial-visitas-productor-query.dto";
 import { FindVisitasCampoQueryDto } from "../presentation/dto/find-visitas-campo-query.dto";
 import { UpdateVisitaCampoDto } from "../presentation/dto/update-visita-campo.dto";
@@ -43,6 +45,11 @@ import {
 type CurrentUserContext = {
   userId: string;
   roles: string[];
+};
+
+type VisitasExcelReport = {
+  content: Buffer;
+  fileName: string;
 };
 
 @Injectable()
@@ -266,6 +273,126 @@ export class VisitasCampoService {
         this.toCalificacionResponse(calificacion)
       )
     });
+  }
+
+  async exportExcelReport(
+    query: ExportVisitasExcelQueryDto,
+    currentUser?: CurrentUserContext
+  ): Promise<VisitasExcelReport> {
+    validateDateRange(query.fecha_desde, query.fecha_hasta);
+
+    const agronomistUserId = isAgronomoUser(currentUser)
+      ? currentUser!.userId
+      : query.agronomo_usuario_id;
+
+    const where: FindOptionsWhere<VisitaCampoEntity> = {
+      isActive: true,
+      fechaVisita: Between(query.fecha_desde, query.fecha_hasta)
+    };
+
+    if (agronomistUserId) {
+      where.agronomoUsuarioId = agronomistUserId;
+    }
+
+    const visitas = await this.visitasCampoRepository.find({
+      where,
+      relations: {
+        agronomoUsuario: true,
+        campania: true,
+        etapaFenologica: true,
+        parcela: {
+          productor: true,
+          subsector: {
+            sector: true
+          }
+        }
+      },
+      order: {
+        fechaVisita: "ASC",
+        horaVisitaInicio: "ASC",
+        id: "ASC"
+      }
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "AgroGest VSM";
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet("Visitas");
+    worksheet.mergeCells("A1:K1");
+    worksheet.getCell("A1").value = "Reporte de visitas de campo";
+    worksheet.getCell("A1").font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
+    worksheet.getCell("A1").fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF166534" }
+    };
+    worksheet.getCell("A1").alignment = { horizontal: "center" };
+    worksheet.mergeCells("A2:K2");
+    worksheet.getCell("A2").value = `Periodo: ${query.fecha_desde} al ${query.fecha_hasta}`;
+    worksheet.mergeCells("A3:K3");
+    worksheet.getCell("A3").value = `Agrónomo: ${
+      agronomistUserId ? "seleccionado" : "Todos"
+    } | Visitas activas: ${visitas.length}`;
+
+    const headers = [
+      "Fecha",
+      "N.° ficha",
+      "Agrónomo",
+      "Productor",
+      "Sector",
+      "Parcela",
+      "Campaña",
+      "Etapa/Labor",
+      "Hora inicio",
+      "Hora fin",
+      "Estado"
+    ];
+    const headerRow = worksheet.addRow(headers);
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF2F6B4F" }
+    };
+    headerRow.alignment = { vertical: "middle" };
+
+    for (const visita of visitas) {
+      worksheet.addRow([
+        toWorksheetText(visita.fechaVisita),
+        toWorksheetText(visita.nroFicha ?? visita.publicId),
+        toWorksheetText(buildUserLabel(visita.agronomoUsuario)),
+        toWorksheetText(buildProductorLabel(visita.parcela?.productor)),
+        toWorksheetText(visita.parcela?.subsector?.sector?.name ?? "No registrado"),
+        toWorksheetText(buildParcelaLabel(visita.parcela)),
+        toWorksheetText(visita.campania?.name ?? "No registrada"),
+        toWorksheetText(buildEtapaLabel(visita.etapaFenologica)),
+        toWorksheetText(visita.horaVisitaInicio),
+        toWorksheetText(visita.horaVisitaFin ?? "No registrada"),
+        "Activa"
+      ]);
+    }
+
+    worksheet.columns = [
+      { width: 14 },
+      { width: 18 },
+      { width: 26 },
+      { width: 28 },
+      { width: 22 },
+      { width: 28 },
+      { width: 24 },
+      { width: 24 },
+      { width: 14 },
+      { width: 14 },
+      { width: 12 }
+    ];
+    worksheet.views = [{ state: "frozen", ySplit: 4 }];
+    worksheet.autoFilter = { from: "A4", to: "K4" };
+
+    return {
+      content: Buffer.from(await workbook.xlsx.writeBuffer()),
+      fileName: `reporte-visitas_${query.fecha_desde}_${query.fecha_hasta}.xlsx`
+    };
   }
 
   async findHistoryByProductorId(
@@ -949,7 +1076,11 @@ export class VisitasCampoService {
     return {
       id: riego.id,
       visitaId: riego.visitaId,
-      tipoRiegoId: riego.tipoRiegoId
+      tipoRiegoId: riego.tipoRiegoId,
+      fuenteAgua: riego.fuenteAgua,
+      tipoSuelo: riego.tipoSuelo,
+      humedadSuelo: riego.humedadSuelo,
+      estresHidrico: riego.estresHidrico
     };
   }
 
@@ -1020,6 +1151,34 @@ export class VisitasCampoService {
       isActive: parcela.isActive
     };
   }
+}
+
+function buildUserLabel(user: UserEntity | null | undefined) {
+  return [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || "No registrado";
+}
+
+function buildProductorLabel(productor: ProductorEntity | null | undefined) {
+  return (
+    [productor?.firstName, productor?.lastName].filter(Boolean).join(" ").trim() ||
+    productor?.documentNumber ||
+    "No registrado"
+  );
+}
+
+function buildParcelaLabel(parcela: ParcelaEntity | null | undefined) {
+  if (!parcela) {
+    return "No registrada";
+  }
+
+  return parcela.name ? `${parcela.code} - ${parcela.name}` : parcela.code;
+}
+
+function buildEtapaLabel(etapa: EtapaFenologicaEntity | null | undefined) {
+  return etapa ? `${etapa.type}: ${etapa.name}` : "No registrada";
+}
+
+function toWorksheetText(value: string) {
+  return /^[=+\-@]/u.test(value) ? `'${value}` : value;
 }
 
 function validateVisitTimes(startVisitTime: string, endVisitTime: string | null) {

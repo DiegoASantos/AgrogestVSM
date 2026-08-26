@@ -8,6 +8,8 @@ type FetchResponse = {
   ok: boolean;
   status: number;
   text: () => Promise<string>;
+  blob?: () => Promise<Blob>;
+  headers?: Headers;
 };
 
 function apiResponse(
@@ -121,6 +123,53 @@ describe("visitasService", () => {
       const result = await visitasService.getList(session, emptyFilters);
 
       expect(result.count).toBe(2);
+    });
+  });
+
+  describe("#exportExcelReport", () => {
+    it("should download the complete report using the applied date range and optional agronomist", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(""),
+        blob: () => Promise.resolve(new Blob(["xlsx"])),
+        headers: new Headers({
+          "content-disposition": 'attachment; filename="reporte-visitas_2026-01-01_2026-01-31.xlsx"'
+        })
+      });
+
+      const report = await visitasService.exportExcelReport(session, {
+        agronomistUserId: "user-1",
+        startDate: "2026-01-01",
+        endDate: "2026-01-31"
+      });
+
+      expectGetRequest(
+        fetchMock,
+        "/visitas-campo/reporte-excel?agronomo_usuario_id=user-1&fecha_desde=2026-01-01&fecha_hasta=2026-01-31"
+      );
+      expect(report.fileName).toBe("reporte-visitas_2026-01-01_2026-01-31.xlsx");
+    });
+
+    it("should omit the agronomist query when all agronomists are selected", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(""),
+        blob: () => Promise.resolve(new Blob(["xlsx"])),
+        headers: new Headers()
+      });
+
+      await visitasService.exportExcelReport(session, {
+        agronomistUserId: "",
+        startDate: "2026-01-01",
+        endDate: "2026-01-31"
+      });
+
+      expectGetRequest(
+        fetchMock,
+        "/visitas-campo/reporte-excel?fecha_desde=2026-01-01&fecha_hasta=2026-01-31"
+      );
     });
   });
 
