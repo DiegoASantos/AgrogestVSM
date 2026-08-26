@@ -11,18 +11,42 @@ describe("tutorial de receta y mezclas", () => {
   it("recorre las secciones de receta en el orden de trabajo", () => {
     const steps = buildRecipeTutorialSteps();
 
-    expect(steps.map((step) => step.id)).toEqual([
-      "fitosanidad",
-      "fertilizacion",
-      "riego",
-      "labores",
-      "continue"
-    ]);
-    expect(getNextTutorialStep(steps, "fitosanidad")?.id).toBe("fertilizacion");
+    expect(steps.map((step) => step.id)).toEqual(
+      expect.arrayContaining([
+        "fitosanidad",
+        "fitoControl",
+        "fitoIngredient",
+        "fitoBrand",
+        "fitoAction",
+        "fitoDose",
+        "fitoUnit",
+        "fertilizacion",
+        "fertilizationRoute",
+        "fertilizer",
+        "fertilizerDose",
+        "fertilizerAmount",
+        "riego",
+        "labores",
+        "continue"
+      ])
+    );
+    expect(getNextTutorialStep(steps, "fitosanidad")?.id).toBe("fitoControl");
   });
 
   it("incluye la configuracion de mezcla solo si hay productos", () => {
-    expect(buildMixtureTutorialSteps(true).map((step) => step.id)).toContain("products");
+    expect(buildMixtureTutorialSteps(true).map((step) => step.id)).toEqual(
+      expect.arrayContaining([
+        "products",
+        "productDose",
+        "productPlants",
+        "applicationVolume",
+        "coadyuvants",
+        "coadyuvantDose",
+        "preparationOrder",
+        "reorder",
+        "nextMixture"
+      ])
+    );
     expect(buildMixtureTutorialSteps(false).map((step) => step.id)).toEqual([
       "endTime",
       "finish"

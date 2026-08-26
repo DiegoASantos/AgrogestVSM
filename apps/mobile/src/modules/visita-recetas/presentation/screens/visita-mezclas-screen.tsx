@@ -88,6 +88,25 @@ function singleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
 }
 
+function getMixtureTutorialTargetId(
+  id: MixtureTutorialFieldId
+):
+  | "mixtureCount"
+  | "mixtureSelection"
+  | "products"
+  | "frequency"
+  | "coadyuvants"
+  | "preparationOrder"
+  | "endTime"
+  | "finish" {
+  if (id === "productDose" || id === "productPlants") return "products";
+  if (id === "applicationVolume") return "frequency";
+  if (id === "coadyuvantDose") return "coadyuvants";
+  if (id === "reorder") return "preparationOrder";
+  if (id === "nextMixture") return "mixtureSelection";
+  return id;
+}
+
 export function VisitaMezclasScreen() {
   const router = useRouter();
   const { session } = useAuthSession();
@@ -508,13 +527,9 @@ export function VisitaMezclasScreen() {
           onPress={openTutorial}
           style={styles.tutorialButton}
         >
-          <Ionicons
-            color={theme.colors.primaryDark}
-            name="help-circle-outline"
-            size={21}
-          />
+          <Ionicons color="#f4c95d" name="navigate" size={17} />
           <AppText style={styles.tutorialButtonText} variant="label">
-            Tutorial paso a paso
+            Tutorial
           </AppText>
         </Pressable>
 
@@ -1002,7 +1017,10 @@ export function VisitaMezclasScreen() {
           scrollRef={formScrollRef}
           scrollY={tutorialScrollY}
           step={currentTutorialStep}
-          target={tutorialTargets.current[currentTutorialStep.id] ?? null}
+          target={
+            tutorialTargets.current[getMixtureTutorialTargetId(currentTutorialStep.id)] ??
+            null
+          }
           totalSteps={tutorialSteps.length}
         />
       ) : null}
@@ -1194,9 +1212,8 @@ const styles = StyleSheet.create({
   tutorialButton: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: theme.colors.primaryMuted,
-    borderColor: theme.colors.primaryLight,
-    borderRadius: theme.radius.full,
+    borderColor: "rgba(244, 201, 93, 0.58)",
+    borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
     gap: 7,
@@ -1204,8 +1221,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14
   },
   tutorialButtonText: {
-    color: theme.colors.primaryDark,
-    fontWeight: "800"
+    color: theme.colors.text,
+    fontSize: 13
   },
   tutorialNotice: {
     backgroundColor: theme.colors.infoMuted,

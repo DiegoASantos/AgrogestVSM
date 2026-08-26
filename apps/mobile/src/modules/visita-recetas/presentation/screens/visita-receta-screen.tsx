@@ -166,6 +166,14 @@ function toSingleParam(value: string | string[] | undefined): string | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
+function getRecipeTutorialTargetId(
+  id: RecipeTutorialFieldId
+): "fitosanidad" | "fertilizacion" | "riego" | "labores" | "continue" {
+  if (id.startsWith("fito")) return "fitosanidad";
+  if (id.startsWith("fertil")) return "fertilizacion";
+  return id as "riego" | "labores" | "continue";
+}
+
 export function VisitaRecetaScreen() {
   const router = useRouter();
   const { session } = useAuthSession();
@@ -1137,7 +1145,7 @@ export function VisitaRecetaScreen() {
                 onPress={openTutorial}
                 style={styles.tutorialButton}
               >
-                <Ionicons color="#ffffff" name="help-circle-outline" size={19} />
+                <Ionicons color="#f4c95d" name="navigate" size={17} />
                 <AppText style={styles.tutorialButtonText} variant="label">
                   Tutorial
                 </AppText>
@@ -1564,7 +1572,10 @@ export function VisitaRecetaScreen() {
           scrollRef={formScrollRef}
           scrollY={tutorialScrollY}
           step={currentTutorialStep}
-          target={tutorialTargets.current[currentTutorialStep.id] ?? null}
+          target={
+            tutorialTargets.current[getRecipeTutorialTargetId(currentTutorialStep.id)] ??
+            null
+          }
           totalSteps={tutorialSteps.length}
         />
       ) : null}
@@ -2723,16 +2734,17 @@ const styles = StyleSheet.create({
   },
   tutorialButton: {
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.35)",
-    borderRadius: theme.radius.full,
+    borderColor: "rgba(244, 201, 93, 0.58)",
+    borderRadius: 999,
+    borderWidth: 1,
     flexDirection: "row",
     gap: 4,
-    minHeight: 38,
-    paddingHorizontal: 10
+    minHeight: 44,
+    paddingHorizontal: 12
   },
   tutorialButtonText: {
     color: theme.colors.textInverse,
-    fontWeight: "700"
+    fontSize: 13
   },
   body: {
     gap: 20,

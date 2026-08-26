@@ -1,6 +1,16 @@
 export type RecipeTutorialFieldId =
   | "fitosanidad"
+  | "fitoControl"
+  | "fitoIngredient"
+  | "fitoBrand"
+  | "fitoAction"
+  | "fitoDose"
+  | "fitoUnit"
   | "fertilizacion"
+  | "fertilizationRoute"
+  | "fertilizer"
+  | "fertilizerDose"
+  | "fertilizerAmount"
   | "riego"
   | "labores"
   | "continue";
@@ -9,9 +19,15 @@ export type MixtureTutorialFieldId =
   | "mixtureCount"
   | "mixtureSelection"
   | "products"
+  | "productDose"
+  | "productPlants"
+  | "applicationVolume"
   | "frequency"
   | "coadyuvants"
+  | "coadyuvantDose"
   | "preparationOrder"
+  | "reorder"
+  | "nextMixture"
   | "endTime"
   | "finish";
 
@@ -51,12 +67,62 @@ export function buildRecipeTutorialSteps(): RecipeTutorialStep[] {
     tutorialStep(
       "fitosanidad",
       "Recomendaciones fitosanitarias",
-      "Abre cada tarjeta de plaga o enfermedad y completa tipo de control, producto, dosis y unidad. Puedes agregar otro producto cuando sea necesario."
+      "Abre la tarjeta de cada plaga o enfermedad. El tutorial te guiara campo por campo."
+    ),
+    tutorialStep(
+      "fitoControl",
+      "Tipo de control",
+      "Selecciona el tipo de control recomendado para este objetivo."
+    ),
+    tutorialStep(
+      "fitoIngredient",
+      "Ingrediente activo",
+      "Selecciona el ingrediente activo del catalogo disponible."
+    ),
+    tutorialStep(
+      "fitoBrand",
+      "Nombre comercial",
+      "Selecciona el nombre comercial asociado al ingrediente activo."
+    ),
+    tutorialStep(
+      "fitoAction",
+      "Modo de accion",
+      "Selecciona el modo de accion del producto."
+    ),
+    tutorialStep(
+      "fitoDose",
+      "Dosis fitosanitaria",
+      "Escribe la dosis del producto comercial."
+    ),
+    tutorialStep(
+      "fitoUnit",
+      "Unidad de dosis",
+      "Selecciona la unidad correspondiente a la dosis ingresada."
     ),
     tutorialStep(
       "fertilizacion",
       "Recomendaciones de fertilizacion",
-      "Abre cada deficiencia para indicar via de aplicacion, fertilizante, dosis y unidad. La cantidad total se calcula con los datos ingresados."
+      "Abre cada recomendacion nutricional para completar sus datos."
+    ),
+    tutorialStep(
+      "fertilizationRoute",
+      "Via de aplicacion",
+      "Selecciona si el fertilizante se aplicara de forma edafica o foliar."
+    ),
+    tutorialStep(
+      "fertilizer",
+      "Fertilizante",
+      "Selecciona el fertilizante desde el catalogo disponible."
+    ),
+    tutorialStep(
+      "fertilizerDose",
+      "Tipo, dosis y unidad",
+      "Confirma el tipo de producto y completa la dosis con su unidad."
+    ),
+    tutorialStep(
+      "fertilizerAmount",
+      "Cantidad de aplicacion",
+      "Completa plantas totales para via edafica o volumen para via foliar."
     ),
     tutorialStep(
       "riego",
@@ -94,7 +160,22 @@ export function buildMixtureTutorialSteps(hasProducts: boolean): MixtureTutorial
       tutorialStep(
         "products",
         "Productos de la mezcla",
-        "Marca los productos de la receta que se usaran en esta mezcla. Al seleccionarlos, completa su dosis y las plantas cuando aplique."
+        "Marca los productos de la receta que se usaran en esta mezcla."
+      ),
+      tutorialStep(
+        "productDose",
+        "Dosis por producto",
+        "Completa la dosis de cada producto que hayas marcado."
+      ),
+      tutorialStep(
+        "productPlants",
+        "Cantidad de plantas",
+        "Para productos de aplicacion edafica, ingresa la cantidad de plantas."
+      ),
+      tutorialStep(
+        "applicationVolume",
+        "Volumen de aplicacion",
+        "Si la mezcla tiene productos foliares, ingresa el volumen en cilindros por hectarea."
       ),
       tutorialStep(
         "frequency",
@@ -104,12 +185,27 @@ export function buildMixtureTutorialSteps(hasProducts: boolean): MixtureTutorial
       tutorialStep(
         "coadyuvants",
         "Coadyuvantes",
-        "Marca los coadyuvantes que utilizara. Cada uno seleccionado requiere su dosis con unidad."
+        "Marca los coadyuvantes que utilizara."
+      ),
+      tutorialStep(
+        "coadyuvantDose",
+        "Dosis de coadyuvantes",
+        "Completa la dosis y unidad de cada coadyuvante seleccionado."
       ),
       tutorialStep(
         "preparationOrder",
         "Orden de preparacion",
-        "El agua queda fija al inicio. Usa Reordenar para intercambiar los demas elementos si necesitas cambiar el orden."
+        "Revisa que el agua este al inicio y los productos aparezcan en el orden correcto."
+      ),
+      tutorialStep(
+        "reorder",
+        "Reordenar productos",
+        "Pulsa Reordenar y toca dos elementos para intercambiarlos. El agua permanece fija."
+      ),
+      tutorialStep(
+        "nextMixture",
+        "Siguiente mezcla",
+        "Si configuraste mas de una mezcla, avanza para completar la siguiente de la misma forma."
       )
     );
   }
