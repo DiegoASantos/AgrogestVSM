@@ -24,6 +24,7 @@ type AppSelectFieldProps = {
   icon?: keyof typeof Ionicons.glyphMap;
   searchable?: boolean;
   searchPlaceholder?: string;
+  containerRef?: (node: View | null) => void;
   onToggle: () => void;
   onClose?: () => void;
   onSelect: (value: string) => void;
@@ -42,6 +43,7 @@ export function AppSelectField({
   icon,
   searchable = false,
   searchPlaceholder = "Buscar",
+  containerRef,
   onToggle,
   onClose,
   onSelect
@@ -71,7 +73,7 @@ export function AppSelectField({
   }, [options, searchText, searchable]);
 
   return (
-    <View style={styles.wrapper}>
+    <View ref={containerRef} style={styles.wrapper}>
       <AppText variant="label">{label}</AppText>
 
       <Pressable

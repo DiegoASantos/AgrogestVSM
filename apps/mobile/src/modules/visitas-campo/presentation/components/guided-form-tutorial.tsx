@@ -29,6 +29,7 @@ type TargetRect = {
 };
 
 type GuidedFormTutorialProps = {
+  accentColor?: string;
   canGoBack: boolean;
   currentPosition: number;
   onBack: () => void;
@@ -46,6 +47,7 @@ const TARGET_PADDING = 7;
 const TARGET_TOP_GUIDE = 128;
 
 export function GuidedFormTutorial({
+  accentColor = "#f4c95d",
   canGoBack,
   currentPosition,
   onBack,
@@ -160,8 +162,10 @@ export function GuidedFormTutorial({
             style={[
               styles.targetOutline,
               {
+                borderColor: accentColor,
                 height: targetRect.height,
                 left: targetRect.x,
+                shadowColor: accentColor,
                 top: targetRect.y,
                 width: targetRect.width
               }
@@ -347,11 +351,9 @@ const styles = StyleSheet.create({
     position: "absolute"
   },
   targetOutline: {
-    borderColor: "#1b4332",
     borderRadius: 16,
     borderWidth: 3,
     position: "absolute",
-    shadowColor: "#1b4332",
     shadowOffset: { height: 0, width: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 9

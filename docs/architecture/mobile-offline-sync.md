@@ -40,10 +40,16 @@ resaltado. No registra progreso, no solicita permisos y no modifica SQLite ni
 la outbox.
 
 Receta y Mezclas incluyen ademas un boton manual `Tutorial`. Cada recorrido
-explica visualmente el orden de configuracion, desplaza la vista hasta la
-seccion correspondiente y permite avanzar, volver o salir sin alterar el
-borrador. La guia de Receta cubre fitosanidad, fertilizacion, riego, labores y
-el paso a Mezclas; la de Mezclas cubre cantidad, seleccion y dosificacion de
+explica visualmente el orden de configuracion, desplaza la vista hasta el
+control correspondiente y permite avanzar, volver o salir sin alterar el
+borrador. En Receta, la guia recorre todas las tarjetas y productos existentes:
+primero solicita abrir cada tarjeta y, al expandirse, avanza automaticamente al
+primer campo. Luego resalta individualmente tipo de control, nombre comercial,
+modo de accion, dosis y unidad; en fertilizacion hace lo mismo con via,
+fertilizante, tipo, dosis, unidad y los valores de aplicacion que correspondan.
+El ingrediente activo y las acciones para crear catalogos quedan fuera del
+tutorial. Riego y labores se mantienen como pasos opcionales antes de continuar
+a Mezclas. La guia de Mezclas cubre cantidad, seleccion y dosificacion de
 productos, coadyuvantes, orden de preparacion y cierre de la visita. Cuando no
 hay productos para mezclar, el recorrido se limita al cierre seguro de la
 visita. Funciona por completo sin red y no persiste progreso ni telemetria.
