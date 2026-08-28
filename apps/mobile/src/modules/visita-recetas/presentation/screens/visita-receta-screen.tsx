@@ -252,6 +252,13 @@ export function VisitaRecetaScreen() {
   );
   const [tutorialHistory, setTutorialHistory] = useState<RecipeTutorialFieldId[]>([]);
   const [tutorialNotice, setTutorialNotice] = useState<string | null>(null);
+  const [tutorialCreatedPreventiveFitoId, setTutorialCreatedPreventiveFitoId] = useState<
+    string | null
+  >(null);
+  const [
+    tutorialCreatedPreventiveFertilizationId,
+    setTutorialCreatedPreventiveFertilizationId
+  ] = useState<string | null>(null);
   const catalogDownloadStatus = useCatalogDownloadStatus();
   const catalogDownloadWasActiveRef = useRef(catalogDownloadStatus.isDownloading);
   const draftIdentity = useMemo<VisitFormDraftIdentity | null>(
@@ -301,6 +308,19 @@ export function VisitaRecetaScreen() {
       preventiveObjectiveType
     );
   }, [consolidacion, fitosanidadApps, preventiveObjectiveType, preventiveTargets]);
+  const hasAvailablePreventiveTargets = useMemo(
+    () =>
+      (["plaga", "enfermedad"] as const).some(
+        (objectiveType) =>
+          getAvailablePreventiveTargets(
+            preventiveTargets,
+            consolidacion,
+            fitosanidadApps,
+            objectiveType
+          ).length > 0
+      ),
+    [consolidacion, fitosanidadApps, preventiveTargets]
+  );
 
   const availablePreventiveNutrients = useMemo(
     () => getAvailablePreventiveNutrients(nutrients, consolidacion, fertilizaciones),
@@ -322,6 +342,18 @@ export function VisitaRecetaScreen() {
         openDropdown,
         hasLaborSelection: laborSelections.size > 0,
         hasRiegoSelection: Boolean(riegoSelection),
+        preventiveFitosanidad: {
+          createdApplicationId: tutorialCreatedPreventiveFitoId,
+          hasAvailableTargets: hasAvailablePreventiveTargets,
+          isExpanded: isPreventiveFitoExpanded,
+          objectiveType: preventiveObjectiveType,
+          targetId: preventiveTargetId
+        },
+        preventiveFertilization: {
+          createdProductId: tutorialCreatedPreventiveFertilizationId,
+          isExpanded: isPreventiveFertilizationExpanded,
+          nutrientId: preventiveNutrientId
+        },
         fitosanidad: fitosanidadApps.map((application) => ({
           cardKey: getFitosanidadCardKey(application.localId),
           localId: application.localId,
@@ -347,9 +379,17 @@ export function VisitaRecetaScreen() {
       activeRecipeCardKey,
       fertilizacionGroups,
       fitosanidadApps,
+      hasAvailablePreventiveTargets,
+      isPreventiveFertilizationExpanded,
+      isPreventiveFitoExpanded,
       laborSelections,
       openDropdown,
-      riegoSelection
+      preventiveNutrientId,
+      preventiveObjectiveType,
+      preventiveTargetId,
+      riegoSelection,
+      tutorialCreatedPreventiveFertilizationId,
+      tutorialCreatedPreventiveFitoId
     ]
   );
   const currentTutorialStep = tutorialStepId
@@ -368,6 +408,16 @@ export function VisitaRecetaScreen() {
     if (!nextStep) return;
 
     const timer = setTimeout(() => {
+      if (
+        currentTutorialStep.id === recipeTutorialTarget.preventiveFitoCard ||
+        currentTutorialStep.id === recipeTutorialTarget.preventiveFertilizationCard
+      ) {
+        setTutorialHistory((history) =>
+          history[history.length - 1] === currentTutorialStep.id
+            ? history
+            : [...history, currentTutorialStep.id]
+        );
+      }
       setTutorialStepId(nextStep.id);
     }, 220);
 
@@ -939,10 +989,25 @@ export function VisitaRecetaScreen() {
     setIsPreventiveFitoExpanded(false);
     setPreventiveTargetId("");
     setSubmitError(null);
+    if (tutorialStepId === recipeTutorialTarget.preventiveFitoAdd) {
+      setTutorialCreatedPreventiveFitoId(application.localId);
+      setTutorialHistory((history) => [
+        ...history.filter(
+          (id) =>
+            id !== recipeTutorialTarget.preventiveFitoCard &&
+            id !== recipeTutorialTarget.preventiveFitoType &&
+            id !== recipeTutorialTarget.preventiveFitoTarget &&
+            id !== recipeTutorialTarget.preventiveFitoAdd
+        ),
+        recipeTutorialTarget.preventiveFitoCard
+      ]);
+      setTutorialStepId(recipeTutorialTarget.fitoCard(application.localId));
+    }
   }
 
   function removePreventiveFitosanidad(applicationIndex: number) {
     closeDropdown();
+    const removedApplication = fitosanidadApps[applicationIndex];
     const projected = fitosanidadApps.filter(
       (_, currentIndex) => currentIndex !== applicationIndex
     );
@@ -950,6 +1015,15 @@ export function VisitaRecetaScreen() {
     setFitosanidadApps(projected);
     setMezclas(nextMezclas);
     reconcileActiveRecipeCard(projected, fertilizaciones);
+    if (
+      tutorialStepId !== null &&
+      removedApplication?.localId === tutorialCreatedPreventiveFitoId
+    ) {
+      setTutorialCreatedPreventiveFitoId(null);
+      setTutorialHistory([]);
+      setIsPreventiveFitoExpanded(false);
+      setTutorialStepId(recipeTutorialTarget.preventiveFitoCard);
+    }
   }
 
   function addPreventiveFertilizacion() {
@@ -971,6 +1045,21 @@ export function VisitaRecetaScreen() {
     setIsPreventiveFertilizationExpanded(false);
     setPreventiveNutrientId("");
     setSubmitError(null);
+    if (tutorialStepId === recipeTutorialTarget.preventiveFertilizationAdd && group) {
+      setTutorialCreatedPreventiveFertilizationId(fertilizacion.localId);
+      setTutorialHistory((history) => [
+        ...history.filter(
+          (id) =>
+            id !== recipeTutorialTarget.preventiveFertilizationCard &&
+            id !== recipeTutorialTarget.preventiveFertilizationNutrient &&
+            id !== recipeTutorialTarget.preventiveFertilizationAdd
+        ),
+        recipeTutorialTarget.preventiveFertilizationCard
+      ]);
+      setTutorialStepId(
+        recipeTutorialTarget.preventiveFertilizationCreatedCard(fertilizacion.localId)
+      );
+    }
   }
 
   function addFertilizacionProduct(reference: AppFertilizacion) {
@@ -995,6 +1084,12 @@ export function VisitaRecetaScreen() {
   function removeFertilizacion(localId: string) {
     closeDropdown();
     setFertilizaciones((prev) => prev.filter((item) => item.localId !== localId));
+    if (tutorialStepId !== null && localId === tutorialCreatedPreventiveFertilizationId) {
+      setTutorialCreatedPreventiveFertilizationId(null);
+      setTutorialHistory([]);
+      setIsPreventiveFertilizationExpanded(false);
+      setTutorialStepId(recipeTutorialTarget.preventiveFertilizationCard);
+    }
   }
 
   function removeFertilizacionGroup(reference: AppFertilizacion) {
@@ -1007,6 +1102,16 @@ export function VisitaRecetaScreen() {
     );
     setFertilizaciones(projected);
     reconcileActiveRecipeCard(fitosanidadApps, projected);
+    if (
+      tutorialStepId !== null &&
+      tutorialCreatedPreventiveFertilizationId !== null &&
+      !projected.some((item) => item.localId === tutorialCreatedPreventiveFertilizationId)
+    ) {
+      setTutorialCreatedPreventiveFertilizationId(null);
+      setTutorialHistory([]);
+      setIsPreventiveFertilizationExpanded(false);
+      setTutorialStepId(recipeTutorialTarget.preventiveFertilizationCard);
+    }
   }
 
   function updateFertilizacion(index: number, patch: Partial<AppFertilizacion>) {
@@ -1130,14 +1235,20 @@ export function VisitaRecetaScreen() {
   function openTutorial() {
     closeDropdown();
     setActiveRecipeCardKey(null);
+    setIsPreventiveFitoExpanded(false);
+    setIsPreventiveFertilizationExpanded(false);
     setTutorialNotice(null);
     setTutorialHistory([]);
+    setTutorialCreatedPreventiveFitoId(null);
+    setTutorialCreatedPreventiveFertilizationId(null);
     setTutorialStepId(tutorialSteps[0]?.id ?? null);
   }
 
   function closeTutorial() {
     setTutorialStepId(null);
     setTutorialHistory([]);
+    setTutorialCreatedPreventiveFitoId(null);
+    setTutorialCreatedPreventiveFertilizationId(null);
   }
 
   function goToPreviousTutorialStep() {
@@ -1146,6 +1257,12 @@ export function VisitaRecetaScreen() {
 
     setTutorialHistory(remainingHistory);
     const previousStep = tutorialSteps.find((step) => step.id === previousId);
+    if (previousId === recipeTutorialTarget.preventiveFitoCard) {
+      setIsPreventiveFitoExpanded(false);
+    }
+    if (previousId === recipeTutorialTarget.preventiveFertilizationCard) {
+      setIsPreventiveFertilizationExpanded(false);
+    }
     if (previousStep?.cardKey && !previousStep.autoAdvanceWhenComplete) {
       setOpenDropdown(null);
       setActiveRecipeCardKey(previousStep.cardKey as RecipeCardKey);
@@ -1160,10 +1277,25 @@ export function VisitaRecetaScreen() {
     if (!nextStep) {
       setTutorialStepId(null);
       setTutorialHistory([]);
+      setTutorialCreatedPreventiveFitoId(null);
+      setTutorialCreatedPreventiveFertilizationId(null);
       setTutorialNotice(
         "Tutorial terminado. Revisa las recomendaciones y continua a mezclas cuando estes listo."
       );
       return;
+    }
+
+    if (
+      currentTutorialStep.id === recipeTutorialTarget.preventiveFitoCard &&
+      !currentTutorialStep.isComplete
+    ) {
+      setIsPreventiveFitoExpanded(false);
+    }
+    if (
+      currentTutorialStep.id === recipeTutorialTarget.preventiveFertilizationCard &&
+      !currentTutorialStep.isComplete
+    ) {
+      setIsPreventiveFertilizationExpanded(false);
     }
 
     setTutorialHistory((history) => [...history, currentTutorialStep.id]);
@@ -1334,71 +1466,102 @@ export function VisitaRecetaScreen() {
             ))
           )}
 
-          <AppCard style={styles.optionalActionCard}>
-            <AppCollapsibleHeader
-              closeLabel="Ocultar"
-              icon="shield-checkmark-outline"
-              isExpanded={isPreventiveFitoExpanded}
-              onToggle={() => {
-                closeDropdown();
-                setIsPreventiveFitoExpanded((current) => !current);
-              }}
-              openLabel="Agregar"
-              statusLabel="Opcional"
-              subtitle="Úsala solo cuando necesites prevenir una plaga o enfermedad."
-              title="Agregar prevención fitosanitaria"
-            />
-            {isPreventiveFitoExpanded ? (
-              <View style={styles.optionalActionContent}>
-                <AppSelectField
-                  icon="shield-outline"
-                  label="Tipo de objetivo"
-                  options={[
-                    { value: "plaga", label: "Plaga" },
-                    { value: "enfermedad", label: "Enfermedad" }
-                  ]}
-                  placeholder="Seleccionar tipo"
-                  selectedLabel={
-                    preventiveObjectiveType === "plaga" ? "Plaga" : "Enfermedad"
+          <View
+            ref={(node) => {
+              tutorialTargets.current[recipeTutorialTarget.preventiveFitoCard] = node;
+            }}
+          >
+            <AppCard style={styles.optionalActionCard}>
+              <AppCollapsibleHeader
+                closeLabel="Ocultar"
+                icon="shield-checkmark-outline"
+                isExpanded={isPreventiveFitoExpanded}
+                onToggle={() => {
+                  if (
+                    tutorialStepId === recipeTutorialTarget.preventiveFitoCard &&
+                    !hasAvailablePreventiveTargets
+                  ) {
+                    return;
                   }
-                  isOpen={openDropdown === "preventive_type"}
-                  onClose={closeDropdown}
-                  onToggle={() => toggleDropdown("preventive_type")}
-                  onSelect={(value) => {
-                    setPreventiveObjectiveType(value as "plaga" | "enfermedad");
-                    setPreventiveTargetId("");
-                  }}
-                />
-                <AppSelectField
-                  icon="leaf-outline"
-                  label="Objetivo preventivo"
-                  options={availablePreventiveTargets.map((target) => ({
-                    value: target.id,
-                    label: target.name
-                  }))}
-                  placeholder={
-                    availablePreventiveTargets.length > 0
-                      ? "Seleccionar objetivo"
-                      : "No hay objetivos disponibles"
-                  }
-                  selectedLabel={
-                    availablePreventiveTargets.find(
-                      (target) => target.id === preventiveTargetId
-                    )?.name
-                  }
-                  isOpen={openDropdown === "preventive_target"}
-                  onClose={closeDropdown}
-                  onToggle={() => toggleDropdown("preventive_target")}
-                  onSelect={setPreventiveTargetId}
-                />
-                <AddItemButton
-                  accessibilityLabel="Agregar recomendacion fitosanitaria preventiva"
-                  label="Agregar prevencion"
-                  onPress={addPreventiveFitosanidad}
-                />
-              </View>
-            ) : null}
-          </AppCard>
+                  closeDropdown();
+                  setIsPreventiveFitoExpanded((current) => !current);
+                }}
+                openLabel="Agregar"
+                statusLabel="Opcional"
+                subtitle="Úsala solo cuando necesites prevenir una plaga o enfermedad."
+                title="Agregar prevención fitosanitaria"
+              />
+              {isPreventiveFitoExpanded ? (
+                <View style={styles.optionalActionContent}>
+                  <AppSelectField
+                    containerRef={(node) => {
+                      tutorialTargets.current[recipeTutorialTarget.preventiveFitoType] =
+                        node;
+                    }}
+                    icon="shield-outline"
+                    label="Tipo de objetivo"
+                    options={[
+                      { value: "plaga", label: "Plaga" },
+                      { value: "enfermedad", label: "Enfermedad" }
+                    ]}
+                    placeholder="Seleccionar tipo"
+                    selectedLabel={
+                      preventiveObjectiveType === "plaga" ? "Plaga" : "Enfermedad"
+                    }
+                    isOpen={openDropdown === recipeTutorialTarget.preventiveFitoType}
+                    onClose={closeDropdown}
+                    onToggle={() =>
+                      toggleDropdown(recipeTutorialTarget.preventiveFitoType)
+                    }
+                    onSelect={(value) => {
+                      setPreventiveObjectiveType(value as "plaga" | "enfermedad");
+                      setPreventiveTargetId("");
+                    }}
+                  />
+                  <AppSelectField
+                    containerRef={(node) => {
+                      tutorialTargets.current[recipeTutorialTarget.preventiveFitoTarget] =
+                        node;
+                    }}
+                    icon="leaf-outline"
+                    label="Objetivo preventivo"
+                    options={availablePreventiveTargets.map((target) => ({
+                      value: target.id,
+                      label: target.name
+                    }))}
+                    placeholder={
+                      availablePreventiveTargets.length > 0
+                        ? "Seleccionar objetivo"
+                        : "No hay objetivos disponibles"
+                    }
+                    selectedLabel={
+                      availablePreventiveTargets.find(
+                        (target) => target.id === preventiveTargetId
+                      )?.name
+                    }
+                    isOpen={openDropdown === recipeTutorialTarget.preventiveFitoTarget}
+                    onClose={closeDropdown}
+                    onToggle={() =>
+                      toggleDropdown(recipeTutorialTarget.preventiveFitoTarget)
+                    }
+                    onSelect={setPreventiveTargetId}
+                  />
+                  <View
+                    ref={(node) => {
+                      tutorialTargets.current[recipeTutorialTarget.preventiveFitoAdd] =
+                        node;
+                    }}
+                  >
+                    <AddItemButton
+                      accessibilityLabel="Agregar recomendacion fitosanitaria preventiva"
+                      label="Agregar prevencion"
+                      onPress={addPreventiveFitosanidad}
+                    />
+                  </View>
+                </View>
+              ) : null}
+            </AppCard>
+          </View>
 
           <SectionHeader
             icon="nutrition"
@@ -1523,7 +1686,13 @@ export function VisitaRecetaScreen() {
             );
           })}
 
-          <View style={styles.preventiveFertilizationCard}>
+          <View
+            ref={(node) => {
+              tutorialTargets.current[recipeTutorialTarget.preventiveFertilizationCard] =
+                node;
+            }}
+            style={styles.preventiveFertilizationCard}
+          >
             <AppCollapsibleHeader
               closeLabel="Ocultar"
               icon="add-circle-outline"
@@ -1540,6 +1709,11 @@ export function VisitaRecetaScreen() {
             {isPreventiveFertilizationExpanded ? (
               <View style={styles.optionalActionContent}>
                 <AppSelectField
+                  containerRef={(node) => {
+                    tutorialTargets.current[
+                      recipeTutorialTarget.preventiveFertilizationNutrient
+                    ] = node;
+                  }}
                   icon="nutrition-outline"
                   label="Nutriente (opcional)"
                   options={availablePreventiveNutrients.map((item) => ({
@@ -1550,20 +1724,32 @@ export function VisitaRecetaScreen() {
                   selectedLabel={
                     nutrients.find((item) => item.id === preventiveNutrientId)?.name
                   }
-                  isOpen={openDropdown === "preventive_nutrient"}
+                  isOpen={
+                    openDropdown === recipeTutorialTarget.preventiveFertilizationNutrient
+                  }
                   onClose={closeDropdown}
-                  onToggle={() => toggleDropdown("preventive_nutrient")}
+                  onToggle={() =>
+                    toggleDropdown(recipeTutorialTarget.preventiveFertilizationNutrient)
+                  }
                   onSelect={setPreventiveNutrientId}
                   searchable
                   searchPlaceholder="Buscar nutriente"
                 />
-                <AppButton
-                  icon="add-circle-outline"
-                  label="Agregar fertilización"
-                  onPress={addPreventiveFertilizacion}
-                  size="small"
-                  variant="outline"
-                />
+                <View
+                  ref={(node) => {
+                    tutorialTargets.current[
+                      recipeTutorialTarget.preventiveFertilizationAdd
+                    ] = node;
+                  }}
+                >
+                  <AppButton
+                    icon="add-circle-outline"
+                    label="Agregar fertilización"
+                    onPress={addPreventiveFertilizacion}
+                    size="small"
+                    variant="outline"
+                  />
+                </View>
               </View>
             ) : null}
           </View>

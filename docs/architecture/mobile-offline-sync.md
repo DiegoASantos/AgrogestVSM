@@ -48,11 +48,17 @@ primer campo. Luego resalta individualmente tipo de control, nombre comercial,
 modo de accion, dosis y unidad; en fertilizacion hace lo mismo con via,
 fertilizante, tipo, dosis, unidad y los valores de aplicacion que correspondan.
 El ingrediente activo y las acciones para crear catalogos quedan fuera del
-tutorial. Riego y labores se mantienen como pasos opcionales antes de continuar
-a Mezclas. La guia de Mezclas cubre cantidad, seleccion y dosificacion de
-productos, coadyuvantes, orden de preparacion y cierre de la visita. Cuando no
-hay productos para mezclar, el recorrido se limita al cierre seguro de la
-visita. Funciona por completo sin red y no persiste progreso ni telemetria.
+tutorial. Las altas de prevencion fitosanitaria y fertilizacion preventiva se
+presentan como decisiones opcionales con `Omitir`. Si el tecnico abre una de
+ellas, la guia recorre sus selectores, espera la creacion y continua por los
+campos del producto nuevo sin repetir los ya visitados. Cuando no existen
+objetivos fitosanitarios disponibles, informa esa condicion y permite omitir la
+card sin bloquear el recorrido. Riego y labores se mantienen como pasos
+opcionales antes de continuar a Mezclas. La guia de Mezclas cubre cantidad,
+seleccion y dosificacion de productos, coadyuvantes, orden de preparacion y
+cierre de la visita. Cuando no hay productos para mezclar, el recorrido se
+limita al cierre seguro de la visita. Funciona por completo sin red y no
+persiste progreso ni telemetria.
 
 Numero de plantas, area en hectareas y fecha de siembra son obligatorios tanto
 con tutorial como sin el. Hora de fin pertenece exclusivamente al cierre de

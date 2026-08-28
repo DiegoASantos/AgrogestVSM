@@ -40,6 +40,18 @@ export type RecipeTutorialInput = {
   openDropdown: string | null;
   hasLaborSelection: boolean;
   hasRiegoSelection: boolean;
+  preventiveFitosanidad: {
+    createdApplicationId: string | null;
+    hasAvailableTargets: boolean;
+    isExpanded: boolean;
+    objectiveType: "plaga" | "enfermedad";
+    targetId: string;
+  };
+  preventiveFertilization: {
+    createdProductId: string | null;
+    isExpanded: boolean;
+    nutrientId: string;
+  };
   fitosanidad: Array<{
     cardKey: string;
     localId: string;
@@ -92,6 +104,15 @@ export const recipeTutorialTarget = {
   fertilizerFactor: (productId: string) => `tutorial:fert:${productId}:factor`,
   fertilizerPlants: (productId: string) => `tutorial:fert:${productId}:plants`,
   fertilizerVolume: (productId: string) => `tutorial:fert:${productId}:volume`,
+  preventiveFitoCard: "tutorial:preventive-fito:card",
+  preventiveFitoType: "tutorial:preventive-fito:type",
+  preventiveFitoTarget: "tutorial:preventive-fito:target",
+  preventiveFitoAdd: "tutorial:preventive-fito:add",
+  preventiveFertilizationCard: "tutorial:preventive-fertilization:card",
+  preventiveFertilizationNutrient: "tutorial:preventive-fertilization:nutrient",
+  preventiveFertilizationAdd: "tutorial:preventive-fertilization:add",
+  preventiveFertilizationCreatedCard: (productId: string) =>
+    `tutorial:preventive-fertilization:${productId}:card`,
   riego: "tutorial:riego",
   labores: "tutorial:labores",
   continue: "tutorial:continue"
@@ -136,7 +157,10 @@ export function buildRecipeTutorialSteps(
     });
   };
 
-  input.fitosanidad.forEach((application, applicationIndex) => {
+  const addFitosanidadApplication = (
+    application: RecipeTutorialInput["fitosanidad"][number],
+    applicationIndex: number
+  ) => {
     const cardTarget = recipeTutorialTarget.fitoCard(application.localId);
     steps.push({
       ...tutorialStep(
@@ -190,13 +214,92 @@ export function buildRecipeTutorialSteps(
         Boolean(ingredient.unidadDosis?.trim())
       );
     });
+  };
+
+  const createdPreventiveFito = input.preventiveFitosanidad.createdApplicationId
+    ? (input.fitosanidad.find(
+        (application) =>
+          application.localId === input.preventiveFitosanidad.createdApplicationId
+      ) ?? null)
+    : null;
+
+  input.fitosanidad.forEach((application, applicationIndex) => {
+    if (application.localId !== input.preventiveFitosanidad.createdApplicationId) {
+      addFitosanidadApplication(application, applicationIndex);
+    }
   });
 
-  input.fertilizacionGroups.forEach((group, groupIndex) => {
+  const preventiveFitoStarted =
+    input.preventiveFitosanidad.isExpanded &&
+    input.preventiveFitosanidad.hasAvailableTargets;
+  steps.push({
+    ...tutorialStep(
+      recipeTutorialTarget.preventiveFitoCard,
+      "Prevencion fitosanitaria",
+      input.preventiveFitosanidad.hasAvailableTargets
+        ? "Abre esta tarjeta si necesitas prevenir una plaga o enfermedad. Si no corresponde, puedes omitirla."
+        : "No hay objetivos preventivos disponibles en esta visita. Puedes omitir esta tarjeta."
+    ),
+    autoAdvanceWhenComplete: preventiveFitoStarted && !createdPreventiveFito,
+    isComplete: preventiveFitoStarted || Boolean(createdPreventiveFito),
+    isOptional: true,
+    targetKey: recipeTutorialTarget.preventiveFitoCard
+  });
+
+  if (preventiveFitoStarted && !createdPreventiveFito) {
+    steps.push(
+      {
+        ...tutorialStep(
+          recipeTutorialTarget.preventiveFitoType,
+          "Tipo de objetivo preventivo",
+          "Selecciona si la prevencion corresponde a una plaga o enfermedad."
+        ),
+        isComplete: Boolean(input.preventiveFitosanidad.objectiveType),
+        isExpanded: input.openDropdown === recipeTutorialTarget.preventiveFitoType,
+        isOptional: false,
+        targetKey: recipeTutorialTarget.preventiveFitoType
+      },
+      {
+        ...tutorialStep(
+          recipeTutorialTarget.preventiveFitoTarget,
+          "Objetivo preventivo",
+          "Selecciona la plaga o enfermedad que deseas prevenir."
+        ),
+        isComplete: Boolean(input.preventiveFitosanidad.targetId),
+        isExpanded: input.openDropdown === recipeTutorialTarget.preventiveFitoTarget,
+        isOptional: false,
+        targetKey: recipeTutorialTarget.preventiveFitoTarget
+      },
+      {
+        ...tutorialStep(
+          recipeTutorialTarget.preventiveFitoAdd,
+          "Agregar prevencion",
+          "Pulsa Agregar prevencion para crear la recomendacion y completar sus productos."
+        ),
+        isComplete: false,
+        isEnabled: Boolean(input.preventiveFitosanidad.targetId),
+        isOptional: false,
+        targetKey: recipeTutorialTarget.preventiveFitoAdd
+      }
+    );
+  }
+
+  if (createdPreventiveFito) {
+    addFitosanidadApplication(
+      createdPreventiveFito,
+      input.fitosanidad.indexOf(createdPreventiveFito)
+    );
+  }
+
+  const addFertilizationGroup = (
+    group: RecipeTutorialInput["fertilizacionGroups"][number],
+    groupIndex: number,
+    cardStepId?: string
+  ) => {
     const cardTarget = recipeTutorialTarget.fertilizerCard(group.groupKey);
     steps.push({
       ...tutorialStep(
-        cardTarget,
+        cardStepId ?? cardTarget,
         `Fertilizacion ${groupIndex + 1}: ${group.targetName}`,
         "Abre esta tarjeta para completar cada producto de fertilizacion."
       ),
@@ -271,7 +374,83 @@ export function buildRecipeTutorialSteps(
         );
       }
     });
+  };
+
+  input.fertilizacionGroups.forEach((group, groupIndex) => {
+    const products = group.productos.filter(
+      (product) => product.localId !== input.preventiveFertilization.createdProductId
+    );
+    if (products.length > 0) {
+      addFertilizationGroup({ ...group, productos: products }, groupIndex);
+    }
   });
+
+  const createdPreventiveFertilizationGroup = input.preventiveFertilization
+    .createdProductId
+    ? (input.fertilizacionGroups.find((group) =>
+        group.productos.some(
+          (product) => product.localId === input.preventiveFertilization.createdProductId
+        )
+      ) ?? null)
+    : null;
+  const createdPreventiveFertilization =
+    createdPreventiveFertilizationGroup?.productos.find(
+      (product) => product.localId === input.preventiveFertilization.createdProductId
+    ) ?? null;
+
+  const preventiveFertilizationStarted =
+    input.preventiveFertilization.isExpanded && !createdPreventiveFertilization;
+  steps.push({
+    ...tutorialStep(
+      recipeTutorialTarget.preventiveFertilizationCard,
+      "Fertilizacion preventiva",
+      "Abre esta tarjeta si necesitas agregar una fertilizacion preventiva. Puedes asociarla a un nutriente o crearla como general; si no corresponde, puedes omitirla."
+    ),
+    autoAdvanceWhenComplete: preventiveFertilizationStarted,
+    isComplete: preventiveFertilizationStarted || Boolean(createdPreventiveFertilization),
+    isOptional: true,
+    targetKey: recipeTutorialTarget.preventiveFertilizationCard
+  });
+
+  if (preventiveFertilizationStarted) {
+    steps.push(
+      {
+        ...tutorialStep(
+          recipeTutorialTarget.preventiveFertilizationNutrient,
+          "Nutriente preventivo",
+          "Selecciona un nutriente si corresponde. Para una fertilizacion general, puedes omitir este campo."
+        ),
+        isComplete: Boolean(input.preventiveFertilization.nutrientId),
+        isExpanded:
+          input.openDropdown === recipeTutorialTarget.preventiveFertilizationNutrient,
+        isOptional: true,
+        targetKey: recipeTutorialTarget.preventiveFertilizationNutrient
+      },
+      {
+        ...tutorialStep(
+          recipeTutorialTarget.preventiveFertilizationAdd,
+          "Agregar fertilizacion",
+          "Pulsa Agregar fertilizacion para crearla y completar los datos del producto."
+        ),
+        isComplete: false,
+        isOptional: false,
+        targetKey: recipeTutorialTarget.preventiveFertilizationAdd
+      }
+    );
+  }
+
+  if (createdPreventiveFertilizationGroup && createdPreventiveFertilization) {
+    addFertilizationGroup(
+      {
+        ...createdPreventiveFertilizationGroup,
+        productos: [createdPreventiveFertilization]
+      },
+      input.fertilizacionGroups.indexOf(createdPreventiveFertilizationGroup),
+      recipeTutorialTarget.preventiveFertilizationCreatedCard(
+        createdPreventiveFertilization.localId
+      )
+    );
+  }
 
   steps.push(
     {
