@@ -25,7 +25,7 @@ los agrónomos dentro de un rango de fechas, sin limitarse a la página visible.
   horas, etapa fenológica, estado y diagnósticos de plagas, enfermedades y
   nutrición, humedad del suelo y estrés hídrico intencional.
 - Tras añadir Cultivo después de N.° ficha, Hora fin ocupa la columna I, Etapa
-  fenológica la J y Estado queda al final;
+  fenológica la J, Porcentaje de avance la K y Estado queda al final en la Q;
   las columnas de diagnóstico se centran y se combinan cuando una categoría
   tiene un único valor dentro de la ficha.
 - Botón de exportación en la pantalla administrativa de Visitas.
@@ -70,7 +70,8 @@ los agrónomos dentro de un rango de fechas, sin limitarse a la página visible.
 
 - [x] CA-001: el usuario puede descargar por agrónomo o todos en un rango.
 - [x] CA-002: el archivo contiene las columnas operativas y diagnósticos
-  acordados, sin columna de campaña.
+      acordados, incluido Porcentaje de avance como porcentaje numérico o
+      `---` cuando no fue registrado, y sin columna de campaña.
 - [x] CA-003: fechas inválidas o invertidas se rechazan sin generar archivo.
 
 ## Pruebas

@@ -332,7 +332,7 @@ export class VisitasCampoService {
     workbook.created = new Date();
 
     const worksheet = workbook.addWorksheet("Visitas");
-    worksheet.mergeCells("A1:P1");
+    worksheet.mergeCells("A1:Q1");
     worksheet.getCell("A1").value = "Reporte de visitas de campo";
     worksheet.getCell("A1").font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
     worksheet.getCell("A1").fill = {
@@ -342,8 +342,9 @@ export class VisitasCampoService {
     };
     worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
     worksheet.getRow(1).height = 28;
-    worksheet.mergeCells("A2:P2");
-    worksheet.getCell("A2").value = `Periodo: ${query.fecha_desde} al ${query.fecha_hasta}`;
+    worksheet.mergeCells("A2:Q2");
+    worksheet.getCell("A2").value =
+      `Periodo: ${query.fecha_desde} al ${query.fecha_hasta}`;
     worksheet.getCell("A2").font = { bold: true, color: { argb: "FF166534" } };
     worksheet.getCell("A2").fill = {
       type: "pattern",
@@ -352,7 +353,7 @@ export class VisitasCampoService {
     };
     worksheet.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
     worksheet.getRow(2).height = 22;
-    worksheet.mergeCells("A3:P3");
+    worksheet.mergeCells("A3:Q3");
     worksheet.getCell("A3").value = `Agrónomo: ${
       agronomistUserId ? "seleccionado" : "Todos"
     } | Visitas activas: ${visitas.length}`;
@@ -371,6 +372,7 @@ export class VisitasCampoService {
       "Hora inicio",
       "Hora fin",
       "Etapa fenológica",
+      "Porcentaje de avance",
       "Plagas",
       "Enfermedades",
       "Nutrición",
@@ -400,12 +402,12 @@ export class VisitasCampoService {
     }
 
     const reportColumnFills: Record<number, string> = {
-      11: "FFFFF7ED",
-      12: "FFFEF2F2",
-      13: "FFECFDF5",
-      14: "FFEFF6FF",
+      12: "FFFFF7ED",
+      13: "FFFEF2F2",
+      14: "FFECFDF5",
       15: "FFEFF6FF",
-      16: "FFF0FDF4"
+      16: "FFEFF6FF",
+      17: "FFF0FDF4"
     };
 
     for (const visita of visitas) {
@@ -418,7 +420,9 @@ export class VisitasCampoService {
           index === 0 ? toWorksheetText(visita.nroFicha ?? visita.publicId) : "",
           index === 0 ? toWorksheetText(visita.cultivo?.name ?? "No registrado") : "",
           index === 0 ? toWorksheetText(buildUserLabel(visita.agronomoUsuario)) : "",
-          index === 0 ? toWorksheetText(buildProductorLabel(visita.parcela?.productor)) : "",
+          index === 0
+            ? toWorksheetText(buildProductorLabel(visita.parcela?.productor))
+            : "",
           index === 0
             ? toWorksheetText(visita.parcela?.subsector?.sector?.name ?? "No registrado")
             : "",
@@ -426,11 +430,20 @@ export class VisitasCampoService {
           index === 0 ? toWorksheetText(visita.horaVisitaInicio) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaFin ?? "No registrado") : "",
           index === 0 ? toWorksheetText(buildEtapaLabel(visita.etapaFenologica)) : "",
+          index === 0
+            ? visita.subEtapaPercentage === null
+              ? "---"
+              : Number(visita.subEtapaPercentage) / 100
+            : "",
           toWorksheetText(diagnosis.pest),
           toWorksheetText(diagnosis.disease),
           toWorksheetText(diagnosis.nutrition),
-          index === 0 ? toWorksheetText(visita.riego?.[0]?.humedadSuelo ?? "No registrado") : "",
-          index === 0 ? toWorksheetText(visita.riego?.[0]?.estresHidrico ? "Sí" : "No") : "",
+          index === 0
+            ? toWorksheetText(visita.riego?.[0]?.humedadSuelo ?? "No registrado")
+            : "",
+          index === 0
+            ? toWorksheetText(visita.riego?.[0]?.estresHidrico ? "Sí" : "No")
+            : "",
           index === 0 ? "Activa" : ""
         ]);
       }
@@ -453,10 +466,14 @@ export class VisitasCampoService {
           };
           cell.alignment = {
             ...(cell.alignment ?? {}),
-            ...(column >= 11 && column <= 13 ? { horizontal: "center" as const } : {}),
+            ...(column >= 12 && column <= 14 ? { horizontal: "center" as const } : {}),
             vertical: "middle",
             wrapText: true
           };
+
+          if (column === 11 && typeof cell.value === "number") {
+            cell.numFmt = "0.##%";
+          }
 
           if (columnFill) {
             cell.fill = {
@@ -469,10 +486,10 @@ export class VisitasCampoService {
       }
 
       for (const column of [
-        ...Array.from({ length: 10 }, (_, index) => index + 1),
-        14,
+        ...Array.from({ length: 11 }, (_, index) => index + 1),
         15,
-        16
+        16,
+        17
       ]) {
         if (lastWorksheetRow > firstWorksheetRow) {
           worksheet.mergeCells(firstWorksheetRow, column, lastWorksheetRow, column);
@@ -485,7 +502,7 @@ export class VisitasCampoService {
         };
       }
 
-      for (const column of [11, 12, 13]) {
+      for (const column of [12, 13, 14]) {
         mergeAndCenterSingleDiagnosis(
           worksheet,
           firstWorksheetRow,
@@ -506,6 +523,7 @@ export class VisitasCampoService {
       { width: 14 },
       { width: 14 },
       { width: 24 },
+      { width: 22 },
       { width: 28 },
       { width: 28 },
       { width: 28 },
@@ -514,7 +532,7 @@ export class VisitasCampoService {
       { width: 12 }
     ];
     worksheet.views = [{ state: "frozen", ySplit: 4 }];
-    worksheet.autoFilter = { from: "A4", to: "P4" };
+    worksheet.autoFilter = { from: "A4", to: "Q4" };
 
     return {
       content: Buffer.from(await workbook.xlsx.writeBuffer()),
@@ -1281,7 +1299,9 @@ export class VisitasCampoService {
 }
 
 function buildUserLabel(user: UserEntity | null | undefined) {
-  return [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || "No registrado";
+  return (
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || "No registrado"
+  );
 }
 
 function buildProductorLabel(productor: ProductorEntity | null | undefined) {
@@ -1322,7 +1342,9 @@ function buildExcelDiagnosisRows(visita: VisitaCampoEntity): ExcelDiagnosisRow[]
           Boolean(evaluation.nutrientId) ||
           evaluation.description?.startsWith("Nutricion - ")
       )
-      .sort((left, right) => left.order - right.order || compareEntityIds(left.id, right.id))
+      .sort(
+        (left, right) => left.order - right.order || compareEntityIds(left.id, right.id)
+      )
       .map((evaluation) => {
         const descriptionParts = evaluation.description.split(" - ");
 
