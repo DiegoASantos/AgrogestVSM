@@ -408,6 +408,9 @@ autenticado. Al retirar ese rol se limpia el permiso. La baja conserva la fila
 y su historial en PostgreSQL con `visitas_campo.activo = false`; la copia del
 agregado en el dispositivo se elimina fisicamente despues de la confirmacion
 remota, o directamente cuando era un borrador sin identidad de servidor.
+Las visitas inactivas se conservan exclusivamente como historial tecnico en la
+base de datos: el panel web las excluye de listados, historiales, detalles,
+mapas, reportes y metricas agregadas del dashboard.
 
 La única excepción de escritura para un usuario exclusivamente `ANALISTA` son
 las lecturas manuales de reservorios definidas por la spec 032. Los endpoints

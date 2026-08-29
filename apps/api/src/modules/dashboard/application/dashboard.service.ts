@@ -261,6 +261,8 @@ export class DashboardService {
         .createQueryBuilder()
         .select("COUNT(*)", "count")
         .from("visita_recetas", "vr")
+        .innerJoin("visitas_campo", "v", "v.id = vr.visita_id")
+        .where("v.activo = true")
         .getRawOne<{ count: string }>()
         .then((r) => Number(r?.count ?? 0)),
 
@@ -268,6 +270,8 @@ export class DashboardService {
         .createQueryBuilder()
         .select("ROUND(AVG(vc.puntaje::numeric / 3 * 100), 0)", "score")
         .from("visita_calificaciones", "vc")
+        .innerJoin("visitas_campo", "v", "v.id = vc.visita_id")
+        .where("v.activo = true")
         .getRawOne<{ score: string | null }>()
         .then((r) =>
           r?.score === null || r?.score === undefined ? null : Number(r.score)
@@ -382,8 +386,10 @@ export class DashboardService {
       .select("pe.nombre", "plaga")
       .addSelect("COUNT(*)", "count")
       .from("visita_observaciones_sanitarias", "vos")
+      .innerJoin("visitas_campo", "v", "v.id = vos.visita_id")
       .innerJoin("plagas_enfermedades", "pe", "pe.id = vos.plaga_enfermedad_id")
       .where("pe.tipo = :tipo", { tipo: "plaga" })
+      .andWhere("v.activo = true")
       .groupBy("pe.nombre")
       .orderBy("count", "DESC")
       .limit(10)
@@ -398,7 +404,9 @@ export class DashboardService {
       .select(NUTRIENT_NAME_EXPRESSION, "nutriente")
       .addSelect("COUNT(*)", "count")
       .from("visita_evaluaciones", "ve")
+      .innerJoin("visitas_campo", "v", "v.id = ve.visita_id")
       .where("ve.descripcion LIKE :prefix", { prefix: "Nutricion - %" })
+      .andWhere("v.activo = true")
       .groupBy(NUTRIENT_NAME_EXPRESSION)
       .orderBy("count", "DESC")
       .limit(3)
@@ -470,6 +478,7 @@ export class DashboardService {
       .from("visita_recetas", "vr")
       .innerJoin("visitas_campo", "v", "v.id = vr.visita_id")
       .leftJoin("parcelas", "p", "p.id = v.parcela_id")
+      .where("v.activo = true")
       .orderBy("vr.creado_at", "DESC")
       .limit(5)
       .getRawMany<RecetaReciente>();

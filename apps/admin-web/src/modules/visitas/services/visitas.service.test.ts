@@ -69,7 +69,7 @@ describe("visitasService", () => {
 
       const result = await visitasService.getList(session, emptyFilters, 1, 30);
 
-      expectGetRequest(fetchMock, "/visitas-campo?page=1&limit=30");
+      expectGetRequest(fetchMock, "/visitas-campo?activo=true&page=1&limit=30");
       expect(result.items).toHaveLength(1);
       expect(result.page).toBe(1);
       expect(result.totalPages).toBe(2);
@@ -100,6 +100,7 @@ describe("visitasService", () => {
       expect(String(url)).toContain("parcela_id=300");
       expect(String(url)).toContain("fecha_desde=2026-01-01");
       expect(String(url)).toContain("fecha_hasta=2026-06-30");
+      expect(String(url)).toContain("activo=true");
       expect(String(url)).toContain("page=1");
       expect(String(url)).toContain("limit=50");
     });
@@ -134,7 +135,8 @@ describe("visitasService", () => {
         text: () => Promise.resolve(""),
         blob: () => Promise.resolve(new Blob(["xlsx"])),
         headers: new Headers({
-          "content-disposition": 'attachment; filename="reporte-visitas_2026-01-01_2026-01-31.xlsx"'
+          "content-disposition":
+            'attachment; filename="reporte-visitas_2026-01-01_2026-01-31.xlsx"'
         })
       });
 
@@ -298,6 +300,25 @@ describe("visitasService", () => {
   });
 
   describe("#getFullDetail", () => {
+    it("should reject inactive visitas before fetching lookup data", async () => {
+      fetchMock.mockResolvedValueOnce(
+        apiResponse({
+          visita: { id: "v0", isActive: false },
+          evaluaciones: [],
+          observacionesSanitarias: [],
+          riego: null,
+          laboresCulturales: [],
+          calificaciones: []
+        })
+      );
+
+      await expect(visitasService.getFullDetail(session, "v0")).rejects.toMatchObject({
+        message: "Visita no encontrada.",
+        statusCode: 404
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it("should fetch detail and all lookup data", async () => {
       fetchMock
         .mockResolvedValueOnce(
@@ -511,6 +532,10 @@ describe("visitasService", () => {
         "Carlos"
       );
 
+      expectGetRequest(
+        fetchMock,
+        "/visitas-campo?agronomo_usuario_id=u1&activo=true&page=1&limit=200"
+      );
       expect(result.agronomistLabel).toBe("Carlos");
       expect(result.totalVisitas).toBe(3);
       expect(result.parcelas).toHaveLength(2);

@@ -12,6 +12,7 @@ import { VisitasCampoService } from "./visitas-campo.service";
 
 type RepoMock = {
   find: ReturnType<typeof vi.fn>;
+  findAndCount: ReturnType<typeof vi.fn>;
   findOne: ReturnType<typeof vi.fn>;
   create: ReturnType<typeof vi.fn>;
   save: ReturnType<typeof vi.fn>;
@@ -22,6 +23,7 @@ type RepoMock = {
 function makeRepo(): RepoMock {
   return {
     find: vi.fn(),
+    findAndCount: vi.fn(),
     findOne: vi.fn(),
     create: vi.fn(),
     save: vi.fn(),
@@ -34,6 +36,7 @@ function makeQueryBuilder<T>(result: T[], count: number) {
   return {
     leftJoinAndSelect: vi.fn().mockReturnThis(),
     innerJoinAndSelect: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     andWhere: vi.fn().mockReturnThis(),
     orderBy: vi.fn().mockReturnThis(),
@@ -177,7 +180,61 @@ describe("VisitasCampoService", () => {
     });
   });
 
+  describe("#visit histories", () => {
+    it("should start productor histories with an active-visita condition", () => {
+      const qb = makeQueryBuilder([], 0);
+      repo.createQueryBuilder.mockReturnValue(qb);
+
+      (
+        service as unknown as {
+          createHistoryQueryBuilder: () => unknown;
+        }
+      ).createHistoryQueryBuilder();
+
+      expect(qb.where).toHaveBeenCalledWith("visita.activo = true");
+    });
+
+    it("should fetch parcela histories using only active visitas", async () => {
+      repo.findOne.mockResolvedValue({
+        id: "30",
+        publicId: "parcela-public-id",
+        productorId: "10",
+        subsectorId: "20",
+        code: "P-001",
+        name: "Parcela Norte",
+        isActive: true,
+        subsector: { sectorId: "40" }
+      });
+      repo.findAndCount.mockResolvedValue([[makeVisita()], 1]);
+
+      await service.findHistoryByParcelaId("30", {
+        page: 1,
+        limit: 30,
+        skip: 0,
+        take: 30
+      });
+
+      expect(repo.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { parcelaId: "30", isActive: true }
+        })
+      );
+    });
+  });
+
   describe("#getFullDetail", () => {
+    it("should hide inactive visitas as not found", async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await expect(service.getFullDetail("inactive-id")).rejects.toThrow(
+        NotFoundException
+      );
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: { id: "inactive-id", isActive: true }
+      });
+      expect(repo.find).not.toHaveBeenCalled();
+    });
+
     it("should include every recorded irrigation context field", async () => {
       repo.findOne
         .mockResolvedValueOnce(makeVisita())

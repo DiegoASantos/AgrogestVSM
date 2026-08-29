@@ -3,6 +3,7 @@ import {
   apiRequest,
   apiDownload,
   apiRequestEnvelope,
+  ApiError,
   createAuthHeaders,
   fetchAllPaginated,
   type ApiSuccessResponse
@@ -161,6 +162,10 @@ export const visitasService = {
       }
     );
 
+    if (detail.visita.isActive === false) {
+      throw new ApiError("Visita no encontrada.", 404);
+    }
+
     const [agronomist, crop, variety, parcela, campaign, phenologicalStage] =
       await Promise.all([
         safeRequest<UserApiItem>(session, `/usuarios/${detail.visita.agronomistUserId}`),
@@ -305,7 +310,7 @@ export const visitasService = {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
     const path = `/visitas-campo?agronomo_usuario_id=${encodeURIComponent(
       agronomistUserId
-    )}`;
+    )}&activo=true`;
     const [visitas, parcelas] = await Promise.all([
       fetchAllPaginated<VisitaCampo>(path, { headers }),
       fetchAllPaginated<ParcelaApiItem>("/parcelas", { headers })
@@ -391,6 +396,7 @@ export const visitasService = {
 function buildQueryString(filters: VisitaListFilters, page: number, limit: number) {
   const searchParams = new URLSearchParams();
 
+  searchParams.set("activo", "true");
   appendQueryParam(searchParams, "agronomo_usuario_id", filters.agronomistUserId);
   appendQueryParam(searchParams, "productor_id", filters.productorId);
   appendQueryParam(searchParams, "campania_id", filters.campaignId);

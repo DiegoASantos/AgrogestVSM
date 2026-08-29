@@ -7,7 +7,7 @@ type QueryCall = {
   args: unknown[];
 };
 
-function createQueryBuilder(rows: Array<{ nutriente: string; count: string }>) {
+function createQueryBuilder(rows: Array<Record<string, string | null>>) {
   const calls: QueryCall[] = [];
 
   const builder = {
@@ -24,8 +24,20 @@ function createQueryBuilder(rows: Array<{ nutriente: string; count: string }>) {
       calls.push({ method: "from", args });
       return builder;
     },
+    innerJoin(...args: unknown[]) {
+      calls.push({ method: "innerJoin", args });
+      return builder;
+    },
+    leftJoin(...args: unknown[]) {
+      calls.push({ method: "leftJoin", args });
+      return builder;
+    },
     where(...args: unknown[]) {
       calls.push({ method: "where", args });
+      return builder;
+    },
+    andWhere(...args: unknown[]) {
+      calls.push({ method: "andWhere", args });
       return builder;
     },
     groupBy(...args: unknown[]) {
@@ -43,6 +55,10 @@ function createQueryBuilder(rows: Array<{ nutriente: string; count: string }>) {
     getRawMany() {
       calls.push({ method: "getRawMany", args: [] });
       return Promise.resolve(rows);
+    },
+    getRawOne() {
+      calls.push({ method: "getRawOne", args: [] });
+      return Promise.resolve(rows[0]);
     }
   };
 
@@ -162,15 +178,76 @@ describe("DashboardService", () => {
     const selectCall = queryBuilder.calls.find((call) => call.method === "select");
     const groupByCall = queryBuilder.calls.find((call) => call.method === "groupBy");
     const limitCall = queryBuilder.calls.find((call) => call.method === "limit");
+    const visitJoin = queryBuilder.calls.find((call) => call.method === "innerJoin");
+    const activeFilter = queryBuilder.calls.find((call) => call.method === "andWhere");
 
     expect(selectCall?.args[0]).toContain("regexp_replace");
     expect(groupByCall?.args[0]).toBe(selectCall?.args[0]);
     expect(groupByCall?.args[0]).not.toBe("ve.descripcion");
     expect(limitCall?.args).toEqual([3]);
+    expect(visitJoin?.args).toEqual(["visitas_campo", "v", "v.id = ve.visita_id"]);
+    expect(activeFilter?.args).toEqual(["v.activo = true"]);
     expect(result).toEqual([
       { nutriente: "Zinc", count: 4 },
       { nutriente: "Nitrogeno", count: 3 },
       { nutriente: "Potasio", count: 2 }
     ]);
+  });
+
+  it("excludes inactive visits from pest charts and recent recipes", async () => {
+    const pestBuilder = createQueryBuilder([]);
+    const recipeBuilder = createQueryBuilder([]);
+    const dataSource = {
+      createQueryBuilder: vi
+        .fn()
+        .mockReturnValueOnce(pestBuilder)
+        .mockReturnValueOnce(recipeBuilder)
+    };
+    const service = new DashboardService(dataSource as never, {} as never);
+    const privateService = service as unknown as {
+      getPlagasFrecuentes: () => Promise<unknown>;
+      getUltimasRecetas: () => Promise<unknown>;
+    };
+
+    await privateService.getPlagasFrecuentes();
+    await privateService.getUltimasRecetas();
+
+    expect(pestBuilder.calls).toContainEqual({
+      method: "andWhere",
+      args: ["v.activo = true"]
+    });
+    expect(recipeBuilder.calls).toContainEqual({
+      method: "where",
+      args: ["v.activo = true"]
+    });
+  });
+
+  it("excludes inactive visits from recipe and compliance KPIs", async () => {
+    const builders = [
+      createQueryBuilder([{ count: "0" }]),
+      createQueryBuilder([{ count: "0" }]),
+      createQueryBuilder([{ count: "0" }]),
+      createQueryBuilder([{ count: "0" }]),
+      createQueryBuilder([{ score: null }])
+    ];
+    let builderIndex = 0;
+    const dataSource = {
+      createQueryBuilder: () => builders[builderIndex++]
+    };
+    const service = new DashboardService(dataSource as never, {} as never);
+
+    await (
+      service as unknown as {
+        getKpis: () => Promise<unknown>;
+      }
+    ).getKpis();
+
+    for (const builder of builders.slice(3)) {
+      expect(builder.calls).toContainEqual({
+        method: "where",
+        args: ["v.activo = true"]
+      });
+      expect(builder.calls.some((call) => call.method === "innerJoin")).toBe(true);
+    }
   });
 });

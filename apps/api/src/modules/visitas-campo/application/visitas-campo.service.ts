@@ -199,7 +199,7 @@ export class VisitasCampoService {
   }
 
   async getFullDetail(id: string) {
-    const visitaCampo = await this.findEntityById(id);
+    const visitaCampo = await this.findActiveEntityById(id);
     const [
       evaluaciones,
       observacionesSanitarias,
@@ -549,7 +549,7 @@ export class VisitasCampoService {
 
     validateDateRange(query.fecha_desde, query.fecha_hasta);
 
-    const queryBuilder = this.createHistoryQueryBuilder().where(
+    const queryBuilder = this.createHistoryQueryBuilder().andWhere(
       "parcela.productor_id = :productorId",
       {
         productorId
@@ -598,7 +598,8 @@ export class VisitasCampoService {
 
     const [visitasCampo, total] = await this.visitasCampoRepository.findAndCount({
       where: {
-        parcelaId
+        parcelaId,
+        isActive: true
       },
       order: {
         fechaVisita: "DESC",
@@ -804,6 +805,18 @@ export class VisitasCampoService {
   private async findEntityById(id: string) {
     const visitaCampo = await this.visitasCampoRepository.findOne({
       where: { id }
+    });
+
+    if (!visitaCampo) {
+      throw new NotFoundException("Visita de campo not found.");
+    }
+
+    return visitaCampo;
+  }
+
+  private async findActiveEntityById(id: string) {
+    const visitaCampo = await this.visitasCampoRepository.findOne({
+      where: { id, isActive: true }
     });
 
     if (!visitaCampo) {
@@ -1031,6 +1044,7 @@ export class VisitasCampoService {
     return this.visitasCampoRepository
       .createQueryBuilder("visita")
       .innerJoin(ParcelaEntity, "parcela", "parcela.id = visita.parcela_id")
+      .where("visita.activo = true")
       .orderBy("visita.fecha_visita", "DESC")
       .addOrderBy("visita.hora_visita_inicio", "DESC")
       .addOrderBy("visita.id", "DESC");
