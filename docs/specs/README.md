@@ -114,4 +114,5 @@ en la raíz.
 - [Spec 068: Dashboard de visitas por agrónomo y parcelas por etapa](068-dashboard-visitas-y-etapas.md)
 - [Spec 069: Lookup de agrónomos para visitas con rol analista](069-lookup-agronomos-analista.md)
 - [Spec 070: Reporte Excel de visitas por agrónomo](070-reporte-excel-visitas-por-agronomo.md)
+- [Spec 071: Opciones de poda en recomendaciones de labores culturales](071-opciones-poda-recomendaciones.md)
 - [Plantilla](TEMPLATE.md)

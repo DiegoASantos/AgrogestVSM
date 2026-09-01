@@ -559,7 +559,17 @@ function seedOfflineCompleteVisit() {
       createdAt: now,
       updatedAt: now
     },
-    labores: []
+    labores: [
+      {
+        id: "receta-labor-local-1",
+        serverId: null,
+        recetaLocalId: "receta-local-1",
+        labor: "poda_aclareo_iluminacion",
+        syncStatus: "pending",
+        createdAt: now,
+        updatedAt: now
+      }
+    ]
   };
   receta.mezclas[0]!.productos = receta.fitosanidad;
   pendingOutbox = [
@@ -642,7 +652,8 @@ describe("offline/online sync with complete visit data", () => {
             ]
           })
         ],
-        fertilizacion: [expect.objectContaining({ enfoque: "preventivo", factor: 1 })]
+        fertilizacion: [expect.objectContaining({ enfoque: "preventivo", factor: 1 })],
+        labores: [{ labor: "poda_aclareo_iluminacion" }]
       }),
       { signal: undefined }
     );

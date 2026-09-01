@@ -433,7 +433,11 @@ export class LaborDto {
     "horqueteo",
     "enzunchado",
     "recoleccion_frutos",
-    "trampas_mosca"
+    "trampas_mosca",
+    "poda_formacion",
+    "poda_saneamiento",
+    "poda_aclareo_iluminacion",
+    "poda_rejuvenecimiento_severa"
   ])
   labor!:
     | "limpieza_maleza_pala"
@@ -441,7 +445,11 @@ export class LaborDto {
     | "horqueteo"
     | "enzunchado"
     | "recoleccion_frutos"
-    | "trampas_mosca";
+    | "trampas_mosca"
+    | "poda_formacion"
+    | "poda_saneamiento"
+    | "poda_aclareo_iluminacion"
+    | "poda_rejuvenecimiento_severa";
 }
 
 export class CreateVisitaRecetaDto {
@@ -498,7 +506,7 @@ export class CreateVisitaRecetaDto {
     description: "Recomendaciones de labores."
   })
   @IsArray()
-  @ArrayMaxSize(6)
+  @ArrayMaxSize(7)
   @ValidateNested({ each: true })
   @Type(() => LaborDto)
   labores!: LaborDto[];

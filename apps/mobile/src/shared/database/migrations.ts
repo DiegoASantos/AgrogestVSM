@@ -807,7 +807,7 @@ const MIGRATIONS: Migration[] = [
         local_id TEXT PRIMARY KEY NOT NULL,
         server_id TEXT,
         receta_local_id TEXT NOT NULL,
-        labor TEXT NOT NULL CHECK(labor IN ('limpieza_maleza_pala', 'limpieza_maleza_motoguadana', 'horqueteo', 'enzunchado', 'recoleccion_frutos', 'trampas_mosca')),
+        labor TEXT NOT NULL CHECK(labor IN ('limpieza_maleza_pala', 'limpieza_maleza_motoguadana', 'horqueteo', 'enzunchado', 'recoleccion_frutos', 'trampas_mosca', 'poda_formacion', 'poda_saneamiento', 'poda_aclareo_iluminacion', 'poda_rejuvenecimiento_severa')),
         sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
@@ -1627,6 +1627,30 @@ const MIGRATIONS: Migration[] = [
   {
     version: 70,
     statements: ["DELETE FROM app_meta WHERE key = 'catalogs_downloaded_at'"]
+  },
+  {
+    version: 71,
+    statements: [
+      `CREATE TABLE visita_receta_labores_v71 (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        server_id TEXT,
+        receta_local_id TEXT NOT NULL,
+        labor TEXT NOT NULL CHECK(labor IN ('limpieza_maleza_pala', 'limpieza_maleza_motoguadana', 'horqueteo', 'enzunchado', 'recoleccion_frutos', 'trampas_mosca', 'poda_formacion', 'poda_saneamiento', 'poda_aclareo_iluminacion', 'poda_rejuvenecimiento_severa')),
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        sync_error_message TEXT,
+        FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE,
+        UNIQUE (receta_local_id, labor)
+      )`,
+      `INSERT INTO visita_receta_labores_v71
+        (local_id, server_id, receta_local_id, labor, sync_status, created_at, updated_at, sync_error_message)
+       SELECT local_id, server_id, receta_local_id, labor, sync_status, created_at, updated_at, sync_error_message
+         FROM visita_receta_labores`,
+      "DROP TABLE visita_receta_labores",
+      "ALTER TABLE visita_receta_labores_v71 RENAME TO visita_receta_labores",
+      "CREATE INDEX IF NOT EXISTS idx_visita_receta_labores_receta ON visita_receta_labores(receta_local_id)"
+    ]
   }
 ];
 

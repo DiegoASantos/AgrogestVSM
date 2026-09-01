@@ -140,7 +140,11 @@ export type RecetaLabor = {
     | "horqueteo"
     | "enzunchado"
     | "recoleccion_frutos"
-    | "trampas_mosca";
+    | "trampas_mosca"
+    | "poda_formacion"
+    | "poda_saneamiento"
+    | "poda_aclareo_iluminacion"
+    | "poda_rejuvenecimiento_severa";
   syncStatus: "pending" | "synced" | "error";
   createdAt: string;
   updatedAt: string;
@@ -226,11 +230,15 @@ export const RIEGO_RECOMENDACION_DESCRIPTIONS: Record<
 
 export const LABOR_RECOMENDACION_LABELS: Record<RecetaLabor["labor"], string> = {
   limpieza_maleza_pala: "Limpieza de maleza con pala",
-  limpieza_maleza_motoguadana: "Limpieza de maleza con motoguadana",
+  limpieza_maleza_motoguadana: "Limpieza con motoguadaña",
   horqueteo: "Horqueteo",
   enzunchado: "Enzunchado",
   recoleccion_frutos: "Recoleccion y manejo de frutos caidos",
-  trampas_mosca: "Colocacion de trampas de mosca de la fruta"
+  trampas_mosca: "Colocacion de trampas de mosca de la fruta",
+  poda_formacion: "Poda de formación",
+  poda_saneamiento: "Poda de saneamiento",
+  poda_aclareo_iluminacion: "Poda de aclareo/iluminación",
+  poda_rejuvenecimiento_severa: "Poda de rejuvenecimiento/severa"
 };
 
 export const LABOR_RECOMENDACION_DESCRIPTIONS: Record<RecetaLabor["labor"], string> = {
@@ -243,5 +251,11 @@ export const LABOR_RECOMENDACION_DESCRIPTIONS: Record<RecetaLabor["labor"], stri
     "Amarrar y asegurar las ramas principales hacia el centro para evitar que el peso quiebre las ramas.",
   recoleccion_frutos:
     "Evitar que plagas y enfermedades completen su ciclo biologico en el suelo.",
-  trampas_mosca: "Monitoreo y captura masiva de mosca de la fruta."
+  trampas_mosca: "Monitoreo y captura masiva de mosca de la fruta.",
+  poda_formacion: "Dar estructura y equilibrio a la planta durante su desarrollo.",
+  poda_saneamiento: "Retirar ramas secas, enfermas, dañadas o improductivas.",
+  poda_aclareo_iluminacion:
+    "Reducir la densidad de la copa para mejorar la entrada de luz y aire.",
+  poda_rejuvenecimiento_severa:
+    "Renovar la estructura productiva mediante una intervención intensa."
 };

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 70;
+const LATEST_MIGRATION_VERSION = 71;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1803,6 +1803,38 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+(visita_observaciones_sanitarias|visit_form_drafts|sync_outbox)/iu.test(
+          statement
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("amplia las labores de receta preservando identidad y estado offline", () => {
+    const db = createFakeDatabase(70);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("CREATE TABLE visita_receta_labores_v71") &&
+          statement.includes("'poda_formacion'") &&
+          statement.includes("'poda_rejuvenecimiento_severa'")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some(
+        (statement) =>
+          statement.includes("INSERT INTO visita_receta_labores_v71") &&
+          statement.includes(
+            "SELECT local_id, server_id, receta_local_id, labor, sync_status, created_at, updated_at, sync_error_message"
+          )
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(visita_recetas|visita_receta_labores|visit_form_drafts|sync_outbox)/iu.test(
           statement
         )
       )

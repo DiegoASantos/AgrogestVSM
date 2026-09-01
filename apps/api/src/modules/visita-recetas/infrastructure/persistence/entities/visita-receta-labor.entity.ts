@@ -28,7 +28,11 @@ export class VisitaRecetaLaborEntity {
     | "horqueteo"
     | "enzunchado"
     | "recoleccion_frutos"
-    | "trampas_mosca";
+    | "trampas_mosca"
+    | "poda_formacion"
+    | "poda_saneamiento"
+    | "poda_aclareo_iluminacion"
+    | "poda_rejuvenecimiento_severa";
 
   @CreateDateColumn({ name: "creado_at", type: "timestamptz" })
   createdAt!: Date;

@@ -36,6 +36,13 @@ const RECETA_RELATIONS = [
   "labores"
 ] as const;
 
+const PRUNING_RECOMMENDATIONS = new Set([
+  "poda_formacion",
+  "poda_saneamiento",
+  "poda_aclareo_iluminacion",
+  "poda_rejuvenecimiento_severa"
+]);
+
 @Injectable()
 export class VisitaRecetasService {
   constructor(
@@ -73,6 +80,7 @@ export class VisitaRecetasService {
     if (!visita) {
       throw new BadRequestException("Visita de campo not found.");
     }
+    assertSinglePruningRecommendation(dto.labores);
     const mezclas = this.normalizeMezclas(dto);
     await this.assertRecommendationApproaches(visita, mezclas, dto.fertilizacion);
 
@@ -686,6 +694,16 @@ export class VisitaRecetasService {
       (item as typeof item & { nutrienteNombre?: string }).nutrienteNombre =
         nutrient.name;
     }
+  }
+}
+
+function assertSinglePruningRecommendation(labores: CreateVisitaRecetaDto["labores"]) {
+  const selectedPruningCount = labores.filter((item) =>
+    PRUNING_RECOMMENDATIONS.has(item.labor)
+  ).length;
+
+  if (selectedPruningCount > 1) {
+    throw new BadRequestException("Selecciona solo un tipo de poda por receta.");
   }
 }
 

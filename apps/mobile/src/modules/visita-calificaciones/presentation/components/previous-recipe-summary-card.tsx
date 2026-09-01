@@ -8,6 +8,7 @@ import {
   formatFertilizationTarget,
   formatRecommendationApproach
 } from "../../../visita-recetas/domain/recommendation-approach";
+import { LABOR_RECOMENDACION_LABELS } from "../../../visita-recetas/types";
 import type { CalificacionModulo, RecetaAnterior } from "../../types";
 
 type PreviousRecipeSummaryCardProps = {
@@ -133,7 +134,11 @@ function buildDetails(receta: RecetaAnterior | null, modulo: CalificacionModulo)
     return receta.riego ? [receta.riego.tipoRecomendacion] : [];
   }
 
-  return (receta.labores ?? []).map((item) => item.labor);
+  return (receta.labores ?? []).map(
+    (item) =>
+      LABOR_RECOMENDACION_LABELS[item.labor as keyof typeof LABOR_RECOMENDACION_LABELS] ??
+      item.labor
+  );
 }
 
 const styles = StyleSheet.create({

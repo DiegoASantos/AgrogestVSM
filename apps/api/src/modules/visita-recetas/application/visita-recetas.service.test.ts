@@ -243,6 +243,17 @@ describe("VisitaRecetasService", () => {
       );
     });
 
+    it("rechaza mas de un tipo de poda en la misma receta", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      const dto = makeValidDto();
+      dto.labores = [{ labor: "poda_formacion" }, { labor: "poda_saneamiento" }];
+
+      await expect(service.save("10", dto)).rejects.toThrow(
+        "Selecciona solo un tipo de poda por receta."
+      );
+      expect(recetaRepo.findOne).not.toHaveBeenCalled();
+    });
+
     it("mantiene compatible el guardado legacy sin frecuencia de dosis", async () => {
       visitaRepo.findOne.mockResolvedValue(makeVisita());
       recetaRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(makeReceta());

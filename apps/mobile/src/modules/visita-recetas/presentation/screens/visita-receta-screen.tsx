@@ -60,7 +60,11 @@ import {
 } from "../../domain/recipe-tutorial";
 import { visitaRecetasService } from "../../services";
 import { GuidedFormTutorial } from "../../../visitas-campo/presentation/components/guided-form-tutorial";
-import { LABOR_RECOMENDACION_LABELS, RIEGO_RECOMENDACION_LABELS } from "../../types";
+import {
+  LABOR_RECOMENDACION_DESCRIPTIONS,
+  LABOR_RECOMENDACION_LABELS,
+  RIEGO_RECOMENDACION_LABELS
+} from "../../types";
 import type {
   ConsolidacionHallazgo,
   CoadyuvanteCatalogItem,
@@ -70,6 +74,7 @@ import type {
   TipoControlCatalogItem,
   TipoProductoFitosanitarioCatalogItem,
   FertilizanteCatalogItem,
+  RecetaLabor,
   VisitaRecetaCompleta
 } from "../../types";
 import { generateOrdenMezcla } from "./visita-receta-order";
@@ -99,6 +104,10 @@ import {
   buildOptionalRecipeSectionStatus,
   buildRiegoSummary
 } from "./visita-receta-collapsible";
+import {
+  PRUNING_RECOMMENDATIONS,
+  toggleLaborRecommendation
+} from "./visita-receta-labores";
 import {
   buildFertilizacionUnidadDosis,
   buildFitosanidadUnidadDosis,
@@ -1769,15 +1778,7 @@ export function VisitaRecetaScreen() {
           >
             <LaboresSection
               onToggle={(labor) => {
-                setLaborSelections((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(labor)) {
-                    next.delete(labor);
-                  } else {
-                    next.add(labor);
-                  }
-                  return next;
-                });
+                setLaborSelections((prev) => toggleLaborRecommendation(prev, labor));
               }}
               selected={laborSelections}
             />
@@ -2852,52 +2853,38 @@ function LaboresSection({
   onToggle: (labor: string) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isPruningExpanded, setIsPruningExpanded] = useState(false);
   const options: Array<{
-    key: string;
-    label: string;
-    description: string;
+    key: RecetaLabor["labor"];
     icon: IoniconName;
   }> = [
     {
       key: "limpieza_maleza_pala",
-      label: "Limpieza de maleza con pala",
-      description: "Eliminacion de hierbas con herramienta de campo.",
       icon: "cut-outline"
     },
     {
       key: "limpieza_maleza_motoguadana",
-      label: "Limpieza con motoguadana",
-      description: "Eliminacion de hierbas con herramienta mecanizada de rapido avance.",
       icon: "hardware-chip-outline"
     },
     {
       key: "horqueteo",
-      label: "Horqueteo",
-      description:
-        "Colocar horquetas de madera bajo ramas principales para sostener peso de fruta.",
       icon: "git-branch-outline"
     },
     {
       key: "enzunchado",
-      label: "Enzunchado",
-      description:
-        "Amarrar y asegurar ramas principales hacia el centro para evitar quiebres.",
       icon: "link-outline"
     },
     {
       key: "recoleccion_frutos",
-      label: "Recoleccion de frutos caidos",
-      description: "Evitar que plagas completen su ciclo biologico en el suelo.",
       icon: "trash-outline"
     },
     {
       key: "trampas_mosca",
-      label: "Trampas de mosca",
-      description: "Monitoreo y captura masiva de mosca de la fruta.",
       icon: "bug-outline"
     }
   ];
   const status = buildOptionalRecipeSectionStatus(selected.size > 0);
+  const selectedPruning = PRUNING_RECOMMENDATIONS.find((labor) => selected.has(labor));
 
   return (
     <View
@@ -2937,9 +2924,11 @@ function LaboresSection({
                     variant="label"
                     style={isSel && { color: theme.colors.primary }}
                   >
-                    {opt.label}
+                    {LABOR_RECOMENDACION_LABELS[opt.key]}
                   </AppText>
-                  <AppText variant="muted">{opt.description}</AppText>
+                  <AppText variant="muted">
+                    {LABOR_RECOMENDACION_DESCRIPTIONS[opt.key]}
+                  </AppText>
                 </View>
                 <Ionicons
                   color={isSel ? theme.colors.primary : theme.colors.border}
@@ -2949,6 +2938,77 @@ function LaboresSection({
               </Pressable>
             );
           })}
+          <View style={styles.pruningGroup}>
+            <Pressable
+              accessibilityLabel={`Poda. ${
+                selectedPruning
+                  ? LABOR_RECOMENDACION_LABELS[selectedPruning]
+                  : "Sin selección"
+              }`}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: isPruningExpanded }}
+              onPress={() => setIsPruningExpanded((current) => !current)}
+              style={styles.pruningHeader}
+            >
+              <Ionicons color={theme.colors.primary} name="leaf-outline" size={26} />
+              <View style={styles.laborOptionText}>
+                <AppText variant="label">Poda</AppText>
+                <AppText variant="muted">
+                  {selectedPruning
+                    ? `Seleccionada: ${LABOR_RECOMENDACION_LABELS[selectedPruning]}`
+                    : "Selecciona un tipo de poda"}
+                </AppText>
+              </View>
+              <Ionicons
+                color={theme.colors.textMuted}
+                name={isPruningExpanded ? "chevron-up" : "chevron-down"}
+                size={22}
+              />
+            </Pressable>
+            {isPruningExpanded ? (
+              <View style={styles.pruningOptions}>
+                {PRUNING_RECOMMENDATIONS.map((labor) => {
+                  const isSelected = selected.has(labor);
+                  return (
+                    <Pressable
+                      accessibilityHint="Solo se puede seleccionar un tipo de poda."
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isSelected }}
+                      key={labor}
+                      onPress={() => onToggle(labor)}
+                      style={[
+                        styles.laborOption,
+                        styles.pruningOption,
+                        isSelected && styles.laborOptionSelected
+                      ]}
+                    >
+                      <Ionicons
+                        color={isSelected ? theme.colors.primary : theme.colors.textMuted}
+                        name="cut-outline"
+                        size={24}
+                      />
+                      <View style={styles.laborOptionText}>
+                        <AppText
+                          style={isSelected && { color: theme.colors.primary }}
+                          variant="label"
+                        >
+                          {LABOR_RECOMENDACION_LABELS[labor]}
+                        </AppText>
+                        <AppText variant="muted">
+                          {LABOR_RECOMENDACION_DESCRIPTIONS[labor]}
+                        </AppText>
+                      </View>
+                      <Ionicons
+                        color={isSelected ? theme.colors.primary : theme.colors.border}
+                        name={isSelected ? "checkbox" : "square-outline"}
+                        size={24}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+          </View>
         </View>
       ) : null}
     </View>
@@ -3520,6 +3580,29 @@ const styles = StyleSheet.create({
   },
   laborOptionText: {
     flex: 1
+  },
+  pruningGroup: {
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    overflow: "hidden"
+  },
+  pruningHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 14,
+    padding: 14
+  },
+  pruningOptions: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderTopColor: theme.colors.borderLight,
+    borderTopWidth: 1,
+    gap: 8,
+    padding: 10
+  },
+  pruningOption: {
+    backgroundColor: theme.colors.surface,
+    marginLeft: 12
   },
   errorBanner: {
     backgroundColor: theme.colors.errorMuted,

@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-26
+last_reviewed: 2026-09-01
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -205,6 +205,15 @@ caracteres para finalizar, la conserva en el borrador y al copiar la mezcla, y
 la envia como `mezclas[].frecuenciaDosis` dentro de la misma operacion padre.
 Recetas y outbox historicos no se reescriben; cuando el valor no existe los
 reportes muestran `-`.
+
+La migracion SQLite 71 amplia el dominio de `visita_receta_labores.labor` con
+cuatro tipos de poda. Recrea solo esa tabla hija y copia identidad local/remota,
+estado de sync, fechas y error sin modificar la receta padre, sus borradores o
+la outbox. `Poda` es un grupo exclusivo de UI: se persiste como maximo uno de
+sus subtipos y nunca el padre visual. Las labores siguen viajando como
+`labores[].labor` dentro de la unica operacion `visita_recetas`. El despliegue
+aplica primero la migracion PostgreSQL 059 y la API compatible, y despues
+publica mobile.
 
 Al finalizar Mezclas, mobile guarda el agregado de receta, actualiza
 `endVisitTime` y solo entonces elimina ambos borradores. Si cualquiera de esos

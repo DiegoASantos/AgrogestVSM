@@ -121,6 +121,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Dashboard de visitas por agrónomo y parcelas por etapa](specs/068-dashboard-visitas-y-etapas.md)
 - [Lookup de agrónomos para visitas con rol analista](specs/069-lookup-agronomos-analista.md)
 - [Reporte Excel de visitas por agrónomo](specs/070-reporte-excel-visitas-por-agronomo.md)
+- [Opciones de poda en recomendaciones de labores culturales](specs/071-opciones-poda-recomendaciones.md)
 
 ## Runbooks
 

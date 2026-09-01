@@ -485,7 +485,7 @@ export const SQL_SCHEMA = [
     local_id TEXT PRIMARY KEY NOT NULL,
     server_id TEXT,
     receta_local_id TEXT NOT NULL,
-    labor TEXT NOT NULL CHECK(labor IN ('limpieza_maleza_pala', 'limpieza_maleza_motoguadana', 'horqueteo', 'enzunchado', 'recoleccion_frutos', 'trampas_mosca')),
+    labor TEXT NOT NULL CHECK(labor IN ('limpieza_maleza_pala', 'limpieza_maleza_motoguadana', 'horqueteo', 'enzunchado', 'recoleccion_frutos', 'trampas_mosca', 'poda_formacion', 'poda_saneamiento', 'poda_aclareo_iluminacion', 'poda_rejuvenecimiento_severa')),
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
