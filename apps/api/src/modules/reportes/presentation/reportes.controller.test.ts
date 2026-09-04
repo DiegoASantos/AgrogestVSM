@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { REQUIRED_ROLES_KEY } from "../../auth/presentation/decorators/roles.decorator";
 import { ReportesController } from "./reportes.controller";
 import { ReporteCamposEtapasQueryDto } from "./dto/reporte-campos-etapas-query.dto";
+import { ReporteParcelasQueryDto } from "./dto/reporte-parcelas-query.dto";
 import { ReporteVisitasQueryDto } from "./dto/reporte-visitas-query.dto";
 
 describe("ReportesController", () => {
@@ -56,6 +57,38 @@ describe("ReportesController", () => {
     expect(validDto.agronomo_usuario_id).toBe("7");
     expect((await validate(invalidDto)).map((error) => error.property)).toEqual(
       expect.arrayContaining(["agronomo_usuario_id", "productor_id"])
+    );
+  });
+
+  it("validates parcel report identifiers and status", async () => {
+    const validDto = plainToInstance(ReporteParcelasQueryDto, {
+      agronomo_usuario_id: " 7 ",
+      productor_id: "15",
+      sector_id: "2",
+      subsector_id: "3",
+      activo: "false"
+    });
+    const invalidDto = plainToInstance(ReporteParcelasQueryDto, {
+      agronomo_usuario_id: "0",
+      productor_id: "abc",
+      sector_id: "-1",
+      subsector_id: "0",
+      activo: "todos"
+    });
+
+    expect(await validate(validDto)).toHaveLength(0);
+    expect(validDto).toMatchObject({
+      agronomo_usuario_id: "7",
+      activo: false
+    });
+    expect((await validate(invalidDto)).map((error) => error.property)).toEqual(
+      expect.arrayContaining([
+        "agronomo_usuario_id",
+        "productor_id",
+        "sector_id",
+        "subsector_id",
+        "activo"
+      ])
     );
   });
 });

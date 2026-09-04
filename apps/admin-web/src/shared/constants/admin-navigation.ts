@@ -34,6 +34,11 @@ export const adminReportsNavigation: AdminNavLink[] = [
     label: "Campos por etapas",
     href: adminRoutes.reportesItems.camposPorEtapas,
     description: "Ultima etapa o labor registrada por parcela"
+  },
+  {
+    label: "Parcelas",
+    href: adminRoutes.reportesItems.parcelas,
+    description: "Distribucion de parcelas por categoria de area"
   }
 ];
 

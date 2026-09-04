@@ -122,6 +122,7 @@ describe("isRestrictedAdminPath", () => {
     "/reportes",
     "/reportes/visitas",
     "/reportes/campos-por-etapas",
+    "/reportes/parcelas",
     "/seguridad",
     "/seguridad/usuarios"
   ])("flags %s as restricted", (path) => {
@@ -141,6 +142,7 @@ describe("role-restricted path matchers", () => {
     expect(isMaintenancePath("/mantenimiento/parcelas/1/geodatos")).toBe(true);
     expect(isReportsPath("/reportes")).toBe(true);
     expect(isReportsPath("/reportes/campos-por-etapas")).toBe(true);
+    expect(isReportsPath("/reportes/parcelas")).toBe(true);
     expect(isSecurityPath("/seguridad/usuarios")).toBe(true);
     expect(isReportsPath("/reporte-excel")).toBe(false);
   });
@@ -192,6 +194,7 @@ describe("canAccessAdminPath", () => {
     expect(canAccessAdminPath("/mantenimiento/cultivos", analystSession)).toBe(true);
     expect(canAccessAdminPath("/reportes", analystSession)).toBe(true);
     expect(canAccessAdminPath("/reportes/visitas", analystSession)).toBe(true);
+    expect(canAccessAdminPath("/reportes/parcelas", analystSession)).toBe(true);
     expect(canAccessAdminPath("/seguridad/usuarios", analystSession)).toBe(false);
   });
 
@@ -203,5 +206,6 @@ describe("canAccessAdminPath", () => {
     expect(canAccessAdminPath("/reportes/campos-por-etapas", agronomistSession)).toBe(
       false
     );
+    expect(canAccessAdminPath("/reportes/parcelas", agronomistSession)).toBe(false);
   });
 });

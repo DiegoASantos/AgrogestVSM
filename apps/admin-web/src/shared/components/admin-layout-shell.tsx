@@ -95,7 +95,8 @@ const securityNavIcons: Record<string, LucideIcon> = {
 };
 const reportsNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.reportesItems.visitas]: ClipboardList,
-  [adminRoutes.reportesItems.camposPorEtapas]: Layers
+  [adminRoutes.reportesItems.camposPorEtapas]: Layers,
+  [adminRoutes.reportesItems.parcelas]: MapIcon
 };
 const climateNavIcons: Record<string, LucideIcon> = Object.fromEntries(
   adminClimateNavigation.map((item) => [item.href, CloudSun])

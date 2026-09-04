@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { DataSource } from "typeorm";
 
 import { ReporteCamposEtapasQueryDto } from "../presentation/dto/reporte-campos-etapas-query.dto";
+import { ReporteParcelasQueryDto } from "../presentation/dto/reporte-parcelas-query.dto";
 import { ReporteVisitasQueryDto } from "../presentation/dto/reporte-visitas-query.dto";
 
 type VisitSummaryRow = {
@@ -39,6 +40,34 @@ type LatestParcelStageRow = {
   engineerName: string;
   stageId: string | null;
   stageName: string | null;
+  geometry: unknown | null;
+  parcelPoint: unknown | null;
+  referencePoint: unknown | null;
+};
+
+const PARCEL_AREA_CATEGORIES = [
+  { code: "MICRO", name: "Micro" },
+  { code: "PEQUENO", name: "Pequeño" },
+  { code: "MEDIANO", name: "Mediano" },
+  { code: "GRANDE", name: "Grande" }
+] as const;
+
+export type ParcelAreaCategoryCode = (typeof PARCEL_AREA_CATEGORIES)[number]["code"];
+
+type ParcelReportRow = {
+  parcelId: string;
+  parcelCode: string;
+  parcelName: string | null;
+  productorId: string;
+  productorName: string;
+  sectorId: string;
+  sectorName: string;
+  subsectorId: string;
+  subsectorName: string;
+  agronomistUserId: string | null;
+  engineerName: string;
+  areaHectares: string | null;
+  isActive: boolean;
   geometry: unknown | null;
   parcelPoint: unknown | null;
   referencePoint: unknown | null;
@@ -170,6 +199,181 @@ export class ReportesService {
         referencePoint: parcel.referencePoint
       }))
     };
+  }
+
+  async getParcelsReport(query: ReporteParcelasQueryDto) {
+    const rows = await this.getParcelsForReport(query);
+    const engineers = new Map<
+      string,
+      {
+        agronomistUserId: string | null;
+        engineerName: string;
+        hectares: number;
+        parcelsCount: number;
+      }
+    >();
+    const distributions = new Map(
+      PARCEL_AREA_CATEGORIES.map((category) => [
+        category.code,
+        { ...category, parcelsCount: 0, hectares: 0 }
+      ])
+    );
+    const categorizedParcels: Array<
+      Omit<ParcelReportRow, "areaHectares"> & {
+        areaHectares: number;
+        category: ParcelAreaCategoryCode;
+        categoryName: string;
+      }
+    > = [];
+    let totalHectares = 0;
+    let uncategorizedParcels = 0;
+    let categorizedWithoutGeodata = 0;
+
+    for (const row of rows) {
+      const area = normalizePositiveArea(row.areaHectares);
+      const engineerKey = row.agronomistUserId ?? "unassigned";
+      const engineer = engineers.get(engineerKey) ?? {
+        agronomistUserId: row.agronomistUserId,
+        engineerName: row.engineerName,
+        hectares: 0,
+        parcelsCount: 0
+      };
+      engineer.parcelsCount += 1;
+      engineer.hectares += area ?? 0;
+      engineers.set(engineerKey, engineer);
+      totalHectares += area ?? 0;
+
+      const category = area === null ? null : classifyParcelArea(area);
+      if (!category || area === null) {
+        uncategorizedParcels += 1;
+        continue;
+      }
+
+      const distribution = distributions.get(category)!;
+      distribution.parcelsCount += 1;
+      distribution.hectares += area;
+      const categoryName = PARCEL_AREA_CATEGORIES.find(
+        (item) => item.code === category
+      )!.name;
+      categorizedParcels.push({
+        ...row,
+        areaHectares: round2(area),
+        category,
+        categoryName
+      });
+      if (!row.geometry && !row.parcelPoint && !row.referencePoint) {
+        categorizedWithoutGeodata += 1;
+      }
+    }
+
+    const categorizedParcelsCount = categorizedParcels.length;
+    const categorizedHectares = [...distributions.values()].reduce(
+      (total, item) => total + item.hectares,
+      0
+    );
+
+    return {
+      totals: {
+        parcels: rows.length,
+        hectares: round2(totalHectares),
+        averageHectaresPerParcel:
+          rows.length === 0 ? 0 : round2(totalHectares / rows.length),
+        categorizedParcels: categorizedParcelsCount,
+        uncategorizedParcels,
+        categorizedWithoutGeodata
+      },
+      summary: [...engineers.values()]
+        .map((engineer) => ({
+          ...engineer,
+          hectares: round2(engineer.hectares),
+          averageHectaresPerParcel:
+            engineer.parcelsCount === 0
+              ? 0
+              : round2(engineer.hectares / engineer.parcelsCount)
+        }))
+        .sort(
+          (left, right) =>
+            right.hectares - left.hectares ||
+            left.engineerName.localeCompare(right.engineerName, "es")
+        ),
+      distribution: [...distributions.values()].map((item) => ({
+        code: item.code,
+        name: item.name,
+        parcelsCount: item.parcelsCount,
+        parcelPercentage: percentage(item.parcelsCount, categorizedParcelsCount),
+        hectares: round2(item.hectares),
+        hectarePercentage: percentage(item.hectares, categorizedHectares)
+      })),
+      parcels: categorizedParcels
+    };
+  }
+
+  private getParcelsForReport(query: ReporteParcelasQueryDto) {
+    const values: Array<string | boolean> = [];
+    const filters: string[] = [];
+    const addFilter = (
+      value: string | boolean,
+      expression: (index: number) => string
+    ) => {
+      values.push(value);
+      filters.push(expression(values.length));
+    };
+
+    if (query.agronomo_usuario_id) {
+      addFilter(
+        query.agronomo_usuario_id,
+        (index) => `p.agronomo_usuario_id = $${index}`
+      );
+    }
+    if (query.productor_id) {
+      addFilter(query.productor_id, (index) => `p.productor_id = $${index}`);
+    }
+    if (query.sector_id) {
+      addFilter(query.sector_id, (index) => `s.id = $${index}`);
+    }
+    if (query.subsector_id) {
+      addFilter(query.subsector_id, (index) => `ss.id = $${index}`);
+    }
+    if (query.activo !== undefined) {
+      addFilter(query.activo, (index) => `p.activo = $${index}`);
+    }
+
+    return this.dataSource.query<ParcelReportRow[]>(
+      `SELECT
+        p.id AS "parcelId",
+        p.codigo AS "parcelCode",
+        p.nombre AS "parcelName",
+        productor.id AS "productorId",
+        COALESCE(
+          NULLIF(BTRIM(CONCAT_WS(' ', productor.nombres, productor.apellidos)), ''),
+          'Productor sin nombre'
+        ) AS "productorName",
+        s.id AS "sectorId",
+        s.nombre AS "sectorName",
+        ss.id AS "subsectorId",
+        ss.nombre AS "subsectorName",
+        u.id AS "agronomistUserId",
+        CASE
+          WHEN u.id IS NULL THEN 'Sin asignar'
+          ELSE COALESCE(
+            NULLIF(BTRIM(CONCAT_WS(' ', u.nombres, u.apellidos)), ''),
+            'Ingeniero sin nombre'
+          )
+        END AS "engineerName",
+        p.area_ha AS "areaHectares",
+        p.activo AS "isActive",
+        ST_AsGeoJSON(p.geometria)::json AS "geometry",
+        ST_AsGeoJSON(p.punto_referencia_parcela)::json AS "parcelPoint",
+        ST_AsGeoJSON(p.punto_referencia)::json AS "referencePoint"
+      FROM parcelas p
+      INNER JOIN productores productor ON productor.id = p.productor_id
+      INNER JOIN subsectores ss ON ss.id = p.subsector_id
+      INNER JOIN sectores s ON s.id = ss.sector_id
+      LEFT JOIN usuarios u ON u.id = p.agronomo_usuario_id
+      ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+      ORDER BY "engineerName" ASC, p.codigo ASC`,
+      values
+    );
   }
 
   private getActiveStages() {
@@ -364,4 +568,22 @@ export class ReportesService {
 
 function percentage(count: number, total: number) {
   return total === 0 ? 0 : Number(((count / total) * 100).toFixed(2));
+}
+
+export function classifyParcelArea(area: number): ParcelAreaCategoryCode | null {
+  if (!Number.isFinite(area) || area <= 0) return null;
+  if (area < 4) return "MICRO";
+  if (area < 7) return "PEQUENO";
+  if (area < 10) return "MEDIANO";
+  return "GRANDE";
+}
+
+function normalizePositiveArea(value: string | null) {
+  if (value === null) return null;
+  const area = Number(value);
+  return Number.isFinite(area) && area > 0 ? area : null;
+}
+
+function round2(value: number) {
+  return Number(value.toFixed(2));
 }

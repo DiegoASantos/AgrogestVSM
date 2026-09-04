@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildFieldsByStageReportQuery,
+  buildParcelsReportQuery,
   buildProductorLabel,
   buildVisitReportQuery,
   reportesService
@@ -14,15 +15,21 @@ beforeEach(() => {
     "fetch",
     vi.fn().mockImplementation((input: string) => {
       const url = String(input);
-      const data = url.includes("/reportes/campos-por-etapas")
-        ? makeFieldsByStageReport()
-        : url.includes("/usuarios/agronomos")
-          ? [{ id: "7", displayName: "Ana López", isActive: true }]
-          : url.includes("/productores")
-            ? [makeProductor()]
-            : url.includes("/parcelas")
-              ? [makeParcela()]
-              : { summary: [], timeline: [] };
+      const data = url.includes("/reportes/parcelas")
+        ? makeParcelsReport()
+        : url.includes("/reportes/campos-por-etapas")
+          ? makeFieldsByStageReport()
+          : url.includes("/usuarios/agronomos")
+            ? [{ id: "7", displayName: "Ana López", isActive: true }]
+            : url.includes("/productores")
+              ? [makeProductor()]
+              : url.includes("/sectores")
+                ? [makeSector()]
+                : url.includes("/subsectores")
+                  ? [makeSubsector()]
+                  : url.includes("/parcelas")
+                    ? [makeParcela()]
+                    : { summary: [], timeline: [] };
 
       return Promise.resolve({
         ok: true,
@@ -130,7 +137,58 @@ describe("reportesService", () => {
     );
     expect(urls.some((url) => url.includes("/parcelas"))).toBe(false);
   });
+
+  it("builds every parcel report filter including inactive status", async () => {
+    const filters = {
+      agronomistUserId: "7",
+      productorId: "15",
+      sectorId: "2",
+      subsectorId: "3",
+      status: "false" as const
+    };
+
+    expect(buildParcelsReportQuery(filters)).toBe(
+      "agronomo_usuario_id=7&productor_id=15&sector_id=2&subsector_id=3&activo=false"
+    );
+    await reportesService.getParcelsReport(session, filters);
+
+    expect(
+      String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])
+    ).toContain("/reportes/parcelas?agronomo_usuario_id=7");
+  });
+
+  it("loads parcel report filter catalogs without forcing active territory", async () => {
+    const catalogs = await reportesService.getParcelsReportCatalogs(session);
+
+    expect(catalogs.agronomists[0]?.id).toBe("7");
+    expect(catalogs.productores[0]?.id).toBe("15");
+    expect(catalogs.sectores[0]?.id).toBe("2");
+    expect(catalogs.subsectores[0]?.sectorId).toBe("2");
+    const urls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map((call) =>
+      String(call[0])
+    );
+    expect(urls.some((url) => url.includes("/productores?"))).toBe(true);
+    expect(urls.some((url) => url.includes("/sectores?"))).toBe(true);
+    expect(urls.some((url) => url.includes("/subsectores?"))).toBe(true);
+    expect(urls.some((url) => url.includes("activo="))).toBe(false);
+  });
 });
+
+function makeParcelsReport() {
+  return {
+    totals: {
+      parcels: 0,
+      hectares: 0,
+      averageHectaresPerParcel: 0,
+      categorizedParcels: 0,
+      uncategorizedParcels: 0,
+      categorizedWithoutGeodata: 0
+    },
+    summary: [],
+    distribution: [],
+    parcels: []
+  };
+}
 
 function makeFieldsByStageReport() {
   return {
@@ -178,6 +236,31 @@ function makeParcela() {
     geometry: null,
     agronomoUsuarioId: "7",
     geo: { point: null, polygon: null, hasGeodata: false },
+    isActive: true,
+    createdAt: "2026-09-01",
+    updatedAt: "2026-09-01"
+  };
+}
+
+function makeSector() {
+  return {
+    id: "2",
+    distritoId: "1",
+    name: "Valle Norte",
+    description: null,
+    isActive: true,
+    createdAt: "2026-09-01",
+    updatedAt: "2026-09-01"
+  };
+}
+
+function makeSubsector() {
+  return {
+    id: "3",
+    publicId: "subsector-public-id",
+    sectorId: "2",
+    name: "Canal A",
+    description: null,
     isActive: true,
     createdAt: "2026-09-01",
     updatedAt: "2026-09-01"

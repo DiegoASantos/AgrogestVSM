@@ -14,13 +14,17 @@ describe("admin report navigation", () => {
     );
     expect(adminReportsNavigation.map((item) => item.href)).toEqual([
       adminRoutes.reportesItems.visitas,
-      adminRoutes.reportesItems.camposPorEtapas
+      adminRoutes.reportesItems.camposPorEtapas,
+      adminRoutes.reportesItems.parcelas
     ]);
     expect(resolveAdminRouteMeta(adminRoutes.reportesItems.visitas).label).toBe(
       "Visitas"
     );
     expect(resolveAdminRouteMeta(adminRoutes.reportesItems.camposPorEtapas).label).toBe(
       "Campos por etapas"
+    );
+    expect(resolveAdminRouteMeta(adminRoutes.reportesItems.parcelas).label).toBe(
+      "Parcelas"
     );
   });
 });

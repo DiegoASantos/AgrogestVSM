@@ -9,6 +9,7 @@ import {
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { ReportesService } from "../application/reportes.service";
 import { ReporteCamposEtapasQueryDto } from "./dto/reporte-campos-etapas-query.dto";
+import { ReporteParcelasQueryDto } from "./dto/reporte-parcelas-query.dto";
 import { ReporteVisitasQueryDto } from "./dto/reporte-visitas-query.dto";
 
 @ApiTags("Reportes")
@@ -44,6 +45,21 @@ export class ReportesController {
   })
   async getFieldsByStageReport(@Query() query: ReporteCamposEtapasQueryDto) {
     const data = await this.reportesService.getFieldsByStageReport(query);
+    return { success: true, data };
+  }
+
+  @Get("parcelas")
+  @ApiOperation({
+    summary: "Resume parcelas y hectáreas por ingeniero y categoría de área."
+  })
+  @ApiOkResponse({
+    description: "Resumen, distribuciones y parcelas categorizadas para el mapa."
+  })
+  @ApiBadRequestResponse({
+    description: "Los identificadores o el estado de filtro no son válidos."
+  })
+  async getParcelsReport(@Query() query: ReporteParcelasQueryDto) {
+    const data = await this.reportesService.getParcelsReport(query);
     return { success: true, data };
   }
 }

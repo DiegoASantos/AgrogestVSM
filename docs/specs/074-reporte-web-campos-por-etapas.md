@@ -54,13 +54,14 @@ activa registrada para cada parcela.
   activos, parcelas activas y etapas o labores activas.
 - RF-005: El filtro de Ingeniero se aplica al agronomo de la ultima visita y el
   filtro de Productor se aplica al propietario de la parcela.
-- RF-006: La tabla presenta exactamente una columna `Ingeniero` seguida por
-  las ocho entradas activas de `etapas_fenologicas`, ordenadas por `orden`, sin
-  distinguir visualmente si cada entrada es `Etapa` o `Labor`.
+- RF-006: La tabla presenta una columna `Ingeniero`, las ocho entradas activas
+  de `etapas_fenologicas` ordenadas por `orden` y una última columna `Total`,
+  sin distinguir visualmente si cada entrada es `Etapa` o `Labor`.
 - RF-007: Cada celda de la tabla muestra `cantidad (porcentaje)`. El porcentaje
   usa como denominador el total global de parcelas categorizadas que coincide
   con los filtros. Una fila final `Total` muestra la cantidad y porcentaje de
-  cada etapa o labor; no se agrega una columna adicional de total general.
+  cada etapa o labor. La columna `Total` muestra el total del ingeniero y su
+  porcentaje global; en la fila final muestra el total categorizado y 100%.
 - RF-008: La tabla incluye todos los agronomos activos, aunque tengan cero
   parcelas; si se filtra por Ingeniero, muestra solo el seleccionado.
 - RF-009: El mapa muestra cada parcela participante mediante su poligono o,
@@ -124,8 +125,8 @@ Visitas sin transformar datos.
       graficos sin recargar la pagina.
 - [x] CA-004: Cada parcela se cuenta una sola vez, usando etapa o labor e
       ingeniero de su ultima visita activa sin filtro de fecha.
-- [x] CA-005: La tabla muestra Ingeniero mas las ocho columnas del catalogo,
-      cantidades, porcentajes globales y fila Total.
+- [x] CA-005: La tabla muestra Ingeniero, las ocho columnas del catalogo y la
+      columna final Total, con cantidades, porcentajes globales y fila Total.
 - [x] CA-006: El mapa usa geodatos de parcela y colores estables para las ocho
       etapas o labores, con conteos de faltantes.
 - [x] CA-007: Existe un grafico circular por cada agronomo activo, incluidos

@@ -2,6 +2,8 @@ import type { AuthSession } from "../../auth/types/auth.types";
 import type { ParcelaListItem } from "../../parcelas/types/parcelas.types";
 import type { ProductorListItem } from "../../productores/types/productores.types";
 import type { AgronomistLookupItem } from "../../seguridad/types/security.types";
+import { sectoresService } from "../../sectores/services/sectores.service";
+import { subsectoresService } from "../../subsectores/services/subsectores.service";
 import {
   apiRequest,
   createAuthHeaders,
@@ -11,6 +13,9 @@ import type {
   FieldsByStageCatalogs,
   FieldsByStageFilters,
   FieldsByStageReportData,
+  ParcelsReportCatalogs,
+  ParcelsReportData,
+  ParcelsReportFilters,
   VisitReportFilters,
   VisitsReportCatalogs,
   VisitsReportData
@@ -78,8 +83,62 @@ export const reportesService = {
         buildProductorLabel(left).localeCompare(buildProductorLabel(right), "es")
       )
     };
+  },
+
+  async getParcelsReport(
+    session: AuthSessionInput,
+    filters: ParcelsReportFilters
+  ): Promise<ParcelsReportData> {
+    const query = buildParcelsReportQuery(filters);
+    const suffix = query ? `?${query}` : "";
+
+    return apiRequest<ParcelsReportData>(`/reportes/parcelas${suffix}`, {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+  },
+
+  async getParcelsReportCatalogs(
+    session: AuthSessionInput
+  ): Promise<ParcelsReportCatalogs> {
+    const headers = createAuthHeaders(session.accessToken, session.tokenType);
+    const [agronomists, productores, sectores, subsectores] = await Promise.all([
+      apiRequest<AgronomistLookupItem[]>("/usuarios/agronomos", { headers }),
+      fetchAllPaginated<ProductorListItem>("/productores", { headers }),
+      sectoresService.getAll(session),
+      subsectoresService.getAll(session)
+    ]);
+
+    return {
+      agronomists: agronomists.sort((left, right) =>
+        left.displayName.localeCompare(right.displayName, "es")
+      ),
+      productores: productores.sort((left, right) =>
+        buildProductorLabel(left).localeCompare(buildProductorLabel(right), "es")
+      ),
+      sectores: sectores.sort((left, right) => left.name.localeCompare(right.name, "es")),
+      subsectores: subsectores.sort((left, right) =>
+        left.name.localeCompare(right.name, "es")
+      )
+    };
   }
 };
+
+export function buildParcelsReportQuery(filters: ParcelsReportFilters) {
+  const searchParams = new URLSearchParams();
+  const optionalIds = [
+    ["agronomo_usuario_id", filters.agronomistUserId],
+    ["productor_id", filters.productorId],
+    ["sector_id", filters.sectorId],
+    ["subsector_id", filters.subsectorId]
+  ] as const;
+
+  for (const [key, value] of optionalIds) {
+    if (value) searchParams.set(key, value);
+  }
+  if (filters.status) searchParams.set("activo", filters.status);
+
+  return searchParams.toString();
+}
 
 export function buildFieldsByStageReportQuery(filters: FieldsByStageFilters) {
   const searchParams = new URLSearchParams();

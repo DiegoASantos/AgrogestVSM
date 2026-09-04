@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ReportesService } from "./reportes.service";
+import { classifyParcelArea, ReportesService } from "./reportes.service";
 
 describe("ReportesService", () => {
   it("returns active agronomists including zero results and calculates averages", async () => {
@@ -191,6 +191,118 @@ describe("ReportesService", () => {
     expect(parcelSql.slice(cteEnd)).toContain("uv.agronomo_usuario_id = $2");
     expect(query.mock.calls[2]?.[1]).toEqual(["15", "7"]);
   });
+
+  it.each([
+    [0, null],
+    [0.5, "MICRO"],
+    [3.9999, "MICRO"],
+    [4, "PEQUENO"],
+    [6.9999, "PEQUENO"],
+    [7, "MEDIANO"],
+    [9.9999, "MEDIANO"],
+    [10, "GRANDE"],
+    [24.5, "GRANDE"]
+  ] as const)("classifies %s hectares as %s", (area, expected) => {
+    expect(classifyParcelArea(area)).toBe(expected);
+  });
+
+  it("builds parcel summaries and both category distributions", async () => {
+    const query = vi.fn().mockResolvedValue([
+      makeParcelReportRow({ parcelId: "1", areaHectares: "3" }),
+      makeParcelReportRow({ parcelId: "2", areaHectares: "5" }),
+      makeParcelReportRow({ parcelId: "3", areaHectares: "10" }),
+      makeParcelReportRow({
+        parcelId: "4",
+        agronomistUserId: null,
+        engineerName: "Sin asignar",
+        areaHectares: null
+      })
+    ]);
+    const service = new ReportesService({ query } as never);
+
+    const result = await service.getParcelsReport({ activo: true });
+
+    expect(result.totals).toEqual({
+      parcels: 4,
+      hectares: 18,
+      averageHectaresPerParcel: 4.5,
+      categorizedParcels: 3,
+      uncategorizedParcels: 1,
+      categorizedWithoutGeodata: 3
+    });
+    expect(result.summary).toEqual([
+      {
+        agronomistUserId: "7",
+        engineerName: "Ana Lopez",
+        hectares: 18,
+        parcelsCount: 3,
+        averageHectaresPerParcel: 6
+      },
+      {
+        agronomistUserId: null,
+        engineerName: "Sin asignar",
+        hectares: 0,
+        parcelsCount: 1,
+        averageHectaresPerParcel: 0
+      }
+    ]);
+    expect(result.distribution).toEqual([
+      {
+        code: "MICRO",
+        name: "Micro",
+        parcelsCount: 1,
+        parcelPercentage: 33.33,
+        hectares: 3,
+        hectarePercentage: 16.67
+      },
+      {
+        code: "PEQUENO",
+        name: "Pequeño",
+        parcelsCount: 1,
+        parcelPercentage: 33.33,
+        hectares: 5,
+        hectarePercentage: 27.78
+      },
+      {
+        code: "MEDIANO",
+        name: "Mediano",
+        parcelsCount: 0,
+        parcelPercentage: 0,
+        hectares: 0,
+        hectarePercentage: 0
+      },
+      {
+        code: "GRANDE",
+        name: "Grande",
+        parcelsCount: 1,
+        parcelPercentage: 33.33,
+        hectares: 10,
+        hectarePercentage: 55.56
+      }
+    ]);
+    expect(result.parcels).toHaveLength(3);
+  });
+
+  it("parameterizes every parcel report filter against current assignment", async () => {
+    const query = vi.fn().mockResolvedValue([]);
+    const service = new ReportesService({ query } as never);
+
+    await service.getParcelsReport({
+      agronomo_usuario_id: "7",
+      productor_id: "15",
+      sector_id: "2",
+      subsector_id: "3",
+      activo: false
+    });
+
+    const sql = String(query.mock.calls[0]?.[0]);
+    expect(sql).toContain("p.agronomo_usuario_id = $1");
+    expect(sql).toContain("p.productor_id = $2");
+    expect(sql).toContain("s.id = $3");
+    expect(sql).toContain("ss.id = $4");
+    expect(sql).toContain("p.activo = $5");
+    expect(query.mock.calls[0]?.[1]).toEqual(["7", "15", "2", "3", false]);
+  });
 });
 
 function makeLatestParcel(
@@ -212,6 +324,35 @@ function makeLatestParcel(
     engineerName: "Ana Lopez",
     stageId: "1",
     stageName: "Brotamiento",
+    geometry: null,
+    parcelPoint: null,
+    referencePoint: null,
+    ...overrides
+  };
+}
+
+function makeParcelReportRow(
+  overrides: Partial<{
+    parcelId: string;
+    agronomistUserId: string | null;
+    engineerName: string;
+    areaHectares: string | null;
+  }> = {}
+) {
+  return {
+    parcelId: "1",
+    parcelCode: "PAR-001",
+    parcelName: "El Mango",
+    productorId: "15",
+    productorName: "Rosa Diaz",
+    sectorId: "2",
+    sectorName: "Valle Norte",
+    subsectorId: "3",
+    subsectorName: "Canal A",
+    agronomistUserId: "7",
+    engineerName: "Ana Lopez",
+    areaHectares: "3",
+    isActive: true,
     geometry: null,
     parcelPoint: null,
     referencePoint: null,

@@ -4156,6 +4156,19 @@ canvas {
   box-shadow: 0 10px 28px rgba(6, 35, 21, 0.2);
 }
 
+.report-visits__filters:focus-within {
+  z-index: 20;
+}
+
+.report-visits__filters .searchable-select:focus-within {
+  z-index: 30;
+}
+
+.report-visits__filters .searchable-select__list {
+  z-index: 40;
+  box-shadow: 0 16px 34px rgba(10, 42, 25, 0.24);
+}
+
 .report-visits__filters .filter-card__header {
   border-bottom-color: #c8d9c2;
   background: #dcebcf;
@@ -4416,10 +4429,23 @@ canvas {
 .stage-summary-table th:first-child {
   position: sticky;
   left: 0;
-  z-index: 2;
   width: 180px;
   min-width: 180px;
   text-align: left;
+}
+
+.stage-summary-table thead th:first-child {
+  z-index: 12;
+}
+
+.stage-summary-table tbody th:first-child {
+  top: auto;
+  z-index: 3;
+}
+
+.stage-summary-table tfoot th:first-child {
+  top: auto;
+  z-index: 4;
 }
 
 .stage-summary-table tbody th {
@@ -4450,15 +4476,25 @@ canvas {
   font-size: 0.69rem;
 }
 
+.stage-summary-table .stage-summary-table__total {
+  border-left: 2px solid #91aa91;
+  background: #ddebd8;
+}
+
+.stage-summary-table thead .stage-summary-table__total {
+  border-left-color: #6f957d;
+  background: #173f2b;
+}
+
+.stage-summary-table tbody tr:nth-child(even) .stage-summary-table__total {
+  background: #d3e4ce;
+}
+
 .stage-summary-table tfoot th,
 .stage-summary-table tfoot td {
   border-bottom: 0;
   background: #cfdfc8;
   color: #173c29;
-}
-
-.stage-summary-table tfoot th {
-  z-index: 3;
 }
 
 .fields-stage-report__map .admin-map {
@@ -4587,6 +4623,152 @@ canvas {
   text-align: center;
 }
 
+.parcel-report__filters .filter-card__body {
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+}
+
+.parcel-report__dashboard {
+  display: grid;
+  grid-template-areas:
+    "summary parcel-chart"
+    "map hectare-chart";
+  grid-template-columns: minmax(0, 1.12fr) minmax(340px, 0.88fr);
+  gap: 18px;
+}
+
+.parcel-report__summary {
+  grid-area: summary;
+}
+
+.parcel-report__parcel-chart {
+  grid-area: parcel-chart;
+}
+
+.parcel-report__map {
+  grid-area: map;
+}
+
+.parcel-report__hectare-chart {
+  grid-area: hectare-chart;
+}
+
+.parcel-summary-table {
+  min-width: 620px;
+}
+
+.parcel-summary-table thead th {
+  border-bottom-color: #143d29;
+  background: #245a3d;
+  color: #ffffff;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.parcel-summary-table tbody tr:nth-child(even) {
+  background: #e9f2e5;
+}
+
+.parcel-summary-table tbody th {
+  color: #173d29;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.parcel-summary-table td {
+  color: #245a3d;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.parcel-summary-table tfoot th,
+.parcel-summary-table tfoot td {
+  border-bottom: 0;
+  background: #cfdfc8;
+  color: #173c29;
+  font-weight: 800;
+}
+
+.parcel-category-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 10px 12px;
+  border: 1px solid #c6d6c4;
+  border-radius: 10px;
+  background: #edf4e9;
+}
+
+.parcel-category-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #405a49;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.parcel-category-legend i,
+.parcel-category-chart__legend i {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.82);
+}
+
+.parcel-report__map .admin-map {
+  border-color: #91ad99;
+  box-shadow: 0 8px 22px rgba(20, 61, 41, 0.13);
+}
+
+.parcel-category-chart {
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(210px, 1fr) minmax(190px, 0.8fr);
+  gap: 12px;
+  min-height: 290px;
+  padding: 8px 4px 4px;
+}
+
+.parcel-category-chart__plot {
+  min-width: 0;
+  height: 270px;
+}
+
+.parcel-category-chart__legend {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parcel-category-chart__legend li {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 3px 8px;
+  color: #435c4c;
+  font-size: 0.76rem;
+}
+
+.parcel-category-chart__legend strong {
+  grid-column: 2;
+  color: #1f4d35;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.71rem;
+}
+
+.parcel-category-chart__empty {
+  min-height: 270px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #65776a;
+  text-align: center;
+}
+
 [data-theme="dark"] .report-visits {
   --report-canvas: #111b16;
   --report-border: #354a3d;
@@ -4698,6 +4880,19 @@ canvas {
   background: #294332;
 }
 
+[data-theme="dark"] .stage-summary-table .stage-summary-table__total {
+  border-left-color: #55715d;
+  background: #24382b;
+}
+
+[data-theme="dark"]
+  .stage-summary-table
+  tbody
+  tr:nth-child(even)
+  .stage-summary-table__total {
+  background: #294032;
+}
+
 [data-theme="dark"] .stage-pie-card {
   border-color: #3b5242;
   background: #17231c;
@@ -4719,6 +4914,40 @@ canvas {
   color: #a9bbae;
 }
 
+[data-theme="dark"] .parcel-summary-table tbody tr:nth-child(even),
+[data-theme="dark"] .parcel-category-legend {
+  background: #1d2c23;
+}
+
+[data-theme="dark"] .parcel-summary-table tbody th,
+[data-theme="dark"] .parcel-summary-table td,
+[data-theme="dark"] .parcel-summary-table tfoot th,
+[data-theme="dark"] .parcel-summary-table tfoot td,
+[data-theme="dark"] .parcel-category-chart__legend strong {
+  color: #e0eee2;
+}
+
+[data-theme="dark"] .parcel-summary-table tfoot th,
+[data-theme="dark"] .parcel-summary-table tfoot td {
+  background: #294332;
+}
+
+[data-theme="dark"] .parcel-category-legend {
+  border-color: #3b5342;
+}
+
+[data-theme="dark"] .parcel-category-legend span,
+[data-theme="dark"] .parcel-category-chart__legend li,
+[data-theme="dark"] .parcel-category-chart__empty {
+  color: #aabdae;
+}
+
+@media (max-width: 1380px) {
+  .parcel-report__filters .filter-card__body {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1100px) {
   .report-visits__filters .filter-card__body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4734,6 +4963,19 @@ canvas {
 
   .report-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .parcel-report__filters .filter-card__body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .parcel-report__dashboard {
+    grid-template-areas:
+      "summary"
+      "parcel-chart"
+      "map"
+      "hectare-chart";
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -4758,6 +5000,15 @@ canvas {
 
   .fields-stage-report__filters .filter-card__body {
     grid-template-columns: 1fr;
+  }
+
+  .parcel-report__filters .filter-card__body,
+  .parcel-category-chart {
+    grid-template-columns: 1fr;
+  }
+
+  .parcel-category-chart__plot {
+    height: 230px;
   }
 
   .report-visits__filters {

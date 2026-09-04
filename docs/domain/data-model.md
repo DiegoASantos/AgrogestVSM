@@ -410,6 +410,19 @@ categorizadas después de aplicar Ingeniero y Productor. En cada gráfico
 circular, el denominador es el total categorizado del ingeniero correspondiente.
 Los tres componentes consumen el mismo universo devuelto por la API.
 
+El reporte Parcelas usa la asignación actual `Parcela.agronomoUsuarioId` y no
+depende de visitas. Clasifica cada área positiva sin huecos: Micro `(0, 4)`,
+Pequeño `[4, 7)`, Mediano `[7, 10)` y Grande `[10, +∞)` hectáreas. Las áreas
+nulas, no numéricas o no positivas permanecen sin categoría: participan en el
+conteo y promedio del resumen por ingeniero, pero se excluyen del mapa y de las
+distribuciones por categoría.
+
+El porcentaje de parcelas usa como denominador únicamente las parcelas
+categorizadas del conjunto filtrado; el porcentaje de hectáreas usa la suma de
+sus superficies. Los filtros de ingeniero, productor, sector, subsector y estado
+se aplican antes de los agregados, y todos los componentes consumen la misma
+respuesta de la API.
+
 ## Seguridad
 
 - usuario;
@@ -419,9 +432,9 @@ Los tres componentes consumen el mismo universo devuelto por la API.
 
 Los roles distinguen administración, trabajo técnico y consulta. `ANALISTA`
 consulta Dashboard, Visitas, Mapas y Clima, comparte con `ADMIN` el CRUD web de
-Mantenimiento y los reportes web de Visitas y Campos por etapas. El CRUD de
+Mantenimiento y los reportes web de Visitas, Campos por etapas y Parcelas. El CRUD de
 Mantenimiento incluye los catálogos, geodatos y la asignación de agrónomos en
-parcelas; ambos reportes también están disponibles para los dos roles.
+parcelas; los tres reportes también están disponibles para los dos roles.
 Seguridad continúa exclusiva de `ADMIN`. `AGRONOMO` también puede consultar las siete vistas
 territoriales de Clima desde el panel web, además de su acceso climático móvil.
 La aplicación móvil no admite sesiones con rol `ANALISTA`.

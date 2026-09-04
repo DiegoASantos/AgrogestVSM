@@ -118,4 +118,5 @@ en la raíz.
 - [Spec 072: Acceso de analista a mantenimiento y reportes web](072-acceso-analista-mantenimiento-reportes-web.md)
 - [Spec 073: Reporte web de visitas](073-reporte-web-visitas.md)
 - [Spec 074: Reporte web de campos por etapas](074-reporte-web-campos-por-etapas.md)
+- [Spec 075: Reporte web de parcelas por categoría de área](075-reporte-web-parcelas-por-categoria.md)
 - [Plantilla](TEMPLATE.md)

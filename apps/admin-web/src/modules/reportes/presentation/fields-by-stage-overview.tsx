@@ -313,6 +313,7 @@ function StageSummaryTable({ report }: { report: FieldsByStageReportData }) {
             {report.stages.map((stage) => (
               <th key={stage.id}>{stage.name}</th>
             ))}
+            <th className="stage-summary-table__total">Total</th>
           </tr>
         </thead>
         <tbody>
@@ -325,6 +326,15 @@ function StageSummaryTable({ report }: { report: FieldsByStageReportData }) {
                   <span>({formatPercentage(item.percentageOfFilteredTotal)})</span>
                 </td>
               ))}
+              <td className="stage-summary-table__total">
+                <strong>{engineer.totalParcels}</strong>
+                <span>{`(${formatPercentage(
+                  percentage(
+                    engineer.totalParcels,
+                    report.summary.totalCategorizedParcels
+                  )
+                )})`}</span>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -340,6 +350,10 @@ function StageSummaryTable({ report }: { report: FieldsByStageReportData }) {
                 </td>
               );
             })}
+            <td className="stage-summary-table__total">
+              <strong>{report.summary.totalCategorizedParcels}</strong>
+              <span>(100%)</span>
+            </td>
           </tr>
         </tfoot>
       </table>
@@ -447,6 +461,10 @@ function ReportContentState({
 
 function formatPercentage(value: number) {
   return `${new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(value)}%`;
+}
+
+function percentage(count: number, total: number) {
+  return total === 0 ? 0 : Number(((count / total) * 100).toFixed(2));
 }
 
 function formatInteger(value: number) {
