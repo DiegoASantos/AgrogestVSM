@@ -399,7 +399,7 @@ function ParcelsSummaryTable({ report }: { report: ParcelsReportData }) {
         </thead>
         <tbody>
           {report.summary.map((item) => (
-            <tr key={item.agronomistUserId ?? "unassigned"}>
+            <tr key={item.agronomistUserId}>
               <th scope="row">{item.engineerName}</th>
               <td>{formatNumber(item.hectares)}</td>
               <td>{formatInteger(item.parcelsCount)}</td>

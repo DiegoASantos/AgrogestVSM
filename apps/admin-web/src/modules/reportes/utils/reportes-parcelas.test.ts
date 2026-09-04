@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import type { ParcelsReportData } from "../types/reportes.types";
-import { buildParcelsReportMapData } from "./reportes-parcelas";
+import {
+  buildParcelsReportMapData,
+  initialParcelsReportFilters
+} from "./reportes-parcelas";
 
 describe("buildParcelsReportMapData", () => {
+  it("starts with active parcels and leaves inactive or all as explicit choices", () => {
+    expect(initialParcelsReportFilters.status).toBe("true");
+  });
+
   it("uses polygons first and both point fallbacks without duplicating parcels", () => {
     const report = makeReport();
     const data = buildParcelsReportMapData(report);

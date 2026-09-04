@@ -206,7 +206,7 @@ describe("ReportesService", () => {
     expect(classifyParcelArea(area)).toBe(expected);
   });
 
-  it("builds parcel summaries and both category distributions", async () => {
+  it("excludes unassigned parcels from summaries and category distributions", async () => {
     const query = vi.fn().mockResolvedValue([
       makeParcelReportRow({ parcelId: "1", areaHectares: "3" }),
       makeParcelReportRow({ parcelId: "2", areaHectares: "5" }),
@@ -223,11 +223,11 @@ describe("ReportesService", () => {
     const result = await service.getParcelsReport({ activo: true });
 
     expect(result.totals).toEqual({
-      parcels: 4,
+      parcels: 3,
       hectares: 18,
-      averageHectaresPerParcel: 4.5,
+      averageHectaresPerParcel: 6,
       categorizedParcels: 3,
-      uncategorizedParcels: 1,
+      uncategorizedParcels: 0,
       categorizedWithoutGeodata: 3
     });
     expect(result.summary).toEqual([
@@ -237,13 +237,6 @@ describe("ReportesService", () => {
         hectares: 18,
         parcelsCount: 3,
         averageHectaresPerParcel: 6
-      },
-      {
-        agronomistUserId: null,
-        engineerName: "Sin asignar",
-        hectares: 0,
-        parcelsCount: 1,
-        averageHectaresPerParcel: 0
       }
     ]);
     expect(result.distribution).toEqual([
@@ -296,6 +289,7 @@ describe("ReportesService", () => {
     });
 
     const sql = String(query.mock.calls[0]?.[0]);
+    expect(sql).toContain("p.agronomo_usuario_id IS NOT NULL");
     expect(sql).toContain("p.agronomo_usuario_id = $1");
     expect(sql).toContain("p.productor_id = $2");
     expect(sql).toContain("s.id = $3");

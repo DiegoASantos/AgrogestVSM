@@ -202,11 +202,14 @@ export class ReportesService {
   }
 
   async getParcelsReport(query: ReporteParcelasQueryDto) {
-    const rows = await this.getParcelsForReport(query);
+    const rows = (await this.getParcelsForReport(query)).filter(
+      (row): row is ParcelReportRow & { agronomistUserId: string } =>
+        row.agronomistUserId !== null
+    );
     const engineers = new Map<
       string,
       {
-        agronomistUserId: string | null;
+        agronomistUserId: string;
         engineerName: string;
         hectares: number;
         parcelsCount: number;
@@ -231,7 +234,7 @@ export class ReportesService {
 
     for (const row of rows) {
       const area = normalizePositiveArea(row.areaHectares);
-      const engineerKey = row.agronomistUserId ?? "unassigned";
+      const engineerKey = row.agronomistUserId;
       const engineer = engineers.get(engineerKey) ?? {
         agronomistUserId: row.agronomistUserId,
         engineerName: row.engineerName,
@@ -310,7 +313,7 @@ export class ReportesService {
 
   private getParcelsForReport(query: ReporteParcelasQueryDto) {
     const values: Array<string | boolean> = [];
-    const filters: string[] = [];
+    const filters = ["p.agronomo_usuario_id IS NOT NULL"];
     const addFilter = (
       value: string | boolean,
       expression: (index: number) => string
@@ -370,7 +373,7 @@ export class ReportesService {
       INNER JOIN subsectores ss ON ss.id = p.subsector_id
       INNER JOIN sectores s ON s.id = ss.sector_id
       LEFT JOIN usuarios u ON u.id = p.agronomo_usuario_id
-      ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+      WHERE ${filters.join(" AND ")}
       ORDER BY "engineerName" ASC, p.codigo ASC`,
       values
     );

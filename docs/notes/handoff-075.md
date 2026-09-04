@@ -24,6 +24,9 @@ y distribuciones porcentuales de parcelas y hectáreas.
   mapa, gráficos circulares, estados de interfaz y pruebas.
 - navegación y ruta web: tercer submódulo del acordeón Reportes.
 - `docs/`: Spec 075 y actualización de arquitectura, dominio y seguridad.
+- ajuste solicitado el 2026-09-04: exclusión integral de parcelas sin ingeniero,
+  filtro de estado aplicado sobre `parcelas.activo` y centrado del gráfico y la
+  leyenda de distribución de hectáreas.
 
 ## Contratos y datos afectados
 
@@ -46,6 +49,8 @@ y distribuciones porcentuales de parcelas y hectáreas.
 | `pnpm docs:check`           | aprobado, 149 archivos                                                                                           |
 | `git diff --check`          | aprobado; solo avisos CRLF de Windows                                                                            |
 | `pnpm format:check`         | falla basal: 758 archivos históricos no formateados; los archivos modificados fueron formateados individualmente |
+| Pruebas posteriores         | API 20/20 y admin web 11/11 aprobadas                                                                            |
+| Checks posteriores          | lint, typecheck y build de API y admin web aprobados                                                             |
 
 ## Riesgos conocidos y exclusiones
 

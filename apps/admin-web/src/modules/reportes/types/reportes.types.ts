@@ -116,7 +116,7 @@ export type ParcelsReportFilters = {
 export type ParcelAreaCategoryCode = "MICRO" | "PEQUENO" | "MEDIANO" | "GRANDE";
 
 export type ParcelReportSummaryRow = {
-  agronomistUserId: string | null;
+  agronomistUserId: string;
   engineerName: string;
   hectares: number;
   parcelsCount: number;
@@ -142,7 +142,7 @@ export type ParcelReportMapItem = {
   sectorName: string;
   subsectorId: string;
   subsectorName: string;
-  agronomistUserId: string | null;
+  agronomistUserId: string;
   engineerName: string;
   areaHectares: number;
   isActive: boolean;

@@ -47,7 +47,8 @@ registrador de su última visita.
 - RF-003: Estado ofrece `Activas`, `Inactivas` y `Todas`; la vista inicia en
   `Activas`.
 - RF-004: Ingeniero usa `parcelas.agronomo_usuario_id`, es decir, la asignación
-  actual. Las parcelas sin una asignación visible se agrupan como `Sin asignar`.
+  actual. Las parcelas sin ingeniero asignado se excluyen por completo del
+  reporte, incluidos resumen, totales, mapa y gráficos.
 - RF-005: Las categorías son continuas para áreas decimales positivas:
   `Micro` mayor que cero y menor que 4 ha; `Pequeño` desde 4 y menor que 7 ha;
   `Mediano` desde 7 y menor que 10 ha; `Grande` desde 10 ha.
@@ -105,8 +106,8 @@ ni afectar los reportes existentes.
 - [x] CA-001: Parcelas aparece como tercer submódulo del acordeón Reportes.
 - [x] CA-002: ADMIN y ANALISTA acceden; AGRONOMO queda bloqueado en API y web.
 - [x] CA-003: Los cinco filtros actualizan conjuntamente tabla, mapa y gráficos.
-- [x] CA-004: El resumen agrupa por asignación actual y calcula hectáreas,
-      parcelas, media y totales correctos.
+- [x] CA-004: El resumen agrupa por asignación actual, excluye parcelas sin
+      ingeniero y calcula hectáreas, parcelas, media y totales correctos.
 - [x] CA-005: Los límites decimales clasifican sin huecos ni solapamientos y
       separan áreas inválidas.
 - [x] CA-006: El mapa aplica colores estables y fallback geográfico sin duplicar

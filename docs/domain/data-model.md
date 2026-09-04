@@ -411,10 +411,11 @@ circular, el denominador es el total categorizado del ingeniero correspondiente.
 Los tres componentes consumen el mismo universo devuelto por la API.
 
 El reporte Parcelas usa la asignación actual `Parcela.agronomoUsuarioId` y no
-depende de visitas. Clasifica cada área positiva sin huecos: Micro `(0, 4)`,
-Pequeño `[4, 7)`, Mediano `[7, 10)` y Grande `[10, +∞)` hectáreas. Las áreas
-nulas, no numéricas o no positivas permanecen sin categoría: participan en el
-conteo y promedio del resumen por ingeniero, pero se excluyen del mapa y de las
+depende de visitas. Las parcelas sin ingeniero asignado se excluyen de todos sus
+componentes. Clasifica cada área positiva sin huecos: Micro `(0, 4)`, Pequeño
+`[4, 7)`, Mediano `[7, 10)` y Grande `[10, +∞)` hectáreas. Las áreas nulas, no
+numéricas o no positivas permanecen sin categoría: participan en el conteo y
+promedio del resumen por ingeniero, pero se excluyen del mapa y de las
 distribuciones por categoría.
 
 El porcentaje de parcelas usa como denominador únicamente las parcelas

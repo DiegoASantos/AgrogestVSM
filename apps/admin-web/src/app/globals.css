@@ -4650,6 +4650,17 @@ canvas {
 
 .parcel-report__hectare-chart {
   grid-area: hectare-chart;
+  display: flex;
+  flex-direction: column;
+}
+
+.parcel-report__hectare-chart .parcel-category-chart {
+  width: min(100%, 620px);
+  flex: 1;
+  align-content: center;
+  justify-content: center;
+  grid-template-columns: minmax(250px, 340px) minmax(190px, 220px);
+  margin-inline: auto;
 }
 
 .parcel-summary-table {
@@ -5003,7 +5014,8 @@ canvas {
   }
 
   .parcel-report__filters .filter-card__body,
-  .parcel-category-chart {
+  .parcel-category-chart,
+  .parcel-report__hectare-chart .parcel-category-chart {
     grid-template-columns: 1fr;
   }
 
