@@ -7,6 +7,7 @@ import {
 import type {
   SecurityRoleItem,
   SecurityRolePayload,
+  AgronomistLookupItem,
   SecurityUserItem,
   SecurityUserPayload,
   SecurityUserRoleItem,
@@ -18,6 +19,12 @@ type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 export const securityService = {
   getUsers(session: AuthSessionInput) {
     return apiRequest<SecurityUserItem[]>("/usuarios", {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+  },
+
+  getAgronomists(session: AuthSessionInput) {
+    return apiRequest<AgronomistLookupItem[]>("/usuarios/agronomos", {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
     });
   },

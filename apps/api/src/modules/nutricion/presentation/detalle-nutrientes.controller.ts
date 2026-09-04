@@ -11,6 +11,7 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { NutritionCatalogsService } from "../application/nutrition-catalogs.service";
 import { CreateDetalleNutrienteDto } from "./dto/create-detalle-nutriente.dto";
@@ -22,7 +23,8 @@ export class DetalleNutrientesController {
   constructor(private readonly nutritionCatalogsService: NutritionCatalogsService) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea un detalle de nutriente." })
   @ApiCreatedResponse({ description: "Detalle creado." })
   @ApiConflictResponse({
@@ -49,7 +51,8 @@ export class DetalleNutrientesController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza un detalle de nutriente." })
   @ApiParam({ name: "id", type: String, example: "1" })
   @ApiOkResponse({ description: "Detalle actualizado." })
@@ -65,7 +68,8 @@ export class DetalleNutrientesController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Desactiva logicamente un detalle de nutriente." })
   @ApiParam({ name: "id", type: String, example: "1" })
   @ApiOkResponse({ description: "Detalle desactivado." })

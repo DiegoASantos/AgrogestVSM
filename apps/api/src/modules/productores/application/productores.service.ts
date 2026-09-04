@@ -554,7 +554,8 @@ function isAgronomoUser(currentUser?: CurrentUserContext): boolean {
   }
 
   const hasAdmin = currentUser.roles.includes("ADMIN");
+  const hasAnalyst = currentUser.roles.includes("ANALISTA");
   const hasAgronomo = currentUser.roles.includes("AGRONOMO");
 
-  return hasAgronomo && !hasAdmin;
+  return hasAgronomo && !hasAdmin && !hasAnalyst;
 }

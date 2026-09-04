@@ -11,6 +11,7 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { TiposRiegoService } from "../application/tipos-riego.service";
 import { CreateOperationalCatalogDto } from "./dto/create-operational-catalog.dto";
@@ -22,7 +23,8 @@ export class TiposRiegoController {
   constructor(private readonly tiposRiegoService: TiposRiegoService) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea un tipo de riego." })
   @ApiCreatedResponse({ description: "Tipo de riego creado." })
   @ApiConflictResponse({ description: "Ya existe un tipo de riego con el mismo nombre." })
@@ -47,7 +49,8 @@ export class TiposRiegoController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza un tipo de riego." })
   @ApiParam({ name: "id", type: String, example: "1" })
   @ApiOkResponse({ description: "Tipo de riego actualizado." })
@@ -61,7 +64,8 @@ export class TiposRiegoController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Desactiva un tipo de riego." })
   @ApiParam({ name: "id", type: String, example: "1" })
   @ApiOkResponse({ description: "Tipo de riego desactivado." })

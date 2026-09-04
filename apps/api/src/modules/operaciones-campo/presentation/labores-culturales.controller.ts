@@ -11,6 +11,7 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { LaboresCulturalesService } from "../application/labores-culturales.service";
 import { CreateOperationalCatalogDto } from "./dto/create-operational-catalog.dto";
@@ -24,7 +25,8 @@ export class LaboresCulturalesController {
   ) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea una labor cultural." })
   @ApiCreatedResponse({ description: "Labor cultural creada." })
   @ApiConflictResponse({ description: "Ya existe una labor cultural con el mismo nombre." })
@@ -49,7 +51,8 @@ export class LaboresCulturalesController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza una labor cultural." })
   @ApiParam({ name: "id", type: String, example: "1" })
   @ApiOkResponse({ description: "Labor cultural actualizada." })
@@ -63,7 +66,8 @@ export class LaboresCulturalesController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Desactiva una labor cultural." })
   @ApiParam({ name: "id", type: String, example: "1" })
   @ApiOkResponse({ description: "Labor cultural desactivada." })

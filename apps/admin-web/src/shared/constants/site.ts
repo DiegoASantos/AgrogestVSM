@@ -12,6 +12,7 @@ export const adminRoutes = {
   dashboard: "/dashboard",
   visitas: "/visitas",
   mapas: "/mapas",
+  reportes: "/reportes",
   clima: {
     resumen: "/clima/resumen",
     reservorios: "/clima/reservorios",

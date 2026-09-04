@@ -21,6 +21,7 @@ import {
 } from "@nestjs/swagger";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { SubEtapasService } from "../application/sub-etapas.service";
 import { CreateSubEtapaDto } from "./dto/create-sub-etapa.dto";
@@ -33,7 +34,8 @@ export class SubEtapasController {
   constructor(private readonly subEtapasService: SubEtapasService) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea una sub etapa." })
   @ApiCreatedResponse({
     description: "Sub etapa creada."
@@ -88,7 +90,8 @@ export class SubEtapasController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza una sub etapa." })
   @ApiParam({
     name: "id",
@@ -115,7 +118,8 @@ export class SubEtapasController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente una sub etapa."
   })

@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-21
+last_reviewed: 2026-09-04
 ---
 
 # Especificaciones
@@ -115,4 +115,6 @@ en la raíz.
 - [Spec 069: Lookup de agrónomos para visitas con rol analista](069-lookup-agronomos-analista.md)
 - [Spec 070: Reporte Excel de visitas por agrónomo](070-reporte-excel-visitas-por-agronomo.md)
 - [Spec 071: Opciones de poda en recomendaciones de labores culturales](071-opciones-poda-recomendaciones.md)
+- [Spec 072: Acceso de analista a mantenimiento y reportes web](072-acceso-analista-mantenimiento-reportes-web.md)
+- [Spec 073: Reporte web de visitas](073-reporte-web-visitas.md)
 - [Plantilla](TEMPLATE.md)

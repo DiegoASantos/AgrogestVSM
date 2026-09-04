@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-21
+last_reviewed: 2026-09-04
 ---
 
 # Modelo del dominio
@@ -394,12 +394,13 @@ de consulta y no agregan persistencia al dominio.
 - relación usuario-rol;
 - sesión de refresh token.
 
-Los roles distinguen administración, trabajo técnico y consulta. `ANALISTA` usa
-el panel web en modo solo lectura (Dashboard, Visitas, Mapas y Clima), no puede
-acceder a Mantenimiento ni Seguridad y la API rechaza sus mutaciones.
-`AGRONOMO` también puede consultar las siete vistas territoriales de Clima desde
-el panel web, además de su acceso climático móvil. La aplicación móvil no admite
-sesiones con rol `ANALISTA`.
+Los roles distinguen administración, trabajo técnico y consulta. `ANALISTA`
+consulta Dashboard, Visitas, Mapas y Clima, comparte con `ADMIN` el CRUD web de
+Mantenimiento y puede abrir la ruta vacía de Reportes. Este CRUD incluye los
+catálogos, geodatos y la asignación de agrónomos en parcelas; Seguridad continúa
+exclusiva de `ADMIN`. `AGRONOMO` también puede consultar las siete vistas
+territoriales de Clima desde el panel web, además de su acceso climático móvil.
+La aplicación móvil no admite sesiones con rol `ANALISTA`.
 
 Cada usuario tiene `puede_eliminar_visitas`, desactivado por defecto. El valor
 solo produce capacidad efectiva junto con el rol `AGRONOMO` y permite dar de
@@ -412,11 +413,12 @@ Las visitas inactivas se conservan exclusivamente como historial tecnico en la
 base de datos: el panel web las excluye de listados, historiales, detalles,
 mapas, reportes y metricas agregadas del dashboard.
 
-La única excepción de escritura para un usuario exclusivamente `ANALISTA` son
-las lecturas manuales de reservorios definidas por la spec 032. Los endpoints
-correspondientes requieren autorización explícita; el bloqueo global continúa
-aplicando a todas las demás mutaciones. `AGRONOMO` puede consultar reservorios e
-histórico, pero no crear, editar ni eliminar lecturas.
+Las excepciones de escritura para un usuario exclusivamente `ANALISTA` son las
+lecturas manuales de reservorios definidas por la spec 032 y las mutaciones de
+Mantenimiento definidas por la spec 072. Cada endpoint requiere rol explícito y
+la marca `AllowAnalystMutation`; el bloqueo global continúa aplicando a todas
+las demás mutaciones. `AGRONOMO` puede consultar reservorios e histórico, pero
+no crear, editar ni eliminar lecturas.
 
 ## Fuente estructural
 

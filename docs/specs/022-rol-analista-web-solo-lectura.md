@@ -83,3 +83,12 @@ La spec 069 habilita a `ANALISTA` exclusivamente para leer el lookup mínimo de
 agrónomos activos usado por el listado de visitas. No autoriza el listado ni el
 detalle administrativo de usuarios y no expone correo, teléfono, roles o
 permisos.
+
+## Excepción posterior: mantenimiento web
+
+La [spec 072](072-acceso-analista-mantenimiento-reportes-web.md) habilita a
+`ANALISTA` para el CRUD completo de las rutas web de Mantenimiento, incluidos
+geodatos y asignación de agrónomos en parcelas. Cada mutación API autorizada
+mantiene roles explícitos y `@AllowAnalystMutation()`; Seguridad y las demás
+mutaciones continúan bloqueadas. La misma spec agrega `/reportes` como ruta
+principal vacía para `ADMIN` y `ANALISTA`.

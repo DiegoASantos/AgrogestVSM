@@ -22,7 +22,9 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { CurrentAuthUser } from "../../auth/presentation/decorators/current-auth-user.decorator";
+import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { ParcelasService } from "../application/parcelas.service";
 import { CreateParcelaDto } from "./dto/create-parcela.dto";
@@ -37,6 +39,8 @@ export class ParcelasController {
   constructor(private readonly parcelasService: ParcelasService) {}
 
   @Post()
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea una parcela." })
   @ApiCreatedResponse({
     description: "Parcela creada."
@@ -205,6 +209,8 @@ export class ParcelasController {
   }
 
   @Patch(":id")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza una parcela." })
   @ApiParam({
     name: "id",
@@ -233,6 +239,8 @@ export class ParcelasController {
   }
 
   @Patch(":id/agronomo")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Asigna o desasigna un agronomo a una parcela." })
   @ApiParam({
     name: "id",
@@ -262,6 +270,8 @@ export class ParcelasController {
   }
 
   @Delete(":id")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente una parcela."
   })

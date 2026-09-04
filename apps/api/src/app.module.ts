@@ -14,6 +14,7 @@ import { NutricionModule } from "./modules/nutricion/nutricion.module";
 import { OperacionesCampoModule } from "./modules/operaciones-campo/operaciones-campo.module";
 import { ParcelasModule } from "./modules/parcelas/parcelas.module";
 import { ProductoresModule } from "./modules/productores/productores.module";
+import { ReportesModule } from "./modules/reportes/reportes.module";
 import { RolesModule } from "./modules/roles/roles.module";
 import { SectoresModule } from "./modules/sectores/sectores.module";
 import { SubsectoresModule } from "./modules/subsectores/subsectores.module";
@@ -56,7 +57,8 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     VisitaLaboresCulturalesModule,
     VisitaRecetasModule,
     IntegracionesModule,
-    DashboardModule
+    DashboardModule,
+    ReportesModule
   ]
 })
 export class AppModule {}

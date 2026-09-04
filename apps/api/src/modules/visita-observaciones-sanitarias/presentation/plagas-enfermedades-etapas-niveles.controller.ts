@@ -20,6 +20,7 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { SanitaryCatalogsService } from "../application/sanitary-catalogs.service";
 import { CreatePlagaEnfermedadEtapaNivelDto } from "./dto/create-plaga-enfermedad-etapa-nivel.dto";
@@ -33,7 +34,8 @@ export class PlagasEnfermedadesEtapasNivelesController {
   ) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary:
       "Crea una relacion entre plaga/enfermedad, etapa fenologica y nivel."
@@ -84,7 +86,8 @@ export class PlagasEnfermedadesEtapasNivelesController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Actualiza una relacion."
   })
@@ -113,7 +116,8 @@ export class PlagasEnfermedadesEtapasNivelesController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente una relacion."
   })

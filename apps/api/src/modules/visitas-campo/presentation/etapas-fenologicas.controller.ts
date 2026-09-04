@@ -21,6 +21,7 @@ import {
 } from "@nestjs/swagger";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { EtapasFenologicasService } from "../application/etapas-fenologicas.service";
 import { CreateEtapaFenologicaDto } from "./dto/create-etapa-fenologica.dto";
@@ -35,7 +36,8 @@ export class EtapasFenologicasController {
   ) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea una etapa fenologica." })
   @ApiCreatedResponse({
     description: "Etapa fenologica creada."
@@ -92,7 +94,8 @@ export class EtapasFenologicasController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza una etapa fenologica." })
   @ApiParam({
     name: "id",
@@ -119,7 +122,8 @@ export class EtapasFenologicasController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente una etapa fenologica."
   })

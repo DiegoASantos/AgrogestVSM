@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-18
+last_reviewed: 2026-09-04
 ---
 
 # Línea base de seguridad operativa
@@ -21,6 +21,12 @@ last_reviewed: 2026-08-18
 - `Cache-Control: no-store` en endpoints de autenticación;
 - tokens mobile en almacenamiento seguro;
 - access token web solo en memoria y refresh token por sesión de pestaña.
+- `ANALISTA` puede mutar únicamente los endpoints de Mantenimiento marcados con
+  rol explícito y `AllowAnalystMutation`; el bloqueo global continúa para las
+  demás mutaciones y mobile rechaza sesiones con ese rol;
+- el selector web de agrónomos para parcelas consume el lookup mínimo
+  `/usuarios/agronomos`; el listado administrativo de usuarios permanece
+  exclusivo de `ADMIN`;
 
 - aislamiento horizontal de parcelas para `AGRONOMO`: listados, lectura y
   mutaciones por ID se limitan a `agronomo_usuario_id` y una visita nueva exige

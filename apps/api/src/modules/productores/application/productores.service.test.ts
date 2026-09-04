@@ -295,6 +295,19 @@ describe("ProductoresService", () => {
 
       expect(result.data).toMatchObject({ id: "1" });
     });
+
+    it("gives ANALISTA priority over AGRONOMO scope restrictions", async () => {
+      const { service } = buildService({
+        existingProductor: buildProductor({ createdByUserId: "agronomo-2" })
+      });
+
+      const result = await service.findById("1", {
+        userId: "analista-1",
+        roles: ["ANALISTA", "AGRONOMO"]
+      });
+
+      expect(result.data).toMatchObject({ id: "1" });
+    });
   });
 
   describe("findAll", () => {

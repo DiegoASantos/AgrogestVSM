@@ -21,6 +21,7 @@ import {
 } from "@nestjs/swagger";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { SubsectoresService } from "../application/subsectores.service";
 import { CreateSubsectorDto } from "./dto/create-subsector.dto";
@@ -33,7 +34,8 @@ export class SubsectoresController {
   constructor(private readonly subsectoresService: SubsectoresService) {}
 
   @Post()
-  @Roles("ADMIN", "AGRONOMO")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea un subsector." })
   @ApiCreatedResponse({
     description: "Subsector creado."
@@ -87,7 +89,8 @@ export class SubsectoresController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza un subsector." })
   @ApiParam({
     name: "id",
@@ -114,7 +117,8 @@ export class SubsectoresController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente un subsector."
   })

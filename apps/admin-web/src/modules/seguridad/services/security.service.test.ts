@@ -19,6 +19,13 @@ describe("securityService", () => {
     });
   });
 
+  describe("#getAgronomists", () => {
+    it("should GET /usuarios/agronomos", async () => {
+      await securityService.getAgronomists(session);
+      expect(fetchUrl()).toContain("/usuarios/agronomos");
+    });
+  });
+
   describe("#createUser", () => {
     it("should POST /usuarios", async () => {
       await securityService.createUser(session, { firstName: "J" } as never);

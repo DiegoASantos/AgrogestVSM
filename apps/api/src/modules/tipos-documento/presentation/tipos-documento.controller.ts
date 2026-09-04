@@ -20,6 +20,7 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { TiposDocumentoService } from "../application/tipos-documento.service";
 import { CreateTipoDocumentoDto } from "./dto/create-tipo-documento.dto";
@@ -33,7 +34,8 @@ export class TiposDocumentoController {
   ) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea un tipo de documento." })
   @ApiCreatedResponse({
     description: "Tipo de documento creado."
@@ -72,7 +74,8 @@ export class TiposDocumentoController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza un tipo de documento." })
   @ApiParam({
     name: "id",
@@ -96,7 +99,8 @@ export class TiposDocumentoController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Elimina un tipo de documento." })
   @ApiParam({
     name: "id",

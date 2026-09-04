@@ -20,6 +20,7 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { SanitaryCatalogsService } from "../application/sanitary-catalogs.service";
 import { CreateNivelIncidenciaDto } from "./dto/create-nivel-incidencia.dto";
@@ -33,7 +34,8 @@ export class NivelesIncidenciaController {
   ) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Crea un nivel de incidencia o severidad."
   })
@@ -83,7 +85,8 @@ export class NivelesIncidenciaController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Actualiza un nivel de incidencia o severidad."
   })
@@ -113,7 +116,8 @@ export class NivelesIncidenciaController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Elimina un nivel de incidencia o severidad."
   })

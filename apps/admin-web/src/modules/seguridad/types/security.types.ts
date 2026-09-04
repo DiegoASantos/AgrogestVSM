@@ -26,6 +26,11 @@ export type SecurityUserItem = {
   roles: SecurityRoleItem[];
 };
 
+export type AgronomistLookupItem = Pick<
+  SecurityUserItem,
+  "id" | "displayName" | "isActive"
+>;
+
 export type SecurityUserPayload = {
   firstName: string;
   lastName: string;

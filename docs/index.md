@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-21
+last_reviewed: 2026-09-04
 ---
 
 # Documentación de AgroGest VSM
@@ -122,6 +122,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Lookup de agrónomos para visitas con rol analista](specs/069-lookup-agronomos-analista.md)
 - [Reporte Excel de visitas por agrónomo](specs/070-reporte-excel-visitas-por-agronomo.md)
 - [Opciones de poda en recomendaciones de labores culturales](specs/071-opciones-poda-recomendaciones.md)
+- [Acceso de analista a mantenimiento y reportes web](specs/072-acceso-analista-mantenimiento-reportes-web.md)
+- [Reporte web de visitas](specs/073-reporte-web-visitas.md)
 
 ## Runbooks
 

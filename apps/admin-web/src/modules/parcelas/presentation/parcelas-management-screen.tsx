@@ -19,7 +19,7 @@ import type { ProductorListItem } from "../../productores/types/productores.type
 import { parcelasService } from "../services/parcelas.service";
 import type { ParcelaListItem } from "../types/parcelas.types";
 import { securityService } from "../../seguridad/services/security.service";
-import type { SecurityUserItem } from "../../seguridad/types/security.types";
+import type { AgronomistLookupItem } from "../../seguridad/types/security.types";
 import { ConfirmDialog } from "../../../shared/components/confirm-dialog";
 import { DataTable, type DataTableColumn } from "../../../shared/components/data-table";
 import { EmptyState } from "../../../shared/components/empty-state";
@@ -63,7 +63,7 @@ export function ParcelasManagementScreen() {
   const [sectores, setSectores] = useState<SectorListItem[]>([]);
   const [subsectores, setSubsectores] = useState<SubsectorListItem[]>([]);
   const [productores, setProductores] = useState<ProductorListItem[]>([]);
-  const [agronomoUsers, setAgronomoUsers] = useState<SecurityUserItem[]>([]);
+  const [agronomoUsers, setAgronomoUsers] = useState<AgronomistLookupItem[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sectorFilter, setSectorFilter] = useState("");
@@ -291,12 +291,8 @@ export function ParcelasManagementScreen() {
       setSubsectores(nextSubsectores);
       setProductores(nextProductores);
 
-      const users = await securityService.getUsers(session);
-      setAgronomoUsers(
-        users.filter((user) =>
-          user.roles.some((role) => role.code === "AGRONOMO")
-        )
-      );
+      const users = await securityService.getAgronomists(session);
+      setAgronomoUsers(users);
     } catch (error) {
       const apiError = toApiError(error);
 

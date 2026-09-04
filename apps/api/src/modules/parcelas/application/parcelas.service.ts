@@ -291,7 +291,10 @@ export class ParcelasService {
     dto: UpdateParcelaAgronomoDto,
     currentUser?: CurrentUserContext
   ) {
-    if (currentUser && !currentUser.roles.includes("ADMIN")) {
+    if (
+      currentUser &&
+      !currentUser.roles.some((role) => role === "ADMIN" || role === "ANALISTA")
+    ) {
       throw new NotFoundException("Parcela not found.");
     }
 
@@ -848,9 +851,10 @@ function isAgronomoUser(currentUser?: CurrentUserContext): boolean {
   }
 
   const hasAdmin = currentUser.roles.includes("ADMIN");
+  const hasAnalyst = currentUser.roles.includes("ANALISTA");
   const hasAgronomo = currentUser.roles.includes("AGRONOMO");
 
-  return hasAgronomo && !hasAdmin;
+  return hasAgronomo && !hasAdmin && !hasAnalyst;
 }
 
 function normalizeAreaHectares(value: unknown): string | null {

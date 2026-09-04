@@ -11,6 +11,7 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { NutritionCatalogsService } from "../application/nutrition-catalogs.service";
 import { CreateNutrienteDto } from "./dto/create-nutriente.dto";
@@ -22,7 +23,8 @@ export class NutrientesController {
   constructor(private readonly nutritionCatalogsService: NutritionCatalogsService) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea un nutriente por cultivo." })
   @ApiCreatedResponse({ description: "Nutriente creado." })
   @ApiConflictResponse({
@@ -49,7 +51,8 @@ export class NutrientesController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza un nutriente." })
   @ApiParam({ name: "id", type: String, example: "1" })
   @ApiOkResponse({ description: "Nutriente actualizado." })
@@ -65,7 +68,8 @@ export class NutrientesController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Desactiva logicamente un nutriente." })
   @ApiParam({ name: "id", type: String, example: "1" })
   @ApiOkResponse({ description: "Nutriente desactivado." })

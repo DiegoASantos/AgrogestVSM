@@ -33,15 +33,16 @@ import {
   Layers,
   Droplets,
   Workflow,
+  ChartNoAxesCombined,
   type LucideIcon
 } from "lucide-react";
 
 import { useAuthSession } from "../../modules/auth/hooks/use-auth-session";
 import {
   canAccessAdminPath,
-  isAdminSession,
   isClimatePath,
-  isClimateSession
+  isMaintenancePath,
+  isReportsPath
 } from "../../modules/auth/utils/authorization";
 import { useTheme } from "../hooks/use-theme";
 import { NotificationBell } from "./notification-bell";
@@ -63,6 +64,7 @@ const mainNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.dashboard]: LayoutDashboard,
   [adminRoutes.visitas]: ClipboardList,
   [adminRoutes.mapas]: MapIcon,
+  [adminRoutes.reportes]: ChartNoAxesCombined,
   [adminRoutes.mantenimiento]: Wrench,
   [adminRoutes.seguridad]: ShieldCheck
 };
@@ -112,12 +114,19 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const isAdmin = isAdminSession(session);
-  const canAccessClimate = isClimateSession(session);
   const canAccessCurrentRoute = canAccessAdminPath(pathname, session);
-  const maintenanceNavigation = isAdmin ? adminMaintenanceNavigation : [];
-  const climateNavigation = canAccessClimate ? adminClimateNavigation : [];
-  const securityNavigation = isAdmin ? adminSecurityNavigation : [];
+  const mainNavigation = adminMainNavigation.filter((item) =>
+    canAccessAdminPath(item.href, session)
+  );
+  const maintenanceNavigation = adminMaintenanceNavigation.filter((item) =>
+    canAccessAdminPath(item.href, session)
+  );
+  const climateNavigation = adminClimateNavigation.filter((item) =>
+    canAccessAdminPath(item.href, session)
+  );
+  const securityNavigation = adminSecurityNavigation.filter((item) =>
+    canAccessAdminPath(item.href, session)
+  );
 
   useEffect(() => {
     if (status === "guest") {
@@ -204,7 +213,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
 
         <nav className="admin-sidebar__nav" aria-label="Navegacion administrativa">
           <SidebarGroup
-            items={adminMainNavigation}
+            items={mainNavigation}
             pathname={pathname}
             title="Principal"
             defaultOpen
@@ -318,7 +327,11 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
                 <p className="body-copy">
                   Este espacio requiere el rol{" "}
                   <strong>
-                    {isClimatePath(pathname) ? "ADMIN, ANALISTA o AGRONOMO" : "ADMIN"}
+                    {isClimatePath(pathname)
+                      ? "ADMIN, ANALISTA o AGRONOMO"
+                      : isMaintenancePath(pathname) || isReportsPath(pathname)
+                        ? "ADMIN o ANALISTA"
+                        : "ADMIN"}
                   </strong>
                   . Puedes volver al dashboard o continuar con las vistas operativas
                   habilitadas.

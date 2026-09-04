@@ -5,11 +5,15 @@ import {
   canManageReservoirReadings,
   canAccessAdminPath,
   hasRole,
+  isAdminOrAnalystSession,
   isAgronomistSession,
   isAnalystSession,
   isAdminSession,
   isClimatePath,
   isClimateSession,
+  isMaintenancePath,
+  isReportsPath,
+  isSecurityPath,
   isRestrictedAdminPath
 } from "./authorization";
 
@@ -68,6 +72,16 @@ describe("isAnalystSession", () => {
   });
 });
 
+describe("admin or analyst roles", () => {
+  it.each(["ADMIN", "ANALISTA"])("allows %s", (role) => {
+    expect(isAdminOrAnalystSession(makeSession([role]))).toBe(true);
+  });
+
+  it("rejects AGRONOMO", () => {
+    expect(isAdminOrAnalystSession(makeSession(["AGRONOMO"]))).toBe(false);
+  });
+});
+
 describe("climate roles", () => {
   it("matches AGRONOMO sessions", () => {
     expect(isAgronomistSession(makeSession(["AGRONOMO"]))).toBe(true);
@@ -105,6 +119,7 @@ describe("isRestrictedAdminPath", () => {
   it.each([
     "/mantenimiento",
     "/mantenimiento/cultivos",
+    "/reportes",
     "/seguridad",
     "/seguridad/usuarios"
   ])("flags %s as restricted", (path) => {
@@ -117,6 +132,15 @@ describe("isRestrictedAdminPath", () => {
       expect(isRestrictedAdminPath(path)).toBe(false);
     }
   );
+});
+
+describe("role-restricted path matchers", () => {
+  it("matches maintenance, reports and security independently", () => {
+    expect(isMaintenancePath("/mantenimiento/parcelas/1/geodatos")).toBe(true);
+    expect(isReportsPath("/reportes")).toBe(true);
+    expect(isSecurityPath("/seguridad/usuarios")).toBe(true);
+    expect(isReportsPath("/reporte-excel")).toBe(false);
+  });
 });
 
 describe("canAccessAdminPath", () => {
@@ -141,17 +165,33 @@ describe("canAccessAdminPath", () => {
     expect(canAccessAdminPath("/clima/mapa", null)).toBe(false);
   });
 
-  it("blocks restricted paths for non-admin sessions", () => {
+  it("blocks restricted paths for unrelated sessions", () => {
     expect(canAccessAdminPath("/mantenimiento/cultivos", makeSession(["VIEWER"]))).toBe(
       false
     );
     expect(canAccessAdminPath("/seguridad", null)).toBe(false);
   });
 
-  it("allows restricted paths for admin sessions", () => {
+  it("allows ADMIN to open all restricted paths", () => {
     expect(canAccessAdminPath("/mantenimiento/cultivos", makeSession(["ADMIN"]))).toBe(
       true
     );
     expect(canAccessAdminPath("/seguridad/usuarios", makeSession(["ADMIN"]))).toBe(true);
+    expect(canAccessAdminPath("/reportes", makeSession(["ADMIN"]))).toBe(true);
+  });
+
+  it("allows ANALISTA in maintenance and reports but not security", () => {
+    const analystSession = makeSession(["ANALISTA"]);
+
+    expect(canAccessAdminPath("/mantenimiento/cultivos", analystSession)).toBe(true);
+    expect(canAccessAdminPath("/reportes", analystSession)).toBe(true);
+    expect(canAccessAdminPath("/seguridad/usuarios", analystSession)).toBe(false);
+  });
+
+  it("blocks AGRONOMO from maintenance and reports", () => {
+    const agronomistSession = makeSession(["AGRONOMO"]);
+
+    expect(canAccessAdminPath("/mantenimiento", agronomistSession)).toBe(false);
+    expect(canAccessAdminPath("/reportes", agronomistSession)).toBe(false);
   });
 });

@@ -20,6 +20,7 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { SanitaryCatalogsService } from "../application/sanitary-catalogs.service";
 import { CreatePlagaEnfermedadDto } from "./dto/create-plaga-enfermedad.dto";
@@ -33,7 +34,8 @@ export class PlagasEnfermedadesController {
   ) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Crea una plaga o enfermedad."
   })
@@ -82,7 +84,8 @@ export class PlagasEnfermedadesController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Actualiza una plaga o enfermedad."
   })
@@ -111,7 +114,8 @@ export class PlagasEnfermedadesController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente una plaga o enfermedad."
   })

@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-11
+last_reviewed: 2026-09-04
 related_code:
   - apps/api
   - apps/mobile
@@ -62,13 +62,19 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 
 `apps/admin-web` usa Next.js App Router:
 
-- dashboard y reportes, incluyendo métricas filtrables de visitas por agrónomo
-  y parcelas por etapa fenológica;
+- dashboard y métricas filtrables de visitas por agrónomo y parcelas por etapa
+  fenológica;
+- ruta principal `/reportes`, reservada para `ADMIN` y `ANALISTA` y todavía sin
+  funcionalidad;
 - gestión de visitas;
 - mantenimiento de catálogos;
 - usuarios y roles;
 - mapas Leaflet;
 - edición y validación inicial de geodatos.
+
+`ANALISTA` comparte con `ADMIN` el CRUD de Mantenimiento, incluidos los
+geodatos y la asignación de agrónomos en parcelas. Seguridad continúa exclusiva
+de `ADMIN`.
 
 El panel controla visibilidad por rol, pero la API conserva la autorización
 definitiva.

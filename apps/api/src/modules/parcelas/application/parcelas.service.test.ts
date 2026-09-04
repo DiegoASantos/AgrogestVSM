@@ -88,7 +88,7 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
     innerJoin: vi.fn(() => userQueryBuilder),
     where: vi.fn(() => userQueryBuilder),
     andWhere: vi.fn(() => userQueryBuilder),
-    getOne: vi.fn(async () => null)
+    getOne: vi.fn(async (): Promise<{ id: string } | null> => null)
   };
 
   const service = new ParcelasService(
@@ -106,7 +106,8 @@ function buildService(sequenceValues: Array<string | number> = [1]) {
     queryBuilder,
     sectoresRepository,
     subsectoresRepository,
-    service
+    service,
+    userQueryBuilder
   };
 }
 
@@ -328,6 +329,20 @@ describe("ParcelasService", () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
+    it("gives ANALISTA priority over AGRONOMO scope restrictions", async () => {
+      const { parcelasRepository, service } = buildService();
+      parcelasRepository.findOne.mockResolvedValue(
+        buildParcela({ agronomoUsuarioId: "agronomo-2" })
+      );
+
+      const result = await service.findById("1", {
+        userId: "analista-1",
+        roles: ["ANALISTA", "AGRONOMO"]
+      });
+
+      expect(result.data.id).toBe("1");
+    });
+
     it("rejects creating a parcela for a producer outside the agronomist scope", async () => {
       const { parcelasRepository, productoresRepository, service } = buildService();
       productoresRepository.findOne.mockResolvedValue({
@@ -387,6 +402,37 @@ describe("ParcelasService", () => {
       );
       expect(queryBuilder.addOrderBy).toHaveBeenCalledWith("parcela.subsectorId", "ASC");
       expect(queryBuilder.addOrderBy).toHaveBeenCalledWith("parcela.code", "ASC");
+    });
+  });
+
+  describe("updateAgronomo", () => {
+    it.each(["ADMIN", "ANALISTA"])(
+      "allows %s to assign an agronomist",
+      async (role) => {
+        const { parcelasRepository, service, userQueryBuilder } = buildService();
+        parcelasRepository.findOne.mockResolvedValue(buildParcela());
+        userQueryBuilder.getOne.mockResolvedValue({ id: "agronomo-1" });
+
+        const result = await service.updateAgronomo(
+          "1",
+          { usuarioId: "agronomo-1" },
+          { userId: "actor-1", roles: [role] }
+        );
+
+        expect(result.data.agronomoUsuarioId).toBe("agronomo-1");
+      }
+    );
+
+    it("keeps agronomist assignment unavailable to AGRONOMO", async () => {
+      const { service } = buildService();
+
+      await expect(
+        service.updateAgronomo(
+          "1",
+          { usuarioId: "agronomo-1" },
+          { userId: "agronomo-2", roles: ["AGRONOMO"] }
+        )
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

@@ -21,6 +21,7 @@ import {
 } from "@nestjs/swagger";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { SectoresService } from "../application/sectores.service";
 import { CreateSectorDto } from "./dto/create-sector.dto";
@@ -33,7 +34,8 @@ export class SectoresController {
   constructor(private readonly sectoresService: SectoresService) {}
 
   @Post()
-  @Roles("ADMIN", "AGRONOMO")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea un sector." })
   @ApiCreatedResponse({
     description: "Sector creado."
@@ -87,7 +89,8 @@ export class SectoresController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza un sector." })
   @ApiParam({
     name: "id",
@@ -114,7 +117,8 @@ export class SectoresController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente un sector."
   })

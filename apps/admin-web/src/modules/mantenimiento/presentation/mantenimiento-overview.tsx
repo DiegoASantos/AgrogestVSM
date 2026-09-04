@@ -1,8 +1,14 @@
+"use client";
+
+import { useAuthSession } from "../../auth/hooks/use-auth-session";
+import { isAdminSession } from "../../auth/utils/authorization";
 import { adminMaintenanceNavigation } from "../../../shared/constants/admin-navigation";
 import { adminRoutes } from "../../../shared/constants/site";
 import { ActionLink } from "../../../shared/components/action-link";
 
 export function MantenimientoOverview() {
+  const { session } = useAuthSession();
+
   return (
     <section className="panel-grid">
       <div className="panel-grid panel-grid--two">
@@ -17,7 +23,13 @@ export function MantenimientoOverview() {
           <div className="actions">
             <ActionLink href={adminRoutes.dashboard} label="Ir a dashboard" />
             <ActionLink href={adminRoutes.visitas} label="Ir a visitas" variant="ghost" />
-            <ActionLink href={adminRoutes.seguridad} label="Ir a seguridad" variant="ghost" />
+            {isAdminSession(session) ? (
+              <ActionLink
+                href={adminRoutes.seguridad}
+                label="Ir a seguridad"
+                variant="ghost"
+              />
+            ) : null}
           </div>
         </article>
 

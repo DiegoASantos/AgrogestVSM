@@ -21,6 +21,7 @@ import {
 } from "@nestjs/swagger";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { CampaniasService } from "../application/campanias.service";
 import { CreateCampaniaDto } from "./dto/create-campania.dto";
@@ -33,7 +34,8 @@ export class CampaniasController {
   constructor(private readonly campaniasService: CampaniasService) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea una campania." })
   @ApiCreatedResponse({
     description: "Campania creada."
@@ -87,7 +89,8 @@ export class CampaniasController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza una campania." })
   @ApiParam({
     name: "id",
@@ -114,7 +117,8 @@ export class CampaniasController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente una campania."
   })

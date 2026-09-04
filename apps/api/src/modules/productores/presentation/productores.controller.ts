@@ -21,7 +21,9 @@ import {
 } from "@nestjs/swagger";
 
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { CurrentAuthUser } from "../../auth/presentation/decorators/current-auth-user.decorator";
+import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { ProductoresService } from "../application/productores.service";
 import { CreateProductorDto } from "./dto/create-productor.dto";
@@ -35,6 +37,8 @@ export class ProductoresController {
   constructor(private readonly productoresService: ProductoresService) {}
 
   @Post()
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea un productor." })
   @ApiCreatedResponse({
     description: "Productor creado."
@@ -172,6 +176,8 @@ export class ProductoresController {
   }
 
   @Patch(":id")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza un productor." })
   @ApiParam({
     name: "id",
@@ -199,6 +205,8 @@ export class ProductoresController {
   }
 
   @Delete(":id")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente un productor."
   })

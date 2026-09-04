@@ -20,6 +20,7 @@ import {
 
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ParseEntityIdPipe } from "../../../common/pipes/parse-entity-id.pipe";
+import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { CultivosService } from "../application/cultivos.service";
 import { CreateCultivoDto } from "./dto/create-cultivo.dto";
@@ -31,7 +32,8 @@ export class CultivosController {
   constructor(private readonly cultivosService: CultivosService) {}
 
   @Post()
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea un cultivo." })
   @ApiCreatedResponse({
     description: "Cultivo creado."
@@ -70,7 +72,8 @@ export class CultivosController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza un cultivo." })
   @ApiParam({
     name: "id",
@@ -94,7 +97,8 @@ export class CultivosController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente un cultivo."
   })
