@@ -64,8 +64,8 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 
 - dashboard y métricas filtrables de visitas por agrónomo y parcelas por etapa
   fenológica;
-- ruta principal `/reportes`, reservada para `ADMIN` y `ANALISTA` y todavía sin
-  funcionalidad;
+- ruta principal `/reportes`, reservada para `ADMIN` y `ANALISTA`, con un
+  reporte de visitas filtrable por ingeniero, productor y rango de fechas;
 - gestión de visitas;
 - mantenimiento de catálogos;
 - usuarios y roles;
@@ -78,6 +78,12 @@ de `ADMIN`.
 
 El panel controla visibilidad por rol, pero la API conserva la autorización
 definitiva.
+
+El reporte de visitas consulta agregados diarios desde la API: cantidad de
+visitas, días distintos de trabajo y promedio por ingeniero, junto con
+hectáreas observadas por fecha. El mapa reutiliza los geodatos de las parcelas
+activas y refleja su asignación actual; por diseño, el rango histórico no altera
+esa asignación.
 
 ## Paquetes
 

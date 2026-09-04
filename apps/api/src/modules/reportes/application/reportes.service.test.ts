@@ -67,20 +67,10 @@ describe("ReportesService", () => {
 
     expect(query.mock.calls[0]?.[0]).toContain("p.productor_id = $3");
     expect(query.mock.calls[0]?.[0]).toContain("u.id = $4");
-    expect(query.mock.calls[0]?.[1]).toEqual([
-      "2026-09-01",
-      "2026-09-30",
-      "15",
-      "7"
-    ]);
+    expect(query.mock.calls[0]?.[1]).toEqual(["2026-09-01", "2026-09-30", "15", "7"]);
     expect(query.mock.calls[1]?.[0]).toContain("v.agronomo_usuario_id = $3");
     expect(query.mock.calls[1]?.[0]).toContain("p.productor_id = $4");
-    expect(query.mock.calls[1]?.[1]).toEqual([
-      "2026-09-01",
-      "2026-09-30",
-      "7",
-      "15"
-    ]);
+    expect(query.mock.calls[1]?.[1]).toEqual(["2026-09-01", "2026-09-30", "7", "15"]);
   });
 
   it("rejects an inverted date range before querying", async () => {
@@ -96,4 +86,3 @@ describe("ReportesService", () => {
     expect(query).not.toHaveBeenCalled();
   });
 });
-

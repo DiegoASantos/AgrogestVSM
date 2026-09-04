@@ -33,8 +33,10 @@ export function SearchableSelect({
   const [search, setSearch] = useState(selectedOption?.label ?? "");
 
   useEffect(() => {
-    setSearch(selectedOption?.label ?? "");
-  }, [selectedOption?.label]);
+    if (!isOpen) {
+      setSearch(selectedOption?.label ?? "");
+    }
+  }, [isOpen, selectedOption?.label]);
 
   useEffect(() => {
     if (!isOpen) {

@@ -1,11 +1,11 @@
 ---
 title: Reporte web de visitas
-status: approved
+status: implemented
 numero: 073
 area: reportes, visitas-campo, admin-web, api
 created: 2026-09-04
 approved_by: Usuario, 2026-09-04
-implemented_in:
+implemented_in: apps/api/src/modules/reportes, apps/admin-web/src/modules/reportes
 ---
 
 # Spec 073: Reporte web de visitas
@@ -116,18 +116,18 @@ API; `/reportes` puede volver al estado vacio sin transformar datos.
 
 ## Criterios de aceptacion
 
-- [ ] CA-001: ADMIN y ANALISTA abren Reportes > Visitas; AGRONOMO no accede.
-- [ ] CA-002: Ingeniero y Productor se buscan por texto y todos los filtros se
+- [x] CA-001: ADMIN y ANALISTA abren Reportes > Visitas; AGRONOMO no accede.
+- [x] CA-002: Ingeniero y Productor se buscan por texto y todos los filtros se
       aplican sin recargar la pagina.
-- [ ] CA-003: la tabla muestra agronomos activos, visitas, dias distintos y el
+- [x] CA-003: la tabla muestra agronomos activos, visitas, dias distintos y el
       promedio correcto, incluidos ceros.
-- [ ] CA-004: el mapa muestra solo parcelas activas asignadas que coinciden con
+- [x] CA-004: el mapa muestra solo parcelas activas asignadas que coinciden con
       Ingeniero y Productor, sin depender del rango de fechas.
-- [ ] CA-005: el grafico diario combina hectareas observadas en barras y visitas
+- [x] CA-005: el grafico diario combina hectareas observadas en barras y visitas
       en linea para los cuatro filtros.
-- [ ] CA-006: fechas vacias, invalidas o invertidas se rechazan antes de
+- [x] CA-006: fechas vacias, invalidas o invertidas se rechazan antes de
       consultar; la API aplica la misma validacion.
-- [ ] CA-007: carga, error, ausencia de datos y vista movil mantienen una salida
+- [x] CA-007: carga, error, ausencia de datos y vista movil mantienen una salida
       legible y recuperable.
 
 ## Pruebas
@@ -136,13 +136,14 @@ API; `/reportes` puede volver al estado vacio sin transformar datos.
 - Metadata de roles del endpoint.
 - Unitarias del cliente web, construccion de filtros y filtrado del mapa.
 - Lint, typecheck, tests y build de API y admin web.
-- Validacion visual manual en escritorio y ancho movil.
+- Validacion visual manual en escritorio y ancho movil pendiente: el navegador
+  integrado no estuvo disponible durante la implementacion.
 
 ## Impacto documental
 
-- [ ] Arquitectura.
-- [ ] Dominio.
-- [ ] Runbook.
-- [ ] ADR.
-- [ ] Variables o despliegue.
-
+- [x] Arquitectura: se documento el reporte y la diferencia entre agregados
+      historicos y asignacion actual del mapa.
+- [x] Dominio: se documentaron dias, promedio y hectareas observadas.
+- [x] Runbook: evaluado, sin cambios de procedimiento.
+- [x] ADR: evaluado, no se introduce una decision arquitectonica nueva.
+- [x] Variables o despliegue: evaluado, sin variables nuevas ni migraciones.

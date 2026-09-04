@@ -1,5 +1,5 @@
-import { ReportesOverview } from "../../../modules/reportes/presentation/reportes-overview";
+import { VisitsReportOverview } from "../../../modules/reportes/presentation/visits-report-overview";
 
 export default function ReportesPage() {
-  return <ReportesOverview />;
+  return <VisitsReportOverview />;
 }

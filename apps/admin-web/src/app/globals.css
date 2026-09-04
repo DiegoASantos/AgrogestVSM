@@ -4048,6 +4048,152 @@ canvas {
 }
 
 /* ============================================================
+   Reports — field visits
+   ============================================================ */
+.report-visits {
+  gap: 18px;
+}
+
+.report-visits__hero {
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+  background:
+    linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--primary-soft) 38%, transparent),
+      transparent 48%
+    ),
+    var(--surface);
+}
+
+.report-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-tabs__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.report-tabs__item--active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+}
+
+.report-visits__filters {
+  overflow: visible;
+  margin-bottom: 0;
+}
+
+.report-visits__filters .filter-card__body {
+  align-items: end;
+  grid-template-columns:
+    minmax(200px, 1.25fr)
+    minmax(200px, 1.25fr)
+    minmax(145px, 0.75fr)
+    minmax(145px, 0.75fr);
+}
+
+.report-section {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.report-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.report-section__title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.report-section__title h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.report-section__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 9px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.report-section__header p {
+  max-width: 460px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.report-summary-table__number {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.report-visual-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.report-chart {
+  min-width: 0;
+  margin: 0;
+  overflow-x: auto;
+}
+
+@media (max-width: 1100px) {
+  .report-visits__filters .filter-card__body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-visual-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .report-visits__filters .filter-card__body {
+    grid-template-columns: 1fr;
+  }
+
+  .report-section__header {
+    flex-direction: column;
+  }
+
+  .report-section__header p {
+    text-align: left;
+  }
+}
+
+/* ============================================================
    State cards (loading, error, empty)
    ============================================================ */
 .state-card {

@@ -36,7 +36,8 @@ un coste de coordinación mayor que su beneficio.
 | 2026-08-19 | Spec 060                 | media      | no medido               | 220.81 s                                         | 43 514 entrada; 2 439 salida; 11 252 razonamiento; 451 328 cache-read; USD 0.032475824 | 1 baja; 1 observacion            | 2         | 0          | 0 al cierre          |
 | 2026-08-21 | Spec 064                 | media      | no medido               | 343.95 s; veredicto correcto                     | no reportado por fallo de exportacion posterior al veredicto                           | 3 bajas; 1 informativa           | 0         | 2          | 0 al cierre          |
 | 2026-09-01 | Spec 071                 | alta       | no medido               | 192.88 s iniciales; 93.84 s cierre F1            | no reportado por incompatibilidad del exportador local                                 | 1 media; 1 baja; cierre aprobado | 1         | 0          | 0 al cierre          |
-| 2026-09-04 | Spec 072                 | alta       | no medido               | 361.89 s; aprobado con corrección documental      | 15 472 entrada; 465 salida; 65 razonamiento; 18 432 cache-read; USD 0.007258236         | 1 media; 3 bajas                 | 1         | 3          | 0 al cierre          |
+| 2026-09-04 | Spec 072                 | alta       | no medido               | 361.89 s; aprobado con corrección documental     | 15 472 entrada; 465 salida; 65 razonamiento; 18 432 cache-read; USD 0.007258236        | 1 media; 3 bajas                 | 1         | 3          | 0 al cierre          |
+| 2026-09-04 | Spec 073                 | alta       | no medido               | 432.45 s; aprobado con corrección baja           | no reportado por fallo local `EEXIST` del exportador                                   | 1 baja; 6 observaciones          | 1         | 5          | 0 al cierre          |
 
 ## Resultado del piloto crítico
 

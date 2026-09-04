@@ -92,6 +92,13 @@ relaciona:
 - fecha, horas, área y observación general;
 - ubicación y firmas.
 
+El reporte web de visitas es una proyección de solo lectura de este agregado.
+Cuenta exclusivamente visitas activas, considera como día de visita cada
+`fecha_visita` distinta por agrónomo y calcula el promedio como cantidad de
+visitas dividida entre esos días. La serie diaria suma `area_ha` de las visitas
+del día, tratando el valor nulo como cero. El mapa asociado no reconstruye
+asignaciones históricas: muestra las parcelas activas actualmente asignadas.
+
 Entidades hijas:
 
 - evaluaciones nutricionales;
@@ -396,7 +403,7 @@ de consulta y no agregan persistencia al dominio.
 
 Los roles distinguen administración, trabajo técnico y consulta. `ANALISTA`
 consulta Dashboard, Visitas, Mapas y Clima, comparte con `ADMIN` el CRUD web de
-Mantenimiento y puede abrir la ruta vacía de Reportes. Este CRUD incluye los
+Mantenimiento y el reporte web de visitas. Este CRUD incluye los
 catálogos, geodatos y la asignación de agrónomos en parcelas; Seguridad continúa
 exclusiva de `ADMIN`. `AGRONOMO` también puede consultar las siete vistas
 territoriales de Clima desde el panel web, además de su acceso climático móvil.

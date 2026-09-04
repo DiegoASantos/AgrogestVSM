@@ -38,8 +38,7 @@ export class ReportesService {
           engineerName: row.engineerName,
           visitsCount,
           visitDays,
-          dailyAverage:
-            visitDays === 0 ? 0 : Number((visitsCount / visitDays).toFixed(2))
+          dailyAverage: visitDays === 0 ? 0 : Number((visitsCount / visitDays).toFixed(2))
         };
       }),
       timeline: timelineRows.map((row) => ({
@@ -99,11 +98,7 @@ export class ReportesService {
 
   private getVisitTimeline(query: ReporteVisitasQueryDto) {
     const values: string[] = [query.fecha_desde, query.fecha_hasta];
-    const filters = [
-      "v.activo = true",
-      "v.fecha_visita >= $1",
-      "v.fecha_visita <= $2"
-    ];
+    const filters = ["v.activo = true", "v.fecha_visita >= $1", "v.fecha_visita <= $2"];
 
     if (query.agronomo_usuario_id) {
       values.push(query.agronomo_usuario_id);
@@ -137,4 +132,3 @@ export class ReportesService {
     }
   }
 }
-

@@ -31,4 +31,3 @@ export class ReportesController {
     return { success: true, data };
   }
 }
-

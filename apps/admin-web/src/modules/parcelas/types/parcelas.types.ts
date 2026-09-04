@@ -19,10 +19,12 @@ export type ParcelaListItem = {
   areaHectares: string | null;
   description: string | null;
   referencePoint: GeoJsonPoint | null;
+  parcelReferencePoint?: GeoJsonPoint | null;
   geometry: GeoJsonMultiPolygon | null;
   agronomoUsuarioId: string | null;
   geo: {
     point: GeoJsonPoint | null;
+    parcelPoint?: GeoJsonPoint | null;
     polygon: GeoJsonMultiPolygon | null;
     hasGeodata: boolean;
   };

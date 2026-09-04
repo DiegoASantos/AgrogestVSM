@@ -10,4 +10,3 @@ import { ReportesController } from "./presentation/reportes.controller";
   providers: [ReportesService]
 })
 export class ReportesModule {}
-

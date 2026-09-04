@@ -57,4 +57,3 @@ function trimOptionalString(value: unknown): string | undefined {
 
   return String(value).trim();
 }
-

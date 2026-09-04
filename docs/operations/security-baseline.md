@@ -27,6 +27,9 @@ last_reviewed: 2026-09-04
 - el selector web de agrónomos para parcelas consume el lookup mínimo
   `/usuarios/agronomos`; el listado administrativo de usuarios permanece
   exclusivo de `ADMIN`;
+- `GET /reportes/visitas` exige `ADMIN` o `ANALISTA`, devuelve solo identidad
+  visible del ingeniero y agregados operativos, valida el rango inclusivo y
+  parametriza fechas e identificadores; no habilita acceso a `AGRONOMO`;
 
 - aislamiento horizontal de parcelas para `AGRONOMO`: listados, lectura y
   mutaciones por ID se limitan a `agronomo_usuario_id` y una visita nueva exige
