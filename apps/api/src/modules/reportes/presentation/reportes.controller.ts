@@ -8,6 +8,7 @@ import {
 
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { ReportesService } from "../application/reportes.service";
+import { ReporteCamposEtapasQueryDto } from "./dto/reporte-campos-etapas-query.dto";
 import { ReporteVisitasQueryDto } from "./dto/reporte-visitas-query.dto";
 
 @ApiTags("Reportes")
@@ -28,6 +29,21 @@ export class ReportesController {
   })
   async getVisitsReport(@Query() query: ReporteVisitasQueryDto) {
     const data = await this.reportesService.getVisitsReport(query);
+    return { success: true, data };
+  }
+
+  @Get("campos-por-etapas")
+  @ApiOperation({
+    summary: "Agrupa parcelas por el agronomo y la etapa de su ultima visita activa."
+  })
+  @ApiOkResponse({
+    description: "Resumen por ingeniero, catalogo y parcelas para el mapa."
+  })
+  @ApiBadRequestResponse({
+    description: "Los identificadores de filtro no son validos."
+  })
+  async getFieldsByStageReport(@Query() query: ReporteCamposEtapasQueryDto) {
+    const data = await this.reportesService.getFieldsByStageReport(query);
     return { success: true, data };
   }
 }

@@ -57,18 +57,18 @@ export function VisitsHectaresChart({ data }: { data: VisitReportTimelinePoint[]
             <Bar
               dataKey="hectares"
               fill="var(--chart-1)"
-              fillOpacity={0.3}
+              fillOpacity={0.88}
               name="Hectáreas observadas"
-              radius={[5, 5, 0, 0]}
+              radius={[7, 7, 0, 0]}
               yAxisId="hectares"
             />
             <Line
-              activeDot={{ r: 5 }}
+              activeDot={{ fill: "var(--chart-4)", r: 6, strokeWidth: 0 }}
               dataKey="visitsCount"
-              dot={{ r: 3 }}
+              dot={{ fill: "var(--chart-4)", r: 3.5, strokeWidth: 0 }}
               name="Visitas"
               stroke="var(--chart-4)"
-              strokeWidth={2.5}
+              strokeWidth={3}
               type="monotone"
               yAxisId="visits"
             />

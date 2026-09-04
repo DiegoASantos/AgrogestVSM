@@ -8,6 +8,9 @@ import {
   fetchAllPaginated
 } from "../../../shared/services";
 import type {
+  FieldsByStageCatalogs,
+  FieldsByStageFilters,
+  FieldsByStageReportData,
   VisitReportFilters,
   VisitsReportCatalogs,
   VisitsReportData
@@ -44,8 +47,53 @@ export const reportesService = {
       ),
       parcelas
     };
+  },
+
+  async getFieldsByStageReport(
+    session: AuthSessionInput,
+    filters: FieldsByStageFilters
+  ): Promise<FieldsByStageReportData> {
+    const query = buildFieldsByStageReportQuery(filters);
+    const suffix = query ? `?${query}` : "";
+
+    return apiRequest<FieldsByStageReportData>(`/reportes/campos-por-etapas${suffix}`, {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+  },
+
+  async getFieldsByStageCatalogs(
+    session: AuthSessionInput
+  ): Promise<FieldsByStageCatalogs> {
+    const headers = createAuthHeaders(session.accessToken, session.tokenType);
+    const [agronomists, productores] = await Promise.all([
+      apiRequest<AgronomistLookupItem[]>("/usuarios/agronomos", { headers }),
+      fetchAllPaginated<ProductorListItem>("/productores?activo=true", { headers })
+    ]);
+
+    return {
+      agronomists: agronomists.sort((left, right) =>
+        left.displayName.localeCompare(right.displayName, "es")
+      ),
+      productores: productores.sort((left, right) =>
+        buildProductorLabel(left).localeCompare(buildProductorLabel(right), "es")
+      )
+    };
   }
 };
+
+export function buildFieldsByStageReportQuery(filters: FieldsByStageFilters) {
+  const searchParams = new URLSearchParams();
+
+  if (filters.agronomistUserId) {
+    searchParams.set("agronomo_usuario_id", filters.agronomistUserId);
+  }
+
+  if (filters.productorId) {
+    searchParams.set("productor_id", filters.productorId);
+  }
+
+  return searchParams.toString();
+}
 
 export function buildVisitReportQuery(filters: VisitReportFilters) {
   const searchParams = new URLSearchParams();

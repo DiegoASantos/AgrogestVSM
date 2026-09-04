@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildFieldsByStageReportQuery,
   buildProductorLabel,
   buildVisitReportQuery,
   reportesService
@@ -13,13 +14,15 @@ beforeEach(() => {
     "fetch",
     vi.fn().mockImplementation((input: string) => {
       const url = String(input);
-      const data = url.includes("/usuarios/agronomos")
-        ? [{ id: "7", displayName: "Ana López", isActive: true }]
-        : url.includes("/productores")
-          ? [makeProductor()]
-          : url.includes("/parcelas")
-            ? [makeParcela()]
-            : { summary: [], timeline: [] };
+      const data = url.includes("/reportes/campos-por-etapas")
+        ? makeFieldsByStageReport()
+        : url.includes("/usuarios/agronomos")
+          ? [{ id: "7", displayName: "Ana López", isActive: true }]
+          : url.includes("/productores")
+            ? [makeProductor()]
+            : url.includes("/parcelas")
+              ? [makeParcela()]
+              : { summary: [], timeline: [] };
 
       return Promise.resolve({
         ok: true,
@@ -88,7 +91,59 @@ describe("reportesService", () => {
   it("builds a producer label without exposing contact data", () => {
     expect(buildProductorLabel(makeProductor())).toBe("Rosa Díaz");
   });
+
+  it("builds the fields-by-stage endpoint without date filters", async () => {
+    await reportesService.getFieldsByStageReport(session, {
+      agronomistUserId: "7",
+      productorId: "15"
+    });
+
+    const url = String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]);
+    expect(url).toContain(
+      "/reportes/campos-por-etapas?agronomo_usuario_id=7&productor_id=15"
+    );
+    expect(url).not.toContain("fecha_");
+  });
+
+  it("omits the fields-by-stage query separator when filters are empty", async () => {
+    expect(buildFieldsByStageReportQuery({ agronomistUserId: "", productorId: "" })).toBe(
+      ""
+    );
+
+    await reportesService.getFieldsByStageReport(session, {
+      agronomistUserId: "",
+      productorId: ""
+    });
+
+    const url = String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]);
+    expect(url).toContain("/reportes/campos-por-etapas");
+    expect(url).not.toContain("/reportes/campos-por-etapas?");
+  });
+
+  it("loads only agronomist and producer catalogs for fields by stage", async () => {
+    const catalogs = await reportesService.getFieldsByStageCatalogs(session);
+
+    expect(catalogs.agronomists[0]?.id).toBe("7");
+    expect(catalogs.productores[0]?.id).toBe("15");
+    const urls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map((call) =>
+      String(call[0])
+    );
+    expect(urls.some((url) => url.includes("/parcelas"))).toBe(false);
+  });
 });
+
+function makeFieldsByStageReport() {
+  return {
+    stages: [],
+    summary: {
+      totalCategorizedParcels: 0,
+      uncategorizedParcels: 0,
+      byStage: [],
+      byEngineer: []
+    },
+    parcels: []
+  };
+}
 
 function makeProductor() {
   return {

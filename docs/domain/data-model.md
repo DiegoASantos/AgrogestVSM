@@ -394,6 +394,22 @@ territorial Open-Meteo expone ET0 diaria en `mm` y
 `shortwave_radiation_sum` en `MJ/m²` para hoy y el pronostico; estos datos son
 de consulta y no agregan persistencia al dominio.
 
+## Reportes web
+
+El reporte Campos por etapas representa el estado más reciente conocido de las
+parcelas, no un histórico por rango de fechas. Para cada parcela activa con
+productor activo se elige su última visita activa por `fecha_visita` descendente
+y, ante empate, por `id` descendente. La etapa o labor y el ingeniero pertenecen
+a esa visita; la asignación actual de agrónomo en la parcela no interviene.
+
+Solo se contabilizan etapas o labores activas e ingenieros activos con rol
+`AGRONOMO`. Las parcelas cuya última visita no tenga una categoría activa se
+informan como no categorizadas y se excluyen de tabla, mapa y gráficos. En la
+tabla, cada porcentaje usa como denominador el total global de parcelas
+categorizadas después de aplicar Ingeniero y Productor. En cada gráfico
+circular, el denominador es el total categorizado del ingeniero correspondiente.
+Los tres componentes consumen el mismo universo devuelto por la API.
+
 ## Seguridad
 
 - usuario;
@@ -403,9 +419,10 @@ de consulta y no agregan persistencia al dominio.
 
 Los roles distinguen administración, trabajo técnico y consulta. `ANALISTA`
 consulta Dashboard, Visitas, Mapas y Clima, comparte con `ADMIN` el CRUD web de
-Mantenimiento y el reporte web de visitas. Este CRUD incluye los
-catálogos, geodatos y la asignación de agrónomos en parcelas; Seguridad continúa
-exclusiva de `ADMIN`. `AGRONOMO` también puede consultar las siete vistas
+Mantenimiento y los reportes web de Visitas y Campos por etapas. El CRUD de
+Mantenimiento incluye los catálogos, geodatos y la asignación de agrónomos en
+parcelas; ambos reportes también están disponibles para los dos roles.
+Seguridad continúa exclusiva de `ADMIN`. `AGRONOMO` también puede consultar las siete vistas
 territoriales de Clima desde el panel web, además de su acceso climático móvil.
 La aplicación móvil no admite sesiones con rol `ANALISTA`.
 

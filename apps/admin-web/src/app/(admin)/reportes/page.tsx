@@ -1,5 +1,7 @@
-import { VisitsReportOverview } from "../../../modules/reportes/presentation/visits-report-overview";
+import { redirect } from "next/navigation";
+
+import { adminRoutes } from "../../../shared/constants/site";
 
 export default function ReportesPage() {
-  return <VisitsReportOverview />;
+  redirect(adminRoutes.reportesItems.visitas);
 }

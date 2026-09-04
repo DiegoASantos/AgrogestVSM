@@ -124,6 +124,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Opciones de poda en recomendaciones de labores culturales](specs/071-opciones-poda-recomendaciones.md)
 - [Acceso de analista a mantenimiento y reportes web](specs/072-acceso-analista-mantenimiento-reportes-web.md)
 - [Reporte web de visitas](specs/073-reporte-web-visitas.md)
+- [Reporte web de campos por etapas](specs/074-reporte-web-campos-por-etapas.md)
 
 ## Runbooks
 

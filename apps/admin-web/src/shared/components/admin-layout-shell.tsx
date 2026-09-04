@@ -50,6 +50,7 @@ import {
   adminMainNavigation,
   adminClimateNavigation,
   adminMaintenanceNavigation,
+  adminReportsNavigation,
   adminSecurityNavigation,
   resolveAdminRouteMeta,
   type AdminNavLink
@@ -92,6 +93,10 @@ const securityNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.seguridadItems.roles]: KeyRound,
   [adminRoutes.seguridadItems.usuarioRoles]: UserCog
 };
+const reportsNavIcons: Record<string, LucideIcon> = {
+  [adminRoutes.reportesItems.visitas]: ClipboardList,
+  [adminRoutes.reportesItems.camposPorEtapas]: Layers
+};
 const climateNavIcons: Record<string, LucideIcon> = Object.fromEntries(
   adminClimateNavigation.map((item) => [item.href, CloudSun])
 );
@@ -99,6 +104,7 @@ const climateNavIcons: Record<string, LucideIcon> = Object.fromEntries(
 function getIconForHref(href: string): LucideIcon | undefined {
   return (
     mainNavIcons[href] ??
+    reportsNavIcons[href] ??
     maintenanceNavIcons[href] ??
     securityNavIcons[href] ??
     climateNavIcons[href]
@@ -119,6 +125,9 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
     canAccessAdminPath(item.href, session)
   );
   const maintenanceNavigation = adminMaintenanceNavigation.filter((item) =>
+    canAccessAdminPath(item.href, session)
+  );
+  const reportsNavigation = adminReportsNavigation.filter((item) =>
     canAccessAdminPath(item.href, session)
   );
   const climateNavigation = adminClimateNavigation.filter((item) =>
@@ -219,6 +228,15 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
             defaultOpen
             isCollapsed={sidebarCollapsed}
           />
+          {reportsNavigation.length > 0 ? (
+            <SidebarGroup
+              items={reportsNavigation}
+              pathname={pathname}
+              title="Reportes"
+              icon={ChartNoAxesCombined}
+              isCollapsed={sidebarCollapsed}
+            />
+          ) : null}
           {climateNavigation.length > 0 ? (
             <SidebarGroup
               items={climateNavigation}

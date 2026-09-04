@@ -12,7 +12,7 @@ const PHENOLOGICAL_STAGE_COLORS = [
 ] as const;
 
 export function buildPhenologicalStageColorLookup(
-  stages: PhenologicalStageMapItem[]
+  stages: Array<Pick<PhenologicalStageMapItem, "id">>
 ) {
   return new Map(
     stages.map((stage, index) => [

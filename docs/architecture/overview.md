@@ -64,8 +64,8 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 
 - dashboard y métricas filtrables de visitas por agrónomo y parcelas por etapa
   fenológica;
-- ruta principal `/reportes`, reservada para `ADMIN` y `ANALISTA`, con un
-  reporte de visitas filtrable por ingeniero, productor y rango de fechas;
+- grupo lateral `Reportes`, reservado para `ADMIN` y `ANALISTA`, con los
+  submodulos `/reportes/visitas` y `/reportes/campos-por-etapas`;
 - gestión de visitas;
 - mantenimiento de catálogos;
 - usuarios y roles;
@@ -84,6 +84,12 @@ visitas, días distintos de trabajo y promedio por ingeniero, junto con
 hectáreas observadas por fecha. El mapa reutiliza los geodatos de las parcelas
 activas y refleja su asignación actual; por diseño, el rango histórico no altera
 esa asignación.
+
+El reporte Campos por etapas no usa rango temporal. La API selecciona una sola
+visita activa por parcela activa mediante `fecha_visita DESC, id DESC`; tanto
+la etapa o labor como el ingeniero provienen de esa misma visita. El resultado
+alimenta una tabla panorámica, un mapa por etapa o labor y un gráfico circular
+por cada agrónomo activo.
 
 ## Paquetes
 

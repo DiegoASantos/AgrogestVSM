@@ -1,11 +1,14 @@
 "use client";
 
 import {
+  Activity,
   CalendarRange,
   ChartNoAxesCombined,
   Filter,
   MapPinned,
-  TableProperties
+  Ruler,
+  TableProperties,
+  UsersRound
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -88,6 +91,7 @@ export function VisitsReportOverview() {
     () => buildReportMapData(catalogs?.parcelas ?? [], catalogs, appliedFilters),
     [appliedFilters, catalogs]
   );
+  const reportMetrics = useMemo(() => buildReportMetrics(report), [report]);
 
   return (
     <section className="panel-grid report-visits">
@@ -97,16 +101,6 @@ export function VisitsReportOverview() {
           eyebrow="Reportes"
           title="Reporte de visitas"
         />
-
-        <nav aria-label="Tipos de reporte" className="report-tabs">
-          <span
-            aria-current="page"
-            className="report-tabs__item report-tabs__item--active"
-          >
-            <TableProperties size={16} />
-            Visitas
-          </span>
-        </nav>
 
         <div className="filter-card report-visits__filters">
           <div className="filter-card__header">
@@ -192,9 +186,38 @@ export function VisitsReportOverview() {
         {isLoadingCatalogs ? (
           <LoadingState description="Cargando ingenieros, productores y parcelas asignadas." />
         ) : null}
+
+        <div aria-label="Indicadores del reporte" className="report-metrics" role="group">
+          <ReportMetric
+            icon={<Activity size={19} />}
+            label="Visitas registradas"
+            status={reportError ? "No disponible" : isLoadingReport ? "Cargando" : null}
+            value={formatInteger(reportMetrics.totalVisits)}
+          />
+          <ReportMetric
+            icon={<UsersRound size={19} />}
+            label="Ingenieros con actividad"
+            status={reportError ? "No disponible" : isLoadingReport ? "Cargando" : null}
+            value={formatInteger(reportMetrics.activeEngineers)}
+          />
+          <ReportMetric
+            icon={<Ruler size={19} />}
+            label="Hectáreas observadas acumuladas"
+            status={reportError ? "No disponible" : isLoadingReport ? "Cargando" : null}
+            value={`${formatHectares(reportMetrics.totalHectares)} ha`}
+          />
+          <ReportMetric
+            icon={<MapPinned size={19} />}
+            label="Parcelas asignadas"
+            status={
+              catalogError ? "No disponible" : isLoadingCatalogs ? "Cargando" : null
+            }
+            value={formatInteger(mapData.assignedCount)}
+          />
+        </div>
       </article>
 
-      <article className="panel report-section">
+      <article className="panel report-section report-section--summary">
         <ReportSectionHeader
           description="Cada día se cuenta una sola vez por ingeniero, aunque registre varias visitas."
           icon={<TableProperties size={18} />}
@@ -248,7 +271,7 @@ export function VisitsReportOverview() {
       </article>
 
       <div className="report-visual-grid">
-        <article className="panel report-section">
+        <article className="panel report-section report-section--map">
           <ReportSectionHeader
             description={`${mapData.assignedCount} parcelas asignadas · ${mapData.missingGeodataCount} sin geodatos`}
             icon={<MapPinned size={18} />}
@@ -264,7 +287,7 @@ export function VisitsReportOverview() {
           )}
         </article>
 
-        <article className="panel report-section">
+        <article className="panel report-section report-section--chart">
           <ReportSectionHeader
             description="Las barras suman el área observada y la línea cuenta visitas activas por día."
             icon={<ChartNoAxesCombined size={18} />}
@@ -362,6 +385,37 @@ export function VisitsReportOverview() {
   }
 }
 
+function ReportMetric({
+  icon,
+  label,
+  value,
+  status
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  status: string | null;
+}) {
+  return (
+    <div aria-busy={status === "Cargando"} className="report-metric">
+      <span className="report-metric__icon">{icon}</span>
+      <span className="report-metric__copy">
+        <strong>
+          {status ? (
+            <>
+              <span aria-hidden="true">—</span>
+              <span className="sr-only">{status}</span>
+            </>
+          ) : (
+            value
+          )}
+        </strong>
+        <span>{label}</span>
+      </span>
+    </div>
+  );
+}
+
 function ReportSectionHeader({
   title,
   description,
@@ -450,6 +504,25 @@ function buildReportMapData(
 function formatAverage(value: number) {
   return new Intl.NumberFormat("es-PE", {
     minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value);
+}
+
+function buildReportMetrics(report: VisitsReportData) {
+  return {
+    totalVisits: report.summary.reduce((total, item) => total + item.visitsCount, 0),
+    activeEngineers: report.summary.filter((item) => item.visitsCount > 0).length,
+    totalHectares: report.timeline.reduce((total, item) => total + item.hectares, 0)
+  };
+}
+
+function formatInteger(value: number) {
+  return new Intl.NumberFormat("es-PE", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatHectares(value: number) {
+  return new Intl.NumberFormat("es-PE", {
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2
   }).format(value);
 }

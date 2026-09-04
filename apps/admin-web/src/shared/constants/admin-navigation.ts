@@ -21,11 +21,19 @@ export const adminMainNavigation: AdminNavLink[] = [
     label: "Mapas",
     href: adminRoutes.mapas,
     description: "Visualizacion geografica de parcelas y visitas"
+  }
+];
+
+export const adminReportsNavigation: AdminNavLink[] = [
+  {
+    label: "Visitas",
+    href: adminRoutes.reportesItems.visitas,
+    description: "Actividad de visitas por ingeniero"
   },
   {
-    label: "Reportes",
-    href: adminRoutes.reportes,
-    description: "Reportes del sistema"
+    label: "Campos por etapas",
+    href: adminRoutes.reportesItems.camposPorEtapas,
+    description: "Ultima etapa o labor registrada por parcela"
   }
 ];
 
@@ -170,6 +178,7 @@ export const adminSecurityNavigation: AdminNavLink[] = [
 
 const allRoutes = [
   ...adminMainNavigation,
+  ...adminReportsNavigation,
   ...adminClimateNavigation,
   ...adminMaintenanceNavigation,
   ...adminSecurityNavigation

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { REQUIRED_ROLES_KEY } from "../../auth/presentation/decorators/roles.decorator";
 import { ReportesController } from "./reportes.controller";
+import { ReporteCamposEtapasQueryDto } from "./dto/reporte-campos-etapas-query.dto";
 import { ReporteVisitasQueryDto } from "./dto/reporte-visitas-query.dto";
 
 describe("ReportesController", () => {
@@ -38,6 +39,23 @@ describe("ReportesController", () => {
         "agronomo_usuario_id",
         "productor_id"
       ])
+    );
+  });
+
+  it("validates optional fields-by-stage identifiers", async () => {
+    const validDto = plainToInstance(ReporteCamposEtapasQueryDto, {
+      agronomo_usuario_id: " 7 ",
+      productor_id: "15"
+    });
+    const invalidDto = plainToInstance(ReporteCamposEtapasQueryDto, {
+      agronomo_usuario_id: "0",
+      productor_id: "abc"
+    });
+
+    expect(await validate(validDto)).toHaveLength(0);
+    expect(validDto.agronomo_usuario_id).toBe("7");
+    expect((await validate(invalidDto)).map((error) => error.property)).toEqual(
+      expect.arrayContaining(["agronomo_usuario_id", "productor_id"])
     );
   });
 });

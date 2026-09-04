@@ -117,4 +117,5 @@ en la raíz.
 - [Spec 071: Opciones de poda en recomendaciones de labores culturales](071-opciones-poda-recomendaciones.md)
 - [Spec 072: Acceso de analista a mantenimiento y reportes web](072-acceso-analista-mantenimiento-reportes-web.md)
 - [Spec 073: Reporte web de visitas](073-reporte-web-visitas.md)
+- [Spec 074: Reporte web de campos por etapas](074-reporte-web-campos-por-etapas.md)
 - [Plantilla](TEMPLATE.md)
