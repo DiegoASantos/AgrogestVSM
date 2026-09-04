@@ -28,6 +28,8 @@ del editor existente.
   payload web con `parcelReferencePoint`, ya admitido por la API.
 - `apps/admin-web/src/app/globals.css`: estilos responsivos, tema oscuro,
   feedback y leyenda de puntos.
+- ajuste visual posterior: el importador se movió de la columna lateral a una
+  franja inferior del mapa para utilizar el espacio libre y ampliar la URL.
 - `docs/`: Spec 076, índices, arquitectura y línea base de seguridad.
 
 ## Contratos y datos afectados

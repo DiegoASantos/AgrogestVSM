@@ -62,6 +62,9 @@ los dos puntos se aplican, sin contratar ni consultar una API externa.
 - RF-010: Los errores distinguen URL inválida, host no permitido, enlace corto,
   ausencia de coordenadas y coordenadas fuera de rango, sin reflejar la URL
   completa en mensajes o logs.
+- RF-011: El importador se presenta como franja inferior del panel del mapa para
+  aprovechar el ancho disponible y no comprimir el resumen ni las acciones del
+  editor. En anchos reducidos sus controles se apilan.
 - RNF-001: La extracción ocurre íntegramente en el navegador, sin dependencia,
   cuota, API key ni llamada externa.
 - RNF-002: El control es usable por teclado, conserva contraste en tema claro y
@@ -110,6 +113,8 @@ en el editor web, sin transformación ni pérdida de datos persistidos.
 - [x] CA-006: La interfaz implementa estilos específicos para tema claro, oscuro
       y ancho móvil. La validación visual manual queda pendiente por no existir
       un navegador conectado en la sesión.
+- [x] CA-007: La importación se ubica debajo del mapa, con destino y URL en una
+      composición horizontal que se reorganiza en tablet y móvil.
 
 ## Pruebas
 

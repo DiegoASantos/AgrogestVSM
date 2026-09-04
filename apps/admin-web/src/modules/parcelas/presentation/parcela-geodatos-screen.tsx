@@ -232,75 +232,6 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
           ) : null}
         </div>
 
-        <form className="geo-editor-import" onSubmit={handleMapsUrlSubmit}>
-          <div className="geo-editor-import__heading">
-            <div>
-              <span className="eyebrow">Importación rápida</span>
-              <strong>Ubicación desde Google Maps</strong>
-            </div>
-            <span className="geo-editor-import__local-badge">Sin API</span>
-          </div>
-
-          <fieldset className="geo-editor-import__targets">
-            <legend>Guardar coordenadas como</legend>
-            <label>
-              <input
-                checked={pointTarget === "access"}
-                name="point-target"
-                onChange={() => setPointTarget("access")}
-                type="radio"
-              />
-              Punto de acceso
-            </label>
-            <label>
-              <input
-                checked={pointTarget === "parcel"}
-                name="point-target"
-                onChange={() => setPointTarget("parcel")}
-                type="radio"
-              />
-              Punto interno
-            </label>
-          </fieldset>
-
-          <label className="geo-editor-import__field" htmlFor="google-maps-url">
-            URL completa con latitud y longitud
-            <div className="geo-editor-import__input-row">
-              <input
-                autoComplete="off"
-                id="google-maps-url"
-                maxLength={2048}
-                onChange={(event) => {
-                  setMapsUrl(event.target.value);
-                  setMapsImportFeedback(null);
-                }}
-                onPaste={handleMapsUrlPaste}
-                placeholder="https://www.google.com/maps/place/-4.889922,-80.435957"
-                spellCheck={false}
-                type="url"
-                value={mapsUrl}
-              />
-              <button className="ui-button ui-button--secondary" type="submit">
-                Usar ubicación
-              </button>
-            </div>
-          </label>
-
-          <p className="geo-editor-import__help">
-            Al pegar una URL válida se ubica el punto automáticamente. También puedes
-            pulsar Enter. El enlace no sale de este navegador.
-          </p>
-          {mapsImportFeedback ? (
-            <p
-              aria-live="polite"
-              className={`geo-editor-import__feedback geo-editor-import__feedback--${mapsImportFeedback.kind}`}
-              role={mapsImportFeedback.kind === "error" ? "alert" : "status"}
-            >
-              {mapsImportFeedback.message}
-            </p>
-          ) : null}
-        </form>
-
         <section
           className={`geo-editor-mode geo-editor-mode--${editorMode}${
             hasChanges ? " geo-editor-mode--dirty" : ""
@@ -465,6 +396,77 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
           referencePoint={editorState.referencePoint}
           resetKey={resetKey}
         />
+        <form
+          className="geo-editor-import geo-editor-import--map-footer"
+          onSubmit={handleMapsUrlSubmit}
+        >
+          <div className="geo-editor-import__heading">
+            <div>
+              <span className="eyebrow">Importación rápida</span>
+              <strong>Ubicación desde Google Maps</strong>
+            </div>
+            <span className="geo-editor-import__local-badge">Sin API</span>
+          </div>
+
+          <fieldset className="geo-editor-import__targets">
+            <legend>Guardar coordenadas como</legend>
+            <label>
+              <input
+                checked={pointTarget === "access"}
+                name="point-target"
+                onChange={() => setPointTarget("access")}
+                type="radio"
+              />
+              Punto de acceso
+            </label>
+            <label>
+              <input
+                checked={pointTarget === "parcel"}
+                name="point-target"
+                onChange={() => setPointTarget("parcel")}
+                type="radio"
+              />
+              Punto interno
+            </label>
+          </fieldset>
+
+          <label className="geo-editor-import__field" htmlFor="google-maps-url">
+            URL completa con latitud y longitud
+            <div className="geo-editor-import__input-row">
+              <input
+                autoComplete="off"
+                id="google-maps-url"
+                maxLength={2048}
+                onChange={(event) => {
+                  setMapsUrl(event.target.value);
+                  setMapsImportFeedback(null);
+                }}
+                onPaste={handleMapsUrlPaste}
+                placeholder="https://www.google.com/maps/place/-4.889922,-80.435957"
+                spellCheck={false}
+                type="url"
+                value={mapsUrl}
+              />
+              <button className="ui-button ui-button--secondary" type="submit">
+                Usar ubicación
+              </button>
+            </div>
+          </label>
+
+          <p className="geo-editor-import__help">
+            Al pegar una URL válida se ubica el punto automáticamente. También puedes
+            pulsar Enter. El enlace no sale de este navegador.
+          </p>
+          {mapsImportFeedback ? (
+            <p
+              aria-live="polite"
+              className={`geo-editor-import__feedback geo-editor-import__feedback--${mapsImportFeedback.kind}`}
+              role={mapsImportFeedback.kind === "error" ? "alert" : "status"}
+            >
+              {mapsImportFeedback.message}
+            </p>
+          ) : null}
+        </form>
       </article>
       <ConfirmDialog
         cancelLabel="Cancelar"
