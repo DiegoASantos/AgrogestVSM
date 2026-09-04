@@ -8,7 +8,8 @@ import {
   cloneGeodata,
   areGeodataEqual,
   polygonFromRing,
-  getGeometryBounds
+  getGeometryBounds,
+  parseGoogleMapsCoordinateUrl
 } from "./geo-editor";
 import type { GeoJsonMultiPolygon, GeoJsonPoint } from "../types/parcelas.types";
 
@@ -29,9 +30,9 @@ describe("geodesic parcel area", () => {
 
   it("returns the same area regardless of ring orientation", () => {
     const clockwiseArea = calculateRingAreaHectares(ONE_DEGREE_EQUATOR_SQUARE);
-    const counterClockwiseArea = calculateRingAreaHectares([
-      ...ONE_DEGREE_EQUATOR_SQUARE
-    ].reverse());
+    const counterClockwiseArea = calculateRingAreaHectares(
+      [...ONE_DEGREE_EQUATOR_SQUARE].reverse()
+    );
 
     expect(counterClockwiseArea).toBeCloseTo(clockwiseArea ?? 0, 6);
   });
@@ -40,7 +41,10 @@ describe("geodesic parcel area", () => {
     const firstArea = calculateRingAreaHectares(ONE_DEGREE_EQUATOR_SQUARE) ?? 0;
     const geometry: GeoJsonMultiPolygon = {
       type: "MultiPolygon",
-      coordinates: [[ONE_DEGREE_EQUATOR_SQUARE], [offsetRing(ONE_DEGREE_EQUATOR_SQUARE, 2)]]
+      coordinates: [
+        [ONE_DEGREE_EQUATOR_SQUARE],
+        [offsetRing(ONE_DEGREE_EQUATOR_SQUARE, 2)]
+      ]
     };
 
     expect(calculatePolygonAreaHectares(geometry)).toBeCloseTo(firstArea * 2, 0);
@@ -93,27 +97,60 @@ describe("validateParcelaGeodata", () => {
   const polygon = buildPolygon(ONE_DEGREE_EQUATOR_SQUARE);
 
   it("should report EMPTY error when both point and polygon are null", () => {
-    const result = validateParcelaGeodata({ referencePoint: null, geometry: null, neighbors: [] });
+    const result = validateParcelaGeodata({
+      referencePoint: null,
+      geometry: null,
+      neighbors: []
+    });
     expect(result.issues.some((i) => i.code === "EMPTY")).toBe(true);
     expect(result.canSave).toBe(false);
   });
 
   it("should allow save with only a reference point", () => {
-    const result = validateParcelaGeodata({ referencePoint: point, geometry: null, neighbors: [] });
+    const result = validateParcelaGeodata({
+      referencePoint: point,
+      geometry: null,
+      neighbors: []
+    });
     expect(result.canSave).toBe(true);
+  });
+
+  it("should allow save with only an internal parcel point", () => {
+    const result = validateParcelaGeodata({
+      referencePoint: null,
+      parcelReferencePoint: point,
+      geometry: null,
+      neighbors: []
+    });
+    expect(result.canSave).toBe(true);
+    expect(result.issues).toEqual([]);
   });
 
   it("should detect invalid polygon", () => {
     const result = validateParcelaGeodata({
       referencePoint: null,
-      geometry: { type: "MultiPolygon", coordinates: [[[[0, 0], [1, 1]]]] } as GeoJsonMultiPolygon,
+      geometry: {
+        type: "MultiPolygon",
+        coordinates: [
+          [
+            [
+              [0, 0],
+              [1, 1]
+            ]
+          ]
+        ]
+      } as GeoJsonMultiPolygon,
       neighbors: []
     });
     expect(result.issues.some((i) => i.code === "INVALID_POLYGON")).toBe(true);
   });
 
   it("should pass validation for valid polygon with point inside", () => {
-    const result = validateParcelaGeodata({ referencePoint: point, geometry: polygon, neighbors: [] });
+    const result = validateParcelaGeodata({
+      referencePoint: point,
+      geometry: polygon,
+      neighbors: []
+    });
     expect(result.canSave).toBe(true);
   });
 
@@ -124,6 +161,19 @@ describe("validateParcelaGeodata", () => {
       neighbors: []
     });
     expect(result.issues.some((i) => i.code === "POINT_OUTSIDE_POLYGON")).toBe(true);
+  });
+
+  it("should warn when the internal point is outside polygon", () => {
+    const result = validateParcelaGeodata({
+      referencePoint: point,
+      parcelReferencePoint: { type: "Point", coordinates: [10, 10] },
+      geometry: polygon,
+      neighbors: []
+    });
+    expect(result.issues.some((i) => i.code === "PARCEL_POINT_OUTSIDE_POLYGON")).toBe(
+      true
+    );
+    expect(result.canSave).toBe(true);
   });
 });
 
@@ -159,13 +209,22 @@ describe("areGeodataEqual", () => {
 
 describe("polygonFromRing", () => {
   it("should return MultiPolygon from valid ring", () => {
-    const result = polygonFromRing(ONE_DEGREE_EQUATOR_SQUARE.map(([lng, lat]) => [lng as number, lat as number] as [number, number]));
+    const result = polygonFromRing(
+      ONE_DEGREE_EQUATOR_SQUARE.map(
+        ([lng, lat]) => [lng as number, lat as number] as [number, number]
+      )
+    );
     expect(result?.type).toBe("MultiPolygon");
     expect(result?.coordinates).toHaveLength(1);
   });
 
   it("should return null for ring with less than 3 vertices", () => {
-    expect(polygonFromRing([[0, 0], [1, 1]] as [number, number][])).toBeNull();
+    expect(
+      polygonFromRing([
+        [0, 0],
+        [1, 1]
+      ] as [number, number][])
+    ).toBeNull();
   });
 });
 
@@ -179,5 +238,52 @@ describe("getGeometryBounds", () => {
     const bounds = getGeometryBounds([pt]);
     expect(bounds.length).toBeGreaterThan(0);
     expect(bounds[0][0]).toBe(-77);
+  });
+});
+
+describe("parseGoogleMapsCoordinateUrl", () => {
+  it.each([
+    "https://www.google.com/maps/place/-4.889922,-80.435957",
+    "https://www.google.com/maps/search/?api=1&query=-4.889922%2C-80.435957",
+    "https://maps.google.com/?q=-4.889922,-80.435957"
+  ])("extracts coordinates from an admitted full URL: %s", (url) => {
+    expect(parseGoogleMapsCoordinateUrl(url)).toEqual({
+      ok: true,
+      point: {
+        type: "Point",
+        coordinates: [-80.435957, -4.889922]
+      }
+    });
+  });
+
+  it("accepts coordinate limits", () => {
+    expect(
+      parseGoogleMapsCoordinateUrl("https://www.google.com/maps/place/+90.0,-180")
+    ).toMatchObject({ ok: true });
+  });
+
+  it.each([
+    ["", "EMPTY"],
+    ["not-a-url", "INVALID_URL"],
+    ["https://maps.app.goo.gl/example", "SHORT_URL"],
+    ["https://www.google.com.evil.example/maps/place/-4.8,-80.4", "UNSUPPORTED_HOST"],
+    ["http://www.google.com/maps/place/-4.8,-80.4", "UNSUPPORTED_HOST"],
+    ["https://www.google.com/maps/place/Piura", "MISSING_COORDINATES"],
+    ["https://www.google.com/maps/place/7M7R%2B9C", "MISSING_COORDINATES"],
+    ["https://www.google.com/maps/@-4.8,-80.4,17z", "MISSING_COORDINATES"],
+    ["https://www.google.com/maps/place/-4.8,-80.4,17z", "MISSING_COORDINATES"],
+    ["https://www.google.com/maps/dir/?api=1&query=-4.8,-80.4", "MISSING_COORDINATES"],
+    ["https://www.google.com/maps/place/-91,-80", "OUT_OF_RANGE"],
+    ["https://www.google.com/maps/place/-4.8,181", "OUT_OF_RANGE"]
+  ])("rejects unsupported input %#", (url, code) => {
+    expect(parseGoogleMapsCoordinateUrl(url)).toMatchObject({ ok: false, code });
+  });
+
+  it("rejects oversized URLs", () => {
+    expect(
+      parseGoogleMapsCoordinateUrl(
+        `https://www.google.com/maps/place/-4.8,-80.4?x=${"a".repeat(2048)}`
+      )
+    ).toMatchObject({ ok: false, code: "TOO_LONG" });
   });
 });

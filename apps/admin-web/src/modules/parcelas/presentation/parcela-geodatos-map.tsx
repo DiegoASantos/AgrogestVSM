@@ -9,13 +9,15 @@ import type {
 } from "../types/parcelas.types";
 
 export type GeoEditorActionKind =
-  | "place-point"
+  | "place-access-point"
   | "draw-polygon"
   | "edit"
   | "move"
   | "stop"
   | "center"
-  | "delete-point"
+  | "focus-point"
+  | "delete-access-point"
+  | "delete-parcel-point"
   | "delete-polygon";
 
 export type GeoEditorMode =
@@ -28,6 +30,7 @@ export type GeoEditorMode =
 export type GeoEditorAction = {
   kind: GeoEditorActionKind;
   nonce: number;
+  point?: GeoJsonPoint;
 };
 
 export type DrawingAreaPreview = {
@@ -37,6 +40,7 @@ export type DrawingAreaPreview = {
 
 export type ParcelaGeodatosMapProps = {
   referencePoint: GeoJsonPoint | null;
+  parcelReferencePoint: GeoJsonPoint | null;
   geometry: GeoJsonMultiPolygon | null;
   neighbors: ParcelaListItem[];
   action: GeoEditorAction | null;
@@ -44,6 +48,7 @@ export type ParcelaGeodatosMapProps = {
   hasUnsavedChanges: boolean;
   onChange: (nextState: {
     referencePoint: GeoJsonPoint | null;
+    parcelReferencePoint: GeoJsonPoint | null;
     geometry: GeoJsonMultiPolygon | null;
   }) => void;
   onDrawingAreaChange?: (preview: DrawingAreaPreview | null) => void;

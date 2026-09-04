@@ -29,10 +29,13 @@ const DEFAULT_ZOOM = 6;
 type Coordinate = [number, number];
 
 type EditorLayerRefs = {
-  point: L.Marker | null;
+  accessPoint: L.Marker | null;
+  parcelPoint: L.Marker | null;
   polygon: L.Polygon | null;
   neighbors: L.LayerGroup;
 };
+
+type PointRole = "access" | "parcel";
 
 type DrawingLayer = L.Polygon | L.Polyline;
 
@@ -48,12 +51,23 @@ export function ParcelaGeodatosMapClient(props: ParcelaGeodatosMapProps) {
         <BaseMapLayersControl />
         <GeoEditorController {...props} />
       </MapContainer>
+      <div aria-label="Leyenda de puntos" className="geo-editor-map__point-legend">
+        <span>
+          <i className="geo-editor-map__legend-dot geo-editor-map__legend-dot--access" />
+          Acceso
+        </span>
+        <span>
+          <i className="geo-editor-map__legend-dot geo-editor-map__legend-dot--parcel" />
+          Punto interno
+        </span>
+      </div>
     </div>
   );
 }
 
 function GeoEditorController({
   referencePoint,
+  parcelReferencePoint,
   geometry,
   neighbors,
   action,
@@ -65,7 +79,8 @@ function GeoEditorController({
 }: ParcelaGeodatosMapProps) {
   const map = useMap();
   const layersRef = useRef<EditorLayerRefs>({
-    point: null,
+    accessPoint: null,
+    parcelPoint: null,
     polygon: null,
     neighbors: L.layerGroup()
   });
@@ -101,17 +116,32 @@ function GeoEditorController({
       map,
       layers: layersRef.current,
       referencePoint,
+      parcelReferencePoint,
       geometry,
       neighbors,
       hasUnsavedChanges,
       onChange
     });
-    lastSyncedSignatureRef.current = createSignature(referencePoint, geometry);
-    fitMapToVisibleGeodata(map, referencePoint, geometry, neighbors);
+    lastSyncedSignatureRef.current = createSignature(
+      referencePoint,
+      parcelReferencePoint,
+      geometry
+    );
+    fitMapToVisibleGeodata(
+      map,
+      referencePoint,
+      parcelReferencePoint,
+      geometry,
+      neighbors
+    );
   }, [hasUnsavedChanges, map, resetKey, neighbors]);
 
   useEffect(() => {
-    const currentSignature = createSignature(referencePoint, geometry);
+    const currentSignature = createSignature(
+      referencePoint,
+      parcelReferencePoint,
+      geometry
+    );
 
     if (currentSignature === lastSyncedSignatureRef.current) {
       return;
@@ -121,13 +151,22 @@ function GeoEditorController({
       map,
       layers: layersRef.current,
       referencePoint,
+      parcelReferencePoint,
       geometry,
       neighbors,
       hasUnsavedChanges,
       onChange
     });
     lastSyncedSignatureRef.current = currentSignature;
-  }, [geometry, hasUnsavedChanges, map, neighbors, onChange, referencePoint]);
+  }, [
+    geometry,
+    hasUnsavedChanges,
+    map,
+    neighbors,
+    onChange,
+    parcelReferencePoint,
+    referencePoint
+  ]);
 
   useEffect(() => {
     const handleCreate = (event: { layer: L.Layer; shape: string }) => {
@@ -275,6 +314,7 @@ function syncLayersFromState({
   map,
   layers,
   referencePoint,
+  parcelReferencePoint,
   geometry,
   neighbors,
   hasUnsavedChanges,
@@ -283,6 +323,7 @@ function syncLayersFromState({
   map: L.Map;
   layers: EditorLayerRefs;
   referencePoint: GeoJsonPoint | null;
+  parcelReferencePoint: GeoJsonPoint | null;
   geometry: GeoJsonMultiPolygon | null;
   neighbors: ParcelaListItem[];
   hasUnsavedChanges: boolean;
@@ -309,10 +350,17 @@ function syncLayersFromState({
   }
 
   if (referencePoint) {
-    const marker = createPointLayer(referencePoint, hasUnsavedChanges);
+    const marker = createPointLayer(referencePoint, "access", hasUnsavedChanges);
     attachPointEvents(marker, layers, onChange);
     marker.addTo(map);
-    layers.point = marker;
+    layers.accessPoint = marker;
+  }
+
+  if (parcelReferencePoint) {
+    const marker = createPointLayer(parcelReferencePoint, "parcel", hasUnsavedChanges);
+    attachPointEvents(marker, layers, onChange);
+    marker.addTo(map);
+    layers.parcelPoint = marker;
   }
 }
 
@@ -338,14 +386,14 @@ function executeAction(
     onModeChange("idle");
   }
 
-  if (action.kind === "place-point") {
+  if (action.kind === "place-access-point") {
     onModeChange("placing-point");
     map.pm.enableDraw("Marker", {
       snappable: true,
       snapDistance: 24,
       markerStyle: {
         draggable: true,
-        icon: createPointIcon()
+        icon: createPointIcon("access")
       },
       continueDrawing: false
     });
@@ -396,10 +444,24 @@ function executeAction(
     fitMapToLayerRefs(map, layers);
   }
 
-  if (action.kind === "delete-point") {
-    if (layers.point) {
-      layers.point.removeFrom(map);
-      layers.point = null;
+  if (action.kind === "focus-point" && action.point) {
+    map.setView(toLatLng(action.point.coordinates), 18);
+    onModeChange("idle");
+  }
+
+  if (action.kind === "delete-access-point") {
+    if (layers.accessPoint) {
+      layers.accessPoint.removeFrom(map);
+      layers.accessPoint = null;
+      onModeChange("idle");
+      syncAndNotify(layers, onChange, signatureRef);
+    }
+  }
+
+  if (action.kind === "delete-parcel-point") {
+    if (layers.parcelPoint) {
+      layers.parcelPoint.removeFrom(map);
+      layers.parcelPoint = null;
       onModeChange("idle");
       syncAndNotify(layers, onChange, signatureRef);
     }
@@ -421,14 +483,14 @@ function replacePointLayer(
   marker: L.Marker,
   onChange: ParcelaGeodatosMapProps["onChange"]
 ) {
-  if (layers.point) {
-    layers.point.removeFrom(map);
+  if (layers.accessPoint) {
+    layers.accessPoint.removeFrom(map);
   }
 
-  marker.setIcon(createPointIcon(true));
+  marker.setIcon(createPointIcon("access", true));
   marker.dragging?.enable();
   attachPointEvents(marker, layers, onChange);
-  layers.point = marker;
+  layers.accessPoint = marker;
 }
 
 function replacePolygonLayer(
@@ -487,21 +549,31 @@ function syncAndNotify(
   signatureRef: React.MutableRefObject<string>
 ) {
   const nextState = readLayerState(layers);
-  signatureRef.current = createSignature(nextState.referencePoint, nextState.geometry);
+  signatureRef.current = createSignature(
+    nextState.referencePoint,
+    nextState.parcelReferencePoint,
+    nextState.geometry
+  );
   onChange(nextState);
 }
 
 function readLayerState(layers: EditorLayerRefs) {
   return {
-    referencePoint: layers.point ? pointFromMarker(layers.point) : null,
+    referencePoint: layers.accessPoint ? pointFromMarker(layers.accessPoint) : null,
+    parcelReferencePoint: layers.parcelPoint ? pointFromMarker(layers.parcelPoint) : null,
     geometry: layers.polygon ? geometryFromPolygon(layers.polygon) : null
   };
 }
 
 function clearEditableLayers(map: L.Map, layers: EditorLayerRefs) {
-  if (layers.point) {
-    layers.point.removeFrom(map);
-    layers.point = null;
+  if (layers.accessPoint) {
+    layers.accessPoint.removeFrom(map);
+    layers.accessPoint = null;
+  }
+
+  if (layers.parcelPoint) {
+    layers.parcelPoint.removeFrom(map);
+    layers.parcelPoint = null;
   }
 
   if (layers.polygon) {
@@ -510,10 +582,10 @@ function clearEditableLayers(map: L.Map, layers: EditorLayerRefs) {
   }
 }
 
-function createPointLayer(point: GeoJsonPoint, isUnsaved = false) {
+function createPointLayer(point: GeoJsonPoint, role: PointRole, isUnsaved = false) {
   const marker = L.marker(toLatLng(point.coordinates), {
     draggable: true,
-    icon: createPointIcon(isUnsaved)
+    icon: createPointIcon(role, isUnsaved)
   });
 
   return marker;
@@ -566,24 +638,25 @@ function geometryFromPolygon(polygon: L.Polygon): GeoJsonMultiPolygon | null {
 function readLayerRing(layer: DrawingLayer): Coordinate[] {
   const latLngs = layer.getLatLngs();
   const firstPolygon = Array.isArray(latLngs[0]) ? latLngs[0] : latLngs;
-  const outerRing = (Array.isArray(firstPolygon[0])
-    ? firstPolygon[0]
-    : firstPolygon) as L.LatLng[];
+  const outerRing = (
+    Array.isArray(firstPolygon[0]) ? firstPolygon[0] : firstPolygon
+  ) as L.LatLng[];
 
-  return outerRing.map((latLng) => [
-    roundCoordinate(latLng.lng),
-    roundCoordinate(latLng.lat)
-  ] as Coordinate);
+  return outerRing.map(
+    (latLng) => [roundCoordinate(latLng.lng), roundCoordinate(latLng.lat)] as Coordinate
+  );
 }
 
 function fitMapToVisibleGeodata(
   map: L.Map,
   referencePoint: GeoJsonPoint | null,
+  parcelReferencePoint: GeoJsonPoint | null,
   geometry: GeoJsonMultiPolygon | null,
   neighbors: ParcelaListItem[]
 ) {
   const boundsCoordinates = getGeometryBounds([
     referencePoint,
+    parcelReferencePoint,
     geometry,
     ...neighbors.map((neighbor) => neighbor.geometry)
   ]);
@@ -600,7 +673,11 @@ function fitMapToLayerRefs(map: L.Map, layers: EditorLayerRefs) {
     ) as GeoJsonMultiPolygon[];
 
   fitMapToCoordinates(map, [
-    ...getGeometryBounds([state.referencePoint, state.geometry]),
+    ...getGeometryBounds([
+      state.referencePoint,
+      state.parcelReferencePoint,
+      state.geometry
+    ]),
     ...getGeometryBounds(neighborGeometries)
   ]);
 }
@@ -617,9 +694,10 @@ function fitMapToCoordinates(map: L.Map, coordinates: Coordinate[]) {
 
 function createSignature(
   referencePoint: GeoJsonPoint | null,
+  parcelReferencePoint: GeoJsonPoint | null,
   geometry: GeoJsonMultiPolygon | null
 ) {
-  return JSON.stringify({ referencePoint, geometry });
+  return JSON.stringify({ referencePoint, parcelReferencePoint, geometry });
 }
 
 function toLatLng([longitude, latitude]: Coordinate): [number, number] {
@@ -641,18 +719,20 @@ function roundCoordinate(value: number) {
 }
 
 function enableLayerDrag(layers: EditorLayerRefs) {
-  layers.point?.pm.enableLayerDrag();
+  layers.accessPoint?.pm.enableLayerDrag();
+  layers.parcelPoint?.pm.enableLayerDrag();
   layers.polygon?.pm.enableLayerDrag();
 }
 
 function disableLayerDrag(layers: EditorLayerRefs) {
-  layers.point?.pm.disableLayerDrag();
+  layers.accessPoint?.pm.disableLayerDrag();
+  layers.parcelPoint?.pm.disableLayerDrag();
   layers.polygon?.pm.disableLayerDrag();
 }
 
-function createPointIcon(isUnsaved = false) {
+function createPointIcon(role: PointRole, isUnsaved = false) {
   return L.divIcon({
-    className: `geo-editor-map__point-icon${
+    className: `geo-editor-map__point-icon geo-editor-map__point-icon--${role}${
       isUnsaved ? " geo-editor-map__point-icon--unsaved" : ""
     }`,
     html: '<span aria-hidden="true"></span>',

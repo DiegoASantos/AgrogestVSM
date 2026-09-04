@@ -126,6 +126,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Reporte web de visitas](specs/073-reporte-web-visitas.md)
 - [Reporte web de campos por etapas](specs/074-reporte-web-campos-por-etapas.md)
 - [Reporte web de parcelas por categoría de área](specs/075-reporte-web-parcelas-por-categoria.md)
+- [Importación de coordenadas de Google Maps en geodatos web](specs/076-importacion-google-maps-geodatos-web.md)
 
 ## Runbooks
 

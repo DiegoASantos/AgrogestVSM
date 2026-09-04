@@ -27,6 +27,10 @@ last_reviewed: 2026-09-04
 - el selector web de agrónomos para parcelas consume el lookup mínimo
   `/usuarios/agronomos`; el listado administrativo de usuarios permanece
   exclusivo de `ADMIN`;
+- el importador web de coordenadas de Google Maps procesa únicamente URLs
+  completas mediante una lista cerrada de hosts y patrones; nunca navega,
+  resuelve enlaces cortos, registra ni envía la URL. Solo el GeoJSON extraído
+  participa en el guardado explícito de la parcela;
 - `GET /reportes/visitas` exige `ADMIN` o `ANALISTA`, devuelve solo identidad
   visible del ingeniero y agregados operativos, valida el rango inclusivo y
   parametriza fechas e identificadores; no habilita acceso a `AGRONOMO`;

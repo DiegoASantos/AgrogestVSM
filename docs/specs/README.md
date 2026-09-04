@@ -119,4 +119,5 @@ en la raíz.
 - [Spec 073: Reporte web de visitas](073-reporte-web-visitas.md)
 - [Spec 074: Reporte web de campos por etapas](074-reporte-web-campos-por-etapas.md)
 - [Spec 075: Reporte web de parcelas por categoría de área](075-reporte-web-parcelas-por-categoria.md)
+- [Spec 076: Importación de coordenadas de Google Maps en geodatos web](076-importacion-google-maps-geodatos-web.md)
 - [Plantilla](TEMPLATE.md)

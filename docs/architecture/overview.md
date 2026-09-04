@@ -77,6 +77,12 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 geodatos y la asignación de agrónomos en parcelas. Seguridad continúa exclusiva
 de `ADMIN`.
 
+El editor web de geodatos distingue el punto de acceso, el punto interno de la
+parcela y su polígono. Puede extraer coordenadas de formatos completos y
+explícitos de Google Maps para cualquiera de los dos puntos. La extracción es
+local en el navegador: no abre el enlace, no resuelve URLs cortas y no integra
+servicios ni credenciales de Google.
+
 El panel controla visibilidad por rol, pero la API conserva la autorización
 definitiva.
 

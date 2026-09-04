@@ -11,7 +11,8 @@ export type GeoEditorIssue = {
     | "INVALID_POLYGON"
     | "SELF_INTERSECTION"
     | "NEIGHBOR_OVERLAP"
-    | "POINT_OUTSIDE_POLYGON";
+    | "POINT_OUTSIDE_POLYGON"
+    | "PARCEL_POINT_OUTSIDE_POLYGON";
   severity: "error" | "warning";
   message: string;
 };
@@ -21,23 +22,149 @@ export type GeoEditorValidationResult = {
   canSave: boolean;
 };
 
+export type GoogleMapsCoordinateParseResult =
+  | {
+      ok: true;
+      point: GeoJsonPoint;
+    }
+  | {
+      ok: false;
+      code:
+        | "EMPTY"
+        | "TOO_LONG"
+        | "INVALID_URL"
+        | "SHORT_URL"
+        | "UNSUPPORTED_HOST"
+        | "MISSING_COORDINATES"
+        | "OUT_OF_RANGE";
+      message: string;
+    };
+
 type Coordinate = [number, number];
 
 const EPSILON = 1e-10;
 const SQUARE_METERS_PER_HECTARE = 10000;
+const MAX_MAPS_URL_LENGTH = 2048;
+const ALLOWED_GOOGLE_MAPS_HOSTS = new Set([
+  "google.com",
+  "www.google.com",
+  "maps.google.com"
+]);
+const SHORT_GOOGLE_MAPS_HOST = "maps.app.goo.gl";
+const COORDINATE_PAIR_PATTERN =
+  /^\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*,\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*$/;
+
+export function parseGoogleMapsCoordinateUrl(
+  input: string
+): GoogleMapsCoordinateParseResult {
+  const value = input.trim();
+
+  if (!value) {
+    return parseFailure("EMPTY", "Pega una URL completa de Google Maps.");
+  }
+
+  if (value.length > MAX_MAPS_URL_LENGTH) {
+    return parseFailure("TOO_LONG", "La URL supera el límite de 2048 caracteres.");
+  }
+
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    return parseFailure(
+      "INVALID_URL",
+      "La URL no es válida. Debe comenzar con https://."
+    );
+  }
+
+  const hostname = url.hostname.toLowerCase();
+
+  if (hostname === SHORT_GOOGLE_MAPS_HOST) {
+    return parseFailure(
+      "SHORT_URL",
+      "Los enlaces cortos no incluyen coordenadas visibles. Abre Google Maps y copia la URL completa."
+    );
+  }
+
+  if (url.protocol !== "https:" || !ALLOWED_GOOGLE_MAPS_HOSTS.has(hostname)) {
+    return parseFailure(
+      "UNSUPPORTED_HOST",
+      "Solo se admiten URLs completas de google.com o maps.google.com."
+    );
+  }
+
+  const pathname = decodePathname(url.pathname);
+  let coordinatePair: string | null = null;
+
+  if (/^\/maps\/search\/?$/i.test(pathname) && url.searchParams.get("api") === "1") {
+    coordinatePair = url.searchParams.get("query");
+  } else if (
+    hostname === "maps.google.com" &&
+    (pathname === "/" || /^\/maps\/?$/i.test(pathname))
+  ) {
+    coordinatePair = url.searchParams.get("q");
+  } else {
+    const placeMatch = pathname.match(/^\/maps\/place\/([^/]+)(?:\/|$)/i);
+    coordinatePair = placeMatch?.[1] ?? null;
+  }
+
+  if (!coordinatePair) {
+    return parseFailure(
+      "MISSING_COORDINATES",
+      "La URL no contiene un par visible de latitud y longitud compatible."
+    );
+  }
+
+  const coordinateMatch = coordinatePair.match(COORDINATE_PAIR_PATTERN);
+
+  if (!coordinateMatch) {
+    return parseFailure(
+      "MISSING_COORDINATES",
+      "La URL debe contener únicamente latitud y longitud decimales separadas por coma."
+    );
+  }
+
+  const latitude = Number(coordinateMatch[1]);
+  const longitude = Number(coordinateMatch[2]);
+
+  if (
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return parseFailure(
+      "OUT_OF_RANGE",
+      "Las coordenadas están fuera de rango: latitud -90 a 90 y longitud -180 a 180."
+    );
+  }
+
+  return {
+    ok: true,
+    point: {
+      type: "Point",
+      coordinates: [longitude, latitude]
+    }
+  };
+}
 
 export function validateParcelaGeodata({
   referencePoint,
+  parcelReferencePoint,
   geometry,
   neighbors
 }: {
   referencePoint: GeoJsonPoint | null;
+  parcelReferencePoint?: GeoJsonPoint | null;
   geometry: GeoJsonMultiPolygon | null;
   neighbors: ParcelaListItem[];
 }): GeoEditorValidationResult {
   const issues: GeoEditorIssue[] = [];
 
-  if (!referencePoint && !geometry) {
+  if (!referencePoint && !parcelReferencePoint && !geometry) {
     issues.push({
       code: "EMPTY",
       severity: "error",
@@ -75,11 +202,27 @@ export function validateParcelaGeodata({
     }
   }
 
-  if (referencePoint && geometry && !pointInMultiPolygon(referencePoint.coordinates, geometry)) {
+  if (
+    referencePoint &&
+    geometry &&
+    !pointInMultiPolygon(referencePoint.coordinates, geometry)
+  ) {
     issues.push({
       code: "POINT_OUTSIDE_POLYGON",
       severity: "warning",
       message: "El punto de referencia queda fuera del polígono de la parcela."
+    });
+  }
+
+  if (
+    parcelReferencePoint &&
+    geometry &&
+    !pointInMultiPolygon(parcelReferencePoint.coordinates, geometry)
+  ) {
+    issues.push({
+      code: "PARCEL_POINT_OUTSIDE_POLYGON",
+      severity: "warning",
+      message: "El punto interno queda fuera del polígono de la parcela."
     });
   }
 
@@ -157,7 +300,9 @@ export function polygonFromRing(ring: Coordinate[]): GeoJsonMultiPolygon | null 
   };
 }
 
-export function getGeometryBounds(geometries: Array<GeoJsonPoint | GeoJsonMultiPolygon | null>) {
+export function getGeometryBounds(
+  geometries: Array<GeoJsonPoint | GeoJsonMultiPolygon | null>
+) {
   const coordinates = geometries.flatMap((geometry) => {
     if (!geometry) {
       return [];
@@ -272,10 +417,12 @@ function pointInMultiPolygon(point: Coordinate, geometry: GeoJsonMultiPolygon) {
 }
 
 function pointInRing(point: Coordinate, ring: Coordinate[]) {
-  if (ring.some((coordinate, index) => {
-    const nextCoordinate = ring[index + 1];
-    return nextCoordinate ? pointOnSegment(point, coordinate, nextCoordinate) : false;
-  })) {
+  if (
+    ring.some((coordinate, index) => {
+      const nextCoordinate = ring[index + 1];
+      return nextCoordinate ? pointOnSegment(point, coordinate, nextCoordinate) : false;
+    })
+  ) {
     return true;
   }
 
@@ -286,7 +433,11 @@ function pointInRingStrict(point: Coordinate, ring: Coordinate[]) {
   let isInside = false;
   const [longitude, latitude] = point;
 
-  for (let index = 0, previousIndex = ring.length - 1; index < ring.length; previousIndex = index++) {
+  for (
+    let index = 0, previousIndex = ring.length - 1;
+    index < ring.length;
+    previousIndex = index++
+  ) {
     const [currentLongitude, currentLatitude] = ring[index];
     const [previousLongitude, previousLatitude] = ring[previousIndex];
     const intersects =
@@ -361,7 +512,11 @@ function orientation(first: Coordinate, second: Coordinate, third: Coordinate) {
   return value > 0 ? 1 : 2;
 }
 
-function pointOnSegment(point: Coordinate, segmentStart: Coordinate, segmentEnd: Coordinate) {
+function pointOnSegment(
+  point: Coordinate,
+  segmentStart: Coordinate,
+  segmentEnd: Coordinate
+) {
   return (
     point[0] <= Math.max(segmentStart[0], segmentEnd[0]) + EPSILON &&
     point[0] + EPSILON >= Math.min(segmentStart[0], segmentEnd[0]) &&
@@ -420,4 +575,19 @@ function toCoordinate(coordinate: number[]): Coordinate {
 
 function buildParcelaLabel(parcela: ParcelaListItem) {
   return parcela.name ? `${parcela.code} - ${parcela.name}` : parcela.code;
+}
+
+function parseFailure(
+  code: Extract<GoogleMapsCoordinateParseResult, { ok: false }>["code"],
+  message: string
+): GoogleMapsCoordinateParseResult {
+  return { ok: false, code, message };
+}
+
+function decodePathname(pathname: string) {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return pathname;
+  }
 }

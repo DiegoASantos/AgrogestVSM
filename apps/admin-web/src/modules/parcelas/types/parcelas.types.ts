@@ -41,6 +41,7 @@ export type ParcelaPayload = {
   areaHectares?: string | null;
   description?: string | null;
   referencePoint?: GeoJsonPoint | null;
+  parcelReferencePoint?: GeoJsonPoint | null;
   geometry?: GeoJsonMultiPolygon | null;
   isActive?: boolean;
 };

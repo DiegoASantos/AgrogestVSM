@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type FormEvent
+} from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { sectoresService } from "../../sectores/services/sectores.service";
@@ -23,6 +31,7 @@ import type {
 import {
   ParcelaGeodatosMap,
   type DrawingAreaPreview,
+  type GeoEditorAction,
   type GeoEditorActionKind,
   type GeoEditorMode
 } from "./parcela-geodatos-map";
@@ -31,6 +40,7 @@ import {
   calculatePolygonAreaHectares,
   cloneGeodata,
   formatAreaHectares,
+  parseGoogleMapsCoordinateUrl,
   validateParcelaGeodata
 } from "../utils/geo-editor";
 
@@ -40,13 +50,22 @@ type ParcelaGeodatosScreenProps = {
 
 type EditorState = {
   referencePoint: GeoJsonPoint | null;
+  parcelReferencePoint: GeoJsonPoint | null;
   geometry: GeoJsonMultiPolygon | null;
 };
+
+type PointTarget = "access" | "parcel";
+
+type MapsImportFeedback =
+  | { kind: "success"; message: string }
+  | { kind: "error"; message: string };
 
 type EditorHistory = {
   past: EditorState[];
   future: EditorState[];
 };
+
+type EditorStateUpdate = EditorState | ((currentState: EditorState) => EditorState);
 
 const MAX_HISTORY_STEPS = 30;
 
@@ -57,17 +76,16 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
   const [neighbors, setNeighbors] = useState<ParcelaListItem[]>([]);
   const [originalState, setOriginalState] = useState<EditorState>({
     referencePoint: null,
+    parcelReferencePoint: null,
     geometry: null
   });
   const [editorState, setEditorState] = useState<EditorState>({
     referencePoint: null,
+    parcelReferencePoint: null,
     geometry: null
   });
   const editorStateRef = useRef(editorState);
-  const [editorAction, setEditorAction] = useState<{
-    kind: GeoEditorActionKind;
-    nonce: number;
-  } | null>(null);
+  const [editorAction, setEditorAction] = useState<GeoEditorAction | null>(null);
   const [editorMode, setEditorMode] = useState<GeoEditorMode>("idle");
   const [history, setHistory] = useState<EditorHistory>({
     past: [],
@@ -80,8 +98,14 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
-  const [drawingAreaPreview, setDrawingAreaPreview] =
-    useState<DrawingAreaPreview | null>(null);
+  const [drawingAreaPreview, setDrawingAreaPreview] = useState<DrawingAreaPreview | null>(
+    null
+  );
+  const [mapsUrl, setMapsUrl] = useState("");
+  const [pointTarget, setPointTarget] = useState<PointTarget>("access");
+  const [mapsImportFeedback, setMapsImportFeedback] = useState<MapsImportFeedback | null>(
+    null
+  );
   const dismissToast = useCallback(() => setToast(null), []);
 
   useEffect(() => {
@@ -100,10 +124,16 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
     () =>
       validateParcelaGeodata({
         referencePoint: editorState.referencePoint,
+        parcelReferencePoint: editorState.parcelReferencePoint,
         geometry: editorState.geometry,
         neighbors
       }),
-    [editorState.geometry, editorState.referencePoint, neighbors]
+    [
+      editorState.geometry,
+      editorState.parcelReferencePoint,
+      editorState.referencePoint,
+      neighbors
+    ]
   );
   const calculatedArea = useMemo(
     () => calculatePolygonAreaHectares(editorState.geometry),
@@ -111,6 +141,10 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
   );
   const hasChanges =
     !areGeodataEqual(originalState.referencePoint, editorState.referencePoint) ||
+    !areGeodataEqual(
+      originalState.parcelReferencePoint,
+      editorState.parcelReferencePoint
+    ) ||
     !areGeodataEqual(originalState.geometry, editorState.geometry);
   const canUndo = history.past.length > 0 && !isSaving;
   const canRedo = history.future.length > 0 && !isSaving;
@@ -198,6 +232,75 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
           ) : null}
         </div>
 
+        <form className="geo-editor-import" onSubmit={handleMapsUrlSubmit}>
+          <div className="geo-editor-import__heading">
+            <div>
+              <span className="eyebrow">Importación rápida</span>
+              <strong>Ubicación desde Google Maps</strong>
+            </div>
+            <span className="geo-editor-import__local-badge">Sin API</span>
+          </div>
+
+          <fieldset className="geo-editor-import__targets">
+            <legend>Guardar coordenadas como</legend>
+            <label>
+              <input
+                checked={pointTarget === "access"}
+                name="point-target"
+                onChange={() => setPointTarget("access")}
+                type="radio"
+              />
+              Punto de acceso
+            </label>
+            <label>
+              <input
+                checked={pointTarget === "parcel"}
+                name="point-target"
+                onChange={() => setPointTarget("parcel")}
+                type="radio"
+              />
+              Punto interno
+            </label>
+          </fieldset>
+
+          <label className="geo-editor-import__field" htmlFor="google-maps-url">
+            URL completa con latitud y longitud
+            <div className="geo-editor-import__input-row">
+              <input
+                autoComplete="off"
+                id="google-maps-url"
+                maxLength={2048}
+                onChange={(event) => {
+                  setMapsUrl(event.target.value);
+                  setMapsImportFeedback(null);
+                }}
+                onPaste={handleMapsUrlPaste}
+                placeholder="https://www.google.com/maps/place/-4.889922,-80.435957"
+                spellCheck={false}
+                type="url"
+                value={mapsUrl}
+              />
+              <button className="ui-button ui-button--secondary" type="submit">
+                Usar ubicación
+              </button>
+            </div>
+          </label>
+
+          <p className="geo-editor-import__help">
+            Al pegar una URL válida se ubica el punto automáticamente. También puedes
+            pulsar Enter. El enlace no sale de este navegador.
+          </p>
+          {mapsImportFeedback ? (
+            <p
+              aria-live="polite"
+              className={`geo-editor-import__feedback geo-editor-import__feedback--${mapsImportFeedback.kind}`}
+              role={mapsImportFeedback.kind === "error" ? "alert" : "status"}
+            >
+              {mapsImportFeedback.message}
+            </p>
+          ) : null}
+        </form>
+
         <section
           className={`geo-editor-mode geo-editor-mode--${editorMode}${
             hasChanges ? " geo-editor-mode--dirty" : ""
@@ -212,10 +315,10 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
             className={`ui-button ui-button--secondary${
               editorMode === "placing-point" ? " ui-button--active" : ""
             }`}
-            onClick={() => runEditorAction("place-point")}
+            onClick={() => runEditorAction("place-access-point")}
             type="button"
           >
-            Colocar punto
+            Colocar punto de acceso
           </button>
           <button
             className={`ui-button ui-button--secondary${
@@ -230,7 +333,11 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
             className={`ui-button ui-button--ghost${
               editorMode === "editing" ? " ui-button--active" : ""
             }`}
-            disabled={!editorState.referencePoint && !editorState.geometry}
+            disabled={
+              !editorState.referencePoint &&
+              !editorState.parcelReferencePoint &&
+              !editorState.geometry
+            }
             onClick={() => runEditorAction("edit")}
             type="button"
           >
@@ -247,19 +354,31 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
             className={`ui-button ui-button--ghost${
               editorMode === "moving" ? " ui-button--active" : ""
             }`}
-            disabled={!editorState.referencePoint && !editorState.geometry}
+            disabled={
+              !editorState.referencePoint &&
+              !editorState.parcelReferencePoint &&
+              !editorState.geometry
+            }
             onClick={() => runEditorAction("move")}
             type="button"
           >
-            Mover geometrÃ­a
+            Mover geometría
           </button>
           <button
             className="ui-button ui-button--ghost"
             disabled={!editorState.referencePoint}
-            onClick={() => runEditorAction("delete-point")}
+            onClick={() => runEditorAction("delete-access-point")}
             type="button"
           >
-            Eliminar punto
+            Eliminar punto de acceso
+          </button>
+          <button
+            className="ui-button ui-button--ghost"
+            disabled={!editorState.parcelReferencePoint}
+            onClick={() => runEditorAction("delete-parcel-point")}
+            type="button"
+          >
+            Eliminar punto interno
           </button>
           <button
             className="ui-button ui-button--ghost"
@@ -342,6 +461,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
           onChange={updateEditorState}
           onDrawingAreaChange={setDrawingAreaPreview}
           onModeChange={setEditorMode}
+          parcelReferencePoint={editorState.parcelReferencePoint}
           referencePoint={editorState.referencePoint}
           resetKey={resetKey}
         />
@@ -376,7 +496,12 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
         sectoresService.getById(session, nextParcela.sectorId).catch(() => null)
       ]);
       const nextState = {
-        referencePoint: cloneGeodata(nextParcela.geo?.point ?? nextParcela.referencePoint),
+        referencePoint: cloneGeodata(
+          nextParcela.geo?.point ?? nextParcela.referencePoint
+        ),
+        parcelReferencePoint: cloneGeodata(
+          nextParcela.geo?.parcelPoint ?? nextParcela.parcelReferencePoint ?? null
+        ),
         geometry: cloneGeodata(nextParcela.geo?.polygon ?? nextParcela.geometry)
       };
 
@@ -388,6 +513,8 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
       setHistory({ past: [], future: [] });
       setEditorMode("idle");
       setDrawingAreaPreview(null);
+      setMapsUrl("");
+      setMapsImportFeedback(null);
       setResetKey((currentKey) => currentKey + 1);
     } catch (error) {
       const apiError = toApiError(error);
@@ -433,9 +560,14 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
     });
   }
 
-  function updateEditorState(nextState: EditorState) {
+  function updateEditorState(nextStateUpdate: EditorStateUpdate) {
     setToast(null);
     setEditorState((currentState) => {
+      const nextState =
+        typeof nextStateUpdate === "function"
+          ? nextStateUpdate(currentState)
+          : nextStateUpdate;
+
       if (sameEditorState(currentState, nextState)) {
         return currentState;
       }
@@ -451,7 +583,51 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
     });
   }
 
+  function handleMapsUrlPaste(event: ClipboardEvent<HTMLInputElement>) {
+    const pastedUrl = event.clipboardData.getData("text");
+
+    event.preventDefault();
+    setMapsUrl(pastedUrl);
+    applyImportedGoogleMapsUrl(pastedUrl);
+  }
+
+  function handleMapsUrlSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    applyImportedGoogleMapsUrl(mapsUrl);
+  }
+
+  function applyImportedGoogleMapsUrl(value: string) {
+    const result = parseGoogleMapsCoordinateUrl(value);
+
+    if (!result.ok) {
+      setMapsImportFeedback({ kind: "error", message: result.message });
+      return;
+    }
+
+    const targetLabel = pointTarget === "access" ? "Punto de acceso" : "Punto interno";
+    const [longitude, latitude] = result.point.coordinates;
+
+    updateEditorState((currentState) => ({
+      ...currentState,
+      ...(pointTarget === "access"
+        ? { referencePoint: result.point }
+        : { parcelReferencePoint: result.point })
+    }));
+    setEditorMode("idle");
+    setDrawingAreaPreview(null);
+    setEditorAction({
+      kind: "focus-point",
+      nonce: Date.now(),
+      point: result.point
+    });
+    setMapsImportFeedback({
+      kind: "success",
+      message: `${targetLabel} ubicado en ${latitude}, ${longitude}. Guarda los geodatos para confirmar.`
+    });
+  }
+
   function handleUndo() {
+    setMapsImportFeedback(null);
     setHistory((currentHistory) => {
       const previousState = currentHistory.past[currentHistory.past.length - 1];
 
@@ -471,15 +647,13 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
         future: [
           cloneEditorState(editorStateRef.current),
           ...currentHistory.future
-        ].slice(
-          0,
-          MAX_HISTORY_STEPS
-        )
+        ].slice(0, MAX_HISTORY_STEPS)
       };
     });
   }
 
   function handleRedo() {
+    setMapsImportFeedback(null);
     setHistory((currentHistory) => {
       const nextState = currentHistory.future[0];
 
@@ -509,6 +683,8 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
     setHistory({ past: [], future: [] });
     setEditorMode("idle");
     setDrawingAreaPreview(null);
+    setMapsUrl("");
+    setMapsImportFeedback(null);
     setResetKey((currentKey) => currentKey + 1);
   }
 
@@ -524,10 +700,16 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
 
       const updatedParcela = await parcelasService.update(session, parcela.id, {
         referencePoint: editorState.referencePoint,
+        parcelReferencePoint: editorState.parcelReferencePoint,
         geometry: editorState.geometry
       });
       const nextState = {
-        referencePoint: cloneGeodata(updatedParcela.geo?.point ?? updatedParcela.referencePoint),
+        referencePoint: cloneGeodata(
+          updatedParcela.geo?.point ?? updatedParcela.referencePoint
+        ),
+        parcelReferencePoint: cloneGeodata(
+          updatedParcela.geo?.parcelPoint ?? updatedParcela.parcelReferencePoint ?? null
+        ),
         geometry: cloneGeodata(updatedParcela.geo?.polygon ?? updatedParcela.geometry)
       };
 
@@ -537,6 +719,8 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
       setHistory({ past: [], future: [] });
       setEditorMode("idle");
       setDrawingAreaPreview(null);
+      setMapsUrl("");
+      setMapsImportFeedback(null);
       setResetKey((currentKey) => currentKey + 1);
       setToast({ kind: "success", message: "Geodatos guardados correctamente." });
     } catch (error) {
@@ -560,6 +744,7 @@ export function ParcelaGeodatosScreen({ parcelaId }: ParcelaGeodatosScreenProps)
 function cloneEditorState(state: EditorState): EditorState {
   return {
     referencePoint: cloneGeodata(state.referencePoint),
+    parcelReferencePoint: cloneGeodata(state.parcelReferencePoint),
     geometry: cloneGeodata(state.geometry)
   };
 }
@@ -567,6 +752,7 @@ function cloneEditorState(state: EditorState): EditorState {
 function sameEditorState(leftState: EditorState, rightState: EditorState) {
   return (
     areGeodataEqual(leftState.referencePoint, rightState.referencePoint) &&
+    areGeodataEqual(leftState.parcelReferencePoint, rightState.parcelReferencePoint) &&
     areGeodataEqual(leftState.geometry, rightState.geometry)
   );
 }
@@ -576,19 +762,13 @@ function buildParcelaLabel(parcela: ParcelaListItem) {
 }
 
 function buildGeodataStatus(state: EditorState) {
-  if (state.referencePoint && state.geometry) {
-    return "Completo";
-  }
+  const parts = [
+    state.referencePoint ? "acceso" : null,
+    state.parcelReferencePoint ? "punto interno" : null,
+    state.geometry ? "polígono" : null
+  ].filter(Boolean);
 
-  if (state.referencePoint) {
-    return "Solo punto";
-  }
-
-  if (state.geometry) {
-    return "Solo polígono";
-  }
-
-  return "Sin geodatos";
+  return parts.length > 0 ? parts.join(" · ") : "Sin geodatos";
 }
 
 function buildModeLabel(mode: GeoEditorMode) {
@@ -613,7 +793,7 @@ function buildDrawingAreaPreviewText(preview: DrawingAreaPreview | null) {
 
 function buildModeHelp(mode: GeoEditorMode, hasChanges: boolean) {
   if (mode === "placing-point") {
-    return "Haz click en el mapa para ubicar el punto de referencia. Puedes arrastrarlo después.";
+    return "Haz click en el mapa para ubicar el punto de acceso. Puedes arrastrarlo después.";
   }
 
   if (mode === "drawing-polygon") {
