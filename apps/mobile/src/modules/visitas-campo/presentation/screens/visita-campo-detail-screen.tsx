@@ -745,44 +745,83 @@ function VisitDossier({
         onRetry={onRetrySync}
       />
 
-      <View style={styles.factGrid}>
-        <FactPill icon="calendar-outline" label="Fecha" value={visita.visitDate} />
-        <FactPill
-          icon="leaf-outline"
-          label="Etapa"
-          value={getCatalogNameById(
-            visita.phenologicalStageId,
-            catalogs.etapasFenologicas
-          )}
-        />
-        <FactPill
-          icon="resize-outline"
-          label="Area"
-          value={visita.areaHectares ? `${visita.areaHectares} ha` : "No registrada"}
-        />
-        <FactPill
-          icon="trending-up-outline"
-          label="Avance de etapa"
-          value={
-            visita.subEtapaPercentage == null ? "---" : `${visita.subEtapaPercentage}%`
-          }
-        />
+      <View style={styles.visitFacts}>
+        <View style={styles.factGrid}>
+          <FactPill icon="calendar-outline" label="Fecha" value={visita.visitDate} />
+          <FactPill
+            icon="resize-outline"
+            label="Área"
+            value={visita.areaHectares ? `${visita.areaHectares} ha` : "No registrada"}
+          />
+        </View>
+        <View style={styles.stagePanel}>
+          <View style={styles.factLabelRow}>
+            <Ionicons color={theme.colors.primary} name="leaf-outline" size={16} />
+            <AppText style={styles.factLabel} variant="caption">
+              Etapa
+            </AppText>
+          </View>
+          <AppText style={styles.stageName} variant="label">
+            {getCatalogNameById(visita.phenologicalStageId, catalogs.etapasFenologicas)}
+          </AppText>
+          <View style={styles.stageProgressHeading}>
+            <AppText style={styles.factLabel} variant="caption">
+              Avance de etapa
+            </AppText>
+            <AppText style={styles.stagePercentage} variant="label">
+              {visita.subEtapaPercentage == null
+                ? "---"
+                : `${visita.subEtapaPercentage}%`}
+            </AppText>
+          </View>
+          <View
+            accessible
+            accessibilityRole={visita.subEtapaPercentage == null ? "text" : "progressbar"}
+            accessibilityLabel={
+              visita.subEtapaPercentage == null
+                ? "Avance de etapa no registrado"
+                : "Avance de etapa"
+            }
+            accessibilityValue={
+              visita.subEtapaPercentage == null
+                ? undefined
+                : { min: 0, max: 100, now: visita.subEtapaPercentage }
+            }
+            style={styles.stageProgressTrack}
+          >
+            {visita.subEtapaPercentage != null ? (
+              <View
+                style={[
+                  styles.stageProgressFill,
+                  { width: `${Math.min(100, Math.max(0, visita.subEtapaPercentage))}%` }
+                ]}
+              />
+            ) : null}
+          </View>
+        </View>
       </View>
 
       <View style={styles.recordPanel}>
         <View style={styles.inlineHeader}>
           <View style={styles.inlineHeaderCopy}>
-            <AppText style={styles.inlineTitle} variant="label">
+            <AppText style={styles.sectionTitle} variant="label">
               Registros principales
             </AppText>
             <AppText style={styles.inlineSubtitle} variant="caption">
-              Nutricion, plagas y enfermedades registrados en esta visita.
+              Nutrición, plagas y enfermedades.
             </AppText>
           </View>
+          <AppText
+            style={styles.sectionCount}
+            variant="label"
+            accessibilityLabel={`${recordItems.length} registros`}
+          >
+            {recordItems.length}
+          </AppText>
         </View>
         <View style={styles.recordFeed}>
           {recordItems.length === 0 ? (
-            <AppText variant="muted">
+            <AppText style={styles.sectionEmpty} variant="muted">
               Aun no hay evaluaciones ni observaciones sanitarias registradas.
             </AppText>
           ) : (
@@ -791,7 +830,7 @@ function VisitDossier({
                 key={item.id}
                 eyebrow={item.eyebrow}
                 icon={item.icon}
-                subtitle={item.subtitle}
+                metrics={item.metrics}
                 title={item.title}
                 observation={item.observation}
               />
@@ -1020,7 +1059,7 @@ function VisitMixturesPanel({
 
   return (
     <View style={styles.recordPanel}>
-      <AppText style={styles.inlineTitle} variant="label">
+      <AppText style={styles.sectionTitle} variant="label">
         Mezclas recetadas
       </AppText>
       {error ? (
@@ -1028,31 +1067,69 @@ function VisitMixturesPanel({
           {error}
         </AppText>
       ) : rows.length === 0 ? (
-        <AppText variant="muted">Sin mezclas registradas</AppText>
+        <AppText style={styles.sectionEmpty} variant="muted">
+          Sin mezclas registradas
+        </AppText>
       ) : (
         [...groups].map(([number, items]) => (
           <View key={number ?? "unassigned"} style={styles.mixtureCard}>
-            <View style={styles.inlineHeaderCopy}>
-              <AppText style={styles.inlineTitle} variant="label">
+            <View style={styles.mixtureHeader}>
+              <Ionicons name="flask-outline" color={theme.colors.textInverse} size={21} />
+              <AppText style={styles.mixtureTitle} variant="label">
                 {number === null ? "Sin mezcla" : `Mezcla ${number}`}
               </AppText>
-              <AppText style={styles.recordSubtitle} variant="caption">
-                Frecuencia: {items[0].doseFrequency}
-              </AppText>
             </View>
-            {items.map((item) => (
-              <View key={item.order} style={styles.mixtureProduct}>
-                <AppText style={styles.recordTitle} variant="label">
-                  {item.order}. {item.item}
+            <View style={styles.mixtureFrequency}>
+              <Ionicons name="repeat-outline" color={theme.colors.primary} size={18} />
+              <View style={styles.mixtureFrequencyCopy}>
+                <AppText style={styles.detailLabel} variant="caption">
+                  Frecuencia
                 </AppText>
-                <AppText style={styles.recordSubtitle} variant="caption">
-                  Ingrediente activo: {item.activeIngredient}
-                </AppText>
-                <AppText style={styles.recordSubtitle} variant="caption">
-                  Dosis: {item.dose}
+                <AppText style={styles.detailValue} variant="label">
+                  {items[0].doseFrequency}
                 </AppText>
               </View>
-            ))}
+            </View>
+            <View style={styles.mixtureProducts}>
+              {items.map((item, index) => (
+                <View
+                  key={item.order}
+                  style={[
+                    styles.mixtureProduct,
+                    index > 0 && styles.mixtureProductDivider
+                  ]}
+                >
+                  <View style={styles.mixtureProductHeading}>
+                    <AppText
+                      style={styles.mixtureOrder}
+                      variant="caption"
+                      accessibilityLabel={`Orden ${item.order}`}
+                    >
+                      {item.order}
+                    </AppText>
+                    <AppText style={styles.mixtureProductName} variant="label">
+                      {item.item}
+                    </AppText>
+                  </View>
+                  <View style={styles.mixtureIngredient}>
+                    <AppText style={styles.detailLabel} variant="caption">
+                      Ingrediente activo
+                    </AppText>
+                    <AppText style={styles.detailValue} variant="body">
+                      {item.activeIngredient}
+                    </AppText>
+                  </View>
+                  <View style={styles.mixtureDose}>
+                    <AppText style={styles.doseLabel} variant="caption">
+                      Dosis
+                    </AppText>
+                    <AppText style={styles.doseValue} variant="label">
+                      {item.dose}
+                    </AppText>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         ))
       )}
@@ -1518,17 +1595,15 @@ function FactPill({
 }) {
   return (
     <View style={styles.factPill}>
-      <View style={styles.factIcon}>
-        <Ionicons color={theme.colors.primaryDark} name={icon} size={18} />
-      </View>
-      <View style={styles.factCopy}>
+      <View style={styles.factLabelRow}>
+        <Ionicons color={theme.colors.primary} name={icon} size={16} />
         <AppText style={styles.factLabel} variant="caption">
           {label}
         </AppText>
-        <AppText style={styles.factValue} variant="label">
-          {value}
-        </AppText>
       </View>
+      <AppText style={styles.factValue} variant="label">
+        {value}
+      </AppText>
     </View>
   );
 }
@@ -1576,37 +1651,55 @@ function ModuleStatusCard({
 function RecordFeedItem({
   eyebrow,
   icon,
-  subtitle,
+  metrics,
   title,
   observation
 }: {
   eyebrow: string;
   icon: keyof typeof Ionicons.glyphMap;
-  subtitle: string;
+  metrics: Array<{ label: string; value: string }>;
   title: string;
   observation?: string;
 }) {
   return (
     <View style={styles.recordItem}>
-      <View style={styles.recordIcon}>
-        <Ionicons color={theme.colors.primaryDark} name={icon} size={18} />
-      </View>
-      <View style={styles.recordCopy}>
-        <AppText style={styles.recordEyebrow} variant="eyebrow">
+      <View style={styles.recordCategory}>
+        <Ionicons color={theme.colors.primary} name={icon} size={16} />
+        <AppText style={styles.recordEyebrow} variant="caption">
           {eyebrow}
         </AppText>
-        <AppText style={styles.recordTitle} variant="label">
-          {title}
-        </AppText>
-        <AppText style={styles.recordSubtitle} variant="caption">
-          {subtitle}
-        </AppText>
-        {observation ? (
-          <AppText style={styles.recordSubtitle} variant="caption">
+      </View>
+      <AppText style={styles.recordTitle} variant="label">
+        {title}
+      </AppText>
+      <View style={styles.recordMetrics}>
+        {metrics.map((metric) => (
+          <View
+            key={metric.label}
+            style={[
+              styles.recordMetric,
+              metric.label === "Órganos" && styles.recordMetricFull
+            ]}
+          >
+            <AppText style={styles.detailLabel} variant="caption">
+              {metric.label}
+            </AppText>
+            <AppText style={styles.detailValue} variant="label">
+              {metric.value}
+            </AppText>
+          </View>
+        ))}
+      </View>
+      {observation ? (
+        <View style={styles.recordObservation}>
+          <AppText style={styles.detailLabel} variant="caption">
+            Observación registrada
+          </AppText>
+          <AppText style={styles.detailValue} variant="body">
             {observation}
           </AppText>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1614,21 +1707,28 @@ function RecordFeedItem({
 function buildRecordItems(detail: VisitaCampoFull, catalogs: DetailCatalogs) {
   const nutritionItems = detail.evaluaciones.map((evaluacion) => ({
     id: `nutricion-${evaluacion.id}`,
-    eyebrow: `Nutricion · Orden ${evaluacion.order}`,
+    eyebrow: `Nutrición · Orden ${evaluacion.order}`,
     icon: "nutrition-outline" as const,
-    subtitle: formatPercentage(evaluacion.percentage),
+    metrics: [{ label: "Porcentaje", value: formatPercentage(evaluacion.percentage) }],
     title: evaluacion.description,
     observation: undefined
   }));
 
-  const sanitaryItems = detail.observacionesSanitarias.map((observacion) => ({
-    id: `sanidad-${observacion.id}`,
-    eyebrow: "Sanidad",
-    icon: "bug-outline" as const,
-    subtitle: formatSanitaryObservationSubtitle(observacion, catalogs.incidenceLevels),
-    title: getPestDiseaseLabel(observacion.pestDiseaseId, catalogs.pestDiseases),
-    observation: observacion.observation?.trim() || undefined
-  }));
+  const sanitaryItems = detail.observacionesSanitarias.map((observacion) => {
+    const type = catalogs.pestDiseases.find(
+      (item) => item.id === observacion.pestDiseaseId
+    )?.type;
+    return {
+      id: `sanidad-${observacion.id}`,
+      eyebrow:
+        type === "plaga" ? "Plaga" : type === "enfermedad" ? "Enfermedad" : "Sanidad",
+      icon:
+        type === "enfermedad" ? ("medkit-outline" as const) : ("bug-outline" as const),
+      metrics: buildSanitaryObservationMetrics(observacion, catalogs.incidenceLevels),
+      title: getPestDiseaseLabel(observacion.pestDiseaseId, catalogs.pestDiseases),
+      observation: observacion.observation?.trim() || undefined
+    };
+  });
 
   return [...nutritionItems, ...sanitaryItems];
 }
@@ -1678,27 +1778,30 @@ function getIncidenceLevelLabel(
   );
 }
 
-function formatSanitaryObservationSubtitle(
+function buildSanitaryObservationMetrics(
   observacion: VisitaCampoFull["observacionesSanitarias"][number],
   incidenceLevels: IncidenceLevelCatalogItem[]
 ) {
-  const levels = [
-    `Incidencia: ${getIncidenceLevelLabel(
-      observacion.incidenceLevelId,
-      incidenceLevels
-    )}`,
-    observacion.severityLevelId
-      ? `Severidad: ${getIncidenceLevelLabel(
-          observacion.severityLevelId,
-          incidenceLevels
-        )}`
-      : null,
-    observacion.organosAfectados.length > 0
-      ? `Organos: ${observacion.organosAfectados.map(formatOrganoLabel).join(", ")}`
-      : "Organos: No registrados"
+  const metrics = [
+    {
+      label: "Incidencia",
+      value: getIncidenceLevelLabel(observacion.incidenceLevelId, incidenceLevels)
+    }
   ];
-
-  return levels.filter(Boolean).join(" | ");
+  if (observacion.severityLevelId) {
+    metrics.push({
+      label: "Severidad",
+      value: getIncidenceLevelLabel(observacion.severityLevelId, incidenceLevels)
+    });
+  }
+  metrics.push({
+    label: "Órganos",
+    value:
+      observacion.organosAfectados.length > 0
+        ? observacion.organosAfectados.map(formatOrganoLabel).join(", ")
+        : "No registrados"
+  });
+  return metrics;
 }
 
 function formatOrganoLabel(value: string) {
@@ -1940,46 +2043,77 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     flex: 1
   },
+  visitFacts: {
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    overflow: "hidden"
+  },
   factGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10
+    gap: 16,
+    padding: 16
   },
   factPill: {
-    alignItems: "center",
-    backgroundColor: "#fbfdf9",
-    borderColor: theme.colors.borderLight,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    flexBasis: "47%",
-    flexDirection: "row",
+    flexBasis: "43%",
     flexGrow: 1,
-    gap: 10,
-    minHeight: 74,
-    paddingHorizontal: 12,
-    paddingVertical: 10
+    minWidth: 100,
+    gap: 6
   },
-  factIcon: {
+  factLabelRow: {
     alignItems: "center",
-    backgroundColor: "#eef7e4",
-    borderRadius: theme.radius.full,
-    height: 36,
-    justifyContent: "center",
-    width: 36
-  },
-  factCopy: {
-    flex: 1,
-    gap: 2,
-    minWidth: 0
+    flexDirection: "row",
+    gap: 6
   },
   factLabel: {
-    color: theme.colors.textMuted,
-    fontSize: 11
+    color: theme.colors.primary,
+    flexShrink: 1,
+    fontSize: 12,
+    lineHeight: 18
   },
   factValue: {
     color: theme.colors.text,
-    fontSize: 14,
-    lineHeight: 18
+    fontSize: 16,
+    lineHeight: 23,
+    fontVariant: ["tabular-nums"]
+  },
+  stagePanel: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderTopColor: theme.colors.borderLight,
+    borderTopWidth: 1,
+    gap: 8,
+    padding: 16
+  },
+  stageName: {
+    color: theme.colors.primaryDark,
+    fontSize: 18,
+    lineHeight: 25
+  },
+  stageProgressHeading: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "space-between",
+    marginTop: 6
+  },
+  stagePercentage: {
+    color: theme.colors.primaryDark,
+    fontSize: 19,
+    lineHeight: 26,
+    fontVariant: ["tabular-nums"]
+  },
+  stageProgressTrack: {
+    backgroundColor: theme.colors.border,
+    borderRadius: theme.radius.full,
+    height: 6,
+    overflow: "hidden"
+  },
+  stageProgressFill: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.full,
+    height: "100%"
   },
   unifiedDetails: {
     backgroundColor: "#fbfdf9",
@@ -2065,60 +2199,190 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   recordPanel: {
-    gap: 12
+    gap: 14
+  },
+  sectionTitle: {
+    color: theme.colors.primaryDark,
+    fontSize: 18,
+    lineHeight: 25
+  },
+  sectionCount: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    color: theme.colors.primaryDark,
+    minWidth: 32,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    textAlign: "center"
+  },
+  sectionEmpty: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    padding: 16
   },
   recordFeed: {
-    gap: 8
-  },
-  mixtureCard: {
-    backgroundColor: "#fbfdf9",
-    borderColor: theme.colors.borderLight,
-    borderRadius: theme.radius.md,
-    borderWidth: 1,
-    gap: 12,
-    padding: 12
-  },
-  mixtureProduct: {
-    borderTopColor: theme.colors.borderLight,
-    borderTopWidth: 1,
-    gap: 3,
-    paddingTop: 10
+    gap: 12
   },
   recordItem: {
-    alignItems: "flex-start",
-    backgroundColor: "#fbfdf9",
-    borderColor: theme.colors.borderLight,
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     borderWidth: 1,
-    flexDirection: "row",
     gap: 10,
-    padding: 12
+    padding: 14
   },
-  recordIcon: {
+  recordCategory: {
     alignItems: "center",
-    backgroundColor: "#eef7e4",
-    borderRadius: theme.radius.full,
-    height: 34,
-    justifyContent: "center",
-    width: 34
-  },
-  recordCopy: {
-    flex: 1,
-    gap: 3,
-    minWidth: 0
+    flexDirection: "row",
+    gap: 6
   },
   recordEyebrow: {
     color: theme.colors.primary,
-    fontSize: 10
+    flexShrink: 1,
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 18
   },
   recordTitle: {
     color: theme.colors.text,
-    fontSize: 14,
-    lineHeight: 19
+    fontSize: 16,
+    lineHeight: 23
   },
-  recordSubtitle: {
-    color: theme.colors.textMuted,
-    lineHeight: 17
+  recordMetrics: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  recordMetric: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.radius.sm,
+    flexBasis: "44%",
+    flexGrow: 1,
+    gap: 3,
+    minWidth: 90,
+    padding: 10
+  },
+  recordMetricFull: {
+    flexBasis: "100%"
+  },
+  detailLabel: {
+    color: "#52665a",
+    fontSize: 12,
+    lineHeight: 18
+  },
+  detailValue: {
+    color: theme.colors.text,
+    fontSize: 14,
+    lineHeight: 21
+  },
+  recordObservation: {
+    borderTopColor: theme.colors.borderLight,
+    borderTopWidth: 1,
+    gap: 4,
+    paddingTop: 10
+  },
+  mixtureCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    overflow: "hidden"
+  },
+  mixtureHeader: {
+    alignItems: "center",
+    backgroundColor: theme.colors.primaryDark,
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14
+  },
+  mixtureTitle: {
+    color: theme.colors.textInverse,
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 24
+  },
+  mixtureFrequency: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surfaceElevated,
+    borderBottomColor: theme.colors.borderLight,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12
+  },
+  mixtureFrequencyCopy: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0
+  },
+  mixtureProducts: {
+    paddingHorizontal: 14
+  },
+  mixtureProduct: {
+    gap: 10,
+    paddingVertical: 16
+  },
+  mixtureProductDivider: {
+    borderTopColor: theme.colors.border,
+    borderTopWidth: 1
+  },
+  mixtureProductHeading: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10
+  },
+  mixtureOrder: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 20,
+    minWidth: 28,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    textAlign: "center"
+  },
+  mixtureProductName: {
+    color: theme.colors.text,
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 24,
+    minWidth: 0
+  },
+  mixtureIngredient: {
+    gap: 2
+  },
+  mixtureDose: {
+    alignItems: "center",
+    backgroundColor: "#eef7f0",
+    borderRadius: theme.radius.sm,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  doseLabel: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    lineHeight: 18
+  },
+  doseValue: {
+    color: theme.colors.primaryDark,
+    flexShrink: 1,
+    fontSize: 15,
+    lineHeight: 22
   },
   navGrid: {
     gap: 10
