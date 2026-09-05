@@ -36,6 +36,10 @@ function createQueryBuilder(rows: Array<Record<string, string | null>>) {
       calls.push({ method: "where", args });
       return builder;
     },
+    setParameters(...args: unknown[]) {
+      calls.push({ method: "setParameters", args });
+      return builder;
+    },
     andWhere(...args: unknown[]) {
       calls.push({ method: "andWhere", args });
       return builder;
@@ -75,6 +79,34 @@ describe("DashboardService", () => {
     await expect(
       service.getResumen({ year: 2026, month: 2, day: 30 })
     ).rejects.toThrow("day is not valid for the selected year and month.");
+  });
+
+  it("breaks down visits by day when a month is selected", async () => {
+    const queryBuilder = createQueryBuilder([
+      { mes: "2026-08-05", count: "2" },
+      { mes: "2026-08-12", count: "1" }
+    ]);
+    const service = new DashboardService(
+      { createQueryBuilder: () => queryBuilder } as never,
+      {} as never
+    );
+
+    const result = await (
+      service as unknown as {
+        getVisitasPorMes: (period: { year: number; month: number }) => Promise<
+          Array<{ mes: string; count: number }>
+        >;
+      }
+    ).getVisitasPorMes({ year: 2026, month: 8 });
+
+    expect(queryBuilder.calls).toContainEqual({
+      method: "select",
+      args: ["TO_CHAR(v.fecha_visita, 'YYYY-MM-DD')", "mes"]
+    });
+    expect(result).toHaveLength(31);
+    expect(result[4]).toEqual({ mes: "2026-08-05", count: 2 });
+    expect(result[11]).toEqual({ mes: "2026-08-12", count: 1 });
+    expect(result[0]).toEqual({ mes: "2026-08-01", count: 0 });
   });
 
   it("rejects an inverted date range before querying dashboard metrics", async () => {

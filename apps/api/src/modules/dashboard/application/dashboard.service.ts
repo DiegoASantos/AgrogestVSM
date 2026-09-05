@@ -410,24 +410,26 @@ export class DashboardService {
     period: Required<Pick<DashboardResumenQueryDto, "year">> & DashboardResumenQueryDto
   ): Promise<VisitasPorMes[]> {
     const { filters, parameters } = this.buildDashboardDateFilters("v", period);
+    const dateFormat = period.month ? "YYYY-MM-DD" : "YYYY-MM";
     const rows = await this.dataSource
       .createQueryBuilder()
-      .select("TO_CHAR(v.fecha_visita, 'YYYY-MM')", "mes")
+      .select(`TO_CHAR(v.fecha_visita, '${dateFormat}')`, "mes")
       .addSelect("COUNT(*)", "count")
       .from("visitas_campo", "v")
       .where(filters.join(" AND "))
       .setParameters(parameters)
-      .groupBy("TO_CHAR(v.fecha_visita, 'YYYY-MM')")
+      .groupBy(`TO_CHAR(v.fecha_visita, '${dateFormat}')`)
       .orderBy("mes", "ASC")
       .getRawMany<{ mes: string; count: string }>();
 
-    return this.fillMonths(rows, period.year, period.month);
+    return period.month
+      ? this.fillDays(rows, period.year, period.month, period.day)
+      : this.fillMonths(rows, period.year);
   }
 
   private fillMonths(
     rows: { mes: string; count: string }[],
-    year: number,
-    month?: number
+    year: number
   ): VisitasPorMes[] {
     const map = new Map<string, number>();
     for (const row of rows) {
@@ -435,13 +437,29 @@ export class DashboardService {
     }
 
     const result: VisitasPorMes[] = [];
-    const months = month ? [month] : Array.from({ length: 12 }, (_, index) => index + 1);
-    for (const currentMonth of months) {
+    for (const currentMonth of Array.from({ length: 12 }, (_, index) => index + 1)) {
       const key = `${year}-${String(currentMonth).padStart(2, "0")}`;
       result.push({ mes: key, count: map.get(key) ?? 0 });
     }
 
     return result;
+  }
+
+  private fillDays(
+    rows: { mes: string; count: string }[],
+    year: number,
+    month: number,
+    day?: number
+  ): VisitasPorMes[] {
+    const map = new Map(rows.map((row) => [row.mes, Number(row.count)]));
+    const days = day
+      ? [day]
+      : Array.from({ length: new Date(year, month, 0).getDate() }, (_, index) => index + 1);
+
+    return days.map((currentDay) => {
+      const key = `${year}-${String(month).padStart(2, "0")}-${String(currentDay).padStart(2, "0")}`;
+      return { mes: key, count: map.get(key) ?? 0 };
+    });
   }
 
   private async getVisitasPorCampania(): Promise<VisitasPorCampania[]> {

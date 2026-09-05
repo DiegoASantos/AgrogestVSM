@@ -32,19 +32,30 @@ function mesLabel(key: string): string {
   return months[month] ?? key;
 }
 
+function diaLabel(key: string): string {
+  return String(Number(key.split("-")[2]));
+}
+
 export function ChartVisitasPorMes({
   data
 }: {
   data: VisitasPorMes[];
 }) {
+  const isDaily = data.some((item) => item.mes.split("-").length === 3);
   const chartData = useMemo(
-    () => data.map((d) => ({ label: mesLabel(d.mes), count: d.count })),
-    [data]
+    () =>
+      data.map((item) => ({
+        label: isDaily ? diaLabel(item.mes) : mesLabel(item.mes),
+        count: item.count
+      })),
+    [data, isDaily]
   );
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">Visitas por mes</h3>
+      <h3 className="text-sm font-semibold text-foreground">
+        {isDaily ? "Visitas por día" : "Visitas por mes"}
+      </h3>
       <ResponsiveContainer height={200} width="100%">
         <LineChart data={chartData}>
           <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -52,6 +63,7 @@ export function ChartVisitasPorMes({
             axisLine={false}
             className="text-xs text-muted-foreground"
             dataKey="label"
+            interval={isDaily ? "preserveStartEnd" : 0}
             tickLine={false}
           />
           <YAxis

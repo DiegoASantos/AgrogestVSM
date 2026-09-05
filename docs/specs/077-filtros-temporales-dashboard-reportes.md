@@ -38,7 +38,8 @@ periodo operativo.
   valida contra el calendario.
 - RF-002: Los cuatro gráficos temporales usan visitas activas del periodo.
   Plagas y enfermedades devuelven hasta diez incidencias; nutrientes conserva
-  el top tres.
+  el top tres. Visitas se agrupa por mes al elegir solo año y por día al
+  elegir un mes.
 - RF-003: Campos por etapas selecciona la última visita activa por parcela
   dentro del rango, con desempate por ID.
 - RF-004: Parcelas incluye solo parcelas con una visita activa dentro del
