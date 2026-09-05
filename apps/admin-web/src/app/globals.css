@@ -4508,9 +4508,10 @@ canvas {
   background: #ffffff;
 }
 
-.visitas-overview .data-table {
-  margin: 0 18px 18px;
-  border-color: rgba(255, 255, 255, 0.28);
+.visitas-overview .data-table__wrapper {
+  width: calc(100% - 36px);
+  margin: 24px 18px 18px;
+  border-color: #c8d9c2;
   box-shadow: 0 12px 28px rgba(6, 35, 21, 0.16);
 }
 
@@ -4521,6 +4522,99 @@ canvas {
 
 .visitas-overview .data-table tbody tr:hover {
   background: #f3f8ef;
+}
+
+.visitas-overview .data-table__actions {
+  padding-right: 22px;
+}
+
+.visitas-overview .table-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.visitas-overview .data-table__footer {
+  border-top-color: #c8d9c2;
+  background: #f4f8f1;
+}
+
+.visitas-overview .data-table__summary {
+  color: #31553c;
+  font-weight: 600;
+}
+
+.mapas-overview__hero {
+  padding-bottom: 22px;
+}
+
+.mapas-overview__filters {
+  margin: 0 18px;
+  border-color: rgba(255, 255, 255, 0.38);
+  border-left: 4px solid var(--report-lime);
+  background: #eef5e9;
+  box-shadow: 0 10px 28px rgba(6, 35, 21, 0.2);
+}
+
+.mapas-overview__filters .filter-bar__fields {
+  align-items: end;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+}
+
+.mapas-overview__filters .field-group {
+  color: #1c422e;
+}
+
+.mapas-overview__filters .field-group input,
+.mapas-overview__filters .field-group select,
+.mapas-overview__filters .map-stage-filter__details summary {
+  border-color: #adc2ae;
+  background: #ffffff;
+}
+
+.mapas-overview__filters .filter-bar__actions {
+  padding: 0 4px 2px 0;
+}
+
+.mapas-overview .map-overview__summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 20px 18px 0;
+}
+
+.mapas-overview .map-overview__summary-card {
+  min-height: 98px;
+  padding: 16px 18px;
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.mapas-overview .map-overview__summary-card strong,
+.mapas-overview .map-overview__summary-card span {
+  color: #eef7eb;
+}
+
+.mapas-overview .map-overview__summary-card span:first-of-type {
+  color: var(--report-lime);
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.mapas-overview__workspace {
+  margin: 24px 18px 18px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  background: rgba(247, 251, 244, 0.96);
+}
+
+.mapas-overview__workspace .eyebrow,
+.mapas-overview__workspace .title {
+  color: var(--report-forest-deep);
+}
+
+.mapas-overview__workspace .map-detail-card {
+  border-color: #c8d9c2;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(16, 56, 36, 0.08);
 }
 
 .report-metrics {
@@ -5128,6 +5222,81 @@ canvas {
   color: #eef6f0;
 }
 
+[data-theme="dark"] .report-visits__filters .field-group select,
+[data-theme="dark"] .report-visits__filters .searchable-select input {
+  border-color: #526b59;
+  background: #172119;
+  color: #eef6f0;
+}
+
+[data-theme="dark"] .report-visits__filters .searchable-select__list {
+  border-color: #526b59;
+  background: #1c2b22;
+}
+
+[data-theme="dark"] .report-visits__filters .searchable-select__option:hover,
+[data-theme="dark"] .report-visits__filters .searchable-select__option:focus-visible {
+  background: #2a3d2f;
+}
+
+[data-theme="dark"] .visitas-overview .data-table__wrapper {
+  border-color: #405746;
+  background: #191e28;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+}
+
+[data-theme="dark"] .visitas-overview .data-table thead th {
+  background: #263b2d;
+  color: #e6f3e8;
+}
+
+[data-theme="dark"] .visitas-overview .data-table tbody tr:hover {
+  background: #26332b;
+}
+
+[data-theme="dark"] .visitas-overview .data-table__footer {
+  border-top-color: #405746;
+  background: #1c2b22;
+}
+
+[data-theme="dark"] .visitas-overview .data-table__summary {
+  color: #c8dfc9;
+}
+
+[data-theme="dark"] .mapas-overview__filters {
+  border-color: #56705d;
+  border-left-color: var(--report-lime);
+  background: #1c2b22;
+}
+
+[data-theme="dark"] .mapas-overview__filters .field-group,
+[data-theme="dark"] .mapas-overview__filters .field-group span {
+  color: #d9e8dc;
+}
+
+[data-theme="dark"] .mapas-overview__filters .field-group input,
+[data-theme="dark"] .mapas-overview__filters .field-group select,
+[data-theme="dark"] .mapas-overview__filters .map-stage-filter__details summary {
+  border-color: #526b59;
+  background: #172119;
+  color: #eef6f0;
+}
+
+[data-theme="dark"] .mapas-overview__workspace {
+  border-color: #405746;
+  background: #18221d;
+}
+
+[data-theme="dark"] .mapas-overview__workspace .eyebrow,
+[data-theme="dark"] .mapas-overview__workspace .title {
+  color: #edf7ef;
+}
+
+[data-theme="dark"] .mapas-overview__workspace .map-detail-card {
+  border-color: #405746;
+  background: #1c2b22;
+}
+
 [data-theme="dark"] .report-section {
   background: #18221d;
 }
@@ -5343,6 +5512,26 @@ canvas {
 
   .report-visits__filters {
     margin: 0 10px;
+  }
+
+  .visitas-overview .data-table__wrapper {
+    width: calc(100% - 20px);
+    margin: 18px 10px 10px;
+  }
+
+  .mapas-overview__filters,
+  .mapas-overview .map-overview__summary,
+  .mapas-overview__workspace {
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+
+  .mapas-overview__workspace {
+    padding: 14px;
+  }
+
+  .mapas-overview .map-overview__summary {
+    grid-template-columns: 1fr;
   }
 
   .report-metrics {

@@ -338,14 +338,7 @@ export function VisitasOverview() {
           <VisitasTable
             agronomistLabels={agronomistLabels}
             campaignLabels={campaignLabels}
-            getMapHref={(visita) =>
-              buildAdminMapHref({
-                visitaId: visita.id,
-                parcelaId: visita.parcelaId,
-                campaignId: visita.campaignId,
-                agronomistUserId: visita.agronomistUserId
-              })
-            }
+            getMapHref={(visita) => buildAdminMapHref({ visitaId: visita.id })}
             items={items}
             parcelaContexts={parcelaContexts}
             pagination={{

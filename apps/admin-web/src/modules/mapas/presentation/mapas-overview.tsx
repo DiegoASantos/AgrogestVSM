@@ -37,7 +37,6 @@ const PARCELA_POLYGON_COLOR = "#15803d";
 const PARCELA_POLYGON_FILL = "#bbf7d0";
 const PARCELA_POINT_COLOR = "#166534";
 const VISITA_POINT_COLOR = "#b45309";
-const MISSING_GEODATA_PREVIEW_LIMIT = 6;
 
 type SelectOption = {
   value: string;
@@ -82,10 +81,13 @@ export function MapasOverview() {
     () => buildPhenologicalStageColorLookup(phenologicalStages),
     [phenologicalStages]
   );
-  const filteredVisitas = useMemo(
-    () => filterVisitas(visitas, appliedFilters),
-    [appliedFilters, visitas]
-  );
+  const filteredVisitas = useMemo(() => {
+    if (requestedVisitaId) {
+      return visitas.filter((item) => item.id === requestedVisitaId);
+    }
+
+    return filterVisitas(visitas, appliedFilters);
+  }, [appliedFilters, requestedVisitaId, visitas]);
   const filteredParcelas = useMemo(() => {
     let nextItems = filterParcelas(parcelas, appliedFilters);
 
@@ -131,8 +133,7 @@ export function MapasOverview() {
   const selectedParcela = selectedParcelaId
     ? (filteredParcelas.find((item) => item.id === selectedParcelaId) ?? null)
     : null;
-  const missingParcelas = filteredParcelas.filter((item) => !item.hasGeodata);
-  const missingVisitas = filteredVisitas.filter((item) => !item.hasGeodata);
+  const isVisitFocus = Boolean(requestedVisitaId);
   const producerOptions = useMemo(() => buildProducerOptions(parcelas), [parcelas]);
   const sectorOptions = useMemo(
     () => buildSectorOptions(parcelas, draftFilters.productorId),
@@ -154,8 +155,12 @@ export function MapasOverview() {
     [appliedFilters.phenologicalStageIds, phenologicalStages]
   );
   const mapPolygons = useMemo(
-    () =>
-      filteredParcelas
+    () => {
+      if (isVisitFocus) {
+        return [];
+      }
+
+      return filteredParcelas
         .filter((item) => item.geometry)
         .map(
           (item) =>
@@ -171,28 +176,31 @@ export function MapasOverview() {
                 description: buildParcelaPopup(item)
               }
             }) satisfies AdminMapPolygon
-        ),
-    [filteredParcelas, selectedParcelaId]
+        );
+    },
+    [filteredParcelas, isVisitFocus, selectedParcelaId]
   );
   const mapPoints = useMemo(
     () => [
-      ...filteredParcelas
-        .filter((item) => item.referencePoint)
-        .map(
-          (item) =>
-            ({
-              id: `parcela-point-${item.id}`,
-              geometry: item.referencePoint!,
-              color: PARCELA_POINT_COLOR,
-              radius: 7,
-              isSelected: selectedParcelaId === item.id,
-              onSelect: () => handleFeatureSelect({ kind: "parcela", id: item.id }),
-              popup: {
-                title: buildParcelaTitle(item),
-                description: buildParcelaPopup(item)
-              }
-            }) satisfies AdminMapPoint
-        ),
+      ...(isVisitFocus
+        ? []
+        : filteredParcelas
+            .filter((item) => item.referencePoint)
+            .map(
+              (item) =>
+                ({
+                  id: `parcela-point-${item.id}`,
+                  geometry: item.referencePoint!,
+                  color: PARCELA_POINT_COLOR,
+                  radius: 7,
+                  isSelected: selectedParcelaId === item.id,
+                  onSelect: () => handleFeatureSelect({ kind: "parcela", id: item.id }),
+                  popup: {
+                    title: buildParcelaTitle(item),
+                    description: buildParcelaPopup(item)
+                  }
+                }) satisfies AdminMapPoint
+            )),
       ...filteredVisitas
         .filter((item) => item.visitLocation)
         .map(
@@ -221,6 +229,7 @@ export function MapasOverview() {
       appliedFilters.phenologicalStageIds.length,
       filteredParcelas,
       filteredVisitas,
+      isVisitFocus,
       phenologicalStageColors,
       selectedFeature
     ]
@@ -254,8 +263,8 @@ export function MapasOverview() {
   }
 
   return (
-    <section className="panel-grid">
-      <article className="panel">
+    <section className="panel-grid report-visits mapas-overview">
+      <article className="panel report-visits__hero mapas-overview__hero">
         <ToolbarActions
           actions={
             <>
@@ -283,7 +292,7 @@ export function MapasOverview() {
         />
 
         <FilterBar
-          className="map-overview__filter-bar"
+          className="map-overview__filter-bar mapas-overview__filters"
           actions={
             <>
               <button
@@ -379,34 +388,32 @@ export function MapasOverview() {
             value={String(filteredVisitas.length)}
             help={`${filteredVisitas.filter((item) => item.hasGeodata).length} con ubicacion`}
           />
-          <SummaryCard
-            label="Parcelas sin geodatos"
-            value={String(missingParcelas.length)}
-            help="Se listan abajo como fallback."
-          />
-          <SummaryCard
-            label="Visitas sin geodatos"
-            value={String(missingVisitas.length)}
-            help="Se listan abajo como fallback."
-          />
         </div>
 
-        <section className="map-layout" style={{ marginTop: 24 }}>
+        <section className="map-layout mapas-overview__workspace">
           <div className="map-layout__main">
             <div className="map-overview__map-header">
               <div>
                 <p className="eyebrow">Mapa</p>
-                <h3 className="title title--section">Parcelas y visitas en contexto</h3>
+                <h3 className="title title--section">
+                  {isVisitFocus
+                    ? "Ubicacion de la visita seleccionada"
+                    : "Parcelas y visitas en contexto"}
+                </h3>
               </div>
               <div className="map-legend">
-                <span className="map-legend__item">
-                  <span className="map-legend__swatch map-legend__swatch--polygon" />
-                  Parcela poligono
-                </span>
-                <span className="map-legend__item">
-                  <span className="map-legend__swatch map-legend__swatch--point" />
-                  Parcela punto
-                </span>
+                {!isVisitFocus ? (
+                  <>
+                    <span className="map-legend__item">
+                      <span className="map-legend__swatch map-legend__swatch--polygon" />
+                      Parcela poligono
+                    </span>
+                    <span className="map-legend__item">
+                      <span className="map-legend__swatch map-legend__swatch--point" />
+                      Parcela punto
+                    </span>
+                  </>
+                ) : null}
                 {selectedPhenologicalStages.length === 0 ? (
                   <span className="map-legend__item">
                     <span className="map-legend__swatch map-legend__swatch--visit" />
@@ -426,7 +433,11 @@ export function MapasOverview() {
               </div>
             </div>
             <AdminMap
-              emptyMessage="No hay geodatos para los filtros actuales."
+              emptyMessage={
+                isVisitFocus
+                  ? "La visita seleccionada no tiene una ubicacion registrada."
+                  : "No hay geodatos para los filtros actuales."
+              }
               points={mapPoints}
               polygons={mapPolygons}
             />
@@ -448,30 +459,6 @@ export function MapasOverview() {
           </aside>
         </section>
 
-        <section className="map-layout" style={{ marginTop: 24 }}>
-          <div className="map-layout__main">
-            <div className="map-detail-card">
-              <p className="eyebrow">Fallback</p>
-              <h3 className="title title--section">Parcelas sin datos geograficos</h3>
-              <MissingList
-                items={missingParcelas.map(
-                  (item) => `${buildParcelaTitle(item)} | ${describeParcela(item)}`
-                )}
-              />
-            </div>
-          </div>
-          <aside className="map-layout__side">
-            <div className="map-detail-card">
-              <p className="eyebrow">Fallback</p>
-              <h3 className="title title--section">Visitas sin ubicacion</h3>
-              <MissingList
-                items={missingVisitas.map(
-                  (item) => `${buildVisitaTitle(item)} | ${describeVisita(item)}`
-                )}
-              />
-            </div>
-          </aside>
-        </section>
       </article>
     </section>
   );
@@ -768,24 +755,6 @@ function SelectedVisitaPanel({ item }: { item: VisitaMapItem }) {
   );
 }
 
-function MissingList({ items }: { items: string[] }) {
-  if (items.length === 0) {
-    return (
-      <p className="map-list__footnote">No hay pendientes para los filtros actuales.</p>
-    );
-  }
-
-  return (
-    <ul className="map-list">
-      {items.slice(0, MISSING_GEODATA_PREVIEW_LIMIT).map((item) => (
-        <li className="map-list__item" key={item}>
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function buildProducerOptions(items: ParcelaMapItem[]) {
   return toOptions(
     items
@@ -920,22 +889,6 @@ function buildVisitaPopup(item: VisitaMapItem) {
   ]
     .filter(Boolean)
     .join("\n");
-}
-function describeParcela(item: ParcelaMapItem) {
-  return [
-    item.sectorName || `Sector #${item.sectorId}`,
-    item.productorLabel,
-    formatArea(item.areaHectares)
-  ]
-    .filter(Boolean)
-    .join(" | ");
-}
-function describeVisita(item: VisitaMapItem) {
-  return [
-    formatVisitDate(item.visitDate),
-    item.parcelaLabel || `Parcela #${item.parcelaId}`,
-    item.campaignName || `Campaña #${item.campaignId}`
-  ].join(" | ");
 }
 function formatArea(value: string | number | null) {
   if (value === null || value === "") {
