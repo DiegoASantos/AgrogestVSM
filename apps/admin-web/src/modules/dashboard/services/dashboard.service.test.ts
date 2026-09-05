@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { dashboardService } from "./dashboard.service";
+import { buildDashboardPeriodQuery, dashboardService } from "./dashboard.service";
 
 const session = { accessToken: "tok", tokenType: "Bearer" };
 
@@ -24,14 +24,17 @@ function fetchUrl() {
 }
 
 describe("dashboardService", () => {
-  it("getResumen calls /dashboard/resumen without year param", async () => {
-    await dashboardService.getResumen(session);
-    expect(fetchUrl()).toContain("/dashboard/resumen");
+  it("getResumen calls /dashboard/resumen with the selected period", async () => {
+    await dashboardService.getResumen(session, { year: 2026, month: 9, day: 5 });
+    expect(fetchUrl()).toContain("year=2026");
+    expect(fetchUrl()).toContain("month=9");
+    expect(fetchUrl()).toContain("day=5");
   });
 
-  it("getResumen calls /dashboard/resumen with year param", async () => {
-    await dashboardService.getResumen(session, 2026);
-    expect(fetchUrl()).toContain("year=2026");
+  it("omits optional month and day from the dashboard period query", () => {
+    expect(buildDashboardPeriodQuery({ year: 2026, month: null, day: null })).toBe(
+      "year=2026"
+    );
   });
 
   it("requests visits per agronomist with an inclusive date range", async () => {

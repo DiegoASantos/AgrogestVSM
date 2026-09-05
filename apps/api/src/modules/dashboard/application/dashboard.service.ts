@@ -6,7 +6,10 @@ import {
   type ProductorRankingItem,
   VisitaCalificacionesService
 } from "../../visita-calificaciones/application/visita-calificaciones.service";
-import type { DashboardDateRangeQueryDto } from "../presentation/dto/dashboard-metrics-query.dto";
+import type {
+  DashboardDateRangeQueryDto,
+  DashboardResumenQueryDto
+} from "../presentation/dto/dashboard-metrics-query.dto";
 
 type VisitasPorMes = {
   mes: string;
@@ -25,6 +28,11 @@ type PlagaFrecuente = {
 
 type DeficienciaNutriente = {
   nutriente: string;
+  count: number;
+};
+
+type EnfermedadFrecuente = {
+  enfermedad: string;
   count: number;
 };
 
@@ -70,7 +78,9 @@ export type DashboardResumenData = {
     visitasPorCampania: VisitasPorCampania[];
     plagasFrecuentes: PlagaFrecuente[];
     deficienciasNutrientes: DeficienciaNutriente[];
+    enfermedadesFrecuentes: EnfermedadFrecuente[];
   };
+  availableYears: number[];
   actividadReciente: {
     ultimasVisitas: VisitaReciente[];
     ultimasRecetas: RecetaReciente[];
@@ -106,17 +116,18 @@ export class DashboardService {
     private readonly calificacionesService: VisitaCalificacionesService
   ) {}
 
-  async getResumen(year?: number): Promise<DashboardResumenData> {
-    const targetYear = year ?? new Date().getFullYear();
+  async getResumen(query: DashboardResumenQueryDto): Promise<DashboardResumenData> {
+    const period = this.resolveDashboardPeriod(query);
 
-    const [kpis, charts, actividadReciente, rankingProductores] = await Promise.all([
+    const [kpis, charts, actividadReciente, rankingProductores, availableYears] = await Promise.all([
       this.getKpis(),
-      this.getCharts(targetYear),
+      this.getCharts(period),
       this.getActividadReciente(),
-      this.getRankingProductores()
+      this.getRankingProductores(),
+      this.getAvailableVisitYears(period.year)
     ]);
 
-    return { kpis, charts, actividadReciente, rankingProductores };
+    return { kpis, charts, actividadReciente, rankingProductores, availableYears };
   }
 
   async getVisitasPorAgronomo(
@@ -295,6 +306,62 @@ export class DashboardService {
     }
   }
 
+  private resolveDashboardPeriod(
+    query: DashboardResumenQueryDto
+  ): Required<Pick<DashboardResumenQueryDto, "year">> & DashboardResumenQueryDto {
+    const year = query.year ?? new Date().getFullYear();
+
+    if (query.day && !query.month) {
+      throw new BadRequestException("day requires month.");
+    }
+
+    if (query.month && query.day) {
+      const lastDayOfMonth = new Date(year, query.month, 0).getDate();
+      if (query.day > lastDayOfMonth) {
+        throw new BadRequestException("day is not valid for the selected year and month.");
+      }
+    }
+
+    return { ...query, year };
+  }
+
+  private buildDashboardDateFilters(
+    alias: string,
+    period: Required<Pick<DashboardResumenQueryDto, "year">> & DashboardResumenQueryDto
+  ) {
+    const filters = [
+      `${alias}.activo = true`,
+      `EXTRACT(YEAR FROM ${alias}.fecha_visita) = :dashboardYear`
+    ];
+    const parameters: Record<string, number> = { dashboardYear: period.year };
+
+    if (period.month) {
+      filters.push(`EXTRACT(MONTH FROM ${alias}.fecha_visita) = :dashboardMonth`);
+      parameters.dashboardMonth = period.month;
+    }
+
+    if (period.day) {
+      filters.push(`EXTRACT(DAY FROM ${alias}.fecha_visita) = :dashboardDay`);
+      parameters.dashboardDay = period.day;
+    }
+
+    return { filters, parameters };
+  }
+
+  private async getAvailableVisitYears(currentYear: number) {
+    const rows = await this.dataSource
+      .createQueryBuilder()
+      .select("DISTINCT EXTRACT(YEAR FROM v.fecha_visita)", "year")
+      .from("visitas_campo", "v")
+      .where("v.activo = true")
+      .orderBy("year", "DESC")
+      .getRawMany<{ year: string }>();
+
+    return Array.from(
+      new Set([currentYear, ...rows.map((row) => Number(row.year)).filter(Number.isInteger)])
+    ).sort((left, right) => right - left);
+  }
+
   private buildVisitDateFilters(
     alias: string,
     query: DashboardDateRangeQueryDto,
@@ -315,41 +382,52 @@ export class DashboardService {
     return filters;
   }
 
-  private async getCharts(year: number) {
-    const [visitasPorMes, visitasPorCampania, plagasFrecuentes, deficienciasNutrientes] =
-      await Promise.all([
-        this.getVisitasPorMes(year),
+  private async getCharts(period: Required<Pick<DashboardResumenQueryDto, "year">> & DashboardResumenQueryDto) {
+    const [
+      visitasPorMes,
+      visitasPorCampania,
+      plagasFrecuentes,
+      deficienciasNutrientes,
+      enfermedadesFrecuentes
+    ] = await Promise.all([
+        this.getVisitasPorMes(period),
         this.getVisitasPorCampania(),
-        this.getPlagasFrecuentes(),
-        this.getDeficienciasNutrientes()
+        this.getPlagasFrecuentes(period),
+        this.getDeficienciasNutrientes(period),
+        this.getEnfermedadesFrecuentes(period)
       ]);
 
     return {
       visitasPorMes,
       visitasPorCampania,
       plagasFrecuentes,
-      deficienciasNutrientes
+      deficienciasNutrientes,
+      enfermedadesFrecuentes
     };
   }
 
-  private async getVisitasPorMes(year: number): Promise<VisitasPorMes[]> {
+  private async getVisitasPorMes(
+    period: Required<Pick<DashboardResumenQueryDto, "year">> & DashboardResumenQueryDto
+  ): Promise<VisitasPorMes[]> {
+    const { filters, parameters } = this.buildDashboardDateFilters("v", period);
     const rows = await this.dataSource
       .createQueryBuilder()
       .select("TO_CHAR(v.fecha_visita, 'YYYY-MM')", "mes")
       .addSelect("COUNT(*)", "count")
       .from("visitas_campo", "v")
-      .where("v.activo = true")
-      .andWhere("EXTRACT(YEAR FROM v.fecha_visita) = :year", { year })
+      .where(filters.join(" AND "))
+      .setParameters(parameters)
       .groupBy("TO_CHAR(v.fecha_visita, 'YYYY-MM')")
       .orderBy("mes", "ASC")
       .getRawMany<{ mes: string; count: string }>();
 
-    return this.fillMonths(rows, year);
+    return this.fillMonths(rows, period.year, period.month);
   }
 
   private fillMonths(
     rows: { mes: string; count: string }[],
-    year: number
+    year: number,
+    month?: number
   ): VisitasPorMes[] {
     const map = new Map<string, number>();
     for (const row of rows) {
@@ -357,8 +435,9 @@ export class DashboardService {
     }
 
     const result: VisitasPorMes[] = [];
-    for (let month = 1; month <= 12; month++) {
-      const key = `${year}-${String(month).padStart(2, "0")}`;
+    const months = month ? [month] : Array.from({ length: 12 }, (_, index) => index + 1);
+    for (const currentMonth of months) {
+      const key = `${year}-${String(currentMonth).padStart(2, "0")}`;
       result.push({ mes: key, count: map.get(key) ?? 0 });
     }
 
@@ -380,7 +459,10 @@ export class DashboardService {
     return rows.map((r) => ({ campania: r.campania, count: Number(r.count) }));
   }
 
-  private async getPlagasFrecuentes(): Promise<PlagaFrecuente[]> {
+  private async getPlagasFrecuentes(
+    period: Required<Pick<DashboardResumenQueryDto, "year">> & DashboardResumenQueryDto
+  ): Promise<PlagaFrecuente[]> {
+    const { filters, parameters } = this.buildDashboardDateFilters("v", period);
     const rows = await this.dataSource
       .createQueryBuilder()
       .select("pe.nombre", "plaga")
@@ -388,8 +470,10 @@ export class DashboardService {
       .from("visita_observaciones_sanitarias", "vos")
       .innerJoin("visitas_campo", "v", "v.id = vos.visita_id")
       .innerJoin("plagas_enfermedades", "pe", "pe.id = vos.plaga_enfermedad_id")
-      .where("pe.tipo = :tipo", { tipo: "plaga" })
-      .andWhere("v.activo = true")
+      .where(`pe.tipo = :tipo AND ${filters.join(" AND ")}`, {
+        ...parameters,
+        tipo: "plaga"
+      })
       .groupBy("pe.nombre")
       .orderBy("count", "DESC")
       .limit(10)
@@ -398,15 +482,20 @@ export class DashboardService {
     return rows.map((r) => ({ plaga: r.plaga, count: Number(r.count) }));
   }
 
-  private async getDeficienciasNutrientes(): Promise<DeficienciaNutriente[]> {
+  private async getDeficienciasNutrientes(
+    period: Required<Pick<DashboardResumenQueryDto, "year">> & DashboardResumenQueryDto
+  ): Promise<DeficienciaNutriente[]> {
+    const { filters, parameters } = this.buildDashboardDateFilters("v", period);
     const rows = await this.dataSource
       .createQueryBuilder()
       .select(NUTRIENT_NAME_EXPRESSION, "nutriente")
       .addSelect("COUNT(*)", "count")
       .from("visita_evaluaciones", "ve")
       .innerJoin("visitas_campo", "v", "v.id = ve.visita_id")
-      .where("ve.descripcion LIKE :prefix", { prefix: "Nutricion - %" })
-      .andWhere("v.activo = true")
+      .where(`ve.descripcion LIKE :prefix AND ${filters.join(" AND ")}`, {
+        ...parameters,
+        prefix: "Nutricion - %"
+      })
       .groupBy(NUTRIENT_NAME_EXPRESSION)
       .orderBy("count", "DESC")
       .limit(3)
@@ -416,6 +505,29 @@ export class DashboardService {
       nutriente: r.nutriente ?? "Sin especificar",
       count: Number(r.count)
     }));
+  }
+
+  private async getEnfermedadesFrecuentes(
+    period: Required<Pick<DashboardResumenQueryDto, "year">> & DashboardResumenQueryDto
+  ): Promise<EnfermedadFrecuente[]> {
+    const { filters, parameters } = this.buildDashboardDateFilters("v", period);
+    const rows = await this.dataSource
+      .createQueryBuilder()
+      .select("pe.nombre", "enfermedad")
+      .addSelect("COUNT(*)", "count")
+      .from("visita_observaciones_sanitarias", "vos")
+      .innerJoin("visitas_campo", "v", "v.id = vos.visita_id")
+      .innerJoin("plagas_enfermedades", "pe", "pe.id = vos.plaga_enfermedad_id")
+      .where(`pe.tipo = :tipo AND ${filters.join(" AND ")}`, {
+        ...parameters,
+        tipo: "enfermedad"
+      })
+      .groupBy("pe.nombre")
+      .orderBy("count", "DESC")
+      .limit(10)
+      .getRawMany<{ enfermedad: string; count: string }>();
+
+    return rows.map((row) => ({ enfermedad: row.enfermedad, count: Number(row.count) }));
   }
 
   private async getActividadReciente() {

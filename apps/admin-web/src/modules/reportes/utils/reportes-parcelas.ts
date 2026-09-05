@@ -7,6 +7,7 @@ import type {
   ParcelsReportData,
   ParcelsReportFilters
 } from "../types/reportes.types";
+import { currentMonthReportFilters } from "./reportes-visitas";
 
 export const PARCEL_CATEGORY_COLORS: Record<ParcelAreaCategoryCode, string> = {
   MICRO: "#1d8cf8",
@@ -15,13 +16,21 @@ export const PARCEL_CATEGORY_COLORS: Record<ParcelAreaCategoryCode, string> = {
   GRANDE: "#7a168f"
 };
 
-export const initialParcelsReportFilters: ParcelsReportFilters = {
-  agronomistUserId: "",
-  productorId: "",
-  sectorId: "",
-  subsectorId: "",
-  status: "true"
-};
+export function currentMonthParcelsReportFilters(now = new Date()): ParcelsReportFilters {
+  const { startDate, endDate } = currentMonthReportFilters(now);
+
+  return {
+    agronomistUserId: "",
+    productorId: "",
+    sectorId: "",
+    subsectorId: "",
+    status: "true",
+    startDate,
+    endDate
+  };
+}
+
+export const initialParcelsReportFilters = currentMonthParcelsReportFilters();
 
 export function buildParcelsReportMapData(report: ParcelsReportData) {
   const polygons: AdminMapPolygon[] = [];

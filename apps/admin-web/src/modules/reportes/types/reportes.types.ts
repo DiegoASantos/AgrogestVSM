@@ -43,6 +43,8 @@ export type VisitsReportCatalogs = {
 export type FieldsByStageFilters = {
   agronomistUserId: string;
   productorId: string;
+  startDate: string;
+  endDate: string;
 };
 
 export type FieldsByStageCatalogs = {
@@ -111,6 +113,8 @@ export type ParcelsReportFilters = {
   sectorId: string;
   subsectorId: string;
   status: ParcelReportStatusFilter;
+  startDate: string;
+  endDate: string;
 };
 
 export type ParcelAreaCategoryCode = "MICRO" | "PEQUENO" | "MEDIANO" | "GRANDE";

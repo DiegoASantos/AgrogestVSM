@@ -99,32 +99,40 @@ describe("reportesService", () => {
     expect(buildProductorLabel(makeProductor())).toBe("Rosa Díaz");
   });
 
-  it("builds the fields-by-stage endpoint without date filters", async () => {
+  it("builds the fields-by-stage endpoint with its required date range", async () => {
     await reportesService.getFieldsByStageReport(session, {
       agronomistUserId: "7",
-      productorId: "15"
+      productorId: "15",
+      startDate: "2026-09-01",
+      endDate: "2026-09-30"
     });
 
     const url = String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]);
     expect(url).toContain(
-      "/reportes/campos-por-etapas?agronomo_usuario_id=7&productor_id=15"
+      "/reportes/campos-por-etapas?fecha_desde=2026-09-01&fecha_hasta=2026-09-30&agronomo_usuario_id=7&productor_id=15"
     );
-    expect(url).not.toContain("fecha_");
   });
 
-  it("omits the fields-by-stage query separator when filters are empty", async () => {
-    expect(buildFieldsByStageReportQuery({ agronomistUserId: "", productorId: "" })).toBe(
-      ""
-    );
+  it("keeps the required date range when optional fields-by-stage filters are empty", async () => {
+    expect(
+      buildFieldsByStageReportQuery({
+        agronomistUserId: "",
+        productorId: "",
+        startDate: "2026-09-01",
+        endDate: "2026-09-30"
+      })
+    ).toBe("fecha_desde=2026-09-01&fecha_hasta=2026-09-30");
 
     await reportesService.getFieldsByStageReport(session, {
       agronomistUserId: "",
-      productorId: ""
+      productorId: "",
+      startDate: "2026-09-01",
+      endDate: "2026-09-30"
     });
 
     const url = String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]);
     expect(url).toContain("/reportes/campos-por-etapas");
-    expect(url).not.toContain("/reportes/campos-por-etapas?");
+    expect(url).toContain("fecha_desde=2026-09-01");
   });
 
   it("loads only agronomist and producer catalogs for fields by stage", async () => {
@@ -144,17 +152,19 @@ describe("reportesService", () => {
       productorId: "15",
       sectorId: "2",
       subsectorId: "3",
-      status: "false" as const
+      status: "false" as const,
+      startDate: "2026-09-01",
+      endDate: "2026-09-30"
     };
 
     expect(buildParcelsReportQuery(filters)).toBe(
-      "agronomo_usuario_id=7&productor_id=15&sector_id=2&subsector_id=3&activo=false"
+      "fecha_desde=2026-09-01&fecha_hasta=2026-09-30&agronomo_usuario_id=7&productor_id=15&sector_id=2&subsector_id=3&activo=false"
     );
     await reportesService.getParcelsReport(session, filters);
 
     expect(
       String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])
-    ).toContain("/reportes/parcelas?agronomo_usuario_id=7");
+    ).toContain("/reportes/parcelas?fecha_desde=2026-09-01");
   });
 
   it("loads parcel report filter catalogs without forcing active territory", async () => {

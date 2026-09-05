@@ -13,6 +13,12 @@ export type DashboardDateRange = {
   endDate: string;
 };
 
+export type DashboardPeriodFilters = {
+  year: number;
+  month: number | null;
+  day: number | null;
+};
+
 export type VisitasPorAgronomo = {
   agronomistUserId: string;
   agronomistName: string;
@@ -34,6 +40,11 @@ export type PlagaFrecuente = {
 
 export type DeficienciaNutriente = {
   nutriente: string;
+  count: number;
+};
+
+export type EnfermedadFrecuente = {
+  enfermedad: string;
   count: number;
 };
 
@@ -60,6 +71,7 @@ export type ProductorRankingItem = {
 };
 
 export type DashboardResumen = {
+  availableYears: number[];
   kpis: {
     totalVisitas: number;
     visitasEsteMes: number;
@@ -72,6 +84,7 @@ export type DashboardResumen = {
     visitasPorCampania: VisitasPorCampania[];
     plagasFrecuentes: PlagaFrecuente[];
     deficienciasNutrientes: DeficienciaNutriente[];
+    enfermedadesFrecuentes: EnfermedadFrecuente[];
   };
   actividadReciente: {
     ultimasVisitas: VisitaReciente[];

@@ -125,6 +125,8 @@ export const reportesService = {
 
 export function buildParcelsReportQuery(filters: ParcelsReportFilters) {
   const searchParams = new URLSearchParams();
+  searchParams.set("fecha_desde", filters.startDate);
+  searchParams.set("fecha_hasta", filters.endDate);
   const optionalIds = [
     ["agronomo_usuario_id", filters.agronomistUserId],
     ["productor_id", filters.productorId],
@@ -142,6 +144,8 @@ export function buildParcelsReportQuery(filters: ParcelsReportFilters) {
 
 export function buildFieldsByStageReportQuery(filters: FieldsByStageFilters) {
   const searchParams = new URLSearchParams();
+  searchParams.set("fecha_desde", filters.startDate);
+  searchParams.set("fecha_hasta", filters.endDate);
 
   if (filters.agronomistUserId) {
     searchParams.set("agronomo_usuario_id", filters.agronomistUserId);

@@ -7,11 +7,18 @@ import type {
   FieldsByStageFilters,
   FieldsByStageReportData
 } from "../types/reportes.types";
+import { currentMonthReportFilters } from "./reportes-visitas";
 
-export const emptyFieldsByStageFilters: FieldsByStageFilters = {
-  agronomistUserId: "",
-  productorId: ""
-};
+export function currentMonthFieldsByStageFilters(now = new Date()): FieldsByStageFilters {
+  const { startDate, endDate } = currentMonthReportFilters(now);
+
+  return {
+    agronomistUserId: "",
+    productorId: "",
+    startDate,
+    endDate
+  };
+}
 
 export function buildFieldsByStageMapData(report: FieldsByStageReportData) {
   const colors = buildPhenologicalStageColorLookup(report.stages);

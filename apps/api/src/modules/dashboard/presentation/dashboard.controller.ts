@@ -2,7 +2,10 @@ import { Controller, Get, Query } from "@nestjs/common";
 import { ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 
 import { DashboardService } from "../application/dashboard.service";
-import { DashboardDateRangeQueryDto } from "./dto/dashboard-metrics-query.dto";
+import {
+  DashboardDateRangeQueryDto,
+  DashboardResumenQueryDto
+} from "./dto/dashboard-metrics-query.dto";
 
 @ApiTags("Dashboard")
 @Controller("dashboard")
@@ -11,15 +14,16 @@ export class DashboardController {
 
   @Get("resumen")
   @ApiOperation({ summary: "Devuelve el resumen completo del dashboard." })
+  @ApiQuery({ name: "month", required: false, type: Number })
+  @ApiQuery({ name: "day", required: false, type: Number })
   @ApiQuery({
     name: "year",
     required: false,
     type: Number,
     description: "Año para filtrar visitas por mes. Por defecto el año actual."
   })
-  async getResumen(@Query("year") year?: string) {
-    const parsedYear = year ? Number(year) : undefined;
-    const data = await this.dashboardService.getResumen(parsedYear);
+  async getResumen(@Query() query: DashboardResumenQueryDto) {
+    const data = await this.dashboardService.getResumen(query);
     return { success: true, data };
   }
 

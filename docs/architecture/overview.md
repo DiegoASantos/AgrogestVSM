@@ -62,8 +62,9 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 
 `apps/admin-web` usa Next.js App Router:
 
-- dashboard y métricas filtrables de visitas por agrónomo y parcelas por etapa
-  fenológica;
+- dashboard con filtros temporales de año, mes y día para visitas, alertas
+  sanitarias y nutricionales; además de métricas filtrables de visitas por
+  agrónomo y parcelas por etapa fenológica;
 - grupo lateral `Reportes`, reservado para `ADMIN` y `ANALISTA`, con los
   submódulos `/reportes/visitas`, `/reportes/campos-por-etapas` y
   `/reportes/parcelas`;

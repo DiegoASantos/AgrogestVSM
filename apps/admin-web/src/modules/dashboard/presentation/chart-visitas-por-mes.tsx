@@ -11,13 +11,6 @@ import {
   YAxis
 } from "recharts";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 import type { VisitasPorMes } from "../types/dashboard.types";
 
 function mesLabel(key: string): string {
@@ -40,15 +33,9 @@ function mesLabel(key: string): string {
 }
 
 export function ChartVisitasPorMes({
-  data,
-  year,
-  availableYears,
-  onYearChange
+  data
 }: {
   data: VisitasPorMes[];
-  year: number;
-  availableYears: number[];
-  onYearChange: (year: number) => void;
 }) {
   const chartData = useMemo(
     () => data.map((d) => ({ label: mesLabel(d.mes), count: d.count })),
@@ -57,21 +44,7 @@ export function ChartVisitasPorMes({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Visitas por mes</h3>
-        <Select value={String(year)} onValueChange={(v) => onYearChange(Number(v))}>
-          <SelectTrigger className="h-8 w-[110px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {availableYears.map((y) => (
-              <SelectItem key={y} value={String(y)}>
-                {y}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <h3 className="text-sm font-semibold text-foreground">Visitas por mes</h3>
       <ResponsiveContainer height={200} width="100%">
         <LineChart data={chartData}>
           <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />

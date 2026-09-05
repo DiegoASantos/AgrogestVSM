@@ -35,9 +35,12 @@ last_reviewed: 2026-09-04
   visible del ingeniero y agregados operativos, valida el rango inclusivo y
   parametriza fechas e identificadores; no habilita acceso a `AGRONOMO`;
 - `GET /reportes/parcelas` exige `ADMIN` o `ANALISTA`, valida y parametriza los
-  filtros territoriales y de estado, y limita la respuesta a identificadores y
-  nombres operativos, área, estado y geodatos necesarios para el reporte; no
-  expone datos de contacto ni habilita acceso a `AGRONOMO`;
+  filtros temporales, territoriales y de estado, y limita la respuesta a
+  identificadores y nombres operativos, área, estado y geodatos necesarios para
+  el reporte; no expone datos de contacto ni habilita acceso a `AGRONOMO`;
+- `GET /reportes/campos-por-etapas` exige `ADMIN` o `ANALISTA`, valida y
+  parametriza el rango inclusivo junto con ingeniero y productor, y no habilita
+  acceso a `AGRONOMO`;
 
 - aislamiento horizontal de parcelas para `AGRONOMO`: listados, lectura y
   mutaciones por ID se limitan a `agronomo_usuario_id` y una visita nueva exige

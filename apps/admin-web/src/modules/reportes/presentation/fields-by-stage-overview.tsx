@@ -2,6 +2,7 @@
 
 import {
   ChartPie,
+  CalendarRange,
   Filter,
   Layers3,
   MapPinned,
@@ -28,7 +29,7 @@ import type {
 } from "../types/reportes.types";
 import {
   buildFieldsByStageMapData,
-  emptyFieldsByStageFilters
+  currentMonthFieldsByStageFilters
 } from "../utils/reportes-campos-etapas";
 import { FieldsByStagePies } from "./fields-by-stage-pies";
 
@@ -46,10 +47,10 @@ const emptyReport: FieldsByStageReportData = {
 export function FieldsByStageOverview() {
   const { session, logout } = useAuthSession();
   const [draftFilters, setDraftFilters] = useState<FieldsByStageFilters>({
-    ...emptyFieldsByStageFilters
+    ...currentMonthFieldsByStageFilters()
   });
   const [appliedFilters, setAppliedFilters] = useState<FieldsByStageFilters>({
-    ...emptyFieldsByStageFilters
+    ...currentMonthFieldsByStageFilters()
   });
   const [catalogs, setCatalogs] = useState<FieldsByStageCatalogs | null>(null);
   const [report, setReport] = useState<FieldsByStageReportData>(emptyReport);
@@ -57,6 +58,7 @@ export function FieldsByStageOverview() {
   const [reportError, setReportError] = useState<string | null>(null);
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
   const [isLoadingReport, setIsLoadingReport] = useState(true);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (session) {
@@ -122,7 +124,30 @@ export function FieldsByStageOverview() {
               placeholder="Todos · escribe para buscar"
               value={draftFilters.productorId}
             />
+            <label className="field-group">
+              <span className="field-group__label">
+                <CalendarRange size={13} />
+                Fecha desde
+              </span>
+              <input
+                onChange={(event) => updateDraft("startDate", event.target.value)}
+                type="date"
+                value={draftFilters.startDate}
+              />
+            </label>
+            <label className="field-group">
+              <span className="field-group__label">
+                <CalendarRange size={13} />
+                Fecha hasta
+              </span>
+              <input
+                onChange={(event) => updateDraft("endDate", event.target.value)}
+                type="date"
+                value={draftFilters.endDate}
+              />
+            </label>
           </div>
+          {validationError ? <p className="form-error">{validationError}</p> : null}
           <div className="filter-card__footer">
             <button
               className="ui-button ui-button--ghost ui-button--compact"
@@ -133,7 +158,7 @@ export function FieldsByStageOverview() {
             </button>
             <button
               className="ui-button ui-button--primary"
-              onClick={() => setAppliedFilters({ ...draftFilters })}
+              onClick={handleApplyFilters}
               type="button"
             >
               Aplicar filtros
@@ -253,8 +278,25 @@ export function FieldsByStageOverview() {
   }
 
   function handleClearFilters() {
-    setDraftFilters({ ...emptyFieldsByStageFilters });
-    setAppliedFilters({ ...emptyFieldsByStageFilters });
+    const filters = currentMonthFieldsByStageFilters();
+    setValidationError(null);
+    setDraftFilters(filters);
+    setAppliedFilters(filters);
+  }
+
+  function handleApplyFilters() {
+    if (!draftFilters.startDate || !draftFilters.endDate) {
+      setValidationError("Selecciona la fecha desde y la fecha hasta.");
+      return;
+    }
+
+    if (draftFilters.startDate > draftFilters.endDate) {
+      setValidationError("La fecha hasta debe ser mayor o igual a la fecha desde.");
+      return;
+    }
+
+    setValidationError(null);
+    setAppliedFilters({ ...draftFilters });
   }
 
   async function loadCatalogs() {

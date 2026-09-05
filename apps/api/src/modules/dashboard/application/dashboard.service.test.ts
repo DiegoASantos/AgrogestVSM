@@ -66,6 +66,17 @@ function createQueryBuilder(rows: Array<Record<string, string | null>>) {
 }
 
 describe("DashboardService", () => {
+  it("rejects days without a month and impossible calendar dates", async () => {
+    const service = new DashboardService({} as never, {} as never);
+
+    await expect(service.getResumen({ year: 2026, day: 5 })).rejects.toThrow(
+      "day requires month."
+    );
+    await expect(
+      service.getResumen({ year: 2026, month: 2, day: 30 })
+    ).rejects.toThrow("day is not valid for the selected year and month.");
+  });
+
   it("rejects an inverted date range before querying dashboard metrics", async () => {
     const service = new DashboardService({} as never, {} as never);
 
@@ -169,24 +180,25 @@ describe("DashboardService", () => {
 
     const result = await (
       service as unknown as {
-        getDeficienciasNutrientes: () => Promise<
+        getDeficienciasNutrientes: (period: { year: number }) => Promise<
           Array<{ nutriente: string; count: number }>
         >;
       }
-    ).getDeficienciasNutrientes();
+    ).getDeficienciasNutrientes({ year: 2026 });
 
     const selectCall = queryBuilder.calls.find((call) => call.method === "select");
     const groupByCall = queryBuilder.calls.find((call) => call.method === "groupBy");
     const limitCall = queryBuilder.calls.find((call) => call.method === "limit");
     const visitJoin = queryBuilder.calls.find((call) => call.method === "innerJoin");
-    const activeFilter = queryBuilder.calls.find((call) => call.method === "andWhere");
+    const activeFilter = queryBuilder.calls.find((call) => call.method === "where");
 
     expect(selectCall?.args[0]).toContain("regexp_replace");
     expect(groupByCall?.args[0]).toBe(selectCall?.args[0]);
     expect(groupByCall?.args[0]).not.toBe("ve.descripcion");
     expect(limitCall?.args).toEqual([3]);
     expect(visitJoin?.args).toEqual(["visitas_campo", "v", "v.id = ve.visita_id"]);
-    expect(activeFilter?.args).toEqual(["v.activo = true"]);
+    expect(String(activeFilter?.args[0])).toContain("v.activo = true");
+    expect(activeFilter?.args[1]).toMatchObject({ dashboardYear: 2026 });
     expect(result).toEqual([
       { nutriente: "Zinc", count: 4 },
       { nutriente: "Nitrogeno", count: 3 },
@@ -205,21 +217,50 @@ describe("DashboardService", () => {
     };
     const service = new DashboardService(dataSource as never, {} as never);
     const privateService = service as unknown as {
-      getPlagasFrecuentes: () => Promise<unknown>;
+      getPlagasFrecuentes: (period: { year: number }) => Promise<unknown>;
       getUltimasRecetas: () => Promise<unknown>;
     };
 
-    await privateService.getPlagasFrecuentes();
+    await privateService.getPlagasFrecuentes({ year: 2026 });
     await privateService.getUltimasRecetas();
 
     expect(pestBuilder.calls).toContainEqual({
-      method: "andWhere",
-      args: ["v.activo = true"]
+      method: "where",
+      args: [expect.stringContaining("v.activo = true"), expect.any(Object)]
     });
     expect(recipeBuilder.calls).toContainEqual({
       method: "where",
       args: ["v.activo = true"]
     });
+  });
+
+  it("filters frequent diseases by the selected year, month and day", async () => {
+    const queryBuilder = createQueryBuilder([{ enfermedad: "Antracnosis", count: "2" }]);
+    const service = new DashboardService(
+      { createQueryBuilder: () => queryBuilder } as never,
+      {} as never
+    );
+
+    const result = await (
+      service as unknown as {
+        getEnfermedadesFrecuentes: (period: {
+          year: number;
+          month: number;
+          day: number;
+        }) => Promise<Array<{ enfermedad: string; count: number }>>;
+      }
+    ).getEnfermedadesFrecuentes({ year: 2026, month: 9, day: 5 });
+
+    const where = queryBuilder.calls.find((call) => call.method === "where");
+    expect(String(where?.args[0])).toContain("pe.tipo = :tipo");
+    expect(String(where?.args[0])).toContain("EXTRACT(MONTH FROM v.fecha_visita)");
+    expect(where?.args[1]).toMatchObject({
+      tipo: "enfermedad",
+      dashboardYear: 2026,
+      dashboardMonth: 9,
+      dashboardDay: 5
+    });
+    expect(result).toEqual([{ enfermedad: "Antracnosis", count: 2 }]);
   });
 
   it("excludes inactive visits from recipe and compliance KPIs", async () => {

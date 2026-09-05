@@ -2,6 +2,7 @@
 
 import {
   ChartPie,
+  CalendarRange,
   Filter,
   LandPlot,
   MapPinned,
@@ -27,7 +28,7 @@ import type {
 } from "../types/reportes.types";
 import {
   buildParcelsReportMapData,
-  initialParcelsReportFilters,
+  currentMonthParcelsReportFilters,
   PARCEL_CATEGORY_COLORS
 } from "../utils/reportes-parcelas";
 import { ParcelCategoryPieChart } from "./parcel-category-pie-chart";
@@ -49,10 +50,10 @@ const emptyReport: ParcelsReportData = {
 export function ParcelsReportOverview() {
   const { session, logout } = useAuthSession();
   const [draftFilters, setDraftFilters] = useState<ParcelsReportFilters>({
-    ...initialParcelsReportFilters
+    ...currentMonthParcelsReportFilters()
   });
   const [appliedFilters, setAppliedFilters] = useState<ParcelsReportFilters>({
-    ...initialParcelsReportFilters
+    ...currentMonthParcelsReportFilters()
   });
   const [catalogs, setCatalogs] = useState<ParcelsReportCatalogs | null>(null);
   const [report, setReport] = useState<ParcelsReportData>(emptyReport);
@@ -60,6 +61,7 @@ export function ParcelsReportOverview() {
   const [reportError, setReportError] = useState<string | null>(null);
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
   const [isLoadingReport, setIsLoadingReport] = useState(true);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (session) void loadCatalogs();
@@ -180,7 +182,30 @@ export function ParcelsReportOverview() {
                 <option value="false">Inactivas</option>
               </select>
             </label>
+            <label className="field-group">
+              <span className="field-group__label">
+                <CalendarRange size={13} />
+                Fecha desde
+              </span>
+              <input
+                onChange={(event) => updateDraft("startDate", event.target.value)}
+                type="date"
+                value={draftFilters.startDate}
+              />
+            </label>
+            <label className="field-group">
+              <span className="field-group__label">
+                <CalendarRange size={13} />
+                Fecha hasta
+              </span>
+              <input
+                onChange={(event) => updateDraft("endDate", event.target.value)}
+                type="date"
+                value={draftFilters.endDate}
+              />
+            </label>
           </div>
+          {validationError ? <p className="form-error">{validationError}</p> : null}
           <div className="filter-card__footer">
             <button
               className="ui-button ui-button--ghost ui-button--compact"
@@ -191,7 +216,7 @@ export function ParcelsReportOverview() {
             </button>
             <button
               className="ui-button ui-button--primary"
-              onClick={() => setAppliedFilters({ ...draftFilters })}
+              onClick={handleApplyFilters}
               type="button"
             >
               Aplicar filtros
@@ -339,8 +364,25 @@ export function ParcelsReportOverview() {
   }
 
   function handleClearFilters() {
-    setDraftFilters({ ...initialParcelsReportFilters });
-    setAppliedFilters({ ...initialParcelsReportFilters });
+    const filters = currentMonthParcelsReportFilters();
+    setValidationError(null);
+    setDraftFilters(filters);
+    setAppliedFilters(filters);
+  }
+
+  function handleApplyFilters() {
+    if (!draftFilters.startDate || !draftFilters.endDate) {
+      setValidationError("Selecciona la fecha desde y la fecha hasta.");
+      return;
+    }
+
+    if (draftFilters.startDate > draftFilters.endDate) {
+      setValidationError("La fecha hasta debe ser mayor o igual a la fecha desde.");
+      return;
+    }
+
+    setValidationError(null);
+    setAppliedFilters({ ...draftFilters });
   }
 
   function metricStatus() {

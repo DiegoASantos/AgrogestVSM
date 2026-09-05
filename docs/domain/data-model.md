@@ -451,6 +451,12 @@ Las visitas inactivas se conservan exclusivamente como historial tecnico en la
 base de datos: el panel web las excluye de listados, historiales, detalles,
 mapas, reportes y metricas agregadas del dashboard.
 
+Los gráficos temporales del dashboard usan `fecha_visita` de visitas activas y
+pueden delimitarse por año, mes y día. Campos por etapas usa la visita activa
+más reciente de cada parcela dentro de su rango; el reporte Parcelas conserva
+la asignación actual y exige que la parcela tenga al menos una visita activa en
+ese rango.
+
 Las excepciones de escritura para un usuario exclusivamente `ANALISTA` son las
 lecturas manuales de reservorios definidas por la spec 032 y las mutaciones de
 Mantenimiento definidas por la spec 072. Cada endpoint requiere rol explícito y

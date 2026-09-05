@@ -113,7 +113,10 @@ describe("ReportesService", () => {
     });
     const service = new ReportesService({ query } as never);
 
-    const result = await service.getFieldsByStageReport({});
+    const result = await service.getFieldsByStageReport({
+      fecha_desde: "2026-09-01",
+      fecha_hasta: "2026-09-30"
+    });
 
     expect(result.summary).toMatchObject({
       totalCategorizedParcels: 2,
@@ -180,16 +183,39 @@ describe("ReportesService", () => {
 
     await service.getFieldsByStageReport({
       agronomo_usuario_id: "7",
-      productor_id: "15"
+      productor_id: "15",
+      fecha_desde: "2026-09-01",
+      fecha_hasta: "2026-09-30"
     });
 
     expect(query.mock.calls[1]?.[1]).toEqual(["7"]);
     const parcelSql = String(query.mock.calls[2]?.[0]);
     const cteEnd = parcelSql.indexOf(")\n      SELECT");
-    expect(parcelSql.slice(0, cteEnd)).toContain("p.productor_id = $1");
+    expect(parcelSql.slice(0, cteEnd)).toContain("v.fecha_visita >= $1");
+    expect(parcelSql.slice(0, cteEnd)).toContain("v.fecha_visita <= $2");
+    expect(parcelSql.slice(0, cteEnd)).toContain("p.productor_id = $3");
     expect(parcelSql.slice(0, cteEnd)).not.toContain("uv.agronomo_usuario_id");
-    expect(parcelSql.slice(cteEnd)).toContain("uv.agronomo_usuario_id = $2");
-    expect(query.mock.calls[2]?.[1]).toEqual(["15", "7"]);
+    expect(parcelSql.slice(cteEnd)).toContain("uv.agronomo_usuario_id = $4");
+    expect(query.mock.calls[2]?.[1]).toEqual(["2026-09-01", "2026-09-30", "15", "7"]);
+  });
+
+  it("rejects inverted date ranges for fields by stage and parcels before querying", async () => {
+    const query = vi.fn();
+    const service = new ReportesService({ query } as never);
+
+    await expect(
+      service.getFieldsByStageReport({
+        fecha_desde: "2026-09-30",
+        fecha_hasta: "2026-09-01"
+      })
+    ).rejects.toThrow("fecha_hasta must be greater than or equal to fecha_desde.");
+    await expect(
+      service.getParcelsReport({
+        fecha_desde: "2026-09-30",
+        fecha_hasta: "2026-09-01"
+      })
+    ).rejects.toThrow("fecha_hasta must be greater than or equal to fecha_desde.");
+    expect(query).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -220,7 +246,11 @@ describe("ReportesService", () => {
     ]);
     const service = new ReportesService({ query } as never);
 
-    const result = await service.getParcelsReport({ activo: true });
+    const result = await service.getParcelsReport({
+      activo: true,
+      fecha_desde: "2026-09-01",
+      fecha_hasta: "2026-09-30"
+    });
 
     expect(result.totals).toEqual({
       parcels: 3,
@@ -285,17 +315,23 @@ describe("ReportesService", () => {
       productor_id: "15",
       sector_id: "2",
       subsector_id: "3",
-      activo: false
+      activo: false,
+      fecha_desde: "2026-09-01",
+      fecha_hasta: "2026-09-30"
     });
 
     const sql = String(query.mock.calls[0]?.[0]);
     expect(sql).toContain("p.agronomo_usuario_id IS NOT NULL");
-    expect(sql).toContain("p.agronomo_usuario_id = $1");
-    expect(sql).toContain("p.productor_id = $2");
-    expect(sql).toContain("s.id = $3");
-    expect(sql).toContain("ss.id = $4");
-    expect(sql).toContain("p.activo = $5");
-    expect(query.mock.calls[0]?.[1]).toEqual(["7", "15", "2", "3", false]);
+    expect(sql).toContain("v.fecha_visita >= $1");
+    expect(sql).toContain("v.fecha_visita <= $2");
+    expect(sql).toContain("p.agronomo_usuario_id = $3");
+    expect(sql).toContain("p.productor_id = $4");
+    expect(sql).toContain("s.id = $5");
+    expect(sql).toContain("ss.id = $6");
+    expect(sql).toContain("p.activo = $7");
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      "2026-09-01", "2026-09-30", "7", "15", "2", "3", false
+    ]);
   });
 });
 

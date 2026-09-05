@@ -107,6 +107,7 @@ export class ReportesService {
   }
 
   async getFieldsByStageReport(query: ReporteCamposEtapasQueryDto) {
+    this.ensureDateRange(query);
     const [stageRows, agronomistRows, parcelRows] = await Promise.all([
       this.getActiveStages(),
       this.getActiveAgronomists(query),
@@ -202,6 +203,7 @@ export class ReportesService {
   }
 
   async getParcelsReport(query: ReporteParcelasQueryDto) {
+    this.ensureDateRange(query);
     const rows = (await this.getParcelsForReport(query)).filter(
       (row): row is ParcelReportRow & { agronomistUserId: string } =>
         row.agronomistUserId !== null
@@ -322,6 +324,19 @@ export class ReportesService {
       filters.push(expression(values.length));
     };
 
+    addFilter(
+      query.fecha_desde,
+      (index) => `EXISTS (
+        SELECT 1
+        FROM visitas_campo v
+        WHERE v.parcela_id = p.id
+          AND v.activo = true
+          AND v.fecha_visita >= $${index}
+          AND v.fecha_visita <= $${index + 1}
+      )`
+    );
+    values.push(query.fecha_hasta);
+
     if (query.agronomo_usuario_id) {
       addFilter(
         query.agronomo_usuario_id,
@@ -425,6 +440,11 @@ export class ReportesService {
       "productor.activo = true"
     ];
     const reportFilters: string[] = [];
+
+    values.push(query.fecha_desde);
+    parcelFilters.push(`v.fecha_visita >= $${values.length}`);
+    values.push(query.fecha_hasta);
+    parcelFilters.push(`v.fecha_visita <= $${values.length}`);
 
     if (query.productor_id) {
       values.push(query.productor_id);
@@ -560,7 +580,9 @@ export class ReportesService {
     );
   }
 
-  private ensureDateRange(query: ReporteVisitasQueryDto) {
+  private ensureDateRange(
+    query: Pick<ReporteVisitasQueryDto, "fecha_desde" | "fecha_hasta">
+  ) {
     if (query.fecha_desde > query.fecha_hasta) {
       throw new BadRequestException(
         "fecha_hasta must be greater than or equal to fecha_desde."

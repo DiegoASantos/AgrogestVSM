@@ -43,12 +43,16 @@ describe("ReportesController", () => {
     );
   });
 
-  it("validates optional fields-by-stage identifiers", async () => {
+  it("validates the fields-by-stage range and optional identifiers", async () => {
     const validDto = plainToInstance(ReporteCamposEtapasQueryDto, {
+      fecha_desde: "2026-09-01",
+      fecha_hasta: "2026-09-30",
       agronomo_usuario_id: " 7 ",
       productor_id: "15"
     });
     const invalidDto = plainToInstance(ReporteCamposEtapasQueryDto, {
+      fecha_desde: "",
+      fecha_hasta: "not-a-date",
       agronomo_usuario_id: "0",
       productor_id: "abc"
     });
@@ -56,12 +60,19 @@ describe("ReportesController", () => {
     expect(await validate(validDto)).toHaveLength(0);
     expect(validDto.agronomo_usuario_id).toBe("7");
     expect((await validate(invalidDto)).map((error) => error.property)).toEqual(
-      expect.arrayContaining(["agronomo_usuario_id", "productor_id"])
+      expect.arrayContaining([
+        "fecha_desde",
+        "fecha_hasta",
+        "agronomo_usuario_id",
+        "productor_id"
+      ])
     );
   });
 
-  it("validates parcel report identifiers and status", async () => {
+  it("validates the parcel report range, identifiers and status", async () => {
     const validDto = plainToInstance(ReporteParcelasQueryDto, {
+      fecha_desde: "2026-09-01",
+      fecha_hasta: "2026-09-30",
       agronomo_usuario_id: " 7 ",
       productor_id: "15",
       sector_id: "2",
@@ -69,6 +80,8 @@ describe("ReportesController", () => {
       activo: "false"
     });
     const invalidDto = plainToInstance(ReporteParcelasQueryDto, {
+      fecha_desde: "",
+      fecha_hasta: "not-a-date",
       agronomo_usuario_id: "0",
       productor_id: "abc",
       sector_id: "-1",
@@ -83,6 +96,8 @@ describe("ReportesController", () => {
     });
     expect((await validate(invalidDto)).map((error) => error.property)).toEqual(
       expect.arrayContaining([
+        "fecha_desde",
+        "fecha_hasta",
         "agronomo_usuario_id",
         "productor_id",
         "sector_id",
