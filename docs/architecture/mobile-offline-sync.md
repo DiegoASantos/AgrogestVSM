@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-01
+last_reviewed: 2026-09-05
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -501,6 +501,22 @@ una transaccion la fila de catalogo y sus metadatos de sync. Un ingrediente no
 puede descartarse si una marca pendiente o fallida depende de el. Una fila ya
 confirmada se desactiva en la API por un administrador, no se descarta desde el
 dispositivo.
+
+El detalle de visita muestra primero fecha, etapa, área y avance de etapa; usa
+`subEtapaPercentage` para el avance, incluido `0%`, y `---` cuando falta. Horario,
+plantas y siembra se conservan en los datos, pero no se muestran en este detalle.
+Después aparecen todos los registros principales, las mezclas recetadas, los
+botones de reportes y los scores. Sanidad destaca el nombre del objetivo y sus
+niveles, sin textos de observación faltante; los textos históricos se conservan
+como información complementaria.
+
+Las tarjetas de mezclas reutilizan la proyección de la receta para el productor
+con productos, ingredientes activos, dosis, frecuencia y orden guardado. Leen
+la receta local al abrir el detalle, al regresar del editor y al completar un
+reintento de sincronización. Incluyen fertilizantes y coadyuvantes; los
+fertilizantes no asignados aparecen como `Sin mezcla`. La ausencia de mezclas
+y un error de lectura se indican por separado. Esta presentación funciona sin
+red y no modifica la receta, los reportes ni la outbox.
 
 El detalle de visita deriva directamente desde SQLite los scores técnicos de
 Plagas, Enfermedades, Nutrición y Riego. Esta previsualización no se persiste ni

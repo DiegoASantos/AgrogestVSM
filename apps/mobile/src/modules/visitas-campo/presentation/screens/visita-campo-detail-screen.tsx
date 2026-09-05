@@ -54,6 +54,11 @@ import type {
   VisitaSyncSummary
 } from "../../types";
 import { canUserDeleteVisit } from "../../domain/visit-deletion-policy";
+import { visitaRecetasService } from "../../../visita-recetas/services/visita-recetas.service";
+import {
+  buildProducerMixtureRows,
+  type ProducerMixtureRow
+} from "../../../visita-recetas/services/producer-recipe-mixture-plan";
 
 type DetailCatalogs = {
   cultivos: CultivoCatalogItem[];
@@ -88,6 +93,8 @@ export function VisitaCampoDetailScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [mixtureRows, setMixtureRows] = useState<ProducerMixtureRow[]>([]);
+  const [mixtureError, setMixtureError] = useState<string | null>(null);
   const [syncSummary, setSyncSummary] = useState<VisitaSyncSummary | null>(null);
   const [technicalScores, setTechnicalScores] = useState<MobileTechnicalScoreView | null>(
     null
@@ -191,6 +198,8 @@ export function VisitaCampoDetailScreen() {
               catalogs={catalogs}
               detail={detail}
               isRetrying={isRetrying}
+              mixtureRows={mixtureRows}
+              mixtureError={mixtureError}
               onPreviewReport={(action) => {
                 setReportError(null);
                 void previewReport(visita.id, action);
@@ -393,9 +402,7 @@ export function VisitaCampoDetailScreen() {
                 <AppButton
                   icon="play-circle-outline"
                   label={
-                    resumeModule === "mezclas"
-                      ? "Continuar mezclas"
-                      : "Continuar receta"
+                    resumeModule === "mezclas" ? "Continuar mezclas" : "Continuar receta"
                   }
                   onPress={() =>
                     router.push({
@@ -440,6 +447,7 @@ export function VisitaCampoDetailScreen() {
       const nextDetail = await visitasCampoService.getFullDetail(id);
       if (requestId !== technicalScoreRequestId.current) return;
       setDetail(nextDetail);
+      loadMixtures(id);
       setSyncSummary(visitasCampoService.getVisitaSyncSummary(id));
       const localResult = localTechnicalScoresService.calculate(nextDetail);
       setTechnicalScores({
@@ -492,6 +500,23 @@ export function VisitaCampoDetailScreen() {
       if (requestId === technicalScoreRequestId.current) {
         setIsLoading(false);
       }
+    }
+  }
+
+  function loadMixtures(id: string) {
+    try {
+      const recipe = visitaRecetasService.getByVisitaId(id);
+      const rows = recipe
+        ? buildProducerMixtureRows(
+            recipe,
+            visitaRecetasService.getCatalogos().coadyuvantes
+          )
+        : [];
+      setMixtureRows(rows);
+      setMixtureError(null);
+    } catch {
+      setMixtureRows([]);
+      setMixtureError("No se pudieron cargar las mezclas guardadas en el dispositivo.");
     }
   }
 
@@ -548,6 +573,7 @@ export function VisitaCampoDetailScreen() {
       const updated = await visitasCampoService.getFullDetail(visitaId);
       if (requestId !== technicalScoreRequestId.current) return;
       setDetail(updated);
+      loadMixtures(visitaId);
       const updatedSummary = visitasCampoService.getVisitaSyncSummary(visitaId);
       setSyncSummary(updatedSummary);
       const localResult = localTechnicalScoresService.calculate(updated);
@@ -657,6 +683,8 @@ type VisitDossierProps = {
   catalogs: DetailCatalogs;
   detail: VisitaCampoFull;
   isRetrying: boolean;
+  mixtureRows: ProducerMixtureRow[];
+  mixtureError: string | null;
   onPreviewReport: (action: ReportKind) => void;
   onShareReport: (action: ReportKind) => void;
   onRetrySync: () => void;
@@ -672,6 +700,8 @@ function VisitDossier({
   catalogs,
   detail,
   isRetrying,
+  mixtureRows,
+  mixtureError,
   onPreviewReport,
   onShareReport,
   onRetrySync,
@@ -715,33 +745,62 @@ function VisitDossier({
         onRetry={onRetrySync}
       />
 
-      {technicalScores ? (
-        <>
-          <View style={styles.technicalSourceNotice}>
-            <Ionicons
-              color={theme.colors.textMuted}
-              name={
-                technicalScores.source === "local"
-                  ? "phone-portrait-outline"
-                  : "cloud-done-outline"
-              }
-              size={16}
-            />
-            <AppText style={styles.technicalSourceText} variant="caption">
-              {technicalScores.source === "local"
-                ? technicalScores.pendingSync
-                  ? "Calculado localmente · pendiente de sincronización."
-                  : "Calculado con datos guardados en el dispositivo."
-                : "Confirmado con los datos sincronizados."}
+      <View style={styles.factGrid}>
+        <FactPill icon="calendar-outline" label="Fecha" value={visita.visitDate} />
+        <FactPill
+          icon="leaf-outline"
+          label="Etapa"
+          value={getCatalogNameById(
+            visita.phenologicalStageId,
+            catalogs.etapasFenologicas
+          )}
+        />
+        <FactPill
+          icon="resize-outline"
+          label="Area"
+          value={visita.areaHectares ? `${visita.areaHectares} ha` : "No registrada"}
+        />
+        <FactPill
+          icon="trending-up-outline"
+          label="Avance de etapa"
+          value={
+            visita.subEtapaPercentage == null ? "---" : `${visita.subEtapaPercentage}%`
+          }
+        />
+      </View>
+
+      <View style={styles.recordPanel}>
+        <View style={styles.inlineHeader}>
+          <View style={styles.inlineHeaderCopy}>
+            <AppText style={styles.inlineTitle} variant="label">
+              Registros principales
+            </AppText>
+            <AppText style={styles.inlineSubtitle} variant="caption">
+              Nutricion, plagas y enfermedades registrados en esta visita.
             </AppText>
           </View>
-          <PestTechnicalScorePanel detail={technicalScores.detallePlagas} />
-          <DiseaseTechnicalScorePanel detail={technicalScores.detalleEnfermedades} />
-          <NutritionTechnicalScorePanel detail={technicalScores.detalleNutricion} />
-          <RiegoTechnicalScorePanel detail={technicalScores.detalleRiego} />
-          <LaborTechnicalScorePanel detail={technicalScores.detalleLabores} />
-        </>
-      ) : null}
+        </View>
+        <View style={styles.recordFeed}>
+          {recordItems.length === 0 ? (
+            <AppText variant="muted">
+              Aun no hay evaluaciones ni observaciones sanitarias registradas.
+            </AppText>
+          ) : (
+            recordItems.map((item) => (
+              <RecordFeedItem
+                key={item.id}
+                eyebrow={item.eyebrow}
+                icon={item.icon}
+                subtitle={item.subtitle}
+                title={item.title}
+                observation={item.observation}
+              />
+            ))
+          )}
+        </View>
+      </View>
+
+      <VisitMixturesPanel rows={mixtureRows} error={mixtureError} />
 
       <View style={styles.pdfPanel}>
         <View style={styles.pdfPanelCopy}>
@@ -829,37 +888,33 @@ function VisitDossier({
         </View>
       ) : null}
 
-      <View style={styles.factGrid}>
-        <FactPill icon="calendar-outline" label="Fecha" value={visita.visitDate} />
-        <FactPill
-          icon="time-outline"
-          label="Horario"
-          value={formatTimeRange(visita.startVisitTime, visita.endVisitTime)}
-        />
-        <FactPill
-          icon="leaf-outline"
-          label="Etapa"
-          value={getCatalogNameById(
-            visita.phenologicalStageId,
-            catalogs.etapasFenologicas
-          )}
-        />
-        <FactPill
-          icon="flower-outline"
-          label="Plantas"
-          value={formatNullableNumber(visita.plantsCount)}
-        />
-        <FactPill
-          icon="resize-outline"
-          label="Area"
-          value={visita.areaHectares ? `${visita.areaHectares} ha` : "No registrada"}
-        />
-        <FactPill
-          icon="calendar-number-outline"
-          label="Siembra"
-          value={visita.sowingDate || "No registrada"}
-        />
-      </View>
+      {technicalScores ? (
+        <>
+          <View style={styles.technicalSourceNotice}>
+            <Ionicons
+              color={theme.colors.textMuted}
+              name={
+                technicalScores.source === "local"
+                  ? "phone-portrait-outline"
+                  : "cloud-done-outline"
+              }
+              size={16}
+            />
+            <AppText style={styles.technicalSourceText} variant="caption">
+              {technicalScores.source === "local"
+                ? technicalScores.pendingSync
+                  ? "Calculado localmente · pendiente de sincronización."
+                  : "Calculado con datos guardados en el dispositivo."
+                : "Confirmado con los datos sincronizados."}
+            </AppText>
+          </View>
+          <PestTechnicalScorePanel detail={technicalScores.detallePlagas} />
+          <DiseaseTechnicalScorePanel detail={technicalScores.detalleEnfermedades} />
+          <NutritionTechnicalScorePanel detail={technicalScores.detalleNutricion} />
+          <RiegoTechnicalScorePanel detail={technicalScores.detalleRiego} />
+          <LaborTechnicalScorePanel detail={technicalScores.detalleLabores} />
+        </>
+      ) : null}
 
       <View style={styles.unifiedDetails}>
         <AppDetailRow
@@ -945,37 +1000,63 @@ function VisitDossier({
           }
         />
       </View>
-
-      <View style={styles.recordPanel}>
-        <View style={styles.inlineHeader}>
-          <View style={styles.inlineHeaderCopy}>
-            <AppText style={styles.inlineTitle} variant="label">
-              Registros principales
-            </AppText>
-            <AppText style={styles.inlineSubtitle} variant="caption">
-              Nutricion, plagas y enfermedades registrados en esta visita.
-            </AppText>
-          </View>
-        </View>
-        <View style={styles.recordFeed}>
-          {recordItems.length === 0 ? (
-            <AppText variant="muted">
-              Aun no hay evaluaciones ni observaciones sanitarias registradas.
-            </AppText>
-          ) : (
-            recordItems.map((item) => (
-              <RecordFeedItem
-                key={item.id}
-                eyebrow={item.eyebrow}
-                icon={item.icon}
-                subtitle={item.subtitle}
-                title={item.title}
-              />
-            ))
-          )}
-        </View>
-      </View>
     </AppCard>
+  );
+}
+
+function VisitMixturesPanel({
+  rows,
+  error
+}: {
+  rows: ProducerMixtureRow[];
+  error: string | null;
+}) {
+  const groups = new Map<number | null, ProducerMixtureRow[]>();
+  for (const row of rows) {
+    const group = groups.get(row.mixtureNumber) ?? [];
+    group.push(row);
+    groups.set(row.mixtureNumber, group);
+  }
+
+  return (
+    <View style={styles.recordPanel}>
+      <AppText style={styles.inlineTitle} variant="label">
+        Mezclas recetadas
+      </AppText>
+      {error ? (
+        <AppText style={styles.pdfErrorText} variant="caption" accessibilityRole="alert">
+          {error}
+        </AppText>
+      ) : rows.length === 0 ? (
+        <AppText variant="muted">Sin mezclas registradas</AppText>
+      ) : (
+        [...groups].map(([number, items]) => (
+          <View key={number ?? "unassigned"} style={styles.mixtureCard}>
+            <View style={styles.inlineHeaderCopy}>
+              <AppText style={styles.inlineTitle} variant="label">
+                {number === null ? "Sin mezcla" : `Mezcla ${number}`}
+              </AppText>
+              <AppText style={styles.recordSubtitle} variant="caption">
+                Frecuencia: {items[0].doseFrequency}
+              </AppText>
+            </View>
+            {items.map((item) => (
+              <View key={item.order} style={styles.mixtureProduct}>
+                <AppText style={styles.recordTitle} variant="label">
+                  {item.order}. {item.item}
+                </AppText>
+                <AppText style={styles.recordSubtitle} variant="caption">
+                  Ingrediente activo: {item.activeIngredient}
+                </AppText>
+                <AppText style={styles.recordSubtitle} variant="caption">
+                  Dosis: {item.dose}
+                </AppText>
+              </View>
+            ))}
+          </View>
+        ))
+      )}
+    </View>
   );
 }
 
@@ -1444,7 +1525,7 @@ function FactPill({
         <AppText style={styles.factLabel} variant="caption">
           {label}
         </AppText>
-        <AppText numberOfLines={2} style={styles.factValue} variant="label">
+        <AppText style={styles.factValue} variant="label">
           {value}
         </AppText>
       </View>
@@ -1496,12 +1577,14 @@ function RecordFeedItem({
   eyebrow,
   icon,
   subtitle,
-  title
+  title,
+  observation
 }: {
   eyebrow: string;
   icon: keyof typeof Ionicons.glyphMap;
   subtitle: string;
   title: string;
+  observation?: string;
 }) {
   return (
     <View style={styles.recordItem}>
@@ -1518,6 +1601,11 @@ function RecordFeedItem({
         <AppText style={styles.recordSubtitle} variant="caption">
           {subtitle}
         </AppText>
+        {observation ? (
+          <AppText style={styles.recordSubtitle} variant="caption">
+            {observation}
+          </AppText>
+        ) : null}
       </View>
     </View>
   );
@@ -1529,18 +1617,20 @@ function buildRecordItems(detail: VisitaCampoFull, catalogs: DetailCatalogs) {
     eyebrow: `Nutricion · Orden ${evaluacion.order}`,
     icon: "nutrition-outline" as const,
     subtitle: formatPercentage(evaluacion.percentage),
-    title: evaluacion.description
+    title: evaluacion.description,
+    observation: undefined
   }));
 
   const sanitaryItems = detail.observacionesSanitarias.map((observacion) => ({
     id: `sanidad-${observacion.id}`,
-    eyebrow: getPestDiseaseLabel(observacion.pestDiseaseId, catalogs.pestDiseases),
+    eyebrow: "Sanidad",
     icon: "bug-outline" as const,
     subtitle: formatSanitaryObservationSubtitle(observacion, catalogs.incidenceLevels),
-    title: observacion.observation || "Sin observacion detallada"
+    title: getPestDiseaseLabel(observacion.pestDiseaseId, catalogs.pestDiseases),
+    observation: observacion.observation?.trim() || undefined
   }));
 
-  return [...nutritionItems, ...sanitaryItems].slice(0, 8);
+  return [...nutritionItems, ...sanitaryItems];
 }
 
 function toSingleParam(value?: string | string[]) {
@@ -1549,20 +1639,6 @@ function toSingleParam(value?: string | string[]) {
   }
 
   return value ?? null;
-}
-
-function formatNullableNumber(value: number | null) {
-  if (value === null) {
-    return "No registrado";
-  }
-
-  return String(value);
-}
-
-function formatTimeRange(start: string | null, end: string | null) {
-  if (!start) return "No registrado";
-  if (!end) return start;
-  return `${start} — ${end}`;
 }
 
 function formatPercentage(value: string | null) {
@@ -1993,6 +2069,20 @@ const styles = StyleSheet.create({
   },
   recordFeed: {
     gap: 8
+  },
+  mixtureCard: {
+    backgroundColor: "#fbfdf9",
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 12,
+    padding: 12
+  },
+  mixtureProduct: {
+    borderTopColor: theme.colors.borderLight,
+    borderTopWidth: 1,
+    gap: 3,
+    paddingTop: 10
   },
   recordItem: {
     alignItems: "flex-start",
