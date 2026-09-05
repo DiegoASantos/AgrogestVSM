@@ -14,8 +14,12 @@ type VisitasTableProps = {
   items: VisitaCampo[];
   campaignLabels?: Map<string, string>;
   parcelaLabels?: Map<string, string>;
+  parcelaContexts?: Map<string, { productorId: string; sectorId: string }>;
+  productorLabels?: Map<string, string>;
+  sectorLabels?: Map<string, string>;
   agronomistLabels?: Map<string, string>;
   showParcelaColumn?: boolean;
+  showProducerAndSector?: boolean;
   getMapHref?: (visita: VisitaCampo) => string;
   pagination?: DataTablePagination;
 };
@@ -24,25 +28,71 @@ export function VisitasTable({
   items,
   campaignLabels,
   parcelaLabels,
+  parcelaContexts,
+  productorLabels,
+  sectorLabels,
   agronomistLabels,
   showParcelaColumn = true,
+  showProducerAndSector = false,
   getMapHref,
   pagination
 }: VisitasTableProps) {
   const columns: DataTableColumn<VisitaCampo>[] = [
-    {
-      key: "ficha",
-      header: "Visita",
-      sortable: true,
-      sortValue: (visita) => visita.visitDate,
-      cell: (visita) => (
-        <div className="table-copy">
-          <strong>{visita.nroFicha?.trim() || visita.publicId}</strong>
-          <span>{formatDate(visita.visitDate)}</span>
-        </div>
-      )
-    },
-    ...(showParcelaColumn
+    ...(showProducerAndSector
+      ? [
+          {
+            key: "productor",
+            header: "Productor",
+            sortable: true,
+            sortValue: (visita: VisitaCampo) => {
+              const productorId = parcelaContexts?.get(visita.parcelaId)?.productorId;
+              return productorId ? (productorLabels?.get(productorId) ?? "") : "";
+            },
+            cell: (visita: VisitaCampo) => {
+              const productorId = parcelaContexts?.get(visita.parcelaId)?.productorId;
+              const label = productorId ? productorLabels?.get(productorId) : undefined;
+
+              return (
+                <div className="table-copy">
+                  <strong>{label ?? "Productor no disponible"}</strong>
+                  <span>{formatDate(visita.visitDate)}</span>
+                </div>
+              );
+            }
+          } satisfies DataTableColumn<VisitaCampo>,
+          {
+            key: "sector",
+            header: "Sector",
+            sortable: true,
+            sortValue: (visita: VisitaCampo) => {
+              const sectorId = parcelaContexts?.get(visita.parcelaId)?.sectorId;
+              return sectorId ? (sectorLabels?.get(sectorId) ?? "") : "";
+            },
+            cell: (visita: VisitaCampo) => {
+              const sectorId = parcelaContexts?.get(visita.parcelaId)?.sectorId;
+              const label = sectorId ? sectorLabels?.get(sectorId) : undefined;
+
+              return (
+                label ?? <span className="lookup-fallback">Sector no disponible</span>
+              );
+            }
+          } satisfies DataTableColumn<VisitaCampo>
+        ]
+      : [
+          {
+            key: "ficha",
+            header: "Visita",
+            sortable: true,
+            sortValue: (visita: VisitaCampo) => visita.visitDate,
+            cell: (visita: VisitaCampo) => (
+              <div className="table-copy">
+                <strong>{visita.nroFicha?.trim() || visita.publicId}</strong>
+                <span>{formatDate(visita.visitDate)}</span>
+              </div>
+            )
+          } satisfies DataTableColumn<VisitaCampo>
+        ]),
+    ...(showParcelaColumn && !showProducerAndSector
       ? [
           {
             key: "parcela",
@@ -50,7 +100,11 @@ export function VisitasTable({
             cell: (visita: VisitaCampo) => {
               const label = parcelaLabels?.get(visita.parcelaId);
 
-              return label ? label : <span className="lookup-fallback">Parcela #{visita.parcelaId}</span>;
+              return label ? (
+                label
+              ) : (
+                <span className="lookup-fallback">Parcela #{visita.parcelaId}</span>
+              );
             }
           } satisfies DataTableColumn<VisitaCampo>
         ]
@@ -59,24 +113,30 @@ export function VisitasTable({
       key: "campania",
       header: "Campaña",
       sortable: true,
-      sortValue: (visita) =>
-        campaignLabels?.get(visita.campaignId) ?? "",
+      sortValue: (visita) => campaignLabels?.get(visita.campaignId) ?? "",
       cell: (visita) => {
         const label = campaignLabels?.get(visita.campaignId);
 
-        return label ? label : <span className="lookup-fallback">Campaña #{visita.campaignId}</span>;
+        return label ? (
+          label
+        ) : (
+          <span className="lookup-fallback">Campaña #{visita.campaignId}</span>
+        );
       }
     },
     {
       key: "agronomo",
       header: "Agrónomo",
       sortable: true,
-      sortValue: (visita) =>
-        agronomistLabels?.get(visita.agronomistUserId) ?? "",
+      sortValue: (visita) => agronomistLabels?.get(visita.agronomistUserId) ?? "",
       cell: (visita) => {
         const label = agronomistLabels?.get(visita.agronomistUserId);
 
-        return label ? label : <span className="lookup-fallback">Usuario #{visita.agronomistUserId}</span>;
+        return label ? (
+          label
+        ) : (
+          <span className="lookup-fallback">Usuario #{visita.agronomistUserId}</span>
+        );
       }
     },
     {
@@ -102,11 +162,17 @@ export function VisitasTable({
       className: "data-table__actions",
       cell: (visita) => (
         <div className="table-actions">
-          <Link className="ui-button ui-button--secondary ui-button--compact" href={`/visitas/${visita.id}`}>
+          <Link
+            className="ui-button ui-button--secondary ui-button--compact"
+            href={`/visitas/${visita.id}`}
+          >
             Ver detalle
           </Link>
           {getMapHref ? (
-            <Link className="ui-button ui-button--ghost ui-button--compact" href={getMapHref(visita)}>
+            <Link
+              className="ui-button ui-button--ghost ui-button--compact"
+              href={getMapHref(visita)}
+            >
               Ver mapa
             </Link>
           ) : null}

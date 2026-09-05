@@ -160,8 +160,9 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
             >
               {detail.visita.isActive ? "Activa" : "Inactiva"}
             </span>
-            <h2>{formatParcela(detail)}</h2>
+            <h2>{formatVisitIdentity(detail)}</h2>
             <p>
+              {formatArea(detail.visita.areaHectares)} ·{" "}
               {formatCodeName(detail.lookups.crop, detail.visita.cropId)} ·{" "}
               {detail.lookups.campaign?.name ?? `Campaña #${detail.visita.campaignId}`}
             </p>
@@ -228,6 +229,47 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
           />
         </div>
 
+        <div className="visit-dossier__block visit-dossier__field-data">
+          <div className="visit-dossier__block-header">
+            <span>Datos de campo</span>
+          </div>
+          <div className="visit-dossier__compact-grid">
+            <DetailPill label="Public ID" value={detail.visita.publicId} />
+            <DetailPill
+              label="Agronomo"
+              value={
+                detail.lookups.agronomist?.name ??
+                `Usuario #${detail.visita.agronomistUserId}`
+              }
+            />
+            <DetailPill
+              label="Nro plantas"
+              value={detail.visita.plantsCount ?? "No registrado"}
+            />
+            <DetailPill label="Area" value={formatArea(detail.visita.areaHectares)} />
+            <DetailPill
+              label="Fecha siembra"
+              value={
+                detail.visita.sowingDate
+                  ? formatDate(detail.visita.sowingDate)
+                  : "No registrada"
+              }
+            />
+            <DetailPill
+              label="Sincronizado"
+              value={
+                detail.visita.synchronizedAt
+                  ? formatDateTime(detail.visita.synchronizedAt)
+                  : "Sin registro"
+              }
+            />
+          </div>
+          <div className="visit-dossier__note">
+            <span>Observacion general</span>
+            <p>{detail.visita.generalObservation || "Sin observacion general."}</p>
+          </div>
+        </div>
+
         <GlobalTechnicalScoreCard technicalScores={detail.technicalScores} />
 
         {detail.technicalScores ? (
@@ -242,65 +284,13 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
             <NutritionTechnicalScoreCard
               detail={detail.technicalScores.detalleNutricion}
             />
-            <RiegoTechnicalScoreCard
-              detail={detail.technicalScores.detalleRiego}
-            />
-            <LaborTechnicalScoreCard
-              detail={detail.technicalScores.detalleLabores}
-            />
+            <RiegoTechnicalScoreCard detail={detail.technicalScores.detalleRiego} />
+            <LaborTechnicalScoreCard detail={detail.technicalScores.detalleLabores} />
           </div>
         ) : null}
 
         <div className="visit-dossier__body">
           <div className="visit-dossier__column visit-dossier__column--main">
-            <div className="visit-dossier__block">
-              <div className="visit-dossier__block-header">
-                <span>Datos de campo</span>
-              </div>
-              <div className="visit-dossier__compact-grid">
-                <DetailPill label="Public ID" value={detail.visita.publicId} />
-                <DetailPill
-                  label="Agronomo"
-                  value={
-                    detail.lookups.agronomist?.name ??
-                    `Usuario #${detail.visita.agronomistUserId}`
-                  }
-                />
-                <DetailPill
-                  label="Nro plantas"
-                  value={detail.visita.plantsCount ?? "No registrado"}
-                />
-                <DetailPill
-                  label="Area"
-                  value={
-                    detail.visita.areaHectares
-                      ? `${detail.visita.areaHectares} ha`
-                      : "No registrada"
-                  }
-                />
-                <DetailPill
-                  label="Fecha siembra"
-                  value={
-                    detail.visita.sowingDate
-                      ? formatDate(detail.visita.sowingDate)
-                      : "No registrada"
-                  }
-                />
-                <DetailPill
-                  label="Sincronizado"
-                  value={
-                    detail.visita.synchronizedAt
-                      ? formatDateTime(detail.visita.synchronizedAt)
-                      : "Sin registro"
-                  }
-                />
-              </div>
-              <div className="visit-dossier__note">
-                <span>Observacion general</span>
-                <p>{detail.visita.generalObservation || "Sin observacion general."}</p>
-              </div>
-            </div>
-
             <ModuleGroup
               icon={<ShieldAlert aria-hidden="true" size={18} />}
               items={[
@@ -542,9 +532,7 @@ function GlobalTechnicalScoreCard({
           <small>{scoreTecnicoGeneral}%</small>
         </div>
         <div className="pest-score-card__status">
-          <span className="pest-score-card__traffic-light">
-            {globalSemaphore}
-          </span>
+          <span className="pest-score-card__traffic-light">{globalSemaphore}</span>
           <strong>
             {globalSemaphore === "verde"
               ? "Estado óptimo"
@@ -552,9 +540,7 @@ function GlobalTechnicalScoreCard({
                 ? "Requiere atención"
                 : "Estado crítico"}
           </strong>
-          <p>
-            Puntaje ponderado según los pesos de la etapa fenológica seleccionada.
-          </p>
+          <p>Puntaje ponderado según los pesos de la etapa fenológica seleccionada.</p>
         </div>
       </div>
     </section>
@@ -1058,14 +1044,22 @@ function formatTimeRange(start: string | null, end: string | null) {
   return end ? `${start.slice(0, 5)} - ${end.slice(0, 5)}` : start.slice(0, 5);
 }
 
-function formatParcela(detail: VisitaDetailData) {
+function formatVisitIdentity(detail: VisitaDetailData) {
   const parcela = detail.lookups.parcela;
+  const productor = detail.lookups.productor;
+  const productorName = productor
+    ? [productor.lastName, productor.firstName].filter(Boolean).join(" ").trim()
+    : "";
 
   if (!parcela) {
-    return `Parcela #${detail.visita.parcelaId}`;
+    return productorName || `Parcela #${detail.visita.parcelaId}`;
   }
 
-  return `${parcela.code}${parcela.name ? ` - ${parcela.name}` : ""}`;
+  return `${productorName || "Productor no disponible"} - ${parcela.code}`;
+}
+
+function formatArea(areaHectares: string | null) {
+  return areaHectares ? `${areaHectares} ha` : "Área no registrada";
 }
 
 function formatCodeName(item: { name: string; code?: string } | null, fallback: string) {

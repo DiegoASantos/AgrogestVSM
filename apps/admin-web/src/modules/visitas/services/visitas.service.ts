@@ -129,17 +129,19 @@ export const visitasService = {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
     // productores, parcelas and campanias are paginated; fetch all pages so the
     // filter dropdowns are complete. usuarios is capped server-side.
-    const [productores, campanias, parcelas, agronomos] = await Promise.all([
+    const [productores, campanias, parcelas, sectores, agronomos] = await Promise.all([
       fetchAllPaginated<ProductorApiItem>("/productores", { headers }),
       fetchAllPaginated<CampaniaApiItem>("/campanias", { headers }),
       fetchAllPaginated<ParcelaApiItem>("/parcelas", { headers }),
+      fetchAllPaginated<SectorApiItem>("/sectores", { headers }),
       safeRequestList<AgronomistApiItem>(session, "/usuarios/agronomos")
     ]);
 
     return {
       productores: productores.map((productor) => ({
         id: productor.id,
-        label: buildProductorLabel(productor)
+        label: buildProductorLabel(productor),
+        helper: productor.email ?? productor.documentNumber ?? undefined
       })),
       campanias: campanias.map((campania) => ({
         id: campania.id,
@@ -147,8 +149,11 @@ export const visitasService = {
       })),
       parcelas: parcelas.map((parcela) => ({
         id: parcela.id,
-        label: buildParcelaLabel(parcela)
+        label: buildParcelaLabel(parcela),
+        productorId: parcela.productorId,
+        sectorId: parcela.sectorId
       })),
+      sectores: sectores.map((sector) => ({ id: sector.id, label: sector.name })),
       agronomos: buildAgronomistOptions(agronomos)
     };
   },
@@ -469,14 +474,8 @@ function readCount<T>(response: ApiSuccessResponse<T>, fallback: number) {
 }
 
 function buildProductorLabel(productor: ProductorApiItem): string {
-  const name = [productor.firstName, productor.lastName].filter(Boolean).join(" ").trim();
-  const label = name || productor.documentNumber || productor.publicId;
-
-  if (productor.email) {
-    return `${label} - ${productor.email}`;
-  }
-
-  return label;
+  const name = [productor.lastName, productor.firstName].filter(Boolean).join(" ").trim();
+  return name || productor.documentNumber || productor.publicId;
 }
 
 function buildParcelaLabel(parcela: ParcelaApiItem): string {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Download, Filter, Map, Search, User } from "lucide-react";
+import { Calendar, Download, Filter, Map, User } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -8,6 +8,7 @@ import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { SearchableSelect } from "../../../shared/components/searchable-select";
 import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { adminRoutes } from "../../../shared/constants/site";
@@ -35,8 +36,7 @@ const emptyFilters: VisitaListFilters = {
 export function VisitasOverview() {
   const { session, logout } = useAuthSession();
   const [draftFilters, setDraftFilters] = useState<VisitaListFilters>(emptyFilters);
-  const [appliedFilters, setAppliedFilters] =
-    useState<VisitaListFilters>(emptyFilters);
+  const [appliedFilters, setAppliedFilters] = useState<VisitaListFilters>(emptyFilters);
   const [catalogs, setCatalogs] = useState<VisitaFilterCatalogs | null>(null);
   const [items, setItems] = useState<VisitaCampo[]>([]);
   const [count, setCount] = useState(0);
@@ -91,10 +91,37 @@ export function VisitasOverview() {
   const canExport = Boolean(
     appliedFilters.startDate && appliedFilters.endDate && !isExporting
   );
+  const productorLabels = useMemo(
+    () => createOptionLabelMap(catalogs?.productores ?? []),
+    [catalogs?.productores]
+  );
+  const sectorLabels = useMemo(
+    () => createOptionLabelMap(catalogs?.sectores ?? []),
+    [catalogs?.sectores]
+  );
+  const parcelaContexts = useMemo(
+    () =>
+      new globalThis.Map(
+        (catalogs?.parcelas ?? []).map((parcela) => [
+          parcela.id,
+          { productorId: parcela.productorId, sectorId: parcela.sectorId }
+        ])
+      ),
+    [catalogs?.parcelas]
+  );
+  const productorOptions = useMemo(
+    () =>
+      (catalogs?.productores ?? []).map((productor) => ({
+        value: productor.id,
+        label: productor.label,
+        helper: productor.helper
+      })),
+    [catalogs?.productores]
+  );
 
   return (
-    <section className="panel-grid">
-      <article className="panel">
+    <section className="panel-grid report-visits visitas-overview">
+      <article className="panel report-visits__hero visitas-overview__hero">
         <ToolbarActions
           actions={
             <>
@@ -132,7 +159,10 @@ export function VisitasOverview() {
               >
                 Parcelas visitadas por agronomo
               </Link>
-              <Link className="ui-button ui-button--secondary" href={adminRoutes.dashboard}>
+              <Link
+                className="ui-button ui-button--secondary"
+                href={adminRoutes.dashboard}
+              >
                 Volver a dashboard
               </Link>
             </>
@@ -142,7 +172,7 @@ export function VisitasOverview() {
           title="Gestion administrativa de visitas"
         />
 
-        <div className="filter-card filter-card--visitas">
+        <div className="filter-card filter-card--visitas report-visits__filters visitas-overview__filters">
           <div className="filter-card__header">
             <Filter size={16} />
             <span>Filtros de busqueda</span>
@@ -154,9 +184,7 @@ export function VisitasOverview() {
                 Agronomo
               </span>
               <select
-                onChange={(event) =>
-                  updateDraft("agronomistUserId", event.target.value)
-                }
+                onChange={(event) => updateDraft("agronomistUserId", event.target.value)}
                 value={draftFilters.agronomistUserId}
               >
                 <option value="">Todos</option>
@@ -168,32 +196,20 @@ export function VisitasOverview() {
               </select>
             </label>
 
-            <label className="field-group">
-              <span className="field-group__label">
-                <Search size={13} />
-                Productor
-              </span>
-              <select
-                onChange={(event) =>
-                  updateDraft("productorId", event.target.value)
-                }
-                value={draftFilters.productorId}
-              >
-                <option value="">Todos</option>
-                {(catalogs?.productores ?? []).map((productor) => (
-                  <option key={productor.id} value={productor.id}>
-                    {productor.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SearchableSelect
+              disabled={isLoadingCatalogs}
+              emptyMessage="No hay productores disponibles."
+              label="Productor"
+              onChange={(value) => updateDraft("productorId", value)}
+              options={productorOptions}
+              placeholder="Todos · escribe para buscar"
+              value={draftFilters.productorId}
+            />
 
             <label className="field-group">
               <span className="field-group__label">Campaña</span>
               <select
-                onChange={(event) =>
-                  updateDraft("campaignId", event.target.value)
-                }
+                onChange={(event) => updateDraft("campaignId", event.target.value)}
                 value={draftFilters.campaignId}
               >
                 <option value="">Todas</option>
@@ -208,9 +224,7 @@ export function VisitasOverview() {
             <label className="field-group">
               <span className="field-group__label">Parcela</span>
               <select
-                onChange={(event) =>
-                  updateDraft("parcelaId", event.target.value)
-                }
+                onChange={(event) => updateDraft("parcelaId", event.target.value)}
                 value={draftFilters.parcelaId}
               >
                 <option value="">Todas</option>
@@ -228,9 +242,7 @@ export function VisitasOverview() {
                 Fecha desde
               </span>
               <input
-                onChange={(event) =>
-                  updateDraft("startDate", event.target.value)
-                }
+                onChange={(event) => updateDraft("startDate", event.target.value)}
                 type="date"
                 value={draftFilters.startDate}
               />
@@ -242,9 +254,7 @@ export function VisitasOverview() {
                 Fecha hasta
               </span>
               <input
-                onChange={(event) =>
-                  updateDraft("endDate", event.target.value)
-                }
+                onChange={(event) => updateDraft("endDate", event.target.value)}
                 type="date"
                 value={draftFilters.endDate}
               />
@@ -252,23 +262,37 @@ export function VisitasOverview() {
           </div>
           {validationError ? <p className="form-error">{validationError}</p> : null}
           <div className="filter-card__footer">
-            <button className="ui-button ui-button--ghost ui-button--compact" onClick={handleClearFilters} type="button">
+            <button
+              className="ui-button ui-button--ghost ui-button--compact"
+              onClick={handleClearFilters}
+              type="button"
+            >
               Limpiar
             </button>
-            <button className="ui-button ui-button--primary" onClick={handleApplyFilters} type="button">
+            <button
+              className="ui-button ui-button--primary"
+              onClick={handleApplyFilters}
+              type="button"
+            >
               Aplicar filtros
             </button>
           </div>
           {exportError ? <p className="form-error">{exportError}</p> : null}
           {!appliedFilters.startDate || !appliedFilters.endDate ? (
-            <p className="form-hint">Aplica una fecha desde y hasta para habilitar la exportacion.</p>
+            <p className="form-hint">
+              Aplica una fecha desde y hasta para habilitar la exportacion.
+            </p>
           ) : null}
         </div>
 
         {catalogError ? (
           <ErrorState
             action={
-              <button className="ui-button ui-button--secondary" onClick={() => void loadCatalogs()} type="button">
+              <button
+                className="ui-button ui-button--secondary"
+                onClick={() => void loadCatalogs()}
+                type="button"
+              >
                 Reintentar catalogos
               </button>
             }
@@ -284,7 +308,11 @@ export function VisitasOverview() {
         {listError ? (
           <ErrorState
             action={
-              <button className="ui-button ui-button--secondary" onClick={() => void loadVisitas(appliedFilters, page)} type="button">
+              <button
+                className="ui-button ui-button--secondary"
+                onClick={() => void loadVisitas(appliedFilters, page)}
+                type="button"
+              >
                 Reintentar listado
               </button>
             }
@@ -319,6 +347,7 @@ export function VisitasOverview() {
               })
             }
             items={items}
+            parcelaContexts={parcelaContexts}
             pagination={{
               loading: isLoadingList,
               onPageChange: handlePageChange,
@@ -327,6 +356,9 @@ export function VisitasOverview() {
               totalPages
             }}
             parcelaLabels={parcelaLabels}
+            productorLabels={productorLabels}
+            sectorLabels={sectorLabels}
+            showProducerAndSector
           />
         ) : null}
       </article>
@@ -425,7 +457,12 @@ export function VisitasOverview() {
     try {
       setIsLoadingList(true);
       setListError(null);
-      const response = await visitasService.getList(session, filters, currentPage, PAGE_SIZE);
+      const response = await visitasService.getList(
+        session,
+        filters,
+        currentPage,
+        PAGE_SIZE
+      );
       setItems(response.items);
       setCount(response.count);
       setTotalPages(response.totalPages);
@@ -444,8 +481,6 @@ export function VisitasOverview() {
   }
 }
 
-function createOptionLabelMap(
-  options: readonly { id: string; label: string }[]
-) {
+function createOptionLabelMap(options: readonly { id: string; label: string }[]) {
   return new globalThis.Map(options.map((option) => [option.id, option.label]));
 }

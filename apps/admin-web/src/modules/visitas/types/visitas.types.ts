@@ -230,6 +230,7 @@ export type ProductorCalificacion = {
 export type ProductorFilterOption = {
   id: string;
   label: string;
+  helper?: string;
 };
 
 export type CampaignFilterOption = {
@@ -238,6 +239,13 @@ export type CampaignFilterOption = {
 };
 
 export type ParcelaFilterOption = {
+  id: string;
+  label: string;
+  productorId: string;
+  sectorId: string;
+};
+
+export type SectorFilterOption = {
   id: string;
   label: string;
 };
@@ -251,6 +259,7 @@ export type VisitaFilterCatalogs = {
   productores: ProductorFilterOption[];
   campanias: CampaignFilterOption[];
   parcelas: ParcelaFilterOption[];
+  sectores: SectorFilterOption[];
   agronomos: AgronomistFilterOption[];
 };
 

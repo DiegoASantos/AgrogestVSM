@@ -176,7 +176,7 @@ describe("visitasService", () => {
   });
 
   describe("#getFilterCatalogs", () => {
-    it("should fetch productores, campanias, parcelas, and the restricted agronomist lookup in parallel", async () => {
+    it("should fetch productores, campanias, parcelas, sectores, and the restricted agronomist lookup in parallel", async () => {
       fetchMock
         .mockResolvedValueOnce(
           apiResponse(
@@ -226,6 +226,18 @@ describe("visitasService", () => {
           )
         )
         .mockResolvedValueOnce(
+          apiResponse(
+            [
+              {
+                id: "50",
+                name: "Sector Norte"
+              }
+            ],
+            200,
+            { total: 1 }
+          )
+        )
+        .mockResolvedValueOnce(
           apiResponse([
             {
               id: "user-1",
@@ -239,11 +251,12 @@ describe("visitasService", () => {
       const result = await visitasService.getFilterCatalogs(session);
 
       expect(result.productores).toHaveLength(1);
-      expect(result.productores[0].label).toBe("Juan Perez");
+      expect(result.productores[0].label).toBe("Perez Juan");
       expect(result.campanias).toHaveLength(1);
       expect(result.campanias[0].label).toBe("Campania 2026");
       expect(result.parcelas).toHaveLength(1);
       expect(result.parcelas[0].label).toBe("P-001 - Parcela Norte");
+      expect(result.sectores).toEqual([{ id: "50", label: "Sector Norte" }]);
       expect(result.agronomos).toHaveLength(1);
       expectGetRequest(fetchMock, "/usuarios/agronomos");
     });
@@ -268,6 +281,7 @@ describe("visitasService", () => {
         )
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
+        .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
         .mockResolvedValueOnce(apiResponse([]));
 
       const result = await visitasService.getFilterCatalogs(session);
@@ -277,6 +291,7 @@ describe("visitasService", () => {
 
     it("should filter inactive agronomists", async () => {
       fetchMock
+        .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))
         .mockResolvedValueOnce(apiResponse([], 200, { total: 0 }))

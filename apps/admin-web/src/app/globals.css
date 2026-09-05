@@ -4495,6 +4495,34 @@ canvas {
   padding: 0 16px 12px;
 }
 
+.visitas-overview__hero {
+  padding-bottom: 22px;
+}
+
+.visitas-overview__filters .filter-card__body {
+  grid-template-columns: repeat(3, minmax(190px, 1fr));
+}
+
+.visitas-overview__filters .field-group select {
+  border-color: #adc2ae;
+  background: #ffffff;
+}
+
+.visitas-overview .data-table {
+  margin: 0 18px 18px;
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 12px 28px rgba(6, 35, 21, 0.16);
+}
+
+.visitas-overview .data-table thead th {
+  background: #dcebcf;
+  color: var(--report-forest-deep);
+}
+
+.visitas-overview .data-table tbody tr:hover {
+  background: #f3f8ef;
+}
+
 .report-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5901,6 +5929,16 @@ canvas {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-top: 14px;
+}
+
+.visit-dossier__field-data {
+  margin-top: 14px;
+  border-color: color-mix(in srgb, var(--primary) 26%, var(--border));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 6%, var(--surface)),
+    var(--surface)
+  );
 }
 
 .visit-fact {
