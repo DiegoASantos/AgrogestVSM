@@ -8,6 +8,16 @@ import {
 import { adminRoutes } from "./site";
 
 describe("admin report navigation", () => {
+  it("registers estimaciones as a protected main module", () => {
+    expect(adminMainNavigation.map((item) => item.href)).toContain(
+      adminRoutes.estimaciones
+    );
+    expect(resolveAdminRouteMeta(adminRoutes.estimaciones)).toMatchObject({
+      label: "Estimaciones",
+      description: "Planificacion semanal de visitas"
+    });
+  });
+
   it("registers report submodules outside the main links", () => {
     expect(adminMainNavigation.some((item) => item.href === adminRoutes.reportes)).toBe(
       false

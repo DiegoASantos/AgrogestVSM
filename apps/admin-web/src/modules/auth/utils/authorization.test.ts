@@ -13,6 +13,7 @@ import {
   isClimateSession,
   isMaintenancePath,
   isReportsPath,
+  isEstimationsPath,
   isSecurityPath,
   isRestrictedAdminPath
 } from "./authorization";
@@ -123,6 +124,7 @@ describe("isRestrictedAdminPath", () => {
     "/reportes/visitas",
     "/reportes/campos-por-etapas",
     "/reportes/parcelas",
+    "/estimaciones",
     "/seguridad",
     "/seguridad/usuarios"
   ])("flags %s as restricted", (path) => {
@@ -144,6 +146,8 @@ describe("role-restricted path matchers", () => {
     expect(isReportsPath("/reportes/campos-por-etapas")).toBe(true);
     expect(isReportsPath("/reportes/parcelas")).toBe(true);
     expect(isSecurityPath("/seguridad/usuarios")).toBe(true);
+    expect(isEstimationsPath("/estimaciones")).toBe(true);
+    expect(isEstimationsPath("/estimaciones/semana")).toBe(true);
     expect(isReportsPath("/reporte-excel")).toBe(false);
   });
 });
@@ -183,6 +187,7 @@ describe("canAccessAdminPath", () => {
     );
     expect(canAccessAdminPath("/seguridad/usuarios", makeSession(["ADMIN"]))).toBe(true);
     expect(canAccessAdminPath("/reportes", makeSession(["ADMIN"]))).toBe(true);
+    expect(canAccessAdminPath("/estimaciones", makeSession(["ADMIN"]))).toBe(true);
     expect(
       canAccessAdminPath("/reportes/campos-por-etapas", makeSession(["ADMIN"]))
     ).toBe(true);
@@ -195,6 +200,7 @@ describe("canAccessAdminPath", () => {
     expect(canAccessAdminPath("/reportes", analystSession)).toBe(true);
     expect(canAccessAdminPath("/reportes/visitas", analystSession)).toBe(true);
     expect(canAccessAdminPath("/reportes/parcelas", analystSession)).toBe(true);
+    expect(canAccessAdminPath("/estimaciones", analystSession)).toBe(true);
     expect(canAccessAdminPath("/seguridad/usuarios", analystSession)).toBe(false);
   });
 
@@ -207,5 +213,6 @@ describe("canAccessAdminPath", () => {
       false
     );
     expect(canAccessAdminPath("/reportes/parcelas", agronomistSession)).toBe(false);
+    expect(canAccessAdminPath("/estimaciones", agronomistSession)).toBe(false);
   });
 });

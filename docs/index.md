@@ -129,6 +129,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Importación de coordenadas de Google Maps en geodatos web](specs/076-importacion-google-maps-geodatos-web.md)
 
 - [Filtros temporales para dashboard y reportes](specs/077-filtros-temporales-dashboard-reportes.md)
+- [Estimaciones semanales de visitas por agrónomo](specs/078-estimaciones-semanales-visitas.md)
 
 ## Runbooks
 

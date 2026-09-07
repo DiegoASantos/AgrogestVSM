@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-04
+last_reviewed: 2026-09-07
 ---
 
 # Modelo del dominio
@@ -394,6 +394,26 @@ territorial Open-Meteo expone ET0 diaria en `mm` y
 `shortwave_radiation_sum` en `MJ/m²` para hoy y el pronostico; estos datos son
 de consulta y no agregan persistencia al dominio.
 
+## Estimaciones semanales de visitas
+
+`estimaciones_visitas` conserva una meta de visitas para un agrónomo y una
+semana calendario. La identidad lógica es la combinación de
+`agronomo_usuario_id` y `fecha_inicio`; `fecha_inicio` siempre es lunes y
+`fecha_fin` es el domingo seis días después. La cantidad acepta cero como meta
+explícita y nunca valores negativos.
+
+Limpiar una meta produce baja lógica mediante `activo = false`. Una carga
+posterior para el mismo agrónomo y semana reactiva la misma fila, preserva el
+autor original y actualiza el último editor. Solo un usuario activo con rol
+`AGRONOMO` acepta una meta nueva; si después se desactiva o pierde el rol, su
+estimación histórica permanece consultable y bloqueada.
+
+Las visitas reales no se almacenan en la estimación. Se calculan desde
+`visitas_campo` usando registros activos, `fecha_visita` dentro del rango
+inclusivo y el agrónomo guardado en cada visita. La diferencia es visitas reales
+menos estimadas. El porcentaje de cumplimiento no aplica cuando falta una meta
+o su valor es cero.
+
 ## Reportes web
 
 El reporte Campos por etapas representa el estado más reciente conocido de las
@@ -433,9 +453,10 @@ respuesta de la API.
 
 Los roles distinguen administración, trabajo técnico y consulta. `ANALISTA`
 consulta Dashboard, Visitas, Mapas y Clima, comparte con `ADMIN` el CRUD web de
-Mantenimiento y los reportes web de Visitas, Campos por etapas y Parcelas. El CRUD de
-Mantenimiento incluye los catálogos, geodatos y la asignación de agrónomos en
-parcelas; los tres reportes también están disponibles para los dos roles.
+Mantenimiento, el módulo de Estimaciones y los reportes web de Visitas, Campos
+por etapas y Parcelas. El CRUD de Mantenimiento incluye los catálogos, geodatos
+y la asignación de agrónomos en parcelas; Estimaciones permite a ambos roles
+guardar metas semanales por lote.
 Seguridad continúa exclusiva de `ADMIN`. `AGRONOMO` también puede consultar las siete vistas
 territoriales de Clima desde el panel web, además de su acceso climático móvil.
 La aplicación móvil no admite sesiones con rol `ANALISTA`.
@@ -459,10 +480,11 @@ ese rango.
 
 Las excepciones de escritura para un usuario exclusivamente `ANALISTA` son las
 lecturas manuales de reservorios definidas por la spec 032 y las mutaciones de
-Mantenimiento definidas por la spec 072. Cada endpoint requiere rol explícito y
-la marca `AllowAnalystMutation`; el bloqueo global continúa aplicando a todas
-las demás mutaciones. `AGRONOMO` puede consultar reservorios e histórico, pero
-no crear, editar ni eliminar lecturas.
+Mantenimiento definidas por la spec 072, además del guardado semanal definido
+por la spec 078. Cada endpoint requiere rol explícito y la marca
+`AllowAnalystMutation`; el bloqueo global continúa aplicando a todas las demás
+mutaciones. `AGRONOMO` puede consultar reservorios e histórico, pero no crear,
+editar ni eliminar lecturas o estimaciones.
 
 ## Fuente estructural
 

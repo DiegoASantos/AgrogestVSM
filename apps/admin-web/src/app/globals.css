@@ -7749,3 +7749,323 @@ canvas {
     transition: none;
   }
 }
+
+/* Estimaciones: una planilla semanal compacta para leer meta y ejecución juntas. */
+.estimations-screen {
+  --estimate-positive: #15803d;
+  --estimate-positive-soft: #ecfdf3;
+  --estimate-negative: #b45309;
+  --estimate-negative-soft: #fff7ed;
+}
+
+.estimations-hero {
+  display: grid;
+  gap: 22px;
+  border-top: 4px solid var(--primary-strong);
+}
+
+.estimations-hero .toolbar-actions {
+  margin: 0;
+}
+
+.estimations-hero .toolbar-actions__actions .ui-button,
+.estimations-weekbar .ui-button {
+  gap: 7px;
+}
+
+.estimations-weekbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  border-block: 1px solid var(--border);
+  background: color-mix(in srgb, var(--primary-soft) 28%, var(--surface));
+}
+
+.estimations-weekbar__navigation,
+.estimations-weekbar__picker,
+.estimations-weekbar__range {
+  display: flex;
+  align-items: center;
+}
+
+.estimations-weekbar__navigation {
+  gap: 12px;
+}
+
+.estimations-weekbar__range {
+  min-width: 290px;
+  gap: 10px;
+}
+
+.estimations-weekbar__range > svg {
+  color: var(--primary-strong);
+}
+
+.estimations-weekbar__range div {
+  display: grid;
+  gap: 2px;
+}
+
+.estimations-weekbar__range span,
+.estimations-input-cell small {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.estimations-weekbar__range strong {
+  font-size: 14px;
+}
+
+.estimations-weekbar__picker {
+  gap: 10px;
+}
+
+.estimations-weekbar__picker .field-group {
+  min-width: 165px;
+}
+
+.estimations-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.estimations-summary__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 3px 10px;
+  min-height: 76px;
+  padding: 13px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.estimations-summary__item:last-child {
+  border-right: 0;
+}
+
+.estimations-summary__item svg {
+  grid-row: 1 / span 2;
+  color: var(--primary-strong);
+}
+
+.estimations-summary__item span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.estimations-summary__item strong {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.estimations-summary__item--positive strong,
+.estimations-summary__item--positive svg,
+.estimations-difference--positive {
+  color: var(--estimate-positive);
+}
+
+.estimations-summary__item--negative strong,
+.estimations-summary__item--negative svg,
+.estimations-difference--negative {
+  color: var(--estimate-negative);
+}
+
+.estimations-table-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.estimations-table-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.estimations-table-panel__header h3,
+.estimations-table-panel__header p {
+  margin: 0;
+}
+
+.estimations-table-panel__header h3 {
+  margin-bottom: 5px;
+  font-size: 18px;
+}
+
+.estimations-table-panel__header p,
+.estimations-table-panel__header > span {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.estimations-table-panel__header > span {
+  white-space: nowrap;
+}
+
+.estimations-table {
+  min-width: 760px;
+}
+
+.estimations-table th:not(:first-child),
+.estimations-table td:not(:first-child) {
+  text-align: center;
+}
+
+.estimations-table__number {
+  vertical-align: middle !important;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px !important;
+  font-weight: 650;
+}
+
+.estimations-table__inactive {
+  background: color-mix(in srgb, var(--surface-hover) 70%, var(--surface));
+}
+
+.estimations-engineer,
+.estimations-input-cell {
+  display: grid;
+  gap: 5px;
+}
+
+.estimations-input-cell__audit {
+  display: grid;
+  gap: 1px;
+}
+
+.estimations-engineer span {
+  width: max-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.estimations-engineer .is-active {
+  background: var(--estimate-positive-soft);
+  color: var(--estimate-positive);
+}
+
+.estimations-engineer .is-inactive {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.estimations-input-cell {
+  justify-items: center;
+}
+
+.estimations-input-cell input {
+  width: 116px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.estimations-input-cell input:focus {
+  border-color: var(--primary-strong);
+  outline: 3px solid color-mix(in srgb, var(--primary-muted) 55%, transparent);
+}
+
+.estimations-input-cell input:disabled {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.estimations-save-status {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--estimate-positive) 35%, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--estimate-positive-soft);
+  color: var(--estimate-positive);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .estimations-weekbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .estimations-weekbar__picker {
+    justify-content: space-between;
+  }
+
+  .estimations-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .estimations-summary__item:nth-child(2) {
+    border-right: 0;
+  }
+
+  .estimations-summary__item:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 600px) {
+  .estimations-hero,
+  .estimations-table-panel {
+    padding: 18px;
+  }
+
+  .estimations-weekbar__navigation {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .estimations-weekbar__range {
+    min-width: 0;
+  }
+
+  .estimations-weekbar__range > svg {
+    display: none;
+  }
+
+  .estimations-weekbar__picker,
+  .estimations-table-panel__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .estimations-weekbar__picker .field-group,
+  .estimations-weekbar__picker .ui-button {
+    width: 100%;
+  }
+
+  .estimations-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .estimations-summary__item,
+  .estimations-summary__item:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .estimations-summary__item:last-child {
+    border-bottom: 0;
+  }
+}
+
+[data-theme="dark"] .estimations-screen {
+  --estimate-positive: #86efac;
+  --estimate-positive-soft: #123522;
+  --estimate-negative: #fdba74;
+  --estimate-negative-soft: #3b2616;
+}

@@ -121,4 +121,5 @@ en la raíz.
 - [Spec 075: Reporte web de parcelas por categoría de área](075-reporte-web-parcelas-por-categoria.md)
 - [Spec 076: Importación de coordenadas de Google Maps en geodatos web](076-importacion-google-maps-geodatos-web.md)
 - [Spec 077: Filtros temporales para dashboard y reportes](077-filtros-temporales-dashboard-reportes.md)
+- [Spec 078: Estimaciones semanales de visitas por agrónomo](078-estimaciones-semanales-visitas.md)
 - [Plantilla](TEMPLATE.md)

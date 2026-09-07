@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-04
+last_reviewed: 2026-09-07
 related_code:
   - apps/api
   - apps/mobile
@@ -69,6 +69,8 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
   submódulos `/reportes/visitas`, `/reportes/campos-por-etapas` y
   `/reportes/parcelas`;
 - gestión de visitas;
+- estimaciones semanales de visitas por agrónomo, con captura de metas y
+  comparación dinámica contra las visitas reales activas;
 - mantenimiento de catálogos;
 - usuarios y roles;
 - mapas Leaflet;
@@ -77,6 +79,12 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 `ANALISTA` comparte con `ADMIN` el CRUD de Mantenimiento, incluidos los
 geodatos y la asignación de agrónomos en parcelas. Seguridad continúa exclusiva
 de `ADMIN`.
+
+`Estimaciones` es un módulo principal reservado para `ADMIN` y `ANALISTA`.
+Trabaja con semanas calendario de lunes a domingo y permite a ambos roles
+guardar metas por lote. La API obtiene el autor desde el token, valida de nuevo
+el rol y estado de los agrónomos y calcula las visitas reales sin duplicarlas en
+la tabla de planificación.
 
 El editor web de geodatos distingue el punto de acceso, el punto interno de la
 parcela y su polígono. Puede extraer coordenadas de formatos completos y

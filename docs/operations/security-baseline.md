@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-04
+last_reviewed: 2026-09-07
 ---
 
 # Línea base de seguridad operativa
@@ -41,6 +41,13 @@ last_reviewed: 2026-09-04
 - `GET /reportes/campos-por-etapas` exige `ADMIN` o `ANALISTA`, valida y
   parametriza el rango inclusivo junto con ingeniero y productor, y no habilita
   acceso a `AGRONOMO`;
+- `GET` y `PUT /estimaciones/semanas/:fecha` exigen `ADMIN` o `ANALISTA`; el
+  `PUT` declara `AllowAnalystMutation`, toma el autor exclusivamente del JWT y
+  vuelve a comprobar en base de datos que el actor esté activo y que cada
+  destinatario sea un usuario activo con rol `AGRONOMO`;
+- la respuesta de Estimaciones limita la identidad a nombre visible y estado;
+  no expone correo ni teléfono, y el lote rechaza IDs duplicados o cantidades
+  inválidas antes de persistir parcialmente;
 
 - aislamiento horizontal de parcelas para `AGRONOMO`: listados, lectura y
   mutaciones por ID se limitan a `agronomo_usuario_id` y una visita nueva exige

@@ -28,6 +28,7 @@ import { VisitaObservacionesSanitariasModule } from "./modules/visita-observacio
 import { VisitaRecetasModule } from "./modules/visita-recetas/visita-recetas.module";
 import { VisitaRiegosModule } from "./modules/visita-riegos/visita-riegos.module";
 import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module";
+import { EstimacionesModule } from "./modules/estimaciones/estimaciones.module";
 
 @Module({
   imports: [
@@ -58,7 +59,8 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
     VisitaRecetasModule,
     IntegracionesModule,
     DashboardModule,
-    ReportesModule
+    ReportesModule,
+    EstimacionesModule
   ]
 })
 export class AppModule {}

@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -26,6 +27,9 @@ export type PointGeometry = {
 };
 
 @Entity({ name: "visitas_campo" })
+@Index("idx_visitas_campo_agronomo_fecha_activa", ["agronomoUsuarioId", "fechaVisita"], {
+  where: "activo = true"
+})
 export class VisitaCampoEntity {
   @PrimaryGeneratedColumn({
     name: "id",

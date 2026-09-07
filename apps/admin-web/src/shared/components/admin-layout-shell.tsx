@@ -34,6 +34,7 @@ import {
   Droplets,
   Workflow,
   ChartNoAxesCombined,
+  Target,
   type LucideIcon
 } from "lucide-react";
 
@@ -42,7 +43,8 @@ import {
   canAccessAdminPath,
   isClimatePath,
   isMaintenancePath,
-  isReportsPath
+  isReportsPath,
+  isEstimationsPath
 } from "../../modules/auth/utils/authorization";
 import { useTheme } from "../hooks/use-theme";
 import { NotificationBell } from "./notification-bell";
@@ -64,6 +66,7 @@ type AdminLayoutShellProps = {
 const mainNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.dashboard]: LayoutDashboard,
   [adminRoutes.visitas]: ClipboardList,
+  [adminRoutes.estimaciones]: Target,
   [adminRoutes.mapas]: MapIcon,
   [adminRoutes.reportes]: ChartNoAxesCombined,
   [adminRoutes.mantenimiento]: Wrench,
@@ -348,7 +351,9 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
                   <strong>
                     {isClimatePath(pathname)
                       ? "ADMIN, ANALISTA o AGRONOMO"
-                      : isMaintenancePath(pathname) || isReportsPath(pathname)
+                      : isMaintenancePath(pathname) ||
+                          isReportsPath(pathname) ||
+                          isEstimationsPath(pathname)
                         ? "ADMIN o ANALISTA"
                         : "ADMIN"}
                   </strong>

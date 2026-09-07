@@ -18,6 +18,11 @@ export const adminMainNavigation: AdminNavLink[] = [
     description: "Gestion de visitas de campo"
   },
   {
+    label: "Estimaciones",
+    href: adminRoutes.estimaciones,
+    description: "Planificacion semanal de visitas"
+  },
+  {
     label: "Mapas",
     href: adminRoutes.mapas,
     description: "Visualizacion geografica de parcelas y visitas"

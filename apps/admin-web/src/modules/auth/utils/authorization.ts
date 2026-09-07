@@ -53,6 +53,10 @@ export function canAccessAdminPath(pathname: string, session: SessionInput) {
     return isAdminOrAnalystSession(session);
   }
 
+  if (isEstimationsPath(pathname)) {
+    return isAdminOrAnalystSession(session);
+  }
+
   if (isSecurityPath(pathname)) {
     return isAdminSession(session);
   }
@@ -72,18 +76,29 @@ export function isMaintenancePath(pathname: string) {
 }
 
 export function isReportsPath(pathname: string) {
-  return pathname === adminRoutes.reportes || pathname.startsWith(`${adminRoutes.reportes}/`);
+  return (
+    pathname === adminRoutes.reportes || pathname.startsWith(`${adminRoutes.reportes}/`)
+  );
+}
+
+export function isEstimationsPath(pathname: string) {
+  return (
+    pathname === adminRoutes.estimaciones ||
+    pathname.startsWith(`${adminRoutes.estimaciones}/`)
+  );
 }
 
 export function isSecurityPath(pathname: string) {
   return (
-    pathname === adminRoutes.seguridad ||
-    pathname.startsWith(`${adminRoutes.seguridad}/`)
+    pathname === adminRoutes.seguridad || pathname.startsWith(`${adminRoutes.seguridad}/`)
   );
 }
 
 export function isRestrictedAdminPath(pathname: string) {
   return (
-    isMaintenancePath(pathname) || isReportsPath(pathname) || isSecurityPath(pathname)
+    isMaintenancePath(pathname) ||
+    isReportsPath(pathname) ||
+    isEstimationsPath(pathname) ||
+    isSecurityPath(pathname)
   );
 }
