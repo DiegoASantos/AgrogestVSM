@@ -13,6 +13,9 @@ import type {
   FieldsByStageCatalogs,
   FieldsByStageFilters,
   FieldsByStageReportData,
+  EstimateReportFilters,
+  EstimatesReportCatalogs,
+  EstimatesReportData,
   ParcelsReportCatalogs,
   ParcelsReportData,
   ParcelsReportFilters,
@@ -24,6 +27,31 @@ import type {
 type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 
 export const reportesService = {
+  async getEstimatesReport(
+    session: AuthSessionInput,
+    filters: EstimateReportFilters
+  ): Promise<EstimatesReportData> {
+    const query = buildEstimateReportQuery(filters);
+
+    return apiRequest<EstimatesReportData>(`/reportes/estimaciones?${query}`, {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+  },
+
+  async getEstimatesReportCatalogs(
+    session: AuthSessionInput
+  ): Promise<EstimatesReportCatalogs> {
+    const agronomists = await apiRequest<AgronomistLookupItem[]>("/usuarios/agronomos", {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+
+    return {
+      agronomists: agronomists.sort((left, right) =>
+        left.displayName.localeCompare(right.displayName, "es")
+      )
+    };
+  },
+
   async getVisitsReport(
     session: AuthSessionInput,
     filters: VisitReportFilters
@@ -122,6 +150,18 @@ export const reportesService = {
     };
   }
 };
+
+export function buildEstimateReportQuery(filters: EstimateReportFilters) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("fecha_desde", filters.startDate);
+  searchParams.set("fecha_hasta", filters.endDate);
+
+  if (filters.agronomistUserId) {
+    searchParams.set("agronomo_usuario_id", filters.agronomistUserId);
+  }
+
+  return searchParams.toString();
+}
 
 export function buildParcelsReportQuery(filters: ParcelsReportFilters) {
   const searchParams = new URLSearchParams();

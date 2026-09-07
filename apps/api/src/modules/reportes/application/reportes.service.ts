@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { DataSource } from "typeorm";
 
 import { ReporteCamposEtapasQueryDto } from "../presentation/dto/reporte-campos-etapas-query.dto";
+import { ReporteEstimacionesQueryDto } from "../presentation/dto/reporte-estimaciones-query.dto";
 import { ReporteParcelasQueryDto } from "../presentation/dto/reporte-parcelas-query.dto";
 import { ReporteVisitasQueryDto } from "../presentation/dto/reporte-visitas-query.dto";
 
@@ -16,6 +17,15 @@ type VisitTimelineRow = {
   visitDate: string;
   hectares: string;
   visitsCount: string;
+};
+
+type EstimateReportWeekRow = {
+  isoYear: string;
+  weekNumber: string;
+  startDate: string;
+  endDate: string;
+  projectedVisits: string;
+  actualVisits: string;
 };
 
 type StageCatalogRow = {
@@ -103,6 +113,72 @@ export class ReportesService {
         hectares: Number(row.hectares),
         visitsCount: Number(row.visitsCount)
       }))
+    };
+  }
+
+  async getEstimatesReport(query: ReporteEstimacionesQueryDto) {
+    this.ensureDateRange(query);
+    const range = normalizeReportWeekRange(query.fecha_desde, query.fecha_hasta);
+    const rows = await this.dataSource.query<EstimateReportWeekRow[]>(
+      `WITH semanas AS (
+        SELECT serie::date AS fecha_inicio
+        FROM GENERATE_SERIES($1::date, $2::date, INTERVAL '1 week') AS serie
+      ),
+      proyectadas AS (
+        SELECT
+          e.fecha_inicio,
+          SUM(e.visitas_estimadas)::bigint AS visitas
+        FROM estimaciones_visitas e
+        WHERE e.activo = true
+          AND e.fecha_inicio >= $1::date
+          AND e.fecha_inicio <= $2::date
+          AND ($3::bigint IS NULL OR e.agronomo_usuario_id = $3::bigint)
+        GROUP BY e.fecha_inicio
+      ),
+      ejecutadas AS (
+        SELECT
+          DATE_TRUNC('week', v.fecha_visita)::date AS fecha_inicio,
+          COUNT(v.id)::bigint AS visitas
+        FROM visitas_campo v
+        WHERE v.activo = true
+          AND v.fecha_visita >= $1::date
+          AND v.fecha_visita <= $2::date
+          AND ($3::bigint IS NULL OR v.agronomo_usuario_id = $3::bigint)
+        GROUP BY DATE_TRUNC('week', v.fecha_visita)::date
+      )
+      SELECT
+        EXTRACT(ISOYEAR FROM s.fecha_inicio)::integer AS "isoYear",
+        EXTRACT(WEEK FROM s.fecha_inicio)::integer AS "weekNumber",
+        TO_CHAR(s.fecha_inicio, 'YYYY-MM-DD') AS "startDate",
+        TO_CHAR(s.fecha_inicio + 6, 'YYYY-MM-DD') AS "endDate",
+        COALESCE(p.visitas, 0)::bigint AS "projectedVisits",
+        COALESCE(e.visitas, 0)::bigint AS "actualVisits"
+      FROM semanas s
+      LEFT JOIN proyectadas p ON p.fecha_inicio = s.fecha_inicio
+      LEFT JOIN ejecutadas e ON e.fecha_inicio = s.fecha_inicio
+      ORDER BY s.fecha_inicio ASC`,
+      [range.startDate, range.endDate, query.agronomo_usuario_id ?? null]
+    );
+
+    return {
+      range,
+      weeks: rows.map((row) => {
+        const projectedVisits = Number(row.projectedVisits);
+        const actualVisits = Number(row.actualVisits);
+
+        return {
+          isoYear: Number(row.isoYear),
+          weekNumber: Number(row.weekNumber),
+          startDate: row.startDate,
+          endDate: row.endDate,
+          projectedVisits,
+          actualVisits,
+          variationPercentage:
+            projectedVisits === 0
+              ? null
+              : round2(((actualVisits - projectedVisits) / projectedVisits) * 100)
+        };
+      })
     };
   }
 
@@ -611,4 +687,22 @@ function normalizePositiveArea(value: string | null) {
 
 function round2(value: number) {
   return Number(value.toFixed(2));
+}
+
+export function normalizeReportWeekRange(startDate: string, endDate: string) {
+  const start = parseIsoDate(startDate);
+  const end = parseIsoDate(endDate);
+  const startIsoDay = start.getUTCDay() || 7;
+  const endIsoDay = end.getUTCDay() || 7;
+  start.setUTCDate(start.getUTCDate() - (startIsoDay - 1));
+  end.setUTCDate(end.getUTCDate() + (7 - endIsoDay));
+
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10)
+  };
+}
+
+function parseIsoDate(value: string) {
+  return new Date(`${value}T00:00:00.000Z`);
 }

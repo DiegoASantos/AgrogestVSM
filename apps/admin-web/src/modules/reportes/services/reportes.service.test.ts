@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildEstimateReportQuery,
   buildFieldsByStageReportQuery,
   buildParcelsReportQuery,
   buildProductorLabel,
@@ -15,21 +16,23 @@ beforeEach(() => {
     "fetch",
     vi.fn().mockImplementation((input: string) => {
       const url = String(input);
-      const data = url.includes("/reportes/parcelas")
-        ? makeParcelsReport()
-        : url.includes("/reportes/campos-por-etapas")
-          ? makeFieldsByStageReport()
-          : url.includes("/usuarios/agronomos")
-            ? [{ id: "7", displayName: "Ana López", isActive: true }]
-            : url.includes("/productores")
-              ? [makeProductor()]
-              : url.includes("/sectores")
-                ? [makeSector()]
-                : url.includes("/subsectores")
-                  ? [makeSubsector()]
-                  : url.includes("/parcelas")
-                    ? [makeParcela()]
-                    : { summary: [], timeline: [] };
+      const data = url.includes("/reportes/estimaciones")
+        ? makeEstimatesReport()
+        : url.includes("/reportes/parcelas")
+          ? makeParcelsReport()
+          : url.includes("/reportes/campos-por-etapas")
+            ? makeFieldsByStageReport()
+            : url.includes("/usuarios/agronomos")
+              ? [{ id: "7", displayName: "Ana López", isActive: true }]
+              : url.includes("/productores")
+                ? [makeProductor()]
+                : url.includes("/sectores")
+                  ? [makeSector()]
+                  : url.includes("/subsectores")
+                    ? [makeSubsector()]
+                    : url.includes("/parcelas")
+                      ? [makeParcela()]
+                      : { summary: [], timeline: [] };
 
       return Promise.resolve({
         ok: true,
@@ -53,6 +56,43 @@ afterEach(() => {
 });
 
 describe("reportesService", () => {
+  it("builds the weekly estimates endpoint and omits an empty agronomist", async () => {
+    const filters = {
+      agronomistUserId: "",
+      startDate: "2025-12-29",
+      endDate: "2026-09-13"
+    };
+
+    expect(buildEstimateReportQuery(filters)).toBe(
+      "fecha_desde=2025-12-29&fecha_hasta=2026-09-13"
+    );
+    await reportesService.getEstimatesReport(session, filters);
+
+    expect(
+      String((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[0])
+    ).toContain("/reportes/estimaciones?fecha_desde=2025-12-29");
+  });
+
+  it("adds the agronomist filter and loads only its minimal catalog", async () => {
+    expect(
+      buildEstimateReportQuery({
+        agronomistUserId: "7",
+        startDate: "2026-09-07",
+        endDate: "2026-09-13"
+      })
+    ).toContain("agronomo_usuario_id=7");
+
+    const catalogs = await reportesService.getEstimatesReportCatalogs(session);
+    expect(catalogs.agronomists[0]?.id).toBe("7");
+    const urls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map((call) =>
+      String(call[0])
+    );
+    expect(urls).toEqual(
+      expect.arrayContaining([expect.stringContaining("/usuarios/agronomos")])
+    );
+    expect(urls.some((url) => url.includes("/productores"))).toBe(false);
+  });
+
   it("builds the visits endpoint with required and optional filters", async () => {
     await reportesService.getVisitsReport(session, {
       agronomistUserId: "7",
@@ -197,6 +237,23 @@ function makeParcelsReport() {
     summary: [],
     distribution: [],
     parcels: []
+  };
+}
+
+function makeEstimatesReport() {
+  return {
+    range: { startDate: "2026-09-07", endDate: "2026-09-13" },
+    weeks: [
+      {
+        isoYear: 2026,
+        weekNumber: 37,
+        startDate: "2026-09-07",
+        endDate: "2026-09-13",
+        projectedVisits: 10,
+        actualVisits: 12,
+        variationPercentage: 20
+      }
+    ]
   };
 }
 

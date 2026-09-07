@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { classifyParcelArea, ReportesService } from "./reportes.service";
+import {
+  classifyParcelArea,
+  normalizeReportWeekRange,
+  ReportesService
+} from "./reportes.service";
 
 describe("ReportesService", () => {
   it("returns active agronomists including zero results and calculates averages", async () => {
@@ -84,6 +88,86 @@ describe("ReportesService", () => {
       })
     ).rejects.toThrow("fecha_hasta must be greater than or equal to fecha_desde.");
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it("returns a continuous weekly estimate series and calculates signed variation", async () => {
+    const query = vi.fn().mockResolvedValue([
+      {
+        isoYear: "2026",
+        weekNumber: "36",
+        startDate: "2026-08-31",
+        endDate: "2026-09-06",
+        projectedVisits: "10",
+        actualVisits: "12"
+      },
+      {
+        isoYear: "2026",
+        weekNumber: "37",
+        startDate: "2026-09-07",
+        endDate: "2026-09-13",
+        projectedVisits: "0",
+        actualVisits: "3"
+      }
+    ]);
+    const service = new ReportesService({ query } as never);
+
+    const result = await service.getEstimatesReport({
+      fecha_desde: "2026-09-02",
+      fecha_hasta: "2026-09-09"
+    });
+
+    expect(result).toEqual({
+      range: { startDate: "2026-08-31", endDate: "2026-09-13" },
+      weeks: [
+        {
+          isoYear: 2026,
+          weekNumber: 36,
+          startDate: "2026-08-31",
+          endDate: "2026-09-06",
+          projectedVisits: 10,
+          actualVisits: 12,
+          variationPercentage: 20
+        },
+        {
+          isoYear: 2026,
+          weekNumber: 37,
+          startDate: "2026-09-07",
+          endDate: "2026-09-13",
+          projectedVisits: 0,
+          actualVisits: 3,
+          variationPercentage: null
+        }
+      ]
+    });
+    expect(query.mock.calls[0]?.[0]).toContain("GENERATE_SERIES");
+    expect(query.mock.calls[0]?.[0]).toContain("e.activo = true");
+    expect(query.mock.calls[0]?.[0]).toContain("v.activo = true");
+    expect(query.mock.calls[0]?.[0]).toContain("v.fecha_visita <= $2::date");
+    expect(query.mock.calls[0]?.[0]).not.toContain("v.fecha_visita <= ($2::date + 6)");
+    expect(query.mock.calls[0]?.[1]).toEqual(["2026-08-31", "2026-09-13", null]);
+  });
+
+  it("parameterizes the optional agronomist across both weekly aggregates", async () => {
+    const query = vi.fn().mockResolvedValue([]);
+    const service = new ReportesService({ query } as never);
+
+    await service.getEstimatesReport({
+      fecha_desde: "2026-09-07",
+      fecha_hasta: "2026-09-13",
+      agronomo_usuario_id: "7"
+    });
+
+    const sql = String(query.mock.calls[0]?.[0]);
+    expect(sql).toContain("e.agronomo_usuario_id = $3::bigint");
+    expect(sql).toContain("v.agronomo_usuario_id = $3::bigint");
+    expect(query.mock.calls[0]?.[1]).toEqual(["2026-09-07", "2026-09-13", "7"]);
+  });
+
+  it("normalizes report boundaries across ISO years", () => {
+    expect(normalizeReportWeekRange("2025-12-31", "2026-01-01")).toEqual({
+      startDate: "2025-12-29",
+      endDate: "2026-01-04"
+    });
   });
 
   it("builds the fields-by-stage summary from one latest visit per parcel", async () => {
@@ -330,7 +414,13 @@ describe("ReportesService", () => {
     expect(sql).toContain("ss.id = $6");
     expect(sql).toContain("p.activo = $7");
     expect(query.mock.calls[0]?.[1]).toEqual([
-      "2026-09-01", "2026-09-30", "7", "15", "2", "3", false
+      "2026-09-01",
+      "2026-09-30",
+      "7",
+      "15",
+      "2",
+      "3",
+      false
     ]);
   });
 });

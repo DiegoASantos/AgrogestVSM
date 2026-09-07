@@ -24,11 +24,15 @@ describe("admin report navigation", () => {
     );
     expect(adminReportsNavigation.map((item) => item.href)).toEqual([
       adminRoutes.reportesItems.visitas,
+      adminRoutes.reportesItems.estimaciones,
       adminRoutes.reportesItems.camposPorEtapas,
       adminRoutes.reportesItems.parcelas
     ]);
     expect(resolveAdminRouteMeta(adminRoutes.reportesItems.visitas).label).toBe(
       "Visitas"
+    );
+    expect(resolveAdminRouteMeta(adminRoutes.reportesItems.estimaciones).label).toBe(
+      "Estimaciones"
     );
     expect(resolveAdminRouteMeta(adminRoutes.reportesItems.camposPorEtapas).label).toBe(
       "Campos por etapas"

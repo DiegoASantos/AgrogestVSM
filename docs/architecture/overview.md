@@ -66,8 +66,8 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
   sanitarias y nutricionales; además de métricas filtrables de visitas por
   agrónomo y parcelas por etapa fenológica;
 - grupo lateral `Reportes`, reservado para `ADMIN` y `ANALISTA`, con los
-  submódulos `/reportes/visitas`, `/reportes/campos-por-etapas` y
-  `/reportes/parcelas`;
+  submódulos `/reportes/visitas`, `/reportes/estimaciones`,
+  `/reportes/campos-por-etapas` y `/reportes/parcelas`;
 - gestión de visitas;
 - estimaciones semanales de visitas por agrónomo, con captura de metas y
   comparación dinámica contra las visitas reales activas;
@@ -101,11 +101,16 @@ hectáreas observadas por fecha. El mapa reutiliza los geodatos de las parcelas
 activas y refleja su asignación actual; por diseño, el rango histórico no altera
 esa asignación.
 
-El reporte Campos por etapas no usa rango temporal. La API selecciona una sola
-visita activa por parcela activa mediante `fecha_visita DESC, id DESC`; tanto
-la etapa o labor como el ingeniero provienen de esa misma visita. El resultado
-alimenta una tabla panorámica, un mapa por etapa o labor y un gráfico circular
-por cada agrónomo activo.
+El reporte de estimaciones genera una serie continua de semanas completas para
+comparar las metas activas de `estimaciones_visitas` con las visitas activas
+registradas. El rango se normaliza a lunes-domingo y puede agregarse para todos
+los agrónomos o filtrarse por uno; tabla y gráfico consumen la misma serie.
+
+El reporte Campos por etapas selecciona dentro del rango una sola visita activa
+por parcela activa mediante `fecha_visita DESC, id DESC`; tanto la etapa o labor
+como el ingeniero provienen de esa misma visita. El resultado alimenta una tabla
+panorámica, un mapa por etapa o labor y un gráfico circular por cada agrónomo
+activo.
 
 El reporte Parcelas analiza la asignación actual registrada en cada parcela y
 admite filtros de ingeniero, productor, sector, subsector y estado. La API

@@ -36,6 +36,11 @@ export const adminReportsNavigation: AdminNavLink[] = [
     description: "Actividad de visitas por ingeniero"
   },
   {
+    label: "Estimaciones",
+    href: adminRoutes.reportesItems.estimaciones,
+    description: "Proyección y ejecución semanal de visitas"
+  },
+  {
     label: "Campos por etapas",
     href: adminRoutes.reportesItems.camposPorEtapas,
     description: "Ultima etapa o labor registrada por parcela"

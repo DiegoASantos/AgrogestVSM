@@ -416,6 +416,18 @@ o su valor es cero.
 
 ## Reportes web
 
+El reporte Estimaciones crea una secuencia de semanas calendario entre el lunes
+normalizado de `fecha_desde` y el domingo normalizado de `fecha_hasta`. Cada fila
+suma las metas activas de `estimaciones_visitas` y cuenta las visitas activas
+atribuidas al agrónomo registrado en `visitas_campo`. Se conservan semanas sin
+actividad con valores cero para que tabla y gráfico compartan una serie
+continua; el filtro opcional de agrónomo se aplica a ambos agregados.
+
+La variación semanal representa el desvío contra la meta:
+`(ejecutadas - proyectadas) / proyectadas * 100`. Un valor positivo supera la
+proyección y uno negativo queda por debajo; con proyección cero el porcentaje no
+aplica. El estado actual del agrónomo no modifica los agregados históricos.
+
 El reporte Campos por etapas representa el estado más reciente conocido de las
 parcelas, no un histórico por rango de fechas. Para cada parcela activa con
 productor activo se elige su última visita activa por `fecha_visita` descendente
@@ -454,9 +466,9 @@ respuesta de la API.
 Los roles distinguen administración, trabajo técnico y consulta. `ANALISTA`
 consulta Dashboard, Visitas, Mapas y Clima, comparte con `ADMIN` el CRUD web de
 Mantenimiento, el módulo de Estimaciones y los reportes web de Visitas, Campos
-por etapas y Parcelas. El CRUD de Mantenimiento incluye los catálogos, geodatos
-y la asignación de agrónomos en parcelas; Estimaciones permite a ambos roles
-guardar metas semanales por lote.
+por etapas, Parcelas y Estimaciones. El CRUD de Mantenimiento incluye los
+catálogos, geodatos y la asignación de agrónomos en parcelas; Estimaciones
+permite a ambos roles guardar metas semanales por lote.
 Seguridad continúa exclusiva de `ADMIN`. `AGRONOMO` también puede consultar las siete vistas
 territoriales de Clima desde el panel web, además de su acceso climático móvil.
 La aplicación móvil no admite sesiones con rol `ANALISTA`.

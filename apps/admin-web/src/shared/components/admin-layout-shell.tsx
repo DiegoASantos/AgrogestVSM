@@ -98,6 +98,7 @@ const securityNavIcons: Record<string, LucideIcon> = {
 };
 const reportsNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.reportesItems.visitas]: ClipboardList,
+  [adminRoutes.reportesItems.estimaciones]: Target,
   [adminRoutes.reportesItems.camposPorEtapas]: Layers,
   [adminRoutes.reportesItems.parcelas]: MapIcon
 };

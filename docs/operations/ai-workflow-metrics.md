@@ -39,6 +39,7 @@ un coste de coordinación mayor que su beneficio.
 | 2026-09-04 | Spec 072                 | alta       | no medido               | 361.89 s; aprobado con corrección documental     | 15 472 entrada; 465 salida; 65 razonamiento; 18 432 cache-read; USD 0.007258236        | 1 media; 3 bajas                 | 1         | 3          | 0 al cierre          |
 | 2026-09-04 | Spec 073                 | alta       | no medido               | 432.45 s; aprobado con corrección baja           | no reportado por fallo local `EEXIST` del exportador                                   | 1 baja; 6 observaciones          | 1         | 5          | 0 al cierre          |
 | 2026-09-07 | Spec 078                 | alta       | no medido               | 287 s iniciales; 33 s cierre; aprobado           | no reportado por incompatibilidad del wrapper con agente subagent                      | 2 bajas; 2 observaciones         | 4         | 0          | 0 al cierre          |
+| 2026-09-07 | Spec 079                 | media      | no medido               | 173.18 s iniciales; 34.26 s cierre; aprobado     | 67 008 entrada; 1 509 salida; 14 562 razonamiento; 9 728 cache-read; USD 0.043165514   | 3 bajas; cierre sin hallazgos    | 1         | 2          | 0 al cierre          |
 
 ## Resultado del piloto crítico
 

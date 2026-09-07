@@ -34,6 +34,10 @@ last_reviewed: 2026-09-07
 - `GET /reportes/visitas` exige `ADMIN` o `ANALISTA`, devuelve solo identidad
   visible del ingeniero y agregados operativos, valida el rango inclusivo y
   parametriza fechas e identificadores; no habilita acceso a `AGRONOMO`;
+- `GET /reportes/estimaciones` exige `ADMIN` o `ANALISTA`, valida y normaliza el
+  rango a semanas completas, parametriza el filtro opcional de agrónomo y
+  devuelve únicamente fechas, número de semana y agregados de visitas; excluye
+  estimaciones y visitas inactivas y no habilita acceso a `AGRONOMO`;
 - `GET /reportes/parcelas` exige `ADMIN` o `ANALISTA`, valida y parametriza los
   filtros temporales, territoriales y de estado, y limita la respuesta a
   identificadores y nombres operativos, área, estado y geodatos necesarios para

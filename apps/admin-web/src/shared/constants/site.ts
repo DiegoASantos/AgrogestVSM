@@ -16,6 +16,7 @@ export const adminRoutes = {
   reportes: "/reportes",
   reportesItems: {
     visitas: "/reportes/visitas",
+    estimaciones: "/reportes/estimaciones",
     camposPorEtapas: "/reportes/campos-por-etapas",
     parcelas: "/reportes/parcelas"
   },

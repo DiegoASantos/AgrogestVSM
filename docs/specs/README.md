@@ -122,4 +122,5 @@ en la raíz.
 - [Spec 076: Importación de coordenadas de Google Maps en geodatos web](076-importacion-google-maps-geodatos-web.md)
 - [Spec 077: Filtros temporales para dashboard y reportes](077-filtros-temporales-dashboard-reportes.md)
 - [Spec 078: Estimaciones semanales de visitas por agrónomo](078-estimaciones-semanales-visitas.md)
+- [Spec 079: Reporte semanal de estimaciones de visitas](079-reporte-semanal-estimaciones.md)
 - [Plantilla](TEMPLATE.md)

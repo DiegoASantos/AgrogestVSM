@@ -34,6 +34,34 @@ export type VisitsReportData = {
   timeline: VisitReportTimelinePoint[];
 };
 
+export type EstimateReportFilters = {
+  agronomistUserId: string;
+  startDate: string;
+  endDate: string;
+};
+
+export type EstimateReportWeek = {
+  isoYear: number;
+  weekNumber: number;
+  startDate: string;
+  endDate: string;
+  projectedVisits: number;
+  actualVisits: number;
+  variationPercentage: number | null;
+};
+
+export type EstimatesReportData = {
+  range: {
+    startDate: string;
+    endDate: string;
+  };
+  weeks: EstimateReportWeek[];
+};
+
+export type EstimatesReportCatalogs = {
+  agronomists: AgronomistLookupItem[];
+};
+
 export type VisitsReportCatalogs = {
   agronomists: AgronomistLookupItem[];
   productores: ProductorListItem[];

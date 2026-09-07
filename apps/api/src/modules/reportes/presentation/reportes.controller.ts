@@ -9,6 +9,7 @@ import {
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import { ReportesService } from "../application/reportes.service";
 import { ReporteCamposEtapasQueryDto } from "./dto/reporte-campos-etapas-query.dto";
+import { ReporteEstimacionesQueryDto } from "./dto/reporte-estimaciones-query.dto";
 import { ReporteParcelasQueryDto } from "./dto/reporte-parcelas-query.dto";
 import { ReporteVisitasQueryDto } from "./dto/reporte-visitas-query.dto";
 
@@ -30,6 +31,21 @@ export class ReportesController {
   })
   async getVisitsReport(@Query() query: ReporteVisitasQueryDto) {
     const data = await this.reportesService.getVisitsReport(query);
+    return { success: true, data };
+  }
+
+  @Get("estimaciones")
+  @ApiOperation({
+    summary: "Compara visitas proyectadas y ejecutadas por semana."
+  })
+  @ApiOkResponse({
+    description: "Rango normalizado y serie semanal continua para tabla y gráfico."
+  })
+  @ApiBadRequestResponse({
+    description: "El rango o el identificador de agrónomo no es válido."
+  })
+  async getEstimatesReport(@Query() query: ReporteEstimacionesQueryDto) {
+    const data = await this.reportesService.getEstimatesReport(query);
     return { success: true, data };
   }
 

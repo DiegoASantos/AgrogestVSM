@@ -8160,3 +8160,88 @@ canvas {
 [data-theme="dark"] .estimations-table tbody tr:hover {
   background: #213328;
 }
+
+/* Reporte de estimaciones: planificación discontinua frente a ejecución real. */
+.estimates-report__hero {
+  padding-bottom: 22px;
+}
+
+.estimates-report__filters .filter-card__body {
+  grid-template-columns: minmax(220px, 1.35fr) repeat(2, minmax(170px, 0.8fr));
+}
+
+.estimates-report__chart,
+.estimates-report__table-section {
+  min-width: 0;
+}
+
+.estimates-report-chart {
+  min-height: 390px;
+}
+
+.estimates-report__empty-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #c8d9c2;
+  border-radius: var(--radius-md);
+  background: #eef5e9;
+  color: #31553c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.estimates-report__table {
+  min-width: 850px;
+}
+
+.estimates-report__variation {
+  display: inline-flex;
+  min-width: 78px;
+  justify-content: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.estimates-report__variation--positive {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.estimates-report__variation--negative {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.estimates-report__variation--neutral {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 720px) {
+  .estimates-report__filters .filter-card__body {
+    grid-template-columns: 1fr;
+  }
+
+  .estimates-report-chart {
+    min-height: 340px;
+  }
+}
+
+[data-theme="dark"] .estimates-report__empty-note {
+  border-color: #405b45;
+  background: #213328;
+  color: #d4e6d7;
+}
+
+[data-theme="dark"] .estimates-report__variation--positive {
+  background: #123522;
+  color: #86efac;
+}
+
+[data-theme="dark"] .estimates-report__variation--negative {
+  background: #3b2616;
+  color: #fdba74;
+}
