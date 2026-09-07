@@ -19,14 +19,32 @@ export function shiftWeek(value: string, weeks: number) {
 }
 
 export function formatWeekRange(startDate: string, endDate: string) {
-  const formatter = new Intl.DateTimeFormat("es-PE", {
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  const fullFormatter = new Intl.DateTimeFormat("es-PE", {
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: "UTC"
   });
+  const dayMonthFormatter = new Intl.DateTimeFormat("es-PE", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC"
+  });
 
-  return `${formatter.format(parseDate(startDate))} — ${formatter.format(parseDate(endDate))}`;
+  if (
+    start.getUTCFullYear() === end.getUTCFullYear() &&
+    start.getUTCMonth() === end.getUTCMonth()
+  ) {
+    return `${start.getUTCDate()} — ${fullFormatter.format(end)}`;
+  }
+
+  if (start.getUTCFullYear() === end.getUTCFullYear()) {
+    return `${dayMonthFormatter.format(start)} — ${fullFormatter.format(end)}`;
+  }
+
+  return `${fullFormatter.format(start)} — ${fullFormatter.format(end)}`;
 }
 
 export function createEstimateDrafts(data: EstimationWeekData) {

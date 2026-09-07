@@ -7781,11 +7781,11 @@ canvas {
 }
 
 .estimations-weekbar__body {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) auto;
   align-items: end;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 16px;
+  gap: 16px;
+  padding: 14px 16px 16px;
 }
 
 .estimations-weekbar__navigation,
@@ -7796,16 +7796,32 @@ canvas {
 }
 
 .estimations-weekbar__navigation {
-  gap: 12px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .estimations-weekbar__range {
-  min-width: 290px;
-  gap: 10px;
+  min-width: 0;
+  min-height: 58px;
+  gap: 12px;
+  padding: 8px 14px;
+  border: 1px solid #c8d9c2;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 3px 10px rgba(16, 56, 36, 0.07);
 }
 
-.estimations-weekbar__range > svg {
-  color: var(--primary-strong);
+.estimations-weekbar__range-icon {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 10px;
+  background: #dcebcf;
+  color: var(--report-forest-deep);
 }
 
 .estimations-weekbar__range div {
@@ -7820,10 +7836,12 @@ canvas {
 }
 
 .estimations-weekbar__range strong {
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.3;
 }
 
 .estimations-weekbar__picker {
+  align-items: end;
   gap: 10px;
 }
 
@@ -8051,7 +8069,7 @@ canvas {
 @media (max-width: 900px) {
   .estimations-weekbar__body {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .estimations-weekbar__picker {
@@ -8080,10 +8098,6 @@ canvas {
 
   .estimations-weekbar__range {
     min-width: 0;
-  }
-
-  .estimations-weekbar__range > svg {
-    display: none;
   }
 
   .estimations-weekbar__picker,
@@ -8116,6 +8130,16 @@ canvas {
 [data-theme="dark"] .estimations-table-panel {
   border-color: #3f5945;
   background: #18251c;
+}
+
+[data-theme="dark"] .estimations-weekbar__range {
+  border-color: #49644f;
+  background: #18251c;
+}
+
+[data-theme="dark"] .estimations-weekbar__range-icon {
+  background: #294332;
+  color: #c9e99f;
 }
 
 [data-theme="dark"] .estimations-guidance {

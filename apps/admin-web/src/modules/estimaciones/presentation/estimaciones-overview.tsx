@@ -108,7 +108,9 @@ export function EstimacionesOverview() {
                 <ChevronLeft aria-hidden="true" size={17} />
               </button>
               <div className="estimations-weekbar__range">
-                <CalendarRange aria-hidden="true" size={18} />
+                <span className="estimations-weekbar__range-icon">
+                  <CalendarRange aria-hidden="true" size={19} />
+                </span>
                 <div>
                   <span>Semana seleccionada</span>
                   <strong>{weekLabel}</strong>
@@ -127,7 +129,7 @@ export function EstimacionesOverview() {
 
             <div className="estimations-weekbar__picker">
               <label className="field-group">
-                <span className="field-group__label">Elegir una fecha</span>
+                <span className="field-group__label">Ir a una fecha</span>
                 <input
                   disabled={isLoading || isSaving}
                   onChange={(event) => changeWeek(normalizeWeekStart(event.target.value))}

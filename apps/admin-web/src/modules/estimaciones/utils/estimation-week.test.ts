@@ -4,6 +4,7 @@ import type { EstimationWeekData } from "../types/estimaciones.types";
 import {
   buildEstimateChanges,
   createEstimateDrafts,
+  formatWeekRange,
   normalizeWeekStart,
   shiftWeek,
   validateEstimateDrafts
@@ -14,6 +15,15 @@ describe("estimation week utilities", () => {
     expect(normalizeWeekStart("2026-09-09")).toBe("2026-09-07");
     expect(shiftWeek("2026-09-07", -1)).toBe("2026-08-31");
     expect(shiftWeek("2026-09-07", 1)).toBe("2026-09-14");
+  });
+
+  it("formats the selected week without repeating its month and year", () => {
+    expect(formatWeekRange("2026-09-07", "2026-09-13")).toBe(
+      "7 — 13 de setiembre de 2026"
+    );
+    expect(formatWeekRange("2026-08-31", "2026-09-06")).toBe(
+      "31 de agosto — 6 de setiembre de 2026"
+    );
   });
 
   it("creates drafts and sends only editable changed rows", () => {
