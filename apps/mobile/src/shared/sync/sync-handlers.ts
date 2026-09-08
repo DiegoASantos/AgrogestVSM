@@ -1018,9 +1018,10 @@ async function handleReceta(
       cantidadTotalProducto: mezcla.cantidadTotalProducto ?? undefined,
       productos: mezcla.productos.map((f) => ({
         productoRef: f.productoRef,
-        objetivo: f.objetivo,
-        objetivoNombre: f.objetivoNombre,
-        enfoque: f.enfoque,
+        origen: f.origen,
+        objetivo: f.objetivo ?? undefined,
+        objetivoNombre: f.objetivoNombre ?? undefined,
+        enfoque: f.enfoque ?? undefined,
         objetivoId: f.objetivoId ? Number(f.objetivoId) : undefined,
         incidenciaGrado: f.incidenciaGrado ?? undefined,
         severidadGrado: f.severidadGrado ?? undefined,
@@ -1039,6 +1040,7 @@ async function handleReceta(
     fertilizacion: receta.fertilizacion.map((f) => ({
       productoRef: f.productoRef,
       mezclaNumero: f.mezclaNumero ?? undefined,
+      origen: f.origen,
       enfoque: f.enfoque,
       nutrienteId: f.nutrienteId,
       viaAplicacion: f.viaAplicacion,

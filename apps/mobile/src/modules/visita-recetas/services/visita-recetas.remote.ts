@@ -25,9 +25,10 @@ export type SaveRecetaInput = {
     cantidadTotalProducto?: number | null;
     productos: Array<{
       productoRef?: string;
-      objetivo: "plaga" | "enfermedad";
-      objetivoNombre: string;
-      enfoque?: "reactivo" | "preventivo";
+      origen?: "recomendacion" | "mezcla_directa";
+      objetivo?: "plaga" | "enfermedad" | null;
+      objetivoNombre?: string | null;
+      enfoque?: "reactivo" | "preventivo" | null;
       objetivoId?: number | null;
       incidenciaGrado?: number | null;
       severidadGrado?: number | null;
@@ -46,6 +47,7 @@ export type SaveRecetaInput = {
   fertilizacion: Array<{
     productoRef?: string;
     mezclaNumero?: number;
+    origen?: "recomendacion" | "mezcla_directa";
     enfoque?: "reactivo" | "preventivo";
     nutrienteId?: string | null;
     viaAplicacion: "edafica" | "foliar";

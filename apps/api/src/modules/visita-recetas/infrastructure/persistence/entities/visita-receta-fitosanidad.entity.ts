@@ -24,21 +24,25 @@ export class VisitaRecetaFitosanidadEntity {
   @Column({ name: "producto_ref", type: "varchar", length: 100 })
   productoRef!: string;
 
+  @Column({ name: "origen", type: "varchar", length: 20, default: "recomendacion" })
+  origen!: "recomendacion" | "mezcla_directa";
+
   @Column({ name: "numero", type: "integer", default: 1 })
   numero!: number;
 
   @Column({
     name: "objetivo",
     type: "varchar",
-    length: 20
+    length: 20,
+    nullable: true
   })
-  objetivo!: "plaga" | "enfermedad";
+  objetivo!: "plaga" | "enfermedad" | null;
 
-  @Column({ name: "objetivo_nombre", type: "varchar", length: 150 })
-  objetivoNombre!: string;
+  @Column({ name: "objetivo_nombre", type: "varchar", length: 150, nullable: true })
+  objetivoNombre!: string | null;
 
-  @Column({ name: "enfoque", type: "varchar", length: 12, default: "reactivo" })
-  enfoque!: "reactivo" | "preventivo";
+  @Column({ name: "enfoque", type: "varchar", length: 12, nullable: true })
+  enfoque!: "reactivo" | "preventivo" | null;
 
   @Column({ name: "objetivo_id", type: "bigint", nullable: true })
   objetivoId!: string | null;

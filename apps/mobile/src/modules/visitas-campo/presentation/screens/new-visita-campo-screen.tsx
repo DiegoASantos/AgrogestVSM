@@ -134,6 +134,10 @@ export function NewVisitaCampoScreen() {
   const [cultivos, setCultivos] = useState<CultivoCatalogItem[]>([]);
   const [isLoadingCultivos, setIsLoadingCultivos] = useState(true);
   const [cultivosError, setCultivosError] = useState<string | null>(null);
+  const [previousSelectionNotice, setPreviousSelectionNotice] = useState<string | null>(
+    null
+  );
+  const previousDefaultsAppliedRef = useRef<string | null>(null);
 
   const [variedades, setVariedades] = useState<VariedadCatalogItem[]>([]);
   const [isLoadingVariedades, setIsLoadingVariedades] = useState(false);
@@ -247,7 +251,7 @@ export function NewVisitaCampoScreen() {
   }, [draftIdentity, existingVisitaId]);
 
   useEffect(() => {
-    if (isEditingVisita) {
+    if (isEditingVisita || !isDraftReady || isLoadingCultivos) {
       return;
     }
 
@@ -260,8 +264,27 @@ export function NewVisitaCampoScreen() {
     );
 
     if (!defaults) {
+      previousDefaultsAppliedRef.current = values.parcelaId;
       return;
     }
+
+    if (previousDefaultsAppliedRef.current === values.parcelaId) {
+      return;
+    }
+    previousDefaultsAppliedRef.current = values.parcelaId;
+
+    const previousCropAvailable = cultivos.some(
+      (cultivo) => cultivo.id === defaults.cropId
+    );
+    const shouldPrefillCrop = !values.crop && previousCropAvailable;
+    const shouldPrefillVariety = !values.variety && shouldPrefillCrop;
+    setPreviousSelectionNotice(
+      shouldPrefillCrop || shouldPrefillVariety
+        ? "Cultivo y variedad precargados desde la visita anterior. Puedes cambiarlos."
+        : previousCropAvailable
+          ? null
+          : "El cultivo de la visita anterior ya no esta disponible. Selecciona uno para continuar."
+    );
 
     setValues((currentValues) => {
       const nextPlantsCount =
@@ -271,6 +294,10 @@ export function NewVisitaCampoScreen() {
           : String(defaults.plantsCount));
       const nextSowingDate = currentValues.sowingDate || defaults.sowingDate || "";
       const nextAreaHectares = currentValues.areaHectares || defaults.areaHectares || "";
+      const nextCrop =
+        currentValues.crop || (previousCropAvailable ? defaults.cropId : "");
+      const nextVariety =
+        currentValues.variety || (previousCropAvailable ? defaults.varietyId : "");
 
       setDefaultLockedFields({
         plantsCount: !currentValues.plantsCount && nextPlantsCount.length > 0,
@@ -280,12 +307,14 @@ export function NewVisitaCampoScreen() {
 
       return {
         ...currentValues,
+        crop: nextCrop,
+        variety: nextVariety,
         plantsCount: nextPlantsCount,
         sowingDate: nextSowingDate,
         areaHectares: nextAreaHectares
       };
     });
-  }, [isEditingVisita, values.parcelaId]);
+  }, [cultivos, isDraftReady, isEditingVisita, isLoadingCultivos, values.parcelaId]);
 
   useEffect(() => {
     if (!existingVisitaId) {
@@ -601,6 +630,10 @@ export function NewVisitaCampoScreen() {
                 Las campañas y la fecha de visita se completan automaticamente.
               </AppText>
             </View>
+
+            {previousSelectionNotice ? (
+              <AppText variant="muted">{previousSelectionNotice}</AppText>
+            ) : null}
 
             <View style={isTwoColumnLayout ? styles.fieldGrid : styles.fieldStack}>
               <View
@@ -1276,6 +1309,20 @@ export function NewVisitaCampoScreen() {
 
     if (variedadesResult.status === "fulfilled") {
       setVariedades(variedadesResult.value);
+      setValues((currentValues) => {
+        const isSelectedVarietyAvailable = variedadesResult.value.some(
+          (variedad) => variedad.id === currentValues.variety
+        );
+        if (currentValues.variety && !isSelectedVarietyAvailable) {
+          setPreviousSelectionNotice(
+            "La variedad de la visita anterior ya no esta disponible. Selecciona una para continuar."
+          );
+        }
+        return {
+          ...currentValues,
+          variety: isSelectedVarietyAvailable ? currentValues.variety : ""
+        };
+      });
     } else {
       setVariedades([]);
       setVariedadesError(

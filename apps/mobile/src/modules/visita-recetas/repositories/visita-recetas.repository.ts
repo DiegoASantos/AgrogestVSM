@@ -66,9 +66,10 @@ type FitosanidadRow = {
   mezcla_local_id: string | null;
   producto_ref: string | null;
   numero: number;
-  objetivo: "plaga" | "enfermedad";
-  objetivo_nombre: string;
-  enfoque: "reactivo" | "preventivo";
+  origen: "recomendacion" | "mezcla_directa" | null;
+  objetivo: "plaga" | "enfermedad" | null;
+  objetivo_nombre: string | null;
+  enfoque: "reactivo" | "preventivo" | null;
   objetivo_id: string | null;
   incidencia_grado: number | null;
   severidad_grado: number | null;
@@ -116,6 +117,7 @@ type FertilizacionRow = {
   receta_local_id: string;
   mezcla_local_id: string | null;
   producto_ref: string | null;
+  origen: "recomendacion" | "mezcla_directa" | null;
   enfoque: "reactivo" | "preventivo";
   nutriente_id: string | null;
   nutriente_nombre: string | null;
@@ -377,9 +379,10 @@ export const visitaRecetasRepository = {
         cantidadTotalProducto: number | null;
         productos: Array<{
           productoRef: string;
-          objetivo: "plaga" | "enfermedad";
-          objetivoNombre: string;
-          enfoque: "reactivo" | "preventivo";
+          origen: "recomendacion" | "mezcla_directa";
+          objetivo: "plaga" | "enfermedad" | null;
+          objetivoNombre: string | null;
+          enfoque: "reactivo" | "preventivo" | null;
           objetivoId: string | null;
           incidenciaGrado: number | null;
           severidadGrado: number | null;
@@ -398,6 +401,7 @@ export const visitaRecetasRepository = {
       fertilizacion: Array<{
         productoRef: string;
         mezclaNumero: number | null;
+        origen: "recomendacion" | "mezcla_directa";
         enfoque: "reactivo" | "preventivo";
         nutrienteId: string | null;
         nutrienteNombre?: string | null;
@@ -483,12 +487,12 @@ export const visitaRecetasRepository = {
         );
         const stmtFito = db.prepareSync(
           `INSERT INTO visita_receta_fitosanidad
-         (local_id, server_id, receta_local_id, mezcla_local_id, producto_ref, numero, objetivo, objetivo_nombre,
+         (local_id, server_id, receta_local_id, mezcla_local_id, producto_ref, numero, origen, objetivo, objetivo_nombre,
           enfoque, objetivo_id, incidencia_grado, severidad_grado, tipo_control_id, tipo_producto_id,
           disolvente, modo_accion_id, ingrediente_activo_nombre, dosis_ia, dosis_producto, unidad_dosis, volumen_aplicacion,
           cantidad_total_ia, marca_producto_nombre, concentracion_producto, cantidad_total_producto,
           coadyuvantes_ids, orden_mezcla, sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
         );
         for (const mezcla of data.mezclas) {
           const mezclaLocalId = generateLocalId();
@@ -517,6 +521,7 @@ export const visitaRecetasRepository = {
               mezclaLocalId,
               producto.productoRef,
               mezcla.numero,
+              producto.origen,
               producto.objetivo,
               producto.objetivoNombre,
               producto.enfoque,
@@ -550,10 +555,10 @@ export const visitaRecetasRepository = {
       if (data.fertilizacion.length > 0) {
         const stmtFert = db.prepareSync(
           `INSERT INTO visita_receta_fertilizacion
-         (local_id, server_id, receta_local_id, mezcla_local_id, producto_ref, enfoque, nutriente_id, nutriente_nombre, via_aplicacion, fertilizante_nombre, tipo_producto,
+         (local_id, server_id, receta_local_id, mezcla_local_id, producto_ref, origen, enfoque, nutriente_id, nutriente_nombre, via_aplicacion, fertilizante_nombre, tipo_producto,
           dosis, unidad_dosis, cantidad_total_plantas, volumen_aplicacion, cantidad_total_fertilizante, factor,
           sync_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
         );
         for (const f of data.fertilizacion) {
           stmtFert.executeSync([
@@ -562,6 +567,7 @@ export const visitaRecetasRepository = {
             recetaLocalId,
             f.mezclaNumero ? (mezclaLocalIds.get(f.mezclaNumero) ?? null) : null,
             f.productoRef,
+            f.origen,
             f.enfoque,
             f.nutrienteId,
             f.nutrienteNombre ?? null,
@@ -694,10 +700,11 @@ function mapFitosanidadRow(r: FitosanidadRow): RecetaFitosanidad {
     recetaLocalId: r.receta_local_id,
     mezclaLocalId: r.mezcla_local_id,
     productoRef: r.producto_ref ?? `legacy-fito-${r.local_id}`,
+    origen: r.origen ?? "recomendacion",
     numero: r.numero,
     objetivo: r.objetivo,
     objetivoNombre: r.objetivo_nombre,
-    enfoque: r.enfoque ?? "reactivo",
+    enfoque: r.enfoque ?? (r.origen === "mezcla_directa" ? null : "reactivo"),
     objetivoId: r.objetivo_id,
     incidenciaGrado: r.incidencia_grado,
     severidadGrado: r.severidad_grado,
@@ -749,6 +756,7 @@ function mapFertilizacionRow(
     mezclaLocalId: r.mezcla_local_id,
     mezclaNumero,
     productoRef: r.producto_ref ?? `legacy-fert-${r.local_id}`,
+    origen: r.origen ?? "recomendacion",
     enfoque: r.enfoque ?? "reactivo",
     nutrienteId: r.nutriente_id,
     nutrienteNombre: r.nutriente_nombre,

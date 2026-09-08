@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildDirectProductCatalog,
   copyMixtureConfiguration,
+  getDirectDoseUnits,
   mixtureStatus,
   parseMixtureCount,
   shouldShowMixtureNavigation,
@@ -128,5 +130,70 @@ describe("formulario guiado de mezclas", () => {
   it("oculta la navegacion cuando solo existe una mezcla", () => {
     expect(shouldShowMixtureNavigation(1)).toBe(false);
     expect(shouldShowMixtureNavigation(2)).toBe(true);
+  });
+
+  it("combina fitosanitarios por nombre comercial y fertilizantes en una busqueda", () => {
+    const options = buildDirectProductCatalog(
+      [
+        {
+          id: "brand-1",
+          publicId: "brand-public-1",
+          name: "Control Max",
+          tipoProductoId: "type-1",
+          ingredienteActivoId: "ingredient-1",
+          ingredienteActivoNombre: null,
+          concentracionTexto: "20%",
+          unidadMedida: "%"
+        }
+      ],
+      [
+        {
+          id: "ingredient-1",
+          publicId: "ingredient-public-1",
+          name: "Spinosad",
+          description: null
+        }
+      ],
+      [{ id: "type-1", name: "Insecticida" }],
+      [
+        {
+          id: "fert-1",
+          publicId: "fert-public-1",
+          name: "Fertilizante Foliar",
+          type: "liquido",
+          concentracion: "10",
+          unidadMedida: "%"
+        }
+      ]
+    );
+
+    expect(options.map((item) => item.label)).toEqual([
+      "Control Max",
+      "Fertilizante Foliar"
+    ]);
+    expect(options[0]).toMatchObject({
+      kind: "fitosanitario",
+      ingredientName: "Spinosad"
+    });
+    expect(options[1]).toMatchObject({ kind: "fertilizante" });
+  });
+
+  it("limita las unidades del fertilizante directo segun su tipo", () => {
+    expect(
+      getDirectDoseUnits({
+        ...products[1]!,
+        origin: "mezcla_directa",
+        productType: "solido",
+        viaAplicacion: "foliar"
+      })
+    ).toEqual(["mg/cilindro", "g/cilindro", "kg/cilindro"]);
+    expect(
+      getDirectDoseUnits({
+        ...products[1]!,
+        origin: "mezcla_directa",
+        productType: "liquido",
+        viaAplicacion: "foliar"
+      })
+    ).toEqual(["ml/cilindro", "l/cilindro"]);
   });
 });

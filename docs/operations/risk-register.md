@@ -44,6 +44,7 @@ last_reviewed: 2026-09-07
 | R-032 | NetInfo y `fetch` pueden reportar transiciones de conectividad distintas entre versiones de Android | Media | Abierto | Spec 060 separa alcance HTTP de errores del servidor y cancelaciones; ejecutar en el piloto cambios Wi-Fi/datos, timeouts y reapertura despues de cinco minutos antes del siguiente release mobile |
 | R-033 | Una OTA móvil publicada antes de PostgreSQL 057 y la API compatible puede enviar el score v2 a un servidor que no conserva la versión | Alta | Mitigado | Desplegar y verificar migración/API antes de distribuir la OTA; la versión viaja en la operación padre y los históricos quedan en v1 |
 | R-034 | Un dispositivo puede conservar temporalmente la visibilidad sanitaria previa si no recarga catálogos después de PostgreSQL 058 | Media | Mitigado | SQLite 70 invalida la marca de descarga sin tocar datos offline; desplegar PostgreSQL y API antes de la OTA/APK y verificar recarga en un dispositivo smoke |
+| R-035 | Mobile puede enviar `mezcla_directa` antes de que PostgreSQL 061 y la API acepten objetivos fitosanitarios nulos | Alta | Mitigado | Desplegar migración PostgreSQL 061 y API compatible antes de la OTA/APK; SQLite 72 y la outbox preservan el agregado para reintento |
 
 ## Revisión
 

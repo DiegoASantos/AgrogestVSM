@@ -123,4 +123,5 @@ en la raíz.
 - [Spec 077: Filtros temporales para dashboard y reportes](077-filtros-temporales-dashboard-reportes.md)
 - [Spec 078: Estimaciones semanales de visitas por agrónomo](078-estimaciones-semanales-visitas.md)
 - [Spec 079: Reporte semanal de estimaciones de visitas](079-reporte-semanal-estimaciones.md)
+- [Spec 080: Precarga de cultivo y productos directos en mezclas](080-precarga-cultivo-productos-directos-mezclas.md)
 - [Plantilla](TEMPLATE.md)

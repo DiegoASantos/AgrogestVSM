@@ -13,6 +13,7 @@ import type {
   RecetaFertilizacion,
   RecetaMezcla,
   RecommendationApproach,
+  RecommendationOrigin,
   TipoControlCatalogItem,
   TipoProductoFitosanitarioCatalogItem
 } from "../../types";
@@ -44,6 +45,7 @@ export type AppFitosanidad = {
   numero: number;
   objetivo: "plaga" | "enfermedad";
   objetivoNombre: string;
+  origen?: RecommendationOrigin;
   enfoque?: RecommendationApproach;
   objetivoId?: string | null;
   incidenceGrade: number;
@@ -69,6 +71,7 @@ export type AppMezcla = {
 export type AppFertilizacion = {
   localId: string;
   mezclaNumero: number;
+  origen?: RecommendationOrigin;
   enfoque?: RecommendationApproach;
   nutrienteId: string | null;
   nutrienteNombre: string;
@@ -134,6 +137,7 @@ export function createEmptyFertilizacion(
   return {
     localId: createTransientId("fertilizante"),
     mezclaNumero: 0,
+    origen: "recomendacion",
     enfoque: target?.enfoque ?? "reactivo",
     nutrienteId: target?.nutrienteId ?? null,
     nutrienteNombre: target?.nutrienteNombre ?? "",
@@ -175,7 +179,7 @@ export function applyDefaultFitosanidadControl(
   if (!defaultControlId) return applications;
 
   return applications.map((application) =>
-    application.tipoControlId
+    application.origen === "mezcla_directa" || application.tipoControlId
       ? application
       : { ...application, tipoControlId: defaultControlId }
   );
@@ -193,51 +197,57 @@ export function sanitizeDraftFitosanidad(
     catalogs.ingredientesActivos.map((item) => [item.id, item])
   );
 
-  return applications.map((application) => ({
-    ...application,
-    tipoControlId: validControlIds.has(application.tipoControlId)
-      ? application.tipoControlId
-      : defaultControlId,
-    ingredientes: application.ingredientes.map((ingredient) => {
-      const tipoProductoId = validProductTypeIds.has(ingredient.tipoProductoId)
-        ? ingredient.tipoProductoId
-        : "";
-      const selectedIngredient = ingredientById.get(ingredient.ingredienteActivoId);
-      const brandCandidates = selectedIngredient
-        ? catalogs.marcasProducto.filter(
-            (brand) =>
-              normalizeName(brand.name) ===
-                normalizeName(ingredient.marcaProductoNombre) &&
-              Boolean(
-                brand.tipoProductoId && validProductTypeIds.has(brand.tipoProductoId)
-              ) &&
-              brand.ingredienteActivoId === selectedIngredient.id
-          )
-        : [];
-      const selectedBrand = tipoProductoId
-        ? brandCandidates.find((brand) => brand.tipoProductoId === tipoProductoId)
-        : brandCandidates.length === 1
-          ? brandCandidates[0]
-          : undefined;
+  return applications.map((application) => {
+    if (application.origen === "mezcla_directa") {
+      return application;
+    }
 
-      return {
-        ...ingredient,
-        tipoProductoId: selectedBrand?.tipoProductoId ?? tipoProductoId,
-        modoAccionId: validModeIds.has(ingredient.modoAccionId)
-          ? ingredient.modoAccionId
-          : "",
-        ingredienteActivoId: selectedIngredient?.id ?? "",
-        ingredienteActivoNombre: selectedIngredient?.name ?? "",
-        marcaProductoNombre: selectedBrand?.name ?? "",
-        concentracionProducto: selectedBrand
-          ? (selectedBrand.concentracionTexto ??
-            selectedBrand.concentracion?.toString() ??
-            "")
-          : "",
-        unidadMedidaProducto: selectedBrand?.unidadMedida ?? ""
-      };
-    })
-  }));
+    return {
+      ...application,
+      tipoControlId: validControlIds.has(application.tipoControlId)
+        ? application.tipoControlId
+        : defaultControlId,
+      ingredientes: application.ingredientes.map((ingredient) => {
+        const tipoProductoId = validProductTypeIds.has(ingredient.tipoProductoId)
+          ? ingredient.tipoProductoId
+          : "";
+        const selectedIngredient = ingredientById.get(ingredient.ingredienteActivoId);
+        const brandCandidates = selectedIngredient
+          ? catalogs.marcasProducto.filter(
+              (brand) =>
+                normalizeName(brand.name) ===
+                  normalizeName(ingredient.marcaProductoNombre) &&
+                Boolean(
+                  brand.tipoProductoId && validProductTypeIds.has(brand.tipoProductoId)
+                ) &&
+                brand.ingredienteActivoId === selectedIngredient.id
+            )
+          : [];
+        const selectedBrand = tipoProductoId
+          ? brandCandidates.find((brand) => brand.tipoProductoId === tipoProductoId)
+          : brandCandidates.length === 1
+            ? brandCandidates[0]
+            : undefined;
+
+        return {
+          ...ingredient,
+          tipoProductoId: selectedBrand?.tipoProductoId ?? tipoProductoId,
+          modoAccionId: validModeIds.has(ingredient.modoAccionId)
+            ? ingredient.modoAccionId
+            : "",
+          ingredienteActivoId: selectedIngredient?.id ?? "",
+          ingredienteActivoNombre: selectedIngredient?.name ?? "",
+          marcaProductoNombre: selectedBrand?.name ?? "",
+          concentracionProducto: selectedBrand
+            ? (selectedBrand.concentracionTexto ??
+              selectedBrand.concentracion?.toString() ??
+              "")
+            : "",
+          unidadMedidaProducto: selectedBrand?.unidadMedida ?? ""
+        };
+      })
+    };
+  });
 }
 
 export function sanitizeDraftMezclas(
@@ -392,6 +402,7 @@ export function discardEmptyReactiveApplicationsForDeletedTargets(
 
   return applications.filter(
     (application) =>
+      application.origen === "mezcla_directa" ||
       application.enfoque === "preventivo" ||
       !application.objetivoId ||
       !deletedTargetIds.has(application.objetivoId) ||
@@ -418,7 +429,11 @@ export function discardEmptyReactiveApplicationsWithoutActiveFindings(
   consolidation.enfermedades.forEach((finding) => addFinding("enfermedad", finding));
 
   return applications.filter((application) => {
-    if (application.enfoque === "preventivo" || hasFitosanidadData([application])) {
+    if (
+      application.origen === "mezcla_directa" ||
+      application.enfoque === "preventivo" ||
+      hasFitosanidadData([application])
+    ) {
       return true;
     }
 
@@ -525,9 +540,10 @@ export function restoreFitosanidadApps(
   for (const mezcla of mezclas) {
     for (const row of mezcla.productos) {
       const key = [
-        row.enfoque ?? "reactivo",
-        row.objetivo,
-        row.objetivoId ?? normalizeName(row.objetivoNombre)
+        row.origen,
+        row.origen === "mezcla_directa" ? "directa" : (row.enfoque ?? "reactivo"),
+        row.objetivo ?? "sin_objetivo",
+        row.objetivoId ?? normalizeName(row.objetivoNombre ?? "")
       ].join("::");
       const ingredient = restoreIngrediente(
         row,
@@ -545,8 +561,9 @@ export function restoreFitosanidadApps(
         groups.set(key, {
           localId: `fito_${row.id}`,
           numero: groups.size + 1,
-          objetivo: row.objetivo,
-          objetivoNombre: row.objetivoNombre,
+          objetivo: row.objetivo ?? "plaga",
+          objetivoNombre: row.objetivoNombre ?? "Aplicación directa",
+          origen: row.origen,
           enfoque: row.enfoque ?? "reactivo",
           objetivoId: row.objetivoId,
           incidenceGrade: row.incidenciaGrado ?? factorToGrade(mezcla.factor),
@@ -595,6 +612,7 @@ export function restoreFertilizaciones(
     return {
       localId: row.productoRef ?? `legacy-fert-${row.id}`,
       mezclaNumero: row.mezclaNumero ?? 0,
+      origen: row.origen,
       enfoque: row.enfoque ?? "reactivo",
       nutrienteId: row.nutrienteId ?? null,
       nutrienteNombre: row.nutrienteNombre ?? "",
@@ -625,13 +643,28 @@ export function buildMezclasForSave(
         .filter((ingredient) => ingredient.mezclaNumero === mezcla.numero)
         .map((ingredient) => ({
           productoRef: ingredient.localId,
-          objetivo: application.objetivo,
-          objetivoNombre: application.objetivoNombre,
-          enfoque: application.enfoque ?? "reactivo",
-          objetivoId: application.objetivoId ?? null,
-          incidenciaGrado: application.incidenceGrade,
-          severidadGrado: application.severityGrade ?? null,
-          tipoControlId: application.tipoControlId || null,
+          origen: application.origen ?? "recomendacion",
+          objetivo: application.origen === "mezcla_directa" ? null : application.objetivo,
+          objetivoNombre:
+            application.origen === "mezcla_directa" ? null : application.objetivoNombre,
+          enfoque:
+            application.origen === "mezcla_directa"
+              ? null
+              : (application.enfoque ?? "reactivo"),
+          objetivoId:
+            application.origen === "mezcla_directa"
+              ? null
+              : (application.objetivoId ?? null),
+          incidenciaGrado:
+            application.origen === "mezcla_directa" ? null : application.incidenceGrade,
+          severidadGrado:
+            application.origen === "mezcla_directa"
+              ? null
+              : (application.severityGrade ?? null),
+          tipoControlId:
+            application.origen === "mezcla_directa"
+              ? null
+              : application.tipoControlId || null,
           tipoProductoId: ingredient.tipoProductoId || null,
           disolvente: application.disolvente,
           modoAccionId: ingredient.modoAccionId || null,
@@ -677,6 +710,7 @@ export function buildFertilizacionesForSave(
     return {
       productoRef: fertilizacion.localId,
       mezclaNumero: fertilizacion.mezclaNumero || null,
+      origen: fertilizacion.origen ?? "recomendacion",
       enfoque: fertilizacion.enfoque ?? "reactivo",
       nutrienteId: fertilizacion.nutrienteId,
       nutrienteNombre: fertilizacion.nutrienteNombre || null,

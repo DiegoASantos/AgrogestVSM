@@ -417,9 +417,10 @@ export const SQL_SCHEMA = [
     mezcla_local_id TEXT,
     producto_ref TEXT NOT NULL,
     numero INTEGER NOT NULL DEFAULT 1,
-    objetivo TEXT NOT NULL CHECK(objetivo IN ('plaga', 'enfermedad')),
-    objetivo_nombre TEXT NOT NULL,
-    enfoque TEXT NOT NULL DEFAULT 'reactivo' CHECK(enfoque IN ('reactivo', 'preventivo')),
+    origen TEXT NOT NULL DEFAULT 'recomendacion' CHECK(origen IN ('recomendacion', 'mezcla_directa')),
+    objetivo TEXT CHECK(objetivo IN ('plaga', 'enfermedad')),
+    objetivo_nombre TEXT,
+    enfoque TEXT CHECK(enfoque IN ('reactivo', 'preventivo')),
     objetivo_id TEXT,
     incidencia_grado INTEGER CHECK(incidencia_grado IS NULL OR incidencia_grado BETWEEN 0 AND 3),
     severidad_grado INTEGER CHECK(severidad_grado IS NULL OR severidad_grado BETWEEN 0 AND 3),
@@ -441,6 +442,11 @@ export const SQL_SCHEMA = [
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    CHECK(
+      (origen = 'mezcla_directa' AND objetivo IS NULL AND objetivo_nombre IS NULL AND enfoque IS NULL)
+      OR
+      (origen = 'recomendacion' AND objetivo IS NOT NULL AND objetivo_nombre IS NOT NULL AND enfoque IS NOT NULL)
+    ),
     FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE,
     FOREIGN KEY (mezcla_local_id) REFERENCES visita_receta_mezcla(local_id) ON DELETE CASCADE
   )`,
@@ -450,6 +456,7 @@ export const SQL_SCHEMA = [
     receta_local_id TEXT NOT NULL,
     mezcla_local_id TEXT,
     producto_ref TEXT NOT NULL,
+    origen TEXT NOT NULL DEFAULT 'recomendacion' CHECK(origen IN ('recomendacion', 'mezcla_directa')),
     enfoque TEXT NOT NULL DEFAULT 'reactivo' CHECK(enfoque IN ('reactivo', 'preventivo')),
     nutriente_id TEXT,
     nutriente_nombre TEXT,

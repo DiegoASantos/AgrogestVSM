@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 71;
+const LATEST_MIGRATION_VERSION = 72;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1837,6 +1837,28 @@ describe("runMigrations", () => {
         /DELETE\s+FROM\s+(visita_recetas|visita_receta_labores|visit_form_drafts|sync_outbox)/iu.test(
           statement
         )
+      )
+    ).toBe(false);
+  });
+
+  it("habilita productos directos preservando filas y metadatos de sincronizacion", () => {
+    const db = createFakeDatabase(71);
+
+    runMigrations(db as never);
+
+    const rebuild = db.executedStatements.find((statement) =>
+      statement.includes("CREATE TABLE visita_receta_fitosanidad_v72")
+    );
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(rebuild).toContain("origen TEXT NOT NULL DEFAULT 'recomendacion'");
+    expect(rebuild).toContain(
+      "SELECT\n          local_id, server_id, receta_local_id, mezcla_local_id, producto_ref"
+    );
+    expect(rebuild).toContain("sync_status, created_at, updated_at, sync_error_message");
+    expect(db.visitaRecetaFertilizacionColumns.has("origen")).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DELETE\s+FROM\s+(visita_recetas|sync_outbox)/iu.test(statement)
       )
     ).toBe(false);
   });

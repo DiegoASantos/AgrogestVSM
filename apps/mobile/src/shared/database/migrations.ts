@@ -1651,6 +1651,86 @@ const MIGRATIONS: Migration[] = [
       "ALTER TABLE visita_receta_labores_v71 RENAME TO visita_receta_labores",
       "CREATE INDEX IF NOT EXISTS idx_visita_receta_labores_receta ON visita_receta_labores(receta_local_id)"
     ]
+  },
+  {
+    version: 72,
+    run(db: SQLiteDatabase) {
+      db.execSync(`
+        CREATE TABLE visita_receta_fitosanidad_v72 (
+          local_id TEXT PRIMARY KEY NOT NULL,
+          server_id TEXT,
+          receta_local_id TEXT NOT NULL,
+          mezcla_local_id TEXT,
+          producto_ref TEXT NOT NULL,
+          numero INTEGER NOT NULL DEFAULT 1,
+          origen TEXT NOT NULL DEFAULT 'recomendacion' CHECK(origen IN ('recomendacion', 'mezcla_directa')),
+          objetivo TEXT CHECK(objetivo IN ('plaga', 'enfermedad')),
+          objetivo_nombre TEXT,
+          enfoque TEXT CHECK(enfoque IN ('reactivo', 'preventivo')),
+          objetivo_id TEXT,
+          incidencia_grado INTEGER CHECK(incidencia_grado IS NULL OR incidencia_grado BETWEEN 0 AND 3),
+          severidad_grado INTEGER CHECK(severidad_grado IS NULL OR severidad_grado BETWEEN 0 AND 3),
+          tipo_control_id TEXT,
+          tipo_producto_id TEXT,
+          disolvente TEXT NOT NULL DEFAULT 'Agua',
+          modo_accion_id TEXT,
+          ingrediente_activo_nombre TEXT,
+          dosis_ia TEXT,
+          dosis_producto TEXT,
+          unidad_dosis TEXT,
+          volumen_aplicacion TEXT,
+          cantidad_total_ia TEXT,
+          marca_producto_nombre TEXT,
+          concentracion_producto TEXT,
+          cantidad_total_producto TEXT,
+          coadyuvantes_ids TEXT,
+          orden_mezcla TEXT,
+          sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending', 'synced', 'error')),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          sync_error_message TEXT,
+          CHECK(
+            (origen = 'mezcla_directa' AND objetivo IS NULL AND objetivo_nombre IS NULL AND enfoque IS NULL)
+            OR
+            (origen = 'recomendacion' AND objetivo IS NOT NULL AND objetivo_nombre IS NOT NULL AND enfoque IS NOT NULL)
+          ),
+          FOREIGN KEY (receta_local_id) REFERENCES visita_recetas(local_id) ON DELETE CASCADE,
+          FOREIGN KEY (mezcla_local_id) REFERENCES visita_receta_mezcla(local_id) ON DELETE CASCADE
+        );
+        INSERT INTO visita_receta_fitosanidad_v72 (
+          local_id, server_id, receta_local_id, mezcla_local_id, producto_ref, numero,
+          origen, objetivo, objetivo_nombre, enfoque, objetivo_id, incidencia_grado,
+          severidad_grado, tipo_control_id, tipo_producto_id, disolvente,
+          modo_accion_id, ingrediente_activo_nombre, dosis_ia, dosis_producto,
+          unidad_dosis, volumen_aplicacion, cantidad_total_ia, marca_producto_nombre,
+          concentracion_producto, cantidad_total_producto, coadyuvantes_ids,
+          orden_mezcla, sync_status, created_at, updated_at, sync_error_message
+        )
+        SELECT
+          local_id, server_id, receta_local_id, mezcla_local_id, producto_ref, numero,
+          'recomendacion', objetivo, objetivo_nombre, enfoque, objetivo_id, incidencia_grado,
+          severidad_grado, tipo_control_id, tipo_producto_id, disolvente,
+          modo_accion_id, ingrediente_activo_nombre, dosis_ia, dosis_producto,
+          unidad_dosis, volumen_aplicacion, cantidad_total_ia, marca_producto_nombre,
+          concentracion_producto, cantidad_total_producto, coadyuvantes_ids,
+          orden_mezcla, sync_status, created_at, updated_at, sync_error_message
+        FROM visita_receta_fitosanidad;
+        DROP TABLE visita_receta_fitosanidad;
+        ALTER TABLE visita_receta_fitosanidad_v72 RENAME TO visita_receta_fitosanidad;
+        CREATE INDEX IF NOT EXISTS idx_visita_receta_fitosanidad_receta
+          ON visita_receta_fitosanidad(receta_local_id);
+        CREATE INDEX IF NOT EXISTS idx_visita_receta_fitosanidad_mezcla
+          ON visita_receta_fitosanidad(mezcla_local_id);
+        CREATE INDEX IF NOT EXISTS idx_receta_fitosanidad_producto_ref
+          ON visita_receta_fitosanidad(receta_local_id, producto_ref);
+      `);
+      addColumnIfMissing(
+        db,
+        "visita_receta_fertilizacion",
+        "origen",
+        "TEXT NOT NULL DEFAULT 'recomendacion' CHECK(origen IN ('recomendacion', 'mezcla_directa'))"
+      );
+    }
   }
 ];
 

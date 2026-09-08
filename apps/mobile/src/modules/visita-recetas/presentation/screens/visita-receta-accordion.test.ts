@@ -171,4 +171,28 @@ describe("acordeones de receta", () => {
       fieldKey: `fertilizacion:${fertilizacion.localId}:dosis`
     });
   });
+
+  it("deja la edicion de aplicaciones directas exclusivamente en Mezclas", () => {
+    const directFito = {
+      ...completeFitosanidad("direct-fito"),
+      origen: "mezcla_directa" as const,
+      tipoControlId: "",
+      ingredientes: [
+        {
+          ...completeFitosanidad("direct-fito").ingredientes[0]!,
+          dosisProducto: "",
+          unidadDosis: ""
+        }
+      ]
+    };
+    const directFertilizer = {
+      ...createEmptyFertilizacion(),
+      origen: "mezcla_directa" as const,
+      fertilizanteNombre: "Foliar Max"
+    };
+
+    expect(buildRecipeAccordionCards([directFito], [], [directFertilizer])).toEqual([]);
+    expect(findFirstRecipeDoseIssue([directFito], [directFertilizer])).toBeNull();
+    expect(groupRecipeFertilizaciones([directFertilizer])).toEqual([]);
+  });
 });

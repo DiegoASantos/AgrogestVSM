@@ -10,7 +10,10 @@ export type ProducerMixtureRow = {
   order: number;
 };
 
-type ProducerMixtureItem = Pick<ProducerMixtureRow, "activeIngredient" | "dose" | "item">;
+type ProducerMixtureItem = Pick<
+  ProducerMixtureRow,
+  "activeIngredient" | "dose" | "item"
+> & { orderKey?: string };
 type ProducerMixtureGroup = {
   mixtureNumber: number | null;
   rows: ProducerMixtureRow[];
@@ -28,22 +31,30 @@ export function buildProducerMixtureRows(
         (item) => item.mezclaNumero === mezcla.numero
       );
       const items: ProducerMixtureItem[] = [
-        ...mezcla.productos.map((producto) => ({
-          item:
+        ...mezcla.productos.map((producto) => {
+          const productName =
             producto.marcaProductoNombre ??
             producto.ingredienteActivoNombre ??
-            "Producto sin nombre",
-          activeIngredient: producto.ingredienteActivoNombre?.trim() || "-",
-          dose:
-            producto.dosisProducto === null
-              ? "-"
-              : `${producto.dosisProducto} ${formatDoseUnit(producto.unidadDosis, "cilindro")}`
-        })),
-        ...fertilizers.map((fertilizer) => ({
-          item: fertilizer.fertilizanteNombre ?? "Fertilizante sin nombre",
-          activeIngredient: "-",
-          dose: formatDose(fertilizer.dosis, fertilizer.unidadDosis)
-        })),
+            "Producto sin nombre";
+          return {
+            item: formatRecommendationItem(productName, producto.origen),
+            orderKey: productName,
+            activeIngredient: producto.ingredienteActivoNombre?.trim() || "-",
+            dose:
+              producto.dosisProducto === null
+                ? "-"
+                : `${producto.dosisProducto} ${formatDoseUnit(producto.unidadDosis, "cilindro")}`
+          };
+        }),
+        ...fertilizers.map((fertilizer) => {
+          const productName = fertilizer.fertilizanteNombre ?? "Fertilizante sin nombre";
+          return {
+            item: formatRecommendationItem(productName, fertilizer.origen),
+            orderKey: productName,
+            activeIngredient: "-",
+            dose: formatDose(fertilizer.dosis, fertilizer.unidadDosis)
+          };
+        }),
         ...buildCoadjuvantItems(mezcla, coadyuvantes)
       ];
       const orderedItems = orderProducerMixtureItems(
@@ -56,7 +67,9 @@ export function buildProducerMixtureRows(
           ? orderedItems
           : [{ item: "-", activeIngredient: "-", dose: "-" }]
       ).map((item, index) => ({
-        ...item,
+        activeIngredient: item.activeIngredient,
+        dose: item.dose,
+        item: item.item,
         doseFrequency: mezcla.frecuenciaDosis?.trim() || "-",
         mixtureNumber: mezcla.numero,
         order: index + 1
@@ -69,7 +82,10 @@ export function buildProducerMixtureRows(
         typeof item.mezclaNumero !== "number" || !mixtureNumbers.has(item.mezclaNumero)
     )
     .map((item, index) => ({
-      item: item.fertilizanteNombre ?? "Fertilizante sin nombre",
+      item: formatRecommendationItem(
+        item.fertilizanteNombre ?? "Fertilizante sin nombre",
+        item.origen
+      ),
       activeIngredient: "-",
       dose: formatDose(item.dosis, item.unidadDosis),
       doseFrequency: "-",
@@ -78,6 +94,13 @@ export function buildProducerMixtureRows(
     }));
 
   return [...rows, ...unassignedFertilizers];
+}
+
+function formatRecommendationItem(
+  name: string,
+  origin: "recomendacion" | "mezcla_directa" | undefined
+) {
+  return origin === "mezcla_directa" ? `Aplicación directa: ${name}` : name;
 }
 
 export function renderProducerMixturePlan(
@@ -164,7 +187,7 @@ function orderProducerMixtureItems(
   for (const label of order) {
     if (normalizeText(label) === "agua") continue;
     const index = remaining.findIndex(
-      (item) => normalizeText(item.item) === normalizeText(label)
+      (item) => normalizeText(item.orderKey ?? item.item) === normalizeText(label)
     );
     const matched = index >= 0 ? remaining.splice(index, 1)[0] : undefined;
     ordered.push(matched ?? { item: label, activeIngredient: "-", dose: "-" });

@@ -268,6 +268,7 @@ export class VisitaRecetasService {
         return this.fitosanidadRepository.create({
           recetaId,
           mezclaId: savedMezcla.id,
+          origen: item.origen ?? "recomendacion",
           productoRef:
             item.productoRef ??
             `legacy-${mezcla.numero}-${item.objetivo}-${item.objetivoNombre}-${item.marcaProductoNombre ?? item.ingredienteActivoNombre ?? "producto"}`.slice(
@@ -275,13 +276,22 @@ export class VisitaRecetasService {
               100
             ),
           numero: mezcla.numero,
-          objetivo: item.objetivo,
-          objetivoNombre: item.objetivoNombre,
-          enfoque: item.enfoque ?? "reactivo",
-          objetivoId: item.objetivoId ? String(item.objetivoId) : null,
-          incidenciaGrado: item.incidenciaGrado ?? null,
-          severidadGrado: item.severidadGrado ?? null,
-          tipoControlId: item.tipoControlId ? String(item.tipoControlId) : null,
+          objetivo: item.origen === "mezcla_directa" ? null : (item.objetivo ?? null),
+          objetivoNombre:
+            item.origen === "mezcla_directa" ? null : (item.objetivoNombre ?? null),
+          enfoque: item.origen === "mezcla_directa" ? null : (item.enfoque ?? "reactivo"),
+          objetivoId:
+            item.origen === "mezcla_directa" || !item.objetivoId
+              ? null
+              : String(item.objetivoId),
+          incidenciaGrado:
+            item.origen === "mezcla_directa" ? null : (item.incidenciaGrado ?? null),
+          severidadGrado:
+            item.origen === "mezcla_directa" ? null : (item.severidadGrado ?? null),
+          tipoControlId:
+            item.origen === "mezcla_directa" || !item.tipoControlId
+              ? null
+              : String(item.tipoControlId),
           tipoProductoId: item.tipoProductoId ? String(item.tipoProductoId) : null,
           disolvente: item.disolvente ?? "Agua",
           modoAccionId: item.modoAccionId ? String(item.modoAccionId) : null,
@@ -322,6 +332,7 @@ export class VisitaRecetasService {
       return this.fertilizacionRepository.create({
         recetaId,
         mezclaId: item.mezclaNumero ? (mezclaIds.get(item.mezclaNumero) ?? null) : null,
+        origen: item.origen ?? "recomendacion",
         productoRef:
           item.productoRef ??
           `legacy-fert-${item.fertilizanteNombre ?? "producto"}`.slice(0, 100),
@@ -415,6 +426,7 @@ export class VisitaRecetasService {
           productos: (mezcla.productos ?? []).map((producto) => ({
             id: producto.id,
             productoRef: producto.productoRef,
+            origen: producto.origen,
             objetivo: producto.objetivo,
             objetivoNombre: producto.objetivoNombre,
             enfoque: producto.enfoque,
@@ -437,6 +449,7 @@ export class VisitaRecetasService {
       fitosanidad: (receta.fitosanidad ?? []).map((f) => ({
         id: f.id,
         numero: f.numero,
+        origen: f.origen,
         objetivo: f.objetivo,
         objetivoNombre: f.objetivoNombre,
         enfoque: f.enfoque,
@@ -461,6 +474,7 @@ export class VisitaRecetasService {
       fertilizacion: (receta.fertilizacion ?? []).map((f) => ({
         id: f.id,
         productoRef: f.productoRef,
+        origen: f.origen,
         mezclaNumero:
           (receta.mezclas ?? []).find((mezcla) => mezcla.id === f.mezclaId)?.numero ??
           null,
@@ -545,7 +559,9 @@ export class VisitaRecetasService {
     mezclas: NormalizedMezcla[],
     fertilizacion: CreateVisitaRecetaDto["fertilizacion"]
   ) {
-    const products = mezclas.flatMap((mezcla) => mezcla.productos);
+    const products = mezclas
+      .flatMap((mezcla) => mezcla.productos)
+      .filter((item) => item.origen !== "mezcla_directa");
     const reactiveTargetIds = new Set(
       products
         .filter((item) => (item.enfoque ?? "reactivo") === "reactivo" && item.objetivoId)
@@ -556,19 +572,25 @@ export class VisitaRecetasService {
         .filter((item) => (item.enfoque ?? "reactivo") === "reactivo")
         .map(
           (item) =>
-            `${item.objetivo}::${item.objetivoNombre.trim().toLocaleLowerCase("es")}`
+            `${item.objetivo}::${(item.objetivoNombre ?? "")
+              .trim()
+              .toLocaleLowerCase("es")}`
         )
     );
     const targetCache = new Map<string, PlagaEnfermedadEntity>();
     const positiveDiagnosisCache = new Map<string, boolean>();
 
     for (const mezcla of mezclas) {
-      const preventiveProducts = mezcla.productos.filter(
+      const recommendationProducts = mezcla.productos.filter(
+        (item) => item.origen !== "mezcla_directa"
+      );
+      const preventiveProducts = recommendationProducts.filter(
         (item) => item.enfoque === "preventivo"
       );
 
       if (
-        preventiveProducts.length === mezcla.productos.length &&
+        recommendationProducts.length > 0 &&
+        preventiveProducts.length === recommendationProducts.length &&
         (mezcla.factor !== 1 || mezcla.factorEditable)
       ) {
         throw new BadRequestException(
@@ -637,6 +659,7 @@ export class VisitaRecetasService {
     const approachByNutrient = new Map<string, "reactivo" | "preventivo">();
     const factorByNutrient = new Map<string, number>();
     for (const item of fertilizacion) {
+      if (item.origen === "mezcla_directa") continue;
       if (item.enfoque === "preventivo" && (item.factor ?? 1) !== 1) {
         throw new BadRequestException(
           "Una recomendacion de fertilizacion preventiva debe usar factor 1."
@@ -788,6 +811,20 @@ function assertFinalMixtures(dto: FinalizarVisitaRecetaDto) {
 
   const fertilizerCountByMixture = new Map<number, number>();
   for (const item of dto.fertilizacion) {
+    if (item.origen === "mezcla_directa") {
+      if (
+        !item.fertilizanteNombre?.trim() ||
+        item.viaAplicacion !== "foliar" ||
+        !item.tipoProducto ||
+        !item.dosis ||
+        item.dosis <= 0 ||
+        !item.unidadDosis
+      ) {
+        throw new BadRequestException(
+          "Completa producto, dosis y unidad del fertilizante de aplicacion directa."
+        );
+      }
+    }
     if (!item.fertilizanteNombre?.trim()) continue;
     if (!item.mezclaNumero) {
       throw new BadRequestException(
@@ -818,6 +855,34 @@ function assertFinalMixtures(dto: FinalizarVisitaRecetaDto) {
       (fertilizerCountByMixture.get(mezcla.numero) ?? 0) === 0
     ) {
       throw new BadRequestException(`La mezcla ${mezcla.numero} no puede quedar vacia.`);
+    }
+
+    for (const item of mezcla.productos) {
+      if (
+        item.origen === "mezcla_directa" &&
+        (!item.marcaProductoNombre?.trim() ||
+          !item.dosisProducto ||
+          item.dosisProducto <= 0 ||
+          !item.unidadDosis)
+      ) {
+        throw new BadRequestException(
+          `Completa producto, dosis y unidad en la mezcla ${mezcla.numero}.`
+        );
+      }
+    }
+
+    const hasDirectApplication =
+      mezcla.productos.some((item) => item.origen === "mezcla_directa") ||
+      dto.fertilizacion.some(
+        (item) => item.origen === "mezcla_directa" && item.mezclaNumero === mezcla.numero
+      );
+    if (
+      hasDirectApplication &&
+      (!mezcla.volumenAplicacion || mezcla.volumenAplicacion <= 0)
+    ) {
+      throw new BadRequestException(
+        `Completa el volumen de aplicacion de la mezcla ${mezcla.numero}.`
+      );
     }
 
     const refs = [

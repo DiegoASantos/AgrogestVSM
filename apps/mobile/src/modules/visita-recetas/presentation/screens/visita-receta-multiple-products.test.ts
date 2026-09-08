@@ -190,6 +190,25 @@ describe("receta con mezclas", () => {
     ).toEqual([reactiveWithProduct, preventive]);
   });
 
+  it("conserva una aplicacion directa aunque no tenga un hallazgo activo", () => {
+    const direct = {
+      ...restoreFitosanidadApps([mezcla], [], [])[0]!,
+      origen: "mezcla_directa" as const,
+      objetivoId: null,
+      tipoControlId: ""
+    };
+
+    expect(
+      discardEmptyReactiveApplicationsWithoutActiveFindings([direct], {
+        ...consolidation,
+        enfermedades: []
+      })
+    ).toEqual([direct]);
+    expect(
+      applyDefaultFitosanidadControl([direct], [{ id: "c1", name: "Quimico" }])
+    ).toEqual([direct]);
+  });
+
   it("descarta una tarjeta reactiva vacia aunque el borrado ya salio de la cola", () => {
     const emptyReactive = mergeMissingFitosanidadFindings([], consolidation)
       .applications[0]!;

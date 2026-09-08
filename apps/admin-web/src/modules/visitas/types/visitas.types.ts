@@ -414,8 +414,9 @@ export type CoadyuvanteCatalogItem = LookupItem & {
 export type RecetaFitosanidad = {
   id: string;
   numero: number;
-  objetivo: "plaga" | "enfermedad";
-  objetivoNombre: string;
+  origen?: "recomendacion" | "mezcla_directa";
+  objetivo: "plaga" | "enfermedad" | null;
+  objetivoNombre: string | null;
   tipoControlId: string | null;
   tipoProductoId: string | null;
   disolvente: string;
@@ -435,8 +436,9 @@ export type RecetaFitosanidad = {
 export type RecetaMezclaProducto = {
   id: string;
   productoRef?: string;
-  objetivo: "plaga" | "enfermedad";
-  objetivoNombre: string;
+  origen?: "recomendacion" | "mezcla_directa";
+  objetivo: "plaga" | "enfermedad" | null;
+  objetivoNombre: string | null;
   ingredienteActivoNombre: string | null;
   dosisProducto: number | null;
   unidadDosis?: string | null;
@@ -456,6 +458,7 @@ export type RecetaMezcla = {
 export type RecetaFertilizacion = {
   id: string;
   mezclaNumero?: number | null;
+  origen?: "recomendacion" | "mezcla_directa";
   enfoque?: "reactivo" | "preventivo";
   nutrienteId?: string | null;
   nutrienteNombre?: string | null;

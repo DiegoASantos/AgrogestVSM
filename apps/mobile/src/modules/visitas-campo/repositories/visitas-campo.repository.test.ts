@@ -99,6 +99,33 @@ describe("visitasCampoRepository", () => {
     });
   });
 
+  describe("#getLastVisitDefaultsByParcelaId", () => {
+    it("recupera cultivo y variedad de la ultima visita activa de la parcela", () => {
+      database.getFirstSync.mockReturnValue({
+        crop_id: "c1",
+        variety_id: "var1",
+        sowing_date: "2025-09-01",
+        area_hectares: "2.5",
+        plants_count: 100
+      });
+
+      expect(visitasCampoRepository.getLastVisitDefaultsByParcelaId("p1")).toEqual({
+        cropId: "c1",
+        varietyId: "var1",
+        sowingDate: "2025-09-01",
+        areaHectares: "2.5",
+        plantsCount: 100
+      });
+      expect(database.getFirstSync).toHaveBeenCalledWith(
+        expect.stringContaining("SELECT crop_id, variety_id"),
+        "p1"
+      );
+      expect(String(database.getFirstSync.mock.calls[0]?.[0])).toContain(
+        "ORDER BY visit_date DESC"
+      );
+    });
+  });
+
   describe("#getByAgronomistUserId", () => {
     it("should filter by agronomist_user_id", () => {
       database.getAllSync.mockReturnValue([visitaRow] as never);

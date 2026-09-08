@@ -131,6 +131,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Filtros temporales para dashboard y reportes](specs/077-filtros-temporales-dashboard-reportes.md)
 - [Estimaciones semanales de visitas por agrónomo](specs/078-estimaciones-semanales-visitas.md)
 - [Reporte semanal de estimaciones de visitas](specs/079-reporte-semanal-estimaciones.md)
+- [Precarga de cultivo y productos directos en mezclas](specs/080-precarga-cultivo-productos-directos-mezclas.md)
 
 ## Runbooks
 

@@ -25,6 +25,9 @@ export class VisitaRecetaFertilizacionEntity {
   @Column({ name: "producto_ref", type: "varchar", length: 100 })
   productoRef!: string;
 
+  @Column({ name: "origen", type: "varchar", length: 20, default: "recomendacion" })
+  origen!: "recomendacion" | "mezcla_directa";
+
   @Column({ name: "enfoque", type: "varchar", length: 12, default: "reactivo" })
   enfoque!: "reactivo" | "preventivo";
 

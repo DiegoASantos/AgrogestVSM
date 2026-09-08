@@ -113,6 +113,13 @@ Toda visita nueva exige una etapa fenológica válida y asociada al cultivo. La
 columna permanece nullable para conservar registros históricos; una
 actualización puede omitir la etapa, pero no eliminar una ya seleccionada.
 
+Al iniciar una visita nueva, mobile consulta la última visita activa de la
+misma parcela, ordenada por fecha, hora y creación. Cultivo y variedad se usan
+como valores iniciales editables, igual que los demás datos productivos
+reutilizables; un borrador o una selección manual tiene precedencia. Si el
+catálogo local ya no contiene el cultivo o la variedad anterior, no se inventa
+una equivalencia y la interfaz solicita una selección vigente.
+
 La receta fitosanitaria usa los catalogos `tipos_producto_fitosanitario`,
 `ingredientes_activos` y `marcas_producto`. La tabla `marcas_producto` conserva
 su nombre historico, pero su columna `nombre` representa el nombre comercial
@@ -158,6 +165,16 @@ mobile permite `mg`, `g`, `kg`, `ml` o `l` por cilindro. El total fitosanitario
 conserva la unidad seleccionada y se muestra por hectarea; se recalcula como
 `dosis_producto * volumen_aplicacion * factor`, sin usar el area ni la
 concentracion comercial y sin convertir unidades.
+
+Cada producto fitosanitario y fertilizante conserva `origen` con los valores
+`recomendacion` o `mezcla_directa`; la ausencia histórica se interpreta como
+`recomendacion`. El segundo origen identifica productos agregados desde el
+buscador único de Mezclas. En fitosanidad permite objetivo, nombre del objetivo
+y enfoque nulos porque no representa un diagnóstico; solo conserva la marca
+comercial, los datos disponibles del catálogo, dosis y unidad. Un fertilizante
+directo usa vía foliar. Ambos siguen sujetos a frecuencia, asignación, volumen,
+coadyuvantes y orden de la mezcla, y los reportes los rotulan como
+`Aplicación directa` sin fabricar una plaga, enfermedad o deficiencia.
 
 Cada coadyuvante seleccionado puede tener una dosis tecnica propia de la
 mezcla. `coadyuvantes_dosis` serializa un mapa entre ID y texto libre, por

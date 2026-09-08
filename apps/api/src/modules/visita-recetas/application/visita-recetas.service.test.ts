@@ -232,6 +232,28 @@ describe("VisitaRecetasService", () => {
         "no puede superar 200 caracteres"
       );
     });
+
+    it("rechaza una aplicacion directa sin dosis y unidad", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      const dto = Object.assign(makeValidDto(), {
+        endVisitTime: "09:00",
+        fertilizacion: [],
+        mezclas: makeValidDto().mezclas?.map((mezcla) => ({
+          ...mezcla,
+          productos: [
+            {
+              origen: "mezcla_directa" as const,
+              productoRef: "direct-fito-1",
+              marcaProductoNombre: "Control Max"
+            }
+          ]
+        }))
+      });
+
+      await expect(service.finalize("10", dto)).rejects.toThrow(
+        "Completa producto, dosis y unidad"
+      );
+    });
   });
 
   describe("save", () => {
@@ -378,6 +400,66 @@ describe("VisitaRecetasService", () => {
           nutrienteId: null,
           nutrienteNombre: null,
           factor: 1
+        })
+      );
+    });
+
+    it("guarda productos directos sin objetivo ni control tecnico", async () => {
+      visitaRepo.findOne.mockResolvedValue(makeVisita());
+      recetaRepo.findOne.mockResolvedValueOnce(null).mockResolvedValue(makeReceta());
+      recetaRepo.create.mockReturnValue(makeReceta());
+      recetaRepo.save.mockResolvedValue(makeReceta());
+      historialRepo.create.mockReturnValue({});
+      historialRepo.save.mockResolvedValue({});
+      const dto = makeValidDto();
+      dto.mezclas![0]!.productos = [
+        {
+          origen: "mezcla_directa",
+          productoRef: "direct-fito-1",
+          marcaProductoNombre: "Control Max",
+          dosisProducto: 80,
+          unidadDosis: "ml/cilindro"
+        }
+      ];
+      dto.fertilizacion = [
+        {
+          origen: "mezcla_directa",
+          productoRef: "direct-fert-1",
+          mezclaNumero: 1,
+          viaAplicacion: "foliar",
+          fertilizanteNombre: "Fertilizante Foliar",
+          tipoProducto: "liquido",
+          dosis: 25,
+          unidadDosis: "ml/cilindro",
+          volumenAplicacion: 2,
+          factor: 1
+        }
+      ];
+
+      const result = await service.save("10", dto);
+
+      expect(result.success).toBe(true);
+      expect(plagaEnfermedadRepo.findOne).not.toHaveBeenCalled();
+      expect(nutrienteRepo.findOne).not.toHaveBeenCalled();
+      expect(fitosanidadRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          origen: "mezcla_directa",
+          objetivo: null,
+          objetivoNombre: null,
+          enfoque: null,
+          tipoControlId: null,
+          marcaProductoNombre: "Control Max",
+          dosisProducto: 80,
+          unidadDosis: "ml/cilindro"
+        })
+      );
+      expect(fertilizacionRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          origen: "mezcla_directa",
+          viaAplicacion: "foliar",
+          fertilizanteNombre: "Fertilizante Foliar",
+          dosis: 25,
+          unidadDosis: "ml/cilindro"
         })
       );
     });

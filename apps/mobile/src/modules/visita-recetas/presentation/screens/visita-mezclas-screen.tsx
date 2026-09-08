@@ -20,11 +20,13 @@ import {
   FormScrollView,
   ScreenContainer
 } from "../../../../shared/components";
+import { AppSelectField } from "../../../../shared/components/app-select-field";
 import { theme } from "../../../../shared/constants/theme";
 import {
   buildVisitDraftScopeKey,
   deleteVisitFormDraft,
   readVisitFormDraft,
+  writeVisitFormDraft,
   type VisitFormDraftIdentity
 } from "../../../../shared/database/visit-form-drafts";
 import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft";
@@ -59,6 +61,8 @@ import {
 import {
   buildFertilizacionesForSave,
   buildMezclasForSave,
+  createEmptyFertilizacion,
+  createEmptyIngrediente,
   createEmptyMezcla,
   deriveMezclaFactors,
   type AppFertilizacion,
@@ -66,7 +70,9 @@ import {
 } from "./visita-receta-multiple-products";
 import type { RecetaFormDraft } from "./visita-receta-screen";
 import {
+  buildDirectProductCatalog,
   copyMixtureConfiguration,
+  getDirectDoseUnits,
   mixtureStatus,
   parseMixtureCount,
   requiresVolume,
@@ -125,6 +131,8 @@ export function VisitaMezclasScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDirectProductSearchOpen, setIsDirectProductSearchOpen] = useState(false);
+  const [openUnitProductRef, setOpenUnitProductRef] = useState<string | null>(null);
   const isCountConfirmationOpen = useRef(false);
   const formScrollRef = useRef<ScrollView>(null);
   const tutorialTargets = useRef<Partial<Record<MixtureTutorialFieldId, View | null>>>(
@@ -154,6 +162,17 @@ export function VisitaMezclasScreen() {
   );
 
   const productOptions = useMemo(() => buildProductOptions(recipeDraft), [recipeDraft]);
+  const recipeCatalogs = useMemo(() => visitaRecetasService.getCatalogos(), []);
+  const directProductCatalog = useMemo(
+    () =>
+      buildDirectProductCatalog(
+        recipeCatalogs.marcasProducto,
+        recipeCatalogs.ingredientesActivos,
+        recipeCatalogs.tiposProducto,
+        recipeCatalogs.fertilizantes
+      ),
+    [recipeCatalogs]
+  );
   const tutorialSteps = useMemo(
     () => buildMixtureTutorialSteps(productOptions.length > 0),
     [productOptions.length]
@@ -194,7 +213,7 @@ export function VisitaMezclasScreen() {
     const options = buildProductOptions(currentRecipeDraft);
     const validRefs = new Set(options.map((item) => item.ref));
     if (saved) {
-      const restored = sanitizeMixtures(saved.mixtures, validRefs, options);
+      const restored = sanitizeMixtures(saved.mixtures, validRefs);
       setMixtures(restored);
       setMixtureCountInput(String(restored.length || 1));
       setActiveNumber(
@@ -333,6 +352,154 @@ export function VisitaMezclasScreen() {
         item.productRef === productRef ? { ...item, ...patch } : item
       )
     });
+  }
+
+  function persistRecipeDraft(nextDraft: RecetaFormDraft) {
+    setRecipeDraft(nextDraft);
+    if (recipeIdentity) writeVisitFormDraft(recipeIdentity, nextDraft);
+  }
+
+  function addDirectProduct(key: string) {
+    if (!recipeDraft || !activeMixture) return;
+    const selected = directProductCatalog.find((item) => item.key === key);
+    if (!selected) return;
+
+    let productRef: string;
+    let nextDraft: RecetaFormDraft;
+    if (selected.kind === "fitosanitario") {
+      const ingredient = createEmptyIngrediente(activeMixture.numero);
+      productRef = ingredient.localId;
+      const directApplication: AppFitosanidad = {
+        localId: `direct_${ingredient.localId}`,
+        numero: recipeDraft.fitosanidadApps.length + 1,
+        origen: "mezcla_directa",
+        objetivo: "plaga",
+        objetivoNombre: "Aplicación directa",
+        enfoque: "reactivo",
+        objetivoId: null,
+        incidenceGrade: 0,
+        severityGrade: null,
+        tipoControlId: "",
+        disolvente: "Agua",
+        ingredientes: [
+          {
+            ...ingredient,
+            tipoProductoId: selected.brand.tipoProductoId ?? "",
+            ingredienteActivoId: selected.brand.ingredienteActivoId ?? "",
+            ingredienteActivoNombre: selected.ingredientName,
+            marcaProductoNombre: selected.brand.name,
+            concentracionProducto:
+              selected.brand.concentracionTexto ??
+              selected.brand.concentracion?.toString() ??
+              "",
+            unidadMedidaProducto: selected.brand.unidadMedida ?? ""
+          }
+        ]
+      };
+      nextDraft = {
+        ...recipeDraft,
+        fitosanidadApps: [...recipeDraft.fitosanidadApps, directApplication]
+      };
+    } else {
+      const fertilizer = createEmptyFertilizacion();
+      productRef = fertilizer.localId;
+      nextDraft = {
+        ...recipeDraft,
+        fertilizaciones: [
+          ...recipeDraft.fertilizaciones,
+          {
+            ...fertilizer,
+            mezclaNumero: activeMixture.numero,
+            origen: "mezcla_directa",
+            enfoque: "reactivo",
+            nutrienteId: null,
+            nutrienteNombre: "Aplicación directa",
+            incidenceGrade: 0,
+            viaAplicacion: "foliar",
+            fertilizanteNombre: selected.fertilizer.name,
+            tipoProducto: selected.fertilizer.type,
+            concentracion: selected.fertilizer.concentracion ?? "",
+            unidadMedida: selected.fertilizer.unidadMedida ?? "",
+            factor: "1",
+            factorEditable: false
+          }
+        ]
+      };
+    }
+
+    persistRecipeDraft(nextDraft);
+    setMixtures((current) =>
+      current.map((mixture) => {
+        if (mixture.numero !== activeNumber) return mixture;
+        const assignments = [
+          ...mixture.assignments,
+          { productRef, kind: selected.kind, dose: "", unit: "", plants: "" }
+        ];
+        return {
+          ...mixture,
+          assignments,
+          ordenMezcla: buildOrderWithAddedProduct(
+            assignments,
+            mixture.coadyuvantesIds,
+            productRef,
+            selected.label
+          )
+        };
+      })
+    );
+    setIsDirectProductSearchOpen(false);
+    setOpenUnitProductRef(productRef);
+    setError(null);
+  }
+
+  function removeDirectProduct(option: ProductOption) {
+    if (!recipeDraft || option.origin !== "mezcla_directa") return;
+    const usageCount = mixtures.filter((mixture) =>
+      mixture.assignments.some((item) => item.productRef === option.ref)
+    ).length;
+    const execute = () => {
+      const nextDraft: RecetaFormDraft = {
+        ...recipeDraft,
+        fitosanidadApps: recipeDraft.fitosanidadApps
+          .map((application) => ({
+            ...application,
+            ingredientes: application.ingredientes.filter(
+              (ingredient) => ingredient.localId !== option.ref
+            )
+          }))
+          .filter((application) => application.ingredientes.length > 0),
+        fertilizaciones: recipeDraft.fertilizaciones.filter(
+          (fertilizer) => fertilizer.localId !== option.ref
+        )
+      };
+      persistRecipeDraft(nextDraft);
+      setMixtures((current) =>
+        current.map((mixture) => {
+          const assignments = mixture.assignments.filter(
+            (item) => item.productRef !== option.ref
+          );
+          return {
+            ...mixture,
+            assignments,
+            ordenMezcla: buildOrder(assignments, mixture.coadyuvantesIds)
+          };
+        })
+      );
+      setOpenUnitProductRef(null);
+    };
+
+    if (usageCount > 1) {
+      Alert.alert(
+        "Quitar producto",
+        `Este producto se usa en ${usageCount} mezclas. Se quitara de todas.`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Quitar", style: "destructive", onPress: execute }
+        ]
+      );
+      return;
+    }
+    execute();
   }
 
   function toggleCoadjuvant(id: string) {
@@ -547,18 +714,9 @@ export function VisitaMezclasScreen() {
           </AppText>
         </AppCard>
 
-        {productOptions.length === 0 ? (
-          <AppCard>
-            <AppText variant="heading">No requiere mezcla</AppText>
-            <AppText variant="muted">
-              La receta no contiene productos comerciales, ingredientes activos ni
-              fertilizantes.
-            </AppText>
-          </AppCard>
-        ) : (
-          <>
-            <View
-              ref={(node) => {
+        <>
+          <View
+            ref={(node) => {
                 tutorialTargets.current.mixtureCount = node;
               }}
             >
@@ -682,12 +840,34 @@ export function VisitaMezclasScreen() {
                       />
                     </View>
                     <View style={styles.flex}>
-                      <AppText variant="label">Productos de la receta</AppText>
+                      <AppText variant="label">Productos de la mezcla</AppText>
                       <AppText variant="caption">
-                        Selecciona los que se usarán en esta mezcla.
+                        Busca un producto o selecciona uno ya registrado.
                       </AppText>
                     </View>
                   </View>
+                  <AppSelectField
+                    emptyMessage="No hay productos disponibles en los catalogos del dispositivo."
+                    icon="search-outline"
+                    isOpen={isDirectProductSearchOpen}
+                    label="Agregar producto"
+                    onClose={() => setIsDirectProductSearchOpen(false)}
+                    onSelect={addDirectProduct}
+                    onToggle={() => setIsDirectProductSearchOpen((current) => !current)}
+                    options={directProductCatalog.map((item) => ({
+                      value: item.key,
+                      label: item.label,
+                      helper: item.helper
+                    }))}
+                    placeholder="Buscar nombre comercial o fertilizante"
+                    searchable
+                    searchPlaceholder="Escribe el nombre del producto"
+                  />
+                  {productOptions.length === 0 ? (
+                    <AppText variant="muted">
+                      Aun no hay productos. Busca uno arriba para comenzar esta mezcla.
+                    </AppText>
+                  ) : null}
                   {productOptions.map((option) => {
                     const assignment = activeMixture.assignments.find(
                       (item) => item.productRef === option.ref
@@ -719,12 +899,38 @@ export function VisitaMezclasScreen() {
                           <View style={styles.assignmentFields}>
                             <AppInput
                               keyboardType="decimal-pad"
-                              label={`Dosis (${assignment.unit || "unidad definida en Receta"})`}
+                              label={
+                                option.origin === "mezcla_directa"
+                                  ? "Cantidad de dosis"
+                                  : `Dosis (${assignment.unit || "unidad definida en Receta"})`
+                              }
                               onChangeText={(dose) =>
                                 updateAssignment(option.ref, { dose })
                               }
                               value={assignment.dose}
                             />
+                            {option.origin === "mezcla_directa" ? (
+                              <AppSelectField
+                                isOpen={openUnitProductRef === option.ref}
+                                label="Unidad de dosis"
+                                onClose={() => setOpenUnitProductRef(null)}
+                                onSelect={(unit) => {
+                                  updateAssignment(option.ref, { unit });
+                                  setOpenUnitProductRef(null);
+                                }}
+                                onToggle={() =>
+                                  setOpenUnitProductRef((current) =>
+                                    current === option.ref ? null : option.ref
+                                  )
+                                }
+                                options={getDirectDoseUnits(option).map((unit) => ({
+                                  value: unit,
+                                  label: unit
+                                }))}
+                                placeholder="Selecciona la unidad"
+                                selectedLabel={assignment.unit || undefined}
+                              />
+                            ) : null}
                             {option.viaAplicacion === "edafica" ? (
                               <AppInput
                                 keyboardType="number-pad"
@@ -734,6 +940,26 @@ export function VisitaMezclasScreen() {
                                 }
                                 value={assignment.plants}
                               />
+                            ) : null}
+                            {option.origin === "mezcla_directa" ? (
+                              <Pressable
+                                accessibilityLabel={`Quitar ${option.label} de la receta`}
+                                accessibilityRole="button"
+                                onPress={() => removeDirectProduct(option)}
+                                style={styles.removeDirectProduct}
+                              >
+                                <Ionicons
+                                  color={theme.colors.error}
+                                  name="trash-outline"
+                                  size={20}
+                                />
+                                <AppText
+                                  style={styles.removeDirectProductText}
+                                  variant="label"
+                                >
+                                  Quitar producto
+                                </AppText>
+                              </Pressable>
                             ) : null}
                           </View>
                         ) : null}
@@ -779,17 +1005,13 @@ export function VisitaMezclasScreen() {
                     ref={(node) => {
                       tutorialTargets.current.coadyuvants = node;
                     }}
-                    style={styles.sectionHeading}
-                  >
-                    <View style={styles.sectionIcon}>
-                      <Ionicons
-                        color={theme.colors.info}
-                        name="water-outline"
-                        size={20}
-                      />
-                    </View>
-                    <View style={styles.flex}>
-                      <AppText variant="label">Coadyuvantes de esta mezcla</AppText>
+                  style={styles.sectionHeading}
+                >
+                  <View style={styles.sectionIcon}>
+                    <Ionicons color={theme.colors.info} name="water-outline" size={20} />
+                  </View>
+                  <View style={styles.flex}>
+                    <AppText variant="label">Coadyuvantes de esta mezcla</AppText>
                       <AppText variant="caption">
                         La dosis y unidad son obligatorias para cada selección.
                       </AppText>
@@ -801,16 +1023,13 @@ export function VisitaMezclasScreen() {
                       return (
                         <Pressable
                           accessibilityRole="checkbox"
-                          accessibilityState={{ checked: selected }}
-                          key={item.id}
-                          onPress={() => toggleCoadjuvant(item.id)}
-                          style={[
-                            styles.optionChip,
-                            selected && styles.optionChipSelected
-                          ]}
-                        >
-                          <AppText
-                            style={selected ? styles.optionTextSelected : undefined}
+                        accessibilityState={{ checked: selected }}
+                        key={item.id}
+                        onPress={() => toggleCoadjuvant(item.id)}
+                        style={[styles.optionChip, selected && styles.optionChipSelected]}
+                      >
+                        <AppText
+                          style={selected ? styles.optionTextSelected : undefined}
                             variant="label"
                           >
                             {item.name}
@@ -925,10 +1144,9 @@ export function VisitaMezclasScreen() {
                     />
                   </View>
                 ) : null}
-              </AppCard>
-            ) : null}
-          </>
-        )}
+            </AppCard>
+          ) : null}
+        </>
 
         <View
           ref={(node) => {
@@ -1040,6 +1258,25 @@ export function VisitaMezclasScreen() {
       .filter((item): item is string => Boolean(item));
     return generateOrdenMezcla(coadjuvantNames, labels);
   }
+
+  function buildOrderWithAddedProduct(
+    assignments: MixtureAssignment[],
+    coadyuvantIds: string[],
+    addedRef: string,
+    addedLabel: string
+  ) {
+    const labels = assignments
+      .map((assignment) =>
+        assignment.productRef === addedRef
+          ? addedLabel
+          : productOptions.find((item) => item.ref === assignment.productRef)?.label
+      )
+      .filter((item): item is string => Boolean(item));
+    const coadjuvantNames = coadyuvantIds
+      .map((id) => recipeCatalogs.coadyuvantes.find((item) => item.id === id)?.name)
+      .filter((item): item is string => Boolean(item));
+    return generateOrdenMezcla(coadjuvantNames, labels);
+  }
 }
 
 function buildProductOptions(draft: RecetaFormDraft | null): ProductOption[] {
@@ -1057,7 +1294,9 @@ function buildProductOptions(draft: RecetaFormDraft | null): ProductOption[] {
         dose: item.dosisProducto,
         unit: item.unidadDosis ?? "",
         plants: "",
-        viaAplicacion: "foliar" as const
+        viaAplicacion: "foliar" as const,
+        origin: application.origen ?? "recomendacion",
+        productType: null
       }))
   );
   const fertilizers = draft.fertilizaciones
@@ -1070,7 +1309,9 @@ function buildProductOptions(draft: RecetaFormDraft | null): ProductOption[] {
       dose: item.dosis,
       unit: item.unidadDosis,
       plants: item.cantidadTotalPlantas,
-      viaAplicacion: item.viaAplicacion
+      viaAplicacion: item.viaAplicacion,
+      origin: item.origen ?? "recomendacion",
+      productType: item.tipoProducto
     }));
   return [...fitos, ...fertilizers];
 }
@@ -1079,7 +1320,6 @@ export function initializeMixtures(
   draft: RecetaFormDraft,
   options: ProductOption[]
 ): EditableMixture[] {
-  if (options.length === 0) return [];
   const count = Math.max(1, draft.mezclas.length);
   return Array.from({ length: count }, (_, index) => {
     const numero = index + 1;
@@ -1108,12 +1348,7 @@ export function initializeMixtures(
   });
 }
 
-function sanitizeMixtures(
-  mixtures: EditableMixture[],
-  validRefs: Set<string>,
-  options: ProductOption[]
-) {
-  if (options.length === 0) return [];
+function sanitizeMixtures(mixtures: EditableMixture[], validRefs: Set<string>) {
   const current =
     mixtures.length > 0 ? mixtures : [{ ...createEmptyMezcla(1), assignments: [] }];
   return current.slice(0, 20).map((mixture, index) => ({
@@ -1323,6 +1558,18 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 12
   },
+  removeDirectProduct: {
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    borderRadius: theme.radius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+    backgroundColor: theme.colors.errorMuted
+  },
+  removeDirectProductText: { color: theme.colors.error },
   assignmentFields: { gap: 12, padding: 12, paddingTop: 0 },
   flex: { flex: 1, gap: 2 },
   optionChip: {

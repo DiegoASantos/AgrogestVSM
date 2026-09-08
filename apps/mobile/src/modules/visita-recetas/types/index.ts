@@ -48,6 +48,7 @@ export type FertilizanteCatalogItem = {
 };
 
 export type RecommendationApproach = "reactivo" | "preventivo";
+export type RecommendationOrigin = "recomendacion" | "mezcla_directa";
 
 export type RecetaFitosanidad = {
   id: string;
@@ -56,9 +57,10 @@ export type RecetaFitosanidad = {
   mezclaLocalId: string | null;
   productoRef?: string;
   numero: number;
-  objetivo: "plaga" | "enfermedad";
-  objetivoNombre: string;
-  enfoque?: RecommendationApproach;
+  origen?: RecommendationOrigin;
+  objetivo: "plaga" | "enfermedad" | null;
+  objetivoNombre: string | null;
+  enfoque?: RecommendationApproach | null;
   objetivoId?: string | null;
   incidenciaGrado?: number | null;
   severidadGrado?: number | null;
@@ -103,6 +105,7 @@ export type RecetaFertilizacion = {
   mezclaLocalId?: string | null;
   mezclaNumero?: number | null;
   productoRef?: string;
+  origen?: RecommendationOrigin;
   enfoque?: RecommendationApproach;
   nutrienteId?: string | null;
   nutrienteNombre?: string | null;

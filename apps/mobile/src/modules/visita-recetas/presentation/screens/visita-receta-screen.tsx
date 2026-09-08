@@ -340,6 +340,13 @@ export function VisitaRecetaScreen() {
     () => groupRecipeFertilizaciones(fertilizaciones),
     [fertilizaciones]
   );
+  const technicalFitosanidadEntries = useMemo(
+    () =>
+      fitosanidadApps
+        .map((application, index) => ({ application, index }))
+        .filter(({ application }) => application.origen !== "mezcla_directa"),
+    [fitosanidadApps]
+  );
   const recipeAccordionCards = useMemo(
     () => buildRecipeAccordionCards(fitosanidadApps, [], fertilizaciones),
     [fertilizaciones, fitosanidadApps]
@@ -363,7 +370,7 @@ export function VisitaRecetaScreen() {
           isExpanded: isPreventiveFertilizationExpanded,
           nutrientId: preventiveNutrientId
         },
-        fitosanidad: fitosanidadApps.map((application) => ({
+        fitosanidad: technicalFitosanidadEntries.map(({ application }) => ({
           cardKey: getFitosanidadCardKey(application.localId),
           localId: application.localId,
           targetName: application.objetivoNombre,
@@ -387,7 +394,7 @@ export function VisitaRecetaScreen() {
     [
       activeRecipeCardKey,
       fertilizacionGroups,
-      fitosanidadApps,
+      technicalFitosanidadEntries,
       hasAvailablePreventiveTargets,
       isPreventiveFertilizationExpanded,
       isPreventiveFitoExpanded,
@@ -1395,20 +1402,20 @@ export function VisitaRecetaScreen() {
           <SectionHeader
             icon="flask"
             label="Fitosanidad"
-            subtitle={`${fitosanidadApps.reduce(
-              (total, application) => total + application.ingredientes.length,
+            subtitle={`${technicalFitosanidadEntries.reduce(
+              (total, { application }) => total + application.ingredientes.length,
               0
-            )} producto(s) en ${fitosanidadApps.length} aplicación(es)`}
+            )} producto(s) en ${technicalFitosanidadEntries.length} aplicación(es)`}
           />
 
-          {fitosanidadApps.length === 0 ? (
+          {technicalFitosanidadEntries.length === 0 ? (
             <AppCard>
               <AppText variant="muted">
                 No se detectaron plagas ni enfermedades con incidencia positiva.
               </AppText>
             </AppCard>
           ) : (
-            fitosanidadApps.map((app, index) => (
+            technicalFitosanidadEntries.map(({ application: app, index }) => (
               <View
                 key={app.localId}
                 ref={(node) => {
@@ -2432,16 +2439,22 @@ function validateRecipeRecommendations(
     return "La receta es obligatoria. Registra al menos una recomendacion tecnica antes de continuar.";
   }
 
-  const incompleteFito = fitosanidadApps.some((application) =>
-    application.ingredientes.some(
-      (ingredient) =>
-        Boolean(ingredient.dosisProducto.trim()) && !getDosisUnit(ingredient.unidadDosis)
-    )
+  const incompleteFito = fitosanidadApps.some(
+    (application) =>
+      application.origen !== "mezcla_directa" &&
+      application.ingredientes.some(
+        (ingredient) =>
+          Boolean(ingredient.dosisProducto.trim()) &&
+          !getDosisUnit(ingredient.unidadDosis)
+      )
   );
   if (incompleteFito) return "Selecciona la unidad de cada dosis fitosanitaria.";
 
   const incompleteFertilizer = fertilizaciones.some(
-    (item) => Boolean(item.dosis.trim()) && !isValidFertilizacionUnidadDosis(item)
+    (item) =>
+      item.origen !== "mezcla_directa" &&
+      Boolean(item.dosis.trim()) &&
+      !isValidFertilizacionUnidadDosis(item)
   );
   if (incompleteFertilizer) {
     return "Selecciona una unidad valida para cada dosis de fertilizacion.";

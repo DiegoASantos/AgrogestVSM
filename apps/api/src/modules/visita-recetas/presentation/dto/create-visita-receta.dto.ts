@@ -12,10 +12,19 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested
 } from "class-validator";
 
 export class FitosanidadProductoDto {
+  @ApiPropertyOptional({
+    enum: ["recomendacion", "mezcla_directa"],
+    default: "recomendacion"
+  })
+  @IsOptional()
+  @IsIn(["recomendacion", "mezcla_directa"])
+  origen?: "recomendacion" | "mezcla_directa";
+
   @ApiPropertyOptional({
     example: "producto-fito-1",
     description: "Referencia estable del producto dentro de la receta."
@@ -31,17 +40,22 @@ export class FitosanidadProductoDto {
   @Min(1)
   id?: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: "plaga",
-    description: "Tipo de objetivo: plaga o enfermedad."
+    description: "Obligatorio salvo para productos de mezcla directa."
   })
+  @ValidateIf((item: FitosanidadProductoDto) => item.origen !== "mezcla_directa")
   @IsIn(["plaga", "enfermedad"])
-  objetivo!: "plaga" | "enfermedad";
+  objetivo?: "plaga" | "enfermedad";
 
-  @ApiProperty({ example: "Thrips", description: "Nombre de la plaga o enfermedad." })
+  @ApiPropertyOptional({
+    example: "Thrips",
+    description: "Obligatorio salvo para productos de mezcla directa."
+  })
+  @ValidateIf((item: FitosanidadProductoDto) => item.origen !== "mezcla_directa")
   @IsString()
   @MaxLength(150)
-  objetivoNombre!: string;
+  objetivoNombre?: string;
 
   @ApiPropertyOptional({
     example: "preventivo",
@@ -274,6 +288,14 @@ export class MezclaDto {
 }
 
 export class FertilizacionDto {
+  @ApiPropertyOptional({
+    enum: ["recomendacion", "mezcla_directa"],
+    default: "recomendacion"
+  })
+  @IsOptional()
+  @IsIn(["recomendacion", "mezcla_directa"])
+  origen?: "recomendacion" | "mezcla_directa";
+
   @ApiPropertyOptional({
     example: "producto-fert-1",
     description: "Referencia estable del fertilizante dentro de la receta."

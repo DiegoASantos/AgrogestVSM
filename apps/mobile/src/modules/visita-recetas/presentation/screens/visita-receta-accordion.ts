@@ -46,7 +46,9 @@ export function groupRecipeFertilizaciones(
 ): RecipeFertilizacionGroup[] {
   const groups = new Map<string, AppFertilizacion[]>();
 
-  for (const item of fertilizaciones) {
+  for (const item of fertilizaciones.filter(
+    (fertilizacion) => fertilizacion.origen !== "mezcla_directa"
+  )) {
     const key = item.nutrienteId
       ? `${item.enfoque ?? "reactivo"}:${item.nutrienteId}`
       : item.enfoque === "preventivo"
@@ -64,10 +66,12 @@ export function buildRecipeAccordionCards(
   fertilizaciones: AppFertilizacion[]
 ): RecipeAccordionCardState[] {
   return [
-    ...fitosanidadApps.map((application) => ({
-      key: getFitosanidadCardKey(application.localId),
-      isComplete: isFitosanidadCardComplete(application)
-    })),
+    ...fitosanidadApps
+      .filter((application) => application.origen !== "mezcla_directa")
+      .map((application) => ({
+        key: getFitosanidadCardKey(application.localId),
+        isComplete: isFitosanidadCardComplete(application)
+      })),
     ...mezclas.map((mezcla) => ({
       key: getMezclaCardKey(mezcla.localId),
       isComplete: isMezclaCardComplete(mezcla, fitosanidadApps)
@@ -157,6 +161,7 @@ export function findFirstRecipeDoseIssue(
   fertilizaciones: AppFertilizacion[]
 ): RecipeDoseIssue | null {
   for (const application of fitosanidadApps) {
+    if (application.origen === "mezcla_directa") continue;
     for (const ingredient of application.ingredientes) {
       if (!ingredient.marcaProductoNombre.trim()) continue;
 
@@ -181,6 +186,7 @@ export function findFirstRecipeDoseIssue(
   }
 
   for (const fertilizacion of fertilizaciones) {
+    if (fertilizacion.origen === "mezcla_directa") continue;
     if (!fertilizacion.fertilizanteNombre.trim()) continue;
 
     const groupKey = fertilizacion.nutrienteId

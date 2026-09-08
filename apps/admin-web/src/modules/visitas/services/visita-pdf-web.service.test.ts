@@ -314,6 +314,20 @@ describe("visitaPdfWebService", () => {
         }
       ]);
     });
+
+    it("identifica las aplicaciones directas en el reporte web", () => {
+      const receta = makeRecipe();
+      receta.mezclas![0]!.productos[0]!.origen = "mezcla_directa";
+      receta.mezclas![0]!.coadyuvantesIds = "[]";
+      receta.mezclas![0]!.coadyuvantesDosis = "{}";
+      receta.mezclas![0]!.ordenMezcla = JSON.stringify(["Agua", "Fungi Max", "Urea"]);
+      receta.fertilizacion[0]!.origen = "mezcla_directa";
+
+      expect(buildProducerMixtureRows(receta, []).map((row) => row.item)).toEqual([
+        "Aplicación directa: Fungi Max",
+        "Aplicación directa: Urea"
+      ]);
+    });
   });
 
   describe("#showPrintablePdfError", () => {

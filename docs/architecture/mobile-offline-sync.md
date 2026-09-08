@@ -190,6 +190,18 @@ con su dosis y `mezcla_local_id`, mientras el editor de Receta mantiene una sola
 definicion del producto. La migracion SQLite 65 agrega estas referencias y
 habilita `mezclas` en `visit_form_drafts` sin recrear recetas ni outbox.
 
+La migración SQLite 72 incorpora `origen` a fitosanidad y fertilización para
+distinguir `recomendacion` de `mezcla_directa`. Como SQLite no permite retirar
+un `NOT NULL` de forma aditiva, reconstruye únicamente
+`visita_receta_fitosanidad`, copia identidad local/remota, referencias, datos
+técnicos, estado, fechas y error de sincronización, y vuelve nulos los campos de
+objetivo solo para aplicaciones directas. Fertilización recibe la columna de
+forma aditiva. El buscador de Mezclas escribe estos productos en el borrador de
+Receta y sus dosis por uso en el borrador de Mezclas; al finalizar, ambos viajan
+en el mismo payload padre `visita_recetas`, sin operaciones hijas ni cambios en
+el orden de sincronización. El despliegue aplica primero PostgreSQL 061 y la API
+compatible, y después mobile.
+
 La migracion SQLite 66 agrega `coadyuvantes_dosis` a la cabecera de cada mezcla
 sin reescribir recetas ni operaciones pendientes. Mobile conserva un mapa entre
 el ID del coadyuvante seleccionado y la dosis libre digitada, incluida su

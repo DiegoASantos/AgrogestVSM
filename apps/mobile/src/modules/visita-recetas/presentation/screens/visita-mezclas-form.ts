@@ -1,4 +1,10 @@
 import { parsePositiveDecimal, type AppMezcla } from "./visita-receta-multiple-products";
+import type {
+  FertilizanteCatalogItem,
+  IngredienteActivoCatalogItem,
+  MarcaProductoCatalogItem,
+  TipoProductoFitosanitarioCatalogItem
+} from "../../types";
 
 export type ProductKind = "fitosanitario" | "fertilizante";
 
@@ -23,7 +29,77 @@ export type ProductOption = {
   unit: string;
   plants: string;
   viaAplicacion: "edafica" | "foliar" | null;
+  origin?: "recomendacion" | "mezcla_directa";
+  productType?: "solido" | "liquido" | null;
 };
+
+export type DirectProductCatalogOption =
+  | {
+      key: string;
+      kind: "fitosanitario";
+      label: string;
+      helper: string;
+      brand: MarcaProductoCatalogItem;
+      ingredientName: string;
+    }
+  | {
+      key: string;
+      kind: "fertilizante";
+      label: string;
+      helper: string;
+      fertilizer: FertilizanteCatalogItem;
+    };
+
+export function buildDirectProductCatalog(
+  brands: MarcaProductoCatalogItem[],
+  ingredients: IngredienteActivoCatalogItem[],
+  productTypes: TipoProductoFitosanitarioCatalogItem[],
+  fertilizers: FertilizanteCatalogItem[]
+): DirectProductCatalogOption[] {
+  const ingredientById = new Map(ingredients.map((item) => [item.id, item.name]));
+  const typeById = new Map(productTypes.map((item) => [item.id, item.name]));
+  const fitosanitaryOptions: DirectProductCatalogOption[] = brands.map((brand) => {
+    const ingredientName =
+      (brand.ingredienteActivoId
+        ? ingredientById.get(brand.ingredienteActivoId)
+        : undefined) ??
+      brand.ingredienteActivoNombre ??
+      "Ingrediente no especificado";
+    const typeName = brand.tipoProductoId
+      ? typeById.get(brand.tipoProductoId)
+      : undefined;
+    return {
+      key: `fitosanitario:${brand.id}`,
+      kind: "fitosanitario",
+      label: brand.name,
+      helper: ["Fitosanitario", ingredientName, typeName].filter(Boolean).join(" · "),
+      brand,
+      ingredientName
+    };
+  });
+  const fertilizerOptions: DirectProductCatalogOption[] = fertilizers.map(
+    (fertilizer) => ({
+      key: `fertilizante:${fertilizer.id}`,
+      kind: "fertilizante",
+      label: fertilizer.name,
+      helper: `Fertilizante · ${fertilizer.type === "liquido" ? "Liquido" : "Solido"}`,
+      fertilizer
+    })
+  );
+
+  return [...fitosanitaryOptions, ...fertilizerOptions].sort((a, b) =>
+    a.label.localeCompare(b.label, "es", { sensitivity: "base" })
+  );
+}
+
+export function getDirectDoseUnits(option: ProductOption) {
+  if (option.kind === "fitosanitario" || option.productType === "liquido") {
+    return option.kind === "fitosanitario"
+      ? ["mg/cilindro", "g/cilindro", "kg/cilindro", "ml/cilindro", "l/cilindro"]
+      : ["ml/cilindro", "l/cilindro"];
+  }
+  return ["mg/cilindro", "g/cilindro", "kg/cilindro"];
+}
 
 export function mixtureStatus(mixture: EditableMixture, options: ProductOption[]) {
   if (mixture.assignments.length === 0) return "Sin configurar";
