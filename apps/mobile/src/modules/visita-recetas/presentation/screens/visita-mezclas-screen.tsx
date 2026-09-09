@@ -1049,68 +1049,6 @@ export function VisitaMezclasScreen() {
                 <StatusPill label={mixtureStatus(activeMixture, productOptions)} />
               </View>
 
-              {activeMixtureIssues.length > 0 ? (
-                <View style={styles.pendingPanel}>
-                  <View style={styles.pendingTitleRow}>
-                    <Ionicons
-                      color={theme.colors.warning}
-                      name="alert-circle-outline"
-                      size={22}
-                    />
-                    <View style={styles.flex}>
-                      <AppText variant="label">
-                        {activeMixtureIssues.length} dato
-                        {activeMixtureIssues.length === 1 ? "" : "s"} por completar
-                      </AppText>
-                      <AppText variant="caption">
-                        Toca un pendiente para ir a esa sección.
-                      </AppText>
-                    </View>
-                  </View>
-                  {activeMixtureIssues.slice(0, 3).map((issue) => (
-                    <Pressable
-                      accessibilityRole="button"
-                      key={issue.id}
-                      onPress={() => scrollToIssue(issue)}
-                      style={({ pressed }) => [
-                        styles.pendingItem,
-                        pressed && styles.pressedControl
-                      ]}
-                    >
-                      <Ionicons
-                        color={theme.colors.warning}
-                        name="ellipse-outline"
-                        size={16}
-                      />
-                      <AppText style={styles.pendingItemText} variant="caption">
-                        {issue.message}
-                      </AppText>
-                      <Ionicons
-                        color={theme.colors.primary}
-                        name="chevron-forward"
-                        size={18}
-                      />
-                    </Pressable>
-                  ))}
-                  {activeMixtureIssues.length > 3 ? (
-                    <AppText variant="caption">
-                      Y {activeMixtureIssues.length - 3} pendiente(s) más.
-                    </AppText>
-                  ) : null}
-                </View>
-              ) : productOptions.length > 0 ? (
-                <View style={styles.readyPanel}>
-                  <Ionicons
-                    color={theme.colors.success}
-                    name="checkmark-circle"
-                    size={22}
-                  />
-                  <AppText style={styles.readyText} variant="label">
-                    Esta mezcla esta lista.
-                  </AppText>
-                </View>
-              ) : null}
-
               {mixtures.some(
                 (item) =>
                   item.numero !== activeMixture.numero && item.assignments.length > 0
@@ -1167,6 +1105,7 @@ export function VisitaMezclasScreen() {
                   icon="search-outline"
                   isOpen={isDirectProductSearchOpen}
                   label="Añadir producto del catálogo"
+                  maxVisibleOptions={5}
                   onClose={() => setIsDirectProductSearchOpen(false)}
                   onSelect={addDirectProduct}
                   onToggle={() => setIsDirectProductSearchOpen((current) => !current)}
@@ -1577,6 +1516,68 @@ export function VisitaMezclasScreen() {
                   </View>
                 ) : null}
               </View>
+
+              {activeMixtureIssues.length > 0 ? (
+                <View style={styles.pendingPanel}>
+                  <View style={styles.pendingTitleRow}>
+                    <Ionicons
+                      color={theme.colors.warning}
+                      name="alert-circle-outline"
+                      size={22}
+                    />
+                    <View style={styles.flex}>
+                      <AppText variant="label">
+                        {activeMixtureIssues.length} dato
+                        {activeMixtureIssues.length === 1 ? "" : "s"} por completar
+                      </AppText>
+                      <AppText variant="caption">
+                        Toca un pendiente para ir a esa sección.
+                      </AppText>
+                    </View>
+                  </View>
+                  {activeMixtureIssues.slice(0, 3).map((issue) => (
+                    <Pressable
+                      accessibilityRole="button"
+                      key={issue.id}
+                      onPress={() => scrollToIssue(issue)}
+                      style={({ pressed }) => [
+                        styles.pendingItem,
+                        pressed && styles.pressedControl
+                      ]}
+                    >
+                      <Ionicons
+                        color={theme.colors.warning}
+                        name="ellipse-outline"
+                        size={16}
+                      />
+                      <AppText style={styles.pendingItemText} variant="caption">
+                        {issue.message}
+                      </AppText>
+                      <Ionicons
+                        color={theme.colors.primary}
+                        name="chevron-forward"
+                        size={18}
+                      />
+                    </Pressable>
+                  ))}
+                  {activeMixtureIssues.length > 3 ? (
+                    <AppText variant="caption">
+                      Y {activeMixtureIssues.length - 3} pendiente(s) más.
+                    </AppText>
+                  ) : null}
+                </View>
+              ) : productOptions.length > 0 ? (
+                <View style={styles.readyPanel}>
+                  <Ionicons
+                    color={theme.colors.success}
+                    name="checkmark-circle"
+                    size={22}
+                  />
+                  <AppText style={styles.readyText} variant="label">
+                    Esta mezcla esta lista.
+                  </AppText>
+                </View>
+              ) : null}
 
               {shouldShowMixtureNavigation(mixtures.length) ? (
                 <View style={styles.navigationRow}>

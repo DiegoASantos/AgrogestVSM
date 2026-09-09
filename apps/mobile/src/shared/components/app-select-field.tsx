@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import { theme } from "../constants/theme";
+import { getVisibleSelectOptions } from "./app-select-field-options";
 import { AppText } from "./app-text";
 
 export type AppSelectOption = {
@@ -24,6 +25,7 @@ type AppSelectFieldProps = {
   icon?: keyof typeof Ionicons.glyphMap;
   searchable?: boolean;
   searchPlaceholder?: string;
+  maxVisibleOptions?: number;
   containerRef?: (node: View | null) => void;
   onToggle: () => void;
   onClose?: () => void;
@@ -43,6 +45,7 @@ export function AppSelectField({
   icon,
   searchable = false,
   searchPlaceholder = "Buscar",
+  maxVisibleOptions,
   containerRef,
   onToggle,
   onClose,
@@ -56,21 +59,10 @@ export function AppSelectField({
     }
   }, [isOpen]);
 
-  const filteredOptions = useMemo(() => {
-    const normalizedSearch = normalizeSearchableText(searchText);
-
-    if (!searchable || !normalizedSearch) {
-      return options;
-    }
-
-    return options.filter((option) => {
-      const searchableText = normalizeSearchableText(
-        `${option.label} ${option.helper ?? ""}`
-      );
-
-      return searchableText.includes(normalizedSearch);
-    });
-  }, [options, searchText, searchable]);
+  const { hasSearchText, matchingOptionCount, visibleOptions } = useMemo(
+    () => getVisibleSelectOptions(options, searchText, searchable, maxVisibleOptions),
+    [maxVisibleOptions, options, searchText, searchable]
+  );
 
   return (
     <View ref={containerRef} style={styles.wrapper}>
@@ -78,6 +70,7 @@ export function AppSelectField({
 
       <Pressable
         accessibilityRole="button"
+        accessibilityState={{ disabled, expanded: isOpen }}
         disabled={disabled}
         onPress={onToggle}
         style={({ pressed }) => [
@@ -128,6 +121,22 @@ export function AppSelectField({
             />
           ) : null}
 
+          {!isLoading &&
+          (matchingOptionCount > visibleOptions.length ||
+            (hasSearchText && matchingOptionCount > 0)) ? (
+            <AppText
+              accessibilityLiveRegion="polite"
+              style={styles.optionSummary}
+              variant="caption"
+            >
+              {matchingOptionCount > visibleOptions.length
+                ? hasSearchText
+                  ? `Mostrando las primeras ${visibleOptions.length} de ${matchingOptionCount} coincidencias. Escribe más para precisar.`
+                  : `Mostrando ${visibleOptions.length} de ${matchingOptionCount} opciones. Escribe para buscar en todo el catálogo.`
+                : `${matchingOptionCount} coincidencia${matchingOptionCount === 1 ? "" : "s"}.`}
+            </AppText>
+          ) : null}
+
           {isLoading ? (
             <AppText variant="muted" style={styles.optionMessage}>
               Cargando opciones...
@@ -140,14 +149,18 @@ export function AppSelectField({
             </AppText>
           ) : null}
 
-          {!isLoading && options.length > 0 && filteredOptions.length === 0 ? (
-            <AppText variant="muted" style={styles.optionMessage}>
+          {!isLoading && options.length > 0 && matchingOptionCount === 0 ? (
+            <AppText
+              accessibilityLiveRegion="polite"
+              variant="muted"
+              style={styles.optionMessage}
+            >
               No hay coincidencias para la busqueda.
             </AppText>
           ) : null}
 
-          {!isLoading && filteredOptions.length > 0
-            ? filteredOptions.map((option) => (
+          {!isLoading && visibleOptions.length > 0
+            ? visibleOptions.map((option) => (
                 <Pressable
                   key={option.value}
                   accessibilityRole="button"
@@ -248,6 +261,10 @@ const styles = StyleSheet.create({
   optionMessage: {
     padding: 10
   },
+  optionSummary: {
+    paddingHorizontal: 4,
+    paddingVertical: 2
+  },
   optionRow: {
     gap: 2,
     paddingVertical: 10,
@@ -262,11 +279,3 @@ const styles = StyleSheet.create({
     color: theme.colors.error
   }
 });
-
-function normalizeSearchableText(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}

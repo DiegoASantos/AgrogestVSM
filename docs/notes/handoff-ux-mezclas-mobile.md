@@ -17,8 +17,12 @@ alterar el borrador offline ni los contratos del agregado de receta.
 ## Cambios realizados
 
 - `visita-mezclas-screen.tsx`: tablero de progreso, contador táctil, pendientes
-  por mezcla, navegación dirigida, errores tras interacción y secciones
-  colapsables para coadyuvantes y orden.
+  por mezcla al final de sus campos, navegación dirigida, errores tras
+  interacción y secciones colapsables para coadyuvantes y orden.
+- `app-select-field.tsx`: límite opcional de cinco resultados visibles con
+  búsqueda sobre el catálogo completo y resumen accesible de coincidencias.
+- `app-select-field-options.ts`: filtrado normalizado y acotado probado sin
+  depender de React Native.
 - `visita-mezclas-form.ts`: clasificación pura de pendientes y localización de
   la primera mezcla que necesita corrección.
 - `recipe-tutorial.ts`: recorrido de Mezclas reducido y agrupado en ocho tareas.
@@ -36,13 +40,13 @@ alterar el borrador offline ni los contratos del agregado de receta.
 
 ## Validaciones ejecutadas
 
-| Comando o prueba                                      | Resultado              |
-| ----------------------------------------------------- | ---------------------- |
-| `pnpm.cmd --filter @agrogest/mobile typecheck`        | aprobado               |
-| pruebas de recetas y componentes mobile con Vitest    | 175 aprobadas          |
-| ESLint sobre los seis archivos TypeScript modificados | aprobado               |
-| `pnpm.cmd docs:check`                                 | aprobado, 159 archivos |
-| `git diff --check`                                    | aprobado               |
+| Comando o prueba                                 | Resultado              |
+| ------------------------------------------------ | ---------------------- |
+| `pnpm.cmd --filter @agrogest/mobile typecheck`   | aprobado               |
+| `pnpm.cmd exec vitest run apps/mobile/src`       | 570 aprobadas          |
+| ESLint sobre los archivos TypeScript modificados | aprobado               |
+| `pnpm.cmd docs:check`                            | aprobado, 159 archivos |
+| `git diff --check`                               | aprobado               |
 
 ## Revisión independiente
 
@@ -54,6 +58,9 @@ alterar el borrador offline ni los contratos del agregado de receta.
 - Los seis hallazgos fueron aceptados y corregidos; esta versión incorpora
   navegación diferida después del cambio de mezcla, anclas y foco por campo,
   siguiente mezcla incompleta y pruebas adicionales.
+- La revisión de este ajuste detectó que el contador del selector no anunciaba
+  búsquedas con cinco coincidencias o menos. Se amplió el `liveRegion` a todos
+  los resultados de una búsqueda, incluido el estado sin coincidencias.
 
 ## Riesgos conocidos y exclusiones
 

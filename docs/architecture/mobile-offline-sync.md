@@ -54,14 +54,18 @@ ellas, la guia recorre sus selectores, espera la creacion y continua por los
 campos del producto nuevo sin repetir los ya visitados. Cuando no existen
 objetivos fitosanitarios disponibles, informa esa condicion y permite omitir la
 card sin bloquear el recorrido. Riego y labores se mantienen como pasos
-opcionales antes de continuar a Mezclas. Mezclas presenta progreso global,
-pendientes concretos por tanque y edita una mezcla a la vez. Su guia agrupa el
-recorrido en ocho momentos orientados a tareas: cantidad, seleccion de mezcla,
-productos y dosis, datos de aplicacion, coadyuvantes opcionales, orden de
-preparacion, hora de fin y cierre. Coadyuvantes y orden permanecen comprimidos
-hasta que el tecnico los abre o el tutorial los necesita. Cuando no hay
-productos para mezclar, el recorrido se limita al cierre seguro de la visita.
-Funciona por completo sin red y no persiste progreso ni telemetria.
+opcionales antes de continuar a Mezclas. Mezclas presenta progreso global y
+edita un tanque a la vez; el resumen accionable de sus datos pendientes aparece
+despues de los campos para servir como revision antes de continuar. El selector
+directo muestra como maximo cinco opciones o coincidencias a la vez, pero la
+busqueda local sigue consultando el catalogo completo e ignora mayusculas y
+tildes. Su guia agrupa el recorrido en ocho momentos orientados a tareas:
+cantidad, seleccion de mezcla, productos y dosis, datos de aplicacion,
+coadyuvantes opcionales, orden de preparacion, hora de fin y cierre.
+Coadyuvantes y orden permanecen comprimidos hasta que el tecnico los abre o el
+tutorial los necesita. Cuando no hay productos para mezclar, el recorrido se
+limita al cierre seguro de la visita. Funciona por completo sin red y no
+persiste progreso ni telemetria.
 
 Numero de plantas, area en hectareas y fecha de siembra son obligatorios tanto
 con tutorial como sin el. Hora de fin pertenece exclusivamente al cierre de
