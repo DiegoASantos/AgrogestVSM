@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 
 import { theme } from "../constants/theme";
@@ -6,14 +7,16 @@ import { AppText } from "./app-text";
 type AppInputProps = TextInputProps & {
   label?: string;
   error?: string | null;
+  inputRef?: Ref<TextInput>;
 };
 
-export function AppInput({ label, error, style, ...props }: AppInputProps) {
+export function AppInput({ label, error, inputRef, style, ...props }: AppInputProps) {
   return (
     <View style={styles.wrapper}>
       {label ? <AppText variant="label">{label}</AppText> : null}
       <TextInput
         placeholderTextColor={theme.colors.textMuted}
+        ref={inputRef}
         style={[styles.input, error && styles.inputError, style]}
         {...props}
       />

@@ -2,18 +2,21 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   Alert,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View
 } from "react-native";
 
 import {
   AppButton,
   AppCard,
+  AppCollapsibleHeader,
   AppHeader,
   AppInput,
   AppText,
@@ -72,13 +75,19 @@ import type { RecetaFormDraft } from "./visita-receta-screen";
 import {
   buildDirectProductCatalog,
   copyMixtureConfiguration,
+  findFirstMixtureIssue,
+  findNextIncompleteMixtureNumber,
   getDirectDoseUnits,
+  getMixtureIssues,
+  getSteppedMixtureCount,
   mixtureStatus,
   parseMixtureCount,
   requiresVolume,
   shouldShowMixtureNavigation,
   validateMixtures,
   type EditableMixture,
+  type MixtureIssue,
+  type MixtureIssueSection,
   type MixtureAssignment,
   type ProductOption
 } from "./visita-mezclas-form";
@@ -133,8 +142,23 @@ export function VisitaMezclasScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDirectProductSearchOpen, setIsDirectProductSearchOpen] = useState(false);
   const [openUnitProductRef, setOpenUnitProductRef] = useState<string | null>(null);
+  const [isCoadjuvantsExpanded, setIsCoadjuvantsExpanded] = useState(false);
+  const [isPreparationOrderExpanded, setIsPreparationOrderExpanded] = useState(false);
+  const [hasAttemptedFinalize, setHasAttemptedFinalize] = useState(false);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(() => new Set());
+  const [pendingIssueNavigation, setPendingIssueNavigation] = useState<{
+    mixtureNumber: number;
+    issue: MixtureIssue;
+  } | null>(null);
   const isCountConfirmationOpen = useRef(false);
   const formScrollRef = useRef<ScrollView>(null);
+  const sectionTargets = useRef<Partial<Record<MixtureIssueSection, View | null>>>({});
+  const issueTargets = useRef<Record<string, View | null>>({});
+  const issueInputTargets = useRef<Record<string, TextInput | null>>({});
+  const pendingIssueNavigationRef = useRef<{
+    mixtureNumber: number;
+    issue: MixtureIssue;
+  } | null>(null);
   const tutorialTargets = useRef<Partial<Record<MixtureTutorialFieldId, View | null>>>(
     {}
   );
@@ -235,23 +259,146 @@ export function VisitaMezclasScreen() {
   }, [mixtureIdentity, recipeIdentity, visitaId]);
 
   const activeMixture = mixtures.find((item) => item.numero === activeNumber) ?? null;
-  const movableOrderCount =
-    activeMixture?.ordenMezcla.filter((item) => !isOrdenMezclaFixedItem(item)).length ??
-    0;
   const assignedRefs = new Set(
     mixtures.flatMap((mixture) => mixture.assignments.map((item) => item.productRef))
   );
+  const unassignedProducts = productOptions.filter((item) => !assignedRefs.has(item.ref));
+  const activeMixtureIssues =
+    activeMixture && productOptions.length > 0
+      ? [
+          ...getMixtureIssues(activeMixture, productOptions),
+          ...(activeMixture.numero === (mixtures[0]?.numero ?? 1)
+            ? unassignedProducts.map<MixtureIssue>((product) => ({
+                id: `unassigned:${product.ref}`,
+                section: "products",
+                message: `Asigna ${product.label} al menos a una mezcla.`
+              }))
+            : [])
+        ]
+      : [];
+  const activeIssueIds = new Set(activeMixtureIssues.map((issue) => issue.id));
+  const readyMixtureCount =
+    productOptions.length === 0
+      ? mixtures.length
+      : mixtures.filter((mixture) => mixtureStatus(mixture, productOptions) === "Lista")
+          .length;
+  const firstPendingMixture =
+    productOptions.length === 0
+      ? undefined
+      : (mixtures.find((mixture) => mixtureStatus(mixture, productOptions) !== "Lista") ??
+        (unassignedProducts.length > 0 ? mixtures[0] : undefined));
+  const navigationTargetNumber =
+    unassignedProducts.length > 0 && activeNumber !== (mixtures[0]?.numero ?? 1)
+      ? mixtures[0]?.numero
+      : findNextIncompleteMixtureNumber(mixtures, productOptions, activeNumber);
+  const editableMixtureCount = parseMixtureCount(mixtureCountInput) ?? mixtures.length;
+  const completionPercentage =
+    productOptions.length === 0 || mixtures.length === 0
+      ? 100
+      : Math.round(
+          (readyMixtureCount /
+            (mixtures.length + (unassignedProducts.length > 0 ? 1 : 0))) *
+            100
+        );
+  const movableOrderCount =
+    activeMixture?.ordenMezcla.filter((item) => !isOrdenMezclaFixedItem(item)).length ??
+    0;
 
   useEffect(() => {
+    const issueNavigation = pendingIssueNavigationRef.current;
     setIsReordering(false);
     setSelectedOrderIndex(null);
+    setIsCoadjuvantsExpanded(
+      issueNavigation?.mixtureNumber === activeNumber &&
+        issueNavigation.issue.section === "coadyuvants"
+    );
+    setIsPreparationOrderExpanded(false);
   }, [activeNumber]);
+
+  useEffect(() => {
+    if (tutorialStepId === "coadyuvants" || tutorialStepId === "coadyuvantDose") {
+      setIsCoadjuvantsExpanded(true);
+    }
+    if (tutorialStepId === "preparationOrder" || tutorialStepId === "reorder") {
+      setIsPreparationOrderExpanded(true);
+    }
+  }, [tutorialStepId]);
+
+  useEffect(() => {
+    if (!pendingIssueNavigation) return;
+    if (activeNumber !== pendingIssueNavigation.mixtureNumber) return;
+    if (
+      pendingIssueNavigation.issue.section === "coadyuvants" &&
+      !isCoadjuvantsExpanded
+    ) {
+      setIsCoadjuvantsExpanded(true);
+      return;
+    }
+
+    const targetMixture = mixtures.find(
+      (mixture) => mixture.numero === pendingIssueNavigation.mixtureNumber
+    );
+    if (targetMixture) {
+      const fieldKey = `${targetMixture.localId}:${pendingIssueNavigation.issue.id}`;
+      setTouchedFields((current) => new Set(current).add(fieldKey));
+    }
+
+    const issueId = pendingIssueNavigation.issue.id;
+    const issueSection = pendingIssueNavigation.issue.section;
+    pendingIssueNavigationRef.current = null;
+    setPendingIssueNavigation(null);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollTargetIntoView(
+          issueTargets.current[issueId] ?? sectionTargets.current[issueSection] ?? null
+        );
+        issueInputTargets.current[issueId]?.focus();
+      });
+    });
+  }, [activeNumber, isCoadjuvantsExpanded, mixtures, pendingIssueNavigation]);
 
   function updateActive(patch: Partial<EditableMixture>) {
     setMixtures((current) =>
       current.map((item) => (item.numero === activeNumber ? { ...item, ...patch } : item))
     );
     setError(null);
+  }
+
+  function markFieldTouched(issueId: string) {
+    if (!activeMixture) return;
+    const fieldKey = `${activeMixture.localId}:${issueId}`;
+    setTouchedFields((current) => new Set(current).add(fieldKey));
+  }
+
+  function visibleIssueMessage(issueId: string) {
+    if (!activeMixture || !activeIssueIds.has(issueId)) return null;
+    const visible =
+      hasAttemptedFinalize || touchedFields.has(`${activeMixture.localId}:${issueId}`);
+    return visible
+      ? (activeMixtureIssues.find((issue) => issue.id === issueId)?.message ?? null)
+      : null;
+  }
+
+  function scrollToIssue(issue: MixtureIssue, mixtureNumber = activeNumber) {
+    pendingIssueNavigationRef.current = { issue, mixtureNumber };
+    setPendingIssueNavigation({ issue, mixtureNumber });
+    setActiveNumber(mixtureNumber);
+  }
+
+  function scrollTargetIntoView(target: View | null) {
+    const scrollView = formScrollRef.current;
+    if (!target || !scrollView) return;
+    const nativeScrollView = scrollView.getNativeScrollRef();
+    if (!nativeScrollView) return;
+    target.measureInWindow((_targetX, targetY) => {
+      nativeScrollView.measureInWindow((_scrollX, scrollY) => {
+        scrollView.scrollTo({
+          animated: true,
+          x: 0,
+          y: Math.max(0, tutorialScrollY + targetY - scrollY - theme.spacing.md)
+        });
+      });
+    });
   }
 
   function updateCountInput(raw: string) {
@@ -264,6 +411,10 @@ export function VisitaMezclasScreen() {
       setMixtureCountInput(String(mixtures.length || 1));
       return;
     }
+    requestMixtureCount(parsed);
+  }
+
+  function requestMixtureCount(parsed: number) {
     if (parsed < mixtures.length) {
       const removedWithData = mixtures
         .slice(parsed)
@@ -579,6 +730,18 @@ export function VisitaMezclasScreen() {
 
   async function finalize() {
     if (!visitaId || !recipeDraft || isSaving) return;
+    setHasAttemptedFinalize(true);
+    const validation = validateMixtures(mixtures, productOptions, assignedRefs);
+    if (validation) {
+      setError(validation);
+      AccessibilityInfo.announceForAccessibility(validation);
+      const firstIssue = findFirstMixtureIssue(mixtures, productOptions, assignedRefs);
+      if (firstIssue) {
+        scrollToIssue(firstIssue.issue, firstIssue.mixtureNumber);
+      }
+      return;
+    }
+
     const normalizedTime = normalize12HourTimeForApi(
       normalizeTyped12HourInput(endVisitTimeInput),
       endVisitTimePeriod
@@ -587,11 +750,10 @@ export function VisitaMezclasScreen() {
     setEndVisitTimeError(timeError);
     if (timeError) {
       setError(timeError);
-      return;
-    }
-    const validation = validateMixtures(mixtures, productOptions, assignedRefs);
-    if (validation) {
-      setError(validation);
+      AccessibilityInfo.announceForAccessibility(timeError);
+      requestAnimationFrame(() =>
+        scrollTargetIntoView(tutorialTargets.current.endTime ?? null)
+      );
       return;
     }
 
@@ -620,7 +782,9 @@ export function VisitaMezclasScreen() {
       void scheduleSync({ immediate: true });
       router.replace("/visitas-campo/historial");
     } catch (reason) {
-      setError(toApiError(reason).message || "No se pudo finalizar la receta.");
+      const message = toApiError(reason).message || "No se pudo finalizar la receta.";
+      setError(message);
+      AccessibilityInfo.announceForAccessibility(message);
       flushDraft();
     } finally {
       setIsSaving(false);
@@ -700,182 +864,352 @@ export function VisitaMezclasScreen() {
           </AppText>
         </Pressable>
 
-        <AppCard style={styles.guideCard}>
-          <View style={styles.guideTitle}>
-            <Ionicons
-              name="information-circle-outline"
-              size={22}
-              color={theme.colors.primary}
-            />
-            <AppText variant="label">Tu avance se guarda en este dispositivo</AppText>
+        <AppCard style={styles.progressCard}>
+          <View style={styles.progressHeader}>
+            <View style={styles.progressIcon}>
+              <Ionicons color={theme.colors.primaryDark} name="flask-outline" size={22} />
+            </View>
+            <View style={styles.flex}>
+              <AppText variant="heading">
+                {productOptions.length === 0
+                  ? "Sin productos por preparar"
+                  : unassignedProducts.length > 0
+                    ? `${unassignedProducts.length} producto${
+                        unassignedProducts.length === 1 ? "" : "s"
+                      } sin asignar`
+                    : `${readyMixtureCount} de ${mixtures.length} mezclas listas`}
+              </AppText>
+              <AppText variant="caption">
+                {productOptions.length === 0
+                  ? "Puedes añadir un producto o continuar directamente al cierre."
+                  : firstPendingMixture
+                    ? `Continúa con la Mezcla ${firstPendingMixture.numero}.`
+                    : "Todas las mezclas están listas para finalizar."}
+              </AppText>
+            </View>
+            <AppText style={styles.progressPercent} variant="label">
+              {completionPercentage}%
+            </AppText>
           </View>
-          <AppText variant="muted">
-            Puedes salir y continuar luego desde el historial de la visita.
-          </AppText>
+          <View
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: 100, now: completionPercentage }}
+            style={styles.progressTrack}
+          >
+            <View style={[styles.progressFill, { width: `${completionPercentage}%` }]} />
+          </View>
+          <View style={styles.savedRow}>
+            <Ionicons color={theme.colors.success} name="cloud-done-outline" size={18} />
+            <AppText variant="caption">
+              Avance guardado en este dispositivo. Puedes continuar luego.
+            </AppText>
+          </View>
         </AppCard>
 
         <>
           <View
             ref={(node) => {
-                tutorialTargets.current.mixtureCount = node;
-              }}
+              tutorialTargets.current.mixtureCount = node;
+            }}
+          >
+            <AppCard style={styles.countCard}>
+              <View style={styles.sectionHeading}>
+                <View style={styles.sectionIcon}>
+                  <Ionicons
+                    color={theme.colors.primary}
+                    name="layers-outline"
+                    size={20}
+                  />
+                </View>
+                <View style={styles.flex}>
+                  <AppText variant="label">Cantidad de mezclas</AppText>
+                  <AppText variant="caption">
+                    Usa los controles o escribe un valor de 1 a 20.
+                  </AppText>
+                </View>
+              </View>
+              <View style={styles.countRow}>
+                <Pressable
+                  accessibilityLabel="Reducir cantidad de mezclas"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: editableMixtureCount <= 1 }}
+                  disabled={editableMixtureCount <= 1}
+                  onPress={() =>
+                    requestMixtureCount(
+                      getSteppedMixtureCount(mixtureCountInput, mixtures.length, -1)
+                    )
+                  }
+                  style={({ pressed }) => [
+                    styles.countStepButton,
+                    editableMixtureCount <= 1 && styles.countStepButtonDisabled,
+                    pressed && styles.pressedControl
+                  ]}
+                >
+                  <Ionicons color={theme.colors.primary} name="remove" size={24} />
+                </Pressable>
+                <View style={styles.countInputWrap}>
+                  <AppInput
+                    accessibilityLabel="Cantidad de mezclas"
+                    keyboardType="number-pad"
+                    onChangeText={updateCountInput}
+                    onEndEditing={commitCount}
+                    onSubmitEditing={commitCount}
+                    selectTextOnFocus
+                    style={styles.countInput}
+                    value={mixtureCountInput}
+                  />
+                </View>
+                <Pressable
+                  accessibilityLabel="Aumentar cantidad de mezclas"
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: editableMixtureCount >= 20 }}
+                  disabled={editableMixtureCount >= 20}
+                  onPress={() =>
+                    requestMixtureCount(
+                      getSteppedMixtureCount(mixtureCountInput, mixtures.length, 1)
+                    )
+                  }
+                  style={({ pressed }) => [
+                    styles.countStepButton,
+                    editableMixtureCount >= 20 && styles.countStepButtonDisabled,
+                    pressed && styles.pressedControl
+                  ]}
+                >
+                  <Ionicons color={theme.colors.primary} name="add" size={24} />
+                </Pressable>
+              </View>
+            </AppCard>
+          </View>
+
+          <View
+            ref={(node) => {
+              tutorialTargets.current.mixtureSelection = node;
+            }}
+          >
+            <ScrollView
+              horizontal
+              contentContainerStyle={styles.stepList}
+              showsHorizontalScrollIndicator={false}
             >
-              <AppCard style={styles.countCard}>
-                <View style={styles.sectionHeading}>
+              {mixtures.map((mixture) => {
+                const status = mixtureStatus(mixture, productOptions);
+                const pendingCount =
+                  productOptions.length === 0
+                    ? 0
+                    : getMixtureIssues(mixture, productOptions).length;
+                const selected = mixture.numero === activeNumber;
+                return (
+                  <Pressable
+                    accessibilityLabel={`Mezcla ${mixture.numero}, ${
+                      pendingCount > 0
+                        ? `${pendingCount} datos pendientes`
+                        : productOptions.length === 0
+                          ? "sin productos"
+                          : status
+                    }`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    key={mixture.localId}
+                    onPress={() => setActiveNumber(mixture.numero)}
+                    style={[styles.stepChip, selected && styles.stepChipSelected]}
+                  >
+                    <AppText
+                      style={selected ? styles.selectedText : undefined}
+                      variant="label"
+                    >
+                      Mezcla {mixture.numero}
+                    </AppText>
+                    <AppText
+                      style={selected ? styles.selectedText : undefined}
+                      variant="caption"
+                    >
+                      {pendingCount > 0
+                        ? `${pendingCount} pendiente${pendingCount === 1 ? "" : "s"}`
+                        : productOptions.length === 0
+                          ? "Sin productos"
+                          : status}
+                    </AppText>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {activeMixture ? (
+            <AppCard style={styles.mixtureCard}>
+              <View style={styles.cardTitleRow}>
+                <View style={styles.cardTitleCopy}>
+                  <AppText variant="heading">
+                    Mezcla {activeMixture.numero} de {mixtures.length}
+                  </AppText>
+                  <AppText variant="caption">
+                    {activeMixture.assignments.length} producto(s) seleccionado(s)
+                  </AppText>
+                </View>
+                <StatusPill label={mixtureStatus(activeMixture, productOptions)} />
+              </View>
+
+              {activeMixtureIssues.length > 0 ? (
+                <View style={styles.pendingPanel}>
+                  <View style={styles.pendingTitleRow}>
+                    <Ionicons
+                      color={theme.colors.warning}
+                      name="alert-circle-outline"
+                      size={22}
+                    />
+                    <View style={styles.flex}>
+                      <AppText variant="label">
+                        {activeMixtureIssues.length} dato
+                        {activeMixtureIssues.length === 1 ? "" : "s"} por completar
+                      </AppText>
+                      <AppText variant="caption">
+                        Toca un pendiente para ir a esa sección.
+                      </AppText>
+                    </View>
+                  </View>
+                  {activeMixtureIssues.slice(0, 3).map((issue) => (
+                    <Pressable
+                      accessibilityRole="button"
+                      key={issue.id}
+                      onPress={() => scrollToIssue(issue)}
+                      style={({ pressed }) => [
+                        styles.pendingItem,
+                        pressed && styles.pressedControl
+                      ]}
+                    >
+                      <Ionicons
+                        color={theme.colors.warning}
+                        name="ellipse-outline"
+                        size={16}
+                      />
+                      <AppText style={styles.pendingItemText} variant="caption">
+                        {issue.message}
+                      </AppText>
+                      <Ionicons
+                        color={theme.colors.primary}
+                        name="chevron-forward"
+                        size={18}
+                      />
+                    </Pressable>
+                  ))}
+                  {activeMixtureIssues.length > 3 ? (
+                    <AppText variant="caption">
+                      Y {activeMixtureIssues.length - 3} pendiente(s) más.
+                    </AppText>
+                  ) : null}
+                </View>
+              ) : productOptions.length > 0 ? (
+                <View style={styles.readyPanel}>
+                  <Ionicons
+                    color={theme.colors.success}
+                    name="checkmark-circle"
+                    size={22}
+                  />
+                  <AppText style={styles.readyText} variant="label">
+                    Esta mezcla esta lista.
+                  </AppText>
+                </View>
+              ) : null}
+
+              {mixtures.some(
+                (item) =>
+                  item.numero !== activeMixture.numero && item.assignments.length > 0
+              ) ? (
+                <View style={styles.copyBlock}>
+                  <AppText variant="label">Copiar desde otra mezcla</AppText>
+                  <View style={styles.wrapRow}>
+                    {mixtures
+                      .filter(
+                        (item) =>
+                          item.numero !== activeMixture.numero &&
+                          item.assignments.length > 0
+                      )
+                      .map((source) => (
+                        <AppButton
+                          key={source.localId}
+                          label={`Mezcla ${source.numero}`}
+                          onPress={() => copyFrom(source)}
+                          variant="outline"
+                        />
+                      ))}
+                  </View>
+                </View>
+              ) : null}
+
+              <View
+                ref={(node) => {
+                  sectionTargets.current.products = node;
+                }}
+                style={styles.sectionBlock}
+              >
+                <View
+                  ref={(node) => {
+                    tutorialTargets.current.products = node;
+                  }}
+                  style={styles.sectionHeading}
+                >
                   <View style={styles.sectionIcon}>
                     <Ionicons
                       color={theme.colors.primary}
-                      name="layers-outline"
+                      name="cube-outline"
                       size={20}
                     />
                   </View>
                   <View style={styles.flex}>
-                    <AppText variant="label">Cantidad de mezclas</AppText>
+                    <AppText variant="label">Productos de esta mezcla</AppText>
                     <AppText variant="caption">
-                      Escribe un valor de 1 a 20 y luego aplícalo.
+                      Los seleccionados aparecen primero con sus datos de aplicación.
                     </AppText>
                   </View>
                 </View>
-                <View style={styles.countRow}>
-                  <View style={styles.flex}>
-                    <AppInput
-                      accessibilityLabel="Cantidad de mezclas"
-                      keyboardType="number-pad"
-                      onChangeText={updateCountInput}
-                      onEndEditing={commitCount}
-                      value={mixtureCountInput}
-                    />
-                  </View>
-                  <AppButton label="Aplicar" onPress={commitCount} size="small" />
-                </View>
-              </AppCard>
-            </View>
-
-            <View
-              ref={(node) => {
-                tutorialTargets.current.mixtureSelection = node;
-              }}
-            >
-              <ScrollView
-                horizontal
-                contentContainerStyle={styles.stepList}
-                showsHorizontalScrollIndicator={false}
-              >
-                {mixtures.map((mixture) => {
-                  const status = mixtureStatus(mixture, productOptions);
-                  const selected = mixture.numero === activeNumber;
-                  return (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      key={mixture.localId}
-                      onPress={() => setActiveNumber(mixture.numero)}
-                      style={[styles.stepChip, selected && styles.stepChipSelected]}
-                    >
-                      <AppText
-                        style={selected ? styles.selectedText : undefined}
-                        variant="label"
-                      >
-                        Mezcla {mixture.numero}
-                      </AppText>
-                      <AppText
-                        style={selected ? styles.selectedText : undefined}
-                        variant="caption"
-                      >
-                        {status}
-                      </AppText>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {activeMixture ? (
-              <AppCard style={styles.mixtureCard}>
-                <View style={styles.cardTitleRow}>
-                  <View>
-                    <AppText variant="heading">Mezcla {activeMixture.numero}</AppText>
-                    <AppText variant="caption">
-                      {activeMixture.assignments.length} producto(s) seleccionado(s)
-                    </AppText>
-                  </View>
-                  <StatusPill label={mixtureStatus(activeMixture, productOptions)} />
-                </View>
-
-                {mixtures.length > 1 ? (
-                  <View style={styles.copyBlock}>
-                    <AppText variant="label">Copiar desde otra mezcla</AppText>
-                    <View style={styles.wrapRow}>
-                      {mixtures
-                        .filter(
-                          (item) =>
-                            item.numero !== activeMixture.numero &&
-                            item.assignments.length > 0
-                        )
-                        .map((source) => (
-                          <AppButton
-                            key={source.localId}
-                            label={`Mezcla ${source.numero}`}
-                            onPress={() => copyFrom(source)}
-                            size="small"
-                            variant="outline"
-                          />
-                        ))}
-                    </View>
-                  </View>
+                <AppSelectField
+                  emptyMessage="No hay productos disponibles en los catalogos del dispositivo."
+                  icon="search-outline"
+                  isOpen={isDirectProductSearchOpen}
+                  label="Añadir producto del catálogo"
+                  onClose={() => setIsDirectProductSearchOpen(false)}
+                  onSelect={addDirectProduct}
+                  onToggle={() => setIsDirectProductSearchOpen((current) => !current)}
+                  options={directProductCatalog.map((item) => ({
+                    value: item.key,
+                    label: item.label,
+                    helper: item.helper
+                  }))}
+                  placeholder="Buscar nombre comercial o fertilizante"
+                  searchable
+                  searchPlaceholder="Escribe el nombre del producto"
+                />
+                {productOptions.length === 0 ? (
+                  <AppText variant="muted">
+                    Aun no hay productos. Busca uno arriba para comenzar esta mezcla.
+                  </AppText>
                 ) : null}
-
-                <View style={styles.sectionBlock}>
-                  <View
-                    ref={(node) => {
-                      tutorialTargets.current.products = node;
-                    }}
-                    style={styles.sectionHeading}
-                  >
-                    <View style={styles.sectionIcon}>
-                      <Ionicons
-                        color={theme.colors.primary}
-                        name="cube-outline"
-                        size={20}
-                      />
-                    </View>
-                    <View style={styles.flex}>
-                      <AppText variant="label">Productos de la mezcla</AppText>
-                      <AppText variant="caption">
-                        Busca un producto o selecciona uno ya registrado.
-                      </AppText>
-                    </View>
-                  </View>
-                  <AppSelectField
-                    emptyMessage="No hay productos disponibles en los catalogos del dispositivo."
-                    icon="search-outline"
-                    isOpen={isDirectProductSearchOpen}
-                    label="Agregar producto"
-                    onClose={() => setIsDirectProductSearchOpen(false)}
-                    onSelect={addDirectProduct}
-                    onToggle={() => setIsDirectProductSearchOpen((current) => !current)}
-                    options={directProductCatalog.map((item) => ({
-                      value: item.key,
-                      label: item.label,
-                      helper: item.helper
-                    }))}
-                    placeholder="Buscar nombre comercial o fertilizante"
-                    searchable
-                    searchPlaceholder="Escribe el nombre del producto"
-                  />
-                  {productOptions.length === 0 ? (
-                    <AppText variant="muted">
-                      Aun no hay productos. Busca uno arriba para comenzar esta mezcla.
-                    </AppText>
-                  ) : null}
-                  {productOptions.map((option) => {
+                {productOptions.length > 0 ? (
+                  <AppText style={styles.productListLabel} variant="caption">
+                    Toca un producto para agregarlo o quitarlo de esta mezcla.
+                  </AppText>
+                ) : null}
+                {[...productOptions]
+                  .sort((left, right) => {
+                    const leftSelected = activeMixture.assignments.some(
+                      (item) => item.productRef === left.ref
+                    );
+                    const rightSelected = activeMixture.assignments.some(
+                      (item) => item.productRef === right.ref
+                    );
+                    return Number(rightSelected) - Number(leftSelected);
+                  })
+                  .map((option) => {
                     const assignment = activeMixture.assignments.find(
                       (item) => item.productRef === option.ref
                     );
                     return (
                       <View
                         key={`${activeMixture.localId}-${option.ref}`}
-                        style={styles.productBlock}
+                        style={[
+                          styles.productBlock,
+                          assignment && styles.productBlockSelected
+                        ]}
                       >
                         <Pressable
                           accessibilityRole="checkbox"
@@ -897,49 +1231,93 @@ export function VisitaMezclasScreen() {
                         </Pressable>
                         {assignment ? (
                           <View style={styles.assignmentFields}>
-                            <AppInput
-                              keyboardType="decimal-pad"
-                              label={
-                                option.origin === "mezcla_directa"
-                                  ? "Cantidad de dosis"
-                                  : `Dosis (${assignment.unit || "unidad definida en Receta"})`
-                              }
-                              onChangeText={(dose) =>
-                                updateAssignment(option.ref, { dose })
-                              }
-                              value={assignment.dose}
-                            />
-                            {option.origin === "mezcla_directa" ? (
-                              <AppSelectField
-                                isOpen={openUnitProductRef === option.ref}
-                                label="Unidad de dosis"
-                                onClose={() => setOpenUnitProductRef(null)}
-                                onSelect={(unit) => {
-                                  updateAssignment(option.ref, { unit });
-                                  setOpenUnitProductRef(null);
+                            <View
+                              ref={(node) => {
+                                issueTargets.current[`product:${option.ref}:dose`] = node;
+                              }}
+                            >
+                              <AppInput
+                                error={visibleIssueMessage(`product:${option.ref}:dose`)}
+                                inputRef={(node) => {
+                                  issueInputTargets.current[
+                                    `product:${option.ref}:dose`
+                                  ] = node;
                                 }}
-                                onToggle={() =>
-                                  setOpenUnitProductRef((current) =>
-                                    current === option.ref ? null : option.ref
-                                  )
+                                keyboardType="decimal-pad"
+                                label={
+                                  option.origin === "mezcla_directa"
+                                    ? "Cantidad de dosis"
+                                    : `Dosis (${assignment.unit || "unidad definida en Receta"})`
                                 }
-                                options={getDirectDoseUnits(option).map((unit) => ({
-                                  value: unit,
-                                  label: unit
-                                }))}
-                                placeholder="Selecciona la unidad"
-                                selectedLabel={assignment.unit || undefined}
+                                onChangeText={(dose) =>
+                                  updateAssignment(option.ref, { dose })
+                                }
+                                onBlur={() =>
+                                  markFieldTouched(`product:${option.ref}:dose`)
+                                }
+                                value={assignment.dose}
                               />
+                            </View>
+                            {option.origin === "mezcla_directa" ? (
+                              <View
+                                ref={(node) => {
+                                  issueTargets.current[`product:${option.ref}:unit`] =
+                                    node;
+                                }}
+                              >
+                                <AppSelectField
+                                  error={visibleIssueMessage(
+                                    `product:${option.ref}:unit`
+                                  )}
+                                  isOpen={openUnitProductRef === option.ref}
+                                  label="Unidad de dosis"
+                                  onClose={() => setOpenUnitProductRef(null)}
+                                  onSelect={(unit) => {
+                                    updateAssignment(option.ref, { unit });
+                                    markFieldTouched(`product:${option.ref}:unit`);
+                                    setOpenUnitProductRef(null);
+                                  }}
+                                  onToggle={() =>
+                                    setOpenUnitProductRef((current) =>
+                                      current === option.ref ? null : option.ref
+                                    )
+                                  }
+                                  options={getDirectDoseUnits(option).map((unit) => ({
+                                    value: unit,
+                                    label: unit
+                                  }))}
+                                  placeholder="Selecciona la unidad"
+                                  selectedLabel={assignment.unit || undefined}
+                                />
+                              </View>
                             ) : null}
                             {option.viaAplicacion === "edafica" ? (
-                              <AppInput
-                                keyboardType="number-pad"
-                                label="Cantidad de plantas"
-                                onChangeText={(plants) =>
-                                  updateAssignment(option.ref, { plants })
-                                }
-                                value={assignment.plants}
-                              />
+                              <View
+                                ref={(node) => {
+                                  issueTargets.current[`product:${option.ref}:plants`] =
+                                    node;
+                                }}
+                              >
+                                <AppInput
+                                  error={visibleIssueMessage(
+                                    `product:${option.ref}:plants`
+                                  )}
+                                  inputRef={(node) => {
+                                    issueInputTargets.current[
+                                      `product:${option.ref}:plants`
+                                    ] = node;
+                                  }}
+                                  keyboardType="number-pad"
+                                  label="Cantidad de plantas"
+                                  onChangeText={(plants) =>
+                                    updateAssignment(option.ref, { plants })
+                                  }
+                                  onBlur={() =>
+                                    markFieldTouched(`product:${option.ref}:plants`)
+                                  }
+                                  value={assignment.plants}
+                                />
+                              </View>
                             ) : null}
                             {option.origin === "mezcla_directa" ? (
                               <Pressable
@@ -966,184 +1344,256 @@ export function VisitaMezclasScreen() {
                       </View>
                     );
                   })}
+              </View>
+
+              <View
+                ref={(node) => {
+                  sectionTargets.current.application = node;
+                  tutorialTargets.current.frequency = node;
+                }}
+                style={styles.applicationBlock}
+              >
+                <View style={styles.sectionHeading}>
+                  <View style={styles.sectionIcon}>
+                    <Ionicons
+                      color={theme.colors.primary}
+                      name="speedometer-outline"
+                      size={20}
+                    />
+                  </View>
+                  <View style={styles.flex}>
+                    <AppText variant="label">Datos de aplicación</AppText>
+                    <AppText variant="caption">
+                      Completa solo los datos necesarios para estos productos.
+                    </AppText>
+                  </View>
                 </View>
-
                 {requiresVolume(activeMixture, productOptions) ? (
-                  <AppInput
-                    keyboardType="decimal-pad"
-                    label="Volumen de aplicacion (cilindros/ha)"
-                    onChangeText={(volumenAplicacion) =>
-                      updateActive({ volumenAplicacion })
-                    }
-                    value={activeMixture.volumenAplicacion}
-                  />
+                  <View
+                    ref={(node) => {
+                      issueTargets.current["application:volume"] = node;
+                    }}
+                  >
+                    <AppInput
+                      error={visibleIssueMessage("application:volume")}
+                      inputRef={(node) => {
+                        issueInputTargets.current["application:volume"] = node;
+                      }}
+                      keyboardType="decimal-pad"
+                      label="Volumen de aplicación (cilindros/ha)"
+                      onBlur={() => markFieldTouched("application:volume")}
+                      onChangeText={(volumenAplicacion) =>
+                        updateActive({ volumenAplicacion })
+                      }
+                      value={activeMixture.volumenAplicacion}
+                    />
+                  </View>
                 ) : null}
-
                 <View
                   ref={(node) => {
-                    tutorialTargets.current.frequency = node;
+                    issueTargets.current["application:frequency"] = node;
                   }}
                 >
                   <AppInput
-                    error={
-                      !activeMixture.frecuenciaDosis?.trim()
-                        ? "Ingresa la frecuencia de dosis."
-                        : activeMixture.frecuenciaDosis.trim().length > 200
-                          ? "Usa como maximo 200 caracteres."
-                          : null
-                    }
+                    error={visibleIssueMessage("application:frequency")}
+                    inputRef={(node) => {
+                      issueInputTargets.current["application:frequency"] = node;
+                    }}
                     label="Frecuencia de dosis"
                     maxLength={200}
+                    onBlur={() => markFieldTouched("application:frequency")}
                     onChangeText={(frecuenciaDosis) => updateActive({ frecuenciaDosis })}
                     placeholder="Ej. Cada 7 dias"
                     value={activeMixture.frecuenciaDosis ?? ""}
                   />
                 </View>
+              </View>
 
-                <View style={[styles.sectionBlock, styles.coadjuvantSection]}>
-                  <View
-                    ref={(node) => {
-                      tutorialTargets.current.coadyuvants = node;
-                    }}
-                  style={styles.sectionHeading}
-                >
-                  <View style={styles.sectionIcon}>
-                    <Ionicons color={theme.colors.info} name="water-outline" size={20} />
-                  </View>
-                  <View style={styles.flex}>
-                    <AppText variant="label">Coadyuvantes de esta mezcla</AppText>
-                      <AppText variant="caption">
-                        La dosis y unidad son obligatorias para cada selección.
-                      </AppText>
-                    </View>
-                  </View>
-                  <View style={styles.wrapRow}>
-                    {visitaRecetasService.getCatalogos().coadyuvantes.map((item) => {
-                      const selected = activeMixture.coadyuvantesIds.includes(item.id);
-                      return (
-                        <Pressable
-                          accessibilityRole="checkbox"
-                        accessibilityState={{ checked: selected }}
-                        key={item.id}
-                        onPress={() => toggleCoadjuvant(item.id)}
-                        style={[styles.optionChip, selected && styles.optionChipSelected]}
-                      >
-                        <AppText
-                          style={selected ? styles.optionTextSelected : undefined}
-                            variant="label"
+              <View
+                ref={(node) => {
+                  sectionTargets.current.coadyuvants = node;
+                  tutorialTargets.current.coadyuvants = node;
+                }}
+                style={[styles.sectionBlock, styles.coadjuvantSection]}
+              >
+                <AppCollapsibleHeader
+                  closeLabel="Ocultar"
+                  icon="water-outline"
+                  isExpanded={isCoadjuvantsExpanded}
+                  onToggle={() => setIsCoadjuvantsExpanded((current) => !current)}
+                  openLabel="Agregar o revisar"
+                  statusLabel={
+                    activeMixtureIssues.some((issue) => issue.section === "coadyuvants")
+                      ? "Falta completar dosis"
+                      : activeMixture.coadyuvantesIds.length > 0
+                        ? `${activeMixture.coadyuvantesIds.length} agregado${
+                            activeMixture.coadyuvantesIds.length === 1 ? "" : "s"
+                          }`
+                        : "Opcional"
+                  }
+                  statusTone={
+                    activeMixtureIssues.some((issue) => issue.section === "coadyuvants")
+                      ? "warning"
+                      : activeMixture.coadyuvantesIds.length > 0
+                        ? "success"
+                        : "neutral"
+                  }
+                  subtitle={
+                    activeMixture.coadyuvantesIds.length > 0
+                      ? "Revisa la dosis de cada coadyuvante seleccionado."
+                      : "Añádelos solamente cuando la preparación los requiera."
+                  }
+                  title="Coadyuvantes"
+                />
+                {isCoadjuvantsExpanded ? (
+                  <View style={styles.collapsibleContent}>
+                    <View style={styles.wrapRow}>
+                      {visitaRecetasService.getCatalogos().coadyuvantes.map((item) => {
+                        const selected = activeMixture.coadyuvantesIds.includes(item.id);
+                        return (
+                          <Pressable
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: selected }}
+                            key={item.id}
+                            onPress={() => toggleCoadjuvant(item.id)}
+                            style={[
+                              styles.optionChip,
+                              selected && styles.optionChipSelected
+                            ]}
                           >
-                            {item.name}
-                          </AppText>
-                        </Pressable>
+                            <AppText
+                              style={selected ? styles.optionTextSelected : undefined}
+                              variant="label"
+                            >
+                              {item.name}
+                            </AppText>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    {activeMixture.coadyuvantesIds.map((id) => {
+                      const coadyuvante = visitaRecetasService
+                        .getCatalogos()
+                        .coadyuvantes.find((item) => item.id === id);
+                      return (
+                        <View
+                          key={`${activeMixture.localId}-dose-${id}`}
+                          ref={(node) => {
+                            issueTargets.current[`coadyuvant:${id}:dose`] = node;
+                          }}
+                        >
+                          <AppInput
+                            error={visibleIssueMessage(`coadyuvant:${id}:dose`)}
+                            inputRef={(node) => {
+                              issueInputTargets.current[`coadyuvant:${id}:dose`] = node;
+                            }}
+                            label={`Dosis de ${coadyuvante?.name ?? "coadyuvante"}`}
+                            onBlur={() => markFieldTouched(`coadyuvant:${id}:dose`)}
+                            onChangeText={(dose) => updateCoadjuvantDose(id, dose)}
+                            placeholder="Ej. 100 ml/cilindro"
+                            value={activeMixture.coadyuvantesDosis?.[id] ?? ""}
+                          />
+                        </View>
                       );
                     })}
                   </View>
+                ) : null}
+              </View>
 
-                  {activeMixture.coadyuvantesIds.map((id) => {
-                    const coadyuvante = visitaRecetasService
-                      .getCatalogos()
-                      .coadyuvantes.find((item) => item.id === id);
-                    return (
-                      <AppInput
-                        error={
-                          activeMixture.coadyuvantesDosis?.[id]?.trim()
-                            ? null
-                            : "Ingresa dosis y unidad."
-                        }
-                        key={`${activeMixture.localId}-dose-${id}`}
-                        label={`Dosis de ${coadyuvante?.name ?? "coadyuvante"}`}
-                        onChangeText={(dose) => updateCoadjuvantDose(id, dose)}
-                        placeholder="Ej. 100 ml/cilindro"
-                        value={activeMixture.coadyuvantesDosis?.[id] ?? ""}
-                      />
-                    );
-                  })}
-                </View>
-
-                <View style={styles.orderBlock}>
-                  <View
-                    ref={(node) => {
-                      tutorialTargets.current.preparationOrder = node;
-                    }}
-                    style={styles.orderHeader}
-                  >
-                    <View style={styles.flex}>
-                      <AppText variant="label">Orden de preparación</AppText>
-                      <AppText variant="caption">
-                        Agua permanece fija. Intercambia dos elementos para reordenar.
-                      </AppText>
-                    </View>
+              <View
+                ref={(node) => {
+                  tutorialTargets.current.preparationOrder = node;
+                }}
+                style={styles.orderBlock}
+              >
+                <AppCollapsibleHeader
+                  closeLabel="Ocultar"
+                  icon="list-outline"
+                  isExpanded={isPreparationOrderExpanded}
+                  onToggle={() => setIsPreparationOrderExpanded((current) => !current)}
+                  openLabel="Revisar orden"
+                  statusLabel={`${activeMixture.ordenMezcla.length} pasos`}
+                  statusTone="neutral"
+                  subtitle="Se genera automáticamente y mantiene el agua primero."
+                  title="Orden de preparación"
+                />
+                {isPreparationOrderExpanded ? (
+                  <View style={styles.collapsibleContent}>
                     {movableOrderCount >= 2 ? (
                       <AppButton
-                        label={isReordering ? "Listo" : "Reordenar"}
+                        label={
+                          isReordering ? "Terminar reordenamiento" : "Modificar orden"
+                        }
                         onPress={() => {
                           setIsReordering((current) => !current);
                           setSelectedOrderIndex(null);
                         }}
-                        size="small"
                         variant={isReordering ? "primary" : "outline"}
                       />
                     ) : null}
-                  </View>
-                  {isReordering ? (
-                    <AppText style={styles.reorderHint} variant="caption">
-                      {selectedOrderIndex === null
-                        ? "Toca el primer elemento que deseas mover."
-                        : "Ahora toca el elemento con el que deseas intercambiarlo."}
-                    </AppText>
-                  ) : null}
-                  {activeMixture.ordenMezcla.map((item, index) => {
-                    const fixed = isOrdenMezclaFixedItem(item);
-                    const selected = selectedOrderIndex === index;
-                    return (
-                      <Pressable
-                        accessibilityLabel={`${index + 1}. ${item}${fixed ? ", posicion fija" : ""}`}
-                        accessibilityRole="button"
-                        accessibilityState={{
-                          disabled: !isReordering || fixed,
-                          selected
-                        }}
-                        disabled={!isReordering || fixed}
-                        key={`${item}-${index}`}
-                        onPress={() => exchangeOrderItem(index)}
-                        style={[
-                          styles.orderItem,
-                          fixed && styles.orderItemFixed,
-                          isReordering && !fixed && styles.orderItemMovable,
-                          selected && styles.orderItemSelected
-                        ]}
-                      >
-                        <View style={styles.orderNumber}>
-                          <AppText variant="caption">{index + 1}</AppText>
-                        </View>
-                        <AppText style={styles.orderItemText} variant="label">
-                          {item}
-                        </AppText>
-                        <Ionicons
-                          color={fixed ? theme.colors.textMuted : theme.colors.primary}
-                          name={fixed ? "lock-closed-outline" : "swap-vertical-outline"}
-                          size={18}
-                        />
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                {shouldShowMixtureNavigation(mixtures.length) ? (
-                  <View style={styles.navigationRow}>
-                    <AppButton
-                      disabled={activeNumber <= 1}
-                      label="Anterior"
-                      onPress={() => setActiveNumber((current) => current - 1)}
-                      variant="outline"
-                    />
-                    <AppButton
-                      disabled={activeNumber >= mixtures.length}
-                      label="Siguiente"
-                      onPress={() => setActiveNumber((current) => current + 1)}
-                    />
+                    {isReordering ? (
+                      <AppText style={styles.reorderHint} variant="caption">
+                        {selectedOrderIndex === null
+                          ? "Toca el primer elemento que deseas mover."
+                          : "Ahora toca el elemento con el que deseas intercambiarlo."}
+                      </AppText>
+                    ) : null}
+                    {activeMixture.ordenMezcla.map((item, index) => {
+                      const fixed = isOrdenMezclaFixedItem(item);
+                      const selected = selectedOrderIndex === index;
+                      return (
+                        <Pressable
+                          accessibilityLabel={`${index + 1}. ${item}${fixed ? ", posicion fija" : ""}`}
+                          accessibilityRole="button"
+                          accessibilityState={{
+                            disabled: !isReordering || fixed,
+                            selected
+                          }}
+                          disabled={!isReordering || fixed}
+                          key={`${item}-${index}`}
+                          onPress={() => exchangeOrderItem(index)}
+                          style={[
+                            styles.orderItem,
+                            fixed && styles.orderItemFixed,
+                            isReordering && !fixed && styles.orderItemMovable,
+                            selected && styles.orderItemSelected
+                          ]}
+                        >
+                          <View style={styles.orderNumber}>
+                            <AppText variant="caption">{index + 1}</AppText>
+                          </View>
+                          <AppText style={styles.orderItemText} variant="label">
+                            {item}
+                          </AppText>
+                          <Ionicons
+                            color={fixed ? theme.colors.textMuted : theme.colors.primary}
+                            name={fixed ? "lock-closed-outline" : "swap-vertical-outline"}
+                            size={18}
+                          />
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 ) : null}
+              </View>
+
+              {shouldShowMixtureNavigation(mixtures.length) ? (
+                <View style={styles.navigationRow}>
+                  <AppButton
+                    disabled={activeNumber <= 1}
+                    label="Mezcla anterior"
+                    onPress={() => setActiveNumber((current) => current - 1)}
+                    variant="outline"
+                  />
+                  {navigationTargetNumber ? (
+                    <AppButton
+                      label={`Continuar con Mezcla ${navigationTargetNumber}`}
+                      onPress={() => setActiveNumber(navigationTargetNumber)}
+                    />
+                  ) : null}
+                </View>
+              ) : null}
             </AppCard>
           ) : null}
         </>
@@ -1156,7 +1606,9 @@ export function VisitaMezclasScreen() {
           <AppCard>
             <AppText variant="heading">Cierre de visita</AppText>
             <AppText variant="muted">
-              Confirma la hora real. Es obligatoria para finalizar.
+              {firstPendingMixture
+                ? `Aún falta completar la Mezcla ${firstPendingMixture.numero}. Puedes confirmar la hora ahora y finalizar después.`
+                : "Todas las mezclas están listas. Confirma la hora real de cierre."}
             </AppText>
             <Time12HourInput
               error={endVisitTimeError}
@@ -1209,7 +1661,7 @@ export function VisitaMezclasScreen() {
           />
           <AppButton
             icon="checkmark-circle-outline"
-            label="Finalizar visita"
+            label={firstPendingMixture ? "Revisar pendientes" : "Finalizar visita"}
             loading={isSaving}
             onPress={() => void finalize()}
           />
@@ -1452,7 +1904,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: "row",
     gap: 7,
-    minHeight: 42,
+    minHeight: 48,
     paddingHorizontal: 14
   },
   tutorialButtonText: {
@@ -1471,13 +1923,57 @@ const styles = StyleSheet.create({
     right: 16
   },
   tutorialNoticeText: { color: theme.colors.primaryDark },
-  guideCard: { backgroundColor: theme.colors.infoMuted },
-  guideTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
+  progressCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.primaryLight,
+    gap: 12
+  },
+  progressHeader: { alignItems: "center", flexDirection: "row", gap: 12 },
+  progressIcon: {
+    alignItems: "center",
+    backgroundColor: theme.colors.primaryMuted,
+    borderRadius: theme.radius.full,
+    height: 44,
+    justifyContent: "center",
+    width: 44
+  },
+  progressPercent: { color: theme.colors.primaryDark },
+  progressTrack: {
+    backgroundColor: theme.colors.borderLight,
+    borderRadius: theme.radius.full,
+    height: 8,
+    overflow: "hidden"
+  },
+  progressFill: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.full,
+    height: "100%"
+  },
+  savedRow: { alignItems: "center", flexDirection: "row", gap: 8 },
   countCard: {
     backgroundColor: theme.colors.surface,
     borderColor: theme.colors.primaryLight
   },
-  countRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  countRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "center"
+  },
+  countStepButton: {
+    alignItems: "center",
+    backgroundColor: theme.colors.primaryMuted,
+    borderColor: theme.colors.primary,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.5,
+    height: 48,
+    justifyContent: "center",
+    width: 48
+  },
+  countStepButtonDisabled: { opacity: 0.4 },
+  countInputWrap: { width: 84 },
+  countInput: { fontSize: 20, fontWeight: "700", textAlign: "center" },
+  pressedControl: { opacity: 0.72 },
   stepList: { gap: 8, paddingVertical: 4 },
   stepChip: {
     minWidth: 128,
@@ -1506,6 +2002,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12
   },
+  cardTitleCopy: { flex: 1 },
   statusPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -1517,6 +2014,37 @@ const styles = StyleSheet.create({
   },
   statusPillReady: { backgroundColor: theme.colors.successMuted },
   statusPillEmpty: { backgroundColor: theme.colors.borderLight },
+  pendingPanel: {
+    backgroundColor: theme.colors.warningMuted,
+    borderColor: theme.colors.warning,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12
+  },
+  pendingTitleRow: { alignItems: "center", flexDirection: "row", gap: 10 },
+  pendingItem: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.sm,
+    flexDirection: "row",
+    gap: 8,
+    minHeight: 48,
+    paddingHorizontal: 10,
+    paddingVertical: 8
+  },
+  pendingItemText: { flex: 1 },
+  readyPanel: {
+    alignItems: "center",
+    backgroundColor: theme.colors.successMuted,
+    borderColor: theme.colors.success,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    padding: 12
+  },
+  readyText: { color: theme.colors.primaryDark },
   sectionBlock: {
     gap: 12,
     padding: 12,
@@ -1551,6 +2079,11 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     overflow: "hidden"
   },
+  productBlockSelected: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.primary
+  },
+  productListLabel: { color: theme.colors.textMuted },
   productRow: {
     minHeight: 56,
     flexDirection: "row",
@@ -1571,6 +2104,15 @@ const styles = StyleSheet.create({
   },
   removeDirectProductText: { color: theme.colors.error },
   assignmentFields: { gap: 12, padding: 12, paddingTop: 0 },
+  applicationBlock: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 12,
+    padding: 12
+  },
+  collapsibleContent: { gap: 12, paddingTop: 4 },
   flex: { flex: 1, gap: 2 },
   optionChip: {
     minHeight: 48,
@@ -1594,7 +2136,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.warning
   },
-  orderHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
   reorderHint: { color: theme.colors.primaryDark },
   orderItem: {
     minHeight: 50,
@@ -1622,7 +2163,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.warningMuted
   },
   orderItemText: { flex: 1 },
-  navigationRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+  navigationRow: { gap: 12 },
   actions: { gap: 12 },
   errorBanner: {
     padding: 14,

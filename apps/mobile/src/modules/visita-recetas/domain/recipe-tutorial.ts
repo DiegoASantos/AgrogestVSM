@@ -498,62 +498,32 @@ export function buildMixtureTutorialSteps(hasProducts: boolean): MixtureTutorial
       tutorialStep(
         "mixtureCount",
         "Cantidad de mezclas",
-        "Indica cuantas mezclas preparara y pulsa Aplicar. Puedes usar de 1 a 20 mezclas."
+        "Usa los botones para aumentar o reducir la cantidad, o escribe un valor de 1 a 20."
       ),
       tutorialStep(
         "mixtureSelection",
         "Elige una mezcla",
-        "Selecciona una mezcla para configurarla de forma independiente. Su estado indica si aun faltan datos."
+        "Selecciona una mezcla para configurarla. Cada tarjeta indica cuántos datos faltan."
       ),
       tutorialStep(
         "products",
-        "Productos de la mezcla",
-        "Marca los productos de la receta que se usaran en esta mezcla."
-      ),
-      tutorialStep(
-        "productDose",
-        "Dosis por producto",
-        "Completa la dosis de cada producto que hayas marcado."
-      ),
-      tutorialStep(
-        "productPlants",
-        "Cantidad de plantas",
-        "Para productos de aplicacion edafica, ingresa la cantidad de plantas."
-      ),
-      tutorialStep(
-        "applicationVolume",
-        "Volumen de aplicacion",
-        "Si la mezcla tiene productos foliares, ingresa el volumen en cilindros por hectarea."
+        "Productos y dosis",
+        "Agrega o marca los productos que se usarán y completa los datos que aparecen debajo de cada selección."
       ),
       tutorialStep(
         "frequency",
-        "Frecuencia y volumen",
-        "Indica cada cuanto se aplicara la mezcla. Si contiene productos foliares, tambien completa el volumen de aplicacion."
+        "Datos de aplicación",
+        "Indica cada cuánto se aplicará la mezcla y, cuando corresponda, su volumen de aplicación."
       ),
       tutorialStep(
         "coadyuvants",
-        "Coadyuvantes",
-        "Marca los coadyuvantes que utilizara."
-      ),
-      tutorialStep(
-        "coadyuvantDose",
-        "Dosis de coadyuvantes",
-        "Completa la dosis y unidad de cada coadyuvante seleccionado."
+        "Coadyuvantes opcionales",
+        "Abre esta sección solo si la mezcla usa coadyuvantes. Cada selección necesita dosis y unidad."
       ),
       tutorialStep(
         "preparationOrder",
-        "Orden de preparacion",
-        "Revisa que el agua este al inicio y los productos aparezcan en el orden correcto."
-      ),
-      tutorialStep(
-        "reorder",
-        "Reordenar productos",
-        "Pulsa Reordenar y toca dos elementos para intercambiarlos. El agua permanece fija."
-      ),
-      tutorialStep(
-        "nextMixture",
-        "Siguiente mezcla",
-        "Si configuraste mas de una mezcla, avanza para completar la siguiente de la misma forma."
+        "Orden de preparación",
+        "El orden se genera automáticamente. Abre la sección para revisarlo o modificarlo; el agua permanece fija."
       )
     );
   }

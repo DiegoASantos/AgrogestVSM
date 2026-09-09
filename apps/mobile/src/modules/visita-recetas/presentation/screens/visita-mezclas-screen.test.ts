@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildDirectProductCatalog,
   copyMixtureConfiguration,
+  findFirstMixtureIssue,
+  findNextIncompleteMixtureNumber,
   getDirectDoseUnits,
+  getMixtureIssues,
+  getSteppedMixtureCount,
   mixtureStatus,
   parseMixtureCount,
   shouldShowMixtureNavigation,
@@ -121,10 +125,89 @@ describe("formulario guiado de mezclas", () => {
     );
   });
 
+  it("explica los datos pendientes de una mezcla", () => {
+    const issues = getMixtureIssues(
+      {
+        ...mixture(1),
+        frecuenciaDosis: "",
+        volumenAplicacion: "",
+        assignments: [
+          { ...mixture(1).assignments[0]!, dose: "" },
+          { ...mixture(1).assignments[1]!, plants: "" }
+        ]
+      },
+      products
+    );
+
+    expect(issues.map((issue) => issue.id)).toEqual([
+      "product:fito-1:dose",
+      "product:fert-1:plants",
+      "application:volume",
+      "application:frequency"
+    ]);
+  });
+
+  it("ubica la primera mezcla que necesita correccion", () => {
+    const issue = findFirstMixtureIssue(
+      [mixture(1), { ...mixture(2), frecuenciaDosis: "" }],
+      products,
+      new Set(["fito-1", "fert-1"])
+    );
+
+    expect(issue).toMatchObject({
+      mixtureNumber: 2,
+      issue: { id: "application:frequency", section: "application" }
+    });
+  });
+
+  it("prioriza un producto que aun no fue asignado", () => {
+    const issue = findFirstMixtureIssue([mixture(1)], products, new Set(["fito-1"]));
+
+    expect(issue).toMatchObject({
+      mixtureNumber: 1,
+      issue: { id: "unassigned:fert-1", section: "products" }
+    });
+  });
+
   it("permite vaciar temporalmente la cantidad antes de confirmar otro valor", () => {
     expect(parseMixtureCount("")).toBeNull();
     expect(parseMixtureCount("2")).toBe(2);
     expect(parseMixtureCount("25")).toBe(20);
+  });
+
+  it("aplica el stepper sobre el valor visible aun antes de confirmarlo", () => {
+    expect(getSteppedMixtureCount("5", 2, 1)).toBe(6);
+    expect(getSteppedMixtureCount("5", 2, -1)).toBe(4);
+    expect(getSteppedMixtureCount("", 2, 1)).toBe(3);
+    expect(getSteppedMixtureCount("20", 2, 1)).toBe(20);
+  });
+
+  it("continua con la siguiente mezcla realmente incompleta", () => {
+    const incompleteThird = { ...mixture(3), frecuenciaDosis: "" };
+    expect(
+      findNextIncompleteMixtureNumber(
+        [mixture(1), mixture(2), incompleteThird],
+        products,
+        1
+      )
+    ).toBe(3);
+    expect(
+      findNextIncompleteMixtureNumber(
+        [{ ...mixture(1), frecuenciaDosis: "" }, mixture(2), mixture(3)],
+        products,
+        3
+      )
+    ).toBe(1);
+  });
+
+  it("permite cerrar la visita sin mezclas cuando no existen productos", () => {
+    expect(
+      validateMixtures(
+        [{ ...mixture(1), assignments: [], frecuenciaDosis: "" }],
+        [],
+        new Set()
+      )
+    ).toBeNull();
   });
 
   it("oculta la navegacion cuando solo existe una mezcla", () => {

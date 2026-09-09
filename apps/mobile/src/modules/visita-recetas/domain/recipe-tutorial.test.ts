@@ -94,19 +94,16 @@ describe("tutorial de receta y mezclas", () => {
   });
 
   it("incluye la configuracion de mezcla solo si hay productos", () => {
-    expect(buildMixtureTutorialSteps(true).map((step) => step.id)).toEqual(
-      expect.arrayContaining([
-        "products",
-        "productDose",
-        "productPlants",
-        "applicationVolume",
-        "coadyuvants",
-        "coadyuvantDose",
-        "preparationOrder",
-        "reorder",
-        "nextMixture"
-      ])
-    );
+    expect(buildMixtureTutorialSteps(true).map((step) => step.id)).toEqual([
+      "mixtureCount",
+      "mixtureSelection",
+      "products",
+      "frequency",
+      "coadyuvants",
+      "preparationOrder",
+      "endTime",
+      "finish"
+    ]);
     expect(buildMixtureTutorialSteps(false).map((step) => step.id)).toEqual([
       "endTime",
       "finish"

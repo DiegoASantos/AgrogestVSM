@@ -33,6 +33,14 @@ export type ProductOption = {
   productType?: "solido" | "liquido" | null;
 };
 
+export type MixtureIssueSection = "products" | "application" | "coadyuvants";
+
+export type MixtureIssue = {
+  id: string;
+  section: MixtureIssueSection;
+  message: string;
+};
+
 export type DirectProductCatalogOption =
   | {
       key: string;
@@ -103,30 +111,90 @@ export function getDirectDoseUnits(option: ProductOption) {
 
 export function mixtureStatus(mixture: EditableMixture, options: ProductOption[]) {
   if (mixture.assignments.length === 0) return "Sin configurar";
-  const completeDose = mixture.assignments.every(
-    (item) => Boolean(parsePositiveDecimal(item.dose)) && Boolean(item.unit)
-  );
-  const completePlants = mixture.assignments.every((item) => {
-    const option = options.find((product) => product.ref === item.productRef);
-    return (
-      option?.viaAplicacion !== "edafica" || Boolean(parsePositiveDecimal(item.plants))
-    );
-  });
-  const completeVolume =
-    !requiresVolume(mixture, options) ||
-    Boolean(parsePositiveDecimal(mixture.volumenAplicacion));
-  const completeCoadjuvants = mixture.coadyuvantesIds.every((id) =>
-    Boolean(mixture.coadyuvantesDosis?.[id]?.trim())
-  );
+  return getMixtureIssues(mixture, options).length === 0 ? "Lista" : "En progreso";
+}
+
+export function getMixtureIssues(
+  mixture: EditableMixture,
+  options: ProductOption[]
+): MixtureIssue[] {
+  if (mixture.assignments.length === 0) {
+    return [
+      {
+        id: "products",
+        section: "products",
+        message: "Agrega al menos un producto a esta mezcla."
+      }
+    ];
+  }
+
+  const issues: MixtureIssue[] = [];
+  for (const assignment of mixture.assignments) {
+    const option = options.find((product) => product.ref === assignment.productRef);
+    const productLabel = option?.label ?? "el producto";
+    if (!parsePositiveDecimal(assignment.dose)) {
+      issues.push({
+        id: `product:${assignment.productRef}:dose`,
+        section: "products",
+        message: `Ingresa una dosis mayor a cero para ${productLabel}.`
+      });
+    }
+    if (!assignment.unit.trim()) {
+      issues.push({
+        id: `product:${assignment.productRef}:unit`,
+        section: "products",
+        message:
+          option?.origin === "mezcla_directa"
+            ? `Selecciona la unidad de dosis para ${productLabel}.`
+            : `Vuelve a Receta y selecciona la unidad de dosis para ${productLabel}.`
+      });
+    }
+    if (option?.viaAplicacion === "edafica" && !parsePositiveDecimal(assignment.plants)) {
+      issues.push({
+        id: `product:${assignment.productRef}:plants`,
+        section: "products",
+        message: `Ingresa la cantidad de plantas para ${productLabel}.`
+      });
+    }
+  }
+
+  if (
+    requiresVolume(mixture, options) &&
+    !parsePositiveDecimal(mixture.volumenAplicacion)
+  ) {
+    issues.push({
+      id: "application:volume",
+      section: "application",
+      message: "Ingresa un volumen de aplicación mayor a cero."
+    });
+  }
+
   const frequency = (mixture.frecuenciaDosis ?? "").trim();
-  const completeFrequency = frequency.length > 0 && frequency.length <= 200;
-  return completeDose &&
-    completePlants &&
-    completeVolume &&
-    completeCoadjuvants &&
-    completeFrequency
-    ? "Lista"
-    : "En progreso";
+  if (!frequency) {
+    issues.push({
+      id: "application:frequency",
+      section: "application",
+      message: "Indica cada cuánto se aplicará la mezcla."
+    });
+  } else if (frequency.length > 200) {
+    issues.push({
+      id: "application:frequency",
+      section: "application",
+      message: "La frecuencia debe tener como máximo 200 caracteres."
+    });
+  }
+
+  for (const id of mixture.coadyuvantesIds) {
+    if (!mixture.coadyuvantesDosis?.[id]?.trim()) {
+      issues.push({
+        id: `coadyuvant:${id}:dose`,
+        section: "coadyuvants",
+        message: "Completa la dosis y unidad del coadyuvante seleccionado."
+      });
+    }
+  }
+
+  return issues;
 }
 
 export function requiresVolume(mixture: EditableMixture, options: ProductOption[]) {
@@ -149,8 +217,34 @@ export function validateMixtures(
   if (unassigned) return `Asigna ${unassigned.label} al menos a una mezcla.`;
   const empty = mixtures.find((item) => item.assignments.length === 0);
   if (empty) return `La mezcla ${empty.numero} no puede quedar vacia.`;
-  const incomplete = mixtures.find((item) => mixtureStatus(item, options) !== "Lista");
-  if (incomplete) return `Completa los datos de la mezcla ${incomplete.numero}.`;
+  for (const mixture of mixtures) {
+    const issue = getMixtureIssues(mixture, options)[0];
+    if (issue) return `Mezcla ${mixture.numero}: ${issue.message}`;
+  }
+  return null;
+}
+
+export function findFirstMixtureIssue(
+  mixtures: EditableMixture[],
+  options: ProductOption[],
+  assignedRefs: Set<string>
+): { mixtureNumber: number; issue: MixtureIssue } | null {
+  const unassigned = options.find((item) => !assignedRefs.has(item.ref));
+  if (unassigned) {
+    return {
+      mixtureNumber: mixtures[0]?.numero ?? 1,
+      issue: {
+        id: `unassigned:${unassigned.ref}`,
+        section: "products",
+        message: `Asigna ${unassigned.label} al menos a una mezcla.`
+      }
+    };
+  }
+
+  for (const mixture of mixtures) {
+    const issue = getMixtureIssues(mixture, options)[0];
+    if (issue) return { mixtureNumber: mixture.numero, issue };
+  }
   return null;
 }
 
@@ -173,6 +267,31 @@ export function parseMixtureCount(raw: string) {
   const parsed = Number.parseInt(raw, 10);
   if (!Number.isFinite(parsed)) return null;
   return Math.max(1, Math.min(20, parsed));
+}
+
+export function getSteppedMixtureCount(
+  raw: string,
+  currentCount: number,
+  direction: -1 | 1
+) {
+  const baseCount = parseMixtureCount(raw) ?? currentCount;
+  return Math.max(1, Math.min(20, baseCount + direction));
+}
+
+export function findNextIncompleteMixtureNumber(
+  mixtures: EditableMixture[],
+  options: ProductOption[],
+  activeNumber: number
+) {
+  const incomplete = mixtures.filter(
+    (mixture) =>
+      mixture.numero !== activeNumber && mixtureStatus(mixture, options) !== "Lista"
+  );
+  return (
+    incomplete.find((mixture) => mixture.numero > activeNumber)?.numero ??
+    incomplete[0]?.numero ??
+    null
+  );
 }
 
 export function shouldShowMixtureNavigation(mixtureCount: number) {
