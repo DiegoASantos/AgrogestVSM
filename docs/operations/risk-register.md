@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-07
+last_reviewed: 2026-09-10
 ---
 
 # Registro de riesgos
@@ -45,6 +45,7 @@ last_reviewed: 2026-09-07
 | R-033 | Una OTA móvil publicada antes de PostgreSQL 057 y la API compatible puede enviar el score v2 a un servidor que no conserva la versión | Alta | Mitigado | Desplegar y verificar migración/API antes de distribuir la OTA; la versión viaja en la operación padre y los históricos quedan en v1 |
 | R-034 | Un dispositivo puede conservar temporalmente la visibilidad sanitaria previa si no recarga catálogos después de PostgreSQL 058 | Media | Mitigado | SQLite 70 invalida la marca de descarga sin tocar datos offline; desplegar PostgreSQL y API antes de la OTA/APK y verificar recarga en un dispositivo smoke |
 | R-035 | Mobile puede enviar `mezcla_directa` antes de que PostgreSQL 061 y la API acepten objetivos fitosanitarios nulos | Alta | Mitigado | Desplegar migración PostgreSQL 061 y API compatible antes de la OTA/APK; SQLite 72 y la outbox preservan el agregado para reintento |
+| R-036 | Un cliente mobile puede confirmar falsamente un update de visita mediante el POST idempotente o postergar hijos fuera de una ventana de 100 elementos | Alta | Mitigado | Spec 081 separa POST/PATCH, usa la parcela remota, planifica la cola completa por agregado y reencola una vez las visitas con identidad remota sin borrar outbox ni fallos |
 
 ## Revisión
 

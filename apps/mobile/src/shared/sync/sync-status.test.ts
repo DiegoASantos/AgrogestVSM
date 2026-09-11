@@ -59,6 +59,38 @@ describe("sync status catalog identifiers", () => {
     ).toBe(false);
   });
 
+  it("scopes legacy error counts and details to the authenticated owner", () => {
+    getSyncCounts();
+    getSyncErrorDetails();
+
+    const countCalls = getFirstSync.mock.calls.filter(([statement]) =>
+      String(statement).includes("sync_status = 'error'")
+    );
+    const detailCalls = getAllSync.mock.calls.filter(([statement]) =>
+      String(statement).includes("sync_status = 'error'")
+    );
+    const allCalls = [...countCalls, ...detailCalls];
+    const visitCalls = allCalls.filter(([statement]) =>
+      /FROM visitas_campo\s+WHERE sync_status/.test(String(statement))
+    );
+    const recipeChildCalls = allCalls.filter(([statement]) =>
+      String(statement).includes("FROM visita_receta_fitosanidad")
+    );
+
+    expect(visitCalls.length).toBeGreaterThan(0);
+    for (const [statement, ...parameters] of visitCalls) {
+      expect(String(statement)).toContain("visitas_campo.agronomist_user_id = ?");
+      expect(String(statement)).toContain("sync_failures.owner_user_id = ?");
+      expect(parameters).toContain("agronomo-1");
+    }
+    expect(recipeChildCalls.length).toBeGreaterThan(0);
+    for (const [statement, ...parameters] of recipeChildCalls) {
+      expect(String(statement)).toContain("FROM visita_recetas owner_receta");
+      expect(String(statement)).toContain("owner_visita.agronomist_user_id = ?");
+      expect(parameters).toContain("agronomo-1");
+    }
+  });
+
   it("loads catalog errors when catalog tables have no local_id or updated_at", () => {
     getAllSync.mockImplementation((statement: string) => {
       if (statement.startsWith("PRAGMA table_info")) {

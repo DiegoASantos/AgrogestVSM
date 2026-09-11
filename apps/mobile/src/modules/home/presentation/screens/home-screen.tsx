@@ -478,7 +478,11 @@ export function HomeScreen() {
               variant={connectivity.variant}
             />
             <InfoCard
-              description={`Ultima sincronizacion: ${formatLastSyncTime(lastSyncTime)}`}
+              description={
+                syncCounts.pendingCount > 0
+                  ? `Ultimo intento: ${formatErrorDateTime(lastSyncAttempt?.attemptedAt ?? null)}`
+                  : `Ultima sincronizacion: ${formatLastSyncTime(lastSyncTime)}`
+              }
               icon="sync"
               title={syncStatus.title}
               variant={syncStatus.variant}
@@ -1155,7 +1159,7 @@ function SyncPendingModal({
                   </View>
                   <ErrorField label="ID local" value={item.localId} />
                   <ErrorField
-                    label="Ultima actualizacion"
+                    label="Encolado"
                     value={formatErrorDateTime(item.updatedAt)}
                   />
                 </View>
@@ -1272,9 +1276,11 @@ function getSyncAttemptVariant(result: SyncRunResult): StatusVariant {
 
   if (
     result.status === "offline" ||
+    result.status === "partial" ||
     result.status === "auth_failed" ||
     result.status === "already_running" ||
-    result.status === "backoff"
+    result.status === "backoff" ||
+    result.status === "timed_out"
   ) {
     return "warning";
   }

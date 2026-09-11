@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-09
+last_reviewed: 2026-09-10
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -329,6 +329,36 @@ Cada ejecucion de sync tiene un deadline:
 Al agotarse, se aborta el request activo, se preservan las entradas no
 procesadas y `isSyncing` vuelve a `false`. La UI nunca queda en
 "Sincronizando..." tras el deadline.
+
+## Planificacion de colas grandes y reparacion de visitas
+
+El motor lee la cola completa del usuario autenticado; el deadline limita el
+trabajo de red, no una ventana arbitraria de filas. Primero ordena catalogos y
+parcelas por dependencia. Despues agrupa cada visita con sus evaluaciones,
+observaciones, notas, riego, labores, receta y calificaciones, y procesa el
+padre antes que los hijos. Si un padre queda bloqueado, conserva su agregado y
+continua con otra visita elegible.
+
+Una visita nueva usa el `POST` idempotente por `publicId`. Una visita que ya
+tiene `server_id` usa `PATCH`; ambos payloads traducen `parcela_id` local a
+`parcelas.server_id`. Ninguna respuesta de creacion de una visita existente se
+interpreta como confirmacion de una actualizacion.
+
+La reparacion `sync_visit_update_repair_v1` se ejecuta una vez por usuario. En
+una transaccion, reencola como `update` las visitas activas con identidad remota
+que no tengan operacion, fallo durable ni estado `error`, las marca `pending` y
+guarda el marcador en `app_meta`. Un cierre antes del commit revierte tambien
+el marcador, por lo que el siguiente ciclo puede reintentar sin duplicar
+operaciones. Si la preparacion de esta reparacion falla, no escribe el marcador
+y el motor conserva el outbox normal: lo drena y vuelve a intentar la
+reparacion en un ciclo posterior.
+
+La UI diferencia `partial` de `success`: mientras exista outbox muestra ultimo
+intento y pendientes restantes. `last_sync_completed_at` solo avanza cuando no
+quedan pendientes ni errores del usuario autenticado. Tanto los conteos como el
+detalle de errores legados se limitan por propietario, incluida la relacion
+visita-receta. La fecha visible de cada pendiente es su fecha de encolado, no la
+fecha de edicion de la entidad.
 
 ## Sesion online
 

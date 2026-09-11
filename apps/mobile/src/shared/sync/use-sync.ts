@@ -4,11 +4,22 @@ import { AppState } from "react-native";
 import { useAuthSession } from "../../modules/auth/hooks/use-auth-session";
 import { useConnectivity } from "../connectivity/use-connectivity";
 import { refreshCatalogsIfStale } from "../database/seed-catalogs";
+import { getNowIsoString } from "../database/sqlite-utils";
 import { debugLog } from "../utils/debug-log";
-import { getLastSyncTime, getSyncCounts, setLastSyncAttempt } from "./sync-status";
+import {
+  getLastSyncTime,
+  getSyncCounts,
+  setLastSyncAttempt,
+  setLastSyncTime as storeLastSyncTime
+} from "./sync-status";
 import { processOutbox } from "./sync-engine";
 import { createDefaultSyncManager } from "./sync-state-store";
-import { createSyncRunResult, type SyncRunResult } from "./sync-result";
+import {
+  createCompletedOutboxSyncResult,
+  createSyncRunResult,
+  isSyncCycleComplete,
+  type SyncRunResult
+} from "./sync-result";
 import { subscribeToSyncRequests, type SyncRequestOptions } from "./sync-requests";
 
 const SYNC_INTERVAL_MS = 30 * 1000;
@@ -30,7 +41,7 @@ export function useSync() {
   const activeRunRef = useRef<Promise<SyncRunResult> | null>(null);
   const syncManagerRef = useRef(createDefaultSyncManager());
   const [syncCounts, setSyncCounts] = useState({ pendingCount: 0, errorCount: 0 });
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [lastSyncTime, setLastCompletedSyncTime] = useState<string | null>(null);
 
   isOnlineRef.current = isOnline;
   isAuthenticatedRef.current = isAuthenticated;
@@ -137,15 +148,34 @@ export function useSync() {
         }
 
         const counts = getSyncCounts();
-        const lastTime = getLastSyncTime();
         setSyncCounts(counts);
-        setLastSyncTime(lastTime);
+        if (isSyncCycleComplete(result, counts)) {
+          const completedAt = getNowIsoString();
+          storeLastSyncTime(completedAt);
+          setLastCompletedSyncTime(completedAt);
+        } else {
+          setLastCompletedSyncTime(getLastSyncTime());
+        }
+        const resultWithRemaining = {
+          ...result,
+          remainingPending: counts.pendingCount
+        };
+        if (result.stoppedByAuth) {
+          return finishRun(
+            createSyncRunResult(
+              "auth_failed",
+              "La sesion fue rechazada durante la sincronizacion. Vuelve a iniciar sesion.",
+              resultWithRemaining
+            )
+          );
+        }
+
         if (result.stoppedByConnectivity) {
           return finishRun(
             createSyncRunResult(
               "offline",
-              "La calidad de la red cambio. Los datos pendientes se conservaron localmente.",
-              result
+              `La calidad de la red cambio. Se enviaron ${result.processed}; quedan ${counts.pendingCount} pendientes.`,
+              resultWithRemaining
             )
           );
         }
@@ -154,8 +184,8 @@ export function useSync() {
           return finishRun(
             createSyncRunResult(
               "timed_out",
-              "La sincronizacion excedio el tiempo de espera. Los datos pendientes se conservaron.",
-              result
+              `Sincronizacion parcial por tiempo: ${result.processed} enviados; quedan ${counts.pendingCount} pendientes.`,
+              resultWithRemaining
             )
           );
         }
@@ -164,17 +194,7 @@ export function useSync() {
           // Catalog pull has its own state and must not retain the outbox indicator.
         });
 
-        return finishRun(
-          createSyncRunResult(
-            result.errors > 0 ? "failed" : "success",
-            result.errors > 0
-              ? "La sincronizacion termino con errores en algunos registros."
-              : result.processed > 0
-                ? "Datos sincronizados correctamente."
-                : "No habia datos nuevos para sincronizar.",
-            result
-          )
-        );
+        return finishRun(createCompletedOutboxSyncResult(result, counts));
       } catch (error) {
         debugLog("Sync", "Cycle error", {
           name: error instanceof Error ? error.name : "unknown"

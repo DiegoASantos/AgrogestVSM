@@ -90,9 +90,10 @@ vi.mock("../utils/debug-log", () => ({
   debugLog: vi.fn()
 }));
 
-const setLastSyncTime = vi.fn();
-vi.mock("./sync-status", () => ({
-  setLastSyncTime: (...args: unknown[]) => setLastSyncTime(...args)
+const enqueueVisitaUpdateRepairOnce = vi.fn();
+vi.mock("./sync-visit-recovery", () => ({
+  enqueueVisitaUpdateRepairOnce: (...args: unknown[]) =>
+    enqueueVisitaUpdateRepairOnce(...args)
 }));
 
 // Repository mocks
@@ -246,16 +247,29 @@ describe("processOutbox", () => {
 
     expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 0 });
     expect(getPendingOutboxEntries).not.toHaveBeenCalled();
-    expect(setLastSyncTime).not.toHaveBeenCalled();
   });
 
-  it("returns zeroed counters and still advances lastSyncTime when outbox is empty", async () => {
+  it("returns zeroed counters when outbox is empty", async () => {
     getPendingOutboxEntries.mockReturnValue([]);
 
     const result = await processOutbox();
 
     expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 0 });
-    expect(setLastSyncTime).toHaveBeenCalledOnce();
+    expect(enqueueVisitaUpdateRepairOnce).toHaveBeenCalledOnce();
+  });
+
+  it("continues draining the outbox when the visit repair is deferred", async () => {
+    enqueueVisitaUpdateRepairOnce.mockImplementationOnce(() => {
+      throw new Error("sqlite repair unavailable");
+    });
+    getPendingOutboxEntries.mockReturnValue([makeEntry()]);
+    handlerVisita.mockResolvedValue({ status: "synced" });
+
+    const result = await processOutbox();
+
+    expect(handlerVisita).toHaveBeenCalledOnce();
+    expect(deleteOutboxEntry).toHaveBeenCalledWith(1);
+    expect(result).toMatchObject({ processed: 1, skipped: 0, errors: 0 });
   });
 
   it("reconciles orphaned pending rows only for the authenticated owner", async () => {
@@ -367,7 +381,6 @@ describe("processOutbox", () => {
     // Only the first entry was attempted, nothing deleted
     expect(handlerVisita).toHaveBeenCalledTimes(1);
     expect(deleteOutboxEntry).not.toHaveBeenCalled();
-    expect(setLastSyncTime).not.toHaveBeenCalled();
     expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 0 });
   });
 
@@ -517,6 +530,42 @@ describe("processOutbox", () => {
     expect(result.processed).toBe(1);
   });
 
+  it("continues with another visit aggregate when the first parent is blocked", async () => {
+    evaluacionesGetById.mockImplementation((localId: string) => ({
+      visitaId: localId === "eval-1" ? "visita-1" : "visita-2"
+    }));
+    getPendingOutboxEntries.mockReturnValue([
+      makeEntry({ id: 1, entityLocalId: "visita-1" }),
+      makeEntry({ id: 2, entityLocalId: "visita-2" }),
+      makeEntry({
+        id: 3,
+        entityType: "visita_evaluaciones",
+        entityLocalId: "eval-1"
+      }),
+      makeEntry({
+        id: 4,
+        entityType: "visita_evaluaciones",
+        entityLocalId: "eval-2"
+      })
+    ]);
+    handlerVisita.mockImplementation((entry: { entityLocalId: string }) =>
+      entry.entityLocalId === "visita-1"
+        ? Promise.reject(new ApiError("network", 503))
+        : Promise.resolve({ status: "synced" })
+    );
+    handlerEvaluacion.mockResolvedValue({ status: "synced" });
+
+    const result = await processOutbox();
+
+    expect(handlerEvaluacion).toHaveBeenCalledOnce();
+    expect(handlerEvaluacion).toHaveBeenCalledWith(
+      expect.objectContaining({ entityLocalId: "eval-2" })
+    );
+    expect(deleteOutboxEntry).toHaveBeenCalledWith(2);
+    expect(deleteOutboxEntry).toHaveBeenCalledWith(4);
+    expect(result).toMatchObject({ processed: 2, skipped: 2, errors: 0 });
+  });
+
   it("stops processing on auth error and sets stoppedByAuth flag", async () => {
     getPendingOutboxEntries.mockReturnValue([
       makeEntry({ id: 40 }),
@@ -544,7 +593,6 @@ describe("processOutbox", () => {
     expect(result.unattempted).toBe(2);
     expect(incrementOutboxRetryCount).not.toHaveBeenCalled();
     expect(deleteOutboxEntry).not.toHaveBeenCalled();
-    expect(setLastSyncTime).not.toHaveBeenCalled();
   });
 
   it("stops processing on abort signal", async () => {

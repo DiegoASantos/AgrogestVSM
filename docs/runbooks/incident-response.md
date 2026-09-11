@@ -2,7 +2,7 @@
 title: Respuesta a incidentes y soporte
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-09-10
 ---
 
 # Respuesta a incidentes y soporte
@@ -70,6 +70,29 @@ Antes de borrar datos locales:
 
 Nunca indicar al usuario reinstalar la aplicación como primera medida si hay
 datos pendientes.
+
+### Cola de visitas que baja y vuelve a subir
+
+Si Inicio muestra cero errores pero cientos de pendientes, la reconciliacion
+puede estar reconstruyendo operaciones que faltaban en outbox. La hora comun de
+varios elementos corresponde al encolado y no demuestra una edicion masiva.
+
+1. No desinstalar la app, borrar almacenamiento ni retirar filas de SQLite.
+2. Registrar version mobile, usuario, pendientes, errores y hora del ultimo
+   intento, sin copiar payloads ni datos personales.
+3. Confirmar que la API compatible responde en `/health` y que el usuario esta
+   en modo online con sesion valida.
+4. Aplicar la OTA de la spec 081. El primer arranque puede aumentar una sola vez
+   el contador porque reencola visitas previamente confirmadas en falso.
+5. Mantener la app abierta y conectada. Cada ciclo es parcial si vence el
+   deadline; el contador debe disminuir sin que aparezcan fallos durables.
+6. Comprobar en la web una visita completa por usuario antes de declarar
+   recuperada la cohorte y registrar los conteos finales.
+
+Cancelar la distribucion si aparecen errores generalizados o si varios ciclos
+con red estable no procesan ningun registro. El rollback debe ser otra OTA que
+desactive el reencolado y conserve el handler `PATCH`; nunca volver al handler
+que trataba un update como creacion.
 
 ### Catalogos de receta eliminados o con validacion fallida
 

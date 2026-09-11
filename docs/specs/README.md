@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-04
+last_reviewed: 2026-09-10
 ---
 
 # Especificaciones
@@ -124,4 +124,5 @@ en la raíz.
 - [Spec 078: Estimaciones semanales de visitas por agrónomo](078-estimaciones-semanales-visitas.md)
 - [Spec 079: Reporte semanal de estimaciones de visitas](079-reporte-semanal-estimaciones.md)
 - [Spec 080: Precarga de cultivo y productos directos en mezclas](080-precarga-cultivo-productos-directos-mezclas.md)
+- [Spec 081: Recuperacion de sincronizacion de visitas mobile](081-recuperacion-sync-visitas-mobile.md)
 - [Plantilla](TEMPLATE.md)

@@ -2,7 +2,7 @@
 title: Deploy mobile Android con Expo EAS
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-17
+last_reviewed: 2026-09-10
 ---
 
 # Deploy mobile Android con Expo EAS
@@ -40,6 +40,17 @@ npx eas-cli@latest update --platform android --channel production --environment 
 
 La actualizacion se descarga al abrir la app y normalmente se aplica en el
 siguiente reinicio.
+
+Para la recuperacion de visitas de la spec 081 no hay dependencia nativa ni
+migracion SQLite, por lo que corresponde una OTA del runtime vigente. Antes de
+publicarla, validar con una copia anonimizada que contenga mas de 300 elementos
+de outbox. Tras aplicarla puede existir un unico aumento del contador por el
+reencolado correctivo; luego cada intento debe informar resultado parcial y
+reducir los pendientes hasta cero. No desinstalar ni limpiar almacenamiento.
+
+Si se cancela esta recuperacion, publicar una correccion hacia adelante que
+desactive el reencolado pero mantenga `PATCH` para updates. No republicar el
+handler anterior mientras existan operaciones pendientes.
 
 ## Aviso de actualizacion dentro de la app
 

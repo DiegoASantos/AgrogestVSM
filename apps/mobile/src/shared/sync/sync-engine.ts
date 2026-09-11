@@ -29,10 +29,12 @@ import { debugLog } from "../utils/debug-log";
 import { classifyError } from "./sync-errors";
 import { SYNC_ENTITY_TABLES } from "./sync-entities";
 import { entityHandlerMap } from "./sync-handlers";
-import { setLastSyncTime } from "./sync-status";
 import { getCatalogSessionUserId } from "../database/catalog-session";
 import { runInSafeTransactionSync } from "../database/safe-transaction";
 import { runWithSyncMutationLock } from "./sync-mutation-lock";
+import { orderSyncOutboxEntries } from "./sync-outbox-planner";
+import { enqueueVisitaUpdateRepairOnce } from "./sync-visit-recovery";
+import { getSyncEntityOwnership } from "./sync-ownership";
 import {
   catalogoFertilizantesRepo,
   catalogoIngredientesActivosRepo,
@@ -119,9 +121,19 @@ async function processOutboxUnlocked(
     return emptyResult;
   }
 
+  try {
+    enqueueVisitaUpdateRepairOnce();
+  } catch (error) {
+    debugLog("Sync", "Visit update repair deferred", {
+      name: error instanceof Error ? error.name : "unknown"
+    });
+  }
   reconcilePendingOutboxEntries();
 
-  const entries = getPendingOutboxEntries();
+  const entries = orderSyncOutboxEntries(
+    getPendingOutboxEntries(),
+    getChildVisitaLocalId
+  );
   if (entries.length > 0) {
     debugLog("Sync", `Starting cycle with ${entries.length} outbox entries`);
   }
@@ -272,10 +284,6 @@ async function processOutboxUnlocked(
     }
   }
 
-  if (!stoppedByAuth && !stoppedByConnectivity && !aborted) {
-    setLastSyncTime(getNowIsoString());
-  }
-
   return {
     processed,
     successfulRequests,
@@ -387,34 +395,59 @@ function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {
 }
 
 function getChildVisitaLocalId(entry: SyncOutboxItem): string | null {
+  let visitaLocalId: string | null = null;
+
   switch (entry.entityType) {
     case "visita_evaluaciones":
-      return evaluacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      visitaLocalId =
+        evaluacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      break;
     case "visita_observaciones_sanitarias":
-      return (
-        observacionesSanitariasRepository.getById(entry.entityLocalId)?.visitaId ?? null
-      );
+      visitaLocalId =
+        observacionesSanitariasRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      break;
     case "visita_paso_observaciones":
-      return visitaStepNotesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      visitaLocalId =
+        visitaStepNotesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      break;
     case "visita_riegos":
-      return riegosRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      visitaLocalId = riegosRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      break;
     case "visita_labores_culturales":
-      return (
-        laboresCulturalesVisitaRepository.getById(entry.entityLocalId)?.visitaId ?? null
-      );
+      visitaLocalId =
+        laboresCulturalesVisitaRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      break;
     case "visita_recetas":
-      return (
+      visitaLocalId =
         visitaRecetasRepository.getRecetaByLocalId(entry.entityLocalId)?.visitaLocalId ??
         visitaRecetasRepository.getRecetaByVisitaLocalId(entry.entityLocalId)
           ?.visitaLocalId ??
-        null
-      );
+        null;
+      break;
     case "visita_calificaciones":
-      return (
-        visitaCalificacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null
-      );
+      visitaLocalId =
+        visitaCalificacionesRepository.getById(entry.entityLocalId)?.visitaId ?? null;
+      break;
     default:
-      return null;
+      break;
+  }
+
+  if (visitaLocalId) {
+    return visitaLocalId;
+  }
+
+  if (!entry.payload) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(entry.payload) as {
+      visitaId?: string | null;
+      visitaLocalId?: string | null;
+    };
+    return payload.visitaId ?? payload.visitaLocalId ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -584,7 +617,7 @@ function reconcilePendingOutboxEntries() {
       "marcas_producto"
     ].includes(entity.entityType);
     const idColumn = isCatalogEntity ? "id" : "local_id";
-    const ownership = getReconciliationOwnership(
+    const ownership = getSyncEntityOwnership(
       entity.entityType,
       entity.table,
       ownerUserId
@@ -662,66 +695,4 @@ function reconcilePendingOutboxEntries() {
       );
     }
   }
-}
-
-function getReconciliationOwnership(
-  entityType: keyof typeof SYNC_ENTITY_TABLES,
-  table: string,
-  ownerUserId: string
-): { sql: string; parameters: string[] } {
-  if (entityType === "productores" || entityType === "parcelas") {
-    return {
-      sql: `AND ${table}.catalog_owner_user_id = ?`,
-      parameters: [ownerUserId]
-    };
-  }
-
-  if (entityType === "sectores") {
-    return {
-      sql: `AND EXISTS (
-        SELECT 1
-        FROM subsectores owner_subsector
-        INNER JOIN parcelas owner_parcela
-          ON owner_parcela.subsector_id = owner_subsector.id
-        WHERE owner_subsector.sector_id = sectores.id
-          AND owner_parcela.catalog_owner_user_id = ?
-      )`,
-      parameters: [ownerUserId]
-    };
-  }
-
-  if (entityType === "subsectores") {
-    return {
-      sql: `AND EXISTS (
-        SELECT 1
-        FROM parcelas owner_parcela
-        WHERE owner_parcela.subsector_id = subsectores.id
-          AND owner_parcela.catalog_owner_user_id = ?
-      )`,
-      parameters: [ownerUserId]
-    };
-  }
-
-  if (entityType === "visitas_campo") {
-    return {
-      sql: "AND visitas_campo.agronomist_user_id = ?",
-      parameters: [ownerUserId]
-    };
-  }
-
-  if (entityType.startsWith("visita_")) {
-    return {
-      sql: `AND EXISTS (
-        SELECT 1
-        FROM visitas_campo owner_visita
-        WHERE owner_visita.local_id = ${table}.visita_local_id
-          AND owner_visita.agronomist_user_id = ?
-      )`,
-      parameters: [ownerUserId]
-    };
-  }
-
-  // Los catalogos globales no tienen columna de propietario. Si su outbox se
-  // pierde, no se reasignan automaticamente a otra sesion autenticada.
-  return { sql: "AND 1 = 0", parameters: [] };
 }

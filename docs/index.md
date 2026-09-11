@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-04
+last_reviewed: 2026-09-10
 ---
 
 # Documentación de AgroGest VSM
@@ -132,6 +132,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Estimaciones semanales de visitas por agrónomo](specs/078-estimaciones-semanales-visitas.md)
 - [Reporte semanal de estimaciones de visitas](specs/079-reporte-semanal-estimaciones.md)
 - [Precarga de cultivo y productos directos en mezclas](specs/080-precarga-cultivo-productos-directos-mezclas.md)
+- [Recuperacion de sincronizacion de visitas mobile](specs/081-recuperacion-sync-visitas-mobile.md)
 
 ## Runbooks
 

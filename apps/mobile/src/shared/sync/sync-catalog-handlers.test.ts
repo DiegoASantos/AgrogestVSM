@@ -54,6 +54,40 @@ function makeEntry(overrides: Partial<SyncOutboxItem> = {}): SyncOutboxItem {
   };
 }
 
+function makeVisita(serverId: string | null) {
+  return {
+    id: "visita-local",
+    serverId,
+    syncStatus: "pending",
+    publicId: "00000000-0000-4000-8000-000000000001",
+    nroFicha: null,
+    cropId: "cultivo-1",
+    varietyId: "variedad-1",
+    parcelaId: "parcela-local",
+    campaignId: "campania-1",
+    agronomistUserId: "agronomo-1",
+    plantsCount: 100,
+    areaHectares: "2",
+    sowingDate: null,
+    visitDate: "2026-09-10",
+    startVisitTime: "08:00",
+    endVisitTime: "09:00",
+    phenologicalStageId: "etapa-1",
+    subEtapaId: null,
+    subEtapaPercentage: null,
+    generalObservation: null,
+    agronomistSignatureName: null,
+    producerSignatureName: null,
+    visitLocation: null,
+    synchronizedAt: null,
+    isActive: true,
+    technicalScoreVersion: 2,
+    createdAt: "2026-09-10T13:00:00.000Z",
+    updatedAt: "2026-09-10T14:00:00.000Z",
+    recetaAnteriorJson: null
+  } as const;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -195,6 +229,113 @@ describe("catalog sync handlers", () => {
 
     expect(result).toEqual({ status: "skipped" });
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it("creates a visit with the remote parcela id", async () => {
+    vi.spyOn(visitasCampoRepository, "getById").mockReturnValue(
+      makeVisita(null) as never
+    );
+    vi.spyOn(parcelasRepository, "getById").mockReturnValue({
+      id: "parcela-local",
+      serverId: "parcela-server",
+      isActive: true,
+      syncStatus: "synced"
+    } as never);
+    const create = vi.spyOn(visitasCampoRemote, "create").mockResolvedValue({
+      id: "visita-server",
+      publicId: "00000000-0000-4000-8000-000000000001"
+    } as never);
+    vi.spyOn(visitasCampoRepository, "update").mockImplementation(() => null as never);
+
+    const result = await handleVisitaCampo(
+      makeEntry({
+        entityType: "visitas_campo",
+        entityLocalId: "visita-local"
+      })
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ parcelaId: "parcela-server" }),
+      { accessToken: "test-token" },
+      {}
+    );
+    expect(result).toEqual({ status: "synced", serverId: "visita-server" });
+  });
+
+  it("updates a server-backed visit with PATCH and never falls back to create", async () => {
+    vi.spyOn(visitasCampoRepository, "getById").mockReturnValue(
+      makeVisita("visita-server") as never
+    );
+    vi.spyOn(parcelasRepository, "getById").mockReturnValue({
+      id: "parcela-local",
+      serverId: "parcela-server",
+      isActive: true,
+      syncStatus: "synced"
+    } as never);
+    const create = vi.spyOn(visitasCampoRemote, "create");
+    const updateRemote = vi
+      .spyOn(visitasCampoRemote, "update")
+      .mockResolvedValue({} as never);
+    const updateLocal = vi
+      .spyOn(visitasCampoRepository, "update")
+      .mockImplementation(() => null as never);
+
+    const result = await handleVisitaCampo(
+      makeEntry({
+        entityType: "visitas_campo",
+        entityLocalId: "visita-local",
+        operation: "update"
+      })
+    );
+
+    expect(create).not.toHaveBeenCalled();
+    expect(updateRemote).toHaveBeenCalledWith(
+      "visita-server",
+      expect.objectContaining({
+        parcelaId: "parcela-server",
+        endVisitTime: "09:00"
+      }),
+      {}
+    );
+    expect(updateLocal).toHaveBeenCalledWith(
+      "visita-local",
+      expect.objectContaining({ syncStatus: "synced" })
+    );
+    expect(result).toEqual({ status: "synced", serverId: "visita-server" });
+  });
+
+  it("recovers a legacy update without server id through idempotent create", async () => {
+    vi.spyOn(visitasCampoRepository, "getById").mockReturnValue(
+      makeVisita(null) as never
+    );
+    vi.spyOn(parcelasRepository, "getById").mockReturnValue({
+      id: "parcela-local",
+      serverId: "parcela-server",
+      isActive: true,
+      syncStatus: "synced"
+    } as never);
+    const create = vi.spyOn(visitasCampoRemote, "create").mockResolvedValue({
+      id: "visita-server",
+      publicId: "00000000-0000-4000-8000-000000000001"
+    } as never);
+    const updateRemote = vi.spyOn(visitasCampoRemote, "update");
+    vi.spyOn(visitasCampoRepository, "update").mockImplementation(() => null as never);
+
+    const result = await handleVisitaCampo(
+      makeEntry({
+        entityType: "visitas_campo",
+        entityLocalId: "visita-local",
+        operation: "update"
+      })
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ parcelaId: "parcela-server" }),
+      { accessToken: "test-token" },
+      {}
+    );
+    expect(updateRemote).not.toHaveBeenCalled();
+    expect(result).toEqual({ status: "synced", serverId: "visita-server" });
   });
 
   it("uses the delete payload after the local productor row was removed", async () => {

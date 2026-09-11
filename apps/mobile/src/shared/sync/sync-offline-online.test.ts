@@ -122,9 +122,8 @@ vi.mock("../utils/debug-log", () => ({
   debugLog: vi.fn()
 }));
 
-const setLastSyncTime = vi.fn();
-vi.mock("./sync-status", () => ({
-  setLastSyncTime: (...args: unknown[]) => setLastSyncTime(...args)
+vi.mock("./sync-visit-recovery", () => ({
+  enqueueVisitaUpdateRepairOnce: vi.fn()
 }));
 
 vi.mock("../utils/local-id", () => ({
@@ -248,10 +247,11 @@ const visitaRemoteCreate = vi.fn(async () => ({
   id: "server-visita-1",
   publicId: "550e8400-e29b-41d4-a716-446655440000"
 }));
+const visitaRemoteUpdate = vi.fn(async () => ({ id: "server-visita-1" }));
 vi.mock("../../modules/visitas-campo/services/visitas-campo.remote", () => ({
   visitasCampoRemote: {
     create: visitaRemoteCreate,
-    update: vi.fn(),
+    update: visitaRemoteUpdate,
     remove: vi.fn()
   }
 }));
@@ -585,6 +585,7 @@ function seedOfflineCompleteVisit() {
 
 describe("offline/online sync with complete visit data", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     apiToken = null;
     seedOfflineCompleteVisit();
   });
@@ -608,7 +609,6 @@ describe("offline/online sync with complete visit data", () => {
 
     expect(result).toMatchObject({ processed: 6, skipped: 1, errors: 0 });
     expect(pendingOutbox).toHaveLength(1);
-    expect(setLastSyncTime).toHaveBeenCalledWith(now);
 
     expect(visitaRemoteCreate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -686,5 +686,35 @@ describe("offline/online sync with complete visit data", () => {
     expect(laborRemoteCreate).not.toHaveBeenCalled();
     expect(recetaRemoteSave).not.toHaveBeenCalled();
     expect(recetaRemoteFinalize).not.toHaveBeenCalled();
+  });
+
+  it("sends a later visit edit through PATCH without creating it again", async () => {
+    apiToken = "token-online";
+    visita = {
+      ...visita,
+      serverId: "server-visita-1",
+      endVisitTime: "11:15",
+      syncStatus: "pending"
+    };
+    pendingOutbox = [
+      {
+        ...makeOutboxEntry(8, "visitas_campo", visita.id),
+        operation: "update"
+      }
+    ];
+
+    const result = await processOutbox();
+
+    expect(visitaRemoteCreate).not.toHaveBeenCalled();
+    expect(visitaRemoteUpdate).toHaveBeenCalledWith(
+      "server-visita-1",
+      expect.objectContaining({
+        parcelaId: "3",
+        endVisitTime: "11:15"
+      }),
+      { signal: undefined }
+    );
+    expect(result).toMatchObject({ processed: 1, skipped: 0, errors: 0 });
+    expect(pendingOutbox).toHaveLength(0);
   });
 });

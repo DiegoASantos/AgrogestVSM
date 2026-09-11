@@ -154,6 +154,19 @@ describe("sync-outbox", () => {
       const result = getPendingOutboxEntries();
 
       expect(result).toEqual([]);
+      const call = database.getAllSync.mock.calls.at(-1) as unknown[];
+      expect(String(call[0])).not.toContain("LIMIT ?");
+      expect(call.slice(1)).toEqual(["agronomo-1"]);
+    });
+
+    it("applies a limit only when a caller requests one", () => {
+      database.getAllSync.mockReturnValue([]);
+
+      getPendingOutboxEntries(50);
+
+      const call = database.getAllSync.mock.calls.at(-1) as unknown[];
+      expect(String(call[0])).toContain("LIMIT ?");
+      expect(call.slice(1)).toEqual(["agronomo-1", 50]);
     });
 
     it("orders active ingredients before dependent brands", () => {

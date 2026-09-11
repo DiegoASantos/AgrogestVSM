@@ -88,8 +88,28 @@ export async function handleVisitaCampo(
 
   const parcela = parcelasRepository.getById(visita.parcelaId);
 
-  if (!parcela || !parcela.isActive || parcela.syncStatus !== "synced") {
+  if (
+    !parcela ||
+    !parcela.isActive ||
+    parcela.syncStatus !== "synced" ||
+    !parcela.serverId
+  ) {
     return { status: "skipped" };
+  }
+
+  if (entry.operation === "update" && visita.serverId) {
+    await visitasCampoRemote.update(
+      visita.serverId,
+      buildVisitaCampoUpdateBody(visita, parcela.serverId),
+      context
+    );
+
+    visitasCampoRepository.update(visita.id, {
+      syncStatus: "synced",
+      synchronizedAt: getNowIsoString()
+    });
+
+    return { status: "synced", serverId: visita.serverId };
   }
 
   if (entry.operation === "create" || entry.operation === "update") {
@@ -102,7 +122,7 @@ export async function handleVisitaCampo(
     const publicId = ensureVisitaPublicId(visita);
     const response = await visitasCampoRemote.create(
       {
-        ...buildVisitaCampoCreateBody(visita),
+        ...buildVisitaCampoCreateBody(visita, parcela.serverId),
         publicId
       },
       { accessToken: apiToken },
@@ -117,25 +137,6 @@ export async function handleVisitaCampo(
     });
 
     return { status: "synced", serverId: response.id };
-  }
-
-  if (entry.operation === "update") {
-    if (!visita.serverId) {
-      return { status: "skipped" };
-    }
-
-    await visitasCampoRemote.update(
-      visita.serverId,
-      buildVisitaCampoUpdateBody(visita),
-      context
-    );
-
-    visitasCampoRepository.update(visita.id, {
-      syncStatus: "synced",
-      synchronizedAt: getNowIsoString()
-    });
-
-    return { status: "synced", serverId: visita.serverId };
   }
 
   return { status: "skipped" };
@@ -809,7 +810,10 @@ export const entityHandlerMap: Record<
   visita_calificaciones: handleCalificacion
 };
 
-function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft {
+function buildVisitaCampoCreateBody(
+  visita: VisitaCampo,
+  parcelaServerId: string
+): CreateVisitaCampoDraft {
   if (!visita.phenologicalStageId) {
     throw new ApiError(
       "Selecciona una etapa fenologica antes de sincronizar la visita.",
@@ -822,7 +826,7 @@ function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft
     technicalScoreVersion: visita.technicalScoreVersion ?? 1,
     cropId: visita.cropId,
     varietyId: visita.varietyId,
-    parcelaId: visita.parcelaId,
+    parcelaId: parcelaServerId,
     campaignId: visita.campaignId,
     visitLocation: visita.visitLocation ?? undefined,
     plantsCount: visita.plantsCount ?? undefined,
@@ -838,11 +842,14 @@ function buildVisitaCampoCreateBody(visita: VisitaCampo): CreateVisitaCampoDraft
   };
 }
 
-function buildVisitaCampoUpdateBody(visita: VisitaCampo): UpdateVisitaCampoDraft {
+function buildVisitaCampoUpdateBody(
+  visita: VisitaCampo,
+  parcelaServerId: string
+): UpdateVisitaCampoDraft {
   return {
     cropId: visita.cropId,
     varietyId: visita.varietyId,
-    parcelaId: visita.parcelaId,
+    parcelaId: parcelaServerId,
     campaignId: visita.campaignId,
     visitLocation: visita.visitLocation ?? undefined,
     plantsCount: visita.plantsCount ?? undefined,

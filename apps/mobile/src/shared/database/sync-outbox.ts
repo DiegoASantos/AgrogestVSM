@@ -96,7 +96,7 @@ export function insertSyncOutboxEntry(db: SQLiteDatabase, entry: SyncOutboxEntry
   notifySyncStatusChanged();
 }
 
-export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
+export function getPendingOutboxEntries(limit?: number): SyncOutboxItem[] {
   const db = getDatabase();
   const ownerUserId = getCatalogSessionUserId(db);
 
@@ -104,6 +104,8 @@ export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
     return [];
   }
 
+  const normalizedLimit =
+    typeof limit === "number" && Number.isInteger(limit) && limit > 0 ? limit : null;
   const rows = db.getAllSync<SyncOutboxRow>(
     `SELECT id, owner_user_id, entity_type, entity_local_id, operation, payload,
        retry_count, created_at
@@ -121,9 +123,9 @@ export function getPendingOutboxEntries(limit = 100): SyncOutboxItem[] {
        ELSE 4
      END,
               id ASC
-     LIMIT ?`,
+     ${normalizedLimit === null ? "" : "LIMIT ?"}`,
     ownerUserId,
-    limit
+    ...(normalizedLimit === null ? [] : [normalizedLimit])
   );
 
   return rows.map((row) => ({

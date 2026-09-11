@@ -10,6 +10,7 @@ import {
 import type { SyncRunResult } from "./sync-result";
 import { notifySyncStatusChanged, subscribeToSyncStatus } from "./sync-events";
 import { isRecoverableCatalogEntity } from "./catalog-sync-recovery";
+import { getSyncEntityOwnership } from "./sync-ownership";
 
 type SyncCountsResult = {
   pendingCount: number;
@@ -91,14 +92,20 @@ export function getSyncCounts(): SyncCountsResult {
   for (const entityType of SYNC_ENTITY_TYPES) {
     const table = SYNC_ENTITY_TABLES[entityType];
     const idColumn = getSyncEntityIdColumn(entityType);
+    const ownership = getSyncEntityOwnership(entityType, table, ownerUserId);
     const row = db.getFirstSync<{ error: number | null }>(
       `SELECT COUNT(*) as error
        FROM ${table}
        WHERE sync_status = 'error'
+         ${ownership.sql}
          AND NOT EXISTS (
            SELECT 1 FROM sync_failures
-           WHERE entity_type = ? AND entity_local_id = ${table}.${idColumn}
+           WHERE sync_failures.owner_user_id = ?
+             AND sync_failures.entity_type = ?
+             AND sync_failures.entity_local_id = ${table}.${idColumn}
          )`,
+      ...ownership.parameters,
+      ownerUserId,
       entityType
     );
 
@@ -112,6 +119,12 @@ export function getSyncCounts(): SyncCountsResult {
 
 export function getSyncErrorDetails(): SyncErrorDetail[] {
   const db = getDatabase();
+  const ownerUserId = getCatalogSessionUserId(db);
+
+  if (!ownerUserId) {
+    return [];
+  }
+
   const details: SyncErrorDetail[] = getSyncFailures().map((failure) => {
     const catalog = getCatalogFailureMetadata(
       db,
@@ -134,6 +147,7 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
   for (const entityType of SYNC_ENTITY_TYPES) {
     const table = SYNC_ENTITY_TABLES[entityType];
     const idColumn = getSyncEntityIdColumn(entityType);
+    const ownership = getSyncEntityOwnership(entityType, table, ownerUserId);
     const columns = db.getAllSync<{ name: string }>(`PRAGMA table_info(${table})`);
     const hasErrorMessage = columns.some(
       (column) => column.name === "sync_error_message"
@@ -157,11 +171,16 @@ export function getSyncErrorDetails(): SyncErrorDetail[] {
         ${updatedAtSelection}
        FROM ${table}
        WHERE sync_status = 'error'
+         ${ownership.sql}
          AND NOT EXISTS (
            SELECT 1 FROM sync_failures
-           WHERE entity_type = ? AND entity_local_id = ${table}.${idColumn}
+           WHERE sync_failures.owner_user_id = ?
+             AND sync_failures.entity_type = ?
+             AND sync_failures.entity_local_id = ${table}.${idColumn}
          )
        ORDER BY ${orderBy}`,
+      ...ownership.parameters,
+      ownerUserId,
       entityType
     );
 
@@ -287,7 +306,11 @@ export function getLastSyncAttempt(): SyncRunResult | null {
   }
 
   try {
-    return JSON.parse(row.value) as SyncRunResult;
+    const stored = JSON.parse(row.value) as Partial<SyncRunResult>;
+    return {
+      ...stored,
+      remainingPending: stored.remainingPending ?? 0
+    } as SyncRunResult;
   } catch {
     return null;
   }
