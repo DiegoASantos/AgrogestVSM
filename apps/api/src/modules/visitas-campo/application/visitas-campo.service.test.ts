@@ -376,7 +376,7 @@ describe("VisitasCampoService", () => {
       expect(worksheet!.getRow(5).getCell(9).value).toBe("09:30");
       expect(worksheet!.getRow(5).getCell(10).value).toBe("Floracion");
       expect(worksheet!.getRow(5).getCell(11).value).toBe(0.375);
-      expect(worksheet!.getRow(5).getCell(11).numFmt).toBe("0.##%");
+      expect(worksheet!.getRow(5).getCell(11).numFmt).toBe("0%");
       expect(worksheet!.getRow(5).getCell(12).value).toBe("Mosca de la fruta");
       expect(worksheet!.getRow(6).getCell(12).value).toBe("Trips");
       expect(worksheet!.getRow(7).getCell(12).value).toBe("Acaros");

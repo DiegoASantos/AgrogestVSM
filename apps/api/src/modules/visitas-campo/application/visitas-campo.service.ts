@@ -472,7 +472,7 @@ export class VisitasCampoService {
           };
 
           if (column === 11 && typeof cell.value === "number") {
-            cell.numFmt = "0.##%";
+            cell.numFmt = "0%";
           }
 
           if (columnFill) {
