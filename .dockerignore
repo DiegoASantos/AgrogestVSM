@@ -1,0 +1,13 @@
+.git
+node_modules
+**/node_modules
+dist
+**/dist
+.next
+**/.next
+.expo
+coverage
+test-results
+.env
+**/.env
+*.log

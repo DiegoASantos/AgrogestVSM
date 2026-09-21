@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 
 const LOCAL_API_BASE_URL = "http://127.0.0.1:3001";
-const PRODUCTION_API_BASE_URL = "https://agrogest-vsm-api.onrender.com";
+const PRODUCTION_API_BASE_URL = "http://190.119.191.195:5177";
 const DEFAULT_API_PORT = "3001";
 
 declare const process: { env: Record<string, string | undefined> };
