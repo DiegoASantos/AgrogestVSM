@@ -1,4 +1,21 @@
 services:
+  db:
+    image: postgis/postgis:18-3.6
+    env_file:
+      - apps/api/.env
+    ports:
+      - "172.16.0.8:5441:5432"
+    volumes:
+      - agrogest_testing_data:/var/lib/postgresql
+      - /var/www/idl/agrogest-20260921-testing.dump:/backups/agrogest.dump:ro
+      - ./docker/postgres/20-restore.sh:/docker-entrypoint-initdb.d/20-restore.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -28,3 +45,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+volumes:
+  agrogest_testing_data:
