@@ -125,4 +125,5 @@ en la raíz.
 - [Spec 079: Reporte semanal de estimaciones de visitas](079-reporte-semanal-estimaciones.md)
 - [Spec 080: Precarga de cultivo y productos directos en mezclas](080-precarga-cultivo-productos-directos-mezclas.md)
 - [Spec 081: Recuperacion de sincronizacion de visitas mobile](081-recuperacion-sync-visitas-mobile.md)
+- [Spec 082: Despliegue multientorno en servidor IDL](082-despliegue-multientorno-idl.md)
 - [Plantilla](TEMPLATE.md)

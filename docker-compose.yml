@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: .
+      target: api
+    env_file:
+      - apps/api/.env
+    ports:
+      - "172.16.0.8:5380:3001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  admin-web:
+    build:
+      context: .
+      target: admin-web
+      args:
+        NEXT_PUBLIC_API_URL: http://172.16.0.8:5380
+        NEXT_PUBLIC_ENVIRONMENT_LABEL: TESTING
+    ports:
+      - "172.16.0.8:5381:3000"
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
