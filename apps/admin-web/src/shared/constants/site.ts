@@ -1,5 +1,8 @@
+const environmentLabel = process.env.NEXT_PUBLIC_ENVIRONMENT_LABEL?.trim();
+const defaultName = "AgroGest VSM Admin";
+
 export const siteConfig = {
-  name: "AgroGest VSM Admin",
+  name: environmentLabel ? `${defaultName} - ${environmentLabel}` : defaultName,
   shortName: "Admin",
   description:
     "Panel administrativo para visitas, mapas, catalogos y seguridad operativa de AgroGest VSM."
