@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-22
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -661,3 +661,17 @@ Un borrador no representa una entidad del dominio, no usa `sync_status`, no
 crea entradas en `sync_outbox` ni llega a la API. Cambiar de cuenta deja los
 borradores anteriores almacenados, pero ninguna lectura o escritura puede
 acceder a ellos con el propietario de la nueva sesion.
+
+## Datos de pago de cosecha
+
+El primer paso de Comercial persiste `pagos_cosecha` y su operación `create` en
+la misma transacción SQLite. Cada fila mantiene `owner_user_id`, un `public_id`
+UUID y el productor local; el planificador envía primero productores pendientes.
+El handler espera la identidad remota del productor y luego hace
+`POST /comercial/pagos-cosecha`. El mismo `publicId` vuelve idempotente un
+reintento tras timeout o cierre de la app.
+
+La reconciliación, los conteos y los fallos aplican `owner_user_id`, por lo que
+otra sesión del mismo dispositivo no puede enviar ni consultar pendientes de la
+anterior. Esta entidad no descarga datos desde servidor ni implementa update o
+delete en esta primera entrega.

@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-07
+last_reviewed: 2026-09-22
 ---
 
 # Línea base de seguridad operativa
@@ -79,6 +79,12 @@ last_reviewed: 2026-09-07
 - mobile usa el permiso cacheado solo para visibilidad y borradores offline;
   una visita sincronizada se conserva localmente hasta recibir confirmacion de
   la API, por lo que una revocacion o un fallo de red no causa perdida local.
+- `POST /comercial/pagos-cosecha` exige `ADMIN` o `AGRONOMO` y vuelve a
+  autorizar el productor tanto al crear como al resolver un reintento por
+  `publicId`; documento y cuenta no se registran en logs ni errores.
+- los pagos de cosecha locales se aíslan por `owner_user_id` en la tabla,
+  reconciliación, outbox y fallos. En esta entrega SQLite no cifra documento ni
+  cuenta; el riesgo aceptado y su condición de revisión constan en R-037.
 
 ## Rate limiting
 

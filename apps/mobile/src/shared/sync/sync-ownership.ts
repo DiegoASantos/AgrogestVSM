@@ -23,6 +23,13 @@ export function getSyncEntityOwnership(
   table: string,
   ownerUserId: string
 ): { sql: string; parameters: string[] } {
+  if (entityType === "pagos_cosecha") {
+    return {
+      sql: `AND ${table}.owner_user_id = ?`,
+      parameters: [ownerUserId]
+    };
+  }
+
   if (entityType === "productores" || entityType === "parcelas") {
     return {
       sql: `AND ${table}.catalog_owner_user_id = ?`,

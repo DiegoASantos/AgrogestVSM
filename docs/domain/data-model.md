@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-07
+last_reviewed: 2026-09-22
 ---
 
 # Modelo del dominio
@@ -15,6 +15,8 @@ Departamento → Provincia → Distrito → Sector
 Productor ────────────────────────────┼→ Parcela
                                       │
                                       └→ Visita de campo
+                                      │
+                                      └→ Pago de cosecha
 ```
 
 Una parcela pertenece a un productor y a un sector. Puede tener dos puntos
@@ -62,6 +64,18 @@ Restricciones territoriales relevantes:
   correlativo es global y no se ingresa desde el flujo normal del admin web;
 - nombre de parcela único por productor y subsector, validado por la API. La
   base de datos todavía no define constraint para esta regla;
+
+## Comercial
+
+Un productor puede tener varios pagos de cosecha históricos. Cada pago
+identifica al acreedor por nombres, apellidos, documento DNI o RUC y una cuenta
+o CCI numérica. Conserva un `publicId` UUID para idempotencia offline, el
+usuario que lo creó y la referencia al productor. La API solo permite crear o
+recuperar un pago cuando el actor mantiene acceso horizontal al productor.
+
+Mobile almacena una copia temporal con `owner_user_id`, estado de sincronización
+y referencia local al productor. No hay edición ni eliminación en el primer
+paso de Comercial.
 
 ## Producción agrícola
 

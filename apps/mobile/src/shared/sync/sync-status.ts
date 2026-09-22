@@ -45,6 +45,7 @@ const SYNC_ENTITY_LABELS: Record<SyncEntityType, string> = {
   ingredientes_activos: "Ingrediente activo",
   fertilizantes: "Fertilizante",
   marcas_producto: "Marca de producto",
+  pagos_cosecha: "Datos de pago de cosecha",
   visitas_campo: "Visita de campo",
   visita_evaluaciones: "Evaluacion",
   visita_observaciones_sanitarias: "Plagas y enfermedades",
@@ -257,7 +258,12 @@ export function getSyncPendingDetails(): SyncPendingDetail[] {
     `SELECT entity_type, entity_local_id, created_at
      FROM sync_outbox
      WHERE owner_user_id = ?
-     ORDER BY CASE WHEN entity_type = 'visitas_campo' THEN 0 ELSE 1 END,
+     ORDER BY CASE
+       WHEN entity_type = 'productores' THEN 0
+       WHEN entity_type = 'pagos_cosecha' THEN 1
+       WHEN entity_type = 'visitas_campo' THEN 2
+       ELSE 3
+     END,
               id ASC`,
     ownerUserId
   );
