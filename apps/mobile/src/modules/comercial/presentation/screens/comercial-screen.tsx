@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useMemo, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { Alert, StyleSheet, Switch, View } from "react-native";
 import type { HarvestPaymentInput } from "@agrogest/validation";
 
 import {
@@ -10,6 +10,7 @@ import {
   AppPaginatedSelectField,
   AppSelectField,
   AppText,
+  FormScrollView,
   ScreenContainer,
   type AppPaginatedSelectOption,
   type AppSelectOption
@@ -197,10 +198,7 @@ export function ComercialScreen() {
 
   return (
     <ScreenContainer contentStyle={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
+      <FormScrollView contentContainerStyle={styles.content}>
         <View style={styles.intro}>
           <AppText style={styles.title} variant="title">
             Comercial
@@ -389,7 +387,7 @@ export function ComercialScreen() {
           </AppText>
         ) : null}
         <AppButton label="Guardar datos de pago" icon="save-outline" onPress={guardar} />
-      </ScrollView>
+      </FormScrollView>
     </ScreenContainer>
   );
 }
