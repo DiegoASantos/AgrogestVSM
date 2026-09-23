@@ -1,11 +1,17 @@
 import type { Productor } from "../../../productores/types";
 
 export type CreditorAutofill = {
-  firstName: string;
-  lastName: string;
-  documentType: "DNI" | "RUC";
-  documentNumber: string;
+  firstName: string | null;
+  lastName: string | null;
+  documentType: "DNI" | "RUC" | null;
+  documentNumber: string | null;
 };
+
+export type CreditorPendingField =
+  | "firstName"
+  | "lastName"
+  | "documentType"
+  | "documentNumber";
 
 export function getCreditorAutofill(
   productor: Productor | null,
@@ -13,31 +19,39 @@ export function getCreditorAutofill(
 ): CreditorAutofill | null {
   if (
     !productor ||
-    productor.entityType !== "persona" ||
-    !productor.firstName?.trim() ||
-    !productor.lastName?.trim() ||
-    !productor.documentNumber?.trim()
+    productor.entityType !== "persona"
   ) {
     return null;
   }
 
   const documentType = documentTypeCode?.trim().toUpperCase();
-  const documentNumber = productor.documentNumber.replace(/\s/g, "");
-
-  if (documentType !== "DNI" && documentType !== "RUC") {
-    return null;
-  }
-
-  const expectedLength = documentType === "DNI" ? 8 : 11;
-
-  if (!new RegExp(`^\\d{${expectedLength}}$`).test(documentNumber)) {
-    return null;
-  }
+  const normalizedDocumentType =
+    documentType === "DNI" || documentType === "RUC" ? documentType : null;
+  const documentNumber = productor.documentNumber?.replace(/\s/g, "") ?? "";
+  const expectedLength = normalizedDocumentType === "DNI" ? 8 : 11;
+  const hasValidDocument =
+    normalizedDocumentType !== null &&
+    new RegExp(`^\\d{${expectedLength}}$`).test(documentNumber);
 
   return {
-    firstName: productor.firstName.trim(),
-    lastName: productor.lastName.trim(),
-    documentType,
-    documentNumber
+    firstName: productor.firstName?.trim() || null,
+    lastName: productor.lastName?.trim() || null,
+    documentType: normalizedDocumentType,
+    documentNumber: hasValidDocument ? documentNumber : null
   };
+}
+
+export function getPendingCreditorFields(
+  autofill: CreditorAutofill | null
+): CreditorPendingField[] {
+  if (!autofill) {
+    return ["firstName", "lastName", "documentType", "documentNumber"];
+  }
+
+  return [
+    !autofill.firstName ? "firstName" : null,
+    !autofill.lastName ? "lastName" : null,
+    !autofill.documentType ? "documentType" : null,
+    !autofill.documentNumber ? "documentNumber" : null
+  ].filter((field): field is CreditorPendingField => field !== null);
 }

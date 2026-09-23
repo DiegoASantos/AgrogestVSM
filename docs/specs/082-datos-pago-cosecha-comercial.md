@@ -44,8 +44,10 @@ acreedor para el pago de cosecha, aun cuando el dispositivo no tenga conexión.
   actor antes de crear el pago o devolver un reintento idempotente.
 - RF-003: los bancos válidos son `INTERBANK`, `BCP`, `CAJA_PIURA` y `BBVA`.
 - RF-004: el usuario puede marcar que el acreedor es el productor. Si es una
-  persona con DNI o RUC válido registrado, mobile completa sus datos; en otro
-  caso mantiene el ingreso manual del acreedor.
+  persona, mobile completa de forma independiente los nombres, apellidos, tipo
+  y número de documento válidos disponibles; mantiene editables únicamente los
+  datos faltantes o inválidos. Para fundo o cooperativa mantiene el ingreso
+  manual del acreedor.
 - RNF-001: SQLite y PostgreSQL aplican restricciones equivalentes a las de la
   validación compartida.
 - RNF-002: un pago pendiente solo se reconcilia y sincroniza con el usuario
@@ -91,8 +93,8 @@ para evitar pérdida de registros y se corrige hacia adelante.
       el reintento con el mismo `publicId` no duplica datos.
 - [x] CA-005: la API deniega productores no visibles para el agrónomo.
 - [x] CA-006: Comercial solo lista productores con parcelas visibles de la
-      sesión y evita redigitar el acreedor cuando sus datos personales válidos
-      coinciden con el productor.
+      sesión y evita redigitar los datos personales disponibles del acreedor
+      cuando coincide con el productor, aun si debe completar su documento.
 
 ## Pruebas
 

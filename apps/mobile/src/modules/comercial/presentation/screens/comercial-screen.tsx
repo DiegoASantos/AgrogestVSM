@@ -19,7 +19,12 @@ import { productoresService } from "../../../productores/services/productores.se
 import type { Productor } from "../../../productores/types";
 import { tiposDocumentoRepository } from "../../../tipos-documento/repositories/tipos-documento.repository";
 import { savePagoCosecha } from "../../services/pagos-cosecha.service";
-import { getCreditorAutofill } from "./creditor-autofill";
+import {
+  getCreditorAutofill,
+  getPendingCreditorFields,
+  type CreditorAutofill,
+  type CreditorPendingField
+} from "./creditor-autofill";
 
 const DOCUMENTOS: AppSelectOption[] = [
   { value: "DNI", label: "DNI" },
@@ -34,11 +39,23 @@ const BANCOS: AppSelectOption[] = [
 
 type PagoCosechaFormInput = Omit<HarvestPaymentInput, "bank"> & { bank: string };
 
+type CreditorAutofilledFields = Record<CreditorPendingField, boolean>;
+
+const EMPTY_CREDITOR_AUTOFILLED_FIELDS: CreditorAutofilledFields = {
+  firstName: false,
+  lastName: false,
+  documentType: false,
+  documentNumber: false
+};
+
 export function ComercialScreen() {
   const [productorId, setProductorId] = useState("");
   const [productor, setProductor] = useState<string>();
   const [selectedProductor, setSelectedProductor] = useState<Productor | null>(null);
   const [acreedorEsProductor, setAcreedorEsProductor] = useState(false);
+  const [autofilledFields, setAutofilledFields] = useState<CreditorAutofilledFields>(
+    EMPTY_CREDITOR_AUTOFILLED_FIELDS
+  );
   const [nombres, setNombres] = useState("");
   const [apellidos, setApellidos] = useState("");
   const [tipo, setTipo] = useState<"DNI" | "RUC">("DNI");
@@ -54,7 +71,12 @@ export function ComercialScreen() {
     () => getAutofillForProductor(selectedProductor),
     [selectedProductor]
   );
-  const isCreditorAutofilled = acreedorEsProductor && creditorAutofill !== null;
+  const isCreditorProductorPersona =
+    acreedorEsProductor && creditorAutofill !== null;
+  const pendingCreditorFields = getPendingCreditorFields(creditorAutofill);
+  const recoveredCreditorName = [creditorAutofill?.firstName, creditorAutofill?.lastName]
+    .filter(Boolean)
+    .join(" ");
 
   const loadProductorOptions = useCallback(
     async (query: string, page: number, pageSize: number) => {
@@ -72,15 +94,46 @@ export function ComercialScreen() {
   function applyCreditorAutofill(nextProductor: Productor | null) {
     const autofill = getAutofillForProductor(nextProductor);
 
-    if (!autofill) {
-      return false;
-    }
+    setNombres((current) =>
+      replaceDerivedCreditorValue(
+        current,
+        autofilledFields.firstName,
+        autofill?.firstName ?? null,
+        ""
+      )
+    );
+    setApellidos((current) =>
+      replaceDerivedCreditorValue(
+        current,
+        autofilledFields.lastName,
+        autofill?.lastName ?? null,
+        ""
+      )
+    );
+    setTipo((current) =>
+      replaceDerivedCreditorValue(
+        current,
+        autofilledFields.documentType,
+        autofill?.documentType ?? null,
+        "DNI"
+      )
+    );
+    setDocumento((current) =>
+      replaceDerivedCreditorValue(
+        current,
+        autofilledFields.documentNumber,
+        autofill?.documentNumber ?? null,
+        ""
+      )
+    );
+    setAutofilledFields({
+      firstName: Boolean(autofill?.firstName),
+      lastName: Boolean(autofill?.lastName),
+      documentType: Boolean(autofill?.documentType),
+      documentNumber: Boolean(autofill?.documentNumber)
+    });
 
-    setNombres(autofill.firstName);
-    setApellidos(autofill.lastName);
-    setTipo(autofill.documentType);
-    setDocumento(autofill.documentNumber);
-    return true;
+    return autofill;
   }
 
   async function handleProductorSelection(option: AppPaginatedSelectOption) {
@@ -92,11 +145,8 @@ export function ComercialScreen() {
       setProductor(option.label);
       setSelectedProductor(nextProductor);
 
-      if (acreedorEsProductor && !applyCreditorAutofill(nextProductor)) {
-        setNombres("");
-        setApellidos("");
-        setTipo("DNI");
-        setDocumento("");
+      if (acreedorEsProductor) {
+        applyCreditorAutofill(nextProductor);
       }
     } catch {
       setProductorId("");
@@ -110,9 +160,12 @@ export function ComercialScreen() {
     setAcreedorEsProductor(value);
     setError(null);
 
-    if (value) {
-      applyCreditorAutofill(selectedProductor);
+    if (!value) {
+      setAutofilledFields(EMPTY_CREDITOR_AUTOFILLED_FIELDS);
+      return;
     }
+
+    applyCreditorAutofill(selectedProductor);
   }
 
   function guardar() {
@@ -209,44 +262,63 @@ export function ComercialScreen() {
             />
           </View>
 
-          {isCreditorAutofilled && creditorAutofill ? (
+          {isCreditorProductorPersona && creditorAutofill ? (
             <View style={styles.creditorSummary}>
               <Ionicons color={theme.colors.primaryDark} name="checkmark-circle" size={21} />
               <View style={styles.creditorSummaryText}>
                 <AppText style={styles.creditorSummaryTitle} variant="label">
-                  Datos del productor listos para el pago
+                  {pendingCreditorFields.length === 0
+                    ? "Datos del productor listos para el pago"
+                    : "Datos recuperados del productor"}
                 </AppText>
-                <AppText variant="caption">
-                  {creditorAutofill.firstName} {creditorAutofill.lastName}
-                </AppText>
-                <AppText variant="caption">
-                  {creditorAutofill.documentType} {creditorAutofill.documentNumber}
-                </AppText>
+                {recoveredCreditorName ? (
+                  <AppText variant="caption">{recoveredCreditorName}</AppText>
+                ) : null}
+                {creditorAutofill.documentType && creditorAutofill.documentNumber ? (
+                  <AppText variant="caption">
+                    {creditorAutofill.documentType} {creditorAutofill.documentNumber}
+                  </AppText>
+                ) : null}
+                {pendingCreditorFields.length > 0 ? (
+                  <AppText variant="caption">
+                    Completa: {formatPendingCreditorFields(pendingCreditorFields)}.
+                  </AppText>
+                ) : null}
               </View>
             </View>
-          ) : (
-            <>
-              {acreedorEsProductor ? (
-                <View style={styles.manualNotice}>
-                  <Ionicons color={theme.colors.warning} name="information-circle" size={20} />
-                  <AppText style={styles.manualNoticeText} variant="caption">
-                    Este productor no tiene datos personales completos. Registra los datos
-                    del acreedor manualmente.
-                  </AppText>
-                </View>
-              ) : null}
-              <AppInput
+          ) : acreedorEsProductor ? (
+            <View style={styles.manualNotice}>
+              <Ionicons color={theme.colors.warning} name="information-circle" size={20} />
+              <AppText style={styles.manualNoticeText} variant="caption">
+                Este productor no es una persona. Registra los datos del acreedor
+                manualmente.
+              </AppText>
+            </View>
+          ) : null}
+
+          {!isCreditorProductorPersona || pendingCreditorFields.includes("firstName") ? (
+            <AppInput
                 label="Nombres del acreedor"
                 value={nombres}
-                onChangeText={setNombres}
+                onChangeText={(value) => {
+                  setNombres(value);
+                  setAutofilledFields((current) => ({ ...current, firstName: false }));
+                }}
                 placeholder="Ej: Maria Elena"
               />
+          ) : null}
+          {!isCreditorProductorPersona || pendingCreditorFields.includes("lastName") ? (
               <AppInput
                 label="Apellidos del acreedor"
                 value={apellidos}
-                onChangeText={setApellidos}
+                onChangeText={(value) => {
+                  setApellidos(value);
+                  setAutofilledFields((current) => ({ ...current, lastName: false }));
+                }}
                 placeholder="Ej: Perez Lopez"
               />
+          ) : null}
+          {!isCreditorProductorPersona || pendingCreditorFields.includes("documentType") ? (
               <AppSelectField
                 label="Tipo de documento"
                 placeholder="Selecciona"
@@ -256,19 +328,30 @@ export function ComercialScreen() {
                 onClose={() => setOpenTipo(false)}
                 onSelect={(value) => {
                   setTipo(value as "DNI" | "RUC");
+                  setAutofilledFields((current) => ({
+                    ...current,
+                    documentType: false
+                  }));
                   setOpenTipo(false);
                 }}
                 selectedLabel={tipo}
               />
+          ) : null}
+          {!isCreditorProductorPersona || pendingCreditorFields.includes("documentNumber") ? (
               <AppInput
                 label="Numero de documento"
                 value={documento}
-                onChangeText={(value) => setDocumento(value.replace(/\D/g, ""))}
+                onChangeText={(value) => {
+                  setDocumento(value.replace(/\D/g, ""));
+                  setAutofilledFields((current) => ({
+                    ...current,
+                    documentNumber: false
+                  }));
+                }}
                 keyboardType="number-pad"
                 placeholder={tipo === "DNI" ? "8 digitos" : "11 digitos"}
               />
-            </>
-          )}
+          ) : null}
         </AppCard>
 
         <AppCard style={styles.sectionCard}>
@@ -335,12 +418,36 @@ function SectionHeader({ icon, subtitle, title }: SectionHeaderProps) {
   );
 }
 
-function getAutofillForProductor(productor: Productor | null) {
+function getAutofillForProductor(productor: Productor | null): CreditorAutofill | null {
   const documentTypeCode = productor?.documentTypeId
     ? tiposDocumentoRepository.obtenerPorId(productor.documentTypeId)?.code ?? null
     : null;
 
   return getCreditorAutofill(productor, documentTypeCode);
+}
+
+function replaceDerivedCreditorValue<T>(
+  currentValue: T,
+  previousValueWasAutofilled: boolean,
+  nextAutofillValue: T | null,
+  emptyValue: T
+): T {
+  if (nextAutofillValue !== null) {
+    return nextAutofillValue;
+  }
+
+  return previousValueWasAutofilled ? emptyValue : currentValue;
+}
+
+function formatPendingCreditorFields(fields: CreditorPendingField[]) {
+  const labels: Record<CreditorPendingField, string> = {
+    firstName: "nombres",
+    lastName: "apellidos",
+    documentType: "tipo de documento",
+    documentNumber: "numero de documento"
+  };
+
+  return fields.map((field) => labels[field]).join(", ");
 }
 
 function toProductorOption(productor: Productor): AppPaginatedSelectOption {

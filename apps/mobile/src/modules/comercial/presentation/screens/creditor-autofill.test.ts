@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Productor } from "../../../productores/types";
-import { getCreditorAutofill } from "./creditor-autofill";
+import { getCreditorAutofill, getPendingCreditorFields } from "./creditor-autofill";
 
 function makeProductor(overrides: Partial<Productor> = {}): Productor {
   return {
@@ -50,9 +50,33 @@ describe("getCreditorAutofill", () => {
     ).toBeNull();
   });
 
-  it("requires manual creditor data when the producer document is incomplete", () => {
-    expect(
-      getCreditorAutofill(makeProductor({ documentNumber: "123" }), "DNI")
-    ).toBeNull();
+  it("preserves names while requesting an incomplete document manually", () => {
+    const autofill = getCreditorAutofill(
+      makeProductor({ documentNumber: "123" }),
+      "DNI"
+    );
+
+    expect(autofill).toMatchObject({
+      documentType: "DNI",
+      documentNumber: null
+    });
+    expect(autofill?.firstName).toBe(makeProductor().firstName);
+    expect(autofill?.lastName).toBe(makeProductor().lastName);
+    expect(getPendingCreditorFields(autofill)).toEqual(["documentNumber"]);
+  });
+
+  it("requests only the missing personal field", () => {
+    const autofill = getCreditorAutofill(makeProductor({ lastName: null }), "DNI");
+
+    expect(getPendingCreditorFields(autofill)).toEqual(["lastName"]);
+  });
+
+  it("requests document type and number when the type is unknown", () => {
+    const autofill = getCreditorAutofill(makeProductor(), null);
+
+    expect(getPendingCreditorFields(autofill)).toEqual([
+      "documentType",
+      "documentNumber"
+    ]);
   });
 });
