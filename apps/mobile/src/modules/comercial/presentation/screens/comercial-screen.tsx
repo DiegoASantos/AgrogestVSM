@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet } from "react-native";
-import { harvestPaymentSchema, harvestPaymentBanks } from "@agrogest/validation";
+import type { HarvestPaymentInput } from "@agrogest/validation";
 import {
   AppButton,
   AppCard,
@@ -19,10 +19,14 @@ const DOCUMENTOS: AppSelectOption[] = [
   { value: "DNI", label: "DNI" },
   { value: "RUC", label: "RUC" }
 ];
-const BANCOS: AppSelectOption[] = harvestPaymentBanks.map((value) => ({
-  value,
-  label: value === "CAJA_PIURA" ? "CAJA PIURA" : value
-}));
+const BANCOS: AppSelectOption[] = [
+  { value: "INTERBANK", label: "INTERBANK" },
+  { value: "BCP", label: "BCP" },
+  { value: "CAJA_PIURA", label: "CAJA PIURA" },
+  { value: "BBVA", label: "BBVA" }
+];
+
+type PagoCosechaFormInput = Omit<HarvestPaymentInput, "bank"> & { bank: string };
 
 export function ComercialScreen() {
   const [productorId, setProductorId] = useState("");
@@ -39,7 +43,7 @@ export function ComercialScreen() {
   const [error, setError] = useState<string | null>(null);
 
   function guardar() {
-    const parsed = harvestPaymentSchema.safeParse({
+    const validation = validatePagoCosecha({
       productorId,
       creditorFirstName: nombres,
       creditorLastName: apellidos,
@@ -49,13 +53,13 @@ export function ComercialScreen() {
       accountNumber: cuenta.replace(/\s/g, "")
     });
 
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Revisa los datos ingresados.");
+    if (typeof validation === "string") {
+      setError(validation);
       return;
     }
 
     try {
-      savePagoCosecha(parsed.data);
+      savePagoCosecha(validation);
       Alert.alert("Guardado local", "Los datos se sincronizaran cuando haya conexion.");
       setError(null);
       setNombres("");
@@ -187,3 +191,34 @@ const styles = StyleSheet.create({
   card: { gap: 14, padding: 16 },
   error: { color: theme.colors.error }
 });
+
+function validatePagoCosecha(input: PagoCosechaFormInput): HarvestPaymentInput | string {
+  if (!input.productorId.trim()) {
+    return "Selecciona un productor.";
+  }
+
+  if (!input.creditorFirstName.trim() || !input.creditorLastName.trim()) {
+    return "Ingresa los nombres y apellidos del acreedor.";
+  }
+
+  const documentLength = input.creditorDocumentType === "DNI" ? 8 : 11;
+  if (!new RegExp(`^\\d{${documentLength}}$`).test(input.creditorDocumentNumber)) {
+    return `El ${input.creditorDocumentType} debe tener ${documentLength} digitos.`;
+  }
+
+  if (!BANCOS.some((bank) => bank.value === input.bank)) {
+    return "Selecciona un banco valido.";
+  }
+
+  if (!/^\d{1,30}$/.test(input.accountNumber)) {
+    return "Ingresa un numero de cuenta o CCI de hasta 30 digitos.";
+  }
+
+  return {
+    ...input,
+    bank: input.bank as HarvestPaymentInput["bank"],
+    productorId: input.productorId.trim(),
+    creditorFirstName: input.creditorFirstName.trim(),
+    creditorLastName: input.creditorLastName.trim()
+  };
+}
