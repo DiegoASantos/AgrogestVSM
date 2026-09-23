@@ -38,10 +38,14 @@ acreedor para el pago de cosecha, aun cuando el dispositivo no tenga conexión.
 ## Requisitos
 
 - RF-001: el usuario autenticado puede seleccionar un productor visible en su
-  catálogo y guardar varios pagos históricos para él.
+  catálogo que tenga al menos una parcela visible asignada y guardar varios pagos
+  históricos para él.
 - RF-002: el backend comprueba de nuevo que el productor sea visible para el
   actor antes de crear el pago o devolver un reintento idempotente.
 - RF-003: los bancos válidos son `INTERBANK`, `BCP`, `CAJA_PIURA` y `BBVA`.
+- RF-004: el usuario puede marcar que el acreedor es el productor. Si es una
+  persona con DNI o RUC válido registrado, mobile completa sus datos; en otro
+  caso mantiene el ingreso manual del acreedor.
 - RNF-001: SQLite y PostgreSQL aplican restricciones equivalentes a las de la
   validación compartida.
 - RNF-002: un pago pendiente solo se reconcilia y sincroniza con el usuario
@@ -86,6 +90,9 @@ para evitar pérdida de registros y se corrige hacia adelante.
 - [x] CA-004: al sincronizar, el productor pendiente se envía antes del pago y
       el reintento con el mismo `publicId` no duplica datos.
 - [x] CA-005: la API deniega productores no visibles para el agrónomo.
+- [x] CA-006: Comercial solo lista productores con parcelas visibles de la
+      sesión y evita redigitar el acreedor cuando sus datos personales válidos
+      coinciden con el productor.
 
 ## Pruebas
 

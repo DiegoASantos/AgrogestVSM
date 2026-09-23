@@ -665,9 +665,14 @@ acceder a ellos con el propietario de la nueva sesion.
 ## Datos de pago de cosecha
 
 El primer paso de Comercial persiste `pagos_cosecha` y su operación `create` en
-la misma transacción SQLite. Cada fila mantiene `owner_user_id`, un `public_id`
-UUID y el productor local; el planificador envía primero productores pendientes.
-El handler espera la identidad remota del productor y luego hace
+la misma transacción SQLite. El selector lista exclusivamente productores del
+catálogo de la sesión que tienen al menos una parcela visible; una parcela
+inactiva permanece válida porque sigue asignada. Cada fila mantiene
+`owner_user_id`, un `public_id` UUID y el productor local; el planificador envía
+primero productores pendientes. Cuando el acreedor es una persona con DNI o RUC
+válido registrado como productor, la UI copia esos datos solo en el estado del
+formulario; no crea otra entidad ni cambia el payload. El handler espera la
+identidad remota del productor y luego hace
 `POST /comercial/pagos-cosecha`. El mismo `publicId` vuelve idempotente un
 reintento tras timeout o cierre de la app.
 
