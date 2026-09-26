@@ -203,7 +203,9 @@ export function AppPaginatedSelectField({
 
           {showEmpty ? (
             <AppText variant="muted" style={styles.optionMessage}>
-              {searchText.trim() ? "No hay coincidencias para la busqueda." : emptyMessage}
+              {searchText.trim()
+                ? "No hay coincidencias para la busqueda."
+                : emptyMessage}
             </AppText>
           ) : null}
 

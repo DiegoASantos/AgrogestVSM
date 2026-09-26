@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-07
+last_reviewed: 2026-09-22
 ---
 
 # Modelo del dominio
@@ -15,6 +15,8 @@ Departamento → Provincia → Distrito → Sector
 Productor ────────────────────────────┼→ Parcela
                                       │
                                       └→ Visita de campo
+                                      │
+                                      └→ Acreedor de cosecha → Registro de cosecha
 ```
 
 Una parcela pertenece a un productor y a un sector. Puede tener dos puntos
@@ -62,6 +64,24 @@ Restricciones territoriales relevantes:
   correlativo es global y no se ingresa desde el flujo normal del admin web;
 - nombre de parcela único por productor y subsector, validado por la API. La
   base de datos todavía no define constraint para esta regla;
+
+## Comercial
+
+Un productor puede tener varios acreedores de cosecha. Cada perfil identifica
+al acreedor por nombres, apellidos, DNI o RUC, banco y cuenta o CCI; la
+combinacion exacta no se duplica para ese productor. Los perfiles son
+consultables por ADMIN o AGRONOMO que mantenga acceso horizontal al productor.
+
+Un registro de cosecha referencia a un acreedor y al productor, conserva una
+instantanea inmutable de sus datos bancarios, cantidad entera de jabas, precio
+por jaba en PEN y las fechas de registro y cosecha. Conserva `publicId` UUID,
+usuario creador y auditoria para idempotencia offline. No persiste un total
+calculado. `pagos_cosecha` se conserva como contrato legado mientras las
+instalaciones anteriores terminan de sincronizar.
+
+Mobile mantiene perfiles y registros por `owner_user_id`, con estado de
+sincronizacion, identificadores locales/remotos y cache visible de la sesion.
+No hay edicion ni eliminacion de acreedores en esta etapa.
 
 ## Producción agrícola
 

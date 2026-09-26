@@ -29,6 +29,7 @@ import { VisitaRecetasModule } from "./modules/visita-recetas/visita-recetas.mod
 import { VisitaRiegosModule } from "./modules/visita-riegos/visita-riegos.module";
 import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module";
 import { EstimacionesModule } from "./modules/estimaciones/estimaciones.module";
+import { ComercialModule } from "./modules/comercial/comercial.module";
 
 @Module({
   imports: [
@@ -60,7 +61,8 @@ import { EstimacionesModule } from "./modules/estimaciones/estimaciones.module";
     IntegracionesModule,
     DashboardModule,
     ReportesModule,
-    EstimacionesModule
+    EstimacionesModule,
+    ComercialModule
   ]
 })
 export class AppModule {}

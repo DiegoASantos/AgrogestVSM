@@ -5,8 +5,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppText } from "./app-text";
 
-type NavigationTab = "visitas" | "inicio" | "historial";
-type NavigationRoute = "/home" | "/visitas-campo/nueva" | "/visitas-campo/historial";
+type NavigationTab = "visitas" | "inicio" | "comercial" | "historial";
+type NavigationRoute =
+  | "/home"
+  | "/visitas-campo/nueva"
+  | "/comercial"
+  | "/visitas-campo/historial";
 
 const ITEMS: Array<{
   icon: keyof typeof Ionicons.glyphMap;
@@ -26,6 +30,7 @@ const ITEMS: Array<{
     route: "/home",
     tab: "inicio"
   },
+  { icon: "cash-outline", label: "Comercial", route: "/comercial", tab: "comercial" },
   {
     icon: "time-outline",
     label: "Historial",
@@ -55,7 +60,6 @@ export function AppBottomNavigation() {
               onPress={() => router.replace(item.route)}
               style={({ pressed }) => [
                 styles.item,
-                item.tab === "inicio" && styles.homeItem,
                 isActive && styles.activeItem,
                 pressed && styles.pressed
               ]}
@@ -76,6 +80,7 @@ function getActiveTab(pathname: string): NavigationTab {
   if (pathname === "/home") {
     return "inicio";
   }
+  if (pathname === "/comercial" || pathname.startsWith("/comercial/")) return "comercial";
 
   if (
     pathname === "/visitas-campo/historial" ||
@@ -115,15 +120,12 @@ const styles = StyleSheet.create({
     elevation: 8
   },
   item: {
-    minWidth: 94,
+    flex: 1,
     minHeight: 58,
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
     borderRadius: 29
-  },
-  homeItem: {
-    marginTop: -13
   },
   activeItem: {
     borderWidth: 3,

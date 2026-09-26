@@ -1,4 +1,6 @@
 import { evaluacionesRepository } from "../../modules/evaluaciones/repositories/evaluaciones.repository";
+import { createAcreedorCosecha } from "../../modules/comercial/services/acreedores-cosecha.remote";
+import { createRegistroCosecha } from "../../modules/comercial/services/registros-cosecha.remote";
 import { evaluacionesRemote } from "../../modules/evaluaciones/services/evaluaciones.remote";
 import type { VisitaEvaluacion } from "../../modules/evaluaciones/types";
 import {
@@ -29,6 +31,7 @@ import type {
   VisitaCampo
 } from "../../modules/visitas-campo/types";
 import { getNowIsoString } from "../database/sqlite-utils";
+import { getDatabase } from "../database/connection";
 import { getSyncFailures } from "../database/sync-failures";
 import { getPendingOutboxEntries } from "../database/sync-outbox";
 import { ApiError } from "../services/api/errors";
@@ -50,6 +53,7 @@ import { subsectoresRepository } from "../../modules/subsectores/repositories/su
 import { subsectoresRemote } from "../../modules/subsectores/services/subsectores.remote";
 import { parcelasRepository } from "../../modules/parcelas/repositories/parcelas.repository";
 import { parcelasRemote } from "../../modules/parcelas/services/parcelas.remote";
+import { createPagoCosecha } from "../../modules/comercial/services/pagos-cosecha.remote";
 import {
   catalogoIngredientesActivosRepo,
   catalogoFertilizantesRepo,
@@ -64,6 +68,167 @@ export type SyncHandlerResult =
   | { status: "synced"; serverId: string }
   | { status: "skipped" }
   | { status: "deleted_local" };
+
+type PagoCosechaRow = {
+  local_id: string;
+  public_id: string;
+  productor_id: string;
+  nombres_acreedor: string;
+  apellidos_acreedor: string;
+  tipo_documento_acreedor: "DNI" | "RUC";
+  nro_documento_acreedor: string;
+  banco: "INTERBANK" | "BCP" | "CAJA_PIURA" | "BBVA";
+  nro_cuenta: string;
+};
+
+type AcreedorCosechaRow = PagoCosechaRow;
+
+type RegistroCosechaRow = {
+  local_id: string;
+  public_id: string;
+  productor_id: string;
+  acreedor_local_id: string;
+  cantidad_jabas: number;
+  precio_jaba: string;
+  fecha_registro: string;
+  fecha_cosecha: string;
+};
+
+async function handlePagoCosecha(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
+  const db = getDatabase();
+  const pago = db.getFirstSync<PagoCosechaRow>(
+    `SELECT local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
+       tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta
+     FROM pagos_cosecha
+     WHERE local_id = ?`,
+    entry.entityLocalId
+  );
+
+  if (!pago) {
+    return { status: "deleted_local" };
+  }
+
+  const productor = productoresRepository.getById(pago.productor_id);
+
+  if (!productor?.serverId) {
+    return { status: "skipped" };
+  }
+
+  const response = await createPagoCosecha(
+    {
+      publicId: pago.public_id,
+      productorId: productor.serverId,
+      creditorFirstName: pago.nombres_acreedor,
+      creditorLastName: pago.apellidos_acreedor,
+      creditorDocumentType: pago.tipo_documento_acreedor,
+      creditorDocumentNumber: pago.nro_documento_acreedor,
+      bank: pago.banco,
+      accountNumber: pago.nro_cuenta
+    },
+    context
+  );
+
+  db.runSync(
+    `UPDATE pagos_cosecha
+     SET server_id = ?, sync_status = 'synced', sync_error_message = NULL
+     WHERE local_id = ?`,
+    response.id,
+    entry.entityLocalId
+  );
+
+  return { status: "synced", serverId: response.id };
+}
+
+async function handleAcreedorCosecha(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
+  const db = getDatabase();
+  const acreedor = db.getFirstSync<AcreedorCosechaRow>(
+    `SELECT local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
+       tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta
+     FROM acreedores_cosecha WHERE local_id = ?`,
+    entry.entityLocalId
+  );
+
+  if (!acreedor) return { status: "deleted_local" };
+
+  const productor = productoresRepository.getById(acreedor.productor_id);
+  if (!productor?.serverId) return { status: "skipped" };
+
+  const response = await createAcreedorCosecha(
+    {
+      publicId: acreedor.public_id,
+      productorId: productor.serverId,
+      creditorFirstName: acreedor.nombres_acreedor,
+      creditorLastName: acreedor.apellidos_acreedor,
+      creditorDocumentType: acreedor.tipo_documento_acreedor,
+      creditorDocumentNumber: acreedor.nro_documento_acreedor,
+      bank: acreedor.banco,
+      accountNumber: acreedor.nro_cuenta
+    },
+    context
+  );
+
+  db.runSync(
+    `UPDATE acreedores_cosecha
+     SET server_id = ?, public_id = ?, sync_status = 'synced', sync_error_message = NULL
+     WHERE local_id = ?`,
+    response.id,
+    response.publicId,
+    entry.entityLocalId
+  );
+
+  return { status: "synced", serverId: response.id };
+}
+
+async function handleRegistroCosecha(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
+  const db = getDatabase();
+  const registro = db.getFirstSync<RegistroCosechaRow>(
+    `SELECT local_id, public_id, productor_id, acreedor_local_id, cantidad_jabas,
+       precio_jaba, fecha_registro, fecha_cosecha
+     FROM registros_cosecha WHERE local_id = ?`,
+    entry.entityLocalId
+  );
+
+  if (!registro) return { status: "deleted_local" };
+
+  const productor = productoresRepository.getById(registro.productor_id);
+  const acreedor = db.getFirstSync<{ server_id: string | null }>(
+    "SELECT server_id FROM acreedores_cosecha WHERE local_id = ?",
+    registro.acreedor_local_id
+  );
+  if (!productor?.serverId || !acreedor?.server_id) return { status: "skipped" };
+
+  const response = await createRegistroCosecha(
+    {
+      publicId: registro.public_id,
+      productorId: productor.serverId,
+      creditorId: acreedor.server_id,
+      crateQuantity: registro.cantidad_jabas,
+      cratePrice: registro.precio_jaba,
+      registrationDate: registro.fecha_registro,
+      harvestDate: registro.fecha_cosecha
+    },
+    context
+  );
+
+  db.runSync(
+    `UPDATE registros_cosecha
+     SET server_id = ?, sync_status = 'synced', sync_error_message = NULL
+     WHERE local_id = ?`,
+    response.id,
+    entry.entityLocalId
+  );
+
+  return { status: "synced", serverId: response.id };
+}
 
 export async function handleVisitaCampo(
   entry: SyncOutboxItem,
@@ -795,6 +960,9 @@ export const entityHandlerMap: Record<
   ingredientes_activos: handleIngredienteActivo,
   fertilizantes: handleFertilizante,
   marcas_producto: handleMarcaProducto,
+  pagos_cosecha: handlePagoCosecha,
+  acreedores_cosecha: handleAcreedorCosecha,
+  registros_cosecha: handleRegistroCosecha,
   visitas_campo: handleVisitaCampo,
   visita_evaluaciones: handleEvaluacion,
   visita_observaciones_sanitarias: handleObservacion,

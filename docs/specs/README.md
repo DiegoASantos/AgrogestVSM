@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-22
 ---
 
 # Especificaciones
@@ -125,5 +125,7 @@ en la raíz.
 - [Spec 079: Reporte semanal de estimaciones de visitas](079-reporte-semanal-estimaciones.md)
 - [Spec 080: Precarga de cultivo y productos directos en mezclas](080-precarga-cultivo-productos-directos-mezclas.md)
 - [Spec 081: Recuperacion de sincronizacion de visitas mobile](081-recuperacion-sync-visitas-mobile.md)
-- [Spec 082: Despliegue multientorno en servidor IDL](082-despliegue-multientorno-idl.md)
+- [Spec 082: Datos de pago de cosecha en Comercial](082-datos-pago-cosecha-comercial.md)
+- [Spec 083: Acreedores reutilizables y registro de cosecha](083-acreedores-reutilizables-y-registro-cosecha.md)
+- [Spec 084: Despliegue multientorno en servidor IDL](084-despliegue-multientorno-idl.md)
 - [Plantilla](TEMPLATE.md)

@@ -115,6 +115,74 @@ export const productoresRepository = {
     return row?.total ?? 0;
   },
 
+  searchWithVisibleParcelas(query: string, limit: number, offset: number) {
+    const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
+    const searchPattern = `%${query.trim().toLowerCase()}%`;
+    const rows = db.getAllSync<ProductorRow>(
+      `SELECT ${PRODUCTOR_COLUMNS}
+       FROM productores
+       WHERE catalog_owner_user_id = ?
+         AND (catalog_visible = 1 OR created_locally = 1)
+         AND EXISTS (
+           SELECT 1
+           FROM parcelas
+           WHERE parcelas.productor_id = productores.id
+             AND parcelas.catalog_owner_user_id = ?
+             AND parcelas.catalog_visible = 1
+         )
+         AND (
+           LOWER(COALESCE(first_name, '')) LIKE ?
+           OR LOWER(COALESCE(last_name, '')) LIKE ?
+           OR LOWER(COALESCE(document_number, '')) LIKE ?
+         )
+       ORDER BY is_active DESC,
+         COALESCE(first_name, document_number, public_id) ASC, id ASC
+       LIMIT ?
+       OFFSET ?`,
+      ownerUserId,
+      ownerUserId,
+      searchPattern,
+      searchPattern,
+      searchPattern,
+      limit,
+      offset
+    );
+
+    return rows.map(mapProductorRow);
+  },
+
+  countWithVisibleParcelas(query: string) {
+    const db = getDatabase();
+    const ownerUserId = requireCatalogOwner(db);
+    const searchPattern = `%${query.trim().toLowerCase()}%`;
+    const row = db.getFirstSync<{ total: number }>(
+      `SELECT COUNT(*) AS total
+       FROM productores
+       WHERE catalog_owner_user_id = ?
+         AND (catalog_visible = 1 OR created_locally = 1)
+         AND EXISTS (
+           SELECT 1
+           FROM parcelas
+           WHERE parcelas.productor_id = productores.id
+             AND parcelas.catalog_owner_user_id = ?
+             AND parcelas.catalog_visible = 1
+         )
+         AND (
+           LOWER(COALESCE(first_name, '')) LIKE ?
+           OR LOWER(COALESCE(last_name, '')) LIKE ?
+           OR LOWER(COALESCE(document_number, '')) LIKE ?
+         )`,
+      ownerUserId,
+      ownerUserId,
+      searchPattern,
+      searchPattern,
+      searchPattern
+    );
+
+    return row?.total ?? 0;
+  },
+
   getById(id: string) {
     const db = getDatabase();
     const row = db.getFirstSync<ProductorRow>(
