@@ -1,14 +1,14 @@
 ---
 title: Despliegue multientorno de Agrogest VSM en servidor IDL
 status: approved
-numero: 082
+numero: 084
 area: infraestructura, seguridad y contrato de despliegue
 created: 2026-09-21
 approved_by: instrucción explícita del mantenedor
 implemented_in: 1a4e79b
 ---
 
-# Spec 082: Despliegue multientorno de Agrogest VSM en servidor IDL
+# Spec 084: Despliegue multientorno de Agrogest VSM en servidor IDL
 
 ## Contexto
 

@@ -69,6 +69,37 @@ describe("productoresRepository", () => {
     });
   });
 
+  describe("#searchWithVisibleParcelas", () => {
+    it("should require a visible parcela from the current catalog owner", () => {
+      database.getAllSync.mockReturnValue([row] as never);
+
+      productoresRepository.searchWithVisibleParcelas("juan", 10, 0);
+
+      const query = sqlOf(database.getAllSync.mock.calls)[0];
+      expect(query).toContain("EXISTS (");
+      expect(query).toContain("parcelas.productor_id = productores.id");
+      expect(query).toContain("parcelas.catalog_visible = 1");
+      expect(query).toContain("LIMIT ?");
+      expect(query).toContain("OFFSET ?");
+    });
+  });
+
+  describe("#countWithVisibleParcelas", () => {
+    it("should count using the same visible parcela condition", () => {
+      database.getFirstSync.mockReturnValue({ total: 2 });
+
+      expect(productoresRepository.countWithVisibleParcelas("juan")).toBe(2);
+
+      const query =
+        sqlOf(database.getFirstSync.mock.calls).find((statement) =>
+          statement.includes("COUNT(*) AS total")
+        ) ?? "";
+      expect(query).toContain("EXISTS (");
+      expect(query).toContain("parcelas.productor_id = productores.id");
+      expect(query).toContain("parcelas.catalog_visible = 1");
+    });
+  });
+
   describe("#getById", () => {
     it("should find productor by id", () => {
       database.getFirstSync.mockReturnValue(row);
