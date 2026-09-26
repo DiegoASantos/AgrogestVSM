@@ -8,10 +8,16 @@ declare const process: { env: Record<string, string | undefined> };
 declare const __DEV__: boolean;
 
 export function getApiBaseUrl() {
+  // Production APKs must use the IDL server. EAS environment variables and
+  // downloaded updates must not redirect production writes to the old cloud API.
+  if (!__DEV__) {
+    return PRODUCTION_API_BASE_URL;
+  }
+
   const envApiUrl = process.env.EXPO_PUBLIC_API_URL ?? getConfiguredApiUrl();
   const inferredApiUrl = getInferredDevelopmentApiUrl();
 
-  return (envApiUrl ?? inferredApiUrl ?? getDefaultApiBaseUrl()).replace(/\/+$/, "");
+  return (envApiUrl ?? inferredApiUrl ?? LOCAL_API_BASE_URL).replace(/\/+$/, "");
 }
 
 function getConfiguredApiUrl() {
@@ -24,10 +30,6 @@ function getConfiguredApiUrl() {
   const apiUrl = (extra as { apiUrl?: unknown }).apiUrl;
 
   return typeof apiUrl === "string" && apiUrl.trim() ? apiUrl : null;
-}
-
-function getDefaultApiBaseUrl() {
-  return __DEV__ ? LOCAL_API_BASE_URL : PRODUCTION_API_BASE_URL;
 }
 
 function getInferredDevelopmentApiUrl() {
