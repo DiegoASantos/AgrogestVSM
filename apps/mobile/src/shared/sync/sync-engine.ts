@@ -72,6 +72,8 @@ const RECONCILABLE_SYNC_ENTITIES: Array<{
   { entityType: "fertilizantes", table: "fertilizantes" },
   { entityType: "marcas_producto", table: "marcas_producto" },
   { entityType: "pagos_cosecha", table: "pagos_cosecha" },
+  { entityType: "acreedores_cosecha", table: "acreedores_cosecha" },
+  { entityType: "registros_cosecha", table: "registros_cosecha" },
   { entityType: "visitas_campo", table: "visitas_campo" },
   { entityType: "visita_evaluaciones", table: "visita_evaluaciones" },
   {
@@ -92,6 +94,7 @@ const ROOT_ENTITY_TYPES = new Set<string>([
   "fertilizantes",
   "marcas_producto",
   "pagos_cosecha",
+  "acreedores_cosecha",
   "visitas_campo"
 ]);
 
@@ -393,6 +396,22 @@ function handleConflictResolution(entry: SyncOutboxItem, error: unknown) {
         data.id,
         entry.entityLocalId
       );
+    } else if (entry.entityType === "acreedores_cosecha") {
+      getDatabase().runSync(
+        `UPDATE acreedores_cosecha
+         SET server_id = ?, sync_status = 'synced', sync_error_message = NULL
+         WHERE local_id = ?`,
+        data.id,
+        entry.entityLocalId
+      );
+    } else if (entry.entityType === "registros_cosecha") {
+      getDatabase().runSync(
+        `UPDATE registros_cosecha
+         SET server_id = ?, sync_status = 'synced', sync_error_message = NULL
+         WHERE local_id = ?`,
+        data.id,
+        entry.entityLocalId
+      );
     } else {
       return false;
     }
@@ -515,6 +534,24 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
       case "pagos_cosecha":
         getDatabase().runSync(
           `UPDATE pagos_cosecha
+           SET sync_status = 'error', sync_error_message = ?
+           WHERE local_id = ?`,
+          message,
+          entry.entityLocalId
+        );
+        break;
+      case "acreedores_cosecha":
+        getDatabase().runSync(
+          `UPDATE acreedores_cosecha
+           SET sync_status = 'error', sync_error_message = ?
+           WHERE local_id = ?`,
+          message,
+          entry.entityLocalId
+        );
+        break;
+      case "registros_cosecha":
+        getDatabase().runSync(
+          `UPDATE registros_cosecha
            SET sync_status = 'error', sync_error_message = ?
            WHERE local_id = ?`,
           message,

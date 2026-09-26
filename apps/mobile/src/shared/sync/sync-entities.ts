@@ -7,6 +7,8 @@ export const SYNC_ENTITY_TABLES = {
   fertilizantes: "fertilizantes",
   marcas_producto: "marcas_producto",
   pagos_cosecha: "pagos_cosecha",
+  acreedores_cosecha: "acreedores_cosecha",
+  registros_cosecha: "registros_cosecha",
   visitas_campo: "visitas_campo",
   visita_evaluaciones: "visita_evaluaciones",
   visita_observaciones_sanitarias: "visita_observaciones_sanitarias",

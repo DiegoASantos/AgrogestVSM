@@ -16,7 +16,7 @@ Productor ───────────────────────�
                                       │
                                       └→ Visita de campo
                                       │
-                                      └→ Pago de cosecha
+                                      └→ Acreedor de cosecha → Registro de cosecha
 ```
 
 Una parcela pertenece a un productor y a un sector. Puede tener dos puntos
@@ -67,15 +67,21 @@ Restricciones territoriales relevantes:
 
 ## Comercial
 
-Un productor puede tener varios pagos de cosecha históricos. Cada pago
-identifica al acreedor por nombres, apellidos, documento DNI o RUC y una cuenta
-o CCI numérica. Conserva un `publicId` UUID para idempotencia offline, el
-usuario que lo creó y la referencia al productor. La API solo permite crear o
-recuperar un pago cuando el actor mantiene acceso horizontal al productor.
+Un productor puede tener varios acreedores de cosecha. Cada perfil identifica
+al acreedor por nombres, apellidos, DNI o RUC, banco y cuenta o CCI; la
+combinacion exacta no se duplica para ese productor. Los perfiles son
+consultables por ADMIN o AGRONOMO que mantenga acceso horizontal al productor.
 
-Mobile almacena una copia temporal con `owner_user_id`, estado de sincronización
-y referencia local al productor. No hay edición ni eliminación en el primer
-paso de Comercial.
+Un registro de cosecha referencia a un acreedor y al productor, conserva una
+instantanea inmutable de sus datos bancarios, cantidad entera de jabas, precio
+por jaba en PEN y las fechas de registro y cosecha. Conserva `publicId` UUID,
+usuario creador y auditoria para idempotencia offline. No persiste un total
+calculado. `pagos_cosecha` se conserva como contrato legado mientras las
+instalaciones anteriores terminan de sincronizar.
+
+Mobile mantiene perfiles y registros por `owner_user_id`, con estado de
+sincronizacion, identificadores locales/remotos y cache visible de la sesion.
+No hay edicion ni eliminacion de acreedores en esta etapa.
 
 ## Producción agrícola
 

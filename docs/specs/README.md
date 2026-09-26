@@ -126,4 +126,5 @@ en la raíz.
 - [Spec 080: Precarga de cultivo y productos directos en mezclas](080-precarga-cultivo-productos-directos-mezclas.md)
 - [Spec 081: Recuperacion de sincronizacion de visitas mobile](081-recuperacion-sync-visitas-mobile.md)
 - [Spec 082: Datos de pago de cosecha en Comercial](082-datos-pago-cosecha-comercial.md)
+- [Spec 083: Acreedores reutilizables y registro de cosecha](083-acreedores-reutilizables-y-registro-cosecha.md)
 - [Plantilla](TEMPLATE.md)

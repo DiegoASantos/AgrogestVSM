@@ -46,7 +46,7 @@ last_reviewed: 2026-09-22
 | R-034 | Un dispositivo puede conservar temporalmente la visibilidad sanitaria previa si no recarga catálogos después de PostgreSQL 058 | Media | Mitigado | SQLite 70 invalida la marca de descarga sin tocar datos offline; desplegar PostgreSQL y API antes de la OTA/APK y verificar recarga en un dispositivo smoke |
 | R-035 | Mobile puede enviar `mezcla_directa` antes de que PostgreSQL 061 y la API acepten objetivos fitosanitarios nulos | Alta | Mitigado | Desplegar migración PostgreSQL 061 y API compatible antes de la OTA/APK; SQLite 72 y la outbox preservan el agregado para reintento |
 | R-036 | Un cliente mobile puede confirmar falsamente un update de visita mediante el POST idempotente o postergar hijos fuera de una ventana de 100 elementos | Alta | Mitigado | Spec 081 separa POST/PATCH, usa la parcela remota, planifica la cola completa por agregado y reencola una vez las visitas con identidad remota sin borrar outbox ni fallos |
-| R-037 | Documento y cuenta/CCI de pago de cosecha quedan en SQLite sin cifrado en reposo | Media | Aceptado temporalmente | Decisión explícita para Spec 082; aislamiento por sesión, token en almacenamiento seguro y prohibición de logs. Revisar antes de ampliar acceso al módulo o distribuir a una cohorte mayor. |
+| R-037 | Documento y cuenta/CCI de perfiles y registros de cosecha quedan en SQLite sin cifrado en reposo | Media | Aceptado temporalmente | Specs 082 y 083; aislamiento por sesion, cache visible por usuario, token en almacenamiento seguro y prohibicion de logs. Revisar antes de ampliar acceso al modulo o distribuir a una cohorte mayor. |
 
 ## Revisión
 

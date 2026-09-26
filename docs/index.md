@@ -134,6 +134,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Precarga de cultivo y productos directos en mezclas](specs/080-precarga-cultivo-productos-directos-mezclas.md)
 - [Recuperacion de sincronizacion de visitas mobile](specs/081-recuperacion-sync-visitas-mobile.md)
 - [Datos de pago de cosecha en Comercial](specs/082-datos-pago-cosecha-comercial.md)
+- [Acreedores reutilizables y registro de cosecha](specs/083-acreedores-reutilizables-y-registro-cosecha.md)
 
 ## Runbooks
 

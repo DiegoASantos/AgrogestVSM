@@ -662,22 +662,24 @@ crea entradas en `sync_outbox` ni llega a la API. Cambiar de cuenta deja los
 borradores anteriores almacenados, pero ninguna lectura o escritura puede
 acceder a ellos con el propietario de la nueva sesion.
 
-## Datos de pago de cosecha
+## Acreedores y registros de cosecha
 
-El primer paso de Comercial persiste `pagos_cosecha` y su operación `create` en
-la misma transacción SQLite. El selector lista exclusivamente productores del
-catálogo de la sesión que tienen al menos una parcela visible; una parcela
-inactiva permanece válida porque sigue asignada. Cada fila mantiene
-`owner_user_id`, un `public_id` UUID y el productor local; el planificador envía
-primero productores pendientes. Cuando el acreedor es una persona registrada
-como productor, la UI copia de forma independiente los nombres, apellidos y
-datos de documento válidos disponibles solo en el estado del formulario; los
-campos faltantes siguen siendo manuales. No crea otra entidad ni cambia el
-payload. El handler espera la identidad remota del productor y luego hace
-`POST /comercial/pagos-cosecha`. El mismo `publicId` vuelve idempotente un
-reintento tras timeout o cierre de la app.
+Comercial separa el perfil `acreedores_cosecha` del hijo
+`registros_cosecha`. Ambos se guardan con su operacion `create` en la misma
+transaccion SQLite. El selector lista exclusivamente productores del catalogo
+de la sesion que tienen al menos una parcela visible; una parcela inactiva
+permanece valida porque sigue asignada.
 
-La reconciliación, los conteos y los fallos aplican `owner_user_id`, por lo que
-otra sesión del mismo dispositivo no puede enviar ni consultar pendientes de la
-anterior. Esta entidad no descarga datos desde servidor ni implementa update o
-delete en esta primera entrega.
+Los acreedores se descargan al elegir el productor, se limitan por
+`owner_user_id` y `catalog_visible`, y nunca sustituyen una fila pendiente. El
+handler de acreedor espera el `server_id` del productor; el registro espera los
+`server_id` del productor y acreedor. Al confirmar la API, mobile marca la fila
+como `synced` y conserva la instantanea local usada por el registro. Un perfil
+igual creado por otro usuario se reconcilia con el acreedor canonico devuelto
+por API, sin duplicar la fila remota.
+
+`pagos_cosecha` y su handler permanecen como compatibilidad para operaciones
+creadas con la primera version. No se modifican sus filas ni entradas de outbox;
+la API las convierte en perfiles reutilizables al recibirlas. Por eso los datos
+legados aparecen en el nuevo selector tras una sincronizacion y descarga
+exitosa, sin arriesgar pendientes anteriores.

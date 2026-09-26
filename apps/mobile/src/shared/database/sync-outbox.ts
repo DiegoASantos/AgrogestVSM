@@ -120,6 +120,8 @@ export function getPendingOutboxEntries(limit?: number): SyncOutboxItem[] {
        WHEN entity_type = 'subsectores' THEN 1
        WHEN entity_type = 'parcelas' THEN 2
        WHEN entity_type = 'pagos_cosecha' THEN 3
+       WHEN entity_type = 'acreedores_cosecha' THEN 3
+       WHEN entity_type = 'registros_cosecha' THEN 4
        WHEN entity_type = 'visitas_campo' THEN 4
        ELSE 5
      END,

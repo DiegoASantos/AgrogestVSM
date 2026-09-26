@@ -46,6 +46,8 @@ const SYNC_ENTITY_LABELS: Record<SyncEntityType, string> = {
   fertilizantes: "Fertilizante",
   marcas_producto: "Marca de producto",
   pagos_cosecha: "Datos de pago de cosecha",
+  acreedores_cosecha: "Acreedor de cosecha",
+  registros_cosecha: "Registro de cosecha",
   visitas_campo: "Visita de campo",
   visita_evaluaciones: "Evaluacion",
   visita_observaciones_sanitarias: "Plagas y enfermedades",

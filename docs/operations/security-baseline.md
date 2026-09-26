@@ -79,12 +79,15 @@ last_reviewed: 2026-09-22
 - mobile usa el permiso cacheado solo para visibilidad y borradores offline;
   una visita sincronizada se conserva localmente hasta recibir confirmacion de
   la API, por lo que una revocacion o un fallo de red no causa perdida local.
-- `POST /comercial/pagos-cosecha` exige `ADMIN` o `AGRONOMO` y vuelve a
-  autorizar el productor tanto al crear como al resolver un reintento por
-  `publicId`; documento y cuenta no se registran en logs ni errores.
-- los pagos de cosecha locales se aíslan por `owner_user_id` en la tabla,
-  reconciliación, outbox y fallos. En esta entrega SQLite no cifra documento ni
-  cuenta; el riesgo aceptado y su condición de revisión constan en R-037.
+- `POST /comercial/pagos-cosecha`, `POST /comercial/acreedores-cosecha`,
+  `GET /comercial/productores/:productorId/acreedores-cosecha` y
+  `POST /comercial/registros-cosecha` exigen `ADMIN` o `AGRONOMO`; cada acceso
+  vuelve a autorizar el productor y el registro exige un acreedor de ese mismo
+  productor. Documento y cuenta no se registran en logs ni errores.
+- acreedores y registros locales se aíslan por `owner_user_id` en la tabla,
+  reconciliación, outbox y fallos; la cache descargada además se filtra por
+  visibilidad de sesión. SQLite no cifra documento ni cuenta; el riesgo y su
+  condición de revisión constan en R-037.
 
 ## Rate limiting
 

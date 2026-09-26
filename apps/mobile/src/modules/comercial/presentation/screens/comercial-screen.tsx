@@ -1,7 +1,10 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, StyleSheet, Switch, View } from "react-native";
-import type { HarvestPaymentInput } from "@agrogest/validation";
+import {
+  harvestRecordSchema,
+  type HarvestCreditorInput
+} from "@agrogest/validation";
 
 import {
   AppButton,
@@ -19,7 +22,13 @@ import { theme } from "../../../../shared/constants/theme";
 import { productoresService } from "../../../productores/services/productores.service";
 import type { Productor } from "../../../productores/types";
 import { tiposDocumentoRepository } from "../../../tipos-documento/repositories/tipos-documento.repository";
-import { savePagoCosecha } from "../../services/pagos-cosecha.service";
+import {
+  getAcreedoresCosechaLocales,
+  refreshAcreedoresCosecha,
+  saveAcreedorCosecha,
+  type AcreedorCosecha
+} from "../../services/acreedores-cosecha.service";
+import { saveRegistroCosecha } from "../../services/registros-cosecha.service";
 import {
   getCreditorAutofill,
   getPendingCreditorFields,
@@ -38,7 +47,7 @@ const BANCOS: AppSelectOption[] = [
   { value: "BBVA", label: "BBVA" }
 ];
 
-type PagoCosechaFormInput = Omit<HarvestPaymentInput, "bank"> & { bank: string };
+type AcreedorCosechaFormInput = Omit<HarvestCreditorInput, "bank"> & { bank: string };
 
 type CreditorAutofilledFields = Record<CreditorPendingField, boolean>;
 
@@ -50,6 +59,7 @@ const EMPTY_CREDITOR_AUTOFILLED_FIELDS: CreditorAutofilledFields = {
 };
 
 export function ComercialScreen() {
+  const today = useMemo(getLocalDate, []);
   const [productorId, setProductorId] = useState("");
   const [productor, setProductor] = useState<string>();
   const [selectedProductor, setSelectedProductor] = useState<Productor | null>(null);
@@ -63,9 +73,15 @@ export function ComercialScreen() {
   const [documento, setDocumento] = useState("");
   const [banco, setBanco] = useState("");
   const [cuenta, setCuenta] = useState("");
+  const [acreedores, setAcreedores] = useState<AcreedorCosecha[]>([]);
+  const [acreedorPagoId, setAcreedorPagoId] = useState("");
+  const [jabas, setJabas] = useState("");
+  const [precioJaba, setPrecioJaba] = useState("");
+  const [fechaCosecha, setFechaCosecha] = useState(today);
   const [openProductor, setOpenProductor] = useState(false);
   const [openTipo, setOpenTipo] = useState(false);
   const [openBanco, setOpenBanco] = useState(false);
+  const [openAcreedorPago, setOpenAcreedorPago] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const creditorAutofill = useMemo(
@@ -78,6 +94,23 @@ export function ComercialScreen() {
   const recoveredCreditorName = [creditorAutofill?.firstName, creditorAutofill?.lastName]
     .filter(Boolean)
     .join(" ");
+  const creditorOptions = useMemo(
+    () =>
+      acreedores.map((acreedor) => ({
+        value: acreedor.localId,
+        label: formatCreditorName(acreedor),
+        helper: `${acreedor.bank} · ${maskAccount(acreedor.accountNumber)}`
+      })),
+    [acreedores]
+  );
+
+  useEffect(() => {
+    if (acreedores.length === 1) {
+      setAcreedorPagoId(acreedores[0].localId);
+    } else if (!acreedores.some((acreedor) => acreedor.localId === acreedorPagoId)) {
+      setAcreedorPagoId("");
+    }
+  }, [acreedorPagoId, acreedores]);
 
   const loadProductorOptions = useCallback(
     async (query: string, page: number, pageSize: number) => {
@@ -145,14 +178,23 @@ export function ComercialScreen() {
       setProductorId(option.value);
       setProductor(option.label);
       setSelectedProductor(nextProductor);
+      setAcreedorPagoId("");
+      setAcreedores(getAcreedoresCosechaLocales(option.value));
 
       if (acreedorEsProductor) {
         applyCreditorAutofill(nextProductor);
+      }
+
+      try {
+        setAcreedores(await refreshAcreedoresCosecha(option.value));
+      } catch {
+        // Los acreedores locales y pendientes siguen disponibles sin conexion.
       }
     } catch {
       setProductorId("");
       setProductor(undefined);
       setSelectedProductor(null);
+      setAcreedores([]);
       setError("No se pudieron cargar los datos del productor seleccionado.");
     }
   }
@@ -169,8 +211,8 @@ export function ComercialScreen() {
     applyCreditorAutofill(selectedProductor);
   }
 
-  function guardar() {
-    const validation = validatePagoCosecha({
+  function guardarAcreedor() {
+    const validation = validateAcreedorCosecha({
       productorId,
       creditorFirstName: nombres,
       creditorLastName: apellidos,
@@ -186,13 +228,42 @@ export function ComercialScreen() {
     }
 
     try {
-      savePagoCosecha(validation);
-      Alert.alert("Guardado local", "Los datos se sincronizaran cuando haya conexion.");
+      const localId = saveAcreedorCosecha(validation);
+      setAcreedores(getAcreedoresCosechaLocales(productorId));
+      setAcreedorPagoId(localId);
+      Alert.alert("Acreedor guardado", "Puedes agregar otro o registrar la cosecha.");
       setError(null);
       setBanco("");
       setCuenta("");
     } catch {
-      setError("No se pudieron guardar los datos localmente.");
+      setError("No se pudo guardar el acreedor localmente.");
+    }
+  }
+
+  function guardarRegistro() {
+    const validation = harvestRecordSchema.safeParse({
+      productorId,
+      creditorId: acreedorPagoId,
+      crateQuantity: Number(jabas),
+      cratePrice: precioJaba.trim().replace(",", "."),
+      registrationDate: today,
+      harvestDate: fechaCosecha.trim()
+    });
+
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message ?? "Completa los datos de cosecha.");
+      return;
+    }
+
+    try {
+      saveRegistroCosecha(validation.data);
+      setError(null);
+      setJabas("");
+      setPrecioJaba("");
+      setFechaCosecha(today);
+      Alert.alert("Cosecha guardada", "El registro se sincronizara cuando haya conexion.");
+    } catch {
+      setError("No se pudo guardar el registro localmente.");
     }
   }
 
@@ -204,7 +275,7 @@ export function ComercialScreen() {
             Comercial
           </AppText>
           <AppText style={styles.subtitle} variant="body">
-            Paso 1: registra los datos para el pago de cosecha.
+            Registra acreedores y los datos de pago de cada cosecha.
           </AppText>
         </View>
 
@@ -233,10 +304,34 @@ export function ComercialScreen() {
 
         <AppCard style={styles.sectionCard}>
           <SectionHeader
-            icon="person-circle-outline"
-            subtitle="Indica a quien se realizara el abono."
-            title="Datos del acreedor"
+            icon="people-outline"
+            subtitle="Paso 1: registra uno o varios acreedores del productor."
+            title="Acreedores de pago"
           />
+          {productorId ? (
+            <View style={styles.creditorList}>
+              <AppText style={styles.creditorListTitle} variant="label">
+                {acreedores.length === 0
+                  ? "Aun no hay acreedores registrados"
+                  : `${acreedores.length} acreedor${acreedores.length === 1 ? "" : "es"} disponible${acreedores.length === 1 ? "" : "s"}`}
+              </AppText>
+              {acreedores.map((acreedor) => (
+                <View key={acreedor.localId} style={styles.creditorRow}>
+                  <Ionicons
+                    color={theme.colors.primaryDark}
+                    name="person-circle-outline"
+                    size={22}
+                  />
+                  <View style={styles.creditorRowText}>
+                    <AppText variant="label">{formatCreditorName(acreedor)}</AppText>
+                    <AppText variant="caption">
+                      {acreedor.bank} · {maskAccount(acreedor.accountNumber)}
+                    </AppText>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <View style={styles.switchCard}>
             <View style={styles.switchTextArea}>
               <AppText style={styles.switchTitle} variant="label">
@@ -381,12 +476,67 @@ export function ComercialScreen() {
           />
         </AppCard>
 
+        <AppButton label="Guardar acreedor" icon="person-add-outline" onPress={guardarAcreedor} />
+
+        <AppCard style={styles.sectionCard}>
+          <SectionHeader
+            icon="cash-outline"
+            subtitle="Paso 2: registra las jabas y el acreedor que recibira el pago."
+            title="Registro de cosecha"
+          />
+          <AppSelectField
+            disabled={!productorId || acreedores.length === 0}
+            emptyMessage="Registra primero un acreedor para este productor."
+            isOpen={openAcreedorPago}
+            label="Acreedor a pagar"
+            onClose={() => setOpenAcreedorPago(false)}
+            onSelect={(value) => {
+              setAcreedorPagoId(value);
+              setOpenAcreedorPago(false);
+            }}
+            onToggle={() => setOpenAcreedorPago((value) => !value)}
+            options={creditorOptions}
+            placeholder={productorId ? "Selecciona el acreedor" : "Selecciona primero el productor"}
+            selectedLabel={creditorOptions.find((item) => item.value === acreedorPagoId)?.label}
+          />
+          {productorId && acreedores.length === 0 ? (
+            <AppText style={styles.helper} variant="caption">
+              Agrega un acreedor en el paso 1 para continuar.
+            </AppText>
+          ) : null}
+          <AppInput
+            keyboardType="number-pad"
+            label="Cantidad de jabas"
+            onChangeText={(value) => setJabas(value.replace(/\D/g, ""))}
+            placeholder="Ej: 120"
+            value={jabas}
+          />
+          <AppInput
+            keyboardType="decimal-pad"
+            label="Precio por jaba (S/)"
+            onChangeText={(value) => setPrecioJaba(value.replace(/[^0-9.,]/g, ""))}
+            placeholder="Ej: 12.50"
+            value={precioJaba}
+          />
+          <AppInput editable={false} label="Fecha actual" value={today} />
+          <AppInput
+            label="Fecha de cosecha"
+            maxLength={10}
+            onChangeText={setFechaCosecha}
+            placeholder="AAAA-MM-DD"
+            value={fechaCosecha}
+          />
+          <AppText style={styles.helper} variant="caption">
+            Puedes modificar la fecha de cosecha, sin superar la fecha actual.
+          </AppText>
+          <AppButton label="Guardar registro de cosecha" icon="save-outline" onPress={guardarRegistro} />
+        </AppCard>
+
         {error ? (
           <AppText style={styles.error} variant="caption">
             {error}
           </AppText>
         ) : null}
-        <AppButton label="Guardar datos de pago" icon="save-outline" onPress={guardar} />
       </FormScrollView>
     </ScreenContainer>
   );
@@ -477,6 +627,24 @@ const styles = StyleSheet.create({
   sectionHeaderText: { flex: 1, gap: 2 },
   sectionTitle: { color: theme.colors.primaryDark },
   sectionSubtitle: { color: theme.colors.textMuted },
+  creditorList: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12
+  },
+  creditorListTitle: { color: theme.colors.primaryDark },
+  creditorRow: {
+    alignItems: "center",
+    borderTopColor: theme.colors.borderLight,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 9,
+    paddingTop: 8
+  },
+  creditorRowText: { flex: 1, gap: 2 },
   switchCard: {
     alignItems: "center",
     backgroundColor: theme.colors.surfaceElevated,
@@ -509,10 +677,13 @@ const styles = StyleSheet.create({
     padding: 12
   },
   manualNoticeText: { color: theme.colors.text, flex: 1 },
+  helper: { color: theme.colors.textMuted },
   error: { color: theme.colors.error }
 });
 
-function validatePagoCosecha(input: PagoCosechaFormInput): HarvestPaymentInput | string {
+function validateAcreedorCosecha(
+  input: AcreedorCosechaFormInput
+): HarvestCreditorInput | string {
   if (!input.productorId.trim()) {
     return "Selecciona un productor.";
   }
@@ -536,9 +707,25 @@ function validatePagoCosecha(input: PagoCosechaFormInput): HarvestPaymentInput |
 
   return {
     ...input,
-    bank: input.bank as HarvestPaymentInput["bank"],
+    bank: input.bank as HarvestCreditorInput["bank"],
     productorId: input.productorId.trim(),
     creditorFirstName: input.creditorFirstName.trim(),
     creditorLastName: input.creditorLastName.trim()
   };
+}
+
+function formatCreditorName(acreedor: AcreedorCosecha) {
+  return [acreedor.creditorFirstName, acreedor.creditorLastName].filter(Boolean).join(" ");
+}
+
+function maskAccount(account: string) {
+  return account.length <= 4 ? account : `•••• ${account.slice(-4)}`;
+}
+
+function getLocalDate() {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
