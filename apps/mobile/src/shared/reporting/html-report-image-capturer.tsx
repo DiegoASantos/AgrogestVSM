@@ -25,7 +25,7 @@ import {
   REPORT_IMAGE_WIDTH
 } from "./report-config";
 
-const CAPTURE_TIMEOUT_MS = 20_000;
+const CAPTURE_TIMEOUT_MS = 60_000;
 const CAPTURE_SETTLE_MS = 500;
 const PAGE_READY_TIMEOUT_MS = 5_000;
 const MAX_IMAGE_PIXEL_AREA = 28_000_000;
