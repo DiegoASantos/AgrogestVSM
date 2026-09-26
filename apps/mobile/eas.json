@@ -8,6 +8,9 @@
       "distribution": "internal",
       "channel": "production",
       "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://190.119.191.195:5177"
+      },
       "android": {
         "buildType": "apk"
       }
