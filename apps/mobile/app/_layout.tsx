@@ -79,6 +79,7 @@ function AppNavigation() {
             title: "Inicio"
           }}
         />
+        <Stack.Screen name="comercial/index" options={{ title: "Comercial" }} />
         <Stack.Screen
           name="clima/detalle"
           options={{
@@ -190,6 +191,7 @@ function isProtectedMobilePath(pathname: string | null) {
 
   return (
     pathname.startsWith("/home") ||
+    pathname.startsWith("/comercial") ||
     pathname.startsWith("/clima") ||
     pathname.startsWith("/visitas-campo") ||
     pathname.startsWith("/productores") ||

@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-22
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -661,3 +661,25 @@ Un borrador no representa una entidad del dominio, no usa `sync_status`, no
 crea entradas en `sync_outbox` ni llega a la API. Cambiar de cuenta deja los
 borradores anteriores almacenados, pero ninguna lectura o escritura puede
 acceder a ellos con el propietario de la nueva sesion.
+
+## Acreedores y registros de cosecha
+
+Comercial separa el perfil `acreedores_cosecha` del hijo
+`registros_cosecha`. Ambos se guardan con su operacion `create` en la misma
+transaccion SQLite. El selector lista exclusivamente productores del catalogo
+de la sesion que tienen al menos una parcela visible; una parcela inactiva
+permanece valida porque sigue asignada.
+
+Los acreedores se descargan al elegir el productor, se limitan por
+`owner_user_id` y `catalog_visible`, y nunca sustituyen una fila pendiente. El
+handler de acreedor espera el `server_id` del productor; el registro espera los
+`server_id` del productor y acreedor. Al confirmar la API, mobile marca la fila
+como `synced` y conserva la instantanea local usada por el registro. Un perfil
+igual creado por otro usuario se reconcilia con el acreedor canonico devuelto
+por API, sin duplicar la fila remota.
+
+`pagos_cosecha` y su handler permanecen como compatibilidad para operaciones
+creadas con la primera version. No se modifican sus filas ni entradas de outbox;
+la API las convierte en perfiles reutilizables al recibirlas. Por eso los datos
+legados aparecen en el nuevo selector tras una sincronizacion y descarga
+exitosa, sin arriesgar pendientes anteriores.
