@@ -126,6 +126,77 @@ export const SQL_SCHEMA = [
     catalog_visible INTEGER NOT NULL DEFAULT 0,
     created_locally INTEGER NOT NULL DEFAULT 0
   )`,
+  `CREATE TABLE IF NOT EXISTS pagos_cosecha (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL,
+    productor_id TEXT NOT NULL,
+    nombres_acreedor TEXT NOT NULL,
+    apellidos_acreedor TEXT NOT NULL,
+    tipo_documento_acreedor TEXT NOT NULL CHECK(tipo_documento_acreedor IN ('DNI','RUC')),
+    nro_documento_acreedor TEXT NOT NULL CHECK(
+      nro_documento_acreedor NOT GLOB '*[^0-9]*' AND
+      ((tipo_documento_acreedor = 'DNI' AND length(nro_documento_acreedor) = 8) OR
+       (tipo_documento_acreedor = 'RUC' AND length(nro_documento_acreedor) = 11))
+    ),
+    banco TEXT NOT NULL CHECK(banco IN ('INTERBANK','BCP','CAJA_PIURA','BBVA')),
+    nro_cuenta TEXT NOT NULL CHECK(nro_cuenta NOT GLOB '*[^0-9]*' AND length(nro_cuenta) BETWEEN 1 AND 30),
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending','synced','error')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    sync_error_message TEXT,
+    owner_user_id TEXT NOT NULL,
+    FOREIGN KEY (productor_id) REFERENCES productores(id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_pagos_cosecha_owner_sync
+    ON pagos_cosecha(owner_user_id, sync_status)`,
+  `CREATE TABLE IF NOT EXISTS acreedores_cosecha (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL,
+    productor_id TEXT NOT NULL,
+    nombres_acreedor TEXT NOT NULL,
+    apellidos_acreedor TEXT NOT NULL,
+    tipo_documento_acreedor TEXT NOT NULL CHECK(tipo_documento_acreedor IN ('DNI','RUC')),
+    nro_documento_acreedor TEXT NOT NULL,
+    banco TEXT NOT NULL CHECK(banco IN ('INTERBANK','BCP','CAJA_PIURA','BBVA')),
+    nro_cuenta TEXT NOT NULL,
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending','synced','error')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    sync_error_message TEXT,
+    owner_user_id TEXT NOT NULL,
+    catalog_visible INTEGER NOT NULL DEFAULT 1 CHECK(catalog_visible IN (0, 1)),
+    FOREIGN KEY (productor_id) REFERENCES productores(id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_acreedores_cosecha_owner_productor
+    ON acreedores_cosecha(owner_user_id, productor_id, catalog_visible, sync_status)`,
+  `CREATE TABLE IF NOT EXISTS registros_cosecha (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL,
+    productor_id TEXT NOT NULL,
+    acreedor_local_id TEXT NOT NULL,
+    cantidad_jabas INTEGER NOT NULL CHECK(cantidad_jabas > 0),
+    precio_jaba TEXT NOT NULL,
+    fecha_registro TEXT NOT NULL,
+    fecha_cosecha TEXT NOT NULL,
+    nombres_acreedor TEXT NOT NULL,
+    apellidos_acreedor TEXT NOT NULL,
+    tipo_documento_acreedor TEXT NOT NULL,
+    nro_documento_acreedor TEXT NOT NULL,
+    banco TEXT NOT NULL,
+    nro_cuenta TEXT NOT NULL,
+    server_id TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending','synced','error')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    sync_error_message TEXT,
+    owner_user_id TEXT NOT NULL,
+    FOREIGN KEY (productor_id) REFERENCES productores(id),
+    FOREIGN KEY (acreedor_local_id) REFERENCES acreedores_cosecha(local_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_registros_cosecha_owner_sync
+    ON registros_cosecha(owner_user_id, sync_status)`,
   `CREATE TABLE IF NOT EXISTS tipos_documento (
     id INTEGER PRIMARY KEY NOT NULL,
     code TEXT NOT NULL,

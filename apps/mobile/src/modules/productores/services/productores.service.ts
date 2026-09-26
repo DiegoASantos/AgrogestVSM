@@ -13,6 +13,14 @@ export const productoresService = {
     return productoresRepository.countByName(query);
   },
 
+  async searchWithVisibleParcelas(query: string, limit: number, offset: number) {
+    return productoresRepository.searchWithVisibleParcelas(query, limit, offset);
+  },
+
+  async countWithVisibleParcelas(query: string) {
+    return productoresRepository.countWithVisibleParcelas(query);
+  },
+
   async getById(id: string) {
     const productor = productoresRepository.getById(id);
 

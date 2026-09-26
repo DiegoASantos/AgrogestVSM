@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 72;
+const LATEST_MIGRATION_VERSION = 74;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1859,6 +1859,52 @@ describe("runMigrations", () => {
     expect(
       db.executedStatements.some((statement) =>
         /DELETE\s+FROM\s+(visita_recetas|sync_outbox)/iu.test(statement)
+      )
+    ).toBe(false);
+  });
+
+  it("crea la tabla de pagos de cosecha de forma aditiva", () => {
+    const db = createFakeDatabase(72);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("CREATE TABLE IF NOT EXISTS pagos_cosecha")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("idx_pagos_cosecha_owner_sync")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DROP\s+TABLE\s+pagos_cosecha/iu.test(statement)
+      )
+    ).toBe(false);
+  });
+
+  it("crea acreedores y registros de cosecha sin alterar pagos previos", () => {
+    const db = createFakeDatabase(73);
+
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("CREATE TABLE IF NOT EXISTS acreedores_cosecha")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        statement.includes("CREATE TABLE IF NOT EXISTS registros_cosecha")
+      )
+    ).toBe(true);
+    expect(
+      db.executedStatements.some((statement) =>
+        /DROP\s+TABLE\s+pagos_cosecha/iu.test(statement)
       )
     ).toBe(false);
   });
