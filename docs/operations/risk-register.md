@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-22
+last_reviewed: 2026-09-26
 ---
 
 # Registro de riesgos
@@ -47,6 +47,7 @@ last_reviewed: 2026-09-22
 | R-035 | Mobile puede enviar `mezcla_directa` antes de que PostgreSQL 061 y la API acepten objetivos fitosanitarios nulos | Alta | Mitigado | Desplegar migración PostgreSQL 061 y API compatible antes de la OTA/APK; SQLite 72 y la outbox preservan el agregado para reintento |
 | R-036 | Un cliente mobile puede confirmar falsamente un update de visita mediante el POST idempotente o postergar hijos fuera de una ventana de 100 elementos | Alta | Mitigado | Spec 081 separa POST/PATCH, usa la parcela remota, planifica la cola completa por agregado y reencola una vez las visitas con identidad remota sin borrar outbox ni fallos |
 | R-037 | Documento y cuenta/CCI de perfiles y registros de cosecha quedan en SQLite sin cifrado en reposo | Media | Aceptado temporalmente | Specs 082 y 083; aislamiento por sesion, cache visible por usuario, token en almacenamiento seguro y prohibicion de logs. Revisar antes de ampliar acceso al modulo o distribuir a una cohorte mayor. |
+| R-038 | Un APK consultó la visita 426, ausente en PostgreSQL local tras restaurar el dump del 2026-09-26 a las 12:59 | Crítica | Abierto | Obtener un dump nuevo o acceso de solo lectura a Supabase, comparar visitas y entidades relacionadas creadas después del respaldo, reconciliar sin sobrescribir cambios locales y conservar Supabase hasta verificar la paridad. |
 
 ## Revisión
 
