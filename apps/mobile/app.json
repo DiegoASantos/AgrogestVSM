@@ -4,7 +4,7 @@
     "slug": "agrogest-vsm-mobile-pilot",
     "scheme": "agrogest-vsm",
     "platforms": ["android"],
-    "version": "0.2.0",
+    "version": "0.2.1",
     "icon": "./assets/images/icon_vsm.png",
     "orientation": "portrait",
     "splash": {
@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.diegoasantos.agrogestvsm",
-      "versionCode": 11,
+      "versionCode": 12,
       "usesCleartextTraffic": true,
       "icon": "./assets/images/icon_vsm.png",
       "adaptiveIcon": {
