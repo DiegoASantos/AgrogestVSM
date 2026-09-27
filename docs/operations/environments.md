@@ -29,9 +29,9 @@ Entorno objetivo, todavía pendiente de provisionamiento:
 
 ## Producción actual
 
-- API en el servidor IDL, expuesta en el puerto 5177;
-- PostgreSQL en Supabase temporalmente, hasta la migración planificada;
-- panel administrativo en el servidor IDL, expuesto en el puerto 5176;
+- API desplegada en Render;
+- PostgreSQL en Supabase;
+- admin web en Vercel;
 - Android mediante Expo EAS;
 - actualizaciones OTA por canal de producción cuando son compatibles.
 
@@ -39,7 +39,7 @@ Datos permitidos: información empresarial real con acceso mínimo necesario.
 
 Observabilidad:
 
-- API emite logs JSON con `pino` a stdout de Docker;
+- API emite logs JSON con `pino` a stdout de Render;
 - `LOG_LEVEL=info` por defecto;
 - `/health` expone entorno y versión desplegada;
 - `/health/db` verifica PostgreSQL/PostGIS con autenticación.
