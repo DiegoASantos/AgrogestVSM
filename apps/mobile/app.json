@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.diegoasantos.agrogestvsm",
-      "versionCode": 10,
+      "versionCode": 11,
       "usesCleartextTraffic": true,
       "icon": "./assets/images/icon_vsm.png",
       "adaptiveIcon": {
