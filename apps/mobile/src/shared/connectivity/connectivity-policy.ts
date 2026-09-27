@@ -20,12 +20,12 @@ export function setConnectivityPolicySnapshot(snapshot: ConnectivityPolicySnapsh
 }
 
 export function isNetworkRequestAllowed(policy: NetworkRequestPolicy) {
-  if (!currentPolicy.isPhysicallyOnline) {
-    return false;
-  }
-
   if (policy === "essential") {
     return true;
+  }
+
+  if (!currentPolicy.isPhysicallyOnline) {
+    return false;
   }
 
   if (policy === "probe") {
