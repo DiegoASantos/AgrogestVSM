@@ -2,7 +2,7 @@
 title: Entornos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-09-26
 ---
 
 # Entornos
@@ -30,9 +30,9 @@ Entorno objetivo, todavía pendiente de provisionamiento:
 ## Producción actual
 
 - API en el servidor IDL, expuesta en el puerto 5177;
-- PostgreSQL en Supabase temporalmente, hasta la migración planificada;
+- PostgreSQL/PostGIS local en Docker, base `agrogest_produccion`;
 - panel administrativo en el servidor IDL, expuesto en el puerto 5176;
-- Android mediante Expo EAS;
+- Android mediante Expo EAS, con API en `http://190.119.191.195:5177`;
 - actualizaciones OTA por canal de producción cuando son compatibles.
 
 Datos permitidos: información empresarial real con acceso mínimo necesario.
@@ -56,10 +56,10 @@ Observabilidad:
 ## Pendientes de infraestructura
 
 - provisionar staging;
-- confirmar backups gestionados del proveedor;
+- vigilar la ejecución y retención de backups locales;
 - ejecutar el primer simulacro de restauración;
 - asignar responsables nominales y accesos;
-- configurar verificación estricta de certificado de base de datos.
+- habilitar HTTPS para el panel y la API cuando se disponga de dominio.
 
 ## Regla
 
