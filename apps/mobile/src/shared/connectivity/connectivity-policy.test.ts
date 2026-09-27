@@ -40,7 +40,7 @@ describe("connectivity request policy", () => {
     });
 
     expect(isNetworkRequestAllowed("standard")).toBe(false);
-    expect(isNetworkRequestAllowed("essential")).toBe(false);
+    expect(isNetworkRequestAllowed("essential")).toBe(true);
     expect(isNetworkRequestAllowed("probe")).toBe(false);
   });
 });

@@ -6,7 +6,7 @@ const getApiToken = vi.fn(() => null as string | null);
 const refreshApiToken = vi.fn(async () => null as string | null);
 
 vi.mock("./config", () => ({
-  getApiBaseUrl: () => "https://api.example.test"
+  getResolvedApiBaseUrl: async () => "https://api.example.test"
 }));
 
 vi.mock("./auth-store", () => ({
