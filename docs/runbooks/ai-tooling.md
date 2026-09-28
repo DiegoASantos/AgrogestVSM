@@ -2,7 +2,7 @@
 title: Herramientas de IA, OpenCode y OpenGem
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-09-28
 ---
 
 # Herramientas de IA, OpenCode y OpenGem
@@ -127,6 +127,9 @@ También puede invocarse desde OpenCode con el comando de proyecto:
 ```
 
 ## DeepSeek Reviewer
+
+Su uso es opcional. No es un gate para terminar tareas; si se solicita una
+segunda opinión, debe ejecutarse con permisos efectivos de solo lectura.
 
 `.opencode/agents/deepseek-reviewer.md` fija
 `deepseek/deepseek-v4-pro` y niega edición, delegación, skills, red, rutas

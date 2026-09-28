@@ -2,7 +2,7 @@
 title: Plan de implementación del entorno de mantenimiento
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-09-28
 ---
 
 # Plan de implementación del entorno de mantenimiento de AgroGest VSM
@@ -32,7 +32,7 @@ La configuración inicial será deliberadamente pequeña:
 Desarrollador
 └── Codex: orquestador e implementador principal
     ├── Explorador: investigación rápida y de solo lectura
-    ├── DeepSeek Reviewer: segunda revisión independiente
+    ├── DeepSeek Reviewer: segunda opinión opcional
     └── Skills: procedimientos especializados bajo demanda
 ```
 
@@ -109,6 +109,8 @@ Un cambio no está terminado hasta:
 
 ### DeepSeek API
 
+Uso opcional según la tarea y la decisión del mantenedor:
+
 - revisión independiente del diff;
 - análisis de casos límite;
 - revisión SQL, seguridad y rendimiento;
@@ -140,7 +142,7 @@ documentación canónica ni el proceso.
 | ------------------------ | ----------------------------------------------------------------- | -------: |
 | 0. Fundación portable    | Contexto, documentación única y gobierno documental               |      15% |
 | 1. Seguridad operativa   | Base reproducible, backups, entornos, rollback y riesgos críticos |      20% |
-| 2. Flujo asistido por IA | Codex + explorador + DeepSeek Reviewer                            |      15% |
+| 2. Flujo asistido por IA | Codex + explorador; reviewer opcional                               |      15% |
 | 3. Skills del proyecto   | Procedimientos para API, sync, DB, seguridad y documentación      |      10% |
 | 4. Calidad y CI/CD       | Tests estables, cobertura útil, E2E y validación documental       |      15% |
 | 5. Observabilidad        | Errores, logs, métricas, versión e incidentes                     |      15% |
@@ -250,16 +252,16 @@ Operar un flujo pequeño y medible antes de aumentar el número de agentes.
 2. Codex analiza y propone alcance.
 3. El desarrollador aprueba cambios críticos.
 4. Codex implementa y verifica.
-5. DeepSeek revisa el diff sin editarlo.
-6. Codex evalúa y corrige hallazgos válidos.
-7. El desarrollador valida funcionalmente y autoriza el commit.
+5. Si se solicita una segunda opinión, el reviewer lee el diff sin editarlo y
+   Codex evalúa los hallazgos válidos.
+6. El desarrollador valida funcionalmente y autoriza el commit.
 
 ### Criterio de salida
 
-Codex, explorador y DeepSeek tienen responsabilidades y permisos verificables.
-El reviewer puede ejecutarse sin editar el repositorio, existe un handoff
-portable y el flujo fue medido sobre la Spec 003. El resultado del piloto quedó
-registrado en `docs/operations/ai-workflow-metrics.md`.
+Codex y el explorador tienen responsabilidades y permisos verificables. El
+reviewer opcional conserva permisos de solo lectura y un handoff portable. El
+piloto histórico sobre la Spec 003 quedó registrado en
+`docs/operations/ai-workflow-metrics.md`.
 
 ## 8. Fase 3: Skills del proyecto
 

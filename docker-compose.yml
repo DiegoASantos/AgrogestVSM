@@ -37,7 +37,7 @@ services:
       context: .
       target: admin-web
       args:
-        NEXT_PUBLIC_API_URL: http://172.16.0.8:5280
+        API_INTERNAL_URL: http://api:3001
         NEXT_PUBLIC_ENVIRONMENT_LABEL: DESARROLLO
     ports:
       - "172.16.0.8:5281:3000"

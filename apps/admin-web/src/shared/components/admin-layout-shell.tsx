@@ -117,7 +117,7 @@ function getIconForHref(href: string): LucideIcon | undefined {
 }
 
 export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const router = useRouter();
   const { session, status, logout } = useAuthSession();
   const routeMeta = resolveAdminRouteMeta(pathname);

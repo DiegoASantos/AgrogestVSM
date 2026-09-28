@@ -45,10 +45,10 @@ type SelectOption = {
 
 export function MapasOverview() {
   const { session, logout } = useAuthSession();
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/mapas";
   const router = useRouter();
   const searchParams = useSearchParams();
-  const searchParamsKey = searchParams.toString();
+  const searchParamsKey = searchParams?.toString() ?? "";
   const [overviewData, setOverviewData] = useState<MapasOverviewData | null>(null);
   const [draftFilters, setDraftFilters] = useState(emptyAdminMapFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyAdminMapFilters);
