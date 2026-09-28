@@ -1,11 +1,11 @@
 ---
 title: Equipo inicial de IA reducido
-status: accepted
+status: superseded
 date: 2026-06-25
 decision_makers:
   - mantenimiento
 supersedes:
-superseded_by:
+superseded_by: ADR-006
 ---
 
 # ADR-002: equipo inicial de IA reducido

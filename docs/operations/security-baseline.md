@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-22
+last_reviewed: 2026-09-28
 ---
 
 # Línea base de seguridad operativa
@@ -107,6 +107,12 @@ varias instancias.
 
 En producción, `CORS_ALLOWED_ORIGINS` debe contener únicamente orígenes exactos
 del panel. No usar `*` con credenciales.
+
+El proxy `/api/*` del panel IDL usa un destino interno fijo y sustituye las
+cabeceras de IP reenviada del cliente por la dirección de su socket antes de
+contactar la API. Esto evita que una cabecera falsificada atraviese el panel
+hacia el limitador de intentos de login. La exposición directa de la API sigue
+requiriendo su propia configuración de proxy y controles de red.
 
 ## TLS de base de datos
 

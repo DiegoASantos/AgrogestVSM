@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "./config";
+import { getResolvedApiBaseUrl } from "./config";
 import { getApiToken, refreshApiToken } from "./auth-store";
 import {
   ApiError,
@@ -140,7 +140,13 @@ async function performRequest(
     const includeAuth =
       apiToken && (!options.headers?.Authorization || overrideAuthorization);
 
-    const response = await fetch(buildApiUrl(path), {
+    const url = await buildApiUrl(path);
+
+    if (controller.signal.aborted) {
+      throw new ApiRequestAbortedError();
+    }
+
+    const response = await fetch(url, {
       method: options.method ?? "GET",
       headers: {
         "Content-Type": "application/json",
@@ -191,10 +197,10 @@ function normalizeTimeout(timeoutMs?: number) {
     : DEFAULT_API_TIMEOUT_MS;
 }
 
-function buildApiUrl(path: string) {
+async function buildApiUrl(path: string) {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
 
-  return `${getApiBaseUrl()}${normalizedPath}`;
+  return `${await getResolvedApiBaseUrl()}${normalizedPath}`;
 }
 
 function parseJson(value: string) {

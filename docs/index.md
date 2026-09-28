@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-22
+last_reviewed: 2026-09-28
 ---
 
 # Documentación de AgroGest VSM
@@ -36,10 +36,11 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 
 - [Índice de ADR](adr/README.md)
 - [ADR-001: `docs/` como vault canónico](adr/001-docs-vault-canonico.md)
-- [ADR-002: equipo inicial de IA reducido](adr/002-equipo-ia-reducido.md)
+- [ADR-002: equipo inicial de IA reducido (reemplazado)](adr/002-equipo-ia-reducido.md)
 - [ADR-003: sync adaptativo por tasa de exito](adr/003-sync-adaptativo-por-tasa-exito.md)
 - [ADR-004: conectividad efectiva y modo offline controlado en mobile (reemplazado)](adr/004-conectividad-efectiva-mobile.md)
 - [ADR-005: calidad de conectividad por alcance HTTP e historial reciente](adr/005-calidad-conectividad-por-alcance-http.md)
+- [ADR-006: revisión externa opcional en el flujo de IA](adr/006-revision-externa-opcional.md)
 - [Plantilla de ADR](adr/TEMPLATE.md)
 
 ## Especificaciones
@@ -135,6 +136,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Recuperacion de sincronizacion de visitas mobile](specs/081-recuperacion-sync-visitas-mobile.md)
 - [Datos de pago de cosecha en Comercial](specs/082-datos-pago-cosecha-comercial.md)
 - [Acreedores reutilizables y registro de cosecha](specs/083-acreedores-reutilizables-y-registro-cosecha.md)
+- [Despliegue multientorno de Agrogest VSM en servidor IDL](specs/084-despliegue-multientorno-idl.md)
+- [Proxy de API por el mismo origen del panel web](specs/085-proxy-api-mismo-origen-web.md)
 
 ## Runbooks
 

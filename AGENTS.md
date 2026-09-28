@@ -109,11 +109,12 @@ Política completa: `docs/governance/documentation-policy.md`.
 
 - Codex actúa inicialmente como orquestador e implementador principal.
 - El explorador trabaja en modo lectura.
-- DeepSeek se usa como reviewer independiente del diff.
+- La revisión con DeepSeek es opcional y se realiza solo cuando el mantenedor
+  la solicita o el equipo decide que aporta valor a una tarea concreta.
 - Solo el implementador activo puede escribir en los archivos declarados en el
   alcance.
-- Durante una revisión el diff queda congelado; si cambia, debe revisarse otra
-  vez.
+- Si se realiza una revisión independiente, el diff queda congelado durante
+  ella; si cambia, sus conclusiones deben contrastarse con el diff nuevo.
 - No se permiten ediciones simultáneas de los mismos archivos por varios
   agentes.
 - Las skills encapsulan procedimientos; no reemplazan la revisión humana.

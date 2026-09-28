@@ -88,7 +88,7 @@ export function ConnectivityProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     return NetInfo.addEventListener((state) => {
       const physicallyOnline =
-        state.isConnected !== false && state.isInternetReachable !== false;
+        state.isConnected !== false;
       setIsPhysicallyOnline(physicallyOnline);
       setHasNetworkState(true);
     });
@@ -96,6 +96,10 @@ export function ConnectivityProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     return subscribeToNetworkObservations((observation) => {
+      if (observation.success) {
+        setIsPhysicallyOnline(true);
+      }
+
       const nextState = managerRef.current.recordAttempt(
         observation.success,
         observation.durationMs

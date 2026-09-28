@@ -2,7 +2,7 @@
 title: Rollback de despliegues
 status: active
 owner: mantenimiento
-last_reviewed: 2026-08-18
+last_reviewed: 2026-09-28
 ---
 
 # Rollback de despliegues
@@ -41,6 +41,12 @@ Las migraciones nuevas deben preferir expansión y contracción:
 3. Probar login, dashboard, parcelas y visitas.
 
 El rollback web no corrige incompatibilidades introducidas en la API.
+
+## Panel web en servidor IDL
+
+Si falla el proxy `/api/*`, restaurar la imagen web estable anterior y sus
+argumentos de compilación. Verificar `/health` en la API, login desde LAN y
+red externa, y que Network apunta a la URL esperada. No hay datos que revertir.
 
 ## Mobile
 

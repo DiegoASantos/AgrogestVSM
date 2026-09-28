@@ -2,7 +2,7 @@
 title: Desarrollo local
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-05
+last_reviewed: 2026-09-28
 ---
 
 # Desarrollo local
@@ -25,6 +25,10 @@ Crear:
 - `apps/api/.env` desde `apps/api/.env.example`;
 - `apps/mobile/.env` desde `apps/mobile/.env.example`;
 - configuración `NEXT_PUBLIC_API_URL` para admin web cuando corresponda.
+
+El desarrollo local sin proxy conserva la URL directa de la API. En Docker
+Compose, el target del panel fija `NEXT_PUBLIC_API_URL=/api` y usa
+`API_INTERNAL_URL=http://api:3001` para enviar peticiones por el mismo origen.
 
 No versionar secretos.
 

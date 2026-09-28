@@ -128,4 +128,5 @@ en la raíz.
 - [Spec 082: Datos de pago de cosecha en Comercial](082-datos-pago-cosecha-comercial.md)
 - [Spec 083: Acreedores reutilizables y registro de cosecha](083-acreedores-reutilizables-y-registro-cosecha.md)
 - [Spec 084: Despliegue multientorno en servidor IDL](084-despliegue-multientorno-idl.md)
+- [Spec 085: Proxy de API por el mismo origen del panel web](085-proxy-api-mismo-origen-web.md)
 - [Plantilla](TEMPLATE.md)
