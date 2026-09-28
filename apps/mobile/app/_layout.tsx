@@ -80,6 +80,7 @@ function AppNavigation() {
           }}
         />
         <Stack.Screen name="comercial/index" options={{ title: "Comercial" }} />
+        <Stack.Screen name="comercial/cosecha" options={{ title: "Cosecha" }} />
         <Stack.Screen
           name="clima/detalle"
           options={{
