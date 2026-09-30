@@ -24,6 +24,7 @@ export type LoginResponse = {
   tokenType: "Bearer";
   expiresIn: string;
   refreshExpiresIn: string;
+  sessionExpiresAt: string;
   user: AuthenticatedUserProfile;
 };
 
@@ -33,6 +34,7 @@ export type RefreshResponse = {
   tokenType: "Bearer";
   expiresIn: string;
   refreshExpiresIn: string;
+  sessionExpiresAt: string;
   user: AuthenticatedUserProfile;
 };
 
@@ -48,6 +50,7 @@ export type RefreshTokenPayload = {
   type: "refresh";
   sid: string;
   jti: string;
+  exp?: number;
 };
 
 export type AuthenticatedRequest = FastifyRequest & {

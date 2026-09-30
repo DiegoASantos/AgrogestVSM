@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { VisitaRecetaCompleta } from "../types";
 import {
   buildProducerMixtureRows,
-  renderProducerMixturePlan
+  renderProducerMixturePlan,
+  renderProducerRecipeRecommendations
 } from "./producer-recipe-mixture-plan";
 
 describe("producer recipe mixture plan", () => {
@@ -94,6 +95,55 @@ describe("producer recipe mixture plan", () => {
     expect(html).not.toContain("Factor de incidencia");
   });
 
+  it("renders saved irrigation and cultural labor recommendations with readable labels", () => {
+    const receta = buildRecipe();
+    receta.riego = {
+      id: "riego-1",
+      serverId: null,
+      recetaLocalId: "receta-1",
+      tipoRecomendacion: "riego_ligero",
+      syncStatus: "synced",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z"
+    };
+    receta.labores = [
+      {
+        id: "labor-1",
+        serverId: null,
+        recetaLocalId: "receta-1",
+        labor: "poda_formacion",
+        syncStatus: "synced",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z"
+      },
+      {
+        id: "labor-2",
+        serverId: null,
+        recetaLocalId: "receta-1",
+        labor: "horqueteo",
+        syncStatus: "synced",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z"
+      }
+    ];
+
+    const html = renderProducerRecipeRecommendations(receta);
+
+    expect(html).toContain("Recomendaciones de la receta");
+    expect(html).toContain("Riego ligero");
+    expect(html).toContain("Poda de formación");
+    expect(html).toContain("Horqueteo");
+    expect(html).not.toContain("riego_ligero");
+  });
+
+  it("omits recommendation sections when none were saved", () => {
+    const receta = buildRecipe();
+    receta.riego = null;
+    receta.labores = [];
+
+    expect(renderProducerRecipeRecommendations(receta)).toBe("");
+  });
+
   it("uses a dash when a product has no active ingredient", () => {
     const receta = buildRecipe();
     receta.mezclas[0].productos[0].ingredienteActivoNombre = null;
@@ -162,6 +212,8 @@ function buildRecipe() {
         dosis: 2,
         unidadDosis: "kg/ha"
       }
-    ]
+    ],
+    riego: null,
+    labores: []
   } as unknown as VisitaRecetaCompleta;
 }

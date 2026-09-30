@@ -48,6 +48,7 @@ last_reviewed: 2026-09-26
 | R-036 | Un cliente mobile puede confirmar falsamente un update de visita mediante el POST idempotente o postergar hijos fuera de una ventana de 100 elementos | Alta | Mitigado | Spec 081 separa POST/PATCH, usa la parcela remota, planifica la cola completa por agregado y reencola una vez las visitas con identidad remota sin borrar outbox ni fallos |
 | R-037 | Documento y cuenta/CCI de perfiles y registros de cosecha quedan en SQLite sin cifrado en reposo | Media | Aceptado temporalmente | Specs 082 y 083; aislamiento por sesion, cache visible por usuario, token en almacenamiento seguro y prohibicion de logs. Revisar antes de ampliar acceso al modulo o distribuir a una cohorte mayor. |
 | R-038 | Un APK consultó la visita 426, ausente en PostgreSQL local tras restaurar el dump del 2026-09-26 a las 12:59 | Crítica | Abierto | Obtener un dump nuevo o acceso de solo lectura a Supabase, comparar visitas y entidades relacionadas creadas después del respaldo, reconciliar sin sobrescribir cambios locales y conservar Supabase hasta verificar la paridad. |
+| R-039 | Una sesión mobile de 150 días permite ver datos locales sin red tras desactivar la cuenta; una variable de entorno antigua puede conservar un plazo de refresh distinto | Media | Aceptado temporalmente | La API rechaza solicitudes de usuarios inactivos; mobile cierra al llegar a `sessionExpiresAt`; fijar `JWT_ACCESS_EXPIRES_IN=15m` y `JWT_REFRESH_EXPIRES_IN=150d` en cada entorno y verificar la configuración antes de distribuir la app. |
 
 ## Revisión
 

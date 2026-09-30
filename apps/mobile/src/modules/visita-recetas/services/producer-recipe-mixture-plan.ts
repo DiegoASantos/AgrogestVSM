@@ -1,5 +1,10 @@
 import { formatDoseUnit } from "../domain/dose-unit-format";
-import type { CoadyuvanteCatalogItem, VisitaRecetaCompleta } from "../types";
+import {
+  LABOR_RECOMENDACION_LABELS,
+  RIEGO_RECOMENDACION_LABELS,
+  type CoadyuvanteCatalogItem,
+  type VisitaRecetaCompleta
+} from "../types";
 
 export type ProducerMixtureRow = {
   activeIngredient: string;
@@ -9,6 +14,42 @@ export type ProducerMixtureRow = {
   mixtureNumber: number | null;
   order: number;
 };
+
+export function renderProducerRecipeRecommendations(receta: VisitaRecetaCompleta) {
+  const riego = receta.riego?.tipoRecomendacion
+    ? RIEGO_RECOMENDACION_LABELS[receta.riego.tipoRecomendacion]
+    : null;
+  const labores = receta.labores.map((item) => LABOR_RECOMENDACION_LABELS[item.labor]);
+
+  if (!riego && labores.length === 0) {
+    return "";
+  }
+
+  return `
+    <h2>Recomendaciones de la receta</h2>
+    <div class="visit-summary">
+      <div class="visit-data-grid">
+        ${
+          riego
+            ? `<div class="visit-data-card">
+                <p class="visit-data-title">Riego</p>
+                <p>${escapeHtml(riego)}</p>
+              </div>`
+            : ""
+        }
+        ${
+          labores.length > 0
+            ? `<div class="visit-data-card">
+                <p class="visit-data-title">Labores culturales</p>
+                <ul class="compact-list">
+                  ${labores.map((labor) => `<li>${escapeHtml(labor)}</li>`).join("")}
+                </ul>
+              </div>`
+            : ""
+        }
+      </div>
+    </div>`;
+}
 
 type ProducerMixtureItem = Pick<
   ProducerMixtureRow,

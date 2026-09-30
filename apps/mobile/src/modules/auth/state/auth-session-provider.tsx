@@ -8,6 +8,7 @@ import {
   useState,
   type PropsWithChildren
 } from "react";
+import { AppState } from "react-native";
 
 import { initDatabase, getDatabase } from "../../../shared/database/connection";
 import { setCatalogSessionUserId } from "../../../shared/database/catalog-session";
@@ -29,6 +30,8 @@ import { authService } from "../services";
 import {
   classifyRefreshFailure,
   isAnalystUser,
+  isOfflineSessionExpired,
+  resolveOfflineSessionExpiry,
   isRefreshCooldownActive
 } from "./auth-session-policy";
 import type {
@@ -52,7 +55,6 @@ type AuthSessionContextValue = {
   ) => Promise<EnsureOnlineSessionResult>;
 };
 
-const OFFLINE_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const REFRESH_FAILURE_COOLDOWN_MS = 60_000;
 
 const AuthSessionContext = createContext<AuthSessionContextValue | undefined>(undefined);
@@ -79,7 +81,10 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
 
   const setActiveSession = useCallback(
     async (result: AuthLoginResult, source: "login" | "refresh" = "login") => {
-      const nextSession = toAuthenticatedSession(result);
+      const nextSession = toAuthenticatedSession(
+        result,
+        source === "refresh" ? sessionRef.current.offlineSessionExpiresAt : null
+      );
 
       setApiToken(nextSession.accessToken);
       refreshTokenRef.current = result.refreshToken;
@@ -138,6 +143,11 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
 
       if (currentSession.status !== "authenticated") {
         return "unauthenticated";
+      }
+
+      if (isOfflineSessionExpired(currentSession.offlineSessionExpiresAt)) {
+        clearLocalSession();
+        return "reauth_required";
       }
 
       if (
@@ -235,6 +245,39 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
     };
   }, [ensureOnlineSession]);
 
+  useEffect(() => {
+    if (session.status !== "authenticated") {
+      return;
+    }
+
+    let timer: ReturnType<typeof setTimeout>;
+    const expireWhenDue = () => {
+      const deadline = sessionRef.current.offlineSessionExpiresAt;
+      if (isOfflineSessionExpired(deadline)) {
+        clearLocalSession();
+        return;
+      }
+
+      const remainingMs = Date.parse(deadline!) - Date.now();
+      timer = setTimeout(expireWhenDue, Math.min(remainingMs, 24 * 60 * 60 * 1000));
+    };
+
+    expireWhenDue();
+    const appStateSubscription = AppState.addEventListener("change", (state) => {
+      if (
+        state === "active" &&
+        isOfflineSessionExpired(sessionRef.current.offlineSessionExpiresAt)
+      ) {
+        clearLocalSession();
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      appStateSubscription.remove();
+    };
+  }, [clearLocalSession, session]);
+
   const value = useMemo<AuthSessionContextValue>(
     () => ({
       session,
@@ -274,13 +317,25 @@ export function useAuthSessionContext() {
   return context;
 }
 
-function toAuthenticatedSession(result: AuthLoginResult): AuthSession {
+function toAuthenticatedSession(
+  result: AuthLoginResult,
+  existingExpiresAt: string | null
+): AuthSession {
+  const offlineSessionExpiresAt = resolveOfflineSessionExpiry(
+    result.sessionExpiresAt,
+    Date.now(),
+    existingExpiresAt
+  );
+  if (!offlineSessionExpiresAt) {
+    throw new Error("La sesión recibida ya venció.");
+  }
+
   return {
     status: "authenticated",
     accessToken: result.accessToken,
     tokenType: result.tokenType,
     expiresIn: result.expiresIn,
-    offlineSessionExpiresAt: new Date(Date.now() + OFFLINE_SESSION_TTL_MS).toISOString(),
+    offlineSessionExpiresAt,
     user: result.user
   };
 }
@@ -346,15 +401,12 @@ async function loadPersistedSession(): Promise<{
       user: AuthUser;
     };
 
-    const offlineSessionExpiresAt = new Date(data.offlineSessionExpiresAt).getTime();
-
     if (
       typeof data.tokenType !== "string" ||
       typeof data.expiresIn !== "string" ||
       typeof data.offlineSessionExpiresAt !== "string" ||
       !data.user ||
-      !Number.isFinite(offlineSessionExpiresAt) ||
-      Date.now() >= offlineSessionExpiresAt ||
+      isOfflineSessionExpired(data.offlineSessionExpiresAt) ||
       isAnalystUser(data.user)
     ) {
       await clearInvalidPersistedSession();

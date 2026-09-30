@@ -10,7 +10,9 @@ last_reviewed: 2026-09-28
 ## Implementado
 
 - secretos JWT mínimos de 32 caracteres y rechazo de valores predecibles;
-- access token corto y refresh token rotado;
+- access token de 15 minutos y refresh token rotado con limite fijo de 150 dias
+  desde cada login; las rotaciones no extienden `expires_at` y los tokens nuevos
+  se acortan al aproximarse al limite;
 - refresh tokens almacenados como hash;
 - guards globales de autenticación y roles;
 - CORS restringido por lista en producción;
@@ -20,6 +22,8 @@ last_reviewed: 2026-09-28
 - exportación Cost-Build protegida por API key dedicada;
 - `Cache-Control: no-store` en endpoints de autenticación;
 - tokens mobile en almacenamiento seguro;
+- mobile conserva acceso a datos locales hasta `sessionExpiresAt` aun sin red;
+  la desactivacion de una cuenta se aplica al volver a consultar la API;
 - access token web solo en memoria y refresh token por sesión de pestaña.
 - `ANALISTA` puede mutar únicamente los endpoints de Mantenimiento marcados con
   rol explícito y `AllowAnalystMutation`; el bloqueo global continúa para las
