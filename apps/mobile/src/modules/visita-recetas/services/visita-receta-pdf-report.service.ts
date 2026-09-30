@@ -4,7 +4,10 @@ import { parcelasRepository } from "../../parcelas/repositories/parcelas.reposit
 import { productoresRepository } from "../../productores/repositories/productores.repository";
 import { visitasCampoRepository } from "../../visitas-campo/repositories/visitas-campo.repository";
 import { REPORT_IMAGE_WIDTH } from "../../../shared/reporting/report-config";
-import { renderProducerMixturePlan } from "./producer-recipe-mixture-plan";
+import {
+  renderProducerMixturePlan,
+  renderProducerRecipeRecommendations
+} from "./producer-recipe-mixture-plan";
 
 declare const process:
   | {
@@ -231,6 +234,7 @@ async function buildRecetaReportHtml(visitaId: string): Promise<string> {
     </div>
   </div>
   ${renderDatosVisita(visita, receta, consolidacion)}
+  ${renderProducerRecipeRecommendations(receta)}
   ${renderProducerMixturePlan(receta, coadyuvantes)}
 </body>
 </html>`;
