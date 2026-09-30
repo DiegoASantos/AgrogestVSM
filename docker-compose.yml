@@ -22,6 +22,9 @@ services:
       target: api
     env_file:
       - apps/api/.env
+    environment:
+      JWT_ACCESS_EXPIRES_IN: "15m"
+      JWT_REFRESH_EXPIRES_IN: "150d"
     ports:
       - "172.16.0.8:5380:3001"
     restart: unless-stopped
