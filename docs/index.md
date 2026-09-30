@@ -138,6 +138,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Acreedores reutilizables y registro de cosecha](specs/083-acreedores-reutilizables-y-registro-cosecha.md)
 - [Despliegue multientorno de Agrogest VSM en servidor IDL](specs/084-despliegue-multientorno-idl.md)
 - [Proxy de API por el mismo origen del panel web](specs/085-proxy-api-mismo-origen-web.md)
+- [Reasignación controlada de parcelas entre agrónomos](specs/086-reasignacion-controlada-parcelas.md)
+- [Sesión fija de 150 días](specs/087-sesion-fija-150-dias.md)
 
 ## Runbooks
 
