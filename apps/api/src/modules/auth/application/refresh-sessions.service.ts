@@ -35,12 +35,7 @@ export class RefreshSessionsService implements OnModuleInit {
     `);
   }
 
-  async create(
-    id: string,
-    userPublicId: string,
-    refreshToken: string,
-    expiresAt: Date
-  ) {
+  async create(id: string, userPublicId: string, refreshToken: string, expiresAt: Date) {
     await this.sessionsRepository.save(
       this.sessionsRepository.create({
         id,
@@ -57,7 +52,6 @@ export class RefreshSessionsService implements OnModuleInit {
     userPublicId: string;
     currentRefreshToken: string;
     nextRefreshToken: string;
-    nextExpiresAt: Date;
   }) {
     const result = await this.sessionsRepository.update(
       {
@@ -69,7 +63,6 @@ export class RefreshSessionsService implements OnModuleInit {
       },
       {
         tokenHash: hashToken(input.nextRefreshToken),
-        expiresAt: input.nextExpiresAt,
         updatedAt: new Date()
       }
     );
@@ -81,6 +74,24 @@ export class RefreshSessionsService implements OnModuleInit {
     // A stale token can indicate reuse after rotation. Revoke the session family.
     await this.revoke(input.id);
     return false;
+  }
+
+  async getActiveExpiry(input: {
+    id: string;
+    userPublicId: string;
+    refreshToken: string;
+  }): Promise<Date | null> {
+    const session = await this.sessionsRepository.findOne({
+      where: {
+        id: input.id,
+        userPublicId: input.userPublicId,
+        tokenHash: hashToken(input.refreshToken),
+        revokedAt: IsNull(),
+        expiresAt: MoreThan(new Date())
+      }
+    });
+
+    return session?.expiresAt ?? null;
   }
 
   async revoke(id: string) {

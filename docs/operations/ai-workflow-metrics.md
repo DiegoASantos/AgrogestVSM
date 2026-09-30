@@ -2,7 +2,7 @@
 title: Métricas del flujo asistido por IA
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-10
+last_reviewed: 2026-09-28
 ---
 
 # Métricas del flujo asistido por IA
@@ -11,6 +11,9 @@ last_reviewed: 2026-09-10
 
 Medir si exploración y revisión independiente reducen defectos sin introducir
 un coste de coordinación mayor que su beneficio.
+
+La revisión independiente es opcional. Los campos de tiempo, consumo y hallazgos
+se registran solo cuando se realiza; no son un requisito para cerrar tareas.
 
 ## Campos mínimos
 

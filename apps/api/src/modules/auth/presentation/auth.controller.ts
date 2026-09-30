@@ -42,7 +42,8 @@ export class AuthController {
     type: LoginDto
   })
   @ApiOkResponse({
-    description: "Credenciales validas. Devuelve un access token JWT.",
+    description:
+      "Credenciales validas. Devuelve access, refresh y vencimiento fijo de sesion.",
     schema: {
       type: "object",
       properties: {
@@ -58,13 +59,22 @@ export class AuthController {
               type: "string",
               example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
             },
+            refreshToken: { type: "string" },
             tokenType: {
               type: "string",
               example: "Bearer"
             },
             expiresIn: {
               type: "string",
-              example: "1h"
+              example: "15m"
+            },
+            refreshExpiresIn: {
+              type: "string",
+              example: "150d"
+            },
+            sessionExpiresAt: {
+              type: "string",
+              format: "date-time"
             },
             user: {
               type: "object",
@@ -146,7 +156,8 @@ export class AuthController {
   })
   @ApiBody({ type: RefreshTokenDto })
   @ApiOkResponse({
-    description: "Refresh valido. Devuelve un nuevo access token y refresh rotado."
+    description:
+      "Refresh valido. Devuelve tokens rotados, tiempo restante y el vencimiento fijo de sesion."
   })
   @ApiUnauthorizedResponse({
     description: "Refresh token ausente, invalido o expirado."

@@ -45,8 +45,8 @@ export function UserRolesManagementScreen() {
   const [roles, setRoles] = useState<SecurityRoleItem[]>([]);
   const [items, setItems] = useState<SecurityUserRoleItem[]>([]);
   const [search, setSearch] = useState("");
-  const [userFilter, setUserFilter] = useState(searchParams.get("userId") ?? "");
-  const [roleFilter, setRoleFilter] = useState(searchParams.get("roleId") ?? "");
+  const [userFilter, setUserFilter] = useState(searchParams?.get("userId") ?? "");
+  const [roleFilter, setRoleFilter] = useState(searchParams?.get("roleId") ?? "");
   const [isLoading, setIsLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -60,8 +60,8 @@ export function UserRolesManagementScreen() {
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    setUserFilter(searchParams.get("userId") ?? "");
-    setRoleFilter(searchParams.get("roleId") ?? "");
+    setUserFilter(searchParams?.get("userId") ?? "");
+    setRoleFilter(searchParams?.get("roleId") ?? "");
   }, [searchParams]);
 
   useEffect(() => {
@@ -176,8 +176,8 @@ export function UserRolesManagementScreen() {
     setSuccessMessage(null);
     setFormState({
       ...emptyForm,
-      userId: searchParams.get("userId") ?? "",
-      roleId: searchParams.get("roleId") ?? ""
+      userId: searchParams?.get("userId") ?? "",
+      roleId: searchParams?.get("roleId") ?? ""
     });
   }
 

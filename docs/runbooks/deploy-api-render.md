@@ -157,9 +157,9 @@ DB_SCHEMA=public
 DB_SSL=true
 DB_SSL_REJECT_UNAUTHORIZED=false
 JWT_ACCESS_SECRET=<secreto_largo>
-JWT_ACCESS_EXPIRES_IN=1h
+JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_SECRET=<otro_secreto_largo>
-JWT_REFRESH_EXPIRES_IN=30d
+JWT_REFRESH_EXPIRES_IN=150d
 LOGIN_RATE_LIMIT_TTL_MS=60000
 LOGIN_RATE_LIMIT_MAX=5
 LOGIN_RATE_LIMIT_BLOCK_MS=300000
@@ -168,6 +168,13 @@ SEED_ADMIN_LAST_NAME=VSM
 SEED_ADMIN_EMAIL=admin@agrogestvsm.local
 SEED_ADMIN_PASSWORD=<password_admin>
 ```
+
+Antes de activar esta politica, confirmar en la configuracion efectiva de Render
+`JWT_ACCESS_EXPIRES_IN=15m` y `JWT_REFRESH_EXPIRES_IN=150d`: una variable ya
+definida en el servicio puede prevalecer sobre el valor predeterminado del
+codigo. El despliegue de la API precede a la actualizacion mobile. Un login
+nuevo devuelve `sessionExpiresAt`; cada refresh debe repetir exactamente esa
+fecha. Las sesiones anteriores conservan su vencimiento original.
 
 ## Limitaciones del plan free
 

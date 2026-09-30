@@ -1,15 +1,10 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  Injectable,
-  UnauthorizedException
-} from "@nestjs/common";
-import { JwtService, type JwtSignOptions } from "@nestjs/jwt";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 import { compare, hash } from "bcrypt";
 
 import { UpdateProfileDto } from "../presentation/dto/update-profile.dto";
-
-type JwtExpiresIn = NonNullable<JwtSignOptions["expiresIn"]>;
 
 import { createSuccessResponse } from "../../../common/http/api-response";
 import { durationToMilliseconds } from "../../../common/utils/duration.util";
@@ -60,17 +55,22 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials.");
     }
 
-    const accessToken = await this.signAccessToken(toAccessTokenPayload(user));
+    const sessionExpiresAt = this.getRefreshExpiry();
+    const accessToken = await this.signAccessToken(
+      toAccessTokenPayload(user),
+      sessionExpiresAt
+    );
     const refreshSessionId = randomUUID();
     const refreshToken = await this.signRefreshToken(
       user.publicId,
-      refreshSessionId
+      refreshSessionId,
+      sessionExpiresAt
     );
     await this.refreshSessionsService.create(
       refreshSessionId,
       user.publicId,
       refreshToken,
-      this.getRefreshExpiry()
+      sessionExpiresAt
     );
 
     return createSuccessResponse<LoginResponse>({
@@ -79,6 +79,7 @@ export class AuthService {
       tokenType: "Bearer",
       expiresIn: this.appConfig.auth.accessExpiresIn,
       refreshExpiresIn: this.appConfig.auth.refreshExpiresIn,
+      sessionExpiresAt: sessionExpiresAt.toISOString(),
       user: toAuthenticatedUserProfile(user)
     });
   }
@@ -87,10 +88,9 @@ export class AuthService {
     let payload: RefreshTokenPayload;
 
     try {
-      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
-        refreshToken,
-        { secret: this.appConfig.auth.refreshSecret }
-      );
+      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
+        secret: this.appConfig.auth.refreshSecret
+      });
     } catch {
       throw new UnauthorizedException("Invalid refresh token.");
     }
@@ -106,17 +106,44 @@ export class AuthService {
       throw new UnauthorizedException("Authentication is required.");
     }
 
-    const accessToken = await this.signAccessToken(toAccessTokenPayload(user));
+    const sessionExpiresAt = await this.refreshSessionsService.getActiveExpiry({
+      id: payload.sid,
+      userPublicId: user.publicId,
+      refreshToken
+    });
+
+    if (!sessionExpiresAt) {
+      await this.refreshSessionsService.revoke(payload.sid);
+      throw new UnauthorizedException("Invalid refresh token.");
+    }
+
+    const remainingSeconds = Math.floor((sessionExpiresAt.getTime() - Date.now()) / 1000);
+
+    if (remainingSeconds <= 0) {
+      await this.refreshSessionsService.revoke(payload.sid);
+      throw new UnauthorizedException("Invalid refresh token.");
+    }
+
+    const configuredAccessSeconds = Math.floor(
+      durationToMilliseconds(this.appConfig.auth.accessExpiresIn) / 1000
+    );
+    const accessSeconds = Math.min(configuredAccessSeconds, remainingSeconds);
+    const accessExpiresIn = `${accessSeconds}s`;
+    const refreshExpiresIn = `${remainingSeconds}s`;
+    const accessToken = await this.signAccessToken(
+      toAccessTokenPayload(user),
+      sessionExpiresAt
+    );
     const rotatedRefreshToken = await this.signRefreshToken(
       user.publicId,
-      payload.sid
+      payload.sid,
+      sessionExpiresAt
     );
     const rotated = await this.refreshSessionsService.rotate({
       id: payload.sid,
       userPublicId: user.publicId,
       currentRefreshToken: refreshToken,
-      nextRefreshToken: rotatedRefreshToken,
-      nextExpiresAt: this.getRefreshExpiry()
+      nextRefreshToken: rotatedRefreshToken
     });
 
     if (!rotated) {
@@ -127,8 +154,12 @@ export class AuthService {
       accessToken,
       refreshToken: rotatedRefreshToken,
       tokenType: "Bearer",
-      expiresIn: this.appConfig.auth.accessExpiresIn,
-      refreshExpiresIn: this.appConfig.auth.refreshExpiresIn,
+      expiresIn:
+        accessSeconds === configuredAccessSeconds
+          ? this.appConfig.auth.accessExpiresIn
+          : accessExpiresIn,
+      refreshExpiresIn,
+      sessionExpiresAt: sessionExpiresAt.toISOString(),
       user: toAuthenticatedUserProfile(user)
     });
   }
@@ -137,10 +168,9 @@ export class AuthService {
     let payload: RefreshTokenPayload;
 
     try {
-      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
-        refreshToken,
-        { secret: this.appConfig.auth.refreshSecret }
-      );
+      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
+        secret: this.appConfig.auth.refreshSecret
+      });
     } catch {
       throw new UnauthorizedException("Invalid refresh token.");
     }
@@ -154,9 +184,7 @@ export class AuthService {
   }
 
   async getAuthenticatedUser(accessTokenPayload: AccessTokenPayload) {
-    const user = await this.usersService.findByPublicIdWithRoles(
-      accessTokenPayload.sub
-    );
+    const user = await this.usersService.findByPublicIdWithRoles(accessTokenPayload.sub);
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException("Authentication is required.");
@@ -169,9 +197,7 @@ export class AuthService {
     accessTokenPayload: AccessTokenPayload,
     updateProfileDto: UpdateProfileDto
   ) {
-    const user = await this.usersService.findByPublicIdWithRoles(
-      accessTokenPayload.sub
-    );
+    const user = await this.usersService.findByPublicIdWithRoles(accessTokenPayload.sub);
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException("Authentication is required.");
@@ -197,30 +223,39 @@ export class AuthService {
     return createSuccessResponse(toAuthenticatedUserProfile(updatedUser));
   }
 
-  private signAccessToken(payload: AccessTokenPayload): Promise<string> {
-    return this.jwtService.signAsync(payload, {
-      secret: this.appConfig.auth.accessSecret,
-      expiresIn: this.appConfig.auth.accessExpiresIn as JwtExpiresIn
-    });
+  private signAccessToken(
+    payload: AccessTokenPayload,
+    sessionExpiresAt: Date
+  ): Promise<string> {
+    const configuredExpiry =
+      Date.now() + durationToMilliseconds(this.appConfig.auth.accessExpiresIn);
+    const exp = Math.floor(Math.min(configuredExpiry, sessionExpiresAt.getTime()) / 1000);
+    return this.jwtService.signAsync(
+      { ...payload, exp },
+      { secret: this.appConfig.auth.accessSecret }
+    );
   }
 
-  private signRefreshToken(publicId: string, sessionId: string): Promise<string> {
+  private signRefreshToken(
+    publicId: string,
+    sessionId: string,
+    sessionExpiresAt: Date
+  ): Promise<string> {
     const payload: RefreshTokenPayload = {
       sub: publicId,
       type: "refresh",
       sid: sessionId,
-      jti: randomUUID()
+      jti: randomUUID(),
+      exp: Math.floor(sessionExpiresAt.getTime() / 1000)
     };
     return this.jwtService.signAsync(payload, {
-      secret: this.appConfig.auth.refreshSecret,
-      expiresIn: this.appConfig.auth.refreshExpiresIn as JwtExpiresIn
+      secret: this.appConfig.auth.refreshSecret
     });
   }
 
   private getRefreshExpiry() {
     return new Date(
-      Date.now() +
-        durationToMilliseconds(this.appConfig.auth.refreshExpiresIn)
+      Date.now() + durationToMilliseconds(this.appConfig.auth.refreshExpiresIn)
     );
   }
 }

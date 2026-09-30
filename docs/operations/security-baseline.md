@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-22
+last_reviewed: 2026-09-28
 ---
 
 # Línea base de seguridad operativa
@@ -10,7 +10,9 @@ last_reviewed: 2026-09-22
 ## Implementado
 
 - secretos JWT mínimos de 32 caracteres y rechazo de valores predecibles;
-- access token corto y refresh token rotado;
+- access token de 15 minutos y refresh token rotado con limite fijo de 150 dias
+  desde cada login; las rotaciones no extienden `expires_at` y los tokens nuevos
+  se acortan al aproximarse al limite;
 - refresh tokens almacenados como hash;
 - guards globales de autenticación y roles;
 - CORS restringido por lista en producción;
@@ -20,6 +22,8 @@ last_reviewed: 2026-09-22
 - exportación Cost-Build protegida por API key dedicada;
 - `Cache-Control: no-store` en endpoints de autenticación;
 - tokens mobile en almacenamiento seguro;
+- mobile conserva acceso a datos locales hasta `sessionExpiresAt` aun sin red;
+  la desactivacion de una cuenta se aplica al volver a consultar la API;
 - access token web solo en memoria y refresh token por sesión de pestaña.
 - `ANALISTA` puede mutar únicamente los endpoints de Mantenimiento marcados con
   rol explícito y `AllowAnalystMutation`; el bloqueo global continúa para las
@@ -107,6 +111,12 @@ varias instancias.
 
 En producción, `CORS_ALLOWED_ORIGINS` debe contener únicamente orígenes exactos
 del panel. No usar `*` con credenciales.
+
+El proxy `/api/*` del panel IDL usa un destino interno fijo y sustituye las
+cabeceras de IP reenviada del cliente por la dirección de su socket antes de
+contactar la API. Esto evita que una cabecera falsificada atraviese el panel
+hacia el limitador de intentos de login. La exposición directa de la API sigue
+requiriendo su propia configuración de proxy y controles de red.
 
 ## TLS de base de datos
 

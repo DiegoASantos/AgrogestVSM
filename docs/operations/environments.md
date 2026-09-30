@@ -38,6 +38,24 @@ Entorno objetivo, todavía pendiente de provisionamiento:
 - Android mediante Expo EAS, con API en `http://190.119.191.195:5177`;
 - actualizaciones OTA por canal de producción cuando son compatibles.
 
+### Panel web y API en IDL
+
+La corrección de la [spec 085](../specs/085-proxy-api-mismo-origen-web.md)
+requiere reconstruir la imagen del panel. El target Docker fija
+`NEXT_PUBLIC_API_URL=/api` y usa `API_INTERNAL_URL=http://api:3001` por defecto.
+El servicio web y `api` deben compartir la
+red de Docker Compose; `api` es el nombre del servicio, no una IP pública.
+El panel reenvía `/api/*` a ese destino interno. Esto permite usar la misma
+imagen desde la IP privada y la pública sin retorno por la IP pública dentro
+de la LAN. No se modifican CORS ni las URLs que usa mobile.
+
+En la configuración de producción del servidor, integrar el Dockerfile nuevo,
+reconstruir el servicio web y comprobar que la pestaña Network muestra
+`/api/auth/login` bajo el origen del panel. Verificar `/api/health` desde LAN y
+desde otra red antes de probar el login. Cambiar solo la variable de entorno de
+un contenedor ya compilado no reemplaza `NEXT_PUBLIC_API_URL` incrustada en el
+JavaScript.
+
 Datos permitidos: información empresarial real con acceso mínimo necesario.
 
 Observabilidad:

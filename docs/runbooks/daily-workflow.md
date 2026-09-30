@@ -2,7 +2,7 @@
 title: Flujo diario de mantenimiento con IA
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-01
+last_reviewed: 2026-09-28
 ---
 
 # Flujo diario de mantenimiento con IA
@@ -78,12 +78,12 @@ recuperación está en `docs/runbooks/ai-environment-recovery.md`.
    - Actualiza DTOs y validaciones en todos los módulos afectados
    - Agrega pruebas de integración en `http-contract.test.ts`
 6. Ejecuta `pnpm check` y `pnpm test:coverage`
-7. **Revisión** — ejecutás `pnpm ai:review` con DeepSeek
-8. DeepSeek devuelve hallazgos → Codex corrige los válidos
-9. Actualiza `docs/index.md` y documentación afectada con `agrogest-documentation`
-10. Te muestra el diff final
+7. Actualiza `docs/index.md` y documentación afectada con `agrogest-documentation`
+8. Si solicitas una segunda opinión, se revisa el diff con un agente de solo
+   lectura y Codex corrige los hallazgos válidos
+9. Te muestra el diff final
 
-**Tu rol:** aprobar spec, ejecutar la revisión, validar funcionalmente, commit.
+**Tu rol:** aprobar spec, validar funcionalmente y autorizar el commit.
 
 ---
 
@@ -98,7 +98,7 @@ recuperación está en `docs/runbooks/ai-environment-recovery.md`.
 3. Planifica con `agrogest-database-change` + `agrogest-mobile-sync` + `agrogest-api-module`
 4. Antes de implementar: `agrogest-security-review` si toca auth o datos sensibles
 5. Implementa por etapas (migración → API → mobile sync)
-6. Revisión con DeepSeek en cada etapa
+6. Pruebas y revisión de seguridad proporcionales en cada etapa
 7. Antes de release: `agrogest-release-check`
 8. Actualiza toda la documentación afectada
 
@@ -106,7 +106,7 @@ recuperación está en `docs/runbooks/ai-environment-recovery.md`.
 
 ---
 
-## El ciclo de revisión
+## Segunda opinión opcional
 
 Cuando terminás una implementación y querés una segunda opinión:
 
@@ -120,7 +120,8 @@ DeepSeek (`v4-pro`) analiza el diff y entrega tres listas:
 - **Falsos positivos** (descartados con justificación)
 
 Codex evalúa los hallazgos, corrige los válidos, y justifica los descartados.
-Si el diff cambia durante la revisión, DeepSeek debe revisarlo otra vez.
+Si el diff cambia durante una revisión, sus conclusiones deben contrastarse con
+el diff nuevo.
 
 Métricas de cada revisión en `docs/operations/ai-workflow-metrics.md`.
 
@@ -173,7 +174,7 @@ modelo principal.
 | Build completo | `pnpm build` |
 | E2E panel | `pnpm --filter @agrogest/admin-web e2e:ci` |
 | Explorar código | `/explorar <consulta>` |
-| Revisar diff | `/revisar-diff` o `pnpm ai:review` |
+| Pedir segunda opinión opcional | `/revisar-diff` o `pnpm ai:review` |
 | Ver agentes | `pnpm ai:agents` |
 | Ver modelos | `pnpm ai:models` |
 | Ver skills | `pnpm ai:skills` |
@@ -208,7 +209,7 @@ Tu prompt
 │ 5. Implementa siguiendo el flujo     │
 │    de cada skill                     │
 │ 6. Ejecuta pnpm check + build        │
-│ 7. Propone revisión con DeepSeek     │
+│ 7. Revisión externa si se solicita  │
 │ 8. Actualiza documentación           │
 │ 9. Prepara release si corresponde    │
 └──────────────────────────────────────┘

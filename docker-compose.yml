@@ -41,7 +41,6 @@ services:
       target: admin-web
       args:
         API_INTERNAL_URL: http://api:3001
-        NEXT_PUBLIC_API_URL: /api
         NEXT_PUBLIC_ENVIRONMENT_LABEL: ""
     ports:
       - "5176:3000"

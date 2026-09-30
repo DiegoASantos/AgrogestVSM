@@ -40,6 +40,7 @@ export type AuthLoginResult = {
   tokenType: string;
   expiresIn: string;
   refreshExpiresIn: string;
+  sessionExpiresAt?: string;
   user: AuthUser;
 };
 
