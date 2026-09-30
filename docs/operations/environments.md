@@ -2,7 +2,7 @@
 title: Entornos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-26
+last_reviewed: 2026-09-30
 ---
 
 # Entornos
@@ -30,8 +30,11 @@ Entorno objetivo, todavía pendiente de provisionamiento:
 ## Producción actual
 
 - API en el servidor IDL, expuesta en el puerto 5177;
+- access tokens de 15 minutos y plazo fijo de sesión de 150 días en producción;
 - PostgreSQL/PostGIS local en Docker, base `agrogest_produccion`;
 - panel administrativo en el servidor IDL, expuesto en el puerto 5176;
+- el panel llama a `/api` en su mismo origen; el proxy de Next.js reenvía esas
+  solicitudes al servicio interno `api:3001` desde la LAN y el acceso público;
 - Android mediante Expo EAS, con API en `http://190.119.191.195:5177`;
 - actualizaciones OTA por canal de producción cuando son compatibles.
 
