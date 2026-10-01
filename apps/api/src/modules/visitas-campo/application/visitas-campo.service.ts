@@ -332,7 +332,7 @@ export class VisitasCampoService {
     workbook.created = new Date();
 
     const worksheet = workbook.addWorksheet("Visitas");
-    worksheet.mergeCells("A1:Q1");
+    worksheet.mergeCells("A1:R1");
     worksheet.getCell("A1").value = "Reporte de visitas de campo";
     worksheet.getCell("A1").font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
     worksheet.getCell("A1").fill = {
@@ -342,7 +342,7 @@ export class VisitasCampoService {
     };
     worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
     worksheet.getRow(1).height = 28;
-    worksheet.mergeCells("A2:Q2");
+    worksheet.mergeCells("A2:R2");
     worksheet.getCell("A2").value =
       `Periodo: ${query.fecha_desde} al ${query.fecha_hasta}`;
     worksheet.getCell("A2").font = { bold: true, color: { argb: "FF166534" } };
@@ -353,7 +353,7 @@ export class VisitasCampoService {
     };
     worksheet.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
     worksheet.getRow(2).height = 22;
-    worksheet.mergeCells("A3:Q3");
+    worksheet.mergeCells("A3:R3");
     worksheet.getCell("A3").value = `Agrónomo: ${
       agronomistUserId ? "seleccionado" : "Todos"
     } | Visitas activas: ${visitas.length}`;
@@ -368,6 +368,7 @@ export class VisitasCampoService {
       "Agrónomo",
       "Productor",
       "Sector",
+      "Subsector",
       "Parcela",
       "Hora inicio",
       "Hora fin",
@@ -402,12 +403,12 @@ export class VisitasCampoService {
     }
 
     const reportColumnFills: Record<number, string> = {
-      12: "FFFFF7ED",
-      13: "FFFEF2F2",
-      14: "FFECFDF5",
-      15: "FFEFF6FF",
+      13: "FFFFF7ED",
+      14: "FFFEF2F2",
+      15: "FFECFDF5",
       16: "FFEFF6FF",
-      17: "FFF0FDF4"
+      17: "FFEFF6FF",
+      18: "FFF0FDF4"
     };
 
     for (const visita of visitas) {
@@ -417,7 +418,7 @@ export class VisitasCampoService {
       for (const [index, diagnosis] of diagnosisRows.entries()) {
         worksheet.addRow([
           index === 0 ? toWorksheetText(visita.fechaVisita) : "",
-          index === 0 ? toWorksheetText(visita.nroFicha ?? visita.publicId) : "",
+          index === 0 ? toWorksheetText(buildFriendlyVisitNumber(visita.id)) : "",
           index === 0 ? toWorksheetText(visita.cultivo?.name ?? "No registrado") : "",
           index === 0 ? toWorksheetText(buildUserLabel(visita.agronomoUsuario)) : "",
           index === 0
@@ -425,6 +426,9 @@ export class VisitasCampoService {
             : "",
           index === 0
             ? toWorksheetText(visita.parcela?.subsector?.sector?.name ?? "No registrado")
+            : "",
+          index === 0
+            ? toWorksheetText(visita.parcela?.subsector?.name ?? "No registrado")
             : "",
           index === 0 ? toWorksheetText(buildParcelaLabel(visita.parcela)) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaInicio) : "",
@@ -466,12 +470,12 @@ export class VisitasCampoService {
           };
           cell.alignment = {
             ...(cell.alignment ?? {}),
-            ...(column >= 12 && column <= 14 ? { horizontal: "center" as const } : {}),
+            ...(column >= 13 && column <= 15 ? { horizontal: "center" as const } : {}),
             vertical: "middle",
             wrapText: true
           };
 
-          if (column === 11 && typeof cell.value === "number") {
+          if (column === 12 && typeof cell.value === "number") {
             cell.numFmt = "0%";
           }
 
@@ -486,10 +490,10 @@ export class VisitasCampoService {
       }
 
       for (const column of [
-        ...Array.from({ length: 11 }, (_, index) => index + 1),
-        15,
+        ...Array.from({ length: 12 }, (_, index) => index + 1),
         16,
-        17
+        17,
+        18
       ]) {
         if (lastWorksheetRow > firstWorksheetRow) {
           worksheet.mergeCells(firstWorksheetRow, column, lastWorksheetRow, column);
@@ -502,7 +506,7 @@ export class VisitasCampoService {
         };
       }
 
-      for (const column of [12, 13, 14]) {
+      for (const column of [13, 14, 15]) {
         mergeAndCenterSingleDiagnosis(
           worksheet,
           firstWorksheetRow,
@@ -519,6 +523,7 @@ export class VisitasCampoService {
       { width: 26 },
       { width: 28 },
       { width: 22 },
+      { width: 22 },
       { width: 28 },
       { width: 14 },
       { width: 14 },
@@ -532,7 +537,7 @@ export class VisitasCampoService {
       { width: 12 }
     ];
     worksheet.views = [{ state: "frozen", ySplit: 4 }];
-    worksheet.autoFilter = { from: "A4", to: "Q4" };
+    worksheet.autoFilter = { from: "A4", to: "R4" };
 
     return {
       content: Buffer.from(await workbook.xlsx.writeBuffer()),
@@ -1415,6 +1420,10 @@ function mergeAndCenterSingleDiagnosis(
 
 function toWorksheetText(value: string) {
   return /^[=+\-@]/u.test(value) ? `'${value}` : value;
+}
+
+function buildFriendlyVisitNumber(id: string) {
+  return `VSM${id.padStart(4, "0")}`;
 }
 
 function validateVisitTimes(startVisitTime: string, endVisitTime: string | null) {
