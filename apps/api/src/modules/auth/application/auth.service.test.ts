@@ -145,6 +145,12 @@ describe("AuthService", () => {
       const refreshPayload = jwt.signAsync.mock.calls.find(
         ([, options]) => options.secret === REFRESH_SECRET
       )?.[0];
+      expect(
+        jwt.signAsync.mock.calls.find(([, options]) => options.secret === ACCESS_SECRET)?.[1]
+      ).toEqual({ secret: ACCESS_SECRET });
+      expect(
+        jwt.signAsync.mock.calls.find(([, options]) => options.secret === REFRESH_SECRET)?.[1]
+      ).toEqual({ secret: REFRESH_SECRET });
       expect(accessPayload.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
       expect(accessPayload.exp).toBeLessThanOrEqual(
         Math.floor((Date.now() + 15 * 60 * 1000) / 1000)

@@ -23,16 +23,7 @@ import { UserRolesController } from "./presentation/user-roles.controller";
     JwtModule.registerAsync({
       inject: [AppConfigService],
       useFactory: (appConfig: AppConfigService) => {
-        const expiresIn = appConfig.auth.accessExpiresIn as NonNullable<
-          JwtModuleOptions["signOptions"]
-        >["expiresIn"];
-
-        return {
-          secret: appConfig.auth.accessSecret,
-          signOptions: {
-            expiresIn
-          }
-        };
+        return createAuthJwtModuleOptions(appConfig.auth.accessSecret);
       }
     }),
     TypeOrmModule.forFeature([UserRoleEntity, RefreshSessionEntity]),
@@ -69,3 +60,7 @@ import { UserRolesController } from "./presentation/user-roles.controller";
   exports: [AuthService, UserRolesService, AccessTokenGuard, RolesGuard]
 })
 export class AuthModule {}
+
+export function createAuthJwtModuleOptions(accessSecret: string): JwtModuleOptions {
+  return { secret: accessSecret };
+}

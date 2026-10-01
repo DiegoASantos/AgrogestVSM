@@ -5,7 +5,7 @@ numero: 087
 area: API y mobile, autenticación
 created: 2026-09-30
 approved_by: Usuario, al solicitar «Implement the plan» el 2026-09-30
-implemented_in: apps/api/src/modules/auth; apps/mobile/src/modules/auth; render.yaml, 2026-09-30
+implemented_in: apps/api/src/modules/auth; apps/mobile/src/modules/auth; render.yaml, 2026-09-30; JWT expiry configuration regression fix, 2026-10-01
 ---
 
 # Spec 087: Sesión fija de 150 días
@@ -68,6 +68,7 @@ El usuario móvil debe poder volver a abrir la app, incluso sin red, durante 150
 ## Pruebas
 
 - Unitarias de emisión, rotación, vencimiento, revocación y compatibilidad de sesión mobile.
+- Regresión de API: el módulo JWT no agrega una expiración por defecto a tokens que ya llevan su `exp` absoluto.
 - Integración HTTP de respuestas de login/refresh y del limitador existente.
 - Escenarios offline-online antes y después de 150 días, más comprobación manual de la sesión web.
 - Lint, tipos y build proporcionales para API y mobile.
