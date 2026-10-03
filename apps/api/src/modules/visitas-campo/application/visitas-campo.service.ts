@@ -1205,8 +1205,8 @@ export class VisitasCampoService {
     }
 
     return queryBuilder
-      .orderBy("visita.fecha_visita", "DESC")
-      .addOrderBy("visita.hora_visita_inicio", "DESC")
+      .orderBy("visita.fechaVisita", "DESC")
+      .addOrderBy("visita.horaVisitaInicio", "DESC")
       .addOrderBy("visita.id", "DESC");
   }
 
@@ -1218,8 +1218,8 @@ export class VisitasCampoService {
       .leftJoinAndSelect("phenologicalStages.subStage", "subStageEntryCatalog")
       .innerJoin(ParcelaEntity, "parcela", "parcela.id = visita.parcela_id")
       .where("visita.activo = true")
-      .orderBy("visita.fecha_visita", "DESC")
-      .addOrderBy("visita.hora_visita_inicio", "DESC")
+      .orderBy("visita.fechaVisita", "DESC")
+      .addOrderBy("visita.horaVisitaInicio", "DESC")
       .addOrderBy("visita.id", "DESC");
   }
 

@@ -146,6 +146,8 @@ describe("VisitasCampoService", () => {
       expect(repo.createQueryBuilder).toHaveBeenCalledWith("visita");
       expect(qb.skip).toHaveBeenCalledWith(0);
       expect(qb.take).toHaveBeenCalledWith(50);
+      expect(qb.orderBy).toHaveBeenCalledWith("visita.fechaVisita", "DESC");
+      expect(qb.addOrderBy).toHaveBeenCalledWith("visita.horaVisitaInicio", "DESC");
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
       expect(result.meta).toEqual({ total: 1, page: 1, limit: 50, totalPages: 1 });
