@@ -5,11 +5,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ES2022"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "preserve",
@@ -20,11 +16,10 @@
         "name": "next"
       }
     ],
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "allowJs": true,
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "6.0",
+    "strictNullChecks": true
   },
   "include": [
     "next-env.d.ts",
@@ -33,7 +28,5 @@
     "src/**/*.tsx",
     ".next/types/**/*.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

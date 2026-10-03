@@ -37,4 +37,17 @@ describe("getApiBaseUrl", () => {
 
     process.env.NEXT_PUBLIC_API_URL = original as string | undefined;
   });
+
+  it("uses the web origin when the API base is a relative path", () => {
+    const original = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "/api/";
+
+    expect(getApiBaseUrl()).toBe("/api");
+
+    if (original === undefined) {
+      delete process.env.NEXT_PUBLIC_API_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_URL = original;
+    }
+  });
 });

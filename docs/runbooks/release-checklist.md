@@ -2,7 +2,7 @@
 title: Checklist de release
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-09-28
 ---
 
 # Checklist de release
@@ -38,6 +38,16 @@ last_reviewed: 2026-06-26
   invitaciones; `EXPO_PUBLIC_PRODUCTOR_WEB_URL` apunta a esa ruta del mismo entorno.
 - Login y ruta protegida verificados.
 - Cambios de contrato API coordinados con backend.
+
+## Admin web en servidor IDL
+
+- Imagen web reconstruida con el target Docker que fija
+  `NEXT_PUBLIC_API_URL=/api` y usa `API_INTERNAL_URL=http://api:3001` por defecto.
+- Web y API en la misma red de Docker Compose; `/api/health` responde desde
+  LAN y desde una red externa.
+- Login, refresh y descarga autenticada comprobados sin petición del navegador
+  a la IP pública de la API cuando se accede desde LAN.
+- Rollback de la imagen web estable disponible antes de publicar.
 
 ## Mobile Expo/EAS
 

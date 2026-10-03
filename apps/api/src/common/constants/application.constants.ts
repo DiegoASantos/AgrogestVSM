@@ -6,4 +6,4 @@ export const DEFAULT_DB_PORT = 5432;
 export const DEFAULT_DB_USER = "postgres";
 export const DEFAULT_DB_SCHEMA = "public";
 export const DEFAULT_JWT_ACCESS_EXPIRES_IN = "15m";
-export const DEFAULT_JWT_REFRESH_EXPIRES_IN = "30d";
+export const DEFAULT_JWT_REFRESH_EXPIRES_IN = "150d";

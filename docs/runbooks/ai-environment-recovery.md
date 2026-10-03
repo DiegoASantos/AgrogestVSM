@@ -2,7 +2,7 @@
 title: Instalación y recuperación del entorno de IA
 status: active
 owner: mantenimiento
-last_reviewed: 2026-07-19
+last_reviewed: 2026-09-28
 ---
 
 # Instalación y recuperación del entorno de IA
@@ -20,7 +20,8 @@ producción.
 - Node.js compatible con `package.json`;
 - pnpm compatible con `packageManager`;
 - dependencias instaladas con `pnpm install`;
-- OpenCode instalado y conectado a DeepSeek mediante `/connect`;
+- OpenCode instalado si se usa el explorador; conexión a DeepSeek mediante
+  `/connect` solo si se elige ese proveedor;
 - Obsidian Desktop instalado si se usará el vault visualmente;
 - `docs/` registrado como vault de Obsidian.
 
@@ -54,6 +55,9 @@ pnpm docs:graph
 proyecto.
 
 ## OpenCode y DeepSeek
+
+DeepSeek es opcional para el flujo de mantenimiento. La ausencia del proveedor
+no impide cerrar tareas; el doctor informa su estado como advertencia.
 
 1. Ejecutar OpenCode desde la raíz del repositorio.
 2. Usar `/connect`.

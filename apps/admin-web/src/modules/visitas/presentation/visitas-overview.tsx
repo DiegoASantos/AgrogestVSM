@@ -2,6 +2,7 @@
 
 import { Calendar, Download, Filter, Map, User } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
@@ -35,12 +36,16 @@ const emptyFilters: VisitaListFilters = {
 
 export function VisitasOverview() {
   const { session, logout } = useAuthSession();
-  const [draftFilters, setDraftFilters] = useState<VisitaListFilters>(emptyFilters);
-  const [appliedFilters, setAppliedFilters] = useState<VisitaListFilters>(emptyFilters);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams?.toString() ?? "";
+  const queryState = useMemo(() => parseVisitasQuery(searchQuery), [searchQuery]);
+  const [draftFilters, setDraftFilters] = useState<VisitaListFilters>(queryState.filters);
+  const [appliedFilters, setAppliedFilters] = useState<VisitaListFilters>(queryState.filters);
   const [catalogs, setCatalogs] = useState<VisitaFilterCatalogs | null>(null);
   const [items, setItems] = useState<VisitaCampo[]>([]);
   const [count, setCount] = useState(0);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(queryState.page);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
   const [isLoadingList, setIsLoadingList] = useState(true);
@@ -49,6 +54,12 @@ export function VisitasOverview() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    setDraftFilters(queryState.filters);
+    setAppliedFilters(queryState.filters);
+    setPage(queryState.page);
+  }, [queryState]);
 
   useEffect(() => {
     if (!session) {
@@ -81,7 +92,8 @@ export function VisitasOverview() {
 
   const handlePageChange = useCallback((nextPage: number) => {
     setPage(nextPage);
-  }, []);
+    router.replace(buildVisitasHref(appliedFilters, nextPage), { scroll: false });
+  }, [appliedFilters, router]);
 
   const fromItem = (page - 1) * PAGE_SIZE + 1;
   const toItem = Math.min(page * PAGE_SIZE, count);
@@ -143,7 +155,6 @@ export function VisitasOverview() {
                 className="ui-button ui-button--ghost"
                 href={buildAdminMapHref({
                   productorId: appliedFilters.productorId,
-                  parcelaId: appliedFilters.parcelaId,
                   agronomistUserId: appliedFilters.agronomistUserId,
                   campaignId: appliedFilters.campaignId,
                   startDate: appliedFilters.startDate,
@@ -216,21 +227,6 @@ export function VisitasOverview() {
                 {(catalogs?.campanias ?? []).map((campania) => (
                   <option key={campania.id} value={campania.id}>
                     {campania.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field-group">
-              <span className="field-group__label">Parcela</span>
-              <select
-                onChange={(event) => updateDraft("parcelaId", event.target.value)}
-                value={draftFilters.parcelaId}
-              >
-                <option value="">Todas</option>
-                {(catalogs?.parcelas ?? []).map((parcela) => (
-                  <option key={parcela.id} value={parcela.id}>
-                    {parcela.label}
                   </option>
                 ))}
               </select>
@@ -340,6 +336,7 @@ export function VisitasOverview() {
             campaignLabels={campaignLabels}
             getMapHref={(visita) => buildAdminMapHref({ visitaId: visita.id })}
             items={items}
+            detailQuery={searchQuery}
             parcelaContexts={parcelaContexts}
             pagination={{
               loading: isLoadingList,
@@ -376,6 +373,7 @@ export function VisitasOverview() {
     setExportError(null);
     setPage(1);
     setAppliedFilters(draftFilters);
+    router.replace(buildVisitasHref(draftFilters, 1), { scroll: false });
   }
 
   function handleClearFilters() {
@@ -384,6 +382,7 @@ export function VisitasOverview() {
     setDraftFilters(emptyFilters);
     setPage(1);
     setAppliedFilters(emptyFilters);
+    router.replace(buildVisitasHref(emptyFilters, 1), { scroll: false });
   }
 
   async function loadCatalogs() {
@@ -476,4 +475,35 @@ export function VisitasOverview() {
 
 function createOptionLabelMap(options: readonly { id: string; label: string }[]) {
   return new globalThis.Map(options.map((option) => [option.id, option.label]));
+}
+
+function parseVisitasQuery(query: string): { filters: VisitaListFilters; page: number } {
+  const params = new URLSearchParams(query);
+  const requestedPage = Number(params.get("page"));
+
+  return {
+    filters: {
+      agronomistUserId: params.get("agronomistUserId") ?? "",
+      productorId: params.get("productorId") ?? "",
+      campaignId: params.get("campaignId") ?? "",
+      parcelaId: "",
+      startDate: params.get("startDate") ?? "",
+      endDate: params.get("endDate") ?? ""
+    },
+    page: Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  };
+}
+
+function buildVisitasHref(filters: VisitaListFilters, page: number): string {
+  const params = new URLSearchParams();
+
+  if (filters.agronomistUserId) params.set("agronomistUserId", filters.agronomistUserId);
+  if (filters.productorId) params.set("productorId", filters.productorId);
+  if (filters.campaignId) params.set("campaignId", filters.campaignId);
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (page > 1) params.set("page", String(page));
+
+  const query = params.toString();
+  return query ? `/visitas?${query}` : "/visitas";
 }

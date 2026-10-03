@@ -22,6 +22,9 @@ services:
       target: api
     env_file:
       - apps/api/.env
+    environment:
+      JWT_ACCESS_EXPIRES_IN: "15m"
+      JWT_REFRESH_EXPIRES_IN: "150d"
     ports:
       - "5177:3001"
     restart: unless-stopped
@@ -37,7 +40,7 @@ services:
       context: .
       target: admin-web
       args:
-        NEXT_PUBLIC_API_URL: http://190.119.191.195:5177
+        API_INTERNAL_URL: http://api:3001
         NEXT_PUBLIC_ENVIRONMENT_LABEL: ""
     ports:
       - "5176:3000"

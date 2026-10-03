@@ -11,6 +11,7 @@ type LoginApiResponse = {
   tokenType: string;
   expiresIn: string;
   refreshExpiresIn: string;
+  sessionExpiresAt?: string;
   user: AuthUserApiResponse;
 };
 
@@ -46,6 +47,7 @@ export const authService = {
       tokenType: response.tokenType,
       expiresIn: response.expiresIn,
       refreshExpiresIn: response.refreshExpiresIn,
+      sessionExpiresAt: response.sessionExpiresAt,
       user: mapAuthUser(response.user, response.accessToken)
     };
   },
@@ -79,6 +81,7 @@ export const authService = {
       tokenType: response.tokenType,
       expiresIn: response.expiresIn,
       refreshExpiresIn: response.refreshExpiresIn,
+      sessionExpiresAt: response.sessionExpiresAt,
       user: mapAuthUser(response.user, response.accessToken)
     };
   },

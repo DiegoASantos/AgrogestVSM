@@ -2,7 +2,7 @@
 title: Flujo de desarrollo asistido por IA
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-29
+last_reviewed: 2026-09-28
 ---
 
 # Flujo de desarrollo asistido por IA
@@ -13,8 +13,7 @@ last_reviewed: 2026-06-29
   commits y despliegues;
 - Codex: orquesta, implementa, prueba, evalúa hallazgos y actualiza documentos;
 - explorador: investiga en modo lectura;
-- DeepSeek Reviewer: agente primario invocable por CLI que revisa el diff en
-  modo lectura;
+- DeepSeek Reviewer: herramienta opcional de segunda opinión en modo lectura;
 - skills: procedimientos bajo demanda, sin autoridad propia.
 
 Solo existe un implementador con permiso de escritura por tarea.
@@ -30,14 +29,13 @@ Solo existe un implementador con permiso de escritura por tarea.
 5. Definir archivos bajo propiedad del implementador.
 6. Explorar y acordar el alcance.
 7. Implementar y ejecutar validaciones proporcionales.
-8. Preparar un handoff usando
-   `docs/governance/ai-handoff-template.md`.
-9. Congelar las ediciones del alcance mientras DeepSeek revisa.
-10. Ejecutar el reviewer de solo lectura.
-11. Codex clasifica cada hallazgo como aceptado, rechazado o diferido.
-12. Corregir hallazgos aceptados y repetir pruebas.
-13. Registrar métricas y actualizar documentación.
-14. Solicitar validación humana antes de commit, despliegue o cambio crítico.
+8. Ejecutar la revisión de seguridad y datos cuando corresponda al alcance.
+9. Actualizar la documentación y registrar riesgos pendientes.
+10. Si se solicita una segunda opinión, preparar un handoff con
+    `docs/governance/ai-handoff-template.md`, congelar el diff, ejecutar el
+    reviewer de solo lectura y evaluar sus hallazgos. Repetir pruebas si hay
+    correcciones.
+11. Solicitar validación humana antes de commit, despliegue o cambio crítico.
 
 ## Preguntas aclaratorias
 
@@ -58,7 +56,12 @@ Codex, OpenCode, Claude Code u otra equivalente. Deben ser concretas,
 preferiblemente pocas y orientadas a desbloquear una decisión. Si el pedido es
 claro y el riesgo es bajo, la IA puede continuar sin interrumpir.
 
-## Ejecución de DeepSeek
+## Revisión opcional con DeepSeek
+
+La revisión externa no es requisito de cierre. Si se solicita o se considera
+útil para una tarea concreta, usar un agente con permisos de solo lectura y
+comprobar que no se haya activado un agente con permisos de escritura por
+sustitución automática.
 
 La credencial se registra fuera del repositorio:
 
@@ -86,23 +89,23 @@ no expone la clave.
 ## Permisos
 
 - archivos `.env`: lectura denegada; `.env.example`: permitida;
-- explorador y reviewer: edición, delegación, skills, red y rutas externas
-  denegadas;
-- reviewer: solo comandos de inspección del repositorio;
+- explorador y, cuando se use, reviewer: edición, delegación, skills, red y
+  rutas externas denegadas;
+- reviewer opcional: solo comandos de inspección del repositorio;
 - configuración general: commit, push, reset, clean y borrado denegados;
 - ediciones del agente principal requieren confirmación.
 
 ## Ediciones paralelas
 
-Antes del handoff se declara el alcance del diff. Durante la revisión:
+Si se solicita un handoff, se declara el alcance del diff. Durante esa revisión:
 
 - Codex no modifica los archivos revisados;
-- DeepSeek no puede editar ningún archivo;
+- el reviewer no puede editar ningún archivo;
 - si cambia el diff, la revisión anterior queda obsoleta;
 - otro implementador solo puede trabajar en archivos expresamente disjuntos.
 
 ## Salida
 
-El formato del reviewer se normaliza con
+Cuando se solicita una revisión externa, su salida se normaliza con
 `docs/governance/ai-review-template.md`. Todo hallazgo debe incluir evidencia,
 impacto y corrección mínima.

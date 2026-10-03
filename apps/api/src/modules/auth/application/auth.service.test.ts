@@ -31,7 +31,7 @@ const appConfig = {
     accessSecret: ACCESS_SECRET,
     accessExpiresIn: "15m",
     refreshSecret: REFRESH_SECRET,
-    refreshExpiresIn: "7d"
+    refreshExpiresIn: "150d"
   }
 };
 
@@ -87,6 +87,11 @@ function buildService() {
   const userRoles = { isReady: vi.fn().mockReturnValue(true) };
   const refreshSessions = {
     create: vi.fn(),
+    getActiveExpiry: vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(new Date(Date.now() + 150 * 24 * 60 * 60 * 1000))
+      ),
     rotate: vi.fn().mockResolvedValue(true),
     revoke: vi.fn()
   };
@@ -125,11 +130,34 @@ describe("AuthService", () => {
       expect(response.data.refreshToken).toBe("refresh-token");
       expect(response.data.tokenType).toBe("Bearer");
       expect(response.data.expiresIn).toBe("15m");
-      expect(response.data.refreshExpiresIn).toBe("7d");
+      expect(response.data.refreshExpiresIn).toBe("150d");
+      expect(Date.parse(response.data.sessionExpiresAt)).toBeGreaterThan(Date.now());
+      expect(refreshSessions.create.mock.calls[0][3].toISOString()).toBe(
+        response.data.sessionExpiresAt
+      );
       expect(response.data.user.email).toBe("admin@agrogest.pe");
       expect(response.data.user.canDeleteVisits).toBe(false);
       expect(jwt.signAsync).toHaveBeenCalledTimes(2);
       expect(refreshSessions.create).toHaveBeenCalledTimes(1);
+      const accessPayload = jwt.signAsync.mock.calls.find(
+        ([, options]) => options.secret === ACCESS_SECRET
+      )?.[0];
+      const refreshPayload = jwt.signAsync.mock.calls.find(
+        ([, options]) => options.secret === REFRESH_SECRET
+      )?.[0];
+      expect(
+        jwt.signAsync.mock.calls.find(([, options]) => options.secret === ACCESS_SECRET)?.[1]
+      ).toEqual({ secret: ACCESS_SECRET });
+      expect(
+        jwt.signAsync.mock.calls.find(([, options]) => options.secret === REFRESH_SECRET)?.[1]
+      ).toEqual({ secret: REFRESH_SECRET });
+      expect(accessPayload.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
+      expect(accessPayload.exp).toBeLessThanOrEqual(
+        Math.floor((Date.now() + 15 * 60 * 1000) / 1000)
+      );
+      expect(refreshPayload.exp).toBe(
+        Math.floor(Date.parse(response.data.sessionExpiresAt) / 1000)
+      );
     });
 
     it("signs the access token with the access secret", async () => {
@@ -209,6 +237,10 @@ describe("AuthService", () => {
       });
       expect(jwt.signAsync).toHaveBeenCalledTimes(2);
       expect(refreshSessions.rotate).toHaveBeenCalledTimes(1);
+      expect(response.data.sessionExpiresAt).toBe(
+        (await refreshSessions.getActiveExpiry.mock.results[0].value).toISOString()
+      );
+      expect(refreshSessions.rotate.mock.calls[0][0]).not.toHaveProperty("nextExpiresAt");
     });
 
     it("rejects a token that fails signature verification", async () => {
@@ -284,6 +316,40 @@ describe("AuthService", () => {
       await expect(service.refresh("stale")).rejects.toBeInstanceOf(
         UnauthorizedException
       );
+    });
+
+    it("caps both tokens at the original session deadline", async () => {
+      const { service, users, jwt, refreshSessions } = buildService();
+      jwt.verifyAsync.mockResolvedValue(makeRefreshPayload());
+      users.findByPublicIdWithRoles.mockResolvedValue(makeUser());
+      const expiresAt = new Date(Date.now() + 90_000);
+      refreshSessions.getActiveExpiry.mockResolvedValue(expiresAt);
+
+      const response = await service.refresh("current-token");
+      const signedExpiries = jwt.signAsync.mock.calls.map(([token]) => token.exp);
+      const durationSeconds = Number.parseInt(response.data.refreshExpiresIn, 10);
+
+      expect(durationSeconds).toBeGreaterThanOrEqual(89);
+      expect(durationSeconds).toBeLessThanOrEqual(90);
+      expect(signedExpiries).toEqual([
+        Math.floor(expiresAt.getTime() / 1000),
+        Math.floor(expiresAt.getTime() / 1000)
+      ]);
+      expect(response.data.expiresIn).toBe(`${durationSeconds}s`);
+      expect(response.data.sessionExpiresAt).toBe(expiresAt.toISOString());
+    });
+
+    it("rejects a refresh session that has reached its fixed deadline", async () => {
+      const { service, users, jwt, refreshSessions } = buildService();
+      jwt.verifyAsync.mockResolvedValue(makeRefreshPayload());
+      users.findByPublicIdWithRoles.mockResolvedValue(makeUser());
+      refreshSessions.getActiveExpiry.mockResolvedValue(new Date(Date.now() - 1));
+
+      await expect(service.refresh("expired-token")).rejects.toBeInstanceOf(
+        UnauthorizedException
+      );
+      expect(refreshSessions.rotate).not.toHaveBeenCalled();
+      expect(refreshSessions.revoke).toHaveBeenCalledWith("session-id-1");
     });
   });
 

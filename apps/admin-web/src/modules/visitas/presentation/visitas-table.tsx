@@ -21,6 +21,7 @@ type VisitasTableProps = {
   showParcelaColumn?: boolean;
   showProducerAndSector?: boolean;
   getMapHref?: (visita: VisitaCampo) => string;
+  detailQuery?: string;
   pagination?: DataTablePagination;
 };
 
@@ -35,6 +36,7 @@ export function VisitasTable({
   showParcelaColumn = true,
   showProducerAndSector = false,
   getMapHref,
+  detailQuery = "",
   pagination
 }: VisitasTableProps) {
   const columns: DataTableColumn<VisitaCampo>[] = [
@@ -164,7 +166,7 @@ export function VisitasTable({
         <div className="table-actions">
           <Link
             className="ui-button ui-button--secondary ui-button--compact"
-            href={`/visitas/${visita.id}`}
+            href={`/visitas/${visita.id}${detailQuery ? `?${detailQuery}` : ""}`}
           >
             Ver detalle
           </Link>

@@ -362,13 +362,23 @@ fecha de edicion de la entidad.
 
 ## Sesion online
 
+Cada login recibe `sessionExpiresAt`, un limite absoluto de 150 dias. La API
+mantiene el access token de 15 minutos y rota el refresh sin mover ese limite;
+la expiracion efectiva de los tokens se acorta al acercarse a la fecha final.
+Mobile guarda la fecha en `auth_session_data` y permite restaurar la sesion
+offline solo antes de ella. Al alcanzarla, limpia la sesion local incluso si la
+app sigue abierta o vuelve del segundo plano. Una respuesta de API anterior sin
+el campo conserva temporalmente el plazo local previo de 30 dias durante el
+despliegue gradual. Las sesiones emitidas antes del cambio conservan su fecha
+original en PostgreSQL y pueden requerir un nuevo login.
+
 La sesion distingue tres estados:
 
 - `online_valid`: token vigente, sync habilitado;
 - `online_temporarily_unavailable`: fallo transitorio de refresh, cooldown de
   60s; token vigente usable sin HTTP; acceso offline conservado;
 - `online_reauth_required`: refresh rechazado con 401/403; tokens online
-  limpiados; acceso offline conservado mientras su TTL sea valido.
+  limpiados; acceso offline conservado mientras no llegue `sessionExpiresAt`.
 
 El login fresco resetea el backoff de red, limpia el estado de reautenticacion
 y programa un sync inmediato con `bypassBackoff`.

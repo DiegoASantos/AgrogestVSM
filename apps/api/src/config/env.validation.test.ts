@@ -18,6 +18,8 @@ describe("validateEnvironment", () => {
 
     expect(result.APP_TRUST_PROXY).toBe(true);
     expect(result.DB_SSL_REJECT_UNAUTHORIZED).toBe(true);
+    expect(result.JWT_ACCESS_EXPIRES_IN).toBe("15m");
+    expect(result.JWT_REFRESH_EXPIRES_IN).toBe("150d");
     expect(result.LOGIN_RATE_LIMIT_TTL_MS).toBe(60_000);
     expect(result.LOGIN_RATE_LIMIT_MAX).toBe(5);
     expect(result.LOGIN_RATE_LIMIT_BLOCK_MS).toBe(300_000);

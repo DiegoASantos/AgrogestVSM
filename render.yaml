@@ -73,7 +73,7 @@ services:
       - key: JWT_REFRESH_SECRET
         generateValue: true
       - key: JWT_REFRESH_EXPIRES_IN
-        value: 30d
+        value: 150d
       - key: LOGIN_RATE_LIMIT_TTL_MS
         value: "60000"
       - key: LOGIN_RATE_LIMIT_MAX

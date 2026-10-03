@@ -43,7 +43,7 @@ Write-Check "OpenGem binary" {
 
 if (-not $SkipOpenCode) {
   Write-Check "OpenCode version" { opencode.cmd --version }
-  Write-Check "OpenCode DeepSeek models" { opencode.cmd models deepseek }
+  Write-Check "OpenCode DeepSeek models (optional)" { opencode.cmd models deepseek } -Optional
   Write-Check "OpenCode agents" { opencode.cmd agent list }
   Write-Check "OpenCode skills" { opencode.cmd debug skill }
 }

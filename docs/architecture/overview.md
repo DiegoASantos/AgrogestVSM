@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-07
+last_reviewed: 2026-09-28
 related_code:
   - apps/api
   - apps/mobile
@@ -62,6 +62,10 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 ## Admin web
 
 `apps/admin-web` usa Next.js App Router:
+
+- en el despliegue IDL, `/api/*` del panel reenvía al servicio API dentro de
+  Docker Compose; el navegador usa el mismo origen desde la LAN y desde la
+  red externa;
 
 - dashboard con filtros temporales de año, mes y día para visitas, alertas
   sanitarias y nutricionales; además de métricas filtrables de visitas por
@@ -134,10 +138,13 @@ distribuciones circulares.
 
 ## Despliegue actual
 
-- API: Render;
-- base de datos: PostgreSQL de Supabase;
-- web: Vercel;
+- API y web: servidor IDL en Docker Compose;
+- base de datos: PostgreSQL/PostGIS local en Docker;
 - mobile Android: Expo EAS y actualizaciones OTA compatibles.
+
+El proxy del panel corresponde a la spec 085 y requiere reconstruir y
+desplegar la imagen web con los argumentos indicados en
+[Entornos](../operations/environments.md).
 
 Los procedimientos se encuentran en `docs/runbooks/`.
 

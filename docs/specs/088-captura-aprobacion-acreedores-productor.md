@@ -1,14 +1,14 @@
 ---
 title: Captura y aprobación de acreedores por productor
 status: implemented
-numero: 085
+numero: 088
 area: comercial, api, admin-web, mobile, database, sync, seguridad
 created: 2026-10-02
 approved_by: usuario
 implemented_in: apps/api/src/modules/comercial; apps/api/src/database/migrations/064-acceso-productor-y-revision-acreedores.ts; apps/admin-web/src/app/productor/acreedores; apps/admin-web/src/app/(admin)/comercial; apps/mobile/src/modules/comercial; apps/mobile/src/shared/database/migrations.ts; apps/mobile/src/shared/sync/sync-handlers.ts
 ---
 
-# Spec 085: Captura y aprobación de acreedores por productor
+# Spec 088: Captura y aprobación de acreedores por productor
 
 ## Contexto
 

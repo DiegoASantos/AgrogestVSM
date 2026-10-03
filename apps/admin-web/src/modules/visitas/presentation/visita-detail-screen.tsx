@@ -15,6 +15,7 @@ import {
   Wrench
 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
@@ -54,6 +55,9 @@ type PdfAction = "diagnostico" | "receta";
 
 export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
   const { session, logout } = useAuthSession();
+  const searchParams = useSearchParams();
+  const listQuery = searchParams?.toString() ?? "";
+  const listHref = listQuery ? `/visitas?${listQuery}` : "/visitas";
   const [detail, setDetail] = useState<VisitaDetailData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pdfErrorMessage, setPdfErrorMessage] = useState<string | null>(null);
@@ -138,7 +142,7 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
                 <MapPin aria-hidden="true" size={16} />
                 Ver en mapa
               </Link>
-              <Link className="ui-button ui-button--secondary" href="/visitas">
+              <Link className="ui-button ui-button--secondary" href={listHref}>
                 <ArrowLeft aria-hidden="true" size={16} />
                 Volver
               </Link>

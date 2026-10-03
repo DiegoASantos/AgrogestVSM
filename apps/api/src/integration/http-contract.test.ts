@@ -144,7 +144,8 @@ describe("API critical HTTP integration contract", () => {
         refreshToken: "refresh-token",
         tokenType: "Bearer",
         expiresIn: "15m",
-        refreshExpiresIn: "30d",
+        refreshExpiresIn: "150d",
+        sessionExpiresAt: "2027-02-27T00:00:00.000Z",
         user: {
           publicId: "user-1",
           firstName: "Admin",
@@ -172,6 +173,7 @@ describe("API critical HTTP integration contract", () => {
       success: true,
       data: {
         tokenType: "Bearer",
+        sessionExpiresAt: "2027-02-27T00:00:00.000Z",
         user: {
           email: "admin@example.com"
         }
@@ -192,6 +194,30 @@ describe("API critical HTTP integration contract", () => {
       email: "admin@example.com",
       password: "secret123"
     });
+  });
+
+  it("returns the original session deadline after refresh", async () => {
+    authService.refresh.mockResolvedValue(
+      createSuccessResponse({
+        accessToken: "next-access-token",
+        refreshToken: "next-refresh-token",
+        tokenType: "Bearer",
+        expiresIn: "15m",
+        refreshExpiresIn: "12959999s",
+        sessionExpiresAt: "2027-02-27T00:00:00.000Z",
+        user: { publicId: "user-1", roles: [] }
+      })
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/refresh",
+      payload: { refreshToken: "current-refresh-token" }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.sessionExpiresAt).toBe("2027-02-27T00:00:00.000Z");
+    expect(authService.refresh).toHaveBeenCalledWith("current-refresh-token");
   });
 
   it("rejects invalid auth input before reaching the service", async () => {
