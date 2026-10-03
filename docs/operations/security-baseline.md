@@ -83,7 +83,17 @@ last_reviewed: 2026-09-22
   `GET /comercial/productores/:productorId/acreedores-cosecha` y
   `POST /comercial/registros-cosecha` exigen `ADMIN` o `AGRONOMO`; cada acceso
   vuelve a autorizar el productor y el registro exige un acreedor de ese mismo
-  productor. Documento y cuenta no se registran en logs ni errores.
+  productor en estado `APPROVED`. Documento y cuenta no se registran en logs ni
+  errores.
+- `POST /comercial/productores/:productorId/acceso-acreedores` exige `ADMIN` o
+  `AGRONOMO` y autorización horizontal. El código aleatorio dura 180 días, se
+  guarda solo como hash y la reemisión revoca el anterior. La sesión derivada
+  dura 30 minutos y se revalida contra la invitación en cada llamada.
+- las rutas públicas `/comercial/productor/*` restringen lectura y escritura
+  al productor del código. El intercambio tiene límite de intentos por IP y
+  hash de código. `ADMIN` y `ANALISTA` acceden a la revisión bancaria mediante
+  guards; solo sus acciones de aprobación u observación admiten mutación del
+  analista. Las respuestas bancarias y de credenciales usan `no-store`.
 - acreedores y registros locales se aíslan por `owner_user_id` en la tabla,
   reconciliación, outbox y fallos; la cache descargada además se filtra por
   visibilidad de sesión. SQLite no cifra documento ni cuenta; el riesgo y su

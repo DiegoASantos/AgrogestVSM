@@ -26,6 +26,7 @@ import { VisitasCampoService } from "./application/visitas-campo.service";
 import { EtapaFenologicaEntity } from "./infrastructure/persistence/entities/etapa-fenologica.entity";
 import { SubEtapaEntity } from "./infrastructure/persistence/entities/sub-etapa.entity";
 import { VisitaCampoEntity } from "./infrastructure/persistence/entities/visita-campo.entity";
+import { VisitaEtapaFenologicaEntity } from "./infrastructure/persistence/entities/visita-etapa-fenologica.entity";
 import { VisitaPasoObservacionEntity } from "./infrastructure/persistence/entities/visita-paso-observacion.entity";
 import { EtapasFenologicasController } from "./presentation/etapas-fenologicas.controller";
 import { SubEtapasController } from "./presentation/sub-etapas.controller";
@@ -38,6 +39,7 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
   imports: [
     TypeOrmModule.forFeature([
       VisitaCampoEntity,
+      VisitaEtapaFenologicaEntity,
       EtapaFenologicaEntity,
       SubEtapaEntity,
       CultivoEntity,

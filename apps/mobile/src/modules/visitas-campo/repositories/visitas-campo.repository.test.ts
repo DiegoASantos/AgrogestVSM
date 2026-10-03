@@ -224,6 +224,31 @@ describe("visitasCampoRepository", () => {
   });
 
   describe("#update", () => {
+    it("replaces two stages with the visit in one local transaction", () => {
+      database.getFirstSync.mockReturnValue(visitaRow);
+
+      visitasCampoRepository.update("v1", {
+        phenologicalStageId: "stage1",
+        subEtapaId: "sub1",
+        phenologicalStages: [
+          { phenologicalStageId: "stage1", subEtapaId: "sub1", coveragePercentage: 60, laborProgressPercentage: null },
+          { phenologicalStageId: "stage2", subEtapaId: "sub2", coveragePercentage: 40, laborProgressPercentage: null }
+        ]
+      });
+
+      expect(database.withTransactionSync).toHaveBeenCalledTimes(1);
+      const insertCalls = database.runSync.mock.calls.filter(([sql]) =>
+        sql.includes("INSERT INTO visita_etapas_fenologicas")
+      );
+      expect(insertCalls).toHaveLength(2);
+      expect(insertCalls[0]).toContain(60);
+      expect(insertCalls[1]).toContain(40);
+      expect(insertSyncOutboxEntry).toHaveBeenCalledWith(
+        database,
+        expect.objectContaining({ entityType: "visitas_campo", operation: "update" })
+      );
+    });
+
     it("guarda la hora de fin y deja la visita pendiente en outbox", () => {
       database.getFirstSync.mockReturnValue({
         ...visitaRow,

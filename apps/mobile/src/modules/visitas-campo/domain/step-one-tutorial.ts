@@ -31,6 +31,7 @@ type BuildStepOneTutorialStepsInput = {
   isLoadingEtapasFenologicas: boolean;
   isLoadingProgress: boolean;
   showProgress: boolean;
+  requireSubStage?: boolean;
 };
 
 export type RequiredFieldIssue = "missing" | "invalid" | null;
@@ -90,6 +91,7 @@ export function mergeStepOneFormValues(
     phenologicalStage: read("phenologicalStage"),
     subEtapaId: read("subEtapaId"),
     subEtapaPercentage: read("subEtapaPercentage"),
+    coveragePercentage: read("coveragePercentage"),
     generalObservation: read("generalObservation"),
     ...overrides
   };
@@ -103,7 +105,8 @@ export function buildStepOneTutorialSteps({
   isLoadingVariedades,
   isLoadingEtapasFenologicas,
   isLoadingProgress,
-  showProgress
+  showProgress,
+  requireSubStage = false
 }: BuildStepOneTutorialStepsInput): StepOneTutorialStep[] {
   const steps: StepOneTutorialStep[] = [
     {
@@ -191,17 +194,20 @@ export function buildStepOneTutorialSteps({
   ];
 
   if (showProgress) {
-    const progress = Number(values.subEtapaPercentage);
+    const percentage = requireSubStage ? values.coveragePercentage : values.subEtapaPercentage;
+    const progress = Number(percentage);
     steps.push({
       id: "subEtapaPercentage",
-      title: "Avance de la etapa",
-      instruction: "Mueve el control hasta representar el avance observado en campo.",
+      title: requireSubStage ? "Subetapa y porcentaje" : "Avance de labor",
+      instruction: requireSubStage
+        ? "Selecciona la subetapa y registra qué porcentaje de la parcela ocupa."
+        : "Registra el porcentaje de avance de la labor.",
       isComplete:
-        values.subEtapaPercentage.trim().length > 0 &&
+        percentage.trim().length > 0 &&
+        (!requireSubStage || !!values.subEtapaId) &&
         Number.isFinite(progress) &&
-        progress >= 0 &&
-        progress <= 100 &&
-        progress % 5 === 0,
+        progress >= (requireSubStage ? 1 : 0) &&
+        progress <= 100,
       isEnabled: !isLoadingProgress,
       isExpanded: false,
       isLoading: isLoadingProgress,

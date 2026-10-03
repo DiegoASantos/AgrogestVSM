@@ -9,6 +9,8 @@ import {
 
 export { PAGO_COSECHA_BANKS, PAGO_COSECHA_DOCUMENT_TYPES };
 export type { PagoCosechaBank, PagoCosechaDocumentType };
+export type CreditorApprovalStatus = "PENDING" | "APPROVED" | "OBSERVED";
+export type CreditorSource = "PRODUCTOR" | "MOBILE";
 
 @Entity({ name: "acreedores_cosecha" })
 @Unique("uq_acreedores_cosecha_public_id", ["publicId"])
@@ -48,8 +50,23 @@ export class AcreedorCosechaEntity {
   @Column({ name: "nro_cuenta", type: "varchar", length: 30 })
   accountNumber!: string;
 
-  @Column({ name: "creado_por_usuario_id", type: "bigint" })
-  createdByUserId!: string;
+  @Column({ name: "creado_por_usuario_id", type: "bigint", nullable: true })
+  createdByUserId!: string | null;
+
+  @Column({ name: "estado_aprobacion", type: "varchar", length: 10, default: "PENDING" })
+  approvalStatus!: CreditorApprovalStatus;
+
+  @Column({ name: "origen", type: "varchar", length: 10, default: "MOBILE" })
+  source!: CreditorSource;
+
+  @Column({ name: "observacion_revision", type: "text", nullable: true })
+  reviewObservation!: string | null;
+
+  @Column({ name: "revisado_por_usuario_id", type: "bigint", nullable: true })
+  reviewedByUserId!: string | null;
+
+  @Column({ name: "revisado_at", type: "timestamptz", nullable: true })
+  reviewedAt!: Date | null;
 
   @Column({ name: "creado_at", type: "timestamptz", default: () => "now()" })
   createdAt!: Date;

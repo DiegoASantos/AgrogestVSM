@@ -9,6 +9,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import ExcelJS from "exceljs";
 import type { FindOptionsWhere, Repository, SelectQueryBuilder } from "typeorm";
 import { Between, QueryFailedError } from "typeorm";
+import { VisitaEtapaFenologicaEntity } from "../infrastructure/persistence/entities/visita-etapa-fenologica.entity";
+import { VisitaEtapaFenologicaDto } from "../presentation/dto/visita-etapa-fenologica.dto";
 
 import {
   createPaginatedMeta,
@@ -58,6 +60,13 @@ type ExcelDiagnosisRow = {
   nutrition: string;
 };
 
+type StageEntry = {
+  phenologicalStageId: string;
+  subEtapaId: string | null;
+  coveragePercentage: number | null;
+  laborProgressPercentage: number | null;
+};
+
 @Injectable()
 export class VisitasCampoService {
   constructor(
@@ -103,7 +112,8 @@ export class VisitasCampoService {
       const existingVisitaCampo = await this.visitasCampoRepository.findOne({
         where: {
           publicId: createVisitaCampoDto.publicId
-        }
+        },
+        relations: { phenologicalStages: { stage: true, subStage: true } }
       });
 
       if (existingVisitaCampo) {
@@ -119,6 +129,14 @@ export class VisitasCampoService {
     }
 
     await this.validateReferences(normalizedDto, currentUser);
+    const stageEntries = await this.validateStageEntries(
+      normalizedDto.phenologicalStages,
+      normalizedDto.cropId,
+      normalizedDto.phenologicalStageId,
+      normalizedDto.subEtapaId ?? null,
+      normalizedDto.subEtapaPercentage ?? null
+    );
+    const primaryStage = selectPrimaryStage(stageEntries);
     await this.ensureUniqueNroFicha(normalizedDto.nroFicha ?? null);
     validateVisitTimes(normalizedDto.startVisitTime, normalizedDto.endVisitTime ?? null);
 
@@ -136,13 +154,18 @@ export class VisitasCampoService {
       fechaVisita: normalizeRequiredDateOnly(normalizedDto.visitDate),
       horaVisitaInicio: normalizedDto.startVisitTime,
       horaVisitaFin: normalizedDto.endVisitTime ?? null,
-      etapaFenologicaId: normalizedDto.phenologicalStageId,
-      subEtapaId: normalizedDto.subEtapaId ?? null,
+      etapaFenologicaId: primaryStage.phenologicalStageId,
+      subEtapaId: primaryStage.subEtapaId,
       subEtapaPercentage:
-        normalizedDto.subEtapaPercentage === undefined ||
-        normalizedDto.subEtapaPercentage === null
-          ? null
-          : String(normalizedDto.subEtapaPercentage),
+        normalizedDto.phenologicalStages
+          ? (primaryStage.laborProgressPercentage !== null
+              ? String(primaryStage.laborProgressPercentage)
+              : normalizedDto.subEtapaPercentage === undefined || normalizedDto.subEtapaPercentage === null
+                ? null : String(normalizedDto.subEtapaPercentage))
+          : normalizedDto.subEtapaPercentage === undefined ||
+            normalizedDto.subEtapaPercentage === null
+            ? null
+            : String(normalizedDto.subEtapaPercentage),
       observacionGeneral: normalizedDto.generalObservation ?? null,
       firmaAgronomoNombre: normalizedDto.agronomistSignatureName ?? null,
       firmaProductorNombre: normalizedDto.producerSignatureName ?? null,
@@ -153,7 +176,20 @@ export class VisitasCampoService {
     });
 
     try {
-      const savedVisitaCampo = await this.visitasCampoRepository.save(visitaCampo);
+      const savedVisitaCampo = await this.visitasCampoRepository.manager.transaction(async (manager) => {
+        const saved = await manager.save(visitaCampo);
+        saved.phenologicalStages = await manager.getRepository(VisitaEtapaFenologicaEntity).save(
+          stageEntries.map((entry, order) => ({
+            visitaId: saved.id,
+            etapaFenologicaId: entry.phenologicalStageId,
+            subEtapaId: entry.subEtapaId,
+            coveragePercentage: entry.coveragePercentage,
+            laborProgressPercentage: entry.laborProgressPercentage === null ? null : String(entry.laborProgressPercentage),
+            order
+          }))
+        );
+        return saved;
+      });
 
       return createSuccessResponse(this.toResponse(savedVisitaCampo));
     } catch (error) {
@@ -306,6 +342,7 @@ export class VisitasCampoService {
         agronomoUsuario: true,
         cultivo: true,
         etapaFenologica: true,
+        phenologicalStages: { stage: true, subStage: true },
         observacionesSanitarias: {
           plagaEnfermedad: true
         },
@@ -371,8 +408,8 @@ export class VisitasCampoService {
       "Parcela",
       "Hora inicio",
       "Hora fin",
-      "Etapa fenológica",
-      "Porcentaje de avance",
+      "Distribución fenológica",
+      "Avance histórico de subetapa",
       "Plagas",
       "Enfermedades",
       "Nutrición",
@@ -429,9 +466,10 @@ export class VisitasCampoService {
           index === 0 ? toWorksheetText(buildParcelaLabel(visita.parcela)) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaInicio) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaFin ?? "No registrado") : "",
-          index === 0 ? toWorksheetText(buildEtapaLabel(visita.etapaFenologica)) : "",
+          index === 0 ? toWorksheetText(buildStageExcelLabel(visita)) : "",
           index === 0
-            ? visita.subEtapaPercentage === null
+            ? visita.subEtapaPercentage === null ||
+                (visita.phenologicalStages?.length > 0 && !visita.phenologicalStages.some((entry) => entry.coveragePercentage !== null))
               ? "---"
               : Number(visita.subEtapaPercentage) / 100
             : "",
@@ -601,6 +639,7 @@ export class VisitasCampoService {
         parcelaId,
         isActive: true
       },
+      relations: { phenologicalStages: { stage: true, subStage: true } },
       order: {
         fechaVisita: "DESC",
         horaVisitaInicio: "DESC",
@@ -650,16 +689,41 @@ export class VisitasCampoService {
       updateVisitaCampoDto.endVisitTime !== undefined
         ? updateVisitaCampoDto.endVisitTime
         : visitaCampo.horaVisitaFin;
-    const nextPhenologicalStageId =
-      updateVisitaCampoDto.phenologicalStageId !== undefined
-        ? updateVisitaCampoDto.phenologicalStageId
-        : visitaCampo.etapaFenologicaId;
-    const nextSubEtapaId =
-      updateVisitaCampoDto.subEtapaId !== undefined
-        ? updateVisitaCampoDto.subEtapaId
-        : visitaCampo.subEtapaId;
+    const requestedStageId = updateVisitaCampoDto.phenologicalStageId ?? visitaCampo.etapaFenologicaId;
+    const requestedSubEtapaId = updateVisitaCampoDto.subEtapaId !== undefined
+      ? updateVisitaCampoDto.subEtapaId : visitaCampo.subEtapaId;
+    if (!updateVisitaCampoDto.phenologicalStages &&
+        (visitaCampo.phenologicalStages?.length ?? 0) > 1 &&
+        (requestedStageId !== visitaCampo.etapaFenologicaId ||
+         requestedSubEtapaId !== visitaCampo.subEtapaId)) {
+      throw new ConflictException("Actualiza las etapas con una versión reciente de la app.");
+    }
+    const stageEntries = updateVisitaCampoDto.phenologicalStages
+      ? await this.validateStageEntries(
+          updateVisitaCampoDto.phenologicalStages,
+          nextCropId,
+          requestedStageId!,
+          requestedSubEtapaId,
+          null
+        )
+      : (visitaCampo.phenologicalStages?.length ?? 0) <= 1 &&
+          (updateVisitaCampoDto.phenologicalStageId !== undefined ||
+           updateVisitaCampoDto.subEtapaId !== undefined ||
+           updateVisitaCampoDto.subEtapaPercentage !== undefined)
+        ? await this.validateStageEntries(undefined, nextCropId, requestedStageId!, requestedSubEtapaId,
+            updateVisitaCampoDto.subEtapaPercentage ?? null)
+        : null;
+    const primaryStage = stageEntries ? selectPrimaryStage(stageEntries) : null;
+    const nextPhenologicalStageId = primaryStage?.phenologicalStageId ?? requestedStageId;
+    const nextSubEtapaId = primaryStage ? primaryStage.subEtapaId : requestedSubEtapaId;
     const nextSubEtapaPercentage =
-      updateVisitaCampoDto.subEtapaPercentage !== undefined
+      updateVisitaCampoDto.phenologicalStages
+        ? primaryStage?.laborProgressPercentage ??
+          (nextPhenologicalStageId === visitaCampo.etapaFenologicaId &&
+           nextSubEtapaId === visitaCampo.subEtapaId &&
+           visitaCampo.subEtapaPercentage !== null
+            ? Number(visitaCampo.subEtapaPercentage) : null)
+        : updateVisitaCampoDto.subEtapaPercentage !== undefined
         ? updateVisitaCampoDto.subEtapaPercentage
         : visitaCampo.subEtapaPercentage === null
           ? null
@@ -722,13 +786,15 @@ export class VisitasCampoService {
       ...(updateVisitaCampoDto.endVisitTime !== undefined
         ? { horaVisitaFin: updateVisitaCampoDto.endVisitTime }
         : {}),
-      ...(updateVisitaCampoDto.phenologicalStageId !== undefined
-        ? { etapaFenologicaId: updateVisitaCampoDto.phenologicalStageId }
+      ...(stageEntries || updateVisitaCampoDto.phenologicalStageId !== undefined
+        ? { etapaFenologicaId: nextPhenologicalStageId }
         : {}),
-      ...(updateVisitaCampoDto.subEtapaId !== undefined
-        ? { subEtapaId: updateVisitaCampoDto.subEtapaId }
+      ...(stageEntries || updateVisitaCampoDto.subEtapaId !== undefined
+        ? { subEtapaId: nextSubEtapaId }
         : {}),
-      ...(updateVisitaCampoDto.subEtapaPercentage !== undefined
+      ...(updateVisitaCampoDto.phenologicalStages
+        ? { subEtapaPercentage: nextSubEtapaPercentage === null ? null : String(nextSubEtapaPercentage) }
+        : updateVisitaCampoDto.subEtapaPercentage !== undefined
         ? {
             subEtapaPercentage:
               updateVisitaCampoDto.subEtapaPercentage === null
@@ -758,7 +824,23 @@ export class VisitasCampoService {
     });
 
     try {
-      const savedVisitaCampo = await this.visitasCampoRepository.save(updatedVisitaCampo);
+      const savedVisitaCampo = stageEntries
+        ? await this.visitasCampoRepository.manager.transaction(async (manager) => {
+            const saved = await manager.save(updatedVisitaCampo);
+            await manager.getRepository(VisitaEtapaFenologicaEntity).delete({ visitaId: saved.id });
+            saved.phenologicalStages = await manager.getRepository(VisitaEtapaFenologicaEntity).save(
+              stageEntries.map((entry, order) => ({
+                visitaId: saved.id,
+                etapaFenologicaId: entry.phenologicalStageId,
+                subEtapaId: entry.subEtapaId,
+                coveragePercentage: entry.coveragePercentage,
+                laborProgressPercentage: entry.laborProgressPercentage === null ? null : String(entry.laborProgressPercentage),
+                order
+              }))
+            );
+            return saved;
+          })
+        : await this.visitasCampoRepository.save(updatedVisitaCampo);
 
       return createSuccessResponse(this.toResponse(savedVisitaCampo));
     } catch (error) {
@@ -804,7 +886,8 @@ export class VisitasCampoService {
 
   private async findEntityById(id: string) {
     const visitaCampo = await this.visitasCampoRepository.findOne({
-      where: { id }
+      where: { id },
+      relations: { phenologicalStages: { stage: true, subStage: true } }
     });
 
     if (!visitaCampo) {
@@ -816,7 +899,8 @@ export class VisitasCampoService {
 
   private async findActiveEntityById(id: string) {
     const visitaCampo = await this.visitasCampoRepository.findOne({
-      where: { id, isActive: true }
+      where: { id, isActive: true },
+      relations: { phenologicalStages: { stage: true, subStage: true } }
     });
 
     if (!visitaCampo) {
@@ -824,6 +908,79 @@ export class VisitasCampoService {
     }
 
     return visitaCampo;
+  }
+
+  private async validateStageEntries(
+    entries: VisitaEtapaFenologicaDto[] | undefined,
+    cropId: string,
+    legacyStageId: string,
+    legacySubEtapaId: string | null,
+    legacyProgress: number | null
+  ): Promise<StageEntry[]> {
+    const items: StageEntry[] = entries
+      ? entries.map((item) => ({
+          phenologicalStageId: item.phenologicalStageId,
+          subEtapaId: item.subEtapaId ?? null,
+          coveragePercentage: item.coveragePercentage ?? null,
+          laborProgressPercentage: item.laborProgressPercentage ?? null
+        }))
+      : [{
+          phenologicalStageId: legacyStageId,
+          subEtapaId: legacySubEtapaId,
+          coveragePercentage: null,
+          laborProgressPercentage: legacyProgress
+        }];
+    if (items.length < 1 || items.length > 30) {
+      throw new BadRequestException("Registra entre 1 y 30 etapas o labores.");
+    }
+    if (new Set(items.map((item) => item.phenologicalStageId)).size !== items.length) {
+      throw new BadRequestException("No repitas una etapa en la visita.");
+    }
+    let totalCoverage = 0;
+    for (const item of items) {
+      const stage = await this.findRequiredEntity(
+        this.etapasFenologicasRepository, item.phenologicalStageId,
+        "Etapa fenologica not found."
+      );
+      if (stage.cultivoId !== cropId) {
+        throw new BadRequestException("La etapa no corresponde al cultivo.");
+      }
+      if (stage.type === "Etapa") {
+        if (entries && (!item.subEtapaId || !Number.isInteger(item.coveragePercentage) ||
+            item.coveragePercentage! < 1 || item.coveragePercentage! > 100 ||
+            item.laborProgressPercentage !== null)) {
+          throw new BadRequestException("Cada etapa requiere subetapa y porcentaje de parcela válido.");
+        }
+        if (item.subEtapaId) {
+          const subStage = await this.findRequiredEntity(this.subEtapasRepository,
+            item.subEtapaId, "Sub etapa not found.");
+          if (subStage.etapaFenologicaId !== item.phenologicalStageId) {
+            throw new BadRequestException("La subetapa no corresponde a la etapa.");
+          }
+        }
+        item.coveragePercentage = entries ? item.coveragePercentage : 100;
+        item.laborProgressPercentage = null;
+        totalCoverage += item.coveragePercentage ?? 0;
+      } else {
+        if (item.subEtapaId || item.coveragePercentage !== null ||
+            (item.laborProgressPercentage !== null &&
+             (!Number.isFinite(item.laborProgressPercentage) ||
+              item.laborProgressPercentage < 0 || item.laborProgressPercentage > 100))) {
+          throw new BadRequestException("Una labor no lleva subetapa ni cobertura de parcela.");
+        }
+      }
+    }
+    if (entries && totalCoverage > 0 && totalCoverage !== 100) {
+      throw new BadRequestException("Los porcentajes de parcela deben sumar 100.");
+    }
+    if (entries) {
+      const primary = selectPrimaryStage(items);
+      if (legacyStageId !== primary.phenologicalStageId ||
+          legacySubEtapaId !== primary.subEtapaId) {
+        throw new BadRequestException("La etapa principal no coincide con la distribución.");
+      }
+    }
+    return items;
   }
 
   private async validateReferences(
@@ -911,7 +1068,8 @@ export class VisitasCampoService {
     }
 
     if (input.subEtapaId === undefined || input.subEtapaId === null) {
-      if (input.subEtapaPercentage !== undefined && input.subEtapaPercentage !== null) {
+      if (etapaFenologica.type === "Etapa" &&
+          input.subEtapaPercentage !== undefined && input.subEtapaPercentage !== null) {
         throw new BadRequestException("subEtapaPercentage requires a sub etapa.");
       }
 
@@ -989,7 +1147,10 @@ export class VisitasCampoService {
   }
 
   private createFindAllQueryBuilder(query: FindVisitasCampoQueryDto) {
-    const queryBuilder = this.visitasCampoRepository.createQueryBuilder("visita");
+    const queryBuilder = this.visitasCampoRepository.createQueryBuilder("visita")
+      .leftJoinAndSelect("visita.phenologicalStages", "phenologicalStages")
+      .leftJoinAndSelect("phenologicalStages.stage", "stageEntryCatalog")
+      .leftJoinAndSelect("phenologicalStages.subStage", "subStageEntryCatalog");
 
     if (query.productor_id !== undefined) {
       queryBuilder.innerJoin(ParcelaEntity, "parcela", "parcela.id = visita.parcela_id");
@@ -1043,6 +1204,9 @@ export class VisitasCampoService {
   private createHistoryQueryBuilder() {
     return this.visitasCampoRepository
       .createQueryBuilder("visita")
+      .leftJoinAndSelect("visita.phenologicalStages", "phenologicalStages")
+      .leftJoinAndSelect("phenologicalStages.stage", "stageEntryCatalog")
+      .leftJoinAndSelect("phenologicalStages.subStage", "subStageEntryCatalog")
       .innerJoin(ParcelaEntity, "parcela", "parcela.id = visita.parcela_id")
       .where("visita.activo = true")
       .orderBy("visita.fecha_visita", "DESC")
@@ -1168,6 +1332,17 @@ export class VisitasCampoService {
         visitaCampo.subEtapaPercentage === null
           ? null
           : Number(visitaCampo.subEtapaPercentage),
+      phenologicalStages: (visitaCampo.phenologicalStages ?? [])
+        .sort((a, b) => a.order - b.order)
+        .map((entry) => ({
+          phenologicalStageId: entry.etapaFenologicaId,
+          stageName: entry.stage?.name ?? null,
+          subEtapaId: entry.subEtapaId,
+          subEtapaName: entry.subStage?.name ?? null,
+          coveragePercentage: entry.coveragePercentage,
+          laborProgressPercentage: entry.laborProgressPercentage === null
+            ? null : Number(entry.laborProgressPercentage)
+        })),
       generalObservation: visitaCampo.observacionGeneral,
       agronomistSignatureName: visitaCampo.firmaAgronomoNombre,
       producerSignatureName: visitaCampo.firmaProductorNombre,
@@ -1318,6 +1493,13 @@ function buildUserLabel(user: UserEntity | null | undefined) {
   );
 }
 
+function selectPrimaryStage(entries: StageEntry[]): StageEntry {
+  return entries.reduce((primary, entry) =>
+    (entry.coveragePercentage ?? -1) > (primary.coveragePercentage ?? -1)
+      ? entry : primary
+  );
+}
+
 function buildProductorLabel(productor: ProductorEntity | null | undefined) {
   return (
     [productor?.firstName, productor?.lastName].filter(Boolean).join(" ").trim() ||
@@ -1336,6 +1518,16 @@ function buildParcelaLabel(parcela: ParcelaEntity | null | undefined) {
 
 function buildEtapaLabel(etapa: EtapaFenologicaEntity | null | undefined) {
   return etapa?.name ?? "No registrada";
+}
+
+function buildStageExcelLabel(visita: VisitaCampoEntity) {
+  if (!visita.phenologicalStages?.length) return buildEtapaLabel(visita.etapaFenologica);
+  return [...visita.phenologicalStages].sort((a, b) => a.order - b.order).map((entry) => [
+    entry.stage?.name ?? entry.etapaFenologicaId,
+    entry.subStage?.name,
+    entry.coveragePercentage === null ? null : `${entry.coveragePercentage}% parcela`,
+    entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% avance labor`
+  ].filter(Boolean).join(" - ")).join("; ");
 }
 
 function buildExcelDiagnosisRows(visita: VisitaCampoEntity): ExcelDiagnosisRow[] {

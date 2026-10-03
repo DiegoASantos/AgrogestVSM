@@ -75,6 +75,12 @@ function makeVisita(serverId: string | null) {
     phenologicalStageId: "etapa-1",
     subEtapaId: null,
     subEtapaPercentage: null,
+    phenologicalStages: [{
+      phenologicalStageId: "etapa-1",
+      subEtapaId: null,
+      coveragePercentage: 100,
+      laborProgressPercentage: null
+    }],
     generalObservation: null,
     agronomistSignatureName: null,
     producerSignatureName: null,

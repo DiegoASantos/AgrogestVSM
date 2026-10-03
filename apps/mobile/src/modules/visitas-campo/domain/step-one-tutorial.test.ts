@@ -26,6 +26,7 @@ const completeValues: NewVisitaCampoFormValues = {
   phenologicalStage: "stage-1",
   subEtapaId: "sub-stage-1",
   subEtapaPercentage: "50",
+  coveragePercentage: "100",
   generalObservation: "Cultivo uniforme"
 };
 
@@ -43,6 +44,22 @@ function buildSteps(overrides: Partial<NewVisitaCampoFormValues> = {}) {
 }
 
 describe("step one tutorial", () => {
+  it("requires parcel coverage and a substage for a phenological stage", () => {
+    const steps = buildStepOneTutorialSteps({
+      values: { ...completeValues, subEtapaId: "", coveragePercentage: "", subEtapaPercentage: "50" },
+      today: "2026-08-18",
+      activeCatalog: null,
+      isLoadingCultivos: false,
+      isLoadingVariedades: false,
+      isLoadingEtapasFenologicas: false,
+      isLoadingProgress: false,
+      showProgress: true,
+      requireSubStage: true
+    });
+
+    expect(steps.find((step) => step.id === "subEtapaPercentage")?.isComplete).toBe(false);
+  });
+
   it("keeps the expected field order and skips fields already complete", () => {
     const steps = buildSteps({ plantsCount: "", areaHectares: "" });
 

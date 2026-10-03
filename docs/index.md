@@ -136,6 +136,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Datos de pago de cosecha en Comercial](specs/082-datos-pago-cosecha-comercial.md)
 - [Acreedores reutilizables y registro de cosecha](specs/083-acreedores-reutilizables-y-registro-cosecha.md)
 - [Despliegue multientorno de Agrogest VSM en servidor IDL](specs/084-despliegue-multientorno-idl.md)
+- [Spec 085: Captura y aprobación de acreedores por productor](specs/085-captura-aprobacion-acreedores-productor.md)
+- [Spec 086: Múltiples etapas fenológicas por visita](specs/086-multiples-etapas-fenologicas-por-visita.md)
 
 ## Runbooks
 

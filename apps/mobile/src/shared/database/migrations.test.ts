@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 74;
+const LATEST_MIGRATION_VERSION = 76;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1907,6 +1907,29 @@ describe("runMigrations", () => {
         /DROP\s+TABLE\s+pagos_cosecha/iu.test(statement)
       )
     ).toBe(false);
+  });
+
+  it("adds approval fields and backfills only previously synced creditors", () => {
+    const db = createFakeDatabase(74);
+    runMigrations(db as never);
+    expect(db.currentVersion).toBe(76);
+    expect(db.executedStatements).toContain(
+      "UPDATE acreedores_cosecha SET approval_status = 'APPROVED' WHERE sync_status = 'synced'"
+    );
+    expect(db.executedStatements.some((statement) => statement.includes("ALTER TABLE acreedores_cosecha ADD COLUMN approval_status"))).toBe(true);
+    expect(db.executedStatements.some((statement) => /DELETE FROM acreedores_cosecha|DROP TABLE acreedores_cosecha/u.test(statement))).toBe(false);
+  });
+
+  it("adds visit stage entries without deleting pending visits", () => {
+    const db = createFakeDatabase(75);
+    runMigrations(db as never);
+    expect(db.currentVersion).toBe(76);
+    expect(db.executedStatements.some((statement) =>
+      statement.includes("CREATE TABLE IF NOT EXISTS visita_etapas_fenologicas"))).toBe(true);
+    expect(db.executedStatements.some((statement) =>
+      statement.includes("INSERT INTO visita_etapas_fenologicas"))).toBe(true);
+    expect(db.executedStatements.some((statement) =>
+      /DELETE FROM visitas_campo|DROP TABLE visitas_campo/u.test(statement))).toBe(false);
   });
 
   it("reuses an active transaction while applying pending migrations", () => {

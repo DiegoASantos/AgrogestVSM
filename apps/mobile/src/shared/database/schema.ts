@@ -161,6 +161,9 @@ export const SQL_SCHEMA = [
     banco TEXT NOT NULL CHECK(banco IN ('INTERBANK','BCP','CAJA_PIURA','BBVA')),
     nro_cuenta TEXT NOT NULL,
     server_id TEXT,
+    approval_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(approval_status IN ('PENDING','APPROVED','OBSERVED')),
+    source TEXT NOT NULL DEFAULT 'MOBILE' CHECK(source IN ('PRODUCTOR','MOBILE')),
+    review_observation TEXT,
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending','synced','error')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -309,6 +312,23 @@ export const SQL_SCHEMA = [
     FOREIGN KEY (phenological_stage_id) REFERENCES etapas_fenologicas(id),
     FOREIGN KEY (sub_etapa_id) REFERENCES sub_etapas(id)
   )`,
+  `CREATE TABLE IF NOT EXISTS visita_etapas_fenologicas (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    visita_local_id TEXT NOT NULL,
+    phenological_stage_id TEXT NOT NULL,
+    sub_etapa_id TEXT,
+    coverage_percentage INTEGER CHECK(coverage_percentage BETWEEN 1 AND 100),
+    labor_progress_percentage TEXT,
+    sort_order INTEGER NOT NULL CHECK(sort_order >= 0),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+    FOREIGN KEY (phenological_stage_id) REFERENCES etapas_fenologicas(id),
+    FOREIGN KEY (sub_etapa_id) REFERENCES sub_etapas(id),
+    UNIQUE (visita_local_id, phenological_stage_id),
+    UNIQUE (visita_local_id, sort_order)
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_visita_etapas_visita ON visita_etapas_fenologicas(visita_local_id, sort_order)",
   `CREATE TABLE IF NOT EXISTS visita_evaluaciones (
     local_id TEXT PRIMARY KEY NOT NULL,
     server_id TEXT,

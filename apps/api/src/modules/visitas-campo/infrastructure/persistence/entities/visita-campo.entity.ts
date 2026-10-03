@@ -20,6 +20,7 @@ import { VisitaRiegoEntity } from "../../../../visita-riegos/infrastructure/pers
 import { EtapaFenologicaEntity } from "./etapa-fenologica.entity";
 import { SubEtapaEntity } from "./sub-etapa.entity";
 import { VisitaPasoObservacionEntity } from "./visita-paso-observacion.entity";
+import { VisitaEtapaFenologicaEntity } from "./visita-etapa-fenologica.entity";
 
 export type PointGeometry = {
   type: "Point";
@@ -288,6 +289,9 @@ export class VisitaCampoEntity {
 
   @OneToMany(() => VisitaEvaluacionEntity, (visitaEvaluacion) => visitaEvaluacion.visita)
   evaluaciones!: VisitaEvaluacionEntity[];
+
+  @OneToMany(() => VisitaEtapaFenologicaEntity, (entry) => entry.visit)
+  phenologicalStages!: VisitaEtapaFenologicaEntity[];
 
   @OneToMany(
     () => VisitaObservacionSanitariaEntity,

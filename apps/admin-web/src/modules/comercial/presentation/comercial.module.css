@@ -1,0 +1,307 @@
+.publicPage {
+  min-height: 100vh;
+  background: #f3f5eb;
+  color: #203427;
+  padding: 24px 16px 64px;
+  font-family: Arial, sans-serif;
+}
+.publicShell {
+  max-width: 820px;
+  margin: 0 auto;
+  display: grid;
+  gap: 20px;
+}
+.publicHeader {
+  background: #173d2d;
+  color: #f8f8eb;
+  border-radius: 24px;
+  padding: 30px;
+}
+.brand {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.tag {
+  display: inline-block;
+  margin-left: 14px;
+  padding: 5px 11px;
+  border: 1px solid #99c5a7;
+  border-radius: 20px;
+  font-size: 12px;
+}
+.publicHeader h1 {
+  font-size: clamp(30px, 6vw, 48px);
+  line-height: 1.08;
+  max-width: 600px;
+  margin: 24px 0 12px;
+}
+.publicHeader p {
+  color: #dce9dc;
+  max-width: 630px;
+  line-height: 1.55;
+}
+.card,
+.reviewCard {
+  background: white;
+  border: 1px solid #dce4d8;
+  border-radius: 20px;
+  padding: 26px;
+  box-shadow: 0 8px 26px #1a38200d;
+}
+.card h2 {
+  font-size: 24px;
+  margin: 8px 0;
+}
+.card p {
+  line-height: 1.5;
+  color: #4d5c50;
+}
+.step {
+  color: #35694e;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.card label,
+.reviewActions label,
+.toolbar label {
+  display: block;
+  margin: 15px 0 7px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.card input,
+.card select,
+.toolbar select,
+.reviewActions textarea {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #aab9ac;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: white;
+  color: #203427;
+  font: inherit;
+}
+.card input:focus,
+.card select:focus,
+.toolbar select:focus,
+.reviewActions textarea:focus {
+  outline: 3px solid #a8d2ae;
+  outline-offset: 1px;
+}
+.card button,
+.reviewPage button {
+  min-height: 44px;
+  background: #256b45;
+  border: 1px solid #256b45;
+  border-radius: 10px;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  padding: 9px 17px;
+  cursor: pointer;
+}
+.card button {
+  margin-top: 20px;
+}
+.card button:disabled,
+.reviewPage button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.card .secondary,
+.reviewPage .secondary,
+.pagination button {
+  background: white;
+  color: #256b45;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 18px;
+}
+.identity {
+  background: #dcebdc;
+  border-radius: 14px;
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+.identity button,
+.linkButton {
+  border: 0;
+  background: none;
+  color: #246343;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 700;
+}
+.confirm,
+.observation {
+  background: #f6f1df;
+  border-left: 4px solid #bd8b24;
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 18px;
+}
+.list {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.item {
+  border: 1px solid #dce4d8;
+  border-radius: 12px;
+  padding: 16px;
+}
+.item > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.status {
+  background: #e3eee4;
+  color: #25563b;
+  border-radius: 99px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.message {
+  background: #e5eee0;
+  border-radius: 10px;
+  padding: 15px;
+  color: #244b32;
+}
+.reviewPage {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 20px 70px;
+  color: #203427;
+}
+.reviewHeader h1 {
+  font-size: 36px;
+  margin: 8px 0;
+}
+.reviewHeader p {
+  color: #59675c;
+  max-width: 670px;
+  line-height: 1.5;
+}
+.toolbar {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 26px 0;
+}
+.toolbar label {
+  margin: 0;
+  align-self: center;
+}
+.toolbar select {
+  width: 180px;
+}
+.toolbar span {
+  margin-left: auto;
+  color: #59675c;
+}
+.reviewList {
+  display: grid;
+  gap: 16px;
+}
+.reviewTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+.reviewTop h2 {
+  margin: 12px 0 4px;
+  font-size: 22px;
+}
+.reviewTop p {
+  margin: 0;
+  color: #59675c;
+}
+.reviewDetails {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+  background: #f6f8f2;
+  padding: 18px;
+  border-radius: 12px;
+  margin: 20px 0;
+}
+.reviewDetails div {
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.reviewDetails span {
+  color: #66746a;
+  font-size: 13px;
+}
+.reviewActions {
+  border-top: 1px solid #e2e9e0;
+  margin-top: 20px;
+  padding-top: 16px;
+}
+.reviewActions textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.reviewActions > div {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.reviewPage .linkButton {
+  min-height: auto;
+  border: 0;
+  background: none;
+  color: #246343;
+  padding: 0;
+}
+.history {
+  color: #4d5c50;
+  line-height: 1.6;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 25px;
+}
+@media (max-width: 640px) {
+  .publicPage {
+    padding: 10px 10px 44px;
+  }
+  .publicHeader,
+  .card {
+    border-radius: 15px;
+    padding: 20px;
+  }
+  .grid,
+  .reviewDetails {
+    grid-template-columns: 1fr;
+  }
+  .reviewPage {
+    padding: 20px 12px 50px;
+  }
+  .reviewTop {
+    flex-direction: column;
+  }
+  .toolbar span {
+    margin-left: 0;
+  }
+}

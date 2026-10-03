@@ -10,12 +10,17 @@ import {
   IsNumber,
   IsString,
   IsUUID,
+  IsArray,
+  ArrayMaxSize,
+  ArrayMinSize,
+  ValidateNested,
   Matches,
   Max,
   MaxLength,
   Min
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { VisitaEtapaFenologicaDto } from "./visita-etapa-fenologica.dto";
 
 export class CreateVisitaCampoDto {
   @ApiPropertyOptional({
@@ -181,6 +186,15 @@ export class CreateVisitaCampoDto {
     message: "phenologicalStageId must be a positive integer."
   })
   phenologicalStageId!: string;
+
+  @ApiPropertyOptional({ type: [VisitaEtapaFenologicaDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => VisitaEtapaFenologicaDto)
+  phenologicalStages?: VisitaEtapaFenologicaDto[];
 
   @ApiPropertyOptional({
     example: "1"

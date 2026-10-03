@@ -1,6 +1,6 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, StyleSheet, Switch, View } from "react-native";
+import { Alert, Share, StyleSheet, Switch, View } from "react-native";
 import {
   harvestRecordSchema,
   type HarvestCreditorInput
@@ -29,6 +29,7 @@ import {
   type AcreedorCosecha
 } from "../../services/acreedores-cosecha.service";
 import { saveRegistroCosecha } from "../../services/registros-cosecha.service";
+import { issueProducerCreditorAccess } from "../../services/acreedores-cosecha.remote";
 import {
   getCreditorAutofill,
   getPendingCreditorFields,
@@ -96,7 +97,7 @@ export function ComercialScreen() {
     .join(" ");
   const creditorOptions = useMemo(
     () =>
-      acreedores.map((acreedor) => ({
+      acreedores.filter((acreedor) => acreedor.approvalStatus === "APPROVED").map((acreedor) => ({
         value: acreedor.localId,
         label: formatCreditorName(acreedor),
         helper: `${acreedor.bank} · ${maskAccount(acreedor.accountNumber)}`
@@ -105,12 +106,37 @@ export function ComercialScreen() {
   );
 
   useEffect(() => {
-    if (acreedores.length === 1) {
-      setAcreedorPagoId(acreedores[0].localId);
-    } else if (!acreedores.some((acreedor) => acreedor.localId === acreedorPagoId)) {
+    if (creditorOptions.length === 1) {
+      setAcreedorPagoId(creditorOptions[0].value);
+    } else if (!creditorOptions.some((acreedor) => acreedor.value === acreedorPagoId)) {
       setAcreedorPagoId("");
     }
-  }, [acreedorPagoId, acreedores]);
+  }, [acreedorPagoId, creditorOptions]);
+
+  async function compartirAcceso() {
+    const url = process.env.EXPO_PUBLIC_PRODUCTOR_WEB_URL?.trim();
+    const secureUrl = url?.startsWith("https://") || (__DEV__ && url?.startsWith("http://"));
+    if (!selectedProductor?.serverId || !secureUrl) {
+      Alert.alert("Acceso no disponible", "Selecciona un productor sincronizado y configura la web pública HTTPS.");
+      return;
+    }
+    try {
+      const access = await issueProducerCreditorAccess(selectedProductor.serverId);
+      await Share.share({ message: `AgroGest: registra o revisa tus datos de pago en ${url}\nCódigo de acceso: ${access.code}\nVálido por 180 días. No compartas este código con otras personas.` });
+    } catch {
+      Alert.alert("Sin conexión", "Conéctate a internet para generar un nuevo código de acceso.");
+    }
+  }
+
+  async function actualizarAcreedores() {
+    if (!productorId) return;
+    try {
+      setAcreedores(await refreshAcreedoresCosecha(productorId));
+      setError(null);
+    } catch {
+      setError("No se pudieron actualizar los acreedores. Se muestran los datos locales.");
+    }
+  }
 
   const loadProductorOptions = useCallback(
     async (query: string, page: number, pageSize: number) => {
@@ -228,10 +254,9 @@ export function ComercialScreen() {
     }
 
     try {
-      const localId = saveAcreedorCosecha(validation);
+      saveAcreedorCosecha(validation);
       setAcreedores(getAcreedoresCosechaLocales(productorId));
-      setAcreedorPagoId(localId);
-      Alert.alert("Acreedor guardado", "Puedes agregar otro o registrar la cosecha.");
+      Alert.alert("Acreedor guardado", "El perfil quedó pendiente de aprobación. Puedes agregar otro acreedor.");
       setError(null);
       setBanco("");
       setCuenta("");
@@ -275,7 +300,7 @@ export function ComercialScreen() {
             Comercial
           </AppText>
           <AppText style={styles.subtitle} variant="body">
-            Registra acreedores y los datos de pago de cada cosecha.
+            Comparte el formulario de pago con el productor y registra la cosecha.
           </AppText>
         </View>
 
@@ -305,15 +330,17 @@ export function ComercialScreen() {
         <AppCard style={styles.sectionCard}>
           <SectionHeader
             icon="people-outline"
-            subtitle="Paso 1: registra uno o varios acreedores del productor."
+            subtitle="Paso 1: comparte el formulario. Registra aquí solo cuando sea necesario."
             title="Acreedores de pago"
           />
+          {productorId ? <AppButton label="Compartir formulario con el productor" icon="share-social-outline" onPress={() => { void compartirAcceso(); }} /> : null}
+          {productorId ? <AppButton label="Actualizar estados de acreedores" icon="refresh-outline" onPress={() => { void actualizarAcreedores(); }} /> : null}
           {productorId ? (
             <View style={styles.creditorList}>
               <AppText style={styles.creditorListTitle} variant="label">
                 {acreedores.length === 0
                   ? "Aun no hay acreedores registrados"
-                  : `${acreedores.length} acreedor${acreedores.length === 1 ? "" : "es"} disponible${acreedores.length === 1 ? "" : "s"}`}
+                  : `${acreedores.length} acreedor${acreedores.length === 1 ? "" : "es"} registrado${acreedores.length === 1 ? "" : "s"}`}
               </AppText>
               {acreedores.map((acreedor) => (
                 <View key={acreedor.localId} style={styles.creditorRow}>
@@ -327,6 +354,7 @@ export function ComercialScreen() {
                     <AppText variant="caption">
                       {acreedor.bank} · {maskAccount(acreedor.accountNumber)}
                     </AppText>
+                    <AppText variant="caption">{acreedor.approvalStatus === "APPROVED" ? "Aprobado" : acreedor.approvalStatus === "OBSERVED" ? "Observado" : "Pendiente de aprobación"}</AppText>
                   </View>
                 </View>
               ))}
@@ -485,8 +513,8 @@ export function ComercialScreen() {
             title="Registro de cosecha"
           />
           <AppSelectField
-            disabled={!productorId || acreedores.length === 0}
-            emptyMessage="Registra primero un acreedor para este productor."
+            disabled={!productorId || creditorOptions.length === 0}
+            emptyMessage="Aún no hay acreedores aprobados para este productor."
             isOpen={openAcreedorPago}
             label="Acreedor a pagar"
             onClose={() => setOpenAcreedorPago(false)}
@@ -499,9 +527,9 @@ export function ComercialScreen() {
             placeholder={productorId ? "Selecciona el acreedor" : "Selecciona primero el productor"}
             selectedLabel={creditorOptions.find((item) => item.value === acreedorPagoId)?.label}
           />
-          {productorId && acreedores.length === 0 ? (
+          {productorId && creditorOptions.length === 0 ? (
             <AppText style={styles.helper} variant="caption">
-              Agrega un acreedor en el paso 1 para continuar.
+              Espera la aprobación del analista para registrar una cosecha.
             </AppText>
           ) : null}
           <AppInput

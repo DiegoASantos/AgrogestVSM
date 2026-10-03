@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException
 } from "@nestjs/common";
@@ -168,7 +169,8 @@ describe("VisitasCampoService", () => {
       const result = await service.findById("42");
 
       expect(repo.findOne).toHaveBeenCalledWith({
-        where: { id: "42" }
+        where: { id: "42" },
+        relations: { phenologicalStages: { stage: true, subStage: true } }
       });
       expect(result.data.id).toBe("42");
     });
@@ -230,7 +232,8 @@ describe("VisitasCampoService", () => {
         NotFoundException
       );
       expect(repo.findOne).toHaveBeenCalledWith({
-        where: { id: "inactive-id", isActive: true }
+        where: { id: "inactive-id", isActive: true },
+        relations: { phenologicalStages: { stage: true, subStage: true } }
       });
       expect(repo.find).not.toHaveBeenCalled();
     });
@@ -347,8 +350,8 @@ describe("VisitasCampoService", () => {
         "Parcela",
         "Hora inicio",
         "Hora fin",
-        "Etapa fenológica",
-        "Porcentaje de avance",
+        "Distribución fenológica",
+        "Avance histórico de subetapa",
         "Plagas",
         "Enfermedades",
         "Nutrición",
@@ -611,6 +614,61 @@ describe("VisitasCampoService", () => {
       phenologicalStageId: "50"
     };
 
+    function mockStageReferences() {
+      repo.findOne.mockImplementation(async ({ where }: { where: { id?: string } }) => {
+        switch (where.id) {
+          case "10": return { id: "10" };
+          case "20": return { id: "20", cultivoId: "10" };
+          case "30": return { id: "30", isActive: true };
+          case "40": return { id: "40", cultivoId: "10" };
+          case "u1": return { id: "u1" };
+          case "50": case "51": return { id: where.id, cultivoId: "10", type: "Etapa" };
+          case "60": return { id: "60", etapaFenologicaId: "50" };
+          case "61": return { id: "61", etapaFenologicaId: "51" };
+          default: return null;
+        }
+      });
+      repo.create.mockImplementation((value: object) => ({ ...makeVisita(), ...value }));
+      const stageSave = vi.fn(async (rows: unknown[]) => rows);
+      const manager = {
+        save: vi.fn(async (value: object) => ({ ...value, id: "1" })),
+        getRepository: vi.fn(() => ({ save: stageSave }))
+      };
+      (repo as unknown as { manager: unknown }).manager = {
+        transaction: (callback: (value: typeof manager) => Promise<unknown>) => callback(manager)
+      };
+      return { manager, stageSave };
+    }
+
+    it("stores both entries and selects the stage with the largest parcel share", async () => {
+      const { stageSave } = mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        phenologicalStageId: "51",
+        subEtapaId: "61",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 40 },
+          { phenologicalStageId: "51", subEtapaId: "61", coveragePercentage: 60 }
+        ]
+      });
+      expect(stageSave).toHaveBeenCalledOnce();
+      expect(result.data.phenologicalStageId).toBe("51");
+      expect(result.data.phenologicalStages.map((row) => row.coveragePercentage)).toEqual([40, 60]);
+    });
+
+    it("rejects a distribution whose stages do not cover the whole parcel", async () => {
+      const { stageSave } = mockStageReferences();
+      await expect(service.create({
+        ...validDto,
+        subEtapaId: "60",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 60 },
+          { phenologicalStageId: "51", subEtapaId: "61", coveragePercentage: 30 }
+        ]
+      })).rejects.toBeInstanceOf(BadRequestException);
+      expect(stageSave).not.toHaveBeenCalled();
+    });
+
     it("should reject when parcela not found", async () => {
       repo.findOne.mockResolvedValue(null);
       await expect(service.create(validDto)).rejects.toThrow();
@@ -658,5 +716,17 @@ describe("VisitasCampoService", () => {
       repo.save.mockRejectedValue(makeUQ("visitas_campo_nro_ficha_key"));
       await expect(service.create({ ...validDto, nroFicha: "F-001" })).rejects.toThrow();
     });
+  });
+
+  it("prevents a legacy update from replacing multiple stage entries", async () => {
+    repo.findOne.mockResolvedValueOnce(makeVisita({
+      phenologicalStages: [
+        { etapaFenologicaId: "50", coveragePercentage: 60, order: 0 },
+        { etapaFenologicaId: "51", coveragePercentage: 40, order: 1 }
+      ] as VisitaCampoEntity["phenologicalStages"]
+    }));
+    await expect(service.update("1", { phenologicalStageId: "51" }))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(repo.save).not.toHaveBeenCalled();
   });
 });

@@ -67,6 +67,7 @@ const mainNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.dashboard]: LayoutDashboard,
   [adminRoutes.visitas]: ClipboardList,
   [adminRoutes.estimaciones]: Target,
+  [adminRoutes.comercial]: ClipboardList,
   [adminRoutes.mapas]: MapIcon,
   [adminRoutes.reportes]: ChartNoAxesCombined,
   [adminRoutes.mantenimiento]: Wrench,

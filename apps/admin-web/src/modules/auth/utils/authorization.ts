@@ -49,7 +49,7 @@ export function canAccessAdminPath(pathname: string, session: SessionInput) {
     return isClimateSession(session);
   }
 
-  if (isMaintenancePath(pathname) || isReportsPath(pathname)) {
+  if (isMaintenancePath(pathname) || isReportsPath(pathname) || isComercialPath(pathname)) {
     return isAdminOrAnalystSession(session);
   }
 
@@ -88,6 +88,10 @@ export function isEstimationsPath(pathname: string) {
   );
 }
 
+export function isComercialPath(pathname: string) {
+  return pathname === adminRoutes.comercial || pathname.startsWith(`${adminRoutes.comercial}/`);
+}
+
 export function isSecurityPath(pathname: string) {
   return (
     pathname === adminRoutes.seguridad || pathname.startsWith(`${adminRoutes.seguridad}/`)
@@ -99,6 +103,7 @@ export function isRestrictedAdminPath(pathname: string) {
     isMaintenancePath(pathname) ||
     isReportsPath(pathname) ||
     isEstimationsPath(pathname) ||
+    isComercialPath(pathname) ||
     isSecurityPath(pathname)
   );
 }

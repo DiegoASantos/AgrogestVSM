@@ -72,6 +72,18 @@ al acreedor por nombres, apellidos, DNI o RUC, banco y cuenta o CCI; la
 combinacion exacta no se duplica para ese productor. Los perfiles son
 consultables por ADMIN o AGRONOMO que mantenga acceso horizontal al productor.
 
+Cada perfil tiene `PENDING`, `APPROVED` u `OBSERVED` y origen de captura inicial
+`PRODUCTOR` o `MOBILE`. Un perfil nuevo queda pendiente. `ADMIN` o `ANALISTA`
+revisa los datos completos, aprueba o registra una observación; cada decisión
+conserva revisor, fecha y nota en `revisiones_acreedor_cosecha`. Solo un perfil
+aprobado puede respaldar un nuevo registro de cosecha. El productor puede
+corregir y reenviar un perfil observado o actualizar uno aprobado; vuelve a
+pendiente y no modifica las instantáneas históricas.
+
+`invitaciones_acreedor_productor` conserva el hash del código, productor,
+emisor, expiración y revocación. Solo hay una invitación no revocada por
+productor. El código dura 180 días y la sesión web derivada dura 30 minutos.
+
 Un registro de cosecha referencia a un acreedor y al productor, conserva una
 instantanea inmutable de sus datos bancarios, cantidad entera de jabas, precio
 por jaba en PEN y las fechas de registro y cosecha. Conserva `publicId` UUID,
@@ -81,7 +93,8 @@ instalaciones anteriores terminan de sincronizar.
 
 Mobile mantiene perfiles y registros por `owner_user_id`, con estado de
 sincronizacion, identificadores locales/remotos y cache visible de la sesion.
-No hay edicion ni eliminacion de acreedores en esta etapa.
+Mobile conserva el formulario de acreedores como captura alternativa del
+agrónomo; la edición de perfiles se realiza desde la web pública del productor.
 
 ## Producción agrícola
 
@@ -108,7 +121,7 @@ relaciona:
 - parcela;
 - cultivo, variedad y campaña;
 - agrónomo;
-- etapa y subetapa;
+- una o varias etapas y labores, con subetapa y cobertura de parcela cuando corresponda;
 - fecha, horas, área y observación general;
 - ubicación y firmas.
 
@@ -129,9 +142,18 @@ Entidades hijas:
 - receta agronómica y sus secciones.
 - calificaciones manuales de cumplimiento por módulo.
 
-Toda visita nueva exige una etapa fenológica válida y asociada al cultivo. La
+Toda visita nueva exige al menos una etapa o labor válida y asociada al cultivo. La
 columna permanece nullable para conservar registros históricos; una
 actualización puede omitir la etapa, pero no eliminar una ya seleccionada.
+
+La distribución de una visita vive en `visita_etapas_fenologicas`: cada etapa de
+tipo `Etapa` aparece una sola vez, exige subetapa y un porcentaje entero de la
+parcela entre 1 y 100; sus porcentajes suman 100. Las labores no participan en
+esa suma, pueden estar solas y conservan su avance propio. La etapa principal
+es la de mayor cobertura (ante empate, la primera registrada); si solo hay
+labores, es la primera. Los campos escalares de `visitas_campo` conservan esa
+principal para clientes instalados, puntajes y tableros. El antiguo
+`sub_etapa_porcentaje` describe avance histórico, no cobertura.
 
 Al iniciar una visita nueva, mobile consulta la última visita activa de la
 misma parcela, ordenada por fecha, hora y creación. Cultivo y variedad se usan

@@ -90,6 +90,7 @@ function buildDetail(
       phenologicalStageId: null,
       subEtapaId: null,
       subEtapaPercentage: null,
+      phenologicalStages: [],
       generalObservation: null,
       agronomistSignatureName: null,
       producerSignatureName: null,

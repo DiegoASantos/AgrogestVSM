@@ -34,6 +34,8 @@ last_reviewed: 2026-06-26
 ## Admin web Vercel
 
 - `NEXT_PUBLIC_API_URL` apunta al API correcto.
+- La ruta pública `/productor/acreedores` funciona sobre HTTPS antes de emitir
+  invitaciones; `EXPO_PUBLIC_PRODUCTOR_WEB_URL` apunta a esa ruta del mismo entorno.
 - Login y ruta protegida verificados.
 - Cambios de contrato API coordinados con backend.
 

@@ -26,6 +26,11 @@ export const adminMainNavigation: AdminNavLink[] = [
     label: "Mapas",
     href: adminRoutes.mapas,
     description: "Visualizacion geografica de parcelas y visitas"
+  },
+  {
+    label: "Comercial",
+    href: adminRoutes.comercial,
+    description: "Revisión de acreedores de cosecha"
   }
 ];
 

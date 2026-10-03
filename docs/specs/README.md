@@ -128,4 +128,6 @@ en la raíz.
 - [Spec 082: Datos de pago de cosecha en Comercial](082-datos-pago-cosecha-comercial.md)
 - [Spec 083: Acreedores reutilizables y registro de cosecha](083-acreedores-reutilizables-y-registro-cosecha.md)
 - [Spec 084: Despliegue multientorno en servidor IDL](084-despliegue-multientorno-idl.md)
+- [Spec 085: Captura y aprobación de acreedores por productor](085-captura-aprobacion-acreedores-productor.md)
+- [Spec 086: Múltiples etapas fenológicas por visita](086-multiples-etapas-fenologicas-por-visita.md)
 - [Plantilla](TEMPLATE.md)

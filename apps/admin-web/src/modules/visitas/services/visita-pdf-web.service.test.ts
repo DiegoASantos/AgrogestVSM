@@ -57,6 +57,7 @@ function makeDiagnosticDetail(overrides: Record<string, unknown> = {}) {
       phenologicalStageId: "stage1",
       subEtapaId: null,
       subEtapaPercentage: null,
+      phenologicalStages: [],
       plantsCount: 100,
       areaHectares: "2.5",
       sowingDate: "2025-09-01",

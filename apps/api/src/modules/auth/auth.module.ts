@@ -66,6 +66,6 @@ import { UserRolesController } from "./presentation/user-roles.controller";
       useExisting: RolesGuard
     }
   ],
-  exports: [AuthService, UserRolesService, AccessTokenGuard, RolesGuard]
+  exports: [AuthService, UserRolesService, AccessTokenGuard, RolesGuard, LoginThrottlerGuard, JwtModule, ThrottlerModule]
 })
 export class AuthModule {}

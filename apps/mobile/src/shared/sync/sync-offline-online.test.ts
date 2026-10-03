@@ -396,6 +396,7 @@ function seedOfflineCompleteVisit() {
     phenologicalStageId: "5",
     subEtapaId: "6",
     subEtapaPercentage: 35,
+    phenologicalStages: [{ phenologicalStageId: "5", subEtapaId: "6", coveragePercentage: 100, laborProgressPercentage: null }],
     generalObservation: "Visita offline completa creada desde campo.",
     agronomistSignatureName: null,
     producerSignatureName: null,
@@ -716,5 +717,31 @@ describe("offline/online sync with complete visit data", () => {
     );
     expect(result).toMatchObject({ processed: 1, skipped: 0, errors: 0 });
     expect(pendingOutbox).toHaveLength(0);
+  });
+
+  it("clears the former substage when a labor becomes principal", async () => {
+    apiToken = "token-online";
+    visita = {
+      ...visita,
+      serverId: "server-visita-1",
+      phenologicalStageId: "10",
+      subEtapaId: null,
+      phenologicalStages: [{
+        phenologicalStageId: "10",
+        subEtapaId: null,
+        coveragePercentage: null,
+        laborProgressPercentage: 40
+      }],
+      syncStatus: "pending"
+    };
+    pendingOutbox = [{ ...makeOutboxEntry(8, "visitas_campo", visita.id), operation: "update" }];
+
+    await processOutbox();
+
+    expect(visitaRemoteUpdate).toHaveBeenCalledWith(
+      "server-visita-1",
+      expect.objectContaining({ subEtapaId: null, phenologicalStageId: "10" }),
+      { signal: undefined }
+    );
   });
 });

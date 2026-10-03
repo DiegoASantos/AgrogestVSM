@@ -144,6 +144,7 @@ function buildVisit(overrides: Partial<VisitaCampo> = {}): VisitaCampo {
     phenologicalStageId: "etapa-floracion",
     subEtapaId: "sub-cuajado",
     subEtapaPercentage: 50,
+    phenologicalStages: [{ phenologicalStageId: "etapa-floracion", stageName: "Floracion", subEtapaId: "sub-cuajado", subEtapaName: "Cuajado inicial", coveragePercentage: 100, laborProgressPercentage: null }],
     generalObservation: "Presencia <alta> & revisar",
     agronomistSignatureName: null,
     producerSignatureName: null,

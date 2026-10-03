@@ -46,6 +46,7 @@ import type {
   NewVisitaCampoFormErrors,
   NewVisitaCampoFormValues
 } from "../../types";
+import type { VisitPhenologicalStage } from "../../types/visita-campo.types";
 import type {
   CampaniaCatalogItem,
   CatalogSelectOption,
@@ -78,7 +79,14 @@ import { Time12HourInput } from "../components/time-12-hour-input";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const VISITA_HERO_IMAGE = require("../../../../../assets/images/parcelas.webp");
 
-type ActiveVisitaField = "crop" | "variety" | "phenologicalStage" | "sowingDate";
+type ActiveVisitaField = "crop" | "variety" | "phenologicalStage" | "sowingDate" | "subStage";
+type AdditionalStageRow = {
+  key: string;
+  phenologicalStageId: string;
+  subEtapaId: string;
+  coveragePercentage: string;
+  laborProgressPercentage: string;
+};
 type DefaultLockedFields = {
   plantsCount: boolean;
   areaHectares: boolean;
@@ -86,6 +94,7 @@ type DefaultLockedFields = {
 };
 type VisitDataFormDraft = {
   values: NewVisitaCampoFormValues;
+  additionalStages?: AdditionalStageRow[];
   defaultLockedFields: DefaultLockedFields;
   startVisitTimeInput: string;
   startVisitTimePeriod: TimePeriod;
@@ -160,6 +169,7 @@ export function NewVisitaCampoScreen() {
   const [selectedSubEtapaInfo, setSelectedSubEtapaInfo] =
     useState<SubEtapaCatalogItem | null>(null);
   const [sliderTrackWidth, setSliderTrackWidth] = useState(0);
+  const [additionalStages, setAdditionalStages] = useState<AdditionalStageRow[]>([]);
 
   const [values, setValues] = useState<NewVisitaCampoFormValues>(() => ({
     crop: "",
@@ -175,6 +185,7 @@ export function NewVisitaCampoScreen() {
     phenologicalStage: "",
     subEtapaId: "",
     subEtapaPercentage: "",
+    coveragePercentage: "100",
     generalObservation: ""
   }));
   const [defaultLockedFields, setDefaultLockedFields] = useState<DefaultLockedFields>({
@@ -186,6 +197,7 @@ export function NewVisitaCampoScreen() {
   const [startVisitTimePeriod, setStartVisitTimePeriod] = useState<TimePeriod>("AM");
   const [errors, setErrors] = useState<NewVisitaCampoFormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [stageDistributionError, setStageDistributionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDraftReady, setIsDraftReady] = useState(false);
   const tutorialScrollRef = useRef<ScrollView>(null);
@@ -211,11 +223,12 @@ export function NewVisitaCampoScreen() {
   const draftValue = useMemo<VisitDataFormDraft>(
     () => ({
       values,
+      additionalStages,
       defaultLockedFields,
       startVisitTimeInput,
       startVisitTimePeriod
     }),
-    [defaultLockedFields, startVisitTimeInput, startVisitTimePeriod, values]
+    [additionalStages, defaultLockedFields, startVisitTimeInput, startVisitTimePeriod, values]
   );
   const { clearDraft } = useVisitFormDraft({
     enabled: isDraftReady,
@@ -234,6 +247,7 @@ export function NewVisitaCampoScreen() {
 
     const draft = readVisitFormDraft<VisitDataFormDraft>(draftIdentity);
     if (draft) {
+      setAdditionalStages(draft.additionalStages ?? []);
       setValues((currentValues) =>
         mergeStepOneFormValues(currentValues, draft.values, {
           parcelaId: currentValues.parcelaId,
@@ -347,18 +361,30 @@ export function NewVisitaCampoScreen() {
           sowingDate: visita.sowingDate ?? "",
           visitDate: visita.visitDate,
           startVisitTime: visita.startVisitTime,
-          phenologicalStage: visita.phenologicalStageId ?? "",
-          subEtapaId: visita.subEtapaId ?? "",
+          phenologicalStage: visita.phenologicalStages[0]?.phenologicalStageId ?? visita.phenologicalStageId ?? "",
+          subEtapaId: visita.phenologicalStages[0]?.subEtapaId ?? visita.subEtapaId ?? "",
           subEtapaPercentage:
-            visita.subEtapaPercentage === null || visita.subEtapaPercentage === undefined
+            (visita.phenologicalStages.length
+              ? visita.phenologicalStages[0]?.laborProgressPercentage
+              : visita.subEtapaPercentage) == null
               ? ""
-              : String(visita.subEtapaPercentage),
+              : String(visita.phenologicalStages.length
+                  ? visita.phenologicalStages[0]?.laborProgressPercentage
+                  : visita.subEtapaPercentage),
+          coveragePercentage: String(visita.phenologicalStages[0]?.coveragePercentage ?? 100),
           generalObservation: visita.generalObservation ?? ""
         };
         const draft = draftIdentity
           ? readVisitFormDraft<VisitDataFormDraft>(draftIdentity)
           : null;
         setValues(mergeStepOneFormValues(baseValues, draft?.values));
+        setAdditionalStages(draft?.additionalStages ?? visita.phenologicalStages.slice(1).map((entry) => ({
+          key: `${entry.phenologicalStageId}-${Math.random()}`,
+          phenologicalStageId: entry.phenologicalStageId,
+          subEtapaId: entry.subEtapaId ?? "",
+          coveragePercentage: entry.coveragePercentage === null ? "" : String(entry.coveragePercentage),
+          laborProgressPercentage: entry.laborProgressPercentage === null ? "" : String(entry.laborProgressPercentage)
+        })));
         if (draft) {
           setDefaultLockedFields((current) => ({
             ...current,
@@ -412,11 +438,6 @@ export function NewVisitaCampoScreen() {
     if (!selectedEtapaFenologica) {
       setSubEtapas([]);
       setSubEtapasError(null);
-      setValues((currentValues) => ({
-        ...currentValues,
-        subEtapaId: "",
-        subEtapaPercentage: ""
-      }));
       return;
     }
 
@@ -430,6 +451,7 @@ export function NewVisitaCampoScreen() {
     setValues((currentValues) => ({
       ...currentValues,
       subEtapaId: "",
+      coveragePercentage: "",
       subEtapaPercentage: isPendingLabor(selectedEtapaFenologica)
         ? ""
         : currentValues.subEtapaPercentage || "0"
@@ -474,21 +496,29 @@ export function NewVisitaCampoScreen() {
     ? Number(values.subEtapaPercentage)
     : 0;
   const shouldShowSubEtapas =
-    selectedEtapaFenologica?.type === "Etapa" &&
-    (isLoadingSubEtapas || subEtapas.length > 0 || !!subEtapasError);
+    selectedEtapaFenologica?.type === "Etapa";
   const shouldShowLaborProgress =
     selectedEtapaFenologica?.type === "Labor" && !isPendingLabor(selectedEtapaFenologica);
+  const coverageTotal =
+    (selectedEtapaFenologica?.type === "Etapa" ? Number(values.coveragePercentage) || 0 : 0) +
+    additionalStages.reduce((total, row) =>
+      total + (etapasFenologicas.find((stage) => stage.id === row.phenologicalStageId)?.type === "Etapa"
+        ? Number(row.coveragePercentage) || 0 : 0), 0);
+  const primaryStageId = buildStageEntries(values, additionalStages, etapasFenologicas)
+    .reduce((best, entry) => (entry.coveragePercentage ?? -1) >
+      (best.coveragePercentage ?? -1) ? entry : best).phenologicalStageId;
   const tutorialSteps = useMemo(
     () =>
       buildStepOneTutorialSteps({
         values,
         today,
-        activeCatalog,
+        activeCatalog: activeCatalog === "subStage" ? null : activeCatalog,
         isLoadingCultivos,
         isLoadingVariedades,
         isLoadingEtapasFenologicas,
         isLoadingProgress: shouldShowSubEtapas && isLoadingSubEtapas,
-        showProgress: shouldShowSubEtapas || shouldShowLaborProgress
+        showProgress: shouldShowSubEtapas || shouldShowLaborProgress,
+        requireSubStage: shouldShowSubEtapas
       }),
     [
       activeCatalog,
@@ -801,7 +831,7 @@ export function NewVisitaCampoScreen() {
                 Etapa fenologica
               </AppText>
               <AppText style={styles.sectionSubtitle} variant="caption">
-                Selecciona la etapa actual del cultivo.
+                Registra qué parte de la parcela corresponde a cada etapa.
               </AppText>
             </View>
 
@@ -811,6 +841,9 @@ export function NewVisitaCampoScreen() {
                 tutorialTargets.current.phenologicalStage = node;
               }}
             >
+              {values.phenologicalStage === primaryStageId ? (
+                <AppText variant="caption">Etapa principal según el mayor porcentaje</AppText>
+              ) : null}
               <AppSelectField
                 disabled={!values.crop}
                 emptyMessage="No hay etapas fenologicas disponibles."
@@ -839,23 +872,39 @@ export function NewVisitaCampoScreen() {
                   tutorialTargets.current.subEtapaPercentage = node;
                 }}
               >
-                <ProgressGuide
-                  error={getCatalogError(subEtapasError, errors.subEtapaPercentage)}
+                <AppSelectField
+                  disabled={isLoadingSubEtapas || !subEtapas.length}
+                  emptyMessage="No hay subetapas para esta etapa."
+                  error={getCatalogError(subEtapasError, errors.subEtapaId)}
+                  icon="flower-outline"
                   isLoading={isLoadingSubEtapas}
-                  onImagePress={(subEtapa) => setSelectedSubEtapaInfo(subEtapa)}
-                  onTrackLayout={(event) =>
-                    setSliderTrackWidth(event.nativeEvent.layout.width)
-                  }
-                  onValueChange={handleSubEtapaProgressChange}
-                  onValueCommit={commitSubEtapaProgress}
-                  progress={Number.isFinite(subEtapaProgress) ? subEtapaProgress : 0}
-                  showMarkers
-                  sliderTrackWidth={sliderTrackWidth}
-                  subEtapas={subEtapas}
-                  subtitle="Ajusta el avance observado del cultivo."
-                  title="Sub etapa"
-                  valueText={values.subEtapaPercentage}
+                  isOpen={activeCatalog === "subStage"}
+                  label="Subetapa *"
+                  onSelect={(value) => { updateField("subEtapaId", value); setActiveCatalog(null); }}
+                  onToggle={() => toggleCatalog("subStage")}
+                  options={subEtapas.map((item) => ({ value: item.id, label: item.name }))}
+                  placeholder="Selecciona la subetapa"
+                  selectedLabel={subEtapas.find((item) => item.id === values.subEtapaId)?.name}
                 />
+                {values.subEtapaId ? (
+                  <Pressable accessibilityRole="button" onPress={() =>
+                    setSelectedSubEtapaInfo(subEtapas.find((item) => item.id === values.subEtapaId) ?? null)
+                  }><AppText variant="caption">Ver guía visual de la subetapa</AppText></Pressable>
+                ) : null}
+                <AppText variant="label">Porcentaje de la parcela *</AppText>
+                <View style={styles.percentageInputShell}>
+                  <TextInput
+                    accessibilityLabel="Porcentaje de la parcela de la primera etapa"
+                    keyboardType="number-pad"
+                    maxLength={3}
+                    onChangeText={(value) => updateField("coveragePercentage", value.replace(/\D/g, ""))}
+                    placeholder="100"
+                    style={styles.percentageInput}
+                    value={values.coveragePercentage}
+                  />
+                  <AppText style={styles.percentageSymbol} variant="label">%</AppText>
+                </View>
+                {errors.coveragePercentage ? <AppText style={styles.localErrorText} variant="caption">{errors.coveragePercentage}</AppText> : null}
               </View>
             ) : null}
 
@@ -885,6 +934,36 @@ export function NewVisitaCampoScreen() {
                 />
               </View>
             ) : null}
+            {additionalStages.map((row, index) => (
+              <AdditionalStageEditor
+                key={row.key}
+                row={row}
+                position={index + 2}
+                isPrimary={row.phenologicalStageId === primaryStageId}
+                cropSelected={!!values.crop}
+                stages={etapasFenologicas}
+                disabledStageIds={[values.phenologicalStage, ...additionalStages.filter((other) => other.key !== row.key).map((other) => other.phenologicalStageId)]}
+                onChange={(next) => { setAdditionalStages((current) => current.map((item) => item.key === row.key ? next : item)); setStageDistributionError(null); }}
+                onRemove={() => { setAdditionalStages((current) => current.filter((item) => item.key !== row.key)); setStageDistributionError(null); }}
+              />
+            ))}
+            <Pressable
+              accessibilityRole="button"
+              disabled={!values.crop || additionalStages.length >= 29}
+              onPress={() => setAdditionalStages((current) => [...current, {
+                key: `${Date.now()}-${current.length}`,
+                phenologicalStageId: "", subEtapaId: "", coveragePercentage: "", laborProgressPercentage: ""
+              }])}
+              style={styles.addStageButton}
+            >
+              <Ionicons color={theme.colors.primary} name="add-circle-outline" size={21} />
+              <AppText variant="label">Agregar otra etapa o labor</AppText>
+            </Pressable>
+            {selectedEtapaFenologica?.type === "Etapa" || additionalStages.some((row) =>
+              etapasFenologicas.find((stage) => stage.id === row.phenologicalStageId)?.type === "Etapa") ? (
+              <AppText variant="label">Parcela distribuida: {coverageTotal}% de 100%</AppText>
+            ) : null}
+            {stageDistributionError ? <AppText style={styles.localErrorText} variant="caption">{stageDistributionError}</AppText> : null}
           </View>
 
           <View style={styles.formCard}>
@@ -1140,8 +1219,10 @@ export function NewVisitaCampoScreen() {
         campaign: "",
         phenologicalStage: "",
         subEtapaId: "",
-        subEtapaPercentage: ""
+        subEtapaPercentage: "",
+        coveragePercentage: "100"
       }));
+      setAdditionalStages([]);
     } else if (field === "phenologicalStage") {
       setErrors((currentErrors) => ({
         ...currentErrors,
@@ -1151,7 +1232,8 @@ export function NewVisitaCampoScreen() {
         ...currentValues,
         phenologicalStage: value,
         subEtapaId: "",
-        subEtapaPercentage: ""
+        subEtapaPercentage: "",
+        coveragePercentage: etapasFenologicas.find((item) => item.id === value)?.type === "Etapa" ? "100" : ""
       }));
     } else {
       updateField(field, value);
@@ -1180,17 +1262,13 @@ export function NewVisitaCampoScreen() {
     if (parsedPercentage === null) {
       setValues((currentValues) => ({
         ...currentValues,
-        subEtapaId: "",
         subEtapaPercentage: ""
       }));
       return;
     }
 
-    const closestSubEtapa = findClosestSubEtapa(subEtapas, parsedPercentage);
-
     setValues((currentValues) => ({
       ...currentValues,
-      subEtapaId: closestSubEtapa?.id ?? "",
       subEtapaPercentage: formatPercentageValue(parsedPercentage)
     }));
   }
@@ -1207,28 +1285,28 @@ export function NewVisitaCampoScreen() {
     if (parsedPercentage === null) {
       setValues((currentValues) => ({
         ...currentValues,
-        subEtapaId: "",
         subEtapaPercentage: ""
       }));
       return;
     }
 
     const roundedPercentage = roundPercentageToStep(parsedPercentage);
-    const closestSubEtapa = findClosestSubEtapa(subEtapas, roundedPercentage);
 
     setValues((currentValues) => ({
       ...currentValues,
-      subEtapaId: closestSubEtapa?.id ?? "",
       subEtapaPercentage: formatPercentageValue(roundedPercentage)
     }));
   }
 
   async function handleSubmit() {
     const normalizedValues = normalizeFormValuesForSubmit(values, subEtapas);
-    const nextErrors = validateForm(normalizedValues, today);
+    const nextErrors = validateForm(normalizedValues, today, selectedEtapaFenologica?.type);
+    const stageEntries = buildStageEntries(normalizedValues, additionalStages, etapasFenologicas);
+    const distributionIssue = validateStageDistribution(stageEntries, etapasFenologicas);
 
-    if (Object.keys(nextErrors).length > 0) {
+    if (Object.keys(nextErrors).length > 0 || distributionIssue) {
       setErrors(nextErrors);
+      setStageDistributionError(distributionIssue);
       setSubmitError("Revisa los campos obligatorios antes de continuar.");
       return;
     }
@@ -1244,7 +1322,7 @@ export function NewVisitaCampoScreen() {
 
     try {
       const location = await captureLocationSilently();
-      const draft = buildCreateDraft(normalizedValues, location);
+      const draft = buildCreateDraft(normalizedValues, location, stageEntries);
       const targetVisitaId = existingVisitaId ?? null;
       const savedVisita = targetVisitaId
         ? await visitasCampoService.update(targetVisitaId, draft)
@@ -1371,26 +1449,6 @@ export function NewVisitaCampoScreen() {
         await visitaCampoCatalogsService.getSubEtapasByEtapaFenologica(etapaFenologicaId);
 
       setSubEtapas(nextSubEtapas);
-
-      if (nextSubEtapas.length > 0) {
-        const initialPercentage =
-          values.subEtapaPercentage.trim().length > 0
-            ? (parsePercentageValue(values.subEtapaPercentage) ?? 0)
-            : (nextSubEtapas[0]?.percentage ?? 0);
-        const initialSubEtapa = findClosestSubEtapa(nextSubEtapas, initialPercentage);
-
-        setValues((currentValues) => ({
-          ...currentValues,
-          subEtapaId: initialSubEtapa?.id ?? "",
-          subEtapaPercentage: formatPercentageValue(initialPercentage)
-        }));
-      } else {
-        setValues((currentValues) => ({
-          ...currentValues,
-          subEtapaId: "",
-          subEtapaPercentage: ""
-        }));
-      }
     } catch (error) {
       setSubEtapas([]);
       setSubEtapasError(toApiError(error).message || "No se pudo cargar sub etapas.");
@@ -1456,6 +1514,110 @@ function WizardProgress({ compact, currentStep, steps }: WizardProgressProps) {
           );
         })}
       </View>
+    </View>
+  );
+}
+
+function AdditionalStageEditor({ row, position, isPrimary, cropSelected, stages, disabledStageIds, onChange, onRemove }: {
+  row: AdditionalStageRow;
+  position: number;
+  isPrimary: boolean;
+  cropSelected: boolean;
+  stages: EtapaFenologicaCatalogItem[];
+  disabledStageIds: string[];
+  onChange: (value: AdditionalStageRow) => void;
+  onRemove: () => void;
+}) {
+  const [openField, setOpenField] = useState<"stage" | "subStage" | null>(null);
+  const [subStages, setSubStages] = useState<SubEtapaCatalogItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const selectedStage = stages.find((stage) => stage.id === row.phenologicalStageId);
+
+  useEffect(() => {
+    if (selectedStage?.type !== "Etapa") {
+      setSubStages([]);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    void visitaCampoCatalogsService.getSubEtapasByEtapaFenologica(selectedStage.id)
+      .then((items) => { if (active) setSubStages(items); })
+      .catch(() => { if (active) setSubStages([]); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [selectedStage?.id, selectedStage?.type]);
+
+  return (
+    <View style={styles.additionalStageCard}>
+      <View style={styles.sectionHeader}>
+        <AppText variant="label">Etapa o labor {position}{isPrimary ? " · Principal" : ""}</AppText>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Quitar etapa o labor ${position}`} onPress={onRemove}>
+          <Ionicons color={theme.colors.error} name="trash-outline" size={20} />
+        </Pressable>
+      </View>
+      <AppSelectField
+        disabled={!cropSelected}
+        emptyMessage="No quedan etapas o labores disponibles."
+        icon="flower-outline"
+        isOpen={openField === "stage"}
+        label="Etapa o labor *"
+        onSelect={(value) => {
+          onChange({ ...row, phenologicalStageId: value, subEtapaId: "", coveragePercentage: "", laborProgressPercentage: "" });
+          setOpenField(null);
+        }}
+        onToggle={() => setOpenField((current) => current === "stage" ? null : "stage")}
+        options={stages.filter((stage) => !disabledStageIds.includes(stage.id) || stage.id === row.phenologicalStageId)
+          .map((stage) => ({ value: stage.id, label: stage.name }))}
+        placeholder="Selecciona otra etapa o labor"
+        selectedLabel={selectedStage?.name ?? ""}
+      />
+      {selectedStage?.type === "Etapa" ? (
+        <>
+          <AppSelectField
+            disabled={loading || !subStages.length}
+            emptyMessage="No hay subetapas para esta etapa."
+            icon="flower-outline"
+            isLoading={loading}
+            isOpen={openField === "subStage"}
+            label="Subetapa *"
+            onSelect={(value) => { onChange({ ...row, subEtapaId: value }); setOpenField(null); }}
+            onToggle={() => setOpenField((current) => current === "subStage" ? null : "subStage")}
+            options={subStages.map((item) => ({ value: item.id, label: item.name }))}
+            placeholder="Selecciona la subetapa"
+            selectedLabel={subStages.find((item) => item.id === row.subEtapaId)?.name ?? ""}
+          />
+          <AppText variant="label">Porcentaje de la parcela *</AppText>
+          <View style={styles.percentageInputShell}>
+            <TextInput
+              accessibilityLabel={`Porcentaje de la parcela de la etapa ${position}`}
+              keyboardType="number-pad"
+              maxLength={3}
+              onChangeText={(value) => onChange({ ...row, coveragePercentage: value.replace(/\D/g, "") })}
+              placeholder="0"
+              style={styles.percentageInput}
+              value={row.coveragePercentage}
+            />
+            <AppText style={styles.percentageSymbol} variant="label">%</AppText>
+          </View>
+        </>
+      ) : null}
+      {selectedStage?.type === "Labor" && !isPendingLabor(selectedStage) ? (
+        <>
+          <AppText variant="label">Avance de labor</AppText>
+          <View style={styles.percentageInputShell}>
+            <TextInput
+              accessibilityLabel={`Avance de labor ${position}`}
+              keyboardType="number-pad"
+              maxLength={3}
+              onChangeText={(value) => onChange({ ...row, laborProgressPercentage: value.replace(/\D/g, "") })}
+              placeholder="0"
+              style={styles.percentageInput}
+              value={row.laborProgressPercentage}
+            />
+            <AppText style={styles.percentageSymbol} variant="label">%</AppText>
+          </View>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -2250,7 +2412,8 @@ function normalizeCatalogName(value: string) {
 
 function validateForm(
   values: NewVisitaCampoFormValues,
-  today: string
+  today: string,
+  stageType?: "Etapa" | "Labor"
 ): NewVisitaCampoFormErrors {
   const nextErrors: NewVisitaCampoFormErrors = {};
 
@@ -2315,7 +2478,15 @@ function validateForm(
     nextErrors.startVisitTime = "Hora de inicio debe tener formato HH:mm.";
   }
 
-  if (values.subEtapaPercentage.trim().length > 0) {
+  if (stageType === "Etapa") {
+    if (!values.subEtapaId) nextErrors.subEtapaId = "Selecciona una subetapa.";
+    const coverage = Number(values.coveragePercentage);
+    if (!Number.isInteger(coverage) || coverage < 1 || coverage > 100) {
+      nextErrors.coveragePercentage = "Ingresa un porcentaje de parcela entre 1 y 100.";
+    }
+  }
+
+  if (stageType === "Labor" && values.subEtapaPercentage.trim().length > 0) {
     const subEtapaPercentage = Number(values.subEtapaPercentage);
 
     if (
@@ -2336,6 +2507,7 @@ function normalizeFormValuesForSubmit(
   values: NewVisitaCampoFormValues,
   subEtapas: SubEtapaCatalogItem[]
 ): NewVisitaCampoFormValues {
+  if (subEtapas.length > 0) return values;
   const parsedPercentage = parsePercentageValue(values.subEtapaPercentage);
 
   if (parsedPercentage === null) {
@@ -2343,19 +2515,20 @@ function normalizeFormValuesForSubmit(
   }
 
   const roundedPercentage = roundPercentageToStep(parsedPercentage);
-  const closestSubEtapa = findClosestSubEtapa(subEtapas, roundedPercentage);
-
   return {
     ...values,
-    subEtapaId: closestSubEtapa?.id ?? "",
     subEtapaPercentage: formatPercentageValue(roundedPercentage)
   };
 }
 
 function buildCreateDraft(
   values: NewVisitaCampoFormValues,
-  visitLocation: GeoJsonPointGeometry | null
+  visitLocation: GeoJsonPointGeometry | null,
+  stages: VisitPhenologicalStage[]
 ): CreateVisitaCampoDraft {
+  const primary = stages.reduce((best, item) =>
+    (item.coveragePercentage ?? -1) > (best.coveragePercentage ?? -1) ? item : best
+  );
   return {
     cropId: values.crop,
     varietyId: values.variety,
@@ -2369,32 +2542,72 @@ function buildCreateDraft(
     ...(values.sowingDate.trim() ? { sowingDate: values.sowingDate.trim() } : {}),
     visitDate: values.visitDate.trim(),
     startVisitTime: normalizeTimeForApi(values.startVisitTime),
-    phenologicalStageId: values.phenologicalStage,
-    ...(values.subEtapaId ? { subEtapaId: values.subEtapaId } : {}),
-    ...(values.subEtapaPercentage.trim()
-      ? { subEtapaPercentage: Number(values.subEtapaPercentage.trim()) }
+    phenologicalStageId: primary.phenologicalStageId,
+    ...(primary.subEtapaId ? { subEtapaId: primary.subEtapaId } : {}),
+    ...(primary.laborProgressPercentage !== null
+      ? { subEtapaPercentage: primary.laborProgressPercentage }
       : {}),
+    phenologicalStages: stages,
     ...(values.generalObservation.trim()
       ? { generalObservation: values.generalObservation.trim() }
       : {})
   };
 }
 
-function findClosestSubEtapa(subEtapas: SubEtapaCatalogItem[], percentage: number) {
-  return subEtapas.reduce<SubEtapaCatalogItem | null>((closest, subEtapa) => {
-    if (subEtapa.percentage === null) {
-      return closest;
+function buildStageEntries(
+  values: NewVisitaCampoFormValues,
+  additional: AdditionalStageRow[],
+  catalog: EtapaFenologicaCatalogItem[]
+): VisitPhenologicalStage[] {
+  const rows = [{
+    phenologicalStageId: values.phenologicalStage,
+    subEtapaId: values.subEtapaId,
+    coveragePercentage: values.coveragePercentage,
+    laborProgressPercentage: values.subEtapaPercentage
+  }, ...additional];
+  return rows.map((row) => {
+    const stage = catalog.find((item) => item.id === row.phenologicalStageId);
+    return {
+      phenologicalStageId: row.phenologicalStageId,
+      subEtapaId: stage?.type === "Etapa" ? row.subEtapaId || null : null,
+      coveragePercentage: stage?.type === "Etapa" && row.coveragePercentage.trim()
+        ? Number(row.coveragePercentage) : null,
+      laborProgressPercentage: stage?.type === "Labor" && row.laborProgressPercentage.trim()
+        ? Number(row.laborProgressPercentage) : null
+    };
+  });
+}
+
+function validateStageDistribution(
+  entries: VisitPhenologicalStage[],
+  catalog: EtapaFenologicaCatalogItem[]
+): string | null {
+  if (entries.some((entry) => !entry.phenologicalStageId ||
+      !catalog.some((item) => item.id === entry.phenologicalStageId))) {
+    return "Selecciona una etapa o labor en cada fila agregada.";
+  }
+  if (new Set(entries.map((entry) => entry.phenologicalStageId)).size !== entries.length) {
+    return "Cada etapa o labor puede registrarse una sola vez.";
+  }
+  let total = 0;
+  for (const entry of entries) {
+    const stage = catalog.find((item) => item.id === entry.phenologicalStageId)!;
+    if (stage.type === "Etapa") {
+      if (!entry.subEtapaId) return `Selecciona la subetapa de ${stage.name}.`;
+      if (!Number.isInteger(entry.coveragePercentage) ||
+          entry.coveragePercentage! < 1 || entry.coveragePercentage! > 100) {
+        return `Ingresa un porcentaje de parcela válido para ${stage.name}.`;
+      }
+      total += entry.coveragePercentage!;
+    } else if (!isPendingLabor(stage) &&
+        (entry.laborProgressPercentage === null ||
+         !Number.isFinite(entry.laborProgressPercentage) ||
+         entry.laborProgressPercentage < 0 || entry.laborProgressPercentage > 100)) {
+      return `Ingresa el avance de la labor ${stage.name}.`;
     }
-
-    if (!closest || closest.percentage === null) {
-      return subEtapa;
-    }
-
-    const currentDistance = Math.abs(subEtapa.percentage - percentage);
-    const closestDistance = Math.abs(closest.percentage - percentage);
-
-    return currentDistance < closestDistance ? subEtapa : closest;
-  }, null);
+  }
+  return total > 0 && total !== 100
+    ? `La distribución de la parcela debe sumar 100%; ahora suma ${total}%.` : null;
 }
 
 function parsePercentageValue(value: number | string) {
@@ -2880,6 +3093,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.09,
     shadowRadius: 9,
     elevation: 4
+  },
+  additionalStageCard: {
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#d6e5da",
+    backgroundColor: "#f5faf6"
+  },
+  addStageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderRadius: 12,
+    borderColor: theme.colors.primary
   },
   sectionHeader: {
     gap: 4

@@ -31,13 +31,13 @@ export function saveRegistroCosecha(input: HarvestRecordInput) {
   }>(
     `SELECT productor_id, nombres_acreedor, apellidos_acreedor, tipo_documento_acreedor,
       nro_documento_acreedor, banco, nro_cuenta FROM acreedores_cosecha
-     WHERE local_id = ? AND owner_user_id = ? AND catalog_visible = 1`,
+     WHERE local_id = ? AND owner_user_id = ? AND catalog_visible = 1 AND approval_status = 'APPROVED'`,
     input.creditorId,
     ownerUserId
   );
 
   if (!creditor || creditor.productor_id !== input.productorId) {
-    throw new Error("Acreedor no disponible para el productor seleccionado.");
+    throw new Error("Acreedor no aprobado para el productor seleccionado.");
   }
 
   const localId = generateLocalId();

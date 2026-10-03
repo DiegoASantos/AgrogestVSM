@@ -27,6 +27,7 @@ export type VisitaCampo = {
   phenologicalStageId: string | null;
   subEtapaId: string | null;
   subEtapaPercentage: number | null;
+  phenologicalStages: VisitPhenologicalStage[];
   generalObservation: string | null;
   agronomistSignatureName: string | null;
   producerSignatureName: string | null;
@@ -38,6 +39,15 @@ export type VisitaCampo = {
   createdAt: string;
   updatedAt: string;
   recetaAnteriorJson: string | null;
+};
+
+export type VisitPhenologicalStage = {
+  phenologicalStageId: string;
+  stageName?: string | null;
+  subEtapaId: string | null;
+  subEtapaName?: string | null;
+  coveragePercentage: number | null;
+  laborProgressPercentage: number | null;
 };
 
 export type RecentVisitaCampo = {
@@ -208,8 +218,9 @@ export type CreateVisitaCampoDraft = {
   startVisitTime: string;
   endVisitTime?: string | null;
   phenologicalStageId: string;
-  subEtapaId?: string;
+  subEtapaId?: string | null;
   subEtapaPercentage?: number;
+  phenologicalStages?: VisitPhenologicalStage[];
   generalObservation?: string;
 };
 

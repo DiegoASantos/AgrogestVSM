@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { createSuccessResponse } from "../../../common/http/api-response";
@@ -66,6 +66,7 @@ export class ComercialService {
       : null;
 
     if (idempotent) {
+      if (idempotent.productorId !== dto.productorId) throw new ConflictException("El perfil ya existe en otro productor.");
       await this.productores.findById(idempotent.productorId, user);
       return createSuccessResponse(idempotent);
     }
@@ -116,6 +117,9 @@ export class ComercialService {
     if (!creditor || creditor.productorId !== dto.productorId) {
       throw new NotFoundException("Acreedor no disponible para el productor seleccionado.");
     }
+    if (creditor.approvalStatus !== "APPROVED") {
+      throw new ConflictException("El acreedor debe estar aprobado para registrar la cosecha.");
+    }
 
     const record = this.registros.create({
       publicId: dto.publicId,
@@ -157,7 +161,9 @@ export class ComercialService {
       return await this.acreedores.save(
         this.acreedores.create({
           ...source,
-          createdByUserId
+          createdByUserId,
+          approvalStatus: "PENDING",
+          source: "MOBILE"
         })
       );
     } catch (error) {

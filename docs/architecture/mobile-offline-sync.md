@@ -551,8 +551,14 @@ puede descartarse si una marca pendiente o fallida depende de el. Una fila ya
 confirmada se desactiva en la API por un administrador, no se descarta desde el
 dispositivo.
 
-El detalle de visita muestra primero fecha, etapa, área y avance de etapa; usa
-`subEtapaPercentage` para el avance, incluido `0%`, y `---` cuando falta. Horario,
+El detalle de visita muestra primero fecha, área y todas las etapas o labores.
+Cada etapa muestra subetapa y porcentaje de la parcela; las labores muestran su
+avance cuando corresponde. `subEtapaPercentage` se conserva como avance
+histórico y nunca se interpreta como cobertura. El paso 1 guarda las entradas
+en `visita_etapas_fenologicas` dentro de la misma transacción SQLite que la
+visita y una sola operación de outbox envía la lista completa con el padre.
+El reintento reemplaza esa lista en la API de forma transaccional e idempotente.
+Horario,
 plantas y siembra se conservan en los datos, pero no se muestran en este detalle.
 Después aparecen todos los registros principales, las mezclas recetadas, los
 botones de reportes y los scores. Sanidad destaca el nombre del objetivo y sus
@@ -677,6 +683,16 @@ handler de acreedor espera el `server_id` del productor; el registro espera los
 como `synced` y conserva la instantanea local usada por el registro. Un perfil
 igual creado por otro usuario se reconcilia con el acreedor canonico devuelto
 por API, sin duplicar la fila remota.
+
+SQLite 75 agrega estado de aprobación, origen y observación. Las filas ya
+sincronizadas migran como `APPROVED`; las pendientes o con error continúan
+`PENDING`. Los perfiles nuevos se guardan pendientes en la misma transacción
+que su entrada de outbox. La respuesta de sync y la descarga actualizan el
+estado sin tocar filas aún pendientes. El selector y el guardado local de
+cosecha exigen `APPROVED`; la API repite la validación. Si una revisión posterior
+bloquea un perfil, un registro anterior conserva su instantánea y una operación
+pendiente de cosecha puede quedar en `error` para reintento tras aprobación.
+La emisión del código del productor es solo en línea y no entra en la outbox.
 
 `pagos_cosecha` y su handler permanecen como compatibilidad para operaciones
 creadas con la primera version. No se modifican sus filas ni entradas de outbox;

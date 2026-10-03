@@ -26,6 +26,7 @@ import type {
   SubEtapaCatalogItem,
   VisitaCampo
 } from "../types";
+import type { VisitPhenologicalStage } from "../types/visita-campo.types";
 
 type SyncStatus = "pending" | "synced" | "error";
 
@@ -151,6 +152,7 @@ type UpdateVisitaCampoInput = Partial<{
   phenologicalStageId: string | null;
   subEtapaId: string | null;
   subEtapaPercentage: number | null;
+  phenologicalStages: VisitPhenologicalStage[];
   generalObservation: string | null;
   agronomistSignatureName: string | null;
   producerSignatureName: string | null;
@@ -386,6 +388,7 @@ export const visitasCampoRepository = {
         timestamp,
         timestamp
       );
+      replaceStageEntries(db, localId, input.phenologicalStages ?? legacyStageEntries(db, input));
       insertSyncOutboxEntry(db, {
         entityType: "visitas_campo",
         entityLocalId: localId,
@@ -406,6 +409,21 @@ export const visitasCampoRepository = {
   update(localId: string, data: UpdateVisitaCampoInput) {
     const db = getDatabase();
     const timestamp = getNowIsoString();
+    if (data.phenologicalStages) {
+      const primary = data.phenologicalStages.reduce((best, entry) =>
+        (entry.coveragePercentage ?? -1) > (best.coveragePercentage ?? -1) ? entry : best
+      );
+      const prior = db.getFirstSync<{
+        phenological_stage_id: string | null;
+        sub_etapa_id: string | null;
+        sub_etapa_percentage: string | null;
+      }>("SELECT phenological_stage_id, sub_etapa_id, sub_etapa_percentage FROM visitas_campo WHERE local_id = ?", localId);
+      data.subEtapaPercentage = primary.coveragePercentage === null
+        ? primary.laborProgressPercentage
+        : prior?.phenological_stage_id === primary.phenologicalStageId &&
+          prior?.sub_etapa_id === primary.subEtapaId && prior.sub_etapa_percentage !== null
+          ? Number(prior.sub_etapa_percentage) : null;
+    }
     const sets: string[] = [];
     const params: Array<string | number | null> = [];
 
@@ -545,6 +563,10 @@ export const visitasCampoRepository = {
 
       if (result.changes < 1) {
         throw new Error("No se encontro la visita local para actualizar.");
+      }
+
+      if (data.phenologicalStages !== undefined) {
+        replaceStageEntries(db, localId, data.phenologicalStages);
       }
 
       const isSyncUpdate = data.syncStatus !== undefined || data.serverId !== undefined;
@@ -819,6 +841,7 @@ function mapVisitaCampoRow(row: VisitaCampoRow): VisitaCampo {
     subEtapaId: row.sub_etapa_id,
     subEtapaPercentage:
       row.sub_etapa_percentage === null ? null : Number(row.sub_etapa_percentage),
+    phenologicalStages: readStageEntries(row.local_id),
     generalObservation: row.general_observation,
     agronomistSignatureName: row.agronomist_signature_name,
     producerSignatureName: row.producer_signature_name,
@@ -831,6 +854,71 @@ function mapVisitaCampoRow(row: VisitaCampoRow): VisitaCampo {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+type VisitStageRow = {
+  phenological_stage_id: string;
+  stage_name: string | null;
+  sub_etapa_id: string | null;
+  sub_etapa_name: string | null;
+  coverage_percentage: number | null;
+  labor_progress_percentage: string | null;
+};
+
+function readStageEntries(visitId: string): VisitPhenologicalStage[] {
+  return getDatabase().getAllSync<VisitStageRow>(
+    `SELECT entry.phenological_stage_id, stage.name AS stage_name,
+            entry.sub_etapa_id, sub.name AS sub_etapa_name,
+            entry.coverage_percentage, entry.labor_progress_percentage
+     FROM visita_etapas_fenologicas entry
+     LEFT JOIN etapas_fenologicas stage ON stage.id = entry.phenological_stage_id
+     LEFT JOIN sub_etapas sub ON sub.id = entry.sub_etapa_id
+     WHERE entry.visita_local_id = ? ORDER BY entry.sort_order`, visitId
+  ).map((row) => ({
+    phenologicalStageId: row.phenological_stage_id,
+    stageName: row.stage_name,
+    subEtapaId: row.sub_etapa_id,
+    subEtapaName: row.sub_etapa_name,
+    coveragePercentage: row.coverage_percentage,
+    laborProgressPercentage: row.labor_progress_percentage === null
+      ? null : Number(row.labor_progress_percentage)
+  }));
+}
+
+function legacyStageEntries(
+  db: ReturnType<typeof getDatabase>,
+  input: CreateLocalVisitaCampoInput
+): VisitPhenologicalStage[] {
+  const stage = db.getFirstSync<{ type: "Etapa" | "Labor" }>(
+    "SELECT type FROM etapas_fenologicas WHERE id = ?", input.phenologicalStageId
+  );
+  return [{
+    phenologicalStageId: input.phenologicalStageId,
+    subEtapaId: input.subEtapaId ?? null,
+    coveragePercentage: stage?.type === "Labor" ? null : 100,
+    laborProgressPercentage: stage?.type === "Labor" ? input.subEtapaPercentage ?? null : null
+  }];
+}
+
+function replaceStageEntries(
+  db: ReturnType<typeof getDatabase>,
+  visitId: string,
+  entries: VisitPhenologicalStage[]
+) {
+  db.runSync("DELETE FROM visita_etapas_fenologicas WHERE visita_local_id = ?", visitId);
+  const now = getNowIsoString();
+  entries.forEach((entry, order) => {
+    db.runSync(
+      `INSERT INTO visita_etapas_fenologicas
+        (local_id, visita_local_id, phenological_stage_id, sub_etapa_id,
+         coverage_percentage, labor_progress_percentage, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      generateLocalId(), visitId, entry.phenologicalStageId, entry.subEtapaId,
+      entry.coveragePercentage,
+      entry.laborProgressPercentage === null ? null : String(entry.laborProgressPercentage),
+      order, now, now
+    );
+  });
 }
 
 function mapSubEtapaRow(row: SubEtapaRow): SubEtapaCatalogItem {

@@ -38,7 +38,8 @@ Mobile online ───┘
 - adaptador WeatherLink v2 para observaciones Davis historicas consultadas bajo
   demanda en rangos cerrados de hasta siete dias, con cache efimera y
   credenciales aisladas del navegador y del dispositivo movil;
-- rate limiting de login por IP;
+- rate limiting de login y del intercambio de código de productor por IP y
+  hash de código;
 - Swagger solo en desarrollo.
 
 Los módulos se organizan por dominio con capas de aplicación, persistencia y
@@ -75,6 +76,13 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 - usuarios y roles;
 - mapas Leaflet;
 - edición y validación inicial de geodatos.
+- revisión Comercial de acreedores para `ADMIN` y `ANALISTA`, con decisión
+  auditada; ruta pública `/productor/acreedores` fuera del panel autenticado.
+
+El agrónomo comparte desde mobile un enlace general y un código temporal.
+La web pública canjea el código por una sesión corta limitada al productor;
+puede crear y corregir acreedores, consultar estados y observaciones, pero no
+expone la captura de cosecha. La API verifica el productor en cada operación.
 
 `ANALISTA` comparte con `ADMIN` el CRUD de Mantenimiento, incluidos los
 geodatos y la asignación de agrónomos en parcelas. Seguridad continúa exclusiva

@@ -12,6 +12,7 @@ export type NewVisitaCampoFormValues = {
   phenologicalStage: string;
   subEtapaId: string;
   subEtapaPercentage: string;
+  coveragePercentage: string;
   generalObservation: string;
 };
 
@@ -27,7 +28,9 @@ export type NewVisitaCampoFormErrors = Partial<
     | "visitDate"
     | "startVisitTime"
     | "phenologicalStage"
-    | "subEtapaPercentage",
+    | "subEtapaPercentage"
+    | "coveragePercentage"
+    | "subEtapaId",
     string
   >
 >;
