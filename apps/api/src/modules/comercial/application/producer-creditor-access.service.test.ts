@@ -107,7 +107,7 @@ describe("ProducerCreditorAccessService", () => {
     const { service, invitationManager, scope } = buildService();
     const result = await service.issue("11", actor);
     expect(scope.findById).toHaveBeenCalledWith("11", actor);
-    expect(result.data.code).toMatch(/^[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){3}$/);
+    expect(result.data.code).toMatch(/^\d{4}-\d{4}$/);
     expect(invitationManager.update).toHaveBeenCalled();
     expect(invitationManager.save).toHaveBeenCalledWith(
       expect.any(Function),
@@ -119,6 +119,17 @@ describe("ProducerCreditorAccessService", () => {
     expect(JSON.stringify(invitationManager.save.mock.calls)).not.toContain(
       result.data.code
     );
+  });
+
+  it("accepts new numeric codes and active legacy codes", async () => {
+    const { service, invitations } = buildService();
+    await expect(service.exchange("1234-5678")).resolves.toMatchObject({
+      data: { session: "short-session" }
+    });
+    await expect(service.exchange("ABCD-EFGH-JKLM-NPQR")).resolves.toMatchObject({
+      data: { session: "short-session" }
+    });
+    expect(invitations.findOne).toHaveBeenCalledTimes(2);
   });
 
   it("refuses a revoked code and a session from another producer", async () => {

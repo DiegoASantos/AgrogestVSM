@@ -12,7 +12,7 @@ export class UpdatePublicAcreedorCosechaDto extends OmitType(PublicAcreedorCosec
 
 export class ExchangeProducerCodeDto {
   @IsString()
-  @MinLength(16)
+  @MinLength(8)
   @MaxLength(19)
   code!: string;
 }

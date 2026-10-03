@@ -790,7 +790,7 @@ function VisitDossier({
             </AppText>
           )}
           {visita.subEtapaPercentage !== null &&
-            (!visita.phenologicalStages.length || visita.phenologicalStages.some((entry) => entry.coveragePercentage !== null)) ? (
+            (!visita.phenologicalStages.length || visita.subEtapaId !== null) ? (
             <AppText variant="caption">Avance histórico de subetapa: {visita.subEtapaPercentage}%</AppText>
           ) : null}
         </View>

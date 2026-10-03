@@ -631,6 +631,7 @@ describe("VisitasCampoService", () => {
           case "40": return { id: "40", cultivoId: "10" };
           case "u1": return { id: "u1" };
           case "50": case "51": return { id: where.id, cultivoId: "10", type: "Etapa" };
+          case "52": return { id: "52", cultivoId: "10", type: "Labor" };
           case "60": return { id: "60", etapaFenologicaId: "50" };
           case "61": return { id: "61", etapaFenologicaId: "51" };
           default: return null;
@@ -672,6 +673,34 @@ describe("VisitasCampoService", () => {
         phenologicalStages: [
           { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 60 },
           { phenologicalStageId: "51", subEtapaId: "61", coveragePercentage: 30 }
+        ]
+      })).rejects.toBeInstanceOf(BadRequestException);
+      expect(stageSave).not.toHaveBeenCalled();
+    });
+
+    it("counts labor coverage alongside stage coverage", async () => {
+      const { stageSave } = mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        subEtapaId: "60",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 60 },
+          { phenologicalStageId: "52", coveragePercentage: 40, laborProgressPercentage: 25 }
+        ]
+      });
+      expect(stageSave).toHaveBeenCalledOnce();
+      expect(result.data.phenologicalStages.map((row) => row.coveragePercentage)).toEqual([60, 40]);
+      expect(result.data.phenologicalStages[1].laborProgressPercentage).toBe(25);
+    });
+
+    it("rejects a mixed distribution that exceeds the parcel", async () => {
+      const { stageSave } = mockStageReferences();
+      await expect(service.create({
+        ...validDto,
+        subEtapaId: "60",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 70 },
+          { phenologicalStageId: "52", coveragePercentage: 40, laborProgressPercentage: 25 }
         ]
       })).rejects.toBeInstanceOf(BadRequestException);
       expect(stageSave).not.toHaveBeenCalled();

@@ -418,7 +418,7 @@ export const visitasCampoRepository = {
         sub_etapa_id: string | null;
         sub_etapa_percentage: string | null;
       }>("SELECT phenological_stage_id, sub_etapa_id, sub_etapa_percentage FROM visitas_campo WHERE local_id = ?", localId);
-      data.subEtapaPercentage = primary.coveragePercentage === null
+      data.subEtapaPercentage = primary.laborProgressPercentage !== null
         ? primary.laborProgressPercentage
         : prior?.phenological_stage_id === primary.phenologicalStageId &&
           prior?.sub_etapa_id === primary.subEtapaId && prior.sub_etapa_percentage !== null

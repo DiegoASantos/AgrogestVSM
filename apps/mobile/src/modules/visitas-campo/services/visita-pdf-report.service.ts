@@ -269,7 +269,7 @@ async function buildVisitReportHtml(visitaId: string) {
             ].filter(Boolean).join(" · ")).join("; ")
           : (visita.phenologicalStageId ? findById(etapas, visita.phenologicalStageId)?.name ?? visita.phenologicalStageId : null), true],
         ["Avance historico de sub etapa", visita.subEtapaPercentage === null ||
-          (visita.phenologicalStages.length > 0 && !visita.phenologicalStages.some((entry) => entry.coveragePercentage !== null))
+          (visita.phenologicalStages.length > 0 && visita.subEtapaId === null)
           ? null : `${visita.subEtapaPercentage}%`],
         ["Observacion general", visita.generalObservation, true],
         ["Observacion del paso", stepNotes.get(1)?.observation ?? null, true],

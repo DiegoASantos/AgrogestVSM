@@ -209,8 +209,10 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
     }
 
     try {
+      const producerName = [selectedProductor.firstName, selectedProductor.lastName]
+        .filter(Boolean).join(" ").trim();
       await Share.share({
-        message: `AgroGest: registra o revisa tus datos de pago en ${url}\nCódigo de acceso: ${access.code}\nVálido por 180 días. No compartas este código con otras personas.`
+        message: `Buen día${producerName ? `, ${producerName}` : ""}.\n\nLe comparto el enlace para registrar sus datos para el pago:\n\n${url}\n\nCódigo de acceso: ${access.code}\nVálido por 180 días.\nNo compartas este código con otra persona.`
       });
     } catch {
       Alert.alert(

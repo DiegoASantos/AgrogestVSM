@@ -11,7 +11,7 @@ import {
   type NativeSyntheticEvent,
   PanResponder,
   Pressable,
-  type ScrollView,
+  ScrollView,
   StyleSheet,
   TextInput,
   type LayoutChangeEvent,
@@ -500,10 +500,8 @@ export function NewVisitaCampoScreen() {
   const shouldShowLaborProgress =
     selectedEtapaFenologica?.type === "Labor" && !isPendingLabor(selectedEtapaFenologica);
   const coverageTotal =
-    (selectedEtapaFenologica?.type === "Etapa" ? Number(values.coveragePercentage) || 0 : 0) +
-    additionalStages.reduce((total, row) =>
-      total + (etapasFenologicas.find((stage) => stage.id === row.phenologicalStageId)?.type === "Etapa"
-        ? Number(row.coveragePercentage) || 0 : 0), 0);
+    (Number(values.coveragePercentage) || 0) +
+    additionalStages.reduce((total, row) => total + (Number(row.coveragePercentage) || 0), 0);
   const primaryStageId = buildStageEntries(values, additionalStages, etapasFenologicas)
     .reduce((best, entry) => (entry.coveragePercentage ?? -1) >
       (best.coveragePercentage ?? -1) ? entry : best).phenologicalStageId;
@@ -831,7 +829,7 @@ export function NewVisitaCampoScreen() {
                 Etapa fenologica
               </AppText>
               <AppText style={styles.sectionSubtitle} variant="caption">
-                Registra qué parte de la parcela corresponde a cada etapa.
+                Registra qué parte de la parcela corresponde a cada etapa o labor.
               </AppText>
             </View>
 
@@ -886,15 +884,20 @@ export function NewVisitaCampoScreen() {
                   placeholder="Selecciona la subetapa"
                   selectedLabel={subEtapas.find((item) => item.id === values.subEtapaId)?.name}
                 />
-                {values.subEtapaId ? (
-                  <Pressable accessibilityRole="button" onPress={() =>
-                    setSelectedSubEtapaInfo(subEtapas.find((item) => item.id === values.subEtapaId) ?? null)
-                  }><AppText variant="caption">Ver guía visual de la subetapa</AppText></Pressable>
-                ) : null}
+                <SubEtapaReferenceGallery
+                  items={subEtapas}
+                  selectedId={values.subEtapaId}
+                  onSelect={(item) => { updateField("subEtapaId", item.id); setSelectedSubEtapaInfo(item); }}
+                />
+              </View>
+            ) : null}
+
+            {selectedEtapaFenologica ? (
+              <View>
                 <AppText variant="label">Porcentaje de la parcela *</AppText>
                 <View style={styles.percentageInputShell}>
                   <TextInput
-                    accessibilityLabel="Porcentaje de la parcela de la primera etapa"
+                    accessibilityLabel="Porcentaje de la parcela de la primera etapa o labor"
                     keyboardType="number-pad"
                     maxLength={3}
                     onChangeText={(value) => updateField("coveragePercentage", value.replace(/\D/g, ""))}
@@ -945,6 +948,7 @@ export function NewVisitaCampoScreen() {
                 disabledStageIds={[values.phenologicalStage, ...additionalStages.filter((other) => other.key !== row.key).map((other) => other.phenologicalStageId)]}
                 onChange={(next) => { setAdditionalStages((current) => current.map((item) => item.key === row.key ? next : item)); setStageDistributionError(null); }}
                 onRemove={() => { setAdditionalStages((current) => current.filter((item) => item.key !== row.key)); setStageDistributionError(null); }}
+                onImagePress={setSelectedSubEtapaInfo}
               />
             ))}
             <Pressable
@@ -959,8 +963,7 @@ export function NewVisitaCampoScreen() {
               <Ionicons color={theme.colors.primary} name="add-circle-outline" size={21} />
               <AppText variant="label">Agregar otra etapa o labor</AppText>
             </Pressable>
-            {selectedEtapaFenologica?.type === "Etapa" || additionalStages.some((row) =>
-              etapasFenologicas.find((stage) => stage.id === row.phenologicalStageId)?.type === "Etapa") ? (
+            {selectedEtapaFenologica || additionalStages.some((row) => row.phenologicalStageId) ? (
               <AppText variant="label">Parcela distribuida: {coverageTotal}% de 100%</AppText>
             ) : null}
             {stageDistributionError ? <AppText style={styles.localErrorText} variant="caption">{stageDistributionError}</AppText> : null}
@@ -1233,7 +1236,7 @@ export function NewVisitaCampoScreen() {
         phenologicalStage: value,
         subEtapaId: "",
         subEtapaPercentage: "",
-        coveragePercentage: etapasFenologicas.find((item) => item.id === value)?.type === "Etapa" ? "100" : ""
+        coveragePercentage: "100"
       }));
     } else {
       updateField(field, value);
@@ -1518,7 +1521,7 @@ function WizardProgress({ compact, currentStep, steps }: WizardProgressProps) {
   );
 }
 
-function AdditionalStageEditor({ row, position, isPrimary, cropSelected, stages, disabledStageIds, onChange, onRemove }: {
+function AdditionalStageEditor({ row, position, isPrimary, cropSelected, stages, disabledStageIds, onChange, onRemove, onImagePress }: {
   row: AdditionalStageRow;
   position: number;
   isPrimary: boolean;
@@ -1527,6 +1530,7 @@ function AdditionalStageEditor({ row, position, isPrimary, cropSelected, stages,
   disabledStageIds: string[];
   onChange: (value: AdditionalStageRow) => void;
   onRemove: () => void;
+  onImagePress: (item: SubEtapaCatalogItem) => void;
 }) {
   const [openField, setOpenField] = useState<"stage" | "subStage" | null>(null);
   const [subStages, setSubStages] = useState<SubEtapaCatalogItem[]>([]);
@@ -1551,8 +1555,14 @@ function AdditionalStageEditor({ row, position, isPrimary, cropSelected, stages,
     <View style={styles.additionalStageCard}>
       <View style={styles.sectionHeader}>
         <AppText variant="label">Etapa o labor {position}{isPrimary ? " · Principal" : ""}</AppText>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Quitar etapa o labor ${position}`} onPress={onRemove}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Quitar etapa o labor ${position}`}
+          onPress={onRemove}
+          style={styles.removeStageButton}
+        >
           <Ionicons color={theme.colors.error} name="trash-outline" size={20} />
+          <AppText style={styles.removeStageButtonText} variant="label">Quitar</AppText>
         </Pressable>
       </View>
       <AppSelectField
@@ -1586,10 +1596,19 @@ function AdditionalStageEditor({ row, position, isPrimary, cropSelected, stages,
             placeholder="Selecciona la subetapa"
             selectedLabel={subStages.find((item) => item.id === row.subEtapaId)?.name ?? ""}
           />
+          <SubEtapaReferenceGallery
+            items={subStages}
+            selectedId={row.subEtapaId}
+            onSelect={(item) => { onChange({ ...row, subEtapaId: item.id }); onImagePress(item); }}
+          />
+        </>
+      ) : null}
+      {selectedStage ? (
+        <View>
           <AppText variant="label">Porcentaje de la parcela *</AppText>
           <View style={styles.percentageInputShell}>
             <TextInput
-              accessibilityLabel={`Porcentaje de la parcela de la etapa ${position}`}
+              accessibilityLabel={`Porcentaje de la parcela de la etapa o labor ${position}`}
               keyboardType="number-pad"
               maxLength={3}
               onChangeText={(value) => onChange({ ...row, coveragePercentage: value.replace(/\D/g, "") })}
@@ -1599,7 +1618,7 @@ function AdditionalStageEditor({ row, position, isPrimary, cropSelected, stages,
             />
             <AppText style={styles.percentageSymbol} variant="label">%</AppText>
           </View>
-        </>
+        </View>
       ) : null}
       {selectedStage?.type === "Labor" && !isPendingLabor(selectedStage) ? (
         <>
@@ -1618,6 +1637,33 @@ function AdditionalStageEditor({ row, position, isPrimary, cropSelected, stages,
           </View>
         </>
       ) : null}
+    </View>
+  );
+}
+
+function SubEtapaReferenceGallery({ items, selectedId, onSelect }: {
+  items: SubEtapaCatalogItem[];
+  selectedId: string;
+  onSelect: (item: SubEtapaCatalogItem) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <View style={styles.subEtapaGallery}>
+      <AppText variant="label">Imágenes de referencia de subetapas</AppText>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {items.map((item) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Ver imagen de ${item.name}`}
+            key={item.id}
+            onPress={() => onSelect(item)}
+            style={[styles.subEtapaGalleryItem, item.id === selectedId && styles.subEtapaGalleryItemSelected]}
+          >
+            <Image source={getSubEtapaImageSource(item.name)} style={styles.subEtapaGalleryImage} />
+            <AppText numberOfLines={2} style={styles.subEtapaGalleryLabel} variant="caption">{item.name}</AppText>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -2478,8 +2524,8 @@ function validateForm(
     nextErrors.startVisitTime = "Hora de inicio debe tener formato HH:mm.";
   }
 
-  if (stageType === "Etapa") {
-    if (!values.subEtapaId) nextErrors.subEtapaId = "Selecciona una subetapa.";
+  if (stageType === "Etapa" || stageType === "Labor") {
+    if (stageType === "Etapa" && !values.subEtapaId) nextErrors.subEtapaId = "Selecciona una subetapa.";
     const coverage = Number(values.coveragePercentage);
     if (!Number.isInteger(coverage) || coverage < 1 || coverage > 100) {
       nextErrors.coveragePercentage = "Ingresa un porcentaje de parcela entre 1 y 100.";
@@ -2570,7 +2616,7 @@ function buildStageEntries(
     return {
       phenologicalStageId: row.phenologicalStageId,
       subEtapaId: stage?.type === "Etapa" ? row.subEtapaId || null : null,
-      coveragePercentage: stage?.type === "Etapa" && row.coveragePercentage.trim()
+      coveragePercentage: row.coveragePercentage.trim()
         ? Number(row.coveragePercentage) : null,
       laborProgressPercentage: stage?.type === "Labor" && row.laborProgressPercentage.trim()
         ? Number(row.laborProgressPercentage) : null
@@ -2592,21 +2638,22 @@ function validateStageDistribution(
   let total = 0;
   for (const entry of entries) {
     const stage = catalog.find((item) => item.id === entry.phenologicalStageId)!;
-    if (stage.type === "Etapa") {
-      if (!entry.subEtapaId) return `Selecciona la subetapa de ${stage.name}.`;
-      if (!Number.isInteger(entry.coveragePercentage) ||
-          entry.coveragePercentage! < 1 || entry.coveragePercentage! > 100) {
-        return `Ingresa un porcentaje de parcela válido para ${stage.name}.`;
-      }
-      total += entry.coveragePercentage!;
-    } else if (!isPendingLabor(stage) &&
+    if (stage.type === "Etapa" && !entry.subEtapaId) {
+      return `Selecciona la subetapa de ${stage.name}.`;
+    }
+    if (!Number.isInteger(entry.coveragePercentage) ||
+        entry.coveragePercentage! < 1 || entry.coveragePercentage! > 100) {
+      return `Ingresa un porcentaje de parcela válido para ${stage.name}.`;
+    }
+    total += entry.coveragePercentage!;
+    if (stage.type === "Labor" && !isPendingLabor(stage) &&
         (entry.laborProgressPercentage === null ||
          !Number.isFinite(entry.laborProgressPercentage) ||
          entry.laborProgressPercentage < 0 || entry.laborProgressPercentage > 100)) {
       return `Ingresa el avance de la labor ${stage.name}.`;
     }
   }
-  return total > 0 && total !== 100
+  return total !== 100
     ? `La distribución de la parcela debe sumar 100%; ahora suma ${total}%.` : null;
 }
 
@@ -3101,6 +3148,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d6e5da",
     backgroundColor: "#f5faf6"
+  },
+  removeStageButton: {
+    minHeight: 44,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.error,
+    backgroundColor: "#fff0ef"
+  },
+  removeStageButtonText: {
+    color: theme.colors.error
+  },
+  subEtapaGallery: {
+    gap: 8,
+    marginVertical: 10
+  },
+  subEtapaGalleryItem: {
+    width: 108,
+    minHeight: 128,
+    alignItems: "center",
+    gap: 6,
+    marginRight: 9,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: "#d6e5da",
+    borderRadius: 12,
+    backgroundColor: "#ffffff"
+  },
+  subEtapaGalleryItemSelected: {
+    borderWidth: 2,
+    borderColor: theme.colors.primary
+  },
+  subEtapaGalleryImage: {
+    width: 94,
+    height: 88,
+    borderRadius: 8,
+    resizeMode: "contain"
+  },
+  subEtapaGalleryLabel: {
+    textAlign: "center"
   },
   addStageButton: {
     flexDirection: "row",

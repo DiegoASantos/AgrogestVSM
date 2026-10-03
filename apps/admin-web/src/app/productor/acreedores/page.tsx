@@ -173,7 +173,7 @@ export default function ProducerCreditorsPage() {
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}
-              placeholder="XXXX-XXXX-XXXX-XXXX"
+              placeholder="1234-5678"
               value={code}
               onChange={(event) => setCode(event.target.value.toUpperCase())}
               required

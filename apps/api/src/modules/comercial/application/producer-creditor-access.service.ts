@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 import {
   BadRequestException,
   ConflictException,
@@ -23,7 +23,6 @@ import type {
   UpdatePublicAcreedorCosechaDto
 } from "../presentation/dto/public-acreedor-cosecha.dto";
 
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const INVALID_ACCESS =
   "El código o la sesión no son válidos. Solicita un nuevo acceso al agrónomo.";
 type ProducerSession = {
@@ -51,19 +50,8 @@ export class ProducerCreditorAccessService {
 
   async issue(productorId: string, user: AccessTokenPayload) {
     await this.productores.findById(productorId, user);
-    const raw = randomBytes(10);
-    let bits = 0;
-    let buffer = 0;
-    let code = "";
-    for (const byte of raw) {
-      buffer = (buffer << 8) | byte;
-      bits += 8;
-      while (bits >= 5) {
-        bits -= 5;
-        code += CODE_ALPHABET[(buffer >>> bits) & 31];
-      }
-    }
-    const formattedCode = code.match(/.{1,4}/g)!.join("-");
+    const code = randomInt(0, 100_000_000).toString().padStart(8, "0");
+    const formattedCode = `${code.slice(0, 4)}-${code.slice(4)}`;
     const expiresAt = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
     await this.invitations.manager.transaction(async (manager) => {
       await manager.findOne(ProductorEntity, {
@@ -87,7 +75,7 @@ export class ProducerCreditorAccessService {
 
   async exchange(code: string) {
     const normalized = normalizeCode(code);
-    if (!/^[A-HJ-NP-Z2-9]{16}$/.test(normalized))
+    if (!/^(?:\d{8}|[A-HJ-NP-Z2-9]{16})$/.test(normalized))
       throw new UnauthorizedException(INVALID_ACCESS);
     const invitation = await this.invitations.findOne({
       where: { codeHash: hashCode(normalized) }

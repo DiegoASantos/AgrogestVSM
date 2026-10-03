@@ -143,7 +143,7 @@ function buildDiagnosticHtml(detail: VisitaDetailData) {
         ["Distribucion fenologica", formatStageDistribution(visita) ??
           detail.lookups.phenologicalStage?.name ?? visita.phenologicalStageId, true],
         ["Avance historico de sub etapa", visita.subEtapaPercentage === null ||
-          (visita.phenologicalStages?.length && !visita.phenologicalStages.some((entry) => entry.coveragePercentage !== null))
+          (visita.phenologicalStages?.length && visita.subEtapaId === null)
           ? null : `${visita.subEtapaPercentage}%`],
         ["Observacion general", visita.generalObservation, true],
         ["Observacion del paso", stepNotes.get(1)?.observation ?? null, true],
@@ -714,7 +714,7 @@ function renderDatosVisitaReceta(
           ${renderFieldRow("Distribucion fenologica", formatStageDistribution(detail.visita) ?? etapaNombre ?? receta.etapaFenologica ?? "-")}
           ${
             detail.visita.subEtapaPercentage !== null &&
-            (!detail.visita.phenologicalStages?.length || detail.visita.phenologicalStages.some((entry) => entry.coveragePercentage !== null))
+            (!detail.visita.phenologicalStages?.length || detail.visita.subEtapaId !== null)
               ? renderFieldRow("Avance historico de sub etapa", `${detail.visita.subEtapaPercentage}%`)
               : ""
           }

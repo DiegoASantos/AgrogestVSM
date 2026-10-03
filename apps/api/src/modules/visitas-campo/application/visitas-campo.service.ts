@@ -473,7 +473,7 @@ export class VisitasCampoService {
           index === 0 ? toWorksheetText(buildStageExcelLabel(visita)) : "",
           index === 0
             ? visita.subEtapaPercentage === null ||
-                (visita.phenologicalStages?.length > 0 && !visita.phenologicalStages.some((entry) => entry.coveragePercentage !== null))
+                (visita.phenologicalStages?.length > 0 && visita.subEtapaId === null)
               ? "---"
               : Number(visita.subEtapaPercentage) / 100
             : "",
@@ -967,12 +967,16 @@ export class VisitasCampoService {
         item.laborProgressPercentage = null;
         totalCoverage += item.coveragePercentage ?? 0;
       } else {
-        if (item.subEtapaId || item.coveragePercentage !== null ||
+        if (item.subEtapaId ||
+            (item.coveragePercentage !== null &&
+             (!Number.isInteger(item.coveragePercentage) ||
+              item.coveragePercentage < 1 || item.coveragePercentage > 100)) ||
             (item.laborProgressPercentage !== null &&
              (!Number.isFinite(item.laborProgressPercentage) ||
               item.laborProgressPercentage < 0 || item.laborProgressPercentage > 100))) {
-          throw new BadRequestException("Una labor no lleva subetapa ni cobertura de parcela.");
+          throw new BadRequestException("Una labor requiere porcentajes válidos y no lleva subetapa.");
         }
+        totalCoverage += item.coveragePercentage ?? 0;
       }
     }
     if (entries && totalCoverage > 0 && totalCoverage !== 100) {

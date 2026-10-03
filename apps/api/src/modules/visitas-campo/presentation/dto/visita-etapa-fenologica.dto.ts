@@ -13,7 +13,7 @@ export class VisitaEtapaFenologicaDto {
   @Matches(/^[1-9]\d*$/)
   subEtapaId?: string | null;
 
-  @ApiPropertyOptional({ example: 60, description: "Porcentaje entero de la parcela para una Etapa." })
+  @ApiPropertyOptional({ example: 60, description: "Porcentaje entero de la parcela para una etapa o labor." })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
