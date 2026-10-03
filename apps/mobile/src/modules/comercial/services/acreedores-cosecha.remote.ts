@@ -25,7 +25,10 @@ export function createAcreedorCosecha(
 
 export function issueProducerCreditorAccess(productorId: string) {
   return apiRequest<{ code: string; expiresAt: string }>(
-    `/comercial/productores/${productorId}/acceso-acreedores`, { method: "POST" }
+    `/comercial/productores/${productorId}/acceso-acreedores`, {
+      method: "POST",
+      networkPolicy: "interactive"
+    }
   );
 }
 

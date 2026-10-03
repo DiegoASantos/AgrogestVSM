@@ -17,6 +17,7 @@ describe("connectivity request policy", () => {
     });
 
     expect(isNetworkRequestAllowed("standard")).toBe(false);
+    expect(isNetworkRequestAllowed("interactive")).toBe(false);
     expect(isNetworkRequestAllowed("essential")).toBe(true);
     expect(isNetworkRequestAllowed("probe")).toBe(false);
   });
@@ -29,6 +30,7 @@ describe("connectivity request policy", () => {
     });
 
     expect(isNetworkRequestAllowed("standard")).toBe(false);
+    expect(isNetworkRequestAllowed("interactive")).toBe(true);
     expect(isNetworkRequestAllowed("probe")).toBe(true);
   });
 
@@ -40,6 +42,7 @@ describe("connectivity request policy", () => {
     });
 
     expect(isNetworkRequestAllowed("standard")).toBe(false);
+    expect(isNetworkRequestAllowed("interactive")).toBe(false);
     expect(isNetworkRequestAllowed("essential")).toBe(true);
     expect(isNetworkRequestAllowed("probe")).toBe(false);
   });

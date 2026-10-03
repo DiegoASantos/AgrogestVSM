@@ -20,6 +20,7 @@ import { theme } from "../../../../shared/constants/theme";
 import { productoresService } from "../../../productores/services/productores.service";
 import type { Productor } from "../../../productores/types";
 import { tiposDocumentoRepository } from "../../../tipos-documento/repositories/tipos-documento.repository";
+import { ApiError, ApiOfflineModeError, ApiTimeoutError } from "../../../../shared/services";
 import {
   getAcreedoresCosechaLocales,
   refreshAcreedoresCosecha,
@@ -178,13 +179,44 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
       return;
     }
 
+    let access: { code: string; expiresAt: string };
     try {
-      const access = await issueProducerCreditorAccess(selectedProductor.serverId);
+      access = await issueProducerCreditorAccess(selectedProductor.serverId);
+    } catch (requestError) {
+      if (requestError instanceof ApiOfflineModeError) {
+        Alert.alert(
+          "Modo sin conexión",
+          "Cambia la conexión de la app a Automático para solicitar un código."
+        );
+      } else if (requestError instanceof ApiTimeoutError) {
+        Alert.alert(
+          "El servidor no responde",
+          "La solicitud tardó demasiado. Comprueba el acceso al servidor de AgroGest e inténtalo de nuevo."
+        );
+      } else if (requestError instanceof ApiError) {
+        const status = requestError.statusCode ? ` (HTTP ${requestError.statusCode})` : "";
+        Alert.alert(
+          "No se pudo generar el código",
+          `${requestError.message}${status}`
+        );
+      } else {
+        Alert.alert(
+          "No se pudo conectar con AgroGest",
+          "Comprueba que el teléfono pueda acceder al servidor de AgroGest e inténtalo de nuevo."
+        );
+      }
+      return;
+    }
+
+    try {
       await Share.share({
         message: `AgroGest: registra o revisa tus datos de pago en ${url}\nCódigo de acceso: ${access.code}\nVálido por 180 días. No compartas este código con otras personas.`
       });
     } catch {
-      Alert.alert("Sin conexión", "Conéctate a internet para generar un nuevo código de acceso.");
+      Alert.alert(
+        "No se pudo abrir compartir",
+        "El código ya se generó. Vuelve a intentarlo para compartirlo."
+      );
     }
   }
 
