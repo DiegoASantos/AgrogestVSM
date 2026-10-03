@@ -34,6 +34,7 @@ import {
   type CreditorAutofill,
   type CreditorPendingField
 } from "./creditor-autofill";
+import { isProducerWebUrlAllowed } from "./producer-web-url";
 
 const DOCUMENTOS: AppSelectOption[] = [
   { value: "DNI", label: "DNI" },
@@ -169,11 +170,10 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
 
   async function compartirAcceso() {
     const url = process.env.EXPO_PUBLIC_PRODUCTOR_WEB_URL?.trim();
-    const secureUrl = url?.startsWith("https://") || (__DEV__ && url?.startsWith("http://"));
-    if (!selectedProductor?.serverId || !secureUrl) {
+    if (!selectedProductor?.serverId || !isProducerWebUrlAllowed(url)) {
       Alert.alert(
         "Acceso no disponible",
-        "Selecciona un productor sincronizado y configura la web pública HTTPS."
+        "Selecciona un productor sincronizado y configura la web pública."
       );
       return;
     }
