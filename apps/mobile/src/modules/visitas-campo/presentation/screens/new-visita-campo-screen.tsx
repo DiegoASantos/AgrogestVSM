@@ -3,18 +3,14 @@ import { StatusBar } from "expo-status-bar";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Image,
   ImageBackground,
   Keyboard,
-  Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  PanResponder,
   Pressable,
   type ScrollView,
   StyleSheet,
   TextInput,
-  type LayoutChangeEvent,
   useWindowDimensions,
   View
 } from "react-native";
@@ -55,8 +51,10 @@ import type {
   SubEtapaCatalogItem,
   VariedadCatalogItem
 } from "../../types";
-import { getSubEtapaImageSource } from "../../utils/sub-etapa-images";
-import { validateStageDistribution } from "../../domain/stage-distribution";
+import {
+  resolveSubEtapaIdForCoverage,
+  validateStageDistribution
+} from "../../domain/stage-distribution";
 import {
   formatEditable12HourInput,
   isComplete12HourInput,
@@ -168,8 +166,6 @@ export function NewVisitaCampoScreen() {
   const subEtapasRequestRef = useRef(0);
   const [isLoadingSubEtapas, setIsLoadingSubEtapas] = useState(false);
   const [subEtapasError, setSubEtapasError] = useState<string | null>(null);
-  const [selectedSubEtapaInfo, setSelectedSubEtapaInfo] =
-    useState<SubEtapaCatalogItem | null>(null);
   const [additionalStages, setAdditionalStages] = useState<AdditionalStageRow[]>([]);
 
   const [values, setValues] = useState<NewVisitaCampoFormValues>(() => ({
@@ -497,10 +493,6 @@ export function NewVisitaCampoScreen() {
     : [];
   const coverageTotal = selectedStageRows.reduce((total, row) =>
     total + (Number(row.coveragePercentage) || 0), 0);
-  const primaryStageId = selectedStageRows.reduce((best, row) =>
-    Number(row.coveragePercentage) > Number(best.coveragePercentage) ? row : best,
-    selectedStageRows[0]
-  )?.phenologicalStageId;
   const tutorialSteps = useMemo(
     () =>
       buildStepOneTutorialSteps({
@@ -832,7 +824,7 @@ export function NewVisitaCampoScreen() {
                 Estado de la parcela
               </AppText>
               <AppText style={styles.sectionSubtitle} variant="caption">
-                Marca las opciones presentes y distribuye el 100% de la parcela.
+                Marca las opciones y escribe que porcentaje ocupa cada una. El total debe ser 100%.
               </AppText>
             </View>
 
@@ -852,37 +844,41 @@ export function NewVisitaCampoScreen() {
                 const isFirst = row?.phenologicalStageId === values.phenologicalStage;
                 return (
                   <View key={stage.id} style={styles.stageOption}>
-                    <Pressable
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: !!row, disabled: !row && selectedStageRows.length >= 30 }}
-                      disabled={!row && selectedStageRows.length >= 30}
-                      onPress={() => toggleStageSelection(stage)}
-                      style={styles.stageOptionToggle}
-                    >
-                      <Ionicons
-                        color={row ? theme.colors.primary : theme.colors.textMuted}
-                        name={row ? "checkbox" : "square-outline"}
-                        size={24}
-                      />
-                      <AppText style={styles.stageOptionName} variant="label">{stage.name}</AppText>
-                      {stage.id === primaryStageId ? <AppText variant="caption">Principal</AppText> : null}
-                    </Pressable>
-                    {row ? (
-                      <View
-                        collapsable={false}
-                        ref={isFirst ? (node) => { tutorialTargets.current.subEtapaPercentage = node; } : undefined}
+                    <View style={styles.stageOptionToggle}>
+                      <Pressable
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: !!row, disabled: !row && selectedStageRows.length >= 30 }}
+                        disabled={!row && selectedStageRows.length >= 30}
+                        onPress={() => toggleStageSelection(stage)}
+                        style={styles.stageOptionSelector}
                       >
-                        <SelectedStageEditor
-                          stage={stage}
-                          row={row}
-                          subStages={isFirst ? subEtapas : undefined}
-                          isLoading={isFirst ? isLoadingSubEtapas : undefined}
-                          loadError={isFirst ? subEtapasError : undefined}
-                          onChange={updateSelectedStageRow}
-                          onImagePress={setSelectedSubEtapaInfo}
-                          error={isFirst ? errors.coveragePercentage ?? errors.subEtapaId ?? null : null}
+                        <Ionicons
+                          color={row ? theme.colors.primary : theme.colors.textMuted}
+                          name={row ? "checkbox" : "square-outline"}
+                          size={24}
                         />
-                      </View>
+                        <AppText style={styles.stageOptionName} variant="label">{stage.name}</AppText>
+                      </Pressable>
+                      {row ? (
+                        <View
+                          collapsable={false}
+                          ref={isFirst ? (node) => { tutorialTargets.current.subEtapaPercentage = node; } : undefined}
+                        >
+                          <SelectedStageEditor
+                            stage={stage}
+                            row={row}
+                            subStages={isFirst ? subEtapas : undefined}
+                            isLoading={isFirst ? isLoadingSubEtapas : undefined}
+                            loadError={isFirst ? subEtapasError : undefined}
+                            onChange={updateSelectedStageRow}
+                          />
+                        </View>
+                      ) : null}
+                    </View>
+                    {row && stage.type === "Labor" && row.laborProgressPercentage ? (
+                      <AppText style={styles.laborProgressHint} variant="caption">
+                        Avance de labor registrado anteriormente: {row.laborProgressPercentage}%
+                      </AppText>
                     ) : null}
                   </View>
                 );
@@ -893,6 +889,9 @@ export function NewVisitaCampoScreen() {
             ) : null}
             {selectedStageRows.length >= 30 ? (
               <AppText variant="caption">Máximo 30 opciones por visita.</AppText>
+            ) : null}
+            {errors.coveragePercentage ? (
+              <AppText style={styles.localErrorText} variant="caption">{errors.coveragePercentage}</AppText>
             ) : null}
             {stageDistributionError ? <AppText style={styles.localErrorText} variant="caption">{stageDistributionError}</AppText> : null}
           </View>
@@ -974,11 +973,6 @@ export function NewVisitaCampoScreen() {
           </View>
         </View>
       </FormScrollView>
-
-      <SubEtapaInfoModal
-        onClose={() => setSelectedSubEtapaInfo(null)}
-        subEtapa={selectedSubEtapaInfo}
-      />
 
       {currentTutorialStep ? (
         <GuidedFormTutorial
@@ -1235,7 +1229,7 @@ export function NewVisitaCampoScreen() {
   }
   async function handleSubmit() {
     const normalizedValues = values;
-    const nextErrors = validateForm(normalizedValues, today, selectedEtapaFenologica?.type);
+    const nextErrors = validateForm(normalizedValues, today);
     const stageEntries = buildStageEntries(normalizedValues, additionalStages, etapasFenologicas);
     const distributionIssue = validateStageDistribution(stageEntries, etapasFenologicas);
 
@@ -1458,7 +1452,7 @@ function WizardProgress({ compact, currentStep, steps }: WizardProgressProps) {
 }
 
 function SelectedStageEditor({
-  stage, row, subStages, isLoading, loadError, onChange, onImagePress, error
+  stage, row, subStages, isLoading, loadError, onChange
 }: {
   stage: EtapaFenologicaCatalogItem;
   row: AdditionalStageRow;
@@ -1466,14 +1460,11 @@ function SelectedStageEditor({
   isLoading?: boolean;
   loadError?: string | null;
   onChange: (value: AdditionalStageRow) => void;
-  onImagePress: (subEtapa: SubEtapaCatalogItem) => void;
-  error: string | null;
 }) {
-  const [openSubStage, setOpenSubStage] = useState(false);
   const [loadedSubStages, setLoadedSubStages] = useState<SubEtapaCatalogItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(stage.type === "Etapa" && subStages === undefined);
   const [catalogError, setCatalogError] = useState<string | null>(null);
-  const [sliderTrackWidth, setSliderTrackWidth] = useState(0);
+  const previousCoverageRef = useRef(row.coveragePercentage);
 
   useEffect(() => {
     if (stage.type !== "Etapa" || subStages !== undefined) return;
@@ -1491,267 +1482,48 @@ function SelectedStageEditor({
   const items = subStages ?? loadedSubStages;
   const loadingItems = isLoading ?? loading;
   const issue = loadError ?? catalogError;
+  const coverage = Number(row.coveragePercentage);
+  const hasValidCoverage = Number.isInteger(coverage) && coverage >= 1 && coverage <= 100;
 
-  function updateCoverage(value: number | string) {
-    const next = typeof value === "number"
-      ? String(Math.max(1, Math.min(100, Math.round(value))))
-      : value.replace(/\D/g, "").slice(0, 3);
-    onChange({ ...row, coveragePercentage: next });
+  useEffect(() => {
+    const coverageChanged = previousCoverageRef.current !== row.coveragePercentage;
+    previousCoverageRef.current = row.coveragePercentage;
+    if (stage.type !== "Etapa" || loadingItems || !hasValidCoverage) return;
+    if (!coverageChanged && row.subEtapaId) return;
+
+    const subEtapaId = resolveSubEtapaIdForCoverage(items, coverage);
+    if ((subEtapaId ?? "") !== row.subEtapaId) {
+      onChange({ ...row, subEtapaId: subEtapaId ?? "" });
+    }
+  }, [coverage, hasValidCoverage, items, loadingItems, onChange, row, stage.type]);
+
+  function updateCoverage(value: string) {
+    const next = value.replace(/\D/g, "").slice(0, 3);
+    const nextCoverage = Number(next);
+    const nextSubEtapaId = stage.type === "Etapa" &&
+      Number.isInteger(nextCoverage) && nextCoverage >= 1 && nextCoverage <= 100
+      ? resolveSubEtapaIdForCoverage(items, nextCoverage) ?? ""
+      : row.subEtapaId;
+
+    onChange({ ...row, coveragePercentage: next, subEtapaId: nextSubEtapaId });
   }
 
   return (
-    <View style={styles.selectedStageContent}>
-      {stage.type === "Etapa" ? (
-        <>
-          <AppSelectField
-            disabled={loadingItems || !items.length}
-            emptyMessage="No hay subetapas para esta etapa."
-            error={issue}
-            icon="flower-outline"
-            isLoading={loadingItems}
-            isOpen={openSubStage}
-            label="Subetapa *"
-            onSelect={(value) => {
-              onChange({ ...row, subEtapaId: value });
-              setOpenSubStage(false);
-            }}
-            onToggle={() => setOpenSubStage((current) => !current)}
-            options={items.map((item) => ({ value: item.id, label: item.name }))}
-            placeholder="Selecciona la subetapa"
-            selectedLabel={items.find((item) => item.id === row.subEtapaId)?.name}
-          />
-          {row.subEtapaId ? (
-            <Pressable accessibilityRole="button" onPress={() => {
-              const selected = items.find((item) => item.id === row.subEtapaId);
-              if (selected) onImagePress(selected);
-            }}>
-              <AppText variant="caption">Ver guía visual de la subetapa</AppText>
-            </Pressable>
-          ) : null}
-        </>
-      ) : null}
-      <ProgressGuide
-        error={error}
-        isLoading={loadingItems && stage.type === "Etapa"}
-        onImagePress={onImagePress}
-        onTrackLayout={(event) => setSliderTrackWidth(event.nativeEvent.layout.width)}
-        onValueChange={updateCoverage}
-        onValueCommit={updateCoverage}
-        progress={Number(row.coveragePercentage) || 0}
-        showMarkers={stage.type === "Etapa"}
-        sliderTrackWidth={sliderTrackWidth}
-        subEtapas={items}
-        subtitle={stage.type === "Etapa"
-          ? "Las imágenes muestran referencias de la subetapa."
-          : "Indica qué parte de la parcela ocupa esta labor."}
-        title="Porcentaje de la parcela *"
-        valueText={row.coveragePercentage}
+    <View style={styles.percentageInputShell}>
+      <TextInput
+        accessibilityHint={loadingItems ? "Cargando catalogo." : issue ?? undefined}
+        accessibilityLabel={"Porcentaje de parcela para " + stage.name}
+        editable={stage.type !== "Etapa" || !loadingItems}
+        keyboardType="number-pad"
+        maxLength={3}
+        onChangeText={updateCoverage}
+        placeholder={loadingItems ? "..." : "0"}
+        placeholderTextColor={theme.colors.textMuted}
+        style={styles.percentageInput}
+        value={row.coveragePercentage}
       />
-      {stage.type === "Labor" && row.laborProgressPercentage ? (
-        <AppText variant="caption">Avance de labor registrado anteriormente: {row.laborProgressPercentage}%</AppText>
-      ) : null}
+      <AppText style={styles.percentageSymbol} variant="label">%</AppText>
     </View>
-  );
-}
-type ProgressGuideProps = {
-  subEtapas: SubEtapaCatalogItem[];
-  progress: number;
-  valueText: string;
-  sliderTrackWidth: number;
-  isLoading: boolean;
-  error: string | null;
-  title: string;
-  subtitle: string;
-  showMarkers: boolean;
-  onTrackLayout: (event: LayoutChangeEvent) => void;
-  onValueChange: (value: number | string) => void;
-  onValueCommit: (value: number | string) => void;
-  onImagePress: (subEtapa: SubEtapaCatalogItem) => void;
-};
-
-function ProgressGuide({
-  subEtapas,
-  progress,
-  valueText,
-  sliderTrackWidth,
-  isLoading,
-  error,
-  title,
-  subtitle,
-  showMarkers,
-  onTrackLayout,
-  onValueChange,
-  onValueCommit,
-  onImagePress
-}: ProgressGuideProps) {
-  const sliderWidthRef = useRef(sliderTrackWidth);
-  const onValueChangeRef = useRef(onValueChange);
-  sliderWidthRef.current = sliderTrackWidth;
-  onValueChangeRef.current = onValueChange;
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: (event) => updateProgressFromTouch(event.nativeEvent.locationX),
-        onPanResponderMove: (event) => updateProgressFromTouch(event.nativeEvent.locationX)
-      }),
-    []
-  );
-
-  const markers = showMarkers
-    ? subEtapas.filter((item) => item.percentage !== null &&
-        item.percentage >= 0 && item.percentage <= 100)
-    : [];
-  const markerSize = sliderTrackWidth < 320 ? 42 : 50;
-  const markerImageSize = markerSize - 8;
-  const clampedProgress = clampNumber(progress, 0, 100);
-  const thumbLeft = sliderTrackWidth > 0
-    ? (clampedProgress / 100) * sliderTrackWidth - 13 : 0;
-
-  return (
-    <View style={styles.subEtapasPanel}>
-      <View style={styles.subEtapasHeader}>
-        <View style={styles.subEtapasHeaderCopy}>
-          <AppText style={styles.subEtapasTitle} variant="label">{title}</AppText>
-          <AppText style={styles.subEtapasSubtitle} variant="caption">{subtitle}</AppText>
-        </View>
-        <View style={styles.percentageInputShell}>
-          <TextInput
-            accessibilityLabel={title}
-            keyboardType="number-pad"
-            maxLength={3}
-            onChangeText={onValueChange}
-            onEndEditing={() => onValueCommit(valueText)}
-            placeholder="0"
-            placeholderTextColor={theme.colors.textMuted}
-            style={styles.percentageInput}
-            value={valueText}
-          />
-          <AppText style={styles.percentageSymbol} variant="label">%</AppText>
-        </View>
-      </View>
-      {isLoading ? <AppText style={styles.fieldHint} variant="caption">Cargando subetapas...</AppText> : null}
-      {error ? <AppText style={styles.localErrorText} variant="caption">{error}</AppText> : null}
-      <View style={[styles.sliderArea, markers.length > 0 && styles.sliderAreaWithMarkers]}>
-        {markers.length > 0 ? (
-          <View pointerEvents="box-none" style={styles.sliderMarkerLayer}>
-            {markers.map((subEtapa) => {
-              const percentage = subEtapa.percentage ?? 0;
-              const markerLeft = sliderTrackWidth > 0
-                ? (percentage / 100) * sliderTrackWidth - markerSize / 2 : 0;
-              return (
-                <Pressable
-                  accessibilityLabel={"Ver subetapa " + subEtapa.name}
-                  accessibilityRole="button"
-                  key={subEtapa.id}
-                  onPress={() => onImagePress(subEtapa)}
-                  style={[
-                    styles.subEtapaMarker,
-                    {
-                      width: markerSize,
-                      left: clampNumber(markerLeft, 0, Math.max(0, sliderTrackWidth - markerSize))
-                    }
-                  ]}
-                >
-                  <Image
-                    source={getSubEtapaImageSource(subEtapa.name)}
-                    style={[styles.subEtapaMarkerImage, { width: markerImageSize, height: markerImageSize }]}
-                  />
-                  <AppText numberOfLines={1} style={styles.subEtapaMarkerPercent} variant="caption">
-                    {formatPercentageValue(percentage)}%
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
-        ) : null}
-        <View
-          accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
-          accessibilityLabel={title}
-          accessibilityRole="adjustable"
-          accessibilityValue={{ min: 0, max: 100, now: clampedProgress }}
-          hitSlop={{ top: 16, bottom: 16 }}
-          onAccessibilityAction={(event) => onValueChange(Math.max(1, Math.min(100,
-            Math.round(clampedProgress) + (event.nativeEvent.actionName === "increment" ? 1 : -1)
-          )))}
-          onLayout={onTrackLayout}
-          style={styles.sliderTrack}
-          {...panResponder.panHandlers}
-        >
-          <View style={[styles.sliderTrackFill, { width: `${clampedProgress}%` }]} />
-          <View style={[
-            styles.sliderThumb,
-            { left: clampNumber(thumbLeft, 0, Math.max(0, sliderTrackWidth - 26)) }
-          ]} />
-        </View>
-        <View style={styles.sliderFooter}>
-          <AppText style={styles.sliderBoundText} variant="caption">0%</AppText>
-          <AppText style={styles.sliderBoundText} variant="caption">100%</AppText>
-        </View>
-      </View>
-    </View>
-  );
-
-  function updateProgressFromTouch(locationX: number) {
-    const width = sliderWidthRef.current;
-    if (width <= 0) return;
-    const value = (clampNumber(locationX, 0, width) / width) * 100;
-    onValueChangeRef.current(Math.max(1, Math.round(value)));
-  }
-}
-function SubEtapaInfoModal({
-  subEtapa,
-  onClose
-}: {
-  subEtapa: SubEtapaCatalogItem | null;
-  onClose: () => void;
-}) {
-  return (
-    <Modal
-      animationType="fade"
-      onRequestClose={onClose}
-      transparent
-      visible={subEtapa !== null}
-    >
-      <View style={styles.modalScrim}>
-        <Pressable style={styles.modalBackdrop} onPress={onClose} />
-        <View style={styles.subEtapaModalCard}>
-          {subEtapa ? (
-            <>
-              <Image
-                resizeMode="contain"
-                source={getSubEtapaImageSource(subEtapa.name)}
-                style={styles.subEtapaModalImage}
-              />
-              <AppText style={styles.subEtapaModalTitle} variant="heading">
-                {subEtapa.name}
-              </AppText>
-              <AppText style={styles.subEtapaModalPercent} variant="label">
-                {subEtapa.percentage === null
-                  ? "Sin porcentaje"
-                  : `${formatPercentageValue(subEtapa.percentage)}%`}
-              </AppText>
-              <AppText style={styles.subEtapaModalDescription} variant="body">
-                {subEtapa.description || "Sin descripcion registrada."}
-              </AppText>
-              <Pressable
-                accessibilityRole="button"
-                onPress={onClose}
-                style={({ pressed }) => [
-                  styles.modalCloseButton,
-                  pressed && styles.pressed
-                ]}
-              >
-                <AppText style={styles.modalCloseButtonText} variant="label">
-                  Cerrar
-                </AppText>
-              </Pressable>
-            </>
-          ) : null}
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -2293,8 +2065,7 @@ function getCatalogError(loadError: string | null, validationError?: string) {
 
 function validateForm(
   values: NewVisitaCampoFormValues,
-  today: string,
-  stageType?: "Etapa" | "Labor"
+  today: string
 ): NewVisitaCampoFormErrors {
   const nextErrors: NewVisitaCampoFormErrors = {};
 
@@ -2359,9 +2130,6 @@ function validateForm(
     nextErrors.startVisitTime = "Hora de inicio debe tener formato HH:mm.";
   }
 
-  if (stageType === "Etapa" && !values.subEtapaId) {
-    nextErrors.subEtapaId = "Selecciona una subetapa.";
-  }
   if (values.phenologicalStage) {
     const coverage = Number(values.coveragePercentage);
     if (!values.coveragePercentage.trim() || !Number.isInteger(coverage) ||
@@ -2438,10 +2206,6 @@ function withSingleSelectionCoverage(
     !values.coveragePercentage.trim()
     ? { ...values, coveragePercentage: "100" }
     : values;
-}
-
-function formatPercentageValue(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -3303,16 +3067,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "#ffffff"
   },
-  subEtapasPanel: {
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#e3dfd2",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 14,
-    backgroundColor: "#fbfbf8"
-  },
   stageOption: {
     borderWidth: 1,
     borderColor: "#e3dfd2",
@@ -3321,56 +3075,40 @@ const styles = StyleSheet.create({
     marginTop: 7
   },
   stageOptionToggle: {
-    minHeight: 48,
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 12
+    gap: 8,
+    paddingHorizontal: 10
+  },
+  stageOptionSelector: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9
   },
   stageOptionName: {
     flex: 1,
+    minWidth: 0,
     color: theme.colors.text
   },
-  selectedStageContent: {
-    gap: 10,
-    paddingHorizontal: 10,
-    paddingBottom: 10
-  },
-  subEtapasHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 12
-  },
-  subEtapasHeaderCopy: {
-    minWidth: 180,
-    flex: 1,
-    flexShrink: 1
-  },
-  subEtapasTitle: {
-    color: "#073b2a",
-    fontSize: 16
-  },
-  subEtapasSubtitle: {
-    color: "#5f6b66"
-  },
   percentageInputShell: {
-    width: 92,
-    maxWidth: "100%",
-    minHeight: 46,
+    width: 86,
+    minHeight: 42,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1.2,
     borderColor: "#cfd8c2",
-    borderRadius: 12,
-    paddingHorizontal: 9,
+    borderRadius: 10,
+    paddingHorizontal: 7,
     backgroundColor: "#ffffff",
     flexShrink: 0
   },
   percentageInput: {
-    minWidth: 44,
+    minWidth: 36,
     paddingVertical: 0,
     textAlign: "right",
     color: theme.colors.text,
@@ -3379,119 +3117,11 @@ const styles = StyleSheet.create({
   },
   percentageSymbol: {
     color: "#176b2d",
-    fontSize: 16
+    fontSize: 15
   },
-  sliderArea: {
-    minHeight: 50
-  },
-  sliderAreaWithMarkers: {
-    paddingTop: 72
-  },
-  sliderMarkerLayer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 68
-  },
-  sliderTrack: {
-    height: 8,
-    justifyContent: "center",
-    borderRadius: 999,
-    backgroundColor: "#d8d3c5"
-  },
-  sliderTrackFill: {
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: "#3f8f21"
-  },
-  sliderThumb: {
-    position: "absolute",
-    top: -9,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 3,
-    borderColor: "#ffffff",
-    backgroundColor: "#12622f",
-    shadowColor: "#345245",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4
-  },
-  subEtapaMarker: {
-    position: "absolute",
-    top: 0,
-    alignItems: "center",
-    gap: 3
-  },
-  subEtapaMarkerImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#ffffff",
-    backgroundColor: "#f0f3e8"
-  },
-  subEtapaMarkerPercent: {
-    color: "#176b2d",
-    fontSize: 11,
-    fontWeight: "700"
-  },
-  sliderFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: 10
-  },
-  sliderBoundText: {
-    color: "#65706b"
-  },
-  modalScrim: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(6, 18, 13, 0.48)"
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject
-  },
-  subEtapaModalCard: {
-    gap: 12,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 26,
-    backgroundColor: "#ffffff"
-  },
-  subEtapaModalImage: {
-    width: "100%",
-    height: 210,
-    borderRadius: 18,
-    backgroundColor: "#f0f3e8"
-  },
-  subEtapaModalTitle: {
-    color: "#073b2a",
-    fontSize: 22
-  },
-  subEtapaModalPercent: {
-    color: "#176b2d"
-  },
-  subEtapaModalDescription: {
-    color: "#3e4a45",
-    fontSize: 15,
-    lineHeight: 23
-  },
-  modalCloseButton: {
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-    backgroundColor: "#08643f"
-  },
-  modalCloseButtonText: {
-    color: "#ffffff",
-    fontSize: 16
+  laborProgressHint: {
+    paddingHorizontal: 44,
+    paddingBottom: 8
   },
   errorBanner: {
     backgroundColor: theme.colors.errorMuted,

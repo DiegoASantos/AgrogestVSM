@@ -143,6 +143,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Captura y aprobación de acreedores por productor](specs/088-captura-aprobacion-acreedores-productor.md)
 - [Múltiples etapas fenológicas por visita](specs/089-multiples-etapas-fenologicas-por-visita.md)
 - [Cobertura compartida de etapas y labores en el paso 1](specs/090-cobertura-compartida-etapas-labores-visita.md)
+- [Subetapa automática según cobertura de parcela](specs/091-subetapa-automatica-por-cobertura.md)
 
 ## Runbooks
 

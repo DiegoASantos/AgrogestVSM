@@ -125,6 +125,12 @@ relaciona:
 - fecha, horas, área y observación general;
 - ubicación y firmas.
 
+En mobile, la cobertura digitada en el paso 1 determina la subetapa de una
+`Etapa` mediante los límites porcentuales del catálogo offline; las labores no
+tienen subetapa. Al editar una visita se conserva el ID guardado hasta que se
+cambia el porcentaje. La cobertura de todas las etapas y labores seleccionadas
+se distribuye hasta sumar 100%.
+
 El reporte web de visitas es una proyección de solo lectura de este agregado.
 Cuenta exclusivamente visitas activas, considera como día de visita cada
 `fecha_visita` distinta por agrónomo y calcula el promedio como cantidad de

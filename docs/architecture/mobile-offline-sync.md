@@ -566,13 +566,21 @@ Cada etapa muestra subetapa y porcentaje de la parcela; las labores nuevas
 muestran su porcentaje de parcela. Los avances de labor anteriores y
 `subEtapaPercentage` se conservan como datos históricos y nunca se interpretan
 como cobertura. El paso 1 muestra el catálogo del cultivo en casillas compactas
-y exige que todas las selecciones sumen 100%. Guarda las entradas
-en `visita_etapas_fenologicas` dentro de la misma transacción SQLite que la
-visita y una sola operación de outbox envía la lista completa con el padre.
-El reintento reemplaza esa lista en la API de forma transaccional e idempotente.
-La sincronización distingue la distribución compartida de un payload anterior
-con labores sin cobertura. La API acepta visitas antiguas y rechaza una edición
-de cliente antiguo que pudiera borrar la cobertura nueva de una labor.
+y coloca el campo de cobertura en la fila de cada selección. No muestra selector,
+nombre ni imágenes de subetapas ni barra deslizante. Para una `Etapa`, mobile
+deriva `subEtapaId` con los porcentajes del catálogo offline: elige el primer
+límite igual o superior a la cobertura digitada y usa la última subetapa como
+tramo final hasta 100%; los porcentajes nulos o fuera de 0–100 se ignoran. Si no
+hay límites válidos, una etapa nueva o modificada no se puede guardar. Al abrir
+una visita existente se conserva su `subEtapaId`; solo se recalcula después de
+que el usuario cambie su cobertura. Las `Labor` reciben cobertura sin subetapa.
+El reparto debe sumar 100%. Guarda las entradas en `visita_etapas_fenologicas`
+dentro de la misma transacción SQLite que la visita y una sola operación de
+outbox envía la lista completa con el padre. El reintento reemplaza esa lista en
+la API de forma transaccional e idempotente. La sincronización distingue la
+distribución compartida de un payload anterior con labores sin cobertura. La API
+acepta visitas antiguas y rechaza una edición de cliente antiguo que pudiera
+borrar la cobertura nueva de una labor.
 Horario,
 plantas y siembra se conservan en los datos, pero no se muestran en este detalle.
 Después aparecen todos los registros principales, las mezclas recetadas, los

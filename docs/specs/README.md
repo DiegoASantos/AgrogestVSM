@@ -134,4 +134,5 @@ en la raíz.
 - [Spec 088: Captura y aprobación de acreedores por productor](088-captura-aprobacion-acreedores-productor.md)
 - [Spec 089: Múltiples etapas fenológicas por visita](089-multiples-etapas-fenologicas-por-visita.md)
 - [Spec 090: Cobertura compartida de etapas y labores en el paso 1](090-cobertura-compartida-etapas-labores-visita.md)
+- [Spec 091: Subetapa automática según cobertura de parcela](091-subetapa-automatica-por-cobertura.md)
 - [Plantilla](TEMPLATE.md)

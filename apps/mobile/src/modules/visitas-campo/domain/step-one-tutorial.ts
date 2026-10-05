@@ -200,13 +200,14 @@ export function buildStepOneTutorialSteps({
     steps.push({
       id: "subEtapaPercentage",
       title: "Distribución de la parcela",
-      instruction: "Elige las subetapas necesarias y ajusta los porcentajes hasta sumar 100%.",
-      isComplete: distributionComplete ?? (
-        percentage.trim().length > 0 &&
-        (!requireSubStage || !!values.subEtapaId) &&
-        Number.isFinite(progress) &&
-        progress >= 1 &&
-        progress <= 100),
+      instruction: "Escribe el porcentaje de cada etapa o labor hasta completar 100%.",
+      isComplete:
+        distributionComplete ??
+        (percentage.trim().length > 0 &&
+          (!requireSubStage || !!values.subEtapaId) &&
+          Number.isFinite(progress) &&
+          progress >= 1 &&
+          progress <= 100),
       isEnabled: !isLoadingProgress,
       isExpanded: false,
       isLoading: isLoadingProgress,
