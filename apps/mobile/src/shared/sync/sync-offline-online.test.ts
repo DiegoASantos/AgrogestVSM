@@ -719,6 +719,33 @@ describe("offline/online sync with complete visit data", () => {
     expect(pendingOutbox).toHaveLength(0);
   });
 
+  it("sends shared coverage for an offline visit with a stage and a labor", async () => {
+    apiToken = "token-online";
+    visita = {
+      ...visita,
+      phenologicalStageId: "10",
+      subEtapaId: null,
+      phenologicalStages: [
+        { phenologicalStageId: "5", subEtapaId: "6", coveragePercentage: 40, laborProgressPercentage: null },
+        { phenologicalStageId: "10", subEtapaId: null, coveragePercentage: 60, laborProgressPercentage: null }
+      ]
+    };
+
+    await processOutbox();
+
+    expect(visitaRemoteCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        distributionMode: "shared",
+        phenologicalStageId: "10",
+        phenologicalStages: expect.arrayContaining([
+          expect.objectContaining({ phenologicalStageId: "10", coveragePercentage: 60 })
+        ])
+      }),
+      { accessToken: "token-online" },
+      { signal: undefined }
+    );
+  });
+
   it("clears the former substage when a labor becomes principal", async () => {
     apiToken = "token-online";
     visita = {

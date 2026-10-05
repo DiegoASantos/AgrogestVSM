@@ -169,7 +169,7 @@ describe("apiRequest timeouts", () => {
   });
 
   it("does not mark a bodyless POST as JSON", async () => {
-    const fetchMock = vi.fn(async (_url: unknown, _init?: RequestInit) =>
+    const fetchMock = vi.fn<(...args: [unknown, RequestInit?]) => Promise<Response>>(async () =>
       new Response(
         JSON.stringify({
           success: true,
@@ -189,7 +189,7 @@ describe("apiRequest timeouts", () => {
   });
 
   it("keeps the JSON header when the POST has a body", async () => {
-    const fetchMock = vi.fn(async (_url: unknown, _init?: RequestInit) =>
+    const fetchMock = vi.fn<(...args: [unknown, RequestInit?]) => Promise<Response>>(async () =>
       new Response(
         JSON.stringify({
           success: true,

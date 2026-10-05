@@ -48,6 +48,15 @@ describe("CreateVisitaCampoDto", () => {
     expect(await validate(dto)).toEqual([]);
   });
 
+  it("accepts shared coverage for a labor", async () => {
+    const dto = plainToInstance(CreateVisitaCampoDto, {
+      ...validInput,
+      distributionMode: "shared",
+      phenologicalStages: [{ phenologicalStageId: "6", coveragePercentage: 100 }]
+    });
+    expect(await validate(dto)).toEqual([]);
+  });
+
   it("rejects malformed rows in the stage list", async () => {
     const dto = plainToInstance(CreateVisitaCampoDto, {
       ...validInput,

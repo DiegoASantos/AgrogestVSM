@@ -197,6 +197,14 @@ export class CreateVisitaCampoDto {
   phenologicalStages?: VisitaEtapaFenologicaDto[];
 
   @ApiPropertyOptional({
+    enum: ["shared"],
+    description: "Distribuye el 100% de la parcela entre todas las etapas y labores."
+  })
+  @IsOptional()
+  @IsIn(["shared"])
+  distributionMode?: "shared";
+
+  @ApiPropertyOptional({
     example: "1"
   })
   @Transform(({ value }) => trimOptionalString(value))

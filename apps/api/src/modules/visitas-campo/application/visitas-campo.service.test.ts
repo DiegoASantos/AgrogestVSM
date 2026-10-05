@@ -282,6 +282,7 @@ describe("VisitasCampoService", () => {
           cultivo: { name: "Mango" },
           campania: { name: "Mango 2026" },
           etapaFenologica: { type: "Etapa", name: "Floracion" },
+          subEtapaId: "60",
           subEtapaPercentage: "37.5",
           observacionesSanitarias: [
             { id: "1", plagaEnfermedad: { type: "plaga", name: "Mosca de la fruta" } },
@@ -353,7 +354,7 @@ describe("VisitasCampoService", () => {
         "Parcela",
         "Hora inicio",
         "Hora fin",
-        "Distribución fenológica",
+        "Distribución de la parcela",
         "Avance histórico de subetapa",
         "Plagas",
         "Enfermedades",
@@ -708,6 +709,70 @@ describe("VisitasCampoService", () => {
       expect(stageSave).not.toHaveBeenCalled();
     });
 
+    it("shares parcel coverage with a labor and selects the largest entry", async () => {
+      const { stageSave } = mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        distributionMode: "shared",
+        phenologicalStageId: "52",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 40 },
+          { phenologicalStageId: "52", coveragePercentage: 60 }
+        ]
+      });
+      expect(result.data.phenologicalStageId).toBe("52");
+      expect(result.data.phenologicalStages.map((row) => row.coveragePercentage)).toEqual([40, 60]);
+      expect(stageSave).toHaveBeenCalledOnce();
+    });
+
+    it("accepts a labor as the only selected entry at 100%", async () => {
+      mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        distributionMode: "shared",
+        phenologicalStageId: "52",
+        phenologicalStages: [{ phenologicalStageId: "52", coveragePercentage: 100 }]
+      });
+      expect(result.data.phenologicalStages[0].coveragePercentage).toBe(100);
+    });
+
+    it("rejects a shared distribution with missing labor coverage or an incomplete sum", async () => {
+      const { stageSave } = mockStageReferences();
+      const input = {
+        ...validDto,
+        distributionMode: "shared" as const,
+        phenologicalStageId: "52"
+      };
+      await expect(service.create({
+        ...input,
+        phenologicalStages: [{ phenologicalStageId: "52" }]
+      })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create({
+        ...input,
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 40 },
+          { phenologicalStageId: "52", coveragePercentage: 50 }
+        ]
+      })).rejects.toBeInstanceOf(BadRequestException);
+      expect(stageSave).not.toHaveBeenCalled();
+    });
+
+    it("accepts the earlier payload and preserves its separate labor progress", async () => {
+      mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        subEtapaId: "60",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 100 },
+          { phenologicalStageId: "52", laborProgressPercentage: 45 }
+        ]
+      });
+      expect(result.data.phenologicalStages[1]).toMatchObject({
+        coveragePercentage: null,
+        laborProgressPercentage: 45
+      });
+    });
+
     it("should reject when parcela not found", async () => {
       repo.findOne.mockResolvedValue(null);
       await expect(service.create(validDto)).rejects.toThrow();
@@ -766,6 +831,20 @@ describe("VisitasCampoService", () => {
     }));
     await expect(service.update("1", { phenologicalStageId: "51" }))
       .rejects.toBeInstanceOf(ConflictException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it("prevents an earlier client from replacing a covered labor", async () => {
+    repo.findOne.mockResolvedValueOnce(makeVisita({
+      phenologicalStages: [{
+        etapaFenologicaId: "52",
+        coveragePercentage: 100,
+        stage: { type: "Labor" }
+      }] as VisitaCampoEntity["phenologicalStages"]
+    }));
+    await expect(service.update("1", {
+      phenologicalStages: [{ phenologicalStageId: "52", coveragePercentage: null }]
+    })).rejects.toBeInstanceOf(ConflictException);
     expect(repo.save).not.toHaveBeenCalled();
   });
 });

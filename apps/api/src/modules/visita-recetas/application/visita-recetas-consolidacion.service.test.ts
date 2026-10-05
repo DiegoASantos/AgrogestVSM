@@ -21,7 +21,7 @@ function makeRepo(): RepoMock {
   };
 }
 
-function makeVisita(etapa?: { name: string }, subEtapa?: { name?: string; percentage?: string }) {
+function makeVisita(etapa?: { name: string; type?: "Etapa" | "Labor" }, subEtapa?: { name?: string; percentage?: string }) {
   return {
     id: "10",
     etapaFenologica: etapa ?? null,
@@ -134,6 +134,20 @@ describe("VisitaRecetasConsolidacionService", () => {
     const result = await service.getConsolidacion("10");
 
     expect(result.data.etapaFenologica).toBe("Maduracion");
+  });
+
+  it("labels an older labor percentage as historical progress", async () => {
+    visitaRepo.findOne.mockResolvedValue({
+      ...makeVisita({ name: "Poda", type: "Labor" }),
+      subEtapaPercentage: "45"
+    });
+    obsSanitariaRepo.find.mockResolvedValue([]);
+    evaluacionRepo.find.mockResolvedValue([]);
+    riegoRepo.findOne.mockResolvedValue(null);
+    laborRepo.find.mockResolvedValue([]);
+
+    const result = await service.getConsolidacion("10");
+    expect(result.data.etapaFenologica).toContain("avance de labor registrado anteriormente: 45%");
   });
 
   it("classifies observaciones into plagas and enfermedades", async () => {

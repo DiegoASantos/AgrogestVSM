@@ -1013,6 +1013,9 @@ function buildVisitaCampoCreateBody(
     phenologicalStages: visita.phenologicalStages.map(({ phenologicalStageId, subEtapaId, coveragePercentage, laborProgressPercentage }) => ({
       phenologicalStageId, subEtapaId, coveragePercentage, laborProgressPercentage
     })),
+    ...(visita.phenologicalStages.length > 0 &&
+      visita.phenologicalStages.every((entry) => entry.coveragePercentage !== null)
+      ? { distributionMode: "shared" as const } : {}),
     generalObservation: visita.generalObservation ?? undefined
   };
 }
@@ -1039,6 +1042,9 @@ function buildVisitaCampoUpdateBody(
     phenologicalStages: visita.phenologicalStages.map(({ phenologicalStageId, subEtapaId, coveragePercentage, laborProgressPercentage }) => ({
       phenologicalStageId, subEtapaId, coveragePercentage, laborProgressPercentage
     })),
+    ...(visita.phenologicalStages.length > 0 &&
+      visita.phenologicalStages.every((entry) => entry.coveragePercentage !== null)
+      ? { distributionMode: "shared" as const } : {}),
     generalObservation: visita.generalObservation ?? undefined
   };
 }

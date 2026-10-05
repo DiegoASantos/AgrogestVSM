@@ -60,6 +60,27 @@ describe("step one tutorial", () => {
     expect(steps.find((step) => step.id === "subEtapaPercentage")?.isComplete).toBe(false);
   });
 
+  it("keeps the distribution step pending until all selections total 100%", () => {
+    const steps = buildStepOneTutorialSteps({
+      values: completeValues,
+      today: "2026-08-18",
+      activeCatalog: null,
+      isLoadingCultivos: false,
+      isLoadingVariedades: false,
+      isLoadingEtapasFenologicas: false,
+      isLoadingProgress: false,
+      showProgress: true,
+      selectionComplete: true,
+      distributionComplete: false
+    });
+    expect(steps.find((step) => step.id === "subEtapaPercentage")?.isComplete).toBe(false);
+  });
+
+  it("uses parcel coverage for a labor instead of its former progress field", () => {
+    const steps = buildSteps({ coveragePercentage: "", subEtapaPercentage: "50" });
+    expect(steps.find((step) => step.id === "subEtapaPercentage")?.isComplete).toBe(false);
+  });
+
   it("keeps the expected field order and skips fields already complete", () => {
     const steps = buildSteps({ plantsCount: "", areaHectares: "" });
 

@@ -758,7 +758,7 @@ function VisitDossier({
           <View style={styles.factLabelRow}>
             <Ionicons color={theme.colors.primary} name="leaf-outline" size={16} />
             <AppText style={styles.factLabel} variant="caption">
-              Etapa
+              Estado de la parcela
             </AppText>
           </View>
           {visita.phenologicalStages.length ? visita.phenologicalStages.map((entry, index) => (
@@ -780,8 +780,9 @@ function VisitDossier({
                     <View style={[styles.stageProgressFill, { width: `${entry.coveragePercentage}%` }]} />
                   </View>
                 </>
-              ) : entry.laborProgressPercentage !== null ? (
-                <AppText variant="caption">Avance de labor: {entry.laborProgressPercentage}%</AppText>
+              ) : null}
+              {entry.laborProgressPercentage !== null ? (
+                <AppText variant="caption">Avance de labor registrado anteriormente: {entry.laborProgressPercentage}%</AppText>
               ) : null}
             </View>
           )) : (
@@ -789,8 +790,7 @@ function VisitDossier({
               {getCatalogNameById(visita.phenologicalStageId, catalogs.etapasFenologicas)}
             </AppText>
           )}
-          {visita.subEtapaPercentage !== null &&
-            (!visita.phenologicalStages.length || visita.subEtapaId !== null) ? (
+          {visita.subEtapaId !== null && visita.subEtapaPercentage !== null ? (
             <AppText variant="caption">Avance histórico de subetapa: {visita.subEtapaPercentage}%</AppText>
           ) : null}
         </View>

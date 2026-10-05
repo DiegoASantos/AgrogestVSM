@@ -205,6 +205,7 @@ export type MobileTechnicalScoreView = MobileTechnicalScoreDetails & {
 
 export type CreateVisitaCampoDraft = {
   publicId?: string;
+  distributionMode?: "shared";
   technicalScoreVersion?: 1 | 2;
   cropId: string;
   varietyId: string;

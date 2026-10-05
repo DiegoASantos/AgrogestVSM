@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-22
+last_reviewed: 2026-10-05
 ---
 
 # Modelo del dominio
@@ -146,14 +146,14 @@ Toda visita nueva exige al menos una etapa o labor válida y asociada al cultivo
 columna permanece nullable para conservar registros históricos; una
 actualización puede omitir la etapa, pero no eliminar una ya seleccionada.
 
-La distribución de una visita vive en `visita_etapas_fenologicas`: cada etapa de
-tipo `Etapa` aparece una sola vez, exige subetapa y un porcentaje entero de la
-parcela entre 1 y 100; sus porcentajes suman 100. Las labores no participan en
-esa suma, pueden estar solas y conservan su avance propio. La etapa principal
-es la de mayor cobertura (ante empate, la primera registrada); si solo hay
-labores, es la primera. Los campos escalares de `visitas_campo` conservan esa
-principal para clientes instalados, puntajes y tableros. El antiguo
-`sub_etapa_porcentaje` describe avance histórico, no cobertura.
+La distribución de una visita vive en `visita_etapas_fenologicas`: cada etapa o
+labor seleccionada aparece una sola vez y recibe un porcentaje entero de la
+parcela entre 1 y 100; todas las coberturas suman 100. Cada entrada de tipo
+`Etapa` exige subetapa. La principal es la de mayor cobertura y, ante empate,
+la primera seleccionada. Los campos escalares de `visitas_campo` conservan esa
+principal para clientes instalados, puntajes y tableros. Los registros anteriores
+pueden tener labores sin cobertura y con avance propio; ese avance y el antiguo
+`sub_etapa_porcentaje` son datos históricos, no cobertura de parcela.
 
 Al iniciar una visita nueva, mobile consulta la última visita activa de la
 misma parcela, ordenada por fecha, hora y creación. Cultivo y variedad se usan

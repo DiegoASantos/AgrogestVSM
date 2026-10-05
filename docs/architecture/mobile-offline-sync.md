@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-22
+last_reviewed: 2026-10-05
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -562,12 +562,17 @@ confirmada se desactiva en la API por un administrador, no se descarta desde el
 dispositivo.
 
 El detalle de visita muestra primero fecha, área y todas las etapas o labores.
-Cada etapa muestra subetapa y porcentaje de la parcela; las labores muestran su
-avance cuando corresponde. `subEtapaPercentage` se conserva como avance
-histórico y nunca se interpreta como cobertura. El paso 1 guarda las entradas
+Cada etapa muestra subetapa y porcentaje de la parcela; las labores nuevas
+muestran su porcentaje de parcela. Los avances de labor anteriores y
+`subEtapaPercentage` se conservan como datos históricos y nunca se interpretan
+como cobertura. El paso 1 muestra el catálogo del cultivo en casillas compactas
+y exige que todas las selecciones sumen 100%. Guarda las entradas
 en `visita_etapas_fenologicas` dentro de la misma transacción SQLite que la
 visita y una sola operación de outbox envía la lista completa con el padre.
 El reintento reemplaza esa lista en la API de forma transaccional e idempotente.
+La sincronización distingue la distribución compartida de un payload anterior
+con labores sin cobertura. La API acepta visitas antiguas y rechaza una edición
+de cliente antiguo que pudiera borrar la cobertura nueva de una labor.
 Horario,
 plantas y siembra se conservan en los datos, pero no se muestran en este detalle.
 Después aparecen todos los registros principales, las mezclas recetadas, los

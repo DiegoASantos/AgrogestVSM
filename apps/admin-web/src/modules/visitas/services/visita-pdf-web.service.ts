@@ -140,10 +140,9 @@ function buildDiagnosticHtml(detail: VisitaDetailData) {
         ["Fecha siembra", formatDate(visita.sowingDate)],
         ["Plantas", visita.plantsCount === null ? null : String(visita.plantsCount)],
         ["Area visita", visita.areaHectares ? `${visita.areaHectares} ha` : null],
-        ["Distribucion fenologica", formatStageDistribution(visita) ??
+        ["Distribucion de la parcela", formatStageDistribution(visita) ??
           detail.lookups.phenologicalStage?.name ?? visita.phenologicalStageId, true],
-        ["Avance historico de sub etapa", visita.subEtapaPercentage === null ||
-          (visita.phenologicalStages?.length && visita.subEtapaId === null)
+        ["Avance historico de sub etapa", visita.subEtapaPercentage === null || visita.subEtapaId === null
           ? null : `${visita.subEtapaPercentage}%`],
         ["Observacion general", visita.generalObservation, true],
         ["Observacion del paso", stepNotes.get(1)?.observation ?? null, true],
@@ -710,11 +709,10 @@ function renderDatosVisitaReceta(
     <div class="visit-summary">
       <div class="visit-data-grid">
         <div class="visit-data-card">
-          <p class="visit-data-title">Fenologia</p>
-          ${renderFieldRow("Distribucion fenologica", formatStageDistribution(detail.visita) ?? etapaNombre ?? receta.etapaFenologica ?? "-")}
+          <p class="visit-data-title">Estado de la parcela</p>
+          ${renderFieldRow("Distribucion de la parcela", formatStageDistribution(detail.visita) ?? etapaNombre ?? receta.etapaFenologica ?? "-")}
           ${
-            detail.visita.subEtapaPercentage !== null &&
-            (!detail.visita.phenologicalStages?.length || detail.visita.subEtapaId !== null)
+            detail.visita.subEtapaPercentage !== null && detail.visita.subEtapaId !== null
               ? renderFieldRow("Avance historico de sub etapa", `${detail.visita.subEtapaPercentage}%`)
               : ""
           }
@@ -742,7 +740,7 @@ function formatStageDistribution(visita: VisitaDetailData["visita"]): string | n
     entry.stageName ?? entry.phenologicalStageId,
     entry.subEtapaName,
     entry.coveragePercentage === null ? null : `${entry.coveragePercentage}% de la parcela`,
-    entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% de avance de labor`
+    entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% de avance de labor registrado anteriormente`
   ].filter(Boolean).join(" · ")).join("; ");
 }
 

@@ -25,13 +25,15 @@ export type StepOneTutorialStep = {
 type BuildStepOneTutorialStepsInput = {
   values: NewVisitaCampoFormValues;
   today: string;
-  activeCatalog: "crop" | "variety" | "phenologicalStage" | "sowingDate" | null;
+  activeCatalog: "crop" | "variety" | "sowingDate" | null;
   isLoadingCultivos: boolean;
   isLoadingVariedades: boolean;
   isLoadingEtapasFenologicas: boolean;
   isLoadingProgress: boolean;
   showProgress: boolean;
   requireSubStage?: boolean;
+  selectionComplete?: boolean;
+  distributionComplete?: boolean;
 };
 
 export type RequiredFieldIssue = "missing" | "invalid" | null;
@@ -106,7 +108,9 @@ export function buildStepOneTutorialSteps({
   isLoadingEtapasFenologicas,
   isLoadingProgress,
   showProgress,
-  requireSubStage = false
+  requireSubStage = false,
+  selectionComplete,
+  distributionComplete
 }: BuildStepOneTutorialStepsInput): StepOneTutorialStep[] {
   const steps: StepOneTutorialStep[] = [
     {
@@ -181,33 +185,28 @@ export function buildStepOneTutorialSteps({
     {
       id: "phenologicalStage",
       title: "Etapa fenologica",
-      instruction:
-        activeCatalog === "phenologicalStage"
-          ? "Selecciona la etapa actual del cultivo."
-          : "Despliega la lista y selecciona la etapa actual del cultivo.",
-      isComplete: !!values.phenologicalStage.trim(),
+      instruction: "Marca todas las etapas y labores presentes en la parcela.",
+      isComplete: selectionComplete ?? !!values.phenologicalStage.trim(),
       isEnabled: !!values.crop && !isLoadingEtapasFenologicas,
-      isExpanded: activeCatalog === "phenologicalStage",
+      isExpanded: false,
       isLoading: isLoadingEtapasFenologicas,
       isOptional: false
     }
   ];
 
   if (showProgress) {
-    const percentage = requireSubStage ? values.coveragePercentage : values.subEtapaPercentage;
+    const percentage = values.coveragePercentage;
     const progress = Number(percentage);
     steps.push({
       id: "subEtapaPercentage",
-      title: requireSubStage ? "Subetapa y porcentaje" : "Avance de labor",
-      instruction: requireSubStage
-        ? "Selecciona la subetapa y registra qué porcentaje de la parcela ocupa."
-        : "Registra el porcentaje de avance de la labor.",
-      isComplete:
+      title: "Distribución de la parcela",
+      instruction: "Elige las subetapas necesarias y ajusta los porcentajes hasta sumar 100%.",
+      isComplete: distributionComplete ?? (
         percentage.trim().length > 0 &&
         (!requireSubStage || !!values.subEtapaId) &&
         Number.isFinite(progress) &&
-        progress >= (requireSubStage ? 1 : 0) &&
-        progress <= 100,
+        progress >= 1 &&
+        progress <= 100),
       isEnabled: !isLoadingProgress,
       isExpanded: false,
       isLoading: isLoadingProgress,

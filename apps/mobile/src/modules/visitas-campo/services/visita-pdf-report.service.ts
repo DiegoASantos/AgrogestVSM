@@ -260,16 +260,15 @@ async function buildVisitReportHtml(visitaId: string) {
         ["Fecha siembra", formatDate(visita.sowingDate)],
         ["Plantas", visita.plantsCount === null ? null : String(visita.plantsCount)],
         ["Area visita", visita.areaHectares ? `${visita.areaHectares} ha` : null],
-        ["Distribucion fenologica", visita.phenologicalStages.length
+        ["Distribucion de la parcela", visita.phenologicalStages.length
           ? visita.phenologicalStages.map((entry) => [
               entry.stageName ?? findById(etapas, entry.phenologicalStageId)?.name ?? entry.phenologicalStageId,
               entry.subEtapaName ?? (entry.subEtapaId ? entry.subEtapaId : null),
               entry.coveragePercentage === null ? null : `${entry.coveragePercentage}% de la parcela`,
-              entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% de avance de labor`
+              entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% de avance de labor registrado anteriormente`
             ].filter(Boolean).join(" · ")).join("; ")
           : (visita.phenologicalStageId ? findById(etapas, visita.phenologicalStageId)?.name ?? visita.phenologicalStageId : null), true],
-        ["Avance historico de sub etapa", visita.subEtapaPercentage === null ||
-          (visita.phenologicalStages.length > 0 && visita.subEtapaId === null)
+        ["Avance historico de sub etapa", visita.subEtapaPercentage === null || visita.subEtapaId === null
           ? null : `${visita.subEtapaPercentage}%`],
         ["Observacion general", visita.generalObservation, true],
         ["Observacion del paso", stepNotes.get(1)?.observation ?? null, true],

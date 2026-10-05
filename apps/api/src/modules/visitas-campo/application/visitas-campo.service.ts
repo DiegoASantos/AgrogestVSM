@@ -134,7 +134,8 @@ export class VisitasCampoService {
       normalizedDto.cropId,
       normalizedDto.phenologicalStageId,
       normalizedDto.subEtapaId ?? null,
-      normalizedDto.subEtapaPercentage ?? null
+      normalizedDto.subEtapaPercentage ?? null,
+      normalizedDto.distributionMode
     );
     const primaryStage = selectPrimaryStage(stageEntries);
     await this.ensureUniqueNroFicha(normalizedDto.nroFicha ?? null);
@@ -409,7 +410,7 @@ export class VisitasCampoService {
       "Parcela",
       "Hora inicio",
       "Hora fin",
-      "Distribución fenológica",
+      "Distribución de la parcela",
       "Avance histórico de subetapa",
       "Plagas",
       "Enfermedades",
@@ -472,8 +473,7 @@ export class VisitasCampoService {
           index === 0 ? toWorksheetText(visita.horaVisitaFin ?? "No registrado") : "",
           index === 0 ? toWorksheetText(buildStageExcelLabel(visita)) : "",
           index === 0
-            ? visita.subEtapaPercentage === null ||
-                (visita.phenologicalStages?.length > 0 && visita.subEtapaId === null)
+            ? visita.subEtapaPercentage === null || visita.subEtapaId === null
               ? "---"
               : Number(visita.subEtapaPercentage) / 100
             : "",
@@ -703,13 +703,29 @@ export class VisitasCampoService {
          requestedSubEtapaId !== visitaCampo.subEtapaId)) {
       throw new ConflictException("Actualiza las etapas con una versión reciente de la app.");
     }
+    const priorStages = visitaCampo.phenologicalStages ?? [];
+    const submittedStages = updateVisitaCampoDto.phenologicalStages;
+    const preservesCoveredDistribution = submittedStages?.length === priorStages.length &&
+      submittedStages.every((entry, index) =>
+        entry.phenologicalStageId === priorStages[index].etapaFenologicaId &&
+        (entry.coveragePercentage ?? null) === priorStages[index].coveragePercentage);
+    if (!updateVisitaCampoDto.distributionMode &&
+        priorStages.some((entry) =>
+          entry.stage?.type === "Labor" && entry.coveragePercentage !== null) &&
+        (submittedStages ? !preservesCoveredDistribution :
+          updateVisitaCampoDto.phenologicalStageId !== undefined ||
+          updateVisitaCampoDto.subEtapaId !== undefined ||
+          updateVisitaCampoDto.subEtapaPercentage !== undefined)) {
+      throw new ConflictException("Actualiza la app para editar la distribución de esta visita.");
+    }
     const stageEntries = updateVisitaCampoDto.phenologicalStages
       ? await this.validateStageEntries(
           updateVisitaCampoDto.phenologicalStages,
           nextCropId,
           requestedStageId!,
           requestedSubEtapaId,
-          null
+          null,
+          updateVisitaCampoDto.distributionMode
         )
       : (visitaCampo.phenologicalStages?.length ?? 0) <= 1 &&
           (updateVisitaCampoDto.phenologicalStageId !== undefined ||
@@ -920,8 +936,12 @@ export class VisitasCampoService {
     cropId: string,
     legacyStageId: string,
     legacySubEtapaId: string | null,
-    legacyProgress: number | null
+    legacyProgress: number | null,
+    distributionMode?: "shared"
   ): Promise<StageEntry[]> {
+    if (distributionMode === "shared" && !entries) {
+      throw new BadRequestException("La distribución compartida requiere la lista de etapas y labores.");
+    }
     const items: StageEntry[] = entries
       ? entries.map((item) => ({
           phenologicalStageId: item.phenologicalStageId,
@@ -950,6 +970,11 @@ export class VisitasCampoService {
       if (stage.cultivoId !== cropId) {
         throw new BadRequestException("La etapa no corresponde al cultivo.");
       }
+      if (distributionMode === "shared" && entries &&
+          (!Number.isInteger(item.coveragePercentage) ||
+           item.coveragePercentage! < 1 || item.coveragePercentage! > 100)) {
+        throw new BadRequestException("Cada etapa o labor requiere porcentaje de parcela entre 1 y 100.");
+      }
       if (stage.type === "Etapa") {
         if (entries && (!item.subEtapaId || !Number.isInteger(item.coveragePercentage) ||
             item.coveragePercentage! < 1 || item.coveragePercentage! > 100 ||
@@ -965,7 +990,6 @@ export class VisitasCampoService {
         }
         item.coveragePercentage = entries ? item.coveragePercentage : 100;
         item.laborProgressPercentage = null;
-        totalCoverage += item.coveragePercentage ?? 0;
       } else {
         if (item.subEtapaId ||
             (item.coveragePercentage !== null &&
@@ -976,10 +1000,10 @@ export class VisitasCampoService {
               item.laborProgressPercentage < 0 || item.laborProgressPercentage > 100))) {
           throw new BadRequestException("Una labor requiere porcentajes válidos y no lleva subetapa.");
         }
-        totalCoverage += item.coveragePercentage ?? 0;
       }
+      totalCoverage += item.coveragePercentage ?? 0;
     }
-    if (entries && totalCoverage > 0 && totalCoverage !== 100) {
+    if (entries && (distributionMode === "shared" || totalCoverage > 0) && totalCoverage !== 100) {
       throw new BadRequestException("Los porcentajes de parcela deben sumar 100.");
     }
     if (entries) {
@@ -1535,7 +1559,7 @@ function buildStageExcelLabel(visita: VisitaCampoEntity) {
     entry.stage?.name ?? entry.etapaFenologicaId,
     entry.subStage?.name,
     entry.coveragePercentage === null ? null : `${entry.coveragePercentage}% parcela`,
-    entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% avance labor`
+    entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% avance labor anterior`
   ].filter(Boolean).join(" - ")).join("; ");
 }
 

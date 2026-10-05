@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-28
+last_reviewed: 2026-10-05
 ---
 
 # Documentación de AgroGest VSM
@@ -142,6 +142,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Sesión fija de 150 días](specs/087-sesion-fija-150-dias.md)
 - [Captura y aprobación de acreedores por productor](specs/088-captura-aprobacion-acreedores-productor.md)
 - [Múltiples etapas fenológicas por visita](specs/089-multiples-etapas-fenologicas-por-visita.md)
+- [Cobertura compartida de etapas y labores en el paso 1](specs/090-cobertura-compartida-etapas-labores-visita.md)
 
 ## Runbooks
 

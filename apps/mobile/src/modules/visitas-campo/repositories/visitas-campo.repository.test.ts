@@ -86,6 +86,26 @@ describe("visitasCampoRepository", () => {
       database.getFirstSync.mockReturnValue(null);
       expect(visitasCampoRepository.getById("x")).toBeNull();
     });
+    it("reopens stage and labor coverage in saved selection order", () => {
+      database.getFirstSync.mockReturnValue(visitaRow);
+      database.getAllSync.mockReturnValue([
+        {
+          phenological_stage_id: "stage1", stage_name: "Floración",
+          sub_etapa_id: "sub1", sub_etapa_name: "Botón floral",
+          coverage_percentage: 40, labor_progress_percentage: null
+        },
+        {
+          phenological_stage_id: "labor1", stage_name: "Poda",
+          sub_etapa_id: null, sub_etapa_name: null,
+          coverage_percentage: 60, labor_progress_percentage: "45"
+        }
+      ] as never);
+
+      expect(visitasCampoRepository.getById("v1")?.phenologicalStages).toMatchObject([
+        { phenologicalStageId: "stage1", coveragePercentage: 40 },
+        { phenologicalStageId: "labor1", coveragePercentage: 60, laborProgressPercentage: 45 }
+      ]);
+    });
   });
 
   describe("#getByParcelaId", () => {
@@ -247,6 +267,28 @@ describe("visitasCampoRepository", () => {
         database,
         expect.objectContaining({ entityType: "visitas_campo", operation: "update" })
       );
+    });
+
+    it("stores a labor's parcel coverage and earlier progress together", () => {
+      database.getFirstSync.mockReturnValue(visitaRow);
+
+      visitasCampoRepository.update("v1", {
+        phenologicalStageId: "labor1",
+        subEtapaId: null,
+        phenologicalStages: [{
+          phenologicalStageId: "labor1",
+          subEtapaId: null,
+          coveragePercentage: 100,
+          laborProgressPercentage: 45
+        }]
+      });
+
+      const insertCall = database.runSync.mock.calls.find(([sql]) =>
+        sql.includes("INSERT INTO visita_etapas_fenologicas")
+      );
+      expect(insertCall).toContain(100);
+      expect(insertCall).toContain("45");
+      expect(database.withTransactionSync).toHaveBeenCalledTimes(1);
     });
 
     it("guarda la hora de fin y deja la visita pendiente en outbox", () => {
