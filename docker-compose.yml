@@ -4,10 +4,10 @@ services:
     env_file:
       - apps/api/.env
     ports:
-      - "172.16.0.8:5440:5432"
+      - "172.16.0.8:5442:5432"
     volumes:
-      - agrogest_produccion_data:/var/lib/postgresql
-      - /var/www/idl/agrogest-20260921-produccion.dump:/backups/agrogest.dump:ro
+      - agrogest_desarrollo_data:/var/lib/postgresql
+      - /var/www/idl/agrogest-20260921-desarrollo.dump:/backups/agrogest.dump:ro
       - ./docker/postgres/20-restore.sh:/docker-entrypoint-initdb.d/20-restore.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
@@ -26,7 +26,7 @@ services:
       JWT_ACCESS_EXPIRES_IN: "15m"
       JWT_REFRESH_EXPIRES_IN: "150d"
     ports:
-      - "5177:3001"
+      - "172.16.0.8:5280:3001"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))\""]
@@ -41,13 +41,13 @@ services:
       target: admin-web
       args:
         API_INTERNAL_URL: http://api:3001
-        NEXT_PUBLIC_ENVIRONMENT_LABEL: ""
+        NEXT_PUBLIC_ENVIRONMENT_LABEL: DESARROLLO
     ports:
-      - "5176:3000"
+      - "172.16.0.8:5281:3000"
     restart: unless-stopped
     depends_on:
       api:
         condition: service_healthy
 
 volumes:
-  agrogest_produccion_data:
+  agrogest_desarrollo_data:
