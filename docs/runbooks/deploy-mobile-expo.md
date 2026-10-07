@@ -150,7 +150,7 @@ cancelar si no llega a `user_version = 60` preservando esos datos.
 El entorno EAS `production` contiene:
 
 ```env
-EXPO_PUBLIC_API_URL=https://agrogest-vsm-api.onrender.com
+EXPO_PUBLIC_API_URL=http://190.119.191.195:5177
 EXPO_PUBLIC_PRODUCTOR_WEB_URL=https://panel.agrogest.example/productor/acreedores
 ```
 

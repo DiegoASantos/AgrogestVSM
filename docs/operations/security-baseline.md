@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-28
+last_reviewed: 2026-10-07
 ---
 
 # Línea base de seguridad operativa
@@ -114,8 +114,8 @@ Variables:
 
 La configuración inicial permite cinco intentos por minuto y bloquea cinco
 minutos. El almacenamiento es en memoria: es suficiente para la instancia única
-actual de Render, pero debe migrarse a almacenamiento compartido si se escala a
-varias instancias.
+de API desplegada con Docker Compose, pero debe migrarse a almacenamiento
+compartido si se escala a varias instancias.
 
 ## CORS
 
@@ -128,25 +128,31 @@ contactar la API. Esto evita que una cabecera falsificada atraviese el panel
 hacia el limitador de intentos de login. La exposición directa de la API sigue
 requiriendo su propia configuración de proxy y controles de red.
 
-## TLS de base de datos
+## Red de base de datos
 
-`DB_SSL=true` cifra la conexión. El Blueprint actual usa
-`DB_SSL_REJECT_UNAUTHORIZED=false` por compatibilidad con el pooler. La mejora
-preferida es instalar la CA correspondiente y activar verificación estricta.
+En producción, API y PostgreSQL/PostGIS se comunican por la red privada de
+Docker Compose. El archivo `docker-compose.yml` también publica PostgreSQL en
+`172.16.0.8:5440`; el firewall del servidor debe limitar ese puerto a los
+equipos que realmente lo necesiten y nunca exponerlo a Internet. Si se habilitan
+conexiones fuera del host o de la red privada, configurar TLS y verificación de
+certificado antes de permitirlas.
 
 ## Secretos
 
-- Render, Supabase, Vercel y Expo administran secretos fuera de Git.
-- `.env` está ignorado.
+- Los secretos de API y base se guardan en `apps/api/.env` en el servidor
+  Ubuntu; el archivo está ignorado por Git y debe tener permisos de lectura
+  limitados al usuario de despliegue.
+- Expo/EAS conserva sus variables de build en la configuración de EAS; las
+  claves privadas no se incluyen en el código fuente.
 - Las IAs no deben leer ni copiar secretos salvo autorización explícita.
 - Rotar secretos ante exposición o cambio de responsable.
 - `COST_BUILD_API_KEY` habilita lectura masiva de datos para integración
   externa; debe configurarse solo como secreto del entorno y rotarse si se
   comparte por canales no seguros.
-- `WEATHERLINK_API_KEY` y `WEATHERLINK_API_SECRET` se configuran exclusivamente
-  como secretos de Render. El navegador no los recibe y los errores persistidos
-  no incluyen URLs, headers ni payloads del proveedor. El Secret debe rotarse
-  ante cualquier exposicion.
+- `WEATHERLINK_API_KEY` y `WEATHERLINK_API_SECRET` se configuran únicamente en
+  el archivo de entorno protegido del servidor. El navegador no los recibe y
+  los errores persistidos no incluyen URLs, headers ni payloads del proveedor.
+  El secreto debe rotarse ante cualquier exposición.
 
 ## Permisos mínimos
 

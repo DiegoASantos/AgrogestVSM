@@ -5,7 +5,7 @@ numero: 087
 area: API y mobile, autenticación
 created: 2026-09-30
 approved_by: Usuario, al solicitar «Implement the plan» el 2026-09-30
-implemented_in: apps/api/src/modules/auth; apps/mobile/src/modules/auth; render.yaml, 2026-09-30; JWT expiry configuration regression fix, 2026-10-01
+implemented_in: apps/api/src/modules/auth; apps/mobile/src/modules/auth; docker-compose.yml; apps/api/.env.example; JWT expiry configuration regression fix, 2026-10-01
 ---
 
 # Spec 087: Sesión fija de 150 días

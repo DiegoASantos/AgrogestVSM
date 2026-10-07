@@ -138,8 +138,8 @@ distribuciones circulares.
 
 ## Despliegue actual
 
-- API y web: servidor IDL en Docker Compose;
-- base de datos: PostgreSQL/PostGIS local en Docker;
+- API, panel web y PostgreSQL/PostGIS: servidor físico Ubuntu con Docker Compose;
+- base de datos local en Docker, aislada en la red de Compose para la API;
 - mobile Android: Expo EAS y actualizaciones OTA compatibles.
 
 El proxy del panel corresponde a la spec 085 y requiere reconstruir y

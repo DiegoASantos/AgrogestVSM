@@ -173,10 +173,11 @@ Notas:
 - el bootstrap de base solo funciona sobre un esquema vacio y requiere
   `ALLOW_DATABASE_BOOTSTRAP=true`
 
-### Deploy piloto de API
+### Producción
 
-Para publicar la API en Render contra Supabase usando la configuracion lista del
-repo, sigue [docs/runbooks/deploy-api-render.md](docs/runbooks/deploy-api-render.md).
+La API, el panel y PostgreSQL/PostGIS se ejecutan en el servidor físico Ubuntu
+con Docker Compose. Consulta [Entornos](docs/operations/environments.md) y el
+[checklist de release](docs/runbooks/release-checklist.md) antes de desplegar.
 
 ### Admin web
 

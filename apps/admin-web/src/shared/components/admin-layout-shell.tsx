@@ -35,6 +35,7 @@ import {
   Workflow,
   ChartNoAxesCombined,
   Target,
+  Wallet,
   type LucideIcon
 } from "lucide-react";
 
@@ -68,6 +69,7 @@ const mainNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.visitas]: ClipboardList,
   [adminRoutes.estimaciones]: Target,
   [adminRoutes.comercial]: ClipboardList,
+  [adminRoutes.pagos]: Wallet,
   [adminRoutes.mapas]: MapIcon,
   [adminRoutes.reportes]: ChartNoAxesCombined,
   [adminRoutes.mantenimiento]: Wrench,
@@ -89,7 +91,8 @@ const maintenanceNavIcons: Record<string, LucideIcon> = {
   [adminRoutes.mantenimientoItems.laboresCulturales]: Workflow,
   [adminRoutes.mantenimientoItems.sectores]: MapPin,
   [adminRoutes.mantenimientoItems.subsectores]: Layers,
-  [adminRoutes.mantenimientoItems.tiposDocumento]: FileText
+  [adminRoutes.mantenimientoItems.tiposDocumento]: FileText,
+  [adminRoutes.mantenimientoItems.acreedoresCosecha]: Users
 };
 
 const securityNavIcons: Record<string, LucideIcon> = {

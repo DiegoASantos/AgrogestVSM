@@ -144,8 +144,8 @@ pnpm --filter @agrogest/admin-web e2e:ci
 #    docs/runbooks/release-checklist.md
 ```
 
-La skill `agrogest-release-check` evalúa el release por componente (API Render,
-admin Vercel, mobile EAS), confirma migraciones, backup y rollback, y emite uno
+La skill `agrogest-release-check` evalúa el release por componente (API y panel
+en servidor Ubuntu, mobile EAS), confirma migraciones, backup y rollback, y emite uno
 de tres veredictos: listo, listo con condiciones, o no listo.
 
 ---

@@ -473,7 +473,8 @@ son en español porque los usuarios y el mantenedor son hispanohablantes.
 
 6. **Introducir secretos en código, logs o Git**: contraseñas, tokens, keys y
    URLs de conexión van en `.env.example` (formato, no valores) y se configuran
-   en Render/Vercel/EAS. Ver `docs/operations/security-baseline.md`.
+   en el servidor físico Ubuntu y Expo/EAS. Ver
+   `docs/operations/security-baseline.md`.
 
 7. **Hacer commit o push sin autorización humana**: la IA propone; el humano
    decide qué subir.

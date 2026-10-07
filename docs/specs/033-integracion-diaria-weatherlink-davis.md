@@ -5,7 +5,7 @@ numero: 033
 area: clima, api, postgresql, admin-web, seguridad, integraciones
 created: 2026-08-11
 approved_by: usuario mediante solicitud directa, 2026-08-11
-implemented_in: apps/api/src/modules/clima; apps/api/src/database/migrations/045-integracion-diaria-weatherlink.ts; apps/admin-web/src/modules/clima; render.yaml; docs/domain/data-model.md
+implemented_in: apps/api/src/modules/clima; apps/api/src/database/migrations/045-integracion-diaria-weatherlink.ts; apps/admin-web/src/modules/clima; docs/domain/data-model.md
 superseded_by: docs/specs/037-consulta-directa-weatherlink.md
 ---
 

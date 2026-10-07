@@ -18,8 +18,8 @@ export function createApiLogger(input: ApiLoggerInput = {}): ApiLogger {
       service: input.appName ?? DEFAULT_SERVICE_NAME,
       environment: input.environment ?? process.env.NODE_ENV ?? "development",
       version: process.env.npm_package_version ?? null,
-      commit: process.env.RENDER_GIT_COMMIT ?? process.env.GIT_COMMIT ?? null,
-      branch: process.env.RENDER_GIT_BRANCH ?? process.env.GIT_BRANCH ?? null
+      commit: process.env.GIT_COMMIT ?? null,
+      branch: process.env.GIT_BRANCH ?? null
     },
     timestamp: pino.stdTimeFunctions.isoTime,
     messageKey: "message",

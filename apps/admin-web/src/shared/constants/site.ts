@@ -16,6 +16,7 @@ export const adminRoutes = {
   visitas: "/visitas",
   estimaciones: "/estimaciones",
   comercial: "/comercial",
+  pagos: "/pagos",
   mapas: "/mapas",
   reportes: "/reportes",
   reportesItems: {
@@ -51,7 +52,8 @@ export const adminRoutes = {
     laboresCulturales: "/mantenimiento/labores-culturales",
     sectores: "/mantenimiento/sectores",
     subsectores: "/mantenimiento/subsectores",
-    tiposDocumento: "/mantenimiento/tipos-documento"
+    tiposDocumento: "/mantenimiento/tipos-documento",
+    acreedoresCosecha: "/mantenimiento/acreedores-cosecha"
   },
   seguridadItems: {
     usuarios: "/seguridad/usuarios",

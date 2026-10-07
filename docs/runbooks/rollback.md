@@ -2,7 +2,7 @@
 title: Rollback de despliegues
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-28
+last_reviewed: 2026-10-07
 ---
 
 # Rollback de despliegues
@@ -17,15 +17,22 @@ No desplegar un cambio crítico sin:
 - criterios de éxito y cancelación;
 - responsable de decidir rollback.
 
-## API en Render
+## API y panel en servidor Ubuntu
 
-1. Identificar el último deploy estable.
-2. Revisar si el nuevo deploy ejecutó migraciones.
-3. Si no cambió datos, redeploy del commit estable.
-4. Si cambió datos, evaluar compatibilidad antes de bajar código.
-5. Restaurar backup solo cuando una migración no pueda corregirse de forma
-   progresiva.
-6. Verificar `/health`, `/health/db`, login y endpoints críticos.
+1. Identificar la imagen o el commit estable que se desplegó antes del cambio.
+2. Revisar si se ejecutaron migraciones y qué datos afectaron.
+3. Si el cambio fue solo de aplicación, volver a desplegar la imagen o el commit
+   estable con Docker Compose.
+4. Si hubo cambios de datos, mantener la API compatible y preparar una
+   migración correctiva; no bajar el esquema automáticamente.
+5. Restaurar la base PostgreSQL/PostGIS desde un backup solo cuando la
+   corrección progresiva no sea viable y exista aprobación para la ventana.
+6. Verificar `/health`, `/health/db`, login y endpoints críticos desde el
+   servidor y desde una red autorizada.
+
+El repositorio no versiona imágenes estables ni automatiza este rollback. Antes
+de cada release, el responsable debe confirmar que puede recuperar el código
+anterior y el backup correspondiente.
 
 Las migraciones nuevas deben preferir expansión y contracción:
 
@@ -34,19 +41,12 @@ Las migraciones nuevas deben preferir expansión y contracción:
 3. migrar datos;
 4. retirar estructuras antiguas en otro release.
 
-## Admin web en Vercel
-
-1. Promover el deployment estable anterior.
-2. Confirmar `NEXT_PUBLIC_API_URL`.
-3. Probar login, dashboard, parcelas y visitas.
-
-El rollback web no corrige incompatibilidades introducidas en la API.
-
-## Panel web en servidor IDL
+## Panel web
 
 Si falla el proxy `/api/*`, restaurar la imagen web estable anterior y sus
 argumentos de compilación. Verificar `/health` en la API, login desde LAN y
-red externa, y que Network apunta a la URL esperada. No hay datos que revertir.
+red externa, y que Network apunta a `/api` bajo el origen del panel. El rollback
+web por sí solo no corrige incompatibilidades introducidas en la API.
 
 ## Mobile
 

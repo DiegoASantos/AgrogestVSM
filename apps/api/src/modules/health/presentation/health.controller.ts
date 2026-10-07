@@ -66,7 +66,7 @@ export class HealthController {
                 serviceId: {
                   type: "string",
                   nullable: true,
-                  example: "srv_xxxxx"
+                  example: "agrogest-produccion"
                 }
               }
             }

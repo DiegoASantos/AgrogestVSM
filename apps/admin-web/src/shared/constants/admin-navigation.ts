@@ -132,8 +132,19 @@ export const adminMaintenanceNavigation: AdminNavLink[] = [
     label: "Tipos de documento",
     href: adminRoutes.mantenimientoItems.tiposDocumento,
     description: "Catalogo documental"
+  },
+  {
+    label: "Acreedores de cosecha",
+    href: adminRoutes.mantenimientoItems.acreedoresCosecha,
+    description: "Perfiles bancarios y documentarios de acreedores"
   }
 ];
+
+adminMainNavigation.push({
+  label: "Pagos",
+  href: adminRoutes.pagos,
+  description: "Liquidaciones manuales de productores"
+});
 
 export const adminClimateNavigation: AdminNavLink[] = [
   {

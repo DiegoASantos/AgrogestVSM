@@ -1,6 +1,6 @@
 ---
 name: agrogest-release-check
-description: Evaluar preparación de releases, despliegues y entregas de AgroGest VSM para API Render, admin Vercel y mobile Expo/EAS. Usar antes de commit de release, deploy, OTA, APK o rollback; verifica alcance, pruebas, migraciones, secretos, documentación, compatibilidad y recuperación. No despliega ni hace push sin autorización explícita.
+description: Evaluar preparación de releases y despliegues de AgroGest VSM para API y panel en servidor físico Ubuntu con Docker Compose, y mobile Expo/EAS. Usar antes de commit de release, deploy, OTA, APK o rollback; verifica alcance, pruebas, migraciones, secretos, documentación, compatibilidad y recuperación. No despliega ni hace push sin autorización explícita.
 ---
 
 # Preparación de releases de AgroGest
@@ -13,7 +13,8 @@ description: Evaluar preparación de releases, despliegues y entregas de AgroGes
 4. Elegir y ejecutar validaciones proporcionales.
 5. Confirmar migraciones, backup, compatibilidad y rollback.
 6. Validar nombres y contrato de variables mediante `.env.example`,
-   `render.yaml`, `eas.json` y runbooks; no leer ni comprobar archivos `.env`.
+   `docker-compose.yml`, `eas.json` y runbooks; no leer ni comprobar archivos
+   `.env`.
 7. Definir health checks y smoke tests posteriores.
 8. Emitir: listo, listo con condiciones o no listo.
 9. Listar bloqueos, confirmaciones humanas y criterio de cancelación.

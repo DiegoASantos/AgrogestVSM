@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-05
+last_reviewed: 2026-10-06
 ---
 
 # Modelo del dominio
@@ -73,7 +73,7 @@ combinacion exacta no se duplica para ese productor. Los perfiles son
 consultables por ADMIN o AGRONOMO que mantenga acceso horizontal al productor.
 
 Cada perfil tiene `PENDING`, `APPROVED` u `OBSERVED` y origen de captura inicial
-`PRODUCTOR` o `MOBILE`. Un perfil nuevo queda pendiente. `ADMIN` o `ANALISTA`
+`PRODUCTOR`, `MOBILE` o `ADMIN_WEB`. Un perfil nuevo queda pendiente. `ADMIN` o `ANALISTA`
 revisa los datos completos, aprueba o registra una observación; cada decisión
 conserva revisor, fecha y nota en `revisiones_acreedor_cosecha`. Solo un perfil
 aprobado puede respaldar un nuevo registro de cosecha. El productor puede
@@ -95,6 +95,24 @@ Mobile mantiene perfiles y registros por `owner_user_id`, con estado de
 sincronizacion, identificadores locales/remotos y cache visible de la sesion.
 Mobile conserva el formulario de acreedores como captura alternativa del
 agrónomo; la edición de perfiles se realiza desde la web pública del productor.
+
+El mantenimiento administrativo también permite a `ADMIN` y `ANALISTA` crear,
+editar y consultar acreedores de cosecha. Los creados desde esa pantalla tienen
+origen `ADMIN_WEB` y estado `PENDING`; cualquier edición de un perfil aprobado
+lo devuelve a pendiente sin eliminar el historial de revisiones. Solo los
+acreedores aprobados pueden asignarse a pagos nuevos.
+
+`pago_productores` representa una liquidación manual asociada a un productor,
+con guía y lote capturados como texto. Cada cabecera puede distribuirse entre
+varios acreedores aprobados del mismo productor mediante
+`detalle_pago_productores`. Cabeceras y detalles usan `BORRADOR`, `OBSERVADO`,
+`PENDIENTE`, `PAGADO` y `ANULADO`; la primera línea convierte la cabecera de
+borrador a pendiente. Los estados de detalle son independientes. Importes,
+pesos, jabas, descuentos y detracciones se guardan como fueron digitados y no
+se derivan entre sí. El porcentaje de peso de cada detalle se valida entre 0 y
+100 sin exigir que la suma sea 100. Eliminar una liquidación con detalles o
+eliminar una línea conserva las filas y las anula; solo se elimina físicamente
+un borrador sin detalles.
 
 ## Producción agrícola
 

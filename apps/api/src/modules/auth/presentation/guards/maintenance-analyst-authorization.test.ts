@@ -3,6 +3,10 @@ import "reflect-metadata";
 import { describe, expect, it } from "vitest";
 
 import { CampaniasController } from "../../../campanias/presentation/campanias.controller";
+import {
+  AdminAcreedoresCosechaController,
+  PagosProductoresController
+} from "../../../comercial/presentation/pagos-productores.controller";
 import { CultivosController } from "../../../cultivos/presentation/cultivos.controller";
 import { DetalleNutrientesController } from "../../../nutricion/presentation/detalle-nutrientes.controller";
 import { NutrientesController } from "../../../nutricion/presentation/nutrientes.controller";
@@ -74,6 +78,18 @@ const adminAnalystHandlers = [
   ["tipos-documento.delete", TiposDocumentoController.prototype.deleteTipoDocumento]
 ] as const;
 
+const paymentAndCreditorHandlers = [
+  ["pagos.create", PagosProductoresController.prototype.create],
+  ["pagos.update", PagosProductoresController.prototype.update],
+  ["pagos.delete", PagosProductoresController.prototype.remove],
+  ["pagos.detalles.create", PagosProductoresController.prototype.createDetail],
+  ["pagos.detalles.update", PagosProductoresController.prototype.updateDetail],
+  ["pagos.detalles.delete", PagosProductoresController.prototype.removeDetail],
+  ["acreedores.create", AdminAcreedoresCosechaController.prototype.create],
+  ["acreedores.update", AdminAcreedoresCosechaController.prototype.update],
+  ["acreedores.delete", AdminAcreedoresCosechaController.prototype.remove]
+] as const;
+
 const agronomistCompatibleHandlers = [
   ["productores.create", ProductoresController.prototype.createProductor],
   ["productores.update", ProductoresController.prototype.updateProductor],
@@ -93,6 +109,17 @@ describe("maintenance analyst mutation authorization", () => {
     ]);
     expect(Reflect.getMetadata(ALLOW_ANALYST_MUTATION_KEY, handler)).toBe(true);
   });
+
+  it.each(paymentAndCreditorHandlers)(
+    "allows ADMIN and ANALISTA on %s",
+    (_name, handler) => {
+      expect(Reflect.getMetadata(REQUIRED_ROLES_KEY, handler)).toEqual([
+        "ADMIN",
+        "ANALISTA"
+      ]);
+      expect(Reflect.getMetadata(ALLOW_ANALYST_MUTATION_KEY, handler)).toBe(true);
+    }
+  );
 
   it.each(agronomistCompatibleHandlers)(
     "adds ANALISTA without removing AGRONOMO from %s",

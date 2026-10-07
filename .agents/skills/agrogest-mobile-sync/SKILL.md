@@ -16,7 +16,8 @@ description: Diseñar, implementar o revisar cambios offline-first de AgroGest m
 6. Preservar orden padre-hijos e idempotencia.
 7. No marcar `synced` antes de la confirmación válida de API.
 8. Para fotos o binarios, definir almacenamiento durable del servidor, límites,
-   lifecycle local, reanudación y limpieza; no asumir disco efímero de Render.
+   lifecycle local, reanudación y limpieza; no asumir que el almacenamiento del
+   servidor tiene persistencia, backup o retención configurados.
 9. Probar éxito, desconexión, reintento, padre fallido y conflicto.
 10. Actualizar arquitectura, spec y riesgos.
 

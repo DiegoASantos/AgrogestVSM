@@ -1,4 +1,13 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn, Unique } from "typeorm";
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Unique
+} from "typeorm";
+import { ProductorEntity } from "../../../../productores/infrastructure/persistence/entities/productor.entity";
 
 import {
   PAGO_COSECHA_BANKS,
@@ -10,7 +19,7 @@ import {
 export { PAGO_COSECHA_BANKS, PAGO_COSECHA_DOCUMENT_TYPES };
 export type { PagoCosechaBank, PagoCosechaDocumentType };
 export type CreditorApprovalStatus = "PENDING" | "APPROVED" | "OBSERVED";
-export type CreditorSource = "PRODUCTOR" | "MOBILE";
+export type CreditorSource = "PRODUCTOR" | "MOBILE" | "ADMIN_WEB";
 
 @Entity({ name: "acreedores_cosecha" })
 @Unique("uq_acreedores_cosecha_public_id", ["publicId"])
@@ -31,6 +40,10 @@ export class AcreedorCosechaEntity {
 
   @Column({ name: "productor_id", type: "bigint" })
   productorId!: string;
+
+  @ManyToOne(() => ProductorEntity, { onDelete: "RESTRICT" })
+  @JoinColumn({ name: "productor_id" })
+  productor?: ProductorEntity;
 
   @Column({ name: "nombres_acreedor", type: "varchar", length: 100 })
   creditorFirstName!: string;

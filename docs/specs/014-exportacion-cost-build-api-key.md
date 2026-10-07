@@ -5,7 +5,7 @@ numero: 014
 area: api, database, seguridad, integraciones, productores, parcelas, catalogos
 created: 2026-07-08
 approved_by: usuario CLI
-implemented_in: apps/api/src/modules/integraciones; apps/api/src/database/migrations/029-cost-build-public-ids.ts; apps/api/src/config; render.yaml; docs/architecture/overview.md; docs/domain/data-model.md; docs/domain/cultivos.md; docs/operations/security-baseline.md; docs/runbooks/deploy-api-render.md
+implemented_in: apps/api/src/modules/integraciones; apps/api/src/database/migrations/029-cost-build-public-ids.ts; apps/api/src/config; docs/architecture/overview.md; docs/domain/data-model.md; docs/domain/cultivos.md; docs/operations/security-baseline.md
 ---
 
 # Spec 014: Exportacion protegida para Cost-Build

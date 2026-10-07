@@ -41,4 +41,14 @@ describe("admin report navigation", () => {
       "Parcelas"
     );
   });
+
+  it("registers payments in the main module list and creditor maintenance", () => {
+    expect(adminMainNavigation.map((item) => item.href)).toContain(adminRoutes.pagos);
+    expect(resolveAdminRouteMeta(adminRoutes.pagos)).toMatchObject({ label: "Pagos" });
+    expect(
+      resolveAdminRouteMeta(adminRoutes.mantenimientoItems.acreedoresCosecha)
+    ).toMatchObject({
+      label: "Acreedores de cosecha"
+    });
+  });
 });
