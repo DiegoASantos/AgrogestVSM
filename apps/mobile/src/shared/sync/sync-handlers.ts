@@ -175,10 +175,14 @@ async function handleAcreedorCosecha(
 
   db.runSync(
     `UPDATE acreedores_cosecha
-     SET server_id = ?, public_id = ?, sync_status = 'synced', sync_error_message = NULL
+     SET server_id = ?, public_id = ?, approval_status = ?, source = ?, review_observation = ?,
+         sync_status = 'synced', sync_error_message = NULL
      WHERE local_id = ?`,
     response.id,
     response.publicId,
+    response.approvalStatus,
+    response.source,
+    response.reviewObservation,
     entry.entityLocalId
   );
 
@@ -1004,8 +1008,14 @@ function buildVisitaCampoCreateBody(
     startVisitTime: visita.startVisitTime,
     endVisitTime: visita.endVisitTime ?? undefined,
     phenologicalStageId: visita.phenologicalStageId,
-    subEtapaId: visita.subEtapaId ?? undefined,
+    subEtapaId: visita.subEtapaId,
     subEtapaPercentage: visita.subEtapaPercentage ?? undefined,
+    phenologicalStages: visita.phenologicalStages.map(({ phenologicalStageId, subEtapaId, coveragePercentage, laborProgressPercentage }) => ({
+      phenologicalStageId, subEtapaId, coveragePercentage, laborProgressPercentage
+    })),
+    ...(visita.phenologicalStages.length > 0 &&
+      visita.phenologicalStages.every((entry) => entry.coveragePercentage !== null)
+      ? { distributionMode: "shared" as const } : {}),
     generalObservation: visita.generalObservation ?? undefined
   };
 }
@@ -1027,8 +1037,14 @@ function buildVisitaCampoUpdateBody(
     startVisitTime: visita.startVisitTime,
     endVisitTime: visita.endVisitTime,
     phenologicalStageId: visita.phenologicalStageId ?? undefined,
-    subEtapaId: visita.subEtapaId ?? undefined,
+    subEtapaId: visita.subEtapaId,
     subEtapaPercentage: visita.subEtapaPercentage ?? undefined,
+    phenologicalStages: visita.phenologicalStages.map(({ phenologicalStageId, subEtapaId, coveragePercentage, laborProgressPercentage }) => ({
+      phenologicalStageId, subEtapaId, coveragePercentage, laborProgressPercentage
+    })),
+    ...(visita.phenologicalStages.length > 0 &&
+      visita.phenologicalStages.every((entry) => entry.coveragePercentage !== null)
+      ? { distributionMode: "shared" as const } : {}),
     generalObservation: visita.generalObservation ?? undefined
   };
 }

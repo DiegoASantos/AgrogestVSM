@@ -74,7 +74,9 @@ export class VisitaRecetasConsolidacionService {
       visita.etapaFenologica && visita.subEtapa
         ? `${visita.etapaFenologica.name} - ${visita.subEtapa.name} (${visita.subEtapa.percentage ?? visita.subEtapaPercentage ?? ""})`
         : visita.etapaFenologica && visita.subEtapaPercentage !== null
-          ? `${visita.etapaFenologica.name} (${visita.subEtapaPercentage})`
+          ? visita.etapaFenologica.type === "Labor"
+            ? `${visita.etapaFenologica.name} (avance de labor registrado anteriormente: ${visita.subEtapaPercentage}%)`
+            : `${visita.etapaFenologica.name} (${visita.subEtapaPercentage})`
           : (visita.etapaFenologica?.name ?? null);
 
     const [observaciones, evaluaciones, riego, labores] = await Promise.all([

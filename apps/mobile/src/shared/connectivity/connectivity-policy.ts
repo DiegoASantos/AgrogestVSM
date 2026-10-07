@@ -28,6 +28,10 @@ export function isNetworkRequestAllowed(policy: NetworkRequestPolicy) {
     return false;
   }
 
+  if (policy === "interactive") {
+    return currentPolicy.preference === "automatic";
+  }
+
   if (policy === "probe") {
     return currentPolicy.preference === "automatic";
   }

@@ -23,7 +23,8 @@ segundo formulario para registrar la cosecha y el acreedor al que se pagara.
 
 - Perfiles de acreedor por productor, con nombres, apellidos, DNI/RUC, banco y
   cuenta o CCI; un productor puede tener varios.
-- Dos pasos en Comercial: registrar acreedor y registrar pago de cosecha.
+- Dos vistas en Comercial: registrar acreedor y registrar pago de cosecha,
+  enlazadas con botones para avanzar y volver.
 - Segundo paso con productor visible para la sesion, cantidad de jabas, precio
   por jaba en soles, fecha de registro actual no editable, fecha de cosecha
   editable y acreedor.
@@ -48,16 +49,18 @@ segundo formulario para registrar la cosecha y el acreedor al que se pagara.
 - RF-002: conserva el interruptor "El acreedor es el productor". Para un
   productor persona completa los datos personales disponibles; banco y cuenta
   siempre requieren ingreso. Tras guardar, mantiene una lista resumida de los
-  acreedores del productor y permite agregar otro.
+  acreedores del productor y permite agregar otro. El boton "Cosecha" abre la
+  vista individual del segundo paso cuando existe un acreedor disponible.
 - RF-003: el segundo paso permite elegir un productor del mismo alcance y
   carga sus acreedores. Sin acreedores informa como agregar uno; con uno lo
-  selecciona automaticamente; con varios exige una seleccion explicita.
+  selecciona automaticamente; con varios exige una seleccion explicita. Un
+  boton permite volver al registro de acreedores.
 - RF-004: cada registro guarda cantidad de jabas como entero positivo, precio
   por jaba en PEN con hasta dos decimales y sin total calculado. `fechaRegistro`
   se toma de la fecha local actual, se muestra solo lectura y se guarda como
   fecha calendario; `fechaCosecha` inicia con ese valor, admite ingreso
-  editable en formato `YYYY-MM-DD` y puede ser anterior, pero no posterior a
-  la fecha de registro.
+  seleccion desde un calendario que produce `YYYY-MM-DD` y bloquea fechas
+  posteriores a la fecha de registro.
 - RF-005: al crear un registro se conserva una instantanea inmutable de los
   datos del acreedor, ademas de su referencia, para que un cambio futuro del
   perfil no reescriba el historial.

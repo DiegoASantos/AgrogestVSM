@@ -2,7 +2,7 @@
 title: Observabilidad con logs estructurados
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-26
+last_reviewed: 2026-10-07
 ---
 
 # Observabilidad con logs estructurados
@@ -12,7 +12,7 @@ last_reviewed: 2026-06-26
 AgroGest VSM usa `pino` en la API para emitir logs JSON estructurados. No se
 integra Sentry en esta fase.
 
-El objetivo es que el desarrollador y cualquier IA puedan leer logs de Render,
+El objetivo es que el responsable pueda leer los logs de los contenedores,
 identificar una petición, agrupar errores y reconstruir fallos sin depender de
 mensajes libres difíciles de buscar.
 
@@ -20,7 +20,7 @@ mensajes libres difíciles de buscar.
 
 Actualmente la fuente principal es la API:
 
-- `stdout` de Render;
+- `stdout` de los contenedores Docker en el servidor Ubuntu;
 - logs locales al ejecutar `pnpm --filter @agrogest/api dev` o `start`;
 - health checks `/health` y `/health/db` para estado y versión desplegada.
 
@@ -145,7 +145,9 @@ enviar esos datos al logger.
 ## Retención y acceso
 
 - Desarrollo: conservar logs locales solo mientras dure la depuración.
-- Producción Render: usar la retención disponible del plan contratado.
+- Producción: consultar los logs con `docker compose logs`; la política de
+  rotación y retención se administra en el servidor y no está definida en
+  `docker-compose.yml`.
 - Si se exportan logs, guardar solo el rango necesario para el incidente.
 - No compartir logs completos con una IA si contienen datos reales. Extraer
   líneas relevantes y anonimizar identificadores cuando sea posible.

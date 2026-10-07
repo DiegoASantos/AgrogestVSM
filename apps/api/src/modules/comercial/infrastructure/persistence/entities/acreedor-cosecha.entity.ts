@@ -1,4 +1,13 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn, Unique } from "typeorm";
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Unique
+} from "typeorm";
+import { ProductorEntity } from "../../../../productores/infrastructure/persistence/entities/productor.entity";
 
 import {
   PAGO_COSECHA_BANKS,
@@ -9,6 +18,8 @@ import {
 
 export { PAGO_COSECHA_BANKS, PAGO_COSECHA_DOCUMENT_TYPES };
 export type { PagoCosechaBank, PagoCosechaDocumentType };
+export type CreditorApprovalStatus = "PENDING" | "APPROVED" | "OBSERVED";
+export type CreditorSource = "PRODUCTOR" | "MOBILE" | "ADMIN_WEB";
 
 @Entity({ name: "acreedores_cosecha" })
 @Unique("uq_acreedores_cosecha_public_id", ["publicId"])
@@ -30,6 +41,10 @@ export class AcreedorCosechaEntity {
   @Column({ name: "productor_id", type: "bigint" })
   productorId!: string;
 
+  @ManyToOne(() => ProductorEntity, { onDelete: "RESTRICT" })
+  @JoinColumn({ name: "productor_id" })
+  productor?: ProductorEntity;
+
   @Column({ name: "nombres_acreedor", type: "varchar", length: 100 })
   creditorFirstName!: string;
 
@@ -48,8 +63,23 @@ export class AcreedorCosechaEntity {
   @Column({ name: "nro_cuenta", type: "varchar", length: 30 })
   accountNumber!: string;
 
-  @Column({ name: "creado_por_usuario_id", type: "bigint" })
-  createdByUserId!: string;
+  @Column({ name: "creado_por_usuario_id", type: "bigint", nullable: true })
+  createdByUserId!: string | null;
+
+  @Column({ name: "estado_aprobacion", type: "varchar", length: 10, default: "PENDING" })
+  approvalStatus!: CreditorApprovalStatus;
+
+  @Column({ name: "origen", type: "varchar", length: 10, default: "MOBILE" })
+  source!: CreditorSource;
+
+  @Column({ name: "observacion_revision", type: "text", nullable: true })
+  reviewObservation!: string | null;
+
+  @Column({ name: "revisado_por_usuario_id", type: "bigint", nullable: true })
+  reviewedByUserId!: string | null;
+
+  @Column({ name: "revisado_at", type: "timestamptz", nullable: true })
+  reviewedAt!: Date | null;
 
   @Column({ name: "creado_at", type: "timestamptz", default: () => "now()" })
   createdAt!: Date;

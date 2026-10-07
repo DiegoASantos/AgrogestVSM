@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-22
+last_reviewed: 2026-10-06
 ---
 
 # Especificaciones
@@ -131,4 +131,10 @@ en la raíz.
 - [Spec 085: Proxy de API por el mismo origen del panel web](085-proxy-api-mismo-origen-web.md)
 - [Spec 086: Reasignación controlada de parcelas entre agrónomos](086-reasignacion-controlada-parcelas.md)
 - [Spec 087: Sesión fija de 150 días](087-sesion-fija-150-dias.md)
+- [Spec 088: Captura y aprobación de acreedores por productor](088-captura-aprobacion-acreedores-productor.md)
+- [Spec 089: Múltiples etapas fenológicas por visita](089-multiples-etapas-fenologicas-por-visita.md)
+- [Spec 090: Cobertura compartida de etapas y labores en el paso 1](090-cobertura-compartida-etapas-labores-visita.md)
+- [Spec 091: Subetapa automática según cobertura de parcela](091-subetapa-automatica-por-cobertura.md)
+- [Spec 092: Pagos de productores en admin web](092-pagos-productores-admin-web.md)
+- [Spec 093: Compatibilidad del bootstrap con migración territorial 001](093-reparacion-bootstrap-migracion-territorial-001.md)
 - [Plantilla](TEMPLATE.md)

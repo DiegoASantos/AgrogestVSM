@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException
 } from "@nestjs/common";
@@ -145,6 +146,8 @@ describe("VisitasCampoService", () => {
       expect(repo.createQueryBuilder).toHaveBeenCalledWith("visita");
       expect(qb.skip).toHaveBeenCalledWith(0);
       expect(qb.take).toHaveBeenCalledWith(50);
+      expect(qb.orderBy).toHaveBeenCalledWith("visita.fechaVisita", "DESC");
+      expect(qb.addOrderBy).toHaveBeenCalledWith("visita.horaVisitaInicio", "DESC");
       expect(result.success).toBe(true);
       expect(result.data).toHaveLength(1);
       expect(result.meta).toEqual({ total: 1, page: 1, limit: 50, totalPages: 1 });
@@ -168,7 +171,8 @@ describe("VisitasCampoService", () => {
       const result = await service.findById("42");
 
       expect(repo.findOne).toHaveBeenCalledWith({
-        where: { id: "42" }
+        where: { id: "42" },
+        relations: { phenologicalStages: { stage: true, subStage: true } }
       });
       expect(result.data.id).toBe("42");
     });
@@ -230,7 +234,8 @@ describe("VisitasCampoService", () => {
         NotFoundException
       );
       expect(repo.findOne).toHaveBeenCalledWith({
-        where: { id: "inactive-id", isActive: true }
+        where: { id: "inactive-id", isActive: true },
+        relations: { phenologicalStages: { stage: true, subStage: true } }
       });
       expect(repo.find).not.toHaveBeenCalled();
     });
@@ -277,6 +282,7 @@ describe("VisitasCampoService", () => {
           cultivo: { name: "Mango" },
           campania: { name: "Mango 2026" },
           etapaFenologica: { type: "Etapa", name: "Floracion" },
+          subEtapaId: "60",
           subEtapaPercentage: "37.5",
           observacionesSanitarias: [
             { id: "1", plagaEnfermedad: { type: "plaga", name: "Mosca de la fruta" } },
@@ -301,7 +307,7 @@ describe("VisitasCampoService", () => {
             code: "PAR-100",
             name: "Predio Norte",
             productor: { firstName: "Rosa", lastName: "Diaz", documentNumber: null },
-            subsector: { sector: { name: "Sector Norte" } }
+            subsector: { name: "Subsector Norte", sector: { name: "Sector Norte" } }
           }
         }
       ]);
@@ -344,11 +350,12 @@ describe("VisitasCampoService", () => {
         "Agrónomo",
         "Productor",
         "Sector",
+        "Subsector",
         "Parcela",
         "Hora inicio",
         "Hora fin",
-        "Etapa fenológica",
-        "Porcentaje de avance",
+        "Distribución de la parcela",
+        "Avance histórico de subetapa",
         "Plagas",
         "Enfermedades",
         "Nutrición",
@@ -361,47 +368,51 @@ describe("VisitasCampoService", () => {
         expect(worksheet!.getRow(4).getCell(index + 1).value).toBe(value);
       }
       expect(worksheet!.getRow(4).height).toBe(32);
-      expect(worksheet!.autoFilter).toBe("A4:Q4");
-      expect(worksheet!.getCell("Q1").isMerged).toBe(true);
-      expect(worksheet!.getCell("Q4").fill).toMatchObject({
+      expect(worksheet!.autoFilter).toBe("A4:R4");
+      expect(worksheet!.getCell("R1").isMerged).toBe(true);
+      expect(worksheet!.getCell("R4").fill).toMatchObject({
         fgColor: { argb: "FF2F6B4F" }
       });
-      expect(worksheet!.getCell("Q4").font).toMatchObject({
+      expect(worksheet!.getCell("R4").font).toMatchObject({
         bold: true,
         color: { argb: "FFFFFFFF" }
       });
 
+      expect(worksheet!.getRow(5).getCell(2).value).toBe("VSM0001");
       expect(worksheet!.getRow(5).getCell(3).value).toBe("Mango");
       expect(worksheet!.getRow(5).getCell(4).value).toBe("Ana Lopez");
-      expect(worksheet!.getRow(5).getCell(9).value).toBe("09:30");
-      expect(worksheet!.getRow(5).getCell(10).value).toBe("Floracion");
-      expect(worksheet!.getRow(5).getCell(11).value).toBe(0.375);
-      expect(worksheet!.getRow(5).getCell(11).numFmt).toBe("0%");
-      expect(worksheet!.getRow(5).getCell(12).value).toBe("Mosca de la fruta");
-      expect(worksheet!.getRow(6).getCell(12).value).toBe("Trips");
-      expect(worksheet!.getRow(7).getCell(12).value).toBe("Acaros");
-      expect(worksheet!.getRow(8).getCell(12).value).toBe("Cochinilla");
-      expect(worksheet!.getRow(5).getCell(13).value).toBe("Antracnosis");
-      expect(worksheet!.getRow(6).getCell(13).value).toBe("Oidio");
-      expect(worksheet!.getRow(7).getCell(13).value).toBe("Mildiu");
-      expect(worksheet!.getRow(8).getCell(13).value).toBe("");
-      expect(worksheet!.getRow(5).getCell(14).value).toBe("Calcio");
-      expect(worksheet!.getRow(5).getCell(15).value).toBe("Húmedo");
-      expect(worksheet!.getRow(5).getCell(16).value).toBe("Sí");
-      expect(worksheet!.getCell("K5").isMerged).toBe(true);
-      expect(worksheet!.getCell("K8").isMerged).toBe(true);
-      expect(worksheet!.getCell("N5").isMerged).toBe(true);
-      expect(worksheet!.getCell("N8").isMerged).toBe(true);
+      expect(worksheet!.getRow(5).getCell(6).value).toBe("Sector Norte");
+      expect(worksheet!.getRow(5).getCell(7).value).toBe("Subsector Norte");
+      expect(worksheet!.getRow(5).getCell(8).value).toBe("PAR-100 - Predio Norte");
+      expect(worksheet!.getRow(5).getCell(10).value).toBe("09:30");
+      expect(worksheet!.getRow(5).getCell(11).value).toBe("Floracion");
+      expect(worksheet!.getRow(5).getCell(12).value).toBe(0.375);
+      expect(worksheet!.getRow(5).getCell(12).numFmt).toBe("0%");
+      expect(worksheet!.getRow(5).getCell(13).value).toBe("Mosca de la fruta");
+      expect(worksheet!.getRow(6).getCell(13).value).toBe("Trips");
+      expect(worksheet!.getRow(7).getCell(13).value).toBe("Acaros");
+      expect(worksheet!.getRow(8).getCell(13).value).toBe("Cochinilla");
+      expect(worksheet!.getRow(5).getCell(14).value).toBe("Antracnosis");
+      expect(worksheet!.getRow(6).getCell(14).value).toBe("Oidio");
+      expect(worksheet!.getRow(7).getCell(14).value).toBe("Mildiu");
+      expect(worksheet!.getRow(8).getCell(14).value).toBe("");
+      expect(worksheet!.getRow(5).getCell(15).value).toBe("Calcio");
+      expect(worksheet!.getRow(5).getCell(16).value).toBe("Húmedo");
+      expect(worksheet!.getRow(5).getCell(17).value).toBe("Sí");
+      expect(worksheet!.getCell("L5").isMerged).toBe(true);
+      expect(worksheet!.getCell("L8").isMerged).toBe(true);
       expect(worksheet!.getCell("O5").isMerged).toBe(true);
+      expect(worksheet!.getCell("O8").isMerged).toBe(true);
       expect(worksheet!.getCell("P5").isMerged).toBe(true);
       expect(worksheet!.getCell("Q5").isMerged).toBe(true);
+      expect(worksheet!.getCell("R5").isMerged).toBe(true);
       expect(worksheet!.getCell("A5").isMerged).toBe(true);
       expect(worksheet!.getCell("A8").isMerged).toBe(true);
-      expect(worksheet!.getCell("N5").alignment).toMatchObject({
+      expect(worksheet!.getCell("O5").alignment).toMatchObject({
         horizontal: "center",
         vertical: "middle"
       });
-      expect(worksheet!.getCell("L5").fill).toMatchObject({
+      expect(worksheet!.getCell("M5").fill).toMatchObject({
         fgColor: { argb: "FFFFF7ED" }
       });
     });
@@ -410,6 +421,8 @@ describe("VisitasCampoService", () => {
       repo.find.mockResolvedValue([
         {
           ...makeVisita(),
+          id: "27",
+          nroFicha: null,
           fechaVisita: "2026-08-15",
           horaVisitaInicio: "08:00",
           horaVisitaFin: null,
@@ -421,7 +434,7 @@ describe("VisitasCampoService", () => {
             code: "PAR-100",
             name: "Predio Norte",
             productor: { firstName: "Rosa", lastName: "Diaz", documentNumber: null },
-            subsector: { sector: { name: "Sector Norte" } }
+            subsector: { name: "Subsector Norte", sector: { name: "Sector Norte" } }
           }
         }
       ]);
@@ -437,14 +450,15 @@ describe("VisitasCampoService", () => {
       await workbook.xlsx.load(xlsxContent);
       const worksheet = workbook.getWorksheet("Visitas");
 
-      expect(worksheet!.getRow(5).getCell(11).value).toBe("---");
-      expect(worksheet!.getRow(5).getCell(12).value).toBe("Sin plagas");
-      expect(worksheet!.getRow(5).getCell(13).value).toBe("Sin enfermedades");
-      expect(worksheet!.getRow(5).getCell(14).value).toBe(
+      expect(worksheet!.getRow(5).getCell(12).value).toBe("---");
+      expect(worksheet!.getRow(5).getCell(13).value).toBe("Sin plagas");
+      expect(worksheet!.getRow(5).getCell(14).value).toBe("Sin enfermedades");
+      expect(worksheet!.getRow(5).getCell(15).value).toBe(
         "Sin deficiencias nutricionales"
       );
-      expect(worksheet!.getRow(5).getCell(15).value).toBe("No registrado");
-      expect(worksheet!.getRow(5).getCell(16).value).toBe("No");
+      expect(worksheet!.getRow(5).getCell(2).value).toBe("VSM0027");
+      expect(worksheet!.getRow(5).getCell(16).value).toBe("No registrado");
+      expect(worksheet!.getRow(5).getCell(17).value).toBe("No");
     });
 
     it("should center absence labels across all rows created by pest diagnoses", async () => {
@@ -481,13 +495,13 @@ describe("VisitasCampoService", () => {
       await workbook.xlsx.load(xlsxContent);
       const worksheet = workbook.getWorksheet("Visitas");
 
-      expect(worksheet!.getRow(5).getCell(12).value).toBe("Trips");
-      expect(worksheet!.getRow(6).getCell(12).value).toBe("Acaros");
-      expect(worksheet!.getCell("M5").isMerged).toBe(true);
-      expect(worksheet!.getCell("M6").isMerged).toBe(true);
+      expect(worksheet!.getRow(5).getCell(13).value).toBe("Trips");
+      expect(worksheet!.getRow(6).getCell(13).value).toBe("Acaros");
       expect(worksheet!.getCell("N5").isMerged).toBe(true);
       expect(worksheet!.getCell("N6").isMerged).toBe(true);
-      expect(worksheet!.getCell("M5").alignment).toMatchObject({
+      expect(worksheet!.getCell("O5").isMerged).toBe(true);
+      expect(worksheet!.getCell("O6").isMerged).toBe(true);
+      expect(worksheet!.getCell("N5").alignment).toMatchObject({
         horizontal: "center",
         vertical: "middle"
       });
@@ -611,6 +625,154 @@ describe("VisitasCampoService", () => {
       phenologicalStageId: "50"
     };
 
+    function mockStageReferences() {
+      repo.findOne.mockImplementation(async ({ where }: { where: { id?: string } }) => {
+        switch (where.id) {
+          case "10": return { id: "10" };
+          case "20": return { id: "20", cultivoId: "10" };
+          case "30": return { id: "30", isActive: true };
+          case "40": return { id: "40", cultivoId: "10" };
+          case "u1": return { id: "u1" };
+          case "50": case "51": return { id: where.id, cultivoId: "10", type: "Etapa" };
+          case "52": return { id: "52", cultivoId: "10", type: "Labor" };
+          case "60": return { id: "60", etapaFenologicaId: "50" };
+          case "61": return { id: "61", etapaFenologicaId: "51" };
+          default: return null;
+        }
+      });
+      repo.create.mockImplementation((value: object) => ({ ...makeVisita(), ...value }));
+      const stageSave = vi.fn(async (rows: unknown[]) => rows);
+      const manager = {
+        save: vi.fn(async (value: object) => ({ ...value, id: "1" })),
+        getRepository: vi.fn(() => ({ save: stageSave }))
+      };
+      (repo as unknown as { manager: unknown }).manager = {
+        transaction: (callback: (value: typeof manager) => Promise<unknown>) => callback(manager)
+      };
+      return { manager, stageSave };
+    }
+
+    it("stores both entries and selects the stage with the largest parcel share", async () => {
+      const { stageSave } = mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        phenologicalStageId: "51",
+        subEtapaId: "61",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 40 },
+          { phenologicalStageId: "51", subEtapaId: "61", coveragePercentage: 60 }
+        ]
+      });
+      expect(stageSave).toHaveBeenCalledOnce();
+      expect(result.data.phenologicalStageId).toBe("51");
+      expect(result.data.phenologicalStages.map((row) => row.coveragePercentage)).toEqual([40, 60]);
+    });
+
+    it("rejects a distribution whose stages do not cover the whole parcel", async () => {
+      const { stageSave } = mockStageReferences();
+      await expect(service.create({
+        ...validDto,
+        subEtapaId: "60",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 60 },
+          { phenologicalStageId: "51", subEtapaId: "61", coveragePercentage: 30 }
+        ]
+      })).rejects.toBeInstanceOf(BadRequestException);
+      expect(stageSave).not.toHaveBeenCalled();
+    });
+
+    it("counts labor coverage alongside stage coverage", async () => {
+      const { stageSave } = mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        subEtapaId: "60",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 60 },
+          { phenologicalStageId: "52", coveragePercentage: 40, laborProgressPercentage: 25 }
+        ]
+      });
+      expect(stageSave).toHaveBeenCalledOnce();
+      expect(result.data.phenologicalStages.map((row) => row.coveragePercentage)).toEqual([60, 40]);
+      expect(result.data.phenologicalStages[1].laborProgressPercentage).toBe(25);
+    });
+
+    it("rejects a mixed distribution that exceeds the parcel", async () => {
+      const { stageSave } = mockStageReferences();
+      await expect(service.create({
+        ...validDto,
+        subEtapaId: "60",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 70 },
+          { phenologicalStageId: "52", coveragePercentage: 40, laborProgressPercentage: 25 }
+        ]
+      })).rejects.toBeInstanceOf(BadRequestException);
+      expect(stageSave).not.toHaveBeenCalled();
+    });
+
+    it("shares parcel coverage with a labor and selects the largest entry", async () => {
+      const { stageSave } = mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        distributionMode: "shared",
+        phenologicalStageId: "52",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 40 },
+          { phenologicalStageId: "52", coveragePercentage: 60 }
+        ]
+      });
+      expect(result.data.phenologicalStageId).toBe("52");
+      expect(result.data.phenologicalStages.map((row) => row.coveragePercentage)).toEqual([40, 60]);
+      expect(stageSave).toHaveBeenCalledOnce();
+    });
+
+    it("accepts a labor as the only selected entry at 100%", async () => {
+      mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        distributionMode: "shared",
+        phenologicalStageId: "52",
+        phenologicalStages: [{ phenologicalStageId: "52", coveragePercentage: 100 }]
+      });
+      expect(result.data.phenologicalStages[0].coveragePercentage).toBe(100);
+    });
+
+    it("rejects a shared distribution with missing labor coverage or an incomplete sum", async () => {
+      const { stageSave } = mockStageReferences();
+      const input = {
+        ...validDto,
+        distributionMode: "shared" as const,
+        phenologicalStageId: "52"
+      };
+      await expect(service.create({
+        ...input,
+        phenologicalStages: [{ phenologicalStageId: "52" }]
+      })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create({
+        ...input,
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 40 },
+          { phenologicalStageId: "52", coveragePercentage: 50 }
+        ]
+      })).rejects.toBeInstanceOf(BadRequestException);
+      expect(stageSave).not.toHaveBeenCalled();
+    });
+
+    it("accepts the earlier payload and preserves its separate labor progress", async () => {
+      mockStageReferences();
+      const result = await service.create({
+        ...validDto,
+        subEtapaId: "60",
+        phenologicalStages: [
+          { phenologicalStageId: "50", subEtapaId: "60", coveragePercentage: 100 },
+          { phenologicalStageId: "52", laborProgressPercentage: 45 }
+        ]
+      });
+      expect(result.data.phenologicalStages[1]).toMatchObject({
+        coveragePercentage: null,
+        laborProgressPercentage: 45
+      });
+    });
+
     it("should reject when parcela not found", async () => {
       repo.findOne.mockResolvedValue(null);
       await expect(service.create(validDto)).rejects.toThrow();
@@ -658,5 +820,31 @@ describe("VisitasCampoService", () => {
       repo.save.mockRejectedValue(makeUQ("visitas_campo_nro_ficha_key"));
       await expect(service.create({ ...validDto, nroFicha: "F-001" })).rejects.toThrow();
     });
+  });
+
+  it("prevents a legacy update from replacing multiple stage entries", async () => {
+    repo.findOne.mockResolvedValueOnce(makeVisita({
+      phenologicalStages: [
+        { etapaFenologicaId: "50", coveragePercentage: 60, order: 0 },
+        { etapaFenologicaId: "51", coveragePercentage: 40, order: 1 }
+      ] as VisitaCampoEntity["phenologicalStages"]
+    }));
+    await expect(service.update("1", { phenologicalStageId: "51" }))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it("prevents an earlier client from replacing a covered labor", async () => {
+    repo.findOne.mockResolvedValueOnce(makeVisita({
+      phenologicalStages: [{
+        etapaFenologicaId: "52",
+        coveragePercentage: 100,
+        stage: { type: "Labor" }
+      }] as VisitaCampoEntity["phenologicalStages"]
+    }));
+    await expect(service.update("1", {
+      phenologicalStages: [{ phenologicalStageId: "52", coveragePercentage: null }]
+    })).rejects.toBeInstanceOf(ConflictException);
+    expect(repo.save).not.toHaveBeenCalled();
   });
 });

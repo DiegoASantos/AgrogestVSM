@@ -150,8 +150,14 @@ cancelar si no llega a `user_version = 60` preservando esos datos.
 El entorno EAS `production` contiene:
 
 ```env
-EXPO_PUBLIC_API_URL=https://agrogest-vsm-api.onrender.com
+EXPO_PUBLIC_API_URL=http://190.119.191.195:5177
+EXPO_PUBLIC_PRODUCTOR_WEB_URL=https://panel.agrogest.example/productor/acreedores
 ```
+
+Configurar `EXPO_PUBLIC_PRODUCTOR_WEB_URL` con la URL HTTPS real de la ruta
+pública del mismo entorno. Es un enlace genérico; el código se comparte aparte
+en el mensaje. Antes de distribuir Comercial con esta acción, verificar API,
+migración 064 y web pública. No emitir códigos mientras la web no esté lista.
 
 Cuando un OTA mobile consume campos aditivos nuevos de la API, desplegar y
 verificar primero la API de produccion. En particular, para los resúmenes de

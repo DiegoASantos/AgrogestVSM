@@ -25,6 +25,14 @@ export type VisitaCampo = {
   phenologicalStageId: string | null;
   subEtapaId: string | null;
   subEtapaPercentage: number | null;
+  phenologicalStages: Array<{
+    phenologicalStageId: string;
+    stageName: string | null;
+    subEtapaId: string | null;
+    subEtapaName: string | null;
+    coveragePercentage: number | null;
+    laborProgressPercentage: number | null;
+  }>;
   generalObservation: string | null;
   synchronizedAt: string | null;
   isActive: boolean;

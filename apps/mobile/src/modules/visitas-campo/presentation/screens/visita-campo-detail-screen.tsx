@@ -758,46 +758,41 @@ function VisitDossier({
           <View style={styles.factLabelRow}>
             <Ionicons color={theme.colors.primary} name="leaf-outline" size={16} />
             <AppText style={styles.factLabel} variant="caption">
-              Etapa
+              Estado de la parcela
             </AppText>
           </View>
-          <AppText style={styles.stageName} variant="label">
-            {getCatalogNameById(visita.phenologicalStageId, catalogs.etapasFenologicas)}
-          </AppText>
-          <View style={styles.stageProgressHeading}>
-            <AppText style={styles.factLabel} variant="caption">
-              Avance de etapa
+          {visita.phenologicalStages.length ? visita.phenologicalStages.map((entry, index) => (
+            <View key={`${entry.phenologicalStageId}-${index}`} style={{ gap: 4, marginTop: 10 }}>
+              <AppText style={styles.stageName} variant="label">
+                {entry.stageName ?? getCatalogNameById(entry.phenologicalStageId, catalogs.etapasFenologicas)}
+                {entry.phenologicalStageId === visita.phenologicalStageId ? " · Principal" : ""}
+              </AppText>
+              {entry.subEtapaId ? <AppText variant="caption">Subetapa: {entry.subEtapaName ?? entry.subEtapaId}</AppText> : null}
+              {entry.coveragePercentage !== null ? (
+                <>
+                  <AppText style={styles.stagePercentage} variant="label">
+                    Parcela: {entry.coveragePercentage}%
+                  </AppText>
+                  <View accessible accessibilityRole="progressbar"
+                    accessibilityLabel={`Porcentaje de la parcela en ${entry.stageName ?? "esta etapa"}`}
+                    accessibilityValue={{ min: 0, max: 100, now: entry.coveragePercentage }}
+                    style={styles.stageProgressTrack}>
+                    <View style={[styles.stageProgressFill, { width: `${entry.coveragePercentage}%` }]} />
+                  </View>
+                </>
+              ) : null}
+              {entry.laborProgressPercentage !== null ? (
+                <AppText variant="caption">Avance de labor registrado anteriormente: {entry.laborProgressPercentage}%</AppText>
+              ) : null}
+            </View>
+          )) : (
+            <AppText style={styles.stageName} variant="label">
+              {getCatalogNameById(visita.phenologicalStageId, catalogs.etapasFenologicas)}
             </AppText>
-            <AppText style={styles.stagePercentage} variant="label">
-              {visita.subEtapaPercentage == null
-                ? "---"
-                : `${visita.subEtapaPercentage}%`}
-            </AppText>
-          </View>
-          <View
-            accessible
-            accessibilityRole={visita.subEtapaPercentage == null ? "text" : "progressbar"}
-            accessibilityLabel={
-              visita.subEtapaPercentage == null
-                ? "Avance de etapa no registrado"
-                : "Avance de etapa"
-            }
-            accessibilityValue={
-              visita.subEtapaPercentage == null
-                ? undefined
-                : { min: 0, max: 100, now: visita.subEtapaPercentage }
-            }
-            style={styles.stageProgressTrack}
-          >
-            {visita.subEtapaPercentage != null ? (
-              <View
-                style={[
-                  styles.stageProgressFill,
-                  { width: `${Math.min(100, Math.max(0, visita.subEtapaPercentage))}%` }
-                ]}
-              />
-            ) : null}
-          </View>
+          )}
+          {visita.subEtapaId !== null && visita.subEtapaPercentage !== null ? (
+            <AppText variant="caption">Avance histórico de subetapa: {visita.subEtapaPercentage}%</AppText>
+          ) : null}
         </View>
       </View>
 

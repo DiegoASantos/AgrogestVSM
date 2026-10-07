@@ -25,12 +25,15 @@ export type StepOneTutorialStep = {
 type BuildStepOneTutorialStepsInput = {
   values: NewVisitaCampoFormValues;
   today: string;
-  activeCatalog: "crop" | "variety" | "phenologicalStage" | "sowingDate" | null;
+  activeCatalog: "crop" | "variety" | "sowingDate" | null;
   isLoadingCultivos: boolean;
   isLoadingVariedades: boolean;
   isLoadingEtapasFenologicas: boolean;
   isLoadingProgress: boolean;
   showProgress: boolean;
+  requireSubStage?: boolean;
+  selectionComplete?: boolean;
+  distributionComplete?: boolean;
 };
 
 export type RequiredFieldIssue = "missing" | "invalid" | null;
@@ -90,6 +93,7 @@ export function mergeStepOneFormValues(
     phenologicalStage: read("phenologicalStage"),
     subEtapaId: read("subEtapaId"),
     subEtapaPercentage: read("subEtapaPercentage"),
+    coveragePercentage: read("coveragePercentage"),
     generalObservation: read("generalObservation"),
     ...overrides
   };
@@ -103,7 +107,10 @@ export function buildStepOneTutorialSteps({
   isLoadingVariedades,
   isLoadingEtapasFenologicas,
   isLoadingProgress,
-  showProgress
+  showProgress,
+  requireSubStage = false,
+  selectionComplete,
+  distributionComplete
 }: BuildStepOneTutorialStepsInput): StepOneTutorialStep[] {
   const steps: StepOneTutorialStep[] = [
     {
@@ -178,30 +185,29 @@ export function buildStepOneTutorialSteps({
     {
       id: "phenologicalStage",
       title: "Etapa fenologica",
-      instruction:
-        activeCatalog === "phenologicalStage"
-          ? "Selecciona la etapa actual del cultivo."
-          : "Despliega la lista y selecciona la etapa actual del cultivo.",
-      isComplete: !!values.phenologicalStage.trim(),
+      instruction: "Marca todas las etapas y labores presentes en la parcela.",
+      isComplete: selectionComplete ?? !!values.phenologicalStage.trim(),
       isEnabled: !!values.crop && !isLoadingEtapasFenologicas,
-      isExpanded: activeCatalog === "phenologicalStage",
+      isExpanded: false,
       isLoading: isLoadingEtapasFenologicas,
       isOptional: false
     }
   ];
 
   if (showProgress) {
-    const progress = Number(values.subEtapaPercentage);
+    const percentage = values.coveragePercentage;
+    const progress = Number(percentage);
     steps.push({
       id: "subEtapaPercentage",
-      title: "Avance de la etapa",
-      instruction: "Mueve el control hasta representar el avance observado en campo.",
+      title: "Distribución de la parcela",
+      instruction: "Escribe el porcentaje de cada etapa o labor hasta completar 100%.",
       isComplete:
-        values.subEtapaPercentage.trim().length > 0 &&
-        Number.isFinite(progress) &&
-        progress >= 0 &&
-        progress <= 100 &&
-        progress % 5 === 0,
+        distributionComplete ??
+        (percentage.trim().length > 0 &&
+          (!requireSubStage || !!values.subEtapaId) &&
+          Number.isFinite(progress) &&
+          progress >= 1 &&
+          progress <= 100),
       isEnabled: !isLoadingProgress,
       isExpanded: false,
       isLoading: isLoadingProgress,

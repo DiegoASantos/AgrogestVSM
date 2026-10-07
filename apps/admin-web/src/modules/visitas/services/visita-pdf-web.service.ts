@@ -109,9 +109,6 @@ function buildDiagnosticHtml(detail: VisitaDetailData) {
     detail.lookups.productor?.lastName
   );
   const documentTitle = `Visita ${producerFirstName} ${formatDate(visita.visitDate)}`;
-  const subEtapa = visita.subEtapaId
-    ? detail.lookups.subEtapas.find((item) => item.id === visita.subEtapaId)
-    : null;
   const plagas = detail.observacionesSanitarias.filter(
     (item) => pestDiseaseMap.get(item.pestDiseaseId)?.type === "plaga"
   );
@@ -143,15 +140,10 @@ function buildDiagnosticHtml(detail: VisitaDetailData) {
         ["Fecha siembra", formatDate(visita.sowingDate)],
         ["Plantas", visita.plantsCount === null ? null : String(visita.plantsCount)],
         ["Area visita", visita.areaHectares ? `${visita.areaHectares} ha` : null],
-        [
-          "Etapa fenologica",
-          detail.lookups.phenologicalStage?.name ?? visita.phenologicalStageId
-        ],
-        ["Sub etapa", subEtapa?.name ?? visita.subEtapaId],
-        [
-          "Porcentaje sub etapa",
-          visita.subEtapaPercentage === null ? null : `${visita.subEtapaPercentage}%`
-        ],
+        ["Distribucion de la parcela", formatStageDistribution(visita) ??
+          detail.lookups.phenologicalStage?.name ?? visita.phenologicalStageId, true],
+        ["Avance historico de sub etapa", visita.subEtapaPercentage === null || visita.subEtapaId === null
+          ? null : `${visita.subEtapaPercentage}%`],
         ["Observacion general", visita.generalObservation, true],
         ["Observacion del paso", stepNotes.get(1)?.observation ?? null, true],
         ["Recomendacion del paso", stepNotes.get(1)?.recommendation ?? null, true]
@@ -709,9 +701,6 @@ function renderDatosVisitaReceta(
   receta: VisitaRecetaCompleta,
   consolidacion: ConsolidacionHallazgo
 ) {
-  const subEtapa = detail.visita.subEtapaId
-    ? detail.lookups.subEtapas.find((item) => item.id === detail.visita.subEtapaId)
-    : null;
   const etapaNombre =
     detail.lookups.phenologicalStage?.name ?? receta.etapaFenologica ?? null;
 
@@ -720,12 +709,11 @@ function renderDatosVisitaReceta(
     <div class="visit-summary">
       <div class="visit-data-grid">
         <div class="visit-data-card">
-          <p class="visit-data-title">Fenologia</p>
-          ${renderFieldRow("Etapa fenologica", etapaNombre ?? receta.etapaFenologica ?? "-")}
-          ${subEtapa ? renderFieldRow("Sub etapa", subEtapa.name) : ""}
+          <p class="visit-data-title">Estado de la parcela</p>
+          ${renderFieldRow("Distribucion de la parcela", formatStageDistribution(detail.visita) ?? etapaNombre ?? receta.etapaFenologica ?? "-")}
           ${
-            detail.visita.subEtapaPercentage !== null
-              ? renderFieldRow("Avance sub etapa", `${detail.visita.subEtapaPercentage}%`)
+            detail.visita.subEtapaPercentage !== null && detail.visita.subEtapaId !== null
+              ? renderFieldRow("Avance historico de sub etapa", `${detail.visita.subEtapaPercentage}%`)
               : ""
           }
         </div>
@@ -744,6 +732,16 @@ function renderFieldRow(label: string, value: string) {
       <span class="field-label">${escapeHtml(label)}:</span>
       <span class="field-value">${escapeHtml(value)}</span>
     </div>`;
+}
+
+function formatStageDistribution(visita: VisitaDetailData["visita"]): string | null {
+  if (!visita.phenologicalStages?.length) return null;
+  return visita.phenologicalStages.map((entry) => [
+    entry.stageName ?? entry.phenologicalStageId,
+    entry.subEtapaName,
+    entry.coveragePercentage === null ? null : `${entry.coveragePercentage}% de la parcela`,
+    entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% de avance de labor registrado anteriormente`
+  ].filter(Boolean).join(" · ")).join("; ");
 }
 
 function renderSanidadVisitDataCard(

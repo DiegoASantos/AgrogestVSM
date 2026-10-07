@@ -16,6 +16,7 @@
     "e2e:full": "playwright test e2e/login.spec.ts e2e/visita-crud.spec.ts"
   },
   "dependencies": {
+    "@agrogest/validation": "workspace:*",
     "@base-ui/react": "^1.6.0",
     "@geoman-io/leaflet-geoman-free": "^2.19.3",
     "class-variance-authority": "^0.7.1",

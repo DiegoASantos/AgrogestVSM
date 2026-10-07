@@ -17,6 +17,9 @@ export type AcreedorCosecha = HarvestCreditorInput & {
   serverId: string | null;
   syncStatus: "pending" | "synced" | "error";
   catalogVisible: boolean;
+  approvalStatus: "PENDING" | "APPROVED" | "OBSERVED";
+  source: "PRODUCTOR" | "MOBILE";
+  reviewObservation: string | null;
 };
 
 type AcreedorCosechaRow = {
@@ -32,6 +35,9 @@ type AcreedorCosechaRow = {
   server_id: string | null;
   sync_status: "pending" | "synced" | "error";
   catalog_visible: number;
+  approval_status: AcreedorCosecha["approvalStatus"];
+  source: AcreedorCosecha["source"];
+  review_observation: string | null;
 };
 
 export function getAcreedoresCosechaLocales(productorId: string): AcreedorCosecha[] {
@@ -43,7 +49,7 @@ export function getAcreedoresCosechaLocales(productorId: string): AcreedorCosech
     .getAllSync<AcreedorCosechaRow>(
       `SELECT local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
         tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta,
-        server_id, sync_status, catalog_visible
+        server_id, sync_status, catalog_visible, approval_status, source, review_observation
        FROM acreedores_cosecha
        WHERE productor_id = ? AND owner_user_id = ? AND catalog_visible = 1
        ORDER BY created_at ASC, local_id ASC`,
@@ -135,7 +141,8 @@ function upsertRemoteCreditor(
     db.runSync(
       `UPDATE acreedores_cosecha SET public_id = ?, productor_id = ?, nombres_acreedor = ?,
        apellidos_acreedor = ?, tipo_documento_acreedor = ?, nro_documento_acreedor = ?,
-       banco = ?, nro_cuenta = ?, sync_status = 'synced', sync_error_message = NULL,
+       banco = ?, nro_cuenta = ?, approval_status = ?, source = ?, review_observation = ?,
+       sync_status = 'synced', sync_error_message = NULL,
        updated_at = ?, catalog_visible = 1 WHERE local_id = ?`,
       creditor.publicId,
       productorId,
@@ -145,6 +152,9 @@ function upsertRemoteCreditor(
       creditor.creditorDocumentNumber,
       creditor.bank,
       creditor.accountNumber,
+      creditor.approvalStatus,
+      creditor.source,
+      creditor.reviewObservation,
       getNowIsoString(),
       existing.local_id
     );
@@ -171,8 +181,9 @@ function upsertRemoteCreditor(
       `INSERT INTO acreedores_cosecha (
         local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
         tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta,
-        server_id, sync_status, created_at, updated_at, sync_error_message, owner_user_id, catalog_visible
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?, ?, NULL, ?, 1)`,
+        server_id, sync_status, created_at, updated_at, sync_error_message, owner_user_id, catalog_visible,
+        approval_status, source, review_observation
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?, ?, NULL, ?, 1, ?, ?, ?)`,
       generateLocalId(),
       creditor.publicId,
       productorId,
@@ -185,7 +196,10 @@ function upsertRemoteCreditor(
       creditor.id,
       now,
       now,
-      ownerUserId
+      ownerUserId,
+      creditor.approvalStatus,
+      creditor.source,
+      creditor.reviewObservation
     );
   }
 }
@@ -203,6 +217,9 @@ function toAcreedor(row: AcreedorCosechaRow): AcreedorCosecha {
     accountNumber: row.nro_cuenta,
     serverId: row.server_id,
     syncStatus: row.sync_status,
-    catalogVisible: row.catalog_visible === 1
+    catalogVisible: row.catalog_visible === 1,
+    approvalStatus: row.approval_status,
+    source: row.source,
+    reviewObservation: row.review_observation
   };
 }

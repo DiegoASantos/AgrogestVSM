@@ -46,6 +46,7 @@ const visitasCampoInsert = vi.fn(
       phenologicalStageId: input.phenologicalStageId ?? null,
       subEtapaId: input.subEtapaId ?? null,
       subEtapaPercentage: input.subEtapaPercentage ?? null,
+      phenologicalStages: input.phenologicalStages ?? [],
       generalObservation: input.generalObservation ?? null,
       agronomistSignatureName: null,
       producerSignatureName: null,

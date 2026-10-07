@@ -1782,6 +1782,49 @@ const MIGRATIONS: Migration[] = [
       )`,
       "CREATE INDEX IF NOT EXISTS idx_registros_cosecha_owner_sync ON registros_cosecha(owner_user_id, sync_status)"
     ]
+  },
+  {
+    version: 75,
+    statements: [
+      "ALTER TABLE acreedores_cosecha ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(approval_status IN ('PENDING','APPROVED','OBSERVED'))",
+      "ALTER TABLE acreedores_cosecha ADD COLUMN source TEXT NOT NULL DEFAULT 'MOBILE' CHECK(source IN ('PRODUCTOR','MOBILE'))",
+      "ALTER TABLE acreedores_cosecha ADD COLUMN review_observation TEXT",
+      "UPDATE acreedores_cosecha SET approval_status = 'APPROVED' WHERE sync_status = 'synced'"
+    ]
+  },
+  {
+    version: 76,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS visita_etapas_fenologicas (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        visita_local_id TEXT NOT NULL,
+        phenological_stage_id TEXT NOT NULL,
+        sub_etapa_id TEXT,
+        coverage_percentage INTEGER CHECK(coverage_percentage BETWEEN 1 AND 100),
+        labor_progress_percentage TEXT,
+        sort_order INTEGER NOT NULL CHECK(sort_order >= 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (visita_local_id) REFERENCES visitas_campo(local_id) ON DELETE CASCADE,
+        FOREIGN KEY (phenological_stage_id) REFERENCES etapas_fenologicas(id),
+        FOREIGN KEY (sub_etapa_id) REFERENCES sub_etapas(id),
+        UNIQUE (visita_local_id, phenological_stage_id),
+        UNIQUE (visita_local_id, sort_order)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_visita_etapas_visita ON visita_etapas_fenologicas(visita_local_id, sort_order)",
+      `INSERT INTO visita_etapas_fenologicas
+        (local_id, visita_local_id, phenological_stage_id, sub_etapa_id,
+         coverage_percentage, labor_progress_percentage, sort_order, created_at, updated_at)
+       SELECT 'legacy-' || v.local_id, v.local_id, v.phenological_stage_id, v.sub_etapa_id,
+              CASE WHEN e.type = 'Etapa' THEN 100 ELSE NULL END,
+              CASE WHEN e.type = 'Labor' THEN v.sub_etapa_percentage ELSE NULL END,
+              0, v.created_at, v.updated_at
+       FROM visitas_campo v
+       JOIN etapas_fenologicas e ON e.id = v.phenological_stage_id
+       WHERE NOT EXISTS (
+         SELECT 1 FROM visita_etapas_fenologicas x WHERE x.visita_local_id = v.local_id
+       )`
+    ]
   }
 ];
 

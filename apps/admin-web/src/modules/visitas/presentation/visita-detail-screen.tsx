@@ -211,8 +211,15 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
           />
           <FactCard
             icon={<Sprout aria-hidden="true" size={18} />}
-            label="Fenologia"
-            value={detail.lookups.phenologicalStage?.name ?? "No registrada"}
+            label="Estado de la parcela"
+            value={detail.visita.phenologicalStages?.length
+              ? detail.visita.phenologicalStages.map((entry) => [
+                  entry.stageName ?? entry.phenologicalStageId,
+                  entry.subEtapaName,
+                  entry.coveragePercentage === null ? null : `${entry.coveragePercentage}% de la parcela`,
+                  entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% de avance de labor registrado anteriormente`
+                ].filter(Boolean).join(" · ")).join("; ")
+              : detail.lookups.phenologicalStage?.name ?? "No registrada"}
           />
           <FactCard
             icon={<Leaf aria-hidden="true" size={18} />}

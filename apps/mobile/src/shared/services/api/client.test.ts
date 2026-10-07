@@ -168,6 +168,46 @@ describe("apiRequest timeouts", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("does not mark a bodyless POST as JSON", async () => {
+    const fetchMock = vi.fn<(...args: [unknown, RequestInit?]) => Promise<Response>>(async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: { code: "ABCD-EFGH-JKLM-NPQR" },
+          timestamp: "2026-10-03T00:00:00.000Z"
+        }),
+        { status: 201 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiRequest("/comercial/productores/1/acceso-acreedores", { method: "POST" });
+
+    const request = fetchMock.mock.calls[0]?.[1];
+    expect(request?.headers).not.toHaveProperty("Content-Type");
+    expect(request?.body).toBeUndefined();
+  });
+
+  it("keeps the JSON header when the POST has a body", async () => {
+    const fetchMock = vi.fn<(...args: [unknown, RequestInit?]) => Promise<Response>>(async () =>
+      new Response(
+        JSON.stringify({
+          success: true,
+          data: { id: "created" },
+          timestamp: "2026-10-03T00:00:00.000Z"
+        }),
+        { status: 201 }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiRequest("/with-body", { method: "POST", body: { value: 1 } });
+
+    const request = fetchMock.mock.calls[0]?.[1];
+    expect(request?.headers).toHaveProperty("Content-Type", "application/json");
+    expect(request?.body).toBe('{"value":1}');
+  });
+
   it("blocks standard requests before fetch while manual offline is active", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

@@ -1,10 +1,8 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, StyleSheet, Switch, View } from "react-native";
-import {
-  harvestRecordSchema,
-  type HarvestCreditorInput
-} from "@agrogest/validation";
+import { Alert, Pressable, Share, StyleSheet, Switch, View } from "react-native";
+import { harvestRecordSchema, type HarvestCreditorInput } from "@agrogest/validation";
 
 import {
   AppButton,
@@ -22,12 +20,14 @@ import { theme } from "../../../../shared/constants/theme";
 import { productoresService } from "../../../productores/services/productores.service";
 import type { Productor } from "../../../productores/types";
 import { tiposDocumentoRepository } from "../../../tipos-documento/repositories/tipos-documento.repository";
+import { ApiError, ApiOfflineModeError, ApiTimeoutError } from "../../../../shared/services";
 import {
   getAcreedoresCosechaLocales,
   refreshAcreedoresCosecha,
   saveAcreedorCosecha,
   type AcreedorCosecha
 } from "../../services/acreedores-cosecha.service";
+import { issueProducerCreditorAccess } from "../../services/acreedores-cosecha.remote";
 import { saveRegistroCosecha } from "../../services/registros-cosecha.service";
 import {
   getCreditorAutofill,
@@ -35,6 +35,7 @@ import {
   type CreditorAutofill,
   type CreditorPendingField
 } from "./creditor-autofill";
+import { isProducerWebUrlAllowed } from "./producer-web-url";
 
 const DOCUMENTOS: AppSelectOption[] = [
   { value: "DNI", label: "DNI" },
@@ -58,7 +59,11 @@ const EMPTY_CREDITOR_AUTOFILLED_FIELDS: CreditorAutofilledFields = {
   documentNumber: false
 };
 
-export function ComercialScreen() {
+type ComercialScreenProps = { step?: "acreedores" | "cosecha" };
+
+export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ productorId?: string; acreedorId?: string }>();
   const today = useMemo(getLocalDate, []);
   const [productorId, setProductorId] = useState("");
   const [productor, setProductor] = useState<string>();
@@ -88,15 +93,14 @@ export function ComercialScreen() {
     () => getAutofillForProductor(selectedProductor),
     [selectedProductor]
   );
-  const isCreditorProductorPersona =
-    acreedorEsProductor && creditorAutofill !== null;
+  const isCreditorProductorPersona = acreedorEsProductor && creditorAutofill !== null;
   const pendingCreditorFields = getPendingCreditorFields(creditorAutofill);
   const recoveredCreditorName = [creditorAutofill?.firstName, creditorAutofill?.lastName]
     .filter(Boolean)
     .join(" ");
   const creditorOptions = useMemo(
     () =>
-      acreedores.map((acreedor) => ({
+      acreedores.filter((acreedor) => acreedor.approvalStatus === "APPROVED").map((acreedor) => ({
         value: acreedor.localId,
         label: formatCreditorName(acreedor),
         helper: `${acreedor.bank} · ${maskAccount(acreedor.accountNumber)}`
@@ -105,12 +109,52 @@ export function ComercialScreen() {
   );
 
   useEffect(() => {
-    if (acreedores.length === 1) {
-      setAcreedorPagoId(acreedores[0].localId);
-    } else if (!acreedores.some((acreedor) => acreedor.localId === acreedorPagoId)) {
+    if (creditorOptions.length === 1) {
+      setAcreedorPagoId(creditorOptions[0].value);
+    } else if (
+      acreedores.length > 0 &&
+      !creditorOptions.some((acreedor) => acreedor.value === acreedorPagoId)
+    ) {
       setAcreedorPagoId("");
     }
-  }, [acreedorPagoId, acreedores]);
+  }, [acreedorPagoId, acreedores.length, creditorOptions]);
+
+  useEffect(() => {
+    if (step !== "cosecha") return;
+
+    const selectedId = params.productorId;
+    if (!selectedId) {
+      setError("Selecciona primero un productor en Acreedores de pago.");
+      return;
+    }
+
+    let active = true;
+    setProductorId(selectedId);
+    setAcreedorPagoId(params.acreedorId ?? "");
+    setAcreedores(getAcreedoresCosechaLocales(selectedId));
+
+    void productoresService.getById(selectedId).then(
+      (item) => {
+        if (active) setProductor(toProductorOption(item).label);
+      },
+      () => {
+        if (active) setError("No se pudo cargar el productor seleccionado.");
+      }
+    );
+
+    void refreshAcreedoresCosecha(selectedId).then(
+      (items) => {
+        if (active) setAcreedores(items);
+      },
+      () => {
+        // El listado local permanece disponible sin conexion.
+      }
+    );
+
+    return () => {
+      active = false;
+    };
+  }, [params.acreedorId, params.productorId, step]);
 
   const loadProductorOptions = useCallback(
     async (query: string, page: number, pageSize: number) => {
@@ -124,6 +168,69 @@ export function ComercialScreen() {
     },
     []
   );
+
+  async function compartirAcceso() {
+    const url = process.env.EXPO_PUBLIC_PRODUCTOR_WEB_URL?.trim();
+    if (!selectedProductor?.serverId || !isProducerWebUrlAllowed(url)) {
+      Alert.alert(
+        "Acceso no disponible",
+        "Selecciona un productor sincronizado y configura la web pública."
+      );
+      return;
+    }
+
+    let access: { code: string; expiresAt: string };
+    try {
+      access = await issueProducerCreditorAccess(selectedProductor.serverId);
+    } catch (requestError) {
+      if (requestError instanceof ApiOfflineModeError) {
+        Alert.alert(
+          "Modo sin conexión",
+          "Cambia la conexión de la app a Automático para solicitar un código."
+        );
+      } else if (requestError instanceof ApiTimeoutError) {
+        Alert.alert(
+          "El servidor no responde",
+          "La solicitud tardó demasiado. Comprueba el acceso al servidor de AgroGest e inténtalo de nuevo."
+        );
+      } else if (requestError instanceof ApiError) {
+        const status = requestError.statusCode ? ` (HTTP ${requestError.statusCode})` : "";
+        Alert.alert(
+          "No se pudo generar el código",
+          `${requestError.message}${status}`
+        );
+      } else {
+        Alert.alert(
+          "No se pudo conectar con AgroGest",
+          "Comprueba que el teléfono pueda acceder al servidor de AgroGest e inténtalo de nuevo."
+        );
+      }
+      return;
+    }
+
+    try {
+      const producerName = [selectedProductor.firstName, selectedProductor.lastName]
+        .filter(Boolean).join(" ").trim();
+      await Share.share({
+        message: `Buen día${producerName ? `, ${producerName}` : ""}.\n\nLe comparto el enlace para registrar sus datos para el pago:\n\n${url}\n\nCódigo de acceso: ${access.code}\nVálido por 180 días.\nNo compartas este código con otra persona.`
+      });
+    } catch {
+      Alert.alert(
+        "No se pudo abrir compartir",
+        "El código ya se generó. Vuelve a intentarlo para compartirlo."
+      );
+    }
+  }
+
+  async function actualizarAcreedores() {
+    if (!productorId) return;
+    try {
+      setAcreedores(await refreshAcreedoresCosecha(productorId));
+      setError(null);
+    } catch {
+      setError("No se pudieron actualizar los acreedores. Se muestran los datos locales.");
+    }
+  }
 
   function applyCreditorAutofill(nextProductor: Productor | null) {
     const autofill = getAutofillForProductor(nextProductor);
@@ -228,10 +335,12 @@ export function ComercialScreen() {
     }
 
     try {
-      const localId = saveAcreedorCosecha(validation);
+      saveAcreedorCosecha(validation);
       setAcreedores(getAcreedoresCosechaLocales(productorId));
-      setAcreedorPagoId(localId);
-      Alert.alert("Acreedor guardado", "Puedes agregar otro o registrar la cosecha.");
+      Alert.alert(
+        "Acreedor guardado",
+        "El perfil quedó pendiente de aprobación. Puedes agregar otro acreedor."
+      );
       setError(null);
       setBanco("");
       setCuenta("");
@@ -240,7 +349,21 @@ export function ComercialScreen() {
     }
   }
 
+  function openCosecha() {
+    if (!productorId || creditorOptions.length === 0) return;
+    setError(null);
+    router.push({
+      pathname: "/comercial/cosecha",
+      params: { productorId, acreedorId: acreedorPagoId }
+    });
+  }
+
   function guardarRegistro() {
+    if (!creditorOptions.some((acreedor) => acreedor.value === acreedorPagoId)) {
+      setError("Selecciona un acreedor aprobado antes de registrar la cosecha.");
+      return;
+    }
+
     const validation = harvestRecordSchema.safeParse({
       productorId,
       creditorId: acreedorPagoId,
@@ -261,7 +384,10 @@ export function ComercialScreen() {
       setJabas("");
       setPrecioJaba("");
       setFechaCosecha(today);
-      Alert.alert("Cosecha guardada", "El registro se sincronizara cuando haya conexion.");
+      Alert.alert(
+        "Cosecha guardada",
+        "El registro se sincronizara cuando haya conexion."
+      );
     } catch {
       setError("No se pudo guardar el registro localmente.");
     }
@@ -272,10 +398,12 @@ export function ComercialScreen() {
       <FormScrollView contentContainerStyle={styles.content}>
         <View style={styles.intro}>
           <AppText style={styles.title} variant="title">
-            Comercial
+            {step === "cosecha" ? "Registro de cosecha" : "Comercial"}
           </AppText>
           <AppText style={styles.subtitle} variant="body">
-            Registra acreedores y los datos de pago de cada cosecha.
+            {step === "cosecha"
+              ? "Registra las jabas y el acreedor que recibirá el pago."
+              : "Registra acreedores y continúa con los datos de cada cosecha."}
           </AppText>
         </View>
 
@@ -302,235 +430,310 @@ export function ComercialScreen() {
           />
         </AppCard>
 
-        <AppCard style={styles.sectionCard}>
-          <SectionHeader
-            icon="people-outline"
-            subtitle="Paso 1: registra uno o varios acreedores del productor."
-            title="Acreedores de pago"
-          />
-          {productorId ? (
-            <View style={styles.creditorList}>
-              <AppText style={styles.creditorListTitle} variant="label">
-                {acreedores.length === 0
-                  ? "Aun no hay acreedores registrados"
-                  : `${acreedores.length} acreedor${acreedores.length === 1 ? "" : "es"} disponible${acreedores.length === 1 ? "" : "s"}`}
-              </AppText>
-              {acreedores.map((acreedor) => (
-                <View key={acreedor.localId} style={styles.creditorRow}>
+        {step === "acreedores" ? (
+          <>
+            <AppCard style={styles.sectionCard}>
+              <SectionHeader
+                icon="people-outline"
+                subtitle="Comparte el formulario para que el productor registre sus datos; agrega un acreedor manualmente si hace falta."
+                title="Acreedores de pago"
+              />
+              {productorId ? (
+                <AppButton
+                  label="Compartir formulario con el productor"
+                  icon="share-social-outline"
+                  onPress={() => { void compartirAcceso(); }}
+                />
+              ) : null}
+              {productorId ? (
+                <AppButton
+                  label="Actualizar estados de acreedores"
+                  icon="refresh-outline"
+                  onPress={() => { void actualizarAcreedores(); }}
+                />
+              ) : null}
+              {productorId ? (
+                <View style={styles.creditorList}>
+                  <AppText style={styles.creditorListTitle} variant="label">
+                    {acreedores.length === 0
+                      ? "Aun no hay acreedores registrados"
+                      : `${acreedores.length} acreedor${acreedores.length === 1 ? "" : "es"} registrado${acreedores.length === 1 ? "" : "s"}`}
+                  </AppText>
+                  {acreedores.map((acreedor) => (
+                    <View key={acreedor.localId} style={styles.creditorRow}>
+                      <Ionicons
+                        color={theme.colors.primaryDark}
+                        name="person-circle-outline"
+                        size={22}
+                      />
+                      <View style={styles.creditorRowText}>
+                        <AppText variant="label">{formatCreditorName(acreedor)}</AppText>
+                        <AppText variant="caption">
+                          {acreedor.bank} · {maskAccount(acreedor.accountNumber)}
+                        </AppText>
+                        <AppText variant="caption">
+                          {acreedor.approvalStatus === "APPROVED"
+                            ? "Aprobado"
+                            : acreedor.approvalStatus === "OBSERVED"
+                              ? "Observado"
+                              : "Pendiente de aprobación"}
+                        </AppText>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              <View style={styles.switchCard}>
+                <View style={styles.switchTextArea}>
+                  <AppText style={styles.switchTitle} variant="label">
+                    El acreedor es el productor
+                  </AppText>
+                  <AppText variant="caption">
+                    Completamos sus datos registrados para evitar digitarlos nuevamente.
+                  </AppText>
+                </View>
+                <Switch
+                  accessibilityLabel="El acreedor es el productor"
+                  accessibilityRole="switch"
+                  disabled={!selectedProductor}
+                  ios_backgroundColor={theme.colors.border}
+                  onValueChange={handleAcreedorEsProductorChange}
+                  thumbColor={
+                    acreedorEsProductor ? theme.colors.primaryDark : theme.colors.surface
+                  }
+                  trackColor={{
+                    false: theme.colors.border,
+                    true: theme.colors.primaryMuted
+                  }}
+                  value={acreedorEsProductor}
+                />
+              </View>
+
+              {isCreditorProductorPersona && creditorAutofill ? (
+                <View style={styles.creditorSummary}>
                   <Ionicons
                     color={theme.colors.primaryDark}
-                    name="person-circle-outline"
-                    size={22}
+                    name="checkmark-circle"
+                    size={21}
                   />
-                  <View style={styles.creditorRowText}>
-                    <AppText variant="label">{formatCreditorName(acreedor)}</AppText>
-                    <AppText variant="caption">
-                      {acreedor.bank} · {maskAccount(acreedor.accountNumber)}
+                  <View style={styles.creditorSummaryText}>
+                    <AppText style={styles.creditorSummaryTitle} variant="label">
+                      {pendingCreditorFields.length === 0
+                        ? "Datos del productor listos para el pago"
+                        : "Datos recuperados del productor"}
                     </AppText>
+                    {recoveredCreditorName ? (
+                      <AppText variant="caption">{recoveredCreditorName}</AppText>
+                    ) : null}
+                    {creditorAutofill.documentType && creditorAutofill.documentNumber ? (
+                      <AppText variant="caption">
+                        {creditorAutofill.documentType} {creditorAutofill.documentNumber}
+                      </AppText>
+                    ) : null}
+                    {pendingCreditorFields.length > 0 ? (
+                      <AppText variant="caption">
+                        Completa: {formatPendingCreditorFields(pendingCreditorFields)}.
+                      </AppText>
+                    ) : null}
                   </View>
                 </View>
-              ))}
-            </View>
-          ) : null}
-          <View style={styles.switchCard}>
-            <View style={styles.switchTextArea}>
-              <AppText style={styles.switchTitle} variant="label">
-                El acreedor es el productor
-              </AppText>
-              <AppText variant="caption">
-                Completamos sus datos registrados para evitar digitarlos nuevamente.
-              </AppText>
-            </View>
-            <Switch
-              accessibilityLabel="El acreedor es el productor"
-              accessibilityRole="switch"
-              disabled={!selectedProductor}
-              ios_backgroundColor={theme.colors.border}
-              onValueChange={handleAcreedorEsProductorChange}
-              thumbColor={
-                acreedorEsProductor ? theme.colors.primaryDark : theme.colors.surface
-              }
-              trackColor={{ false: theme.colors.border, true: theme.colors.primaryMuted }}
-              value={acreedorEsProductor}
-            />
-          </View>
-
-          {isCreditorProductorPersona && creditorAutofill ? (
-            <View style={styles.creditorSummary}>
-              <Ionicons color={theme.colors.primaryDark} name="checkmark-circle" size={21} />
-              <View style={styles.creditorSummaryText}>
-                <AppText style={styles.creditorSummaryTitle} variant="label">
-                  {pendingCreditorFields.length === 0
-                    ? "Datos del productor listos para el pago"
-                    : "Datos recuperados del productor"}
-                </AppText>
-                {recoveredCreditorName ? (
-                  <AppText variant="caption">{recoveredCreditorName}</AppText>
-                ) : null}
-                {creditorAutofill.documentType && creditorAutofill.documentNumber ? (
-                  <AppText variant="caption">
-                    {creditorAutofill.documentType} {creditorAutofill.documentNumber}
+              ) : acreedorEsProductor ? (
+                <View style={styles.manualNotice}>
+                  <Ionicons
+                    color={theme.colors.warning}
+                    name="information-circle"
+                    size={20}
+                  />
+                  <AppText style={styles.manualNoticeText} variant="caption">
+                    Este productor no es una persona. Registra los datos del acreedor
+                    manualmente.
                   </AppText>
-                ) : null}
-                {pendingCreditorFields.length > 0 ? (
-                  <AppText variant="caption">
-                    Completa: {formatPendingCreditorFields(pendingCreditorFields)}.
-                  </AppText>
-                ) : null}
-              </View>
-            </View>
-          ) : acreedorEsProductor ? (
-            <View style={styles.manualNotice}>
-              <Ionicons color={theme.colors.warning} name="information-circle" size={20} />
-              <AppText style={styles.manualNoticeText} variant="caption">
-                Este productor no es una persona. Registra los datos del acreedor
-                manualmente.
-              </AppText>
-            </View>
-          ) : null}
+                </View>
+              ) : null}
 
-          {!isCreditorProductorPersona || pendingCreditorFields.includes("firstName") ? (
-            <AppInput
-                label="Nombres del acreedor"
-                value={nombres}
-                onChangeText={(value) => {
-                  setNombres(value);
-                  setAutofilledFields((current) => ({ ...current, firstName: false }));
-                }}
-                placeholder="Ej: Maria Elena"
+              {!isCreditorProductorPersona ||
+              pendingCreditorFields.includes("firstName") ? (
+                <AppInput
+                  label="Nombres del acreedor"
+                  value={nombres}
+                  onChangeText={(value) => {
+                    setNombres(value);
+                    setAutofilledFields((current) => ({ ...current, firstName: false }));
+                  }}
+                  placeholder="Ej: Maria Elena"
+                />
+              ) : null}
+              {!isCreditorProductorPersona ||
+              pendingCreditorFields.includes("lastName") ? (
+                <AppInput
+                  label="Apellidos del acreedor"
+                  value={apellidos}
+                  onChangeText={(value) => {
+                    setApellidos(value);
+                    setAutofilledFields((current) => ({ ...current, lastName: false }));
+                  }}
+                  placeholder="Ej: Perez Lopez"
+                />
+              ) : null}
+              {!isCreditorProductorPersona ||
+              pendingCreditorFields.includes("documentType") ? (
+                <AppSelectField
+                  label="Tipo de documento"
+                  placeholder="Selecciona"
+                  options={DOCUMENTOS}
+                  isOpen={openTipo}
+                  onToggle={() => setOpenTipo((value) => !value)}
+                  onClose={() => setOpenTipo(false)}
+                  onSelect={(value) => {
+                    setTipo(value as "DNI" | "RUC");
+                    setAutofilledFields((current) => ({
+                      ...current,
+                      documentType: false
+                    }));
+                    setOpenTipo(false);
+                  }}
+                  selectedLabel={tipo}
+                />
+              ) : null}
+              {!isCreditorProductorPersona ||
+              pendingCreditorFields.includes("documentNumber") ? (
+                <AppInput
+                  label="Numero de documento"
+                  value={documento}
+                  onChangeText={(value) => {
+                    setDocumento(value.replace(/\D/g, ""));
+                    setAutofilledFields((current) => ({
+                      ...current,
+                      documentNumber: false
+                    }));
+                  }}
+                  keyboardType="number-pad"
+                  placeholder={tipo === "DNI" ? "8 digitos" : "11 digitos"}
+                />
+              ) : null}
+            </AppCard>
+
+            <AppCard style={styles.sectionCard}>
+              <SectionHeader
+                icon="card-outline"
+                subtitle="Ingresa la cuenta bancaria o el CCI del acreedor."
+                title="Cuenta de abono"
               />
-          ) : null}
-          {!isCreditorProductorPersona || pendingCreditorFields.includes("lastName") ? (
-              <AppInput
-                label="Apellidos del acreedor"
-                value={apellidos}
-                onChangeText={(value) => {
-                  setApellidos(value);
-                  setAutofilledFields((current) => ({ ...current, lastName: false }));
-                }}
-                placeholder="Ej: Perez Lopez"
-              />
-          ) : null}
-          {!isCreditorProductorPersona || pendingCreditorFields.includes("documentType") ? (
               <AppSelectField
-                label="Tipo de documento"
-                placeholder="Selecciona"
-                options={DOCUMENTOS}
-                isOpen={openTipo}
-                onToggle={() => setOpenTipo((value) => !value)}
-                onClose={() => setOpenTipo(false)}
+                label="Banco"
+                placeholder="Selecciona el banco"
+                options={BANCOS}
+                isOpen={openBanco}
+                onToggle={() => setOpenBanco((value) => !value)}
+                onClose={() => setOpenBanco(false)}
                 onSelect={(value) => {
-                  setTipo(value as "DNI" | "RUC");
-                  setAutofilledFields((current) => ({
-                    ...current,
-                    documentType: false
-                  }));
-                  setOpenTipo(false);
+                  setBanco(value);
+                  setOpenBanco(false);
                 }}
-                selectedLabel={tipo}
+                selectedLabel={BANCOS.find((item) => item.value === banco)?.label}
               />
-          ) : null}
-          {!isCreditorProductorPersona || pendingCreditorFields.includes("documentNumber") ? (
               <AppInput
-                label="Numero de documento"
-                value={documento}
-                onChangeText={(value) => {
-                  setDocumento(value.replace(/\D/g, ""));
-                  setAutofilledFields((current) => ({
-                    ...current,
-                    documentNumber: false
-                  }));
-                }}
+                label="Numero de cuenta o CCI"
+                value={cuenta}
+                onChangeText={(value) => setCuenta(value.replace(/\D/g, ""))}
                 keyboardType="number-pad"
-                placeholder={tipo === "DNI" ? "8 digitos" : "11 digitos"}
+                maxLength={30}
+                placeholder="Hasta 30 digitos"
               />
-          ) : null}
-        </AppCard>
+            </AppCard>
 
-        <AppCard style={styles.sectionCard}>
-          <SectionHeader
-            icon="card-outline"
-            subtitle="Ingresa la cuenta bancaria o el CCI del acreedor."
-            title="Cuenta de abono"
-          />
-          <AppSelectField
-            label="Banco"
-            placeholder="Selecciona el banco"
-            options={BANCOS}
-            isOpen={openBanco}
-            onToggle={() => setOpenBanco((value) => !value)}
-            onClose={() => setOpenBanco(false)}
-            onSelect={(value) => {
-              setBanco(value);
-              setOpenBanco(false);
-            }}
-            selectedLabel={BANCOS.find((item) => item.value === banco)?.label}
-          />
-          <AppInput
-            label="Numero de cuenta o CCI"
-            value={cuenta}
-            onChangeText={(value) => setCuenta(value.replace(/\D/g, ""))}
-            keyboardType="number-pad"
-            maxLength={30}
-            placeholder="Hasta 30 digitos"
-          />
-        </AppCard>
+            <AppButton
+              label="Guardar acreedor"
+              icon="person-add-outline"
+              onPress={guardarAcreedor}
+            />
 
-        <AppButton label="Guardar acreedor" icon="person-add-outline" onPress={guardarAcreedor} />
+            <AppButton
+              disabled={!productorId || creditorOptions.length === 0}
+              icon="leaf-outline"
+              label="Cosecha"
+              onPress={openCosecha}
+              variant="secondary"
+            />
+            {!productorId || creditorOptions.length === 0 ? (
+              <AppText style={styles.helper} variant="caption">
+                Selecciona un productor y espera la aprobación de un acreedor para continuar a Cosecha.
+              </AppText>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <AppButton
+              icon="arrow-back-outline"
+              label="Volver a acreedores"
+              onPress={() => router.back()}
+              variant="outline"
+            />
 
-        <AppCard style={styles.sectionCard}>
-          <SectionHeader
-            icon="cash-outline"
-            subtitle="Paso 2: registra las jabas y el acreedor que recibira el pago."
-            title="Registro de cosecha"
-          />
-          <AppSelectField
-            disabled={!productorId || acreedores.length === 0}
-            emptyMessage="Registra primero un acreedor para este productor."
-            isOpen={openAcreedorPago}
-            label="Acreedor a pagar"
-            onClose={() => setOpenAcreedorPago(false)}
-            onSelect={(value) => {
-              setAcreedorPagoId(value);
-              setOpenAcreedorPago(false);
-            }}
-            onToggle={() => setOpenAcreedorPago((value) => !value)}
-            options={creditorOptions}
-            placeholder={productorId ? "Selecciona el acreedor" : "Selecciona primero el productor"}
-            selectedLabel={creditorOptions.find((item) => item.value === acreedorPagoId)?.label}
-          />
-          {productorId && acreedores.length === 0 ? (
-            <AppText style={styles.helper} variant="caption">
-              Agrega un acreedor en el paso 1 para continuar.
-            </AppText>
-          ) : null}
-          <AppInput
-            keyboardType="number-pad"
-            label="Cantidad de jabas"
-            onChangeText={(value) => setJabas(value.replace(/\D/g, ""))}
-            placeholder="Ej: 120"
-            value={jabas}
-          />
-          <AppInput
-            keyboardType="decimal-pad"
-            label="Precio por jaba (S/)"
-            onChangeText={(value) => setPrecioJaba(value.replace(/[^0-9.,]/g, ""))}
-            placeholder="Ej: 12.50"
-            value={precioJaba}
-          />
-          <AppInput editable={false} label="Fecha actual" value={today} />
-          <AppInput
-            label="Fecha de cosecha"
-            maxLength={10}
-            onChangeText={setFechaCosecha}
-            placeholder="AAAA-MM-DD"
-            value={fechaCosecha}
-          />
-          <AppText style={styles.helper} variant="caption">
-            Puedes modificar la fecha de cosecha, sin superar la fecha actual.
-          </AppText>
-          <AppButton label="Guardar registro de cosecha" icon="save-outline" onPress={guardarRegistro} />
-        </AppCard>
+            <AppCard style={styles.sectionCard}>
+              <SectionHeader
+                icon="cash-outline"
+                subtitle="Paso 2: registra las jabas y el acreedor que recibira el pago."
+                title="Registro de cosecha"
+              />
+              <AppSelectField
+                disabled={!productorId || creditorOptions.length === 0}
+                emptyMessage="Aún no hay acreedores aprobados para este productor."
+                isOpen={openAcreedorPago}
+                label="Acreedor a pagar"
+                onClose={() => setOpenAcreedorPago(false)}
+                onSelect={(value) => {
+                  setAcreedorPagoId(value);
+                  setOpenAcreedorPago(false);
+                }}
+                onToggle={() => setOpenAcreedorPago((value) => !value)}
+                options={creditorOptions}
+                placeholder={
+                  productorId
+                    ? "Selecciona el acreedor"
+                    : "Selecciona primero el productor"
+                }
+                selectedLabel={
+                  creditorOptions.find((item) => item.value === acreedorPagoId)?.label
+                }
+              />
+              {productorId && creditorOptions.length === 0 ? (
+                <AppText style={styles.helper} variant="caption">
+                  Espera la aprobación del analista para registrar una cosecha.
+                </AppText>
+              ) : null}
+              <AppInput
+                keyboardType="number-pad"
+                label="Cantidad de jabas"
+                onChangeText={(value) => setJabas(value.replace(/\D/g, ""))}
+                placeholder="Ej: 120"
+                value={jabas}
+              />
+              <AppInput
+                keyboardType="decimal-pad"
+                label="Precio por jaba (S/)"
+                onChangeText={(value) => setPrecioJaba(value.replace(/[^0-9.,]/g, ""))}
+                placeholder="Ej: 12.50"
+                value={precioJaba}
+              />
+              <AppInput editable={false} label="Fecha actual" value={today} />
+              <HarvestDatePicker
+                maxDate={today}
+                onChange={setFechaCosecha}
+                value={fechaCosecha}
+              />
+              <AppText style={styles.helper} variant="caption">
+                Puedes modificar la fecha de cosecha, sin superar la fecha actual.
+              </AppText>
+              <AppButton
+                disabled={!productorId || acreedores.length === 0}
+                label="Guardar registro de cosecha"
+                icon="save-outline"
+                onPress={guardarRegistro}
+              />
+            </AppCard>
+          </>
+        )}
 
         {error ? (
           <AppText style={styles.error} variant="caption">
@@ -566,9 +769,141 @@ function SectionHeader({ icon, subtitle, title }: SectionHeaderProps) {
   );
 }
 
+type HarvestDatePickerProps = {
+  maxDate: string;
+  onChange: (value: string) => void;
+  value: string;
+};
+
+const WEEKDAYS = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sa", "Do"];
+const MONTHS = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre"
+];
+
+function HarvestDatePicker({ maxDate, onChange, value }: HarvestDatePickerProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    getMonthStart(parseLocalDate(value) ?? new Date())
+  );
+  const year = visibleMonth.getFullYear();
+  const month = visibleMonth.getMonth();
+  const firstWeekday = (visibleMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cellCount = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+  const monthCells = Array.from(
+    { length: cellCount },
+    (_, index) => index - firstWeekday + 1
+  );
+  const latestMonth = getMonthStart(parseLocalDate(maxDate) ?? new Date());
+  const canGoForward = visibleMonth.getTime() < latestMonth.getTime();
+
+  return (
+    <View style={styles.datePicker}>
+      <AppText variant="label">Fecha de cosecha</AppText>
+      <Pressable
+        accessibilityLabel={`Fecha de cosecha: ${value}. Abrir calendario`}
+        accessibilityRole="button"
+        onPress={() => {
+          if (!isOpen)
+            setVisibleMonth(getMonthStart(parseLocalDate(value) ?? new Date()));
+          setIsOpen((current) => !current);
+        }}
+        style={styles.dateTrigger}
+      >
+        <AppText variant="body">{value}</AppText>
+        <Ionicons color={theme.colors.primaryDark} name="calendar-outline" size={21} />
+      </Pressable>
+      {isOpen ? (
+        <View style={styles.calendarPanel}>
+          <View style={styles.calendarHeader}>
+            <Pressable
+              accessibilityLabel="Mes anterior"
+              accessibilityRole="button"
+              onPress={() => setVisibleMonth(new Date(year, month - 1, 1))}
+              style={styles.calendarArrow}
+            >
+              <Ionicons color={theme.colors.primaryDark} name="chevron-back" size={20} />
+            </Pressable>
+            <AppText style={styles.calendarTitle} variant="label">
+              {MONTHS[month]} {year}
+            </AppText>
+            <Pressable
+              accessibilityLabel="Mes siguiente"
+              accessibilityRole="button"
+              disabled={!canGoForward}
+              onPress={() => setVisibleMonth(new Date(year, month + 1, 1))}
+              style={[styles.calendarArrow, !canGoForward && styles.calendarDisabled]}
+            >
+              <Ionicons
+                color={theme.colors.primaryDark}
+                name="chevron-forward"
+                size={20}
+              />
+            </Pressable>
+          </View>
+          <View style={styles.calendarGrid}>
+            {WEEKDAYS.map((day, index) => (
+              <View key={`${day}-${index}`} style={styles.calendarCell}>
+                <AppText style={styles.calendarWeekday} variant="caption">
+                  {day}
+                </AppText>
+              </View>
+            ))}
+            {monthCells.map((day, index) => {
+              if (day < 1 || day > daysInMonth) {
+                return <View key={`empty-${index}`} style={styles.calendarCell} />;
+              }
+
+              const dateValue = formatLocalDate(new Date(year, month, day));
+              const isFuture = dateValue > maxDate;
+              const isSelected = dateValue === value;
+
+              return (
+                <Pressable
+                  accessibilityLabel={dateValue}
+                  accessibilityRole="button"
+                  disabled={isFuture}
+                  key={dateValue}
+                  onPress={() => {
+                    onChange(dateValue);
+                    setIsOpen(false);
+                  }}
+                  style={[
+                    styles.calendarCell,
+                    isSelected && styles.calendarSelected,
+                    isFuture && styles.calendarDisabled
+                  ]}
+                >
+                  <AppText
+                    style={isSelected ? styles.calendarSelectedText : undefined}
+                    variant="body"
+                  >
+                    {day}
+                  </AppText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function getAutofillForProductor(productor: Productor | null): CreditorAutofill | null {
   const documentTypeCode = productor?.documentTypeId
-    ? tiposDocumentoRepository.obtenerPorId(productor.documentTypeId)?.code ?? null
+    ? (tiposDocumentoRepository.obtenerPorId(productor.documentTypeId)?.code ?? null)
     : null;
 
   return getCreditorAutofill(productor, documentTypeCode);
@@ -677,6 +1012,52 @@ const styles = StyleSheet.create({
     padding: 12
   },
   manualNoticeText: { color: theme.colors.text, flex: 1 },
+  datePicker: { gap: 6 },
+  dateTrigger: {
+    alignItems: "center",
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    borderWidth: 1.5,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 48,
+    paddingHorizontal: 14
+  },
+  calendarPanel: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderColor: theme.colors.borderLight,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    gap: 8,
+    padding: 12
+  },
+  calendarHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  calendarArrow: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 40,
+    width: 40
+  },
+  calendarTitle: { color: theme.colors.primaryDark, textTransform: "capitalize" },
+  calendarGrid: { flexDirection: "row", flexWrap: "wrap" },
+  calendarCell: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 42,
+    width: "14.2857%"
+  },
+  calendarWeekday: { color: theme.colors.textMuted },
+  calendarSelected: {
+    backgroundColor: theme.colors.primaryDark,
+    borderRadius: theme.radius.full
+  },
+  calendarSelectedText: { color: theme.colors.textInverse },
+  calendarDisabled: { opacity: 0.35 },
   helper: { color: theme.colors.textMuted },
   error: { color: theme.colors.error }
 });
@@ -715,7 +1096,9 @@ function validateAcreedorCosecha(
 }
 
 function formatCreditorName(acreedor: AcreedorCosecha) {
-  return [acreedor.creditorFirstName, acreedor.creditorLastName].filter(Boolean).join(" ");
+  return [acreedor.creditorFirstName, acreedor.creditorLastName]
+    .filter(Boolean)
+    .join(" ");
 }
 
 function maskAccount(account: string) {
@@ -723,9 +1106,23 @@ function maskAccount(account: string) {
 }
 
 function getLocalDate() {
-  const date = new Date();
+  return formatLocalDate(new Date());
+}
+
+function formatLocalDate(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function parseLocalDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return formatLocalDate(date) === value ? date : null;
+}
+
+function getMonthStart(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
 }

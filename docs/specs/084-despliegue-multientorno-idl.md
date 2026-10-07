@@ -1,14 +1,20 @@
 ---
 title: Despliegue multientorno de Agrogest VSM en servidor IDL
-status: approved
+status: implemented
 numero: 084
 area: infraestructura, seguridad y contrato de despliegue
 created: 2026-09-21
 approved_by: instrucción explícita del mantenedor
-implemented_in: e33faec, 1a4e79b
+implemented_in: 64edb5b; 1a4e79b; docker-compose.yml; docs/operations/environments.md (estado vigente actualizado 2026-10-07)
 ---
 
 # Spec 084: Despliegue multientorno de Agrogest VSM en servidor IDL
+
+> Esta spec conserva el contexto y las decisiones de la transición inicial.
+> La infraestructura vigente está documentada en
+> [Entornos](../operations/environments.md): servidor físico Ubuntu, Docker
+> Compose y PostgreSQL/PostGIS local. Las menciones a proveedores en el
+> contenido siguiente describen únicamente el estado anterior a esa transición.
 
 ## Contexto
 

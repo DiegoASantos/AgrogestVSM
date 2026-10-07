@@ -4,7 +4,7 @@
 
 - fecha: 2026-09-28
 - responsable: Codex
-- spec: 085, aprobada por instrucción explícita del mantenedor
+- spec: 088, aprobada por instrucción explícita del mantenedor
 - alcance del diff: panel Next.js, Dockerfile/Compose y documentación de despliegue
 - criticidad: alta
 

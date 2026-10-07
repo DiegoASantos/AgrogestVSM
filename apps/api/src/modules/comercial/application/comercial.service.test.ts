@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { ComercialService } from "./comercial.service";
@@ -56,6 +56,11 @@ function buildCreditor(
     bank: dto.bank,
     accountNumber: dto.accountNumber,
     createdByUserId: "7",
+    approvalStatus: "APPROVED",
+    source: "MOBILE",
+    reviewObservation: null,
+    reviewedByUserId: null,
+    reviewedAt: null,
     createdAt: new Date("2026-09-24T00:00:00.000Z"),
     updatedAt: new Date("2026-09-24T00:00:00.000Z"),
     ...overrides
@@ -178,5 +183,17 @@ describe("ComercialService", () => {
         user
       )
     ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("keeps a new mobile creditor pending review", async () => {
+    const { acreedores, service } = buildService();
+    await service.createCreditor(dto, user);
+    expect(acreedores.create).toHaveBeenCalledWith(expect.objectContaining({ approvalStatus: "PENDING", source: "MOBILE" }));
+  });
+
+  it("rejects a new harvest when the creditor is pending", async () => {
+    const { acreedores, service } = buildService();
+    acreedores.findOne.mockResolvedValue(buildCreditor({ approvalStatus: "PENDING" }));
+    await expect(service.createHarvestRecord({ productorId: "1", creditorId: "10", crateQuantity: "1", cratePrice: "12.00", registrationDate: "2026-09-24", harvestDate: "2026-09-23" }, user)).rejects.toBeInstanceOf(ConflictException);
   });
 });

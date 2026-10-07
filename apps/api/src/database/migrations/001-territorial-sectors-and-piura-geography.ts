@@ -143,9 +143,49 @@ export const TERRITORIAL_SECTORS_AND_PIURA_GEOGRAPHY_MIGRATION: DatabaseMigratio
       ADD CONSTRAINT parcelas_productor_id_fkey
       FOREIGN KEY (productor_id) REFERENCES productores(id) ON DELETE RESTRICT;
     ALTER TABLE parcelas DROP CONSTRAINT IF EXISTS parcelas_sector_id_codigo_key;
-    ALTER TABLE parcelas
-      ADD CONSTRAINT parcelas_productor_id_sector_id_codigo_key
-      UNIQUE (productor_id, sector_id, codigo);
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'parcelas'
+          AND column_name = 'subsector_id'
+      ) THEN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'parcelas_productor_id_subsector_id_codigo_key'
+            AND conrelid = 'parcelas'::regclass
+        ) THEN
+          ALTER TABLE parcelas
+            ADD CONSTRAINT parcelas_productor_id_subsector_id_codigo_key
+            UNIQUE (productor_id, subsector_id, codigo);
+        END IF;
+        CREATE INDEX IF NOT EXISTS idx_parcelas_productor_subsector
+          ON parcelas(productor_id, subsector_id);
+      ELSIF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'parcelas'
+          AND column_name = 'sector_id'
+      ) THEN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'parcelas_productor_id_sector_id_codigo_key'
+            AND conrelid = 'parcelas'::regclass
+        ) THEN
+          ALTER TABLE parcelas
+            ADD CONSTRAINT parcelas_productor_id_sector_id_codigo_key
+            UNIQUE (productor_id, sector_id, codigo);
+        END IF;
+        CREATE INDEX IF NOT EXISTS idx_parcelas_productor_sector
+          ON parcelas(productor_id, sector_id);
+      ELSE
+        RAISE EXCEPTION
+          'Migration 001 requires parcelas.subsector_id or parcelas.sector_id';
+      END IF;
+    END $$;
 
     CREATE INDEX IF NOT EXISTS idx_provincias_departamento_id
       ON provincias(departamento_id);
@@ -155,7 +195,5 @@ export const TERRITORIAL_SECTORS_AND_PIURA_GEOGRAPHY_MIGRATION: DatabaseMigratio
       ON sectores(distrito_id);
     CREATE INDEX IF NOT EXISTS idx_parcelas_productor_id
       ON parcelas(productor_id);
-    CREATE INDEX IF NOT EXISTS idx_parcelas_productor_sector
-      ON parcelas(productor_id, sector_id);
   `
 };

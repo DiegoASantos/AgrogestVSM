@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-28
+last_reviewed: 2026-10-06
 ---
 
 # Documentación de AgroGest VSM
@@ -140,6 +140,12 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Proxy de API por el mismo origen del panel web](specs/085-proxy-api-mismo-origen-web.md)
 - [Reasignación controlada de parcelas entre agrónomos](specs/086-reasignacion-controlada-parcelas.md)
 - [Sesión fija de 150 días](specs/087-sesion-fija-150-dias.md)
+- [Captura y aprobación de acreedores por productor](specs/088-captura-aprobacion-acreedores-productor.md)
+- [Múltiples etapas fenológicas por visita](specs/089-multiples-etapas-fenologicas-por-visita.md)
+- [Cobertura compartida de etapas y labores en el paso 1](specs/090-cobertura-compartida-etapas-labores-visita.md)
+- [Subetapa automática según cobertura de parcela](specs/091-subetapa-automatica-por-cobertura.md)
+- [Pagos de productores en admin web](specs/092-pagos-productores-admin-web.md)
+- [Compatibilidad del bootstrap con migración territorial 001](specs/093-reparacion-bootstrap-migracion-territorial-001.md)
 
 ## Runbooks
 
@@ -157,7 +163,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Backup y restauración](runbooks/database-backup-restore.md)
 - [Rollback](runbooks/rollback.md)
 - [Respuesta a incidentes](runbooks/incident-response.md)
-- [Deploy de API en Render](runbooks/deploy-api-render.md)
+- [Despliegue en servidor físico Ubuntu](runbooks/deploy-servidor-ubuntu.md)
 - [Deploy mobile con Expo EAS](runbooks/deploy-mobile-expo.md)
 
 ## Operaciones

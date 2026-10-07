@@ -78,9 +78,6 @@ async function buildVisitReportHtml(visitaId: string) {
   const cultivos = visitasCampoRepository.getCultivos();
   const variedades = visitasCampoRepository.getVariedadesByCultivo(visita.cropId);
   const etapas = visitasCampoRepository.getEtapasFenologicasByCultivo(visita.cropId);
-  const subEtapas = visita.phenologicalStageId
-    ? visitasCampoRepository.getSubEtapasByEtapaFenologica(visita.phenologicalStageId)
-    : [];
   const pestDiseases =
     observacionesSanitariasRepository.getPestDiseasesByPhenologicalStage(
       visita.phenologicalStageId ?? "",
@@ -263,23 +260,16 @@ async function buildVisitReportHtml(visitaId: string) {
         ["Fecha siembra", formatDate(visita.sowingDate)],
         ["Plantas", visita.plantsCount === null ? null : String(visita.plantsCount)],
         ["Area visita", visita.areaHectares ? `${visita.areaHectares} ha` : null],
-        [
-          "Etapa fenologica",
-          visita.phenologicalStageId
-            ? (findById(etapas, visita.phenologicalStageId)?.name ??
-              visita.phenologicalStageId)
-            : null
-        ],
-        [
-          "Sub etapa",
-          visita.subEtapaId
-            ? (findById(subEtapas, visita.subEtapaId)?.name ?? visita.subEtapaId)
-            : null
-        ],
-        [
-          "Porcentaje sub etapa",
-          visita.subEtapaPercentage === null ? null : `${visita.subEtapaPercentage}%`
-        ],
+        ["Distribucion de la parcela", visita.phenologicalStages.length
+          ? visita.phenologicalStages.map((entry) => [
+              entry.stageName ?? findById(etapas, entry.phenologicalStageId)?.name ?? entry.phenologicalStageId,
+              entry.subEtapaName ?? (entry.subEtapaId ? entry.subEtapaId : null),
+              entry.coveragePercentage === null ? null : `${entry.coveragePercentage}% de la parcela`,
+              entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% de avance de labor registrado anteriormente`
+            ].filter(Boolean).join(" · ")).join("; ")
+          : (visita.phenologicalStageId ? findById(etapas, visita.phenologicalStageId)?.name ?? visita.phenologicalStageId : null), true],
+        ["Avance historico de sub etapa", visita.subEtapaPercentage === null || visita.subEtapaId === null
+          ? null : `${visita.subEtapaPercentage}%`],
         ["Observacion general", visita.generalObservation, true],
         ["Observacion del paso", stepNotes.get(1)?.observation ?? null, true],
         ["Recomendacion del paso", stepNotes.get(1)?.recommendation ?? null, true]

@@ -2,7 +2,7 @@
 title: Bootstrap de base de datos PostgreSQL
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-10-06
 ---
 
 # Bootstrap de base de datos PostgreSQL
@@ -85,3 +85,10 @@ Validación completada el 25 de junio de 2026:
 - 50 tablas restauradas;
 - 8 provincias y 65 distritos de Piura;
 - sin Docker y sin acceso a producción.
+
+En el smoke del 6 de octubre de 2026, la migración 001 ya pasó con el modelo
+actual de parcelas. El proceso llegó a la migración 025 y falló porque el índice
+único `uq_subsectores_sector_nombre`, generado por TypeORM, ya existía cuando
+la migración intentó crear una restricción con el mismo nombre. El bloqueo está
+registrado como R-043; hasta corregirlo no se considera validado el bootstrap
+completo.

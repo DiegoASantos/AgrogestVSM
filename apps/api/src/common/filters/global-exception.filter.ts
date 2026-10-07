@@ -29,7 +29,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const context = host.switchToHttp();
     const request = context.getRequest<FastifyRequest>();
     const reply = context.getResponse<FastifyReply>();
-    const normalizedException = this.normalizeException(exception);
+    const sensitiveFinancialRoute = isSensitiveFinancialRoute(request.url);
+    const normalizedException = this.normalizeException(
+      exception,
+      sensitiveFinancialRoute
+    );
     const requestContext = getOrCreateRequestLogContext(request, reply);
 
     if (normalizedException.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
@@ -41,10 +45,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           path: getPathWithoutQuery(request.url),
           statusCode: normalizedException.statusCode,
           errorCode: normalizedException.code,
-          error:
-            exception instanceof Error
-              ? exception
-              : new Error(normalizedException.message)
+          ...(!sensitiveFinancialRoute
+            ? {
+                error:
+                  exception instanceof Error
+                    ? exception
+                    : new Error(normalizedException.message)
+              }
+            : {})
         },
         "Unhandled HTTP exception"
       );
@@ -56,13 +64,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       message: normalizedException.message,
       path: request.url,
       method: request.method,
-      details: normalizedException.details
+      details: sensitiveFinancialRoute ? undefined : normalizedException.details
     });
 
     void reply.status(normalizedException.statusCode).send(response);
   }
 
-  private normalizeException(exception: unknown): NormalizedException {
+  private normalizeException(
+    exception: unknown,
+    sensitiveFinancialRoute: boolean
+  ): NormalizedException {
     if (exception instanceof HttpException) {
       const statusCode = exception.getStatus();
       const response = exception.getResponse();
@@ -98,7 +109,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       code: "INTERNAL_SERVER_ERROR",
       message: "Internal server error.",
-      ...(this.isDevelopment && exception instanceof Error
+      ...(this.isDevelopment && !sensitiveFinancialRoute && exception instanceof Error
         ? {
             details: {
               message: exception.message
@@ -141,6 +152,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     return typeof label === "string" ? label : "HTTP_ERROR";
   }
+}
+
+export function isSensitiveFinancialRoute(url: string) {
+  const path = url.split("?")[0] || "/";
+  return (
+    path === "/pagos" ||
+    path.startsWith("/pagos/") ||
+    path === "/comercial/mantenimiento/acreedores-cosecha" ||
+    path.startsWith("/comercial/mantenimiento/acreedores-cosecha/")
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

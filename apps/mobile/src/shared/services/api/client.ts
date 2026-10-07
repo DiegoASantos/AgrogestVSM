@@ -149,7 +149,7 @@ async function performRequest(
     const response = await fetch(url, {
       method: options.method ?? "GET",
       headers: {
-        "Content-Type": "application/json",
+        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(includeAuth ? { Authorization: `Bearer ${apiToken}` } : {}),
         ...(options.headers ?? {})
       },

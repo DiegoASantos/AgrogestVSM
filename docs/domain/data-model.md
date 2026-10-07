@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-22
+last_reviewed: 2026-10-06
 ---
 
 # Modelo del dominio
@@ -72,6 +72,18 @@ al acreedor por nombres, apellidos, DNI o RUC, banco y cuenta o CCI; la
 combinacion exacta no se duplica para ese productor. Los perfiles son
 consultables por ADMIN o AGRONOMO que mantenga acceso horizontal al productor.
 
+Cada perfil tiene `PENDING`, `APPROVED` u `OBSERVED` y origen de captura inicial
+`PRODUCTOR`, `MOBILE` o `ADMIN_WEB`. Un perfil nuevo queda pendiente. `ADMIN` o `ANALISTA`
+revisa los datos completos, aprueba o registra una observación; cada decisión
+conserva revisor, fecha y nota en `revisiones_acreedor_cosecha`. Solo un perfil
+aprobado puede respaldar un nuevo registro de cosecha. El productor puede
+corregir y reenviar un perfil observado o actualizar uno aprobado; vuelve a
+pendiente y no modifica las instantáneas históricas.
+
+`invitaciones_acreedor_productor` conserva el hash del código, productor,
+emisor, expiración y revocación. Solo hay una invitación no revocada por
+productor. El código dura 180 días y la sesión web derivada dura 30 minutos.
+
 Un registro de cosecha referencia a un acreedor y al productor, conserva una
 instantanea inmutable de sus datos bancarios, cantidad entera de jabas, precio
 por jaba en PEN y las fechas de registro y cosecha. Conserva `publicId` UUID,
@@ -81,7 +93,26 @@ instalaciones anteriores terminan de sincronizar.
 
 Mobile mantiene perfiles y registros por `owner_user_id`, con estado de
 sincronizacion, identificadores locales/remotos y cache visible de la sesion.
-No hay edicion ni eliminacion de acreedores en esta etapa.
+Mobile conserva el formulario de acreedores como captura alternativa del
+agrónomo; la edición de perfiles se realiza desde la web pública del productor.
+
+El mantenimiento administrativo también permite a `ADMIN` y `ANALISTA` crear,
+editar y consultar acreedores de cosecha. Los creados desde esa pantalla tienen
+origen `ADMIN_WEB` y estado `PENDING`; cualquier edición de un perfil aprobado
+lo devuelve a pendiente sin eliminar el historial de revisiones. Solo los
+acreedores aprobados pueden asignarse a pagos nuevos.
+
+`pago_productores` representa una liquidación manual asociada a un productor,
+con guía y lote capturados como texto. Cada cabecera puede distribuirse entre
+varios acreedores aprobados del mismo productor mediante
+`detalle_pago_productores`. Cabeceras y detalles usan `BORRADOR`, `OBSERVADO`,
+`PENDIENTE`, `PAGADO` y `ANULADO`; la primera línea convierte la cabecera de
+borrador a pendiente. Los estados de detalle son independientes. Importes,
+pesos, jabas, descuentos y detracciones se guardan como fueron digitados y no
+se derivan entre sí. El porcentaje de peso de cada detalle se valida entre 0 y
+100 sin exigir que la suma sea 100. Eliminar una liquidación con detalles o
+eliminar una línea conserva las filas y las anula; solo se elimina físicamente
+un borrador sin detalles.
 
 ## Producción agrícola
 
@@ -108,9 +139,15 @@ relaciona:
 - parcela;
 - cultivo, variedad y campaña;
 - agrónomo;
-- etapa y subetapa;
+- una o varias etapas y labores, con subetapa y cobertura de parcela cuando corresponda;
 - fecha, horas, área y observación general;
 - ubicación y firmas.
+
+En mobile, la cobertura digitada en el paso 1 determina la subetapa de una
+`Etapa` mediante los límites porcentuales del catálogo offline; las labores no
+tienen subetapa. Al editar una visita se conserva el ID guardado hasta que se
+cambia el porcentaje. La cobertura de todas las etapas y labores seleccionadas
+se distribuye hasta sumar 100%.
 
 El reporte web de visitas es una proyección de solo lectura de este agregado.
 Cuenta exclusivamente visitas activas, considera como día de visita cada
@@ -129,9 +166,18 @@ Entidades hijas:
 - receta agronómica y sus secciones.
 - calificaciones manuales de cumplimiento por módulo.
 
-Toda visita nueva exige una etapa fenológica válida y asociada al cultivo. La
+Toda visita nueva exige al menos una etapa o labor válida y asociada al cultivo. La
 columna permanece nullable para conservar registros históricos; una
 actualización puede omitir la etapa, pero no eliminar una ya seleccionada.
+
+La distribución de una visita vive en `visita_etapas_fenologicas`: cada etapa o
+labor seleccionada aparece una sola vez y recibe un porcentaje entero de la
+parcela entre 1 y 100; todas las coberturas suman 100. Cada entrada de tipo
+`Etapa` exige subetapa. La principal es la de mayor cobertura y, ante empate,
+la primera seleccionada. Los campos escalares de `visitas_campo` conservan esa
+principal para clientes instalados, puntajes y tableros. Los registros anteriores
+pueden tener labores sin cobertura y con avance propio; ese avance y el antiguo
+`sub_etapa_porcentaje` son datos históricos, no cobertura de parcela.
 
 Al iniciar una visita nueva, mobile consulta la última visita activa de la
 misma parcela, ordenada por fecha, hora y creación. Cultivo y variedad se usan

@@ -15,6 +15,7 @@ import {
   isReportsPath,
   isEstimationsPath,
   isSecurityPath,
+  isPaymentsPath,
   isRestrictedAdminPath
 } from "./authorization";
 
@@ -125,6 +126,8 @@ describe("isRestrictedAdminPath", () => {
     "/reportes/campos-por-etapas",
     "/reportes/parcelas",
     "/estimaciones",
+    "/comercial",
+    "/pagos",
     "/seguridad",
     "/seguridad/usuarios"
   ])("flags %s as restricted", (path) => {
@@ -148,6 +151,8 @@ describe("role-restricted path matchers", () => {
     expect(isSecurityPath("/seguridad/usuarios")).toBe(true);
     expect(isEstimationsPath("/estimaciones")).toBe(true);
     expect(isEstimationsPath("/estimaciones/semana")).toBe(true);
+    expect(isPaymentsPath("/pagos/productores")).toBe(true);
+    expect(isPaymentsPath("/pagos-cosecha")).toBe(false);
     expect(isReportsPath("/reporte-excel")).toBe(false);
   });
 });
@@ -188,6 +193,8 @@ describe("canAccessAdminPath", () => {
     expect(canAccessAdminPath("/seguridad/usuarios", makeSession(["ADMIN"]))).toBe(true);
     expect(canAccessAdminPath("/reportes", makeSession(["ADMIN"]))).toBe(true);
     expect(canAccessAdminPath("/estimaciones", makeSession(["ADMIN"]))).toBe(true);
+    expect(canAccessAdminPath("/comercial", makeSession(["ADMIN"]))).toBe(true);
+    expect(canAccessAdminPath("/pagos", makeSession(["ADMIN"]))).toBe(true);
     expect(
       canAccessAdminPath("/reportes/campos-por-etapas", makeSession(["ADMIN"]))
     ).toBe(true);
@@ -201,6 +208,8 @@ describe("canAccessAdminPath", () => {
     expect(canAccessAdminPath("/reportes/visitas", analystSession)).toBe(true);
     expect(canAccessAdminPath("/reportes/parcelas", analystSession)).toBe(true);
     expect(canAccessAdminPath("/estimaciones", analystSession)).toBe(true);
+    expect(canAccessAdminPath("/comercial", analystSession)).toBe(true);
+    expect(canAccessAdminPath("/pagos", analystSession)).toBe(true);
     expect(canAccessAdminPath("/seguridad/usuarios", analystSession)).toBe(false);
   });
 
@@ -214,5 +223,7 @@ describe("canAccessAdminPath", () => {
     );
     expect(canAccessAdminPath("/reportes/parcelas", agronomistSession)).toBe(false);
     expect(canAccessAdminPath("/estimaciones", agronomistSession)).toBe(false);
+    expect(canAccessAdminPath("/comercial", agronomistSession)).toBe(false);
+    expect(canAccessAdminPath("/pagos", agronomistSession)).toBe(false);
   });
 });

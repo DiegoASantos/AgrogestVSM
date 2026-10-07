@@ -2,7 +2,7 @@
 title: Checklist de release
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-28
+last_reviewed: 2026-10-07
 ---
 
 # Checklist de release
@@ -21,31 +21,24 @@ last_reviewed: 2026-09-28
 - E2E aplicable ejecutado:
   - `e2e:ci` para cambios de panel sin backend;
   - `e2e:full` para cambios de sesión, visitas o flujos full-stack.
-- Variables revisadas contra `.env.example`, `render.yaml`, `vercel.json` y
-  `eas.json`, sin leer archivos `.env`.
+- Variables revisadas contra los archivos `.env.example`, `docker-compose.yml`
+  y `eas.json`, sin leer archivos `.env`.
 
-## API Render
+## API y panel en servidor físico Ubuntu
 
-- Migraciones revisadas.
-- Backup y restore aplicables definidos antes de cambios de datos.
-- Health check `/health` considerado en el plan.
-- Rollback de código no se trata como rollback de datos.
-
-## Admin web Vercel
-
-- `NEXT_PUBLIC_API_URL` apunta al API correcto.
-- Login y ruta protegida verificados.
-- Cambios de contrato API coordinados con backend.
-
-## Admin web en servidor IDL
-
-- Imagen web reconstruida con el target Docker que fija
-  `NEXT_PUBLIC_API_URL=/api` y usa `API_INTERNAL_URL=http://api:3001` por defecto.
-- Web y API en la misma red de Docker Compose; `/api/health` responde desde
-  LAN y desde una red externa.
-- Login, refresh y descarga autenticada comprobados sin petición del navegador
-  a la IP pública de la API cuando se accede desde LAN.
-- Rollback de la imagen web estable disponible antes de publicar.
+- Confirmar que el respaldo de PostgreSQL/PostGIS del servidor está disponible
+  y que su restauración es viable antes de cambios de datos.
+- Revisar las migraciones pendientes y ejecutarlas como paso controlado antes
+  de iniciar la versión nueva de la API; Compose no las ejecuta al arrancar.
+- Reconstruir API y panel con Docker Compose; conservar el mismo origen `/api`
+  del panel y validar `/health`, `/health/db` con sesión autorizada y login.
+- La imagen del panel fija `NEXT_PUBLIC_API_URL=/api` y usa
+  `API_INTERNAL_URL=http://api:3001`; web y API deben compartir la red Compose.
+- Confirmar acceso al panel y API en LAN y desde la red externa autorizada.
+- Comprobar login, refresh y descargas autenticadas desde el panel.
+- No tratar rollback de código como rollback de datos.
+- La ruta pública `/productor/acreedores` debe funcionar sobre HTTPS antes de
+  emitir invitaciones; `EXPO_PUBLIC_PRODUCTOR_WEB_URL` apunta a esa ruta.
 
 ## Mobile Expo/EAS
 

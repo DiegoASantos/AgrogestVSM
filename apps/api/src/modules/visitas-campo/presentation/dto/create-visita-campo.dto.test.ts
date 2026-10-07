@@ -35,6 +35,36 @@ describe("CreateVisitaCampoDto", () => {
     expect(errors).toEqual([]);
     expect(dto.phenologicalStageId).toBe("6");
   });
+
+  it("accepts a list of phenological stages with parcel coverage", async () => {
+    const dto = plainToInstance(CreateVisitaCampoDto, {
+      ...validInput,
+      subEtapaId: "7",
+      phenologicalStages: [
+        { phenologicalStageId: "6", subEtapaId: "7", coveragePercentage: 60 },
+        { phenologicalStageId: "8", subEtapaId: "9", coveragePercentage: 40 }
+      ]
+    });
+    expect(await validate(dto)).toEqual([]);
+  });
+
+  it("accepts shared coverage for a labor", async () => {
+    const dto = plainToInstance(CreateVisitaCampoDto, {
+      ...validInput,
+      distributionMode: "shared",
+      phenologicalStages: [{ phenologicalStageId: "6", coveragePercentage: 100 }]
+    });
+    expect(await validate(dto)).toEqual([]);
+  });
+
+  it("rejects malformed rows in the stage list", async () => {
+    const dto = plainToInstance(CreateVisitaCampoDto, {
+      ...validInput,
+      phenologicalStages: [{ phenologicalStageId: "wrong", coveragePercentage: 101 }]
+    });
+    const errors = await validate(dto);
+    expect(errors.some((error) => error.property === "phenologicalStages")).toBe(true);
+  });
 });
 
 describe("UpdateVisitaCampoDto", () => {

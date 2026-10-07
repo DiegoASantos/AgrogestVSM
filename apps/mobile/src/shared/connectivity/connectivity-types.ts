@@ -4,7 +4,7 @@ export type NetworkQuality = "checking" | "stable" | "unstable" | "none";
 
 export type EffectiveNetworkMode = "online" | "offline_auto" | "offline_manual";
 
-export type NetworkRequestPolicy = "standard" | "essential" | "probe";
+export type NetworkRequestPolicy = "standard" | "essential" | "interactive" | "probe";
 
 export type ConnectivityPolicySnapshot = {
   effectiveMode: EffectiveNetworkMode;

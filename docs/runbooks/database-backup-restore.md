@@ -2,7 +2,7 @@
 title: Backup y restauración PostgreSQL
 status: active
 owner: mantenimiento
-last_reviewed: 2026-06-25
+last_reviewed: 2026-10-07
 ---
 
 # Backup y restauración PostgreSQL
@@ -18,7 +18,8 @@ last_reviewed: 2026-06-25
 ## Crear backup
 
 Configurar `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` y
-`DB_SCHEMA`.
+`DB_SCHEMA` para acceder a PostgreSQL/PostGIS del servidor Ubuntu por la red
+privada autorizada. No copiar la contraseña a la línea de comandos ni a logs.
 
 ```powershell
 pnpm db:backup -- -Label "pre-release"
@@ -69,11 +70,11 @@ pnpm db:smoke
 
 ## Frecuencia recomendada
 
-- backup gestionado diario de producción;
+- backup diario de producción con copia fuera del servidor;
 - backup manual antes de migraciones o releases con cambios de datos;
 - retención mínima inicial: 7 diarios, 4 semanales y 3 mensuales;
 - revisión trimestral de restauración.
 
-La configuración del proveedor debe verificarse directamente en Supabase; este
-repositorio no puede confirmar por sí solo que los backups remotos estén
-habilitados.
+La ejecución, copia fuera del servidor, retención y restauración de los backups
+de producción deben confirmarse en el servidor Ubuntu. Este repositorio no
+automatiza ni acredita que exista una tarea programada de backup.

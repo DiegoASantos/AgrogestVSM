@@ -24,4 +24,13 @@ describe("territorial sectors migration", () => {
     expect(sql).toContain("sectores ADD COLUMN IF NOT EXISTS distrito_id");
     expect(sql).toContain("parcelas ADD COLUMN IF NOT EXISTS productor_id");
   });
+
+  it("uses the parcel ownership column present in the schema", () => {
+    expect(sql).toContain("column_name = 'subsector_id'");
+    expect(sql).toContain("UNIQUE (productor_id, subsector_id, codigo)");
+    expect(sql).toContain("ON parcelas(productor_id, subsector_id)");
+    expect(sql).toContain("column_name = 'sector_id'");
+    expect(sql).toContain("UNIQUE (productor_id, sector_id, codigo)");
+    expect(sql).toContain("ON parcelas(productor_id, sector_id)");
+  });
 });
