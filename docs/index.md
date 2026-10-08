@@ -146,6 +146,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Subetapa automática según cobertura de parcela](specs/091-subetapa-automatica-por-cobertura.md)
 - [Pagos de productores en admin web](specs/092-pagos-productores-admin-web.md)
 - [Compatibilidad del bootstrap con migración territorial 001](specs/093-reparacion-bootstrap-migracion-territorial-001.md)
+- [Spec 094: Formulario de pagos de productores por secciones](specs/094-pagos-productores-formulario-por-secciones.md)
 
 ## Runbooks
 

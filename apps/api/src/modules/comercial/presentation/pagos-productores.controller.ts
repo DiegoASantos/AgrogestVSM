@@ -24,6 +24,8 @@ import {
 } from "./dto/create-detalle-pago-productor.dto";
 import { CreatePagoProductorDto } from "./dto/create-pago-productor.dto";
 import { UpdatePagoProductorDto } from "./dto/update-pago-productor.dto";
+import { GuardarDetallesPagoProductorDto } from "./dto/guardar-detalles-pago-productor.dto";
+import { CrearAcreedorAprobadoPagoDto } from "./dto/crear-acreedor-aprobado-pago.dto";
 import { FindAdminAcreedoresCosechaQueryDto } from "./dto/find-admin-acreedores-cosecha-query.dto";
 import {
   CreateAdminAcreedorCosechaDto,
@@ -99,6 +101,29 @@ export class PagosProductoresController {
   @Header("Cache-Control", "no-store")
   approvedCreditors(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.pagos.approvedCreditors(id);
+  }
+
+  @Post("productores/:id/acreedores-aprobados")
+  @Header("Cache-Control", "no-store")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
+  createApprovedCreditor(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() dto: CrearAcreedorAprobadoPagoDto,
+    @CurrentAuthUser() user: AccessTokenPayload
+  ) {
+    return this.pagos.createApprovedCreditor(id, dto, user.userId);
+  }
+
+  @Post("productores/:id/detalles/lote")
+  @Header("Cache-Control", "no-store")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
+  saveDetailsBatch(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() dto: GuardarDetallesPagoProductorDto
+  ) {
+    return this.pagos.saveDetailsBatch(id, dto);
   }
 
   @Post("productores/:id/detalles")

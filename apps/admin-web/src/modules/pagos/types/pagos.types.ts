@@ -52,6 +52,8 @@ export type DetallePagoProductor = {
   acreedorNombre: string;
   tipoDocumentoProductor: string;
   nroDocumentoProductor: string;
+  tipoDocumentoAcreedor?: string;
+  nroDocumentoAcreedor?: string;
   cantidadJabas: number;
   precioJaba: string;
   precioKilo: string;
@@ -88,6 +90,17 @@ export type PagoCatalogs = {
   supervisores: Array<{ id: string; nombre: string }>;
   tiposDocumento: Array<{ codigo: string; nombre: string }>;
 };
+
+export type AcreedorPago = {
+  id: string;
+  nombre: string;
+  tipoDocumento: string;
+  nroDocumento: string;
+};
+export type AcreedorPagoPayload = Pick<
+  AcreedorCosechaPayload,
+  "nombres" | "apellidos" | "tipoDocumento" | "nroDocumento" | "banco" | "nroCuenta"
+>;
 
 export type AcreedorCosecha = {
   id: string;

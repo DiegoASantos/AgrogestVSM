@@ -137,4 +137,5 @@ en la raíz.
 - [Spec 091: Subetapa automática según cobertura de parcela](091-subetapa-automatica-por-cobertura.md)
 - [Spec 092: Pagos de productores en admin web](092-pagos-productores-admin-web.md)
 - [Spec 093: Compatibilidad del bootstrap con migración territorial 001](093-reparacion-bootstrap-migracion-territorial-001.md)
+- [Spec 094: Formulario de pagos de productores por secciones](094-pagos-productores-formulario-por-secciones.md)
 - [Plantilla](TEMPLATE.md)

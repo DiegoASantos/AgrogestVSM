@@ -25,17 +25,35 @@ export class CreateDetallePagoProductorDto {
   @Transform(clean)
   @IsUUID("4")
   acreedorId!: string;
-  @ApiProperty({ example: "DNI" })
+  @ApiPropertyOptional({
+    example: "DNI",
+    description: "Compatibilidad con el nombre histórico."
+  })
+  @IsOptional()
   @Transform(clean)
   @IsString()
   @Matches(/^(DNI|RUC)$/)
   tipoDocumentoProductor!: string;
-  @ApiProperty()
+  @ApiPropertyOptional({ description: "Compatibilidad con el nombre histórico." })
+  @IsOptional()
   @Transform(clean)
   @IsString()
   @Matches(/^\d{8,20}$/)
   @MaxLength(20)
   nroDocumentoProductor!: string;
+  @ApiPropertyOptional({ description: "Alias semántico para nuevas integraciones." })
+  @IsOptional()
+  @Transform(clean)
+  @IsString()
+  @Matches(/^(DNI|RUC)$/)
+  tipoDocumentoAcreedor?: string;
+  @ApiPropertyOptional({ description: "Alias semántico para nuevas integraciones." })
+  @IsOptional()
+  @Transform(clean)
+  @IsString()
+  @Matches(/^\d{8,20}$/)
+  @MaxLength(20)
+  nroDocumentoAcreedor?: string;
   @ApiProperty()
   @Type(() => Number)
   @IsInt()

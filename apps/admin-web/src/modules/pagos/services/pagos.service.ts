@@ -7,6 +7,8 @@ import {
 import type {
   AcreedorCosecha,
   AcreedorCosechaPayload,
+  AcreedorPago,
+  AcreedorPagoPayload,
   DetallePagoProductor,
   DetallePagoProductorPayload,
   PagoCatalogs,
@@ -63,9 +65,39 @@ export const pagosService = {
     });
   },
   async approvedCreditors(session: Auth, paymentId: string) {
-    return apiRequest<Array<{ id: string; nombre: string }>>(
+    return apiRequest<AcreedorPago[]>(
       `/pagos/productores/${paymentId}/acreedores-aprobados`,
       { headers: headers(session) }
+    );
+  },
+  createApprovedCreditor(session: Auth, paymentId: string, payload: AcreedorPagoPayload) {
+    return apiRequest<AcreedorPago>(
+      `/pagos/productores/${paymentId}/acreedores-aprobados`,
+      {
+        method: "POST",
+        body: payload,
+        headers: headers(session)
+      }
+    );
+  },
+  saveDetailsBatch(
+    session: Auth,
+    paymentId: string,
+    payload: {
+      crear: DetallePagoProductorPayload[];
+      actualizar: Array<
+        DetallePagoProductorPayload & { id: string; estado?: PagoProductorStatus }
+      >;
+      anularIds: string[];
+    }
+  ) {
+    return apiRequest<DetallePagoProductor[]>(
+      `/pagos/productores/${paymentId}/detalles/lote`,
+      {
+        method: "POST",
+        body: payload,
+        headers: headers(session)
+      }
     );
   },
   listDetails(session: Auth, paymentId: string) {

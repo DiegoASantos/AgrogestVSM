@@ -295,6 +295,106 @@
   padding-top: 15px;
   border-top: 1px solid var(--border, #e7ece8);
 }
+.formSection,
+.detailCard {
+  overflow: hidden;
+  border: 1px solid var(--border, #d8e2db);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.formSection > summary,
+.detailCard > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  cursor: pointer;
+  list-style-position: inside;
+}
+.formSection > summary strong,
+.detailCard > summary strong,
+.formSection > summary small,
+.detailCard > summary small {
+  display: block;
+}
+.formSection > summary small,
+.detailCard > summary small {
+  margin-top: 4px;
+  color: var(--text-secondary, #66736a);
+  font-size: 0.82rem;
+}
+.sectionBody {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-top: 1px solid var(--border, #e8ede9);
+}
+.helper {
+  padding: 14px 16px;
+  border-radius: 9px;
+  background: var(--surface-strong, #f6f9f6);
+  color: var(--text-secondary, #56645b);
+  line-height: 1.5;
+}
+.detailCard {
+  background: var(--surface-strong, #fbfdfb);
+}
+.cardBody {
+  padding: 4px 16px 18px;
+  border-top: 1px solid var(--border, #e8ede9);
+}
+.detailTopGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 14px;
+}
+.checkField {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 58px;
+  color: var(--text, #34443a);
+  font-size: 0.87rem;
+  font-weight: 650;
+}
+.checkField input {
+  width: 18px;
+  height: 18px;
+}
+.detailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.removeRow,
+.linkButton {
+  border: 0;
+  background: transparent;
+  color: var(--danger-strong, #9c3a31);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.linkButton {
+  justify-self: start;
+  color: var(--primary-strong, #176b3a);
+}
+.stickySave {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 -18px -18px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border, #d8e2db);
+  background: var(--surface, #fff);
+  color: var(--text-secondary, #66736a);
+  font-size: 0.83rem;
+}
 
 :global([data-theme="dark"]) .statusBORRADOR {
   background: #303441;
@@ -336,6 +436,13 @@
   .formGrid {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+  .detailTopGrid {
+    grid-template-columns: 1fr;
+  }
+  .stickySave {
+    align-items: stretch;
+    flex-direction: column;
   }
   .modal {
     padding: 18px;

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   Injectable,
   NotFoundException
 } from "@nestjs/common";
@@ -15,6 +16,7 @@ import { ProductorEntity } from "../../productores/infrastructure/persistence/en
 import { UserEntity } from "../../users/infrastructure/persistence/entities/user.entity";
 import { TipoDocumentoEntity } from "../../tipos-documento/infrastructure/persistence/entities/tipo-documento.entity";
 import { AcreedorCosechaEntity } from "../infrastructure/persistence/entities/acreedor-cosecha.entity";
+import { RevisionAcreedorCosechaEntity } from "../infrastructure/persistence/entities/revision-acreedor-cosecha.entity";
 import { DetallePagoProductorEntity } from "../infrastructure/persistence/entities/detalle-pago-productor.entity";
 import {
   PagoProductorEntity,
@@ -26,6 +28,8 @@ import {
 } from "../presentation/dto/create-detalle-pago-productor.dto";
 import { CreatePagoProductorDto } from "../presentation/dto/create-pago-productor.dto";
 import { UpdatePagoProductorDto } from "../presentation/dto/update-pago-productor.dto";
+import type { GuardarDetallesPagoProductorDto } from "../presentation/dto/guardar-detalles-pago-productor.dto";
+import type { CrearAcreedorAprobadoPagoDto } from "../presentation/dto/crear-acreedor-aprobado-pago.dto";
 
 @Injectable()
 export class PagosProductoresService {
@@ -44,17 +48,18 @@ export class PagosProductoresService {
         },
         order: { firstName: "ASC", lastName: "ASC" }
       }),
-      this.dataSource.getRepository(UserEntity).find({
-        select: {
-          id: true,
-          publicId: true,
-          firstName: true,
-          lastName: true,
-          isActive: true
-        },
-        where: { isActive: true },
-        order: { lastName: "ASC", firstName: "ASC" }
-      }),
+      this.dataSource
+        .getRepository(UserEntity)
+        .createQueryBuilder("user")
+        .select(["user.id", "user.publicId", "user.firstName", "user.lastName"])
+        .innerJoin("user.userRoles", "userRole")
+        .innerJoin("userRole.role", "role", "role.code = :roleCode", {
+          roleCode: "AGRONOMO"
+        })
+        .where("user.isActive = true")
+        .orderBy("user.lastName", "ASC")
+        .addOrderBy("user.firstName", "ASC")
+        .getMany(),
       this.dataSource
         .getRepository(TipoDocumentoEntity)
         .find({ select: { id: true, code: true, name: true }, order: { name: "ASC" } })
@@ -241,9 +246,122 @@ export class PagosProductoresService {
     return createSuccessResponse(
       creditors.map((creditor) => ({
         id: creditor.publicId,
-        nombre: `${creditor.creditorFirstName} ${creditor.creditorLastName}`.trim()
+        nombre: `${creditor.creditorFirstName} ${creditor.creditorLastName}`.trim(),
+        tipoDocumento: creditor.creditorDocumentType,
+        nroDocumento: creditor.creditorDocumentNumber
       }))
     );
+  }
+
+  async createApprovedCreditor(
+    paymentId: string,
+    dto: CrearAcreedorAprobadoPagoDto,
+    userId: string
+  ) {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const payment = await this.findPayment(paymentId, manager);
+        if (payment.status === "ANULADO")
+          throw new ConflictException(
+            "No se pueden agregar acreedores a un pago anulado."
+          );
+        const expected = dto.tipoDocumento === "DNI" ? 8 : 11;
+        if (dto.nroDocumento.length !== expected)
+          throw new BadRequestException(
+            `El ${dto.tipoDocumento} debe tener ${expected} dígitos.`
+          );
+        const creditors = manager.getRepository(AcreedorCosechaEntity);
+        const creditor = creditors.create({
+          productorId: payment.productorId,
+          creditorFirstName: dto.nombres,
+          creditorLastName: dto.apellidos,
+          creditorDocumentType: dto.tipoDocumento,
+          creditorDocumentNumber: dto.nroDocumento,
+          bank: dto.banco,
+          accountNumber: dto.nroCuenta,
+          createdByUserId: userId,
+          approvalStatus: "APPROVED",
+          source: "ADMIN_WEB",
+          reviewedByUserId: userId,
+          reviewedAt: new Date(),
+          reviewObservation: null
+        });
+        const saved = await creditors.save(creditor);
+        await manager.getRepository(RevisionAcreedorCosechaEntity).save({
+          creditorId: saved.id,
+          reviewerUserId: userId,
+          decision: "APPROVED",
+          observation: "Aprobado al registrarse desde pagos."
+        });
+        return createSuccessResponse({
+          id: saved.publicId,
+          nombre: `${saved.creditorFirstName} ${saved.creditorLastName}`.trim(),
+          tipoDocumento: saved.creditorDocumentType,
+          nroDocumento: saved.creditorDocumentNumber
+        });
+      });
+    } catch (error) {
+      this.handleUniqueConflict(error);
+    }
+  }
+
+  async saveDetailsBatch(paymentId: string, dto: GuardarDetallesPagoProductorDto) {
+    return this.dataSource.transaction(async (manager) => {
+      const payment = await this.findPayment(paymentId, manager);
+      if (payment.status === "ANULADO")
+        throw new ConflictException(
+          "No se pueden modificar detalles de un pago anulado."
+        );
+      const repository = manager.getRepository(DetallePagoProductorEntity);
+      const incomingIds = new Set<string>();
+      for (const [index, item] of (dto.actualizar ?? []).entries()) {
+        if (incomingIds.has(item.id))
+          throw new BadRequestException("Un detalle aparece más de una vez.");
+        incomingIds.add(item.id);
+        const detail = await repository.findOne({
+          where: { publicId: item.id, paymentId: payment.id }
+        });
+        if (!detail || detail.status === "ANULADO")
+          throw new ConflictException("Uno de los detalles ya no está disponible.");
+        try {
+          const replacement = await this.buildDetail(manager, payment, item);
+          this.copyDetailFields(detail, replacement);
+          detail.status = item.estado ?? detail.status;
+          detail.updatedAt = new Date();
+          await repository.save(detail);
+        } catch (error) {
+          throw this.batchDetailError(error, index + 1);
+        }
+      }
+      for (const [index, item] of (dto.crear ?? []).entries()) {
+        try {
+          await repository.save(await this.buildDetail(manager, payment, item));
+        } catch (error) {
+          throw this.batchDetailError(error, (dto.actualizar?.length ?? 0) + index + 1);
+        }
+      }
+      for (const id of dto.anularIds ?? []) {
+        if (incomingIds.has(id))
+          throw new BadRequestException("No se puede editar y anular el mismo detalle.");
+        const detail = await repository.findOne({
+          where: { publicId: id, paymentId: payment.id }
+        });
+        if (!detail) throw new NotFoundException("Detalle de pago no encontrado.");
+        detail.status = "ANULADO";
+        detail.updatedAt = new Date();
+        await repository.save(detail);
+      }
+      const details = await this.listDetailsWithinTransaction(payment, manager);
+      if (
+        payment.status === "BORRADOR" &&
+        details.some((detail) => detail.estado !== "ANULADO")
+      ) {
+        payment.status = "PENDIENTE";
+        payment.updatedAt = new Date();
+        await manager.getRepository(PagoProductorEntity).save(payment);
+      }
+      return createSuccessResponse(details);
+    });
   }
 
   async createDetail(paymentId: string, dto: CreateDetallePagoProductorDto) {
@@ -353,31 +471,39 @@ export class PagosProductoresService {
       );
     const documentType = await manager
       .getRepository(TipoDocumentoEntity)
-      .findOne({ where: { code: dto.tipoDocumentoProductor } });
+      .findOne({ where: { code: creditor.creditorDocumentType } });
     if (!documentType)
       throw new BadRequestException("Tipo de documento del productor no válido.");
     const expectedDocumentLength =
-      dto.tipoDocumentoProductor === "DNI"
+      creditor.creditorDocumentType === "DNI"
         ? 8
         : dto.tipoDocumentoProductor === "RUC"
           ? 11
           : null;
     if (
       expectedDocumentLength &&
-      dto.nroDocumentoProductor.length !== expectedDocumentLength
+      creditor.creditorDocumentNumber.length !== expectedDocumentLength
     )
       throw new BadRequestException(
-        `El ${dto.tipoDocumentoProductor} debe tener ${expectedDocumentLength} dígitos.`
+        `El ${creditor.creditorDocumentType} debe tener ${expectedDocumentLength} dígitos.`
       );
     const supervisor = await manager
       .getRepository(UserEntity)
-      .findOne({ where: { publicId: dto.supervisorId, isActive: true } });
+      .createQueryBuilder("user")
+      .select(["user.id", "user.publicId", "user.firstName", "user.lastName"])
+      .innerJoin("user.userRoles", "userRole")
+      .innerJoin("userRole.role", "role", "role.code = :roleCode", {
+        roleCode: "AGRONOMO"
+      })
+      .where("user.public_id = :publicId", { publicId: dto.supervisorId })
+      .andWhere("user.is_active = true")
+      .getOne();
     if (!supervisor) throw new NotFoundException("Supervisor no disponible.");
     return manager.getRepository(DetallePagoProductorEntity).create({
       paymentId: payment.id,
       creditorId: creditor.id,
       producerDocumentTypeId: documentType.id,
-      producerDocumentNumber: dto.nroDocumentoProductor,
+      producerDocumentNumber: creditor.creditorDocumentNumber,
       crateQuantity: dto.cantidadJabas,
       cratePrice: dto.precioJaba,
       kiloPrice: dto.precioKilo,
@@ -405,6 +531,43 @@ export class PagosProductoresService {
     return details.map((detail) => this.toDetailResponseFromRelations(detail));
   }
 
+  private async listDetailsWithinTransaction(
+    payment: PagoProductorEntity,
+    manager: EntityManager
+  ) {
+    const details = await manager.getRepository(DetallePagoProductorEntity).find({
+      where: { paymentId: payment.id },
+      relations: { creditor: true, producerDocumentType: true, supervisor: true },
+      order: { createdAt: "ASC", id: "ASC" }
+    });
+    return details.map((detail) => this.toDetailResponseFromRelations(detail));
+  }
+
+  private copyDetailFields(
+    target: DetallePagoProductorEntity,
+    source: DetallePagoProductorEntity
+  ) {
+    Object.assign(target, {
+      creditorId: source.creditorId,
+      producerDocumentTypeId: source.producerDocumentTypeId,
+      producerDocumentNumber: source.producerDocumentNumber,
+      crateQuantity: source.crateQuantity,
+      cratePrice: source.cratePrice,
+      kiloPrice: source.kiloPrice,
+      weightPercentage: source.weightPercentage,
+      fairtradeApplies: source.fairtradeApplies,
+      supervisorId: source.supervisorId,
+      subtotal: source.subtotal,
+      discountType: source.discountType,
+      discountAmount: source.discountAmount,
+      totalAfterDiscount: source.totalAfterDiscount,
+      withholdingAmount: source.withholdingAmount,
+      totalAfterWithholding: source.totalAfterWithholding,
+      settlementNumber: source.settlementNumber,
+      observation: source.observation
+    });
+  }
+
   private async toDetailResponse(
     detail: DetallePagoProductorEntity,
     manager = this.dataSource.manager
@@ -430,6 +593,8 @@ export class PagosProductoresService {
         .join(" "),
       tipoDocumentoProductor: detail.producerDocumentType?.code,
       nroDocumentoProductor: detail.producerDocumentNumber,
+      tipoDocumentoAcreedor: detail.creditor?.creditorDocumentType,
+      nroDocumentoAcreedor: detail.creditor?.creditorDocumentNumber,
       cantidadJabas: detail.crateQuantity,
       precioJaba: detail.cratePrice,
       precioKilo: detail.kiloPrice,
@@ -520,6 +685,23 @@ export class PagosProductoresService {
       throw new ConflictException("Ya existe un registro con esos datos.");
     }
     throw error;
+  }
+
+  private batchDetailError(error: unknown, index: number) {
+    if (error instanceof HttpException) {
+      const response = error.getResponse();
+      const message =
+        typeof response === "string"
+          ? response
+          : typeof response === "object" && response !== null && "message" in response
+            ? (response as { message: unknown }).message
+            : null;
+      if (typeof message === "string")
+        return new BadRequestException(`Detalle ${index}: ${message}`);
+    }
+    return new BadRequestException(
+      `Detalle ${index}: revisa los datos del acreedor, supervisor e importes.`
+    );
   }
 }
 

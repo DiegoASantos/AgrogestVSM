@@ -1,5 +1,5 @@
-import { PagosProductoresOverview } from "../../../modules/pagos/presentation/pagos-productores-overview";
+import { PagosProductoresListScreen } from "../../../modules/pagos/presentation/pagos-productores-list-screen";
 
 export default function PagosPage() {
-  return <PagosProductoresOverview />;
+  return <PagosProductoresListScreen />;
 }
