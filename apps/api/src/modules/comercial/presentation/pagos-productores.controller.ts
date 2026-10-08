@@ -25,6 +25,10 @@ import {
 import { CreatePagoProductorDto } from "./dto/create-pago-productor.dto";
 import { UpdatePagoProductorDto } from "./dto/update-pago-productor.dto";
 import { GuardarDetallesPagoProductorDto } from "./dto/guardar-detalles-pago-productor.dto";
+import {
+  CrearPagoCompletoDto,
+  EditarPagoCompletoDto
+} from "./dto/pago-productor-completo.dto";
 import { CrearAcreedorAprobadoPagoDto } from "./dto/crear-acreedor-aprobado-pago.dto";
 import { FindAdminAcreedoresCosechaQueryDto } from "./dto/find-admin-acreedores-cosecha-query.dto";
 import {
@@ -64,6 +68,36 @@ export class PagosProductoresController {
     @CurrentAuthUser() user: AccessTokenPayload
   ) {
     return this.pagos.create(dto, user.userId);
+  }
+
+  @Get("acreedores-aprobados")
+  @Header("Cache-Control", "no-store")
+  approvedCreditorsByProducer(
+    @Query("productorId", new ParseUUIDPipe()) productorId: string
+  ) {
+    return this.pagos.approvedCreditorsByProducer(productorId);
+  }
+
+  @Post("productores/completo")
+  @Header("Cache-Control", "no-store")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
+  createComplete(
+    @Body() dto: CrearPagoCompletoDto,
+    @CurrentAuthUser() user: AccessTokenPayload
+  ) {
+    return this.pagos.createComplete(dto, user.userId);
+  }
+
+  @Patch("productores/:id/completo")
+  @Header("Cache-Control", "no-store")
+  @Roles("ADMIN", "ANALISTA")
+  @AllowAnalystMutation()
+  updateComplete(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() dto: EditarPagoCompletoDto
+  ) {
+    return this.pagos.updateComplete(id, dto);
   }
 
   @Get("productores/:id")

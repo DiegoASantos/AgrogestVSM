@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-06
+last_reviewed: 2026-10-08
 ---
 
 # Documentación de AgroGest VSM
@@ -147,6 +147,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Pagos de productores en admin web](specs/092-pagos-productores-admin-web.md)
 - [Compatibilidad del bootstrap con migración territorial 001](specs/093-reparacion-bootstrap-migracion-territorial-001.md)
 - [Spec 094: Formulario de pagos de productores por secciones](specs/094-pagos-productores-formulario-por-secciones.md)
+- [Spec 095: Guardado único y detalle simplificado de pagos](specs/095-guardado-unico-pagos-productores.md)
 
 ## Runbooks
 

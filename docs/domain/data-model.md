@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-06
+last_reviewed: 2026-10-08
 ---
 
 # Modelo del dominio
@@ -113,6 +113,12 @@ se derivan entre sí. El porcentaje de peso de cada detalle se valida entre 0 y
 100 sin exigir que la suma sea 100. Eliminar una liquidación con detalles o
 eliminar una línea conserva las filas y las anula; solo se elimina físicamente
 un borrador sin detalles.
+
+En la vista web de pago completo, la cabecera y las líneas se confirman juntas
+en una transacción y se exige al menos una línea activa. La creación de
+acreedores se realiza en Mantenimiento; el formulario solo selecciona perfiles
+aprobados del productor. Las rutas antiguas de cabecera y detalle permanecen
+disponibles para compatibilidad.
 
 ## Producción agrícola
 

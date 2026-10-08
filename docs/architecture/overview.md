@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-28
+last_reviewed: 2026-10-08
 related_code:
   - apps/api
   - apps/mobile
@@ -82,6 +82,10 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 - edición y validación inicial de geodatos.
 - revisión Comercial de acreedores para `ADMIN` y `ANALISTA`, con decisión
   auditada; ruta pública `/productor/acreedores` fuera del panel autenticado.
+- formulario de pagos de productores con una sola operación transaccional para
+  cabecera y detalles. La API ofrece rutas completas de alta y edición, y una
+  consulta de acreedores aprobados por productor previa a crear el pago. Las
+  rutas anteriores siguen disponibles para otros clientes.
 
 El agrónomo comparte desde mobile un enlace general y un código temporal.
 La web pública canjea el código por una sesión corta limitada al productor;

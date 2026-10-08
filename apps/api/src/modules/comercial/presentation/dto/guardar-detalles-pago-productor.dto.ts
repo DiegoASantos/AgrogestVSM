@@ -24,7 +24,7 @@ export class GuardarDetallesPagoProductorDto {
   @IsArray()
   @ArrayMaxSize(100)
   @ValidateNested({ each: true })
-  @Type(() => UpdateDetallePagoProductorDto)
+  @Type(() => ActualizarDetallePagoProductorDto)
   actualizar!: ActualizarDetallePagoProductorDto[];
 
   @ApiProperty({ type: [String], required: false })

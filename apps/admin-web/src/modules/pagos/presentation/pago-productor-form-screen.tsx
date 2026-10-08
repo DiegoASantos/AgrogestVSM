@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { SearchableSelect } from "../../../shared/components/searchable-select";
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { pagosService } from "../services/pagos.service";
 import type {
   AcreedorPago,
-  AcreedorPagoPayload,
   DetallePagoProductor,
   DetallePagoProductorPayload,
   PagoCatalogs,
@@ -26,7 +26,6 @@ type DetailRow = {
   estado?: PagoProductorStatus;
   form: DetailDraft;
 };
-type CreditorDraft = AcreedorPagoPayload;
 
 const blankHeader: HeaderDraft = {
   productorId: "",
@@ -136,21 +135,14 @@ export function PagoProductorFormScreen() {
   const [header, setHeader] = useState<HeaderDraft>(blankHeader);
   const [status, setStatus] = useState<PagoProductorStatus>("BORRADOR");
   const [creditors, setCreditors] = useState<AcreedorPago[]>([]);
-  const [creditorQueries, setCreditorQueries] = useState<Record<string, string>>({});
-  const [rows, setRows] = useState<DetailRow[]>([]);
+  const [rows, setRows] = useState<DetailRow[]>([
+    { localId: newId(), form: { ...blankDetail } }
+  ]);
   const [removedIds, setRemovedIds] = useState<string[]>([]);
-  const [creditorOpen, setCreditorOpen] = useState(false);
-  const [creditorDraft, setCreditorDraft] = useState<CreditorDraft>({
-    nombres: "",
-    apellidos: "",
-    tipoDocumento: "DNI",
-    nroDocumento: "",
-    banco: "BCP",
-    nroCuenta: ""
-  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [creditorRevision, setCreditorRevision] = useState(0);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -165,10 +157,7 @@ export function PagoProductorFormScreen() {
         }));
         return;
       }
-      const [full, approved] = await Promise.all([
-        pagosService.get(session, paymentId),
-        pagosService.approvedCreditors(session, paymentId)
-      ]);
+      const full = await pagosService.get(session, paymentId);
       setPayment(full);
       setStatus(full.estado);
       setHeader({
@@ -192,7 +181,6 @@ export function PagoProductorFormScreen() {
         codigoProductorOrigen: full.codigoProductorOrigen,
         nombreProductorOrigen: full.nombreProductorOrigen
       });
-      setCreditors(approved);
       setRows(
         (full.detalles ?? []).filter((item) => item.estado !== "ANULADO").map(toRow)
       );
@@ -203,6 +191,26 @@ export function PagoProductorFormScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!session || !header.productorId) {
+      setCreditors([]);
+      return;
+    }
+    let current = true;
+    setCreditors([]);
+    void pagosService
+      .approvedCreditorsByProducer(session, header.productorId)
+      .then((items) => {
+        if (current) setCreditors(items);
+      })
+      .catch(() => {
+        if (current) setError("No se pudieron cargar los acreedores aprobados.");
+      });
+    return () => {
+      current = false;
+    };
+  }, [session, header.productorId, creditorRevision]);
 
   const producer = useMemo(
     () =>
@@ -237,120 +245,81 @@ export function PagoProductorFormScreen() {
     if (row.id) setRemovedIds((current) => [...current, row.id!]);
   }
 
-  async function saveHeader(event: FormEvent<HTMLFormElement>) {
+  async function savePayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!session) return;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const payload = { ...header, jabas: Number(header.jabas) } as PagoProductorPayload;
-      const saved = paymentId
-        ? await pagosService.update(session, paymentId, { ...payload, estado: status })
-        : await pagosService.create(session, payload);
-      setPayment(saved);
-      setNotice("Cabecera guardada. Ahora puedes registrar los detalles.");
-      if (!paymentId) router.replace(`/pagos/productores/${saved.id}/editar`);
-      else await load();
-    } catch {
-      setError("No se pudo guardar la cabecera. Revisa los campos e inténtalo de nuevo.");
-    } finally {
-      setBusy(false);
+    if (!session || busy) return;
+    if (rows.length === 0) {
+      setError("Agrega al menos un detalle para guardar el pago.");
+      return;
     }
-  }
-  async function saveRows() {
-    if (!session || !paymentId) {
-      setError("Guarda primero la cabecera del pago.");
+    const form = event.currentTarget;
+    const invalidHeader = form
+      .querySelector<HTMLDetailsElement>(`.${styles.formSection}`)
+      ?.querySelector<HTMLInputElement | HTMLSelectElement>(":invalid");
+    if (invalidHeader) {
+      invalidHeader.closest("details")?.setAttribute("open", "");
+      invalidHeader.focus();
+      invalidHeader.reportValidity();
+      return;
+    }
+    const invalidRow = rows.findIndex(
+      (row) => !row.form.acreedorId || !row.form.supervisorId
+    );
+    if (invalidRow >= 0) {
+      setError(
+        `Detalle ${invalidRow + 1}: selecciona un acreedor aprobado y un supervisor agrónomo.`
+      );
+      form.querySelector(`.${styles.detailsSection}`)?.setAttribute("open", "");
+      const cards = form.querySelectorAll<HTMLDetailsElement>(`.${styles.detailCard}`);
+      cards[invalidRow]?.setAttribute("open", "");
+      return;
+    }
+    const invalid = form.querySelector<HTMLInputElement | HTMLSelectElement>(":invalid");
+    if (invalid) {
+      invalid.closest(`.${styles.formSection}`)?.setAttribute("open", "");
+      invalid.closest("details")?.setAttribute("open", "");
+      invalid.focus();
+      invalid.reportValidity();
       return;
     }
     setBusy(true);
     setError("");
     setNotice("");
     try {
+      const cabecera = { ...header, jabas: Number(header.jabas) } as PagoProductorPayload;
       const mapPayload = (form: DetailDraft): DetallePagoProductorPayload => ({
         ...form,
         cantidadJabas: Number(form.cantidadJabas),
         nroLiquidacion: form.nroLiquidacion || null
       });
-      const created = rows.filter((row) => !row.id).map((row) => mapPayload(row.form));
-      const updated = rows
-        .filter((row) => row.id)
-        .map((row) => ({
-          id: row.id!,
-          ...mapPayload(row.form),
-          ...(row.estado ? { estado: row.estado } : {})
-        }));
-      await pagosService.saveDetailsBatch(session, paymentId, {
-        crear: created,
-        actualizar: updated,
-        anularIds: removedIds
-      });
+      const saved = paymentId
+        ? await pagosService.updateComplete(session, paymentId, {
+            cabecera: { ...cabecera, estado: status },
+            detalles: rows.map((row) => ({
+              ...mapPayload(row.form),
+              ...(row.id ? { id: row.id, estado: row.estado } : {})
+            })),
+            anularIds: removedIds
+          })
+        : await pagosService.createComplete(session, {
+            cabecera,
+            detalles: rows.map((row) => mapPayload(row.form))
+          });
+      setPayment(saved);
       setRemovedIds([]);
-      setNotice(
-        "Detalles guardados. Los importes se conservaron como fueron ingresados."
-      );
-      await load();
+      setNotice("Pago guardado con todos sus detalles.");
+      if (!paymentId) router.replace(`/pagos/productores/${saved.id}/editar`);
+      else await load();
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : "No se pudieron guardar los detalles. Revisa acreedores, supervisores y datos requeridos."
+          : "No se pudo guardar el pago. Revisa los campos e inténtalo nuevamente."
       );
     } finally {
       setBusy(false);
     }
   }
-  async function createCreditor(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!session || !paymentId) return;
-    setBusy(true);
-    setError("");
-    try {
-      const creditor = await pagosService.createApprovedCreditor(
-        session,
-        paymentId,
-        creditorDraft
-      );
-      setCreditors((current) => [...current, creditor]);
-      const lastRow = rows[rows.length - 1];
-      if (lastRow && !lastRow.form.acreedorId)
-        updateRow(lastRow.localId, {
-          acreedorId: creditor.id,
-          tipoDocumentoProductor: creditor.tipoDocumento,
-          nroDocumentoProductor: creditor.nroDocumento
-        });
-      else
-        setRows((current) => [
-          ...current,
-          {
-            localId: newId(),
-            form: {
-              ...blankDetail,
-              acreedorId: creditor.id,
-              tipoDocumentoProductor: creditor.tipoDocumento,
-              nroDocumentoProductor: creditor.nroDocumento,
-              supervisorId: catalogs?.supervisores[0]?.id ?? ""
-            }
-          }
-        ]);
-      setCreditorOpen(false);
-      setCreditorDraft({
-        nombres: "",
-        apellidos: "",
-        tipoDocumento: "DNI",
-        nroDocumento: "",
-        banco: "BCP",
-        nroCuenta: ""
-      });
-    } catch {
-      setError(
-        "No se pudo registrar al acreedor. Verifica si ya existe con el mismo documento, banco y cuenta."
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const field = (key: keyof HeaderDraft, label: string, type = "text") => (
     <label className={styles.field} key={key}>
       <span>{label}</span>
@@ -377,7 +346,9 @@ export function PagoProductorFormScreen() {
               ? `Pago ${payment?.nroGuia ? `· Guía ${payment.nroGuia}` : ""}`
               : "Nuevo pago de productor"}
           </h1>
-          <p>Guarda la cabecera y agrega los acreedores en la sección de detalles.</p>
+          <p>
+            Completa la cabecera y los detalles. Guarda todo el pago en una sola acción.
+          </p>
         </div>
         <button
           className={styles.secondary}
@@ -397,82 +368,91 @@ export function PagoProductorFormScreen() {
           {error}
         </p>
       )}
-      <details className={styles.formSection} open>
-        <summary>
-          <span>
-            <strong>1. Cabecera del pago</strong>
-            <small>Productor y datos de recepción de la cosecha</small>
-          </span>
-          <span>{payment ? "Guardado" : "Pendiente"}</span>
-        </summary>
-        <form onSubmit={saveHeader} className={styles.sectionBody}>
-          <label className={styles.field}>
-            <span>Productor</span>
-            <select
-              required
-              value={header.productorId}
-              disabled={Boolean(paymentId && (payment?.detalles?.length ?? 0) > 0)}
-              onChange={(event) =>
-                setHeader((current) => ({ ...current, productorId: event.target.value }))
-              }
-            >
-              <option value="">Selecciona un productor</option>
-              {catalogs?.productores.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.nombre}
-                  {item.activo ? "" : " · Inactivo"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className={styles.formGrid}>
-            {headerFields.map((item) => field(item.key, item.label, item.type))}
-          </div>
-          {paymentId && (
+      <form onSubmit={savePayment} noValidate className={styles.paymentForm}>
+        <details className={styles.formSection} open>
+          <summary>
+            <span>
+              <strong>1. Cabecera del pago</strong>
+              <small>Productor y datos de recepción de la cosecha</small>
+            </span>
+            <span>{payment ? "En edición" : "Nuevo"}</span>
+          </summary>
+          <div className={styles.sectionBody}>
             <label className={styles.field}>
-              <span>Estado del pago</span>
+              <span>Productor</span>
               <select
-                value={status}
-                onChange={(event) => setStatus(event.target.value as PagoProductorStatus)}
+                required
+                value={header.productorId}
+                disabled={Boolean(paymentId && (payment?.detalles?.length ?? 0) > 0)}
+                onChange={(event) => {
+                  setHeader((current) => ({
+                    ...current,
+                    productorId: event.target.value
+                  }));
+                  setRows((current) =>
+                    current.map((row) => ({
+                      ...row,
+                      form: {
+                        ...row.form,
+                        acreedorId: "",
+                        tipoDocumentoProductor: "DNI",
+                        nroDocumentoProductor: ""
+                      }
+                    }))
+                  );
+                }}
               >
-                {Object.entries(statusLabels).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
+                <option value="">Selecciona un productor</option>
+                {catalogs?.productores.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nombre}
+                    {item.activo ? "" : " · Inactivo"}
                   </option>
                 ))}
               </select>
             </label>
-          )}
-          <div className={styles.modalActions}>
-            <button className={styles.primary} type="submit" disabled={busy}>
-              {busy ? "Guardando…" : "Guardar cabecera"}
-            </button>
-          </div>
-        </form>
-      </details>
-      <details className={styles.formSection} open={Boolean(paymentId)}>
-        <summary>
-          <span>
-            <strong>2. Detalles por acreedor</strong>
-            <small>
-              {producer || "Primero guarda la cabecera"} · {rows.length}{" "}
-              {rows.length === 1 ? "detalle" : "detalles"}
-            </small>
-          </span>
-          <span>{rows.length ? `${rows.length} registros` : "Sin detalles"}</span>
-        </summary>
-        <div className={styles.sectionBody}>
-          {!paymentId ? (
-            <div className={styles.helper}>
-              Guarda la cabecera para habilitar los acreedores aprobados de este
-              productor.
+            <div className={styles.formGrid}>
+              {headerFields.map((item) => field(item.key, item.label, item.type))}
             </div>
-          ) : (
+            {paymentId && (
+              <label className={styles.field}>
+                <span>Estado del pago</span>
+                <select
+                  value={status}
+                  onChange={(event) =>
+                    setStatus(event.target.value as PagoProductorStatus)
+                  }
+                >
+                  {Object.entries(statusLabels)
+                    .filter(([key]) => key !== "ANULADO")
+                    .map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
+          </div>
+        </details>
+        <details className={`${styles.formSection} ${styles.detailsSection}`} open>
+          <summary>
+            <span>
+              <strong>2. Detalles por acreedor</strong>
+              <small>
+                {producer || "Selecciona un productor"} · {rows.length}{" "}
+                {rows.length === 1 ? "detalle" : "detalles"}
+              </small>
+            </span>
+            <span>{rows.length ? `${rows.length} registros` : "Sin detalles"}</span>
+          </summary>
+          <div className={styles.sectionBody}>
             <>
               {creditors.length === 0 && (
                 <div className={styles.helper}>
-                  Este productor aún no tiene acreedores aprobados. Puedes registrar uno
-                  aquí y quedará aprobado para seleccionarlo.
+                  {header.productorId
+                    ? "Este productor no tiene acreedores aprobados. Regístralos en Mantenimiento y vuelve a esta vista."
+                    : "Selecciona un productor para consultar sus acreedores aprobados."}
                 </div>
               )}
               {rows.map((row, index) => {
@@ -507,55 +487,31 @@ export function PagoProductorFormScreen() {
                       </button>
                     </summary>
                     <div className={styles.cardBody}>
-                      <div className={styles.detailTopGrid}>
-                        <label className={styles.field}>
-                          <span>Buscar acreedor por nombre o documento</span>
-                          <input
-                            type="search"
-                            value={creditorQueries[row.localId] ?? ""}
-                            onChange={(event) =>
-                              setCreditorQueries((current) => ({
-                                ...current,
-                                [row.localId]: event.target.value
-                              }))
-                            }
-                            placeholder="Escribe nombre o número de documento"
-                          />
-                        </label>
-                        <label className={styles.field}>
-                          <span>Acreedor aprobado</span>
-                          <select
-                            required
+                      <div className={styles.detailIdentityGrid}>
+                        <div className={styles.creditorSelect}>
+                          <SearchableSelect
+                            label="Acreedor aprobado"
                             value={row.form.acreedorId}
-                            onChange={(event) => {
-                              const creditor = chosenCreditor(event.target.value);
+                            options={creditors.map((item) => ({
+                              value: item.id,
+                              label: item.nombre,
+                              helper: `${item.tipoDocumento} ${item.nroDocumento}`
+                            }))}
+                            placeholder="Buscar nombre o documento"
+                            emptyMessage="No hay acreedores aprobados."
+                            disabled={
+                              !header.productorId || payment?.estado === "ANULADO"
+                            }
+                            onChange={(value) => {
+                              const creditor = chosenCreditor(value);
                               updateRow(row.localId, {
-                                acreedorId: event.target.value,
+                                acreedorId: value,
                                 tipoDocumentoProductor: creditor?.tipoDocumento ?? "DNI",
                                 nroDocumentoProductor: creditor?.nroDocumento ?? ""
                               });
                             }}
-                          >
-                            <option value="">Selecciona un acreedor</option>
-                            {creditors
-                              .filter(
-                                (item) =>
-                                  item.id === row.form.acreedorId ||
-                                  `${item.nombre} ${item.tipoDocumento} ${item.nroDocumento}`
-                                    .toLocaleLowerCase()
-                                    .includes(
-                                      (
-                                        creditorQueries[row.localId] ?? ""
-                                      ).toLocaleLowerCase()
-                                    )
-                              )
-                              .map((item) => (
-                                <option key={item.id} value={item.id}>
-                                  {item.nombre} · {item.tipoDocumento} {item.nroDocumento}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
+                          />
+                        </div>
                         <label className={styles.field}>
                           <span>Documento del acreedor</span>
                           <input
@@ -597,7 +553,7 @@ export function PagoProductorFormScreen() {
                           <span>Aplica Fairtrade</span>
                         </label>
                       </div>
-                      <div className={styles.formGrid}>
+                      <div className={styles.detailValuesGrid}>
                         {amountFields.map(({ key, label, type }) => (
                           <label className={styles.field} key={key}>
                             <span>{label}</span>
@@ -627,165 +583,40 @@ export function PagoProductorFormScreen() {
               })}
               <div className={styles.detailActions}>
                 <button className={styles.secondary} type="button" onClick={addRow}>
-                  + Añadir otro acreedor
+                  + Añadir detalle
                 </button>
-                <button
-                  className={styles.secondary}
-                  type="button"
-                  onClick={() => setCreditorOpen(true)}
+                <a
+                  className={styles.maintenanceLink}
+                  href="/mantenimiento/acreedores-cosecha"
+                  target="_blank"
+                  rel="noreferrer"
                 >
-                  + Registrar acreedor
-                </button>
-              </div>
-              <div className={styles.stickySave}>
-                <span>Los montos son manuales y no se calculan automáticamente.</span>
+                  Gestionar acreedores
+                </a>
                 <button
-                  className={styles.primary}
+                  className={styles.linkButton}
                   type="button"
-                  disabled={busy}
-                  onClick={() => void saveRows()}
+                  onClick={() => setCreditorRevision((value) => value + 1)}
                 >
-                  {busy ? "Guardando…" : "Guardar todos los detalles"}
+                  Actualizar lista
                 </button>
               </div>
             </>
-          )}
-        </div>
-      </details>
-      {creditorOpen && (
-        <div className={styles.backdrop}>
-          <section
-            className={styles.modal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="creditor-title"
+          </div>
+        </details>
+        <div className={styles.stickySave}>
+          <span>
+            Los montos son manuales. Se guardan la cabecera y todos los detalles juntos.
+          </span>
+          <button
+            className={styles.primary}
+            type="submit"
+            disabled={busy || payment?.estado === "ANULADO"}
           >
-            <div className={styles.modalHeading}>
-              <div>
-                <h2 id="creditor-title">Registrar acreedor</h2>
-                <p>Se asociará a {producer} y quedará aprobado para este pago.</p>
-              </div>
-              <button
-                className={styles.close}
-                type="button"
-                onClick={() => setCreditorOpen(false)}
-                aria-label="Cerrar"
-              >
-                ×
-              </button>
-            </div>
-            <form onSubmit={createCreditor}>
-              <div className={styles.formGrid}>
-                <label className={styles.field}>
-                  <span>Nombres</span>
-                  <input
-                    required
-                    maxLength={100}
-                    value={creditorDraft.nombres}
-                    onChange={(event) =>
-                      setCreditorDraft((draft) => ({
-                        ...draft,
-                        nombres: event.target.value
-                      }))
-                    }
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Apellidos</span>
-                  <input
-                    required
-                    maxLength={100}
-                    value={creditorDraft.apellidos}
-                    onChange={(event) =>
-                      setCreditorDraft((draft) => ({
-                        ...draft,
-                        apellidos: event.target.value
-                      }))
-                    }
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Tipo de documento</span>
-                  <select
-                    value={creditorDraft.tipoDocumento}
-                    onChange={(event) =>
-                      setCreditorDraft((draft) => ({
-                        ...draft,
-                        tipoDocumento: event.target
-                          .value as CreditorDraft["tipoDocumento"]
-                      }))
-                    }
-                  >
-                    <option>DNI</option>
-                    <option>RUC</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  <span>Número de documento</span>
-                  <input
-                    required
-                    inputMode="numeric"
-                    pattern={
-                      creditorDraft.tipoDocumento === "DNI" ? "[0-9]{8}" : "[0-9]{11}"
-                    }
-                    value={creditorDraft.nroDocumento}
-                    onChange={(event) =>
-                      setCreditorDraft((draft) => ({
-                        ...draft,
-                        nroDocumento: event.target.value
-                      }))
-                    }
-                  />
-                </label>
-                <label className={styles.field}>
-                  <span>Banco</span>
-                  <select
-                    value={creditorDraft.banco}
-                    onChange={(event) =>
-                      setCreditorDraft((draft) => ({
-                        ...draft,
-                        banco: event.target.value as CreditorDraft["banco"]
-                      }))
-                    }
-                  >
-                    <option value="BCP">BCP</option>
-                    <option value="INTERBANK">Interbank</option>
-                    <option value="BBVA">BBVA</option>
-                    <option value="CAJA_PIURA">Caja Piura</option>
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  <span>Número de cuenta</span>
-                  <input
-                    required
-                    inputMode="numeric"
-                    pattern="[0-9]{1,30}"
-                    value={creditorDraft.nroCuenta}
-                    onChange={(event) =>
-                      setCreditorDraft((draft) => ({
-                        ...draft,
-                        nroCuenta: event.target.value
-                      }))
-                    }
-                  />
-                </label>
-              </div>
-              <div className={styles.modalActions}>
-                <button
-                  className={styles.secondary}
-                  type="button"
-                  onClick={() => setCreditorOpen(false)}
-                >
-                  Cancelar
-                </button>
-                <button className={styles.primary} disabled={busy} type="submit">
-                  {busy ? "Registrando…" : "Crear y aprobar"}
-                </button>
-              </div>
-            </form>
-          </section>
+            {busy ? "Guardando…" : "Guardar pago"}
+          </button>
         </div>
-      )}
+      </form>
     </section>
   );
 }

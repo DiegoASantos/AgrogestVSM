@@ -70,6 +70,39 @@ export const pagosService = {
       { headers: headers(session) }
     );
   },
+  approvedCreditorsByProducer(session: Auth, producerId: string) {
+    return apiRequest<AcreedorPago[]>(
+      `/pagos/acreedores-aprobados?productorId=${encodeURIComponent(producerId)}`,
+      { headers: headers(session) }
+    );
+  },
+  createComplete(
+    session: Auth,
+    payload: { cabecera: PagoProductorPayload; detalles: DetallePagoProductorPayload[] }
+  ) {
+    return apiRequest<PagoProductor>("/pagos/productores/completo", {
+      method: "POST",
+      body: payload,
+      headers: headers(session)
+    });
+  },
+  updateComplete(
+    session: Auth,
+    id: string,
+    payload: {
+      cabecera: Partial<PagoProductorPayload> & { estado?: PagoProductorStatus };
+      detalles: Array<
+        DetallePagoProductorPayload & { id?: string; estado?: PagoProductorStatus }
+      >;
+      anularIds: string[];
+    }
+  ) {
+    return apiRequest<PagoProductor>(`/pagos/productores/${id}/completo`, {
+      method: "PATCH",
+      body: payload,
+      headers: headers(session)
+    });
+  },
   createApprovedCreditor(session: Auth, paymentId: string, payload: AcreedorPagoPayload) {
     return apiRequest<AcreedorPago>(
       `/pagos/productores/${paymentId}/acreedores-aprobados`,

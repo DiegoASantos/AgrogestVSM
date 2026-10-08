@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 export type SearchableSelectOption = {
   value: string;
@@ -28,6 +28,7 @@ export function SearchableSelect({
   onChange
 }: SearchableSelectProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputId = useId();
   const selectedOption = options.find((option) => option.value === value);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState(selectedOption?.label ?? "");
@@ -73,7 +74,7 @@ export function SearchableSelect({
 
   return (
     <div className="field-group searchable-select" ref={wrapperRef}>
-      <label htmlFor={`${label}-searchable-select`}>{label}</label>
+      <label htmlFor={inputId}>{label}</label>
       <div className="searchable-select__control">
         <input
           aria-autocomplete="list"
@@ -81,7 +82,7 @@ export function SearchableSelect({
           aria-haspopup="listbox"
           autoComplete="off"
           disabled={disabled}
-          id={`${label}-searchable-select`}
+          id={inputId}
           onChange={(event) => {
             setSearch(event.target.value);
             onChange("");
@@ -108,6 +109,7 @@ export function SearchableSelect({
                 }}
                 onMouseDown={(event) => event.preventDefault()}
                 role="option"
+                aria-selected={option.value === value}
                 type="button"
               >
                 <span>{option.label}</span>

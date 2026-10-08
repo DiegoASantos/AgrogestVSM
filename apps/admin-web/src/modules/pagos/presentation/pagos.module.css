@@ -260,6 +260,25 @@
   gap: 14px;
   margin: 15px 0;
 }
+.paymentForm {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.detailsSection {
+  border-color: color-mix(
+    in srgb,
+    var(--primary-strong, #176b3a) 30%,
+    var(--border, #d8e2db)
+  );
+}
+.detailsSection[open] {
+  overflow: visible;
+}
+.detailsSection > summary {
+  background: var(--primary-soft, #eaf3ed);
+  color: var(--primary-strong, #176b3a);
+}
 .field {
   display: grid;
   gap: 6px;
@@ -339,24 +358,71 @@
 }
 .detailCard {
   background: var(--surface-strong, #fbfdfb);
+  container-type: inline-size;
+}
+.detailCard[open] {
+  overflow: visible;
+}
+.detailCard > summary {
+  border-left: 4px solid var(--primary-strong, #176b3a);
+  background: color-mix(in srgb, var(--primary-soft, #eaf3ed) 54%, var(--surface, #fff));
 }
 .cardBody {
   padding: 4px 16px 18px;
   border-top: 1px solid var(--border, #e8ede9);
 }
-.detailTopGrid {
+.detailIdentityGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
   gap: 0 14px;
+}
+.detailValuesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 14px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #d8e2db);
+}
+.creditorSelect {
+  min-width: 0;
+  margin: 12px 0;
+}
+.creditorSelect :global(.searchable-select) {
+  display: grid;
+  gap: 6px;
+  color: var(--text, #34443a);
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+.creditorSelect :global(.searchable-select input) {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong, #cbd6ce);
+  border-radius: 7px;
+  background: var(--surface-strong, #fff);
+  color: var(--text, #18251c);
+  font: inherit;
+  font-weight: 400;
+}
+.creditorSelect :global(.searchable-select input:focus) {
+  outline: 3px solid color-mix(in srgb, var(--primary-strong, #26844c) 18%, transparent);
+  border-color: var(--primary-strong, #26844c);
 }
 .checkField {
   display: flex;
   align-items: center;
   gap: 9px;
   min-height: 58px;
-  color: var(--text, #34443a);
   font-size: 0.87rem;
   font-weight: 650;
+  padding: 8px 11px;
+  border: 1px solid var(--border, #d8e2db);
+  border-radius: 8px;
+  background: var(--primary-soft, #eaf3ed);
+  color: var(--primary-strong, #176b3a);
 }
 .checkField input {
   width: 18px;
@@ -366,6 +432,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
+}
+.maintenanceLink {
+  align-self: center;
+  color: var(--primary-strong, #176b3a);
+  font-size: 0.85rem;
+  font-weight: 650;
 }
 .removeRow,
 .linkButton {
@@ -388,12 +460,24 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 0 -18px -18px;
+  margin: 0;
   padding: 14px 18px;
   border-top: 1px solid var(--border, #d8e2db);
   background: var(--surface, #fff);
   color: var(--text-secondary, #66736a);
   font-size: 0.83rem;
+}
+@container (max-width: 850px) {
+  .detailIdentityGrid,
+  .detailValuesGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container (max-width: 500px) {
+  .detailIdentityGrid,
+  .detailValuesGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 :global([data-theme="dark"]) .statusBORRADOR {
@@ -436,9 +520,6 @@
   .formGrid {
     grid-template-columns: 1fr;
     gap: 0;
-  }
-  .detailTopGrid {
-    grid-template-columns: 1fr;
   }
   .stickySave {
     align-items: stretch;

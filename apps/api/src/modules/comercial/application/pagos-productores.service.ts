@@ -30,6 +30,11 @@ import { CreatePagoProductorDto } from "../presentation/dto/create-pago-producto
 import { UpdatePagoProductorDto } from "../presentation/dto/update-pago-productor.dto";
 import type { GuardarDetallesPagoProductorDto } from "../presentation/dto/guardar-detalles-pago-productor.dto";
 import type { CrearAcreedorAprobadoPagoDto } from "../presentation/dto/crear-acreedor-aprobado-pago.dto";
+import type {
+  CrearPagoCompletoDto,
+  EditarPagoCompletoDto,
+  DetallePagoCompletoDto
+} from "../presentation/dto/pago-productor-completo.dto";
 
 @Injectable()
 export class PagosProductoresService {
@@ -112,8 +117,50 @@ export class PagosProductoresService {
   }
 
   async create(dto: CreatePagoProductorDto, userId: string) {
-    const repository = this.dataSource.getRepository(PagoProductorEntity);
-    const producer = await this.findProducerByPublicId(dto.productorId);
+    try {
+      const saved = await this.dataSource.transaction((manager) =>
+        this.createPaymentWithinTransaction(manager, dto, userId)
+      );
+      return createSuccessResponse(
+        this.toPaymentResponse(await this.findPayment(saved.publicId))
+      );
+    } catch (error) {
+      this.handleUniqueConflict(error);
+    }
+  }
+
+  async createComplete(dto: CrearPagoCompletoDto, userId: string) {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const payment = await this.createPaymentWithinTransaction(
+          manager,
+          dto.cabecera,
+          userId
+        );
+        const details = await this.saveDetailsWithinTransaction(
+          manager,
+          payment,
+          dto.detalles,
+          [],
+          true
+        );
+        return createSuccessResponse({
+          ...this.toPaymentResponse(await this.findPayment(payment.publicId, manager)),
+          detalles: details
+        });
+      });
+    } catch (error) {
+      this.handleUniqueConflict(error);
+    }
+  }
+
+  private async createPaymentWithinTransaction(
+    manager: EntityManager,
+    dto: CreatePagoProductorDto,
+    userId: string
+  ) {
+    const repository = manager.getRepository(PagoProductorEntity);
+    const producer = await this.findProducerByPublicId(dto.productorId, manager);
     const payment = repository.create({
       productorId: producer.id,
       sourceSystem: dto.sistemaOrigen,
@@ -138,74 +185,103 @@ export class PagosProductoresService {
       createdByUserId: userId
     });
     this.assertDates(payment.harvestDate, payment.harvestReceptionDate);
-    try {
-      const saved = await repository.save(payment);
+    return repository.save(payment);
+  }
+
+  async update(id: string, dto: UpdatePagoProductorDto) {
+    return this.dataSource.transaction(async (manager) => {
+      const saved = await this.updatePaymentWithinTransaction(manager, id, dto);
       return createSuccessResponse(
-        this.toPaymentResponse(await this.findPayment(saved.publicId))
+        this.toPaymentResponse(await this.findPayment(saved.publicId, manager))
       );
+    });
+  }
+
+  async updateComplete(id: string, dto: EditarPagoCompletoDto) {
+    if (dto.cabecera.estado === "ANULADO")
+      throw new BadRequestException("Anula el pago desde el listado.");
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const payment = await this.updatePaymentWithinTransaction(
+          manager,
+          id,
+          dto.cabecera
+        );
+        const details = await this.saveDetailsWithinTransaction(
+          manager,
+          payment,
+          dto.detalles,
+          dto.anularIds ?? [],
+          true
+        );
+        return createSuccessResponse({
+          ...this.toPaymentResponse(await this.findPayment(payment.publicId, manager)),
+          detalles: details
+        });
+      });
     } catch (error) {
       this.handleUniqueConflict(error);
     }
   }
 
-  async update(id: string, dto: UpdatePagoProductorDto) {
-    return this.dataSource.transaction(async (manager) => {
-      const repository = manager.getRepository(PagoProductorEntity);
-      const payment = await this.findPayment(id, manager);
-      if (payment.status === "ANULADO")
-        throw new ConflictException("No se puede modificar un pago anulado.");
-      const nextProducer = dto.productorId
-        ? await this.findProducerByPublicId(dto.productorId, manager)
-        : null;
-      if (nextProducer && nextProducer.id !== payment.productorId) {
-        const detailCount = await manager
-          .getRepository(DetallePagoProductorEntity)
-          .count({ where: { paymentId: payment.id } });
-        if (detailCount > 0)
-          throw new ConflictException(
-            "No se puede cambiar el productor de un pago que ya tiene detalles."
-          );
-      }
-      Object.assign(payment, {
-        ...(nextProducer ? { productorId: nextProducer.id } : {}),
-        ...(dto.sistemaOrigen !== undefined ? { sourceSystem: dto.sistemaOrigen } : {}),
-        ...(dto.nroGuia !== undefined ? { guideNumber: dto.nroGuia } : {}),
-        ...(dto.lote !== undefined ? { lot: dto.lote } : {}),
-        ...(dto.protocolo !== undefined ? { protocol: dto.protocolo } : {}),
-        ...(dto.variedad !== undefined ? { variety: dto.variedad } : {}),
-        ...(dto.tipoCultivo !== undefined ? { cropType: dto.tipoCultivo } : {}),
-        ...(dto.categoria !== undefined ? { category: dto.categoria } : {}),
-        ...(dto.destino !== undefined ? { destination: dto.destino } : {}),
-        ...(dto.fechaCosecha !== undefined ? { harvestDate: dto.fechaCosecha } : {}),
-        ...(dto.fechaRecepcion !== undefined
-          ? { harvestReceptionDate: dto.fechaRecepcion }
-          : {}),
-        ...(dto.jabas !== undefined ? { crateQuantity: dto.jabas } : {}),
-        ...(dto.pesoBruto !== undefined ? { grossWeight: dto.pesoBruto } : {}),
-        ...(dto.pesoTara !== undefined ? { tareWeight: dto.pesoTara } : {}),
-        ...(dto.pesoNeto !== undefined ? { netWeight: dto.pesoNeto } : {}),
-        ...(dto.pesoPromedio !== undefined ? { averageWeight: dto.pesoPromedio } : {}),
-        ...(dto.exportador !== undefined ? { exporter: dto.exportador } : {}),
-        ...(dto.codigoProductorOrigen !== undefined
-          ? { sourceProducerCode: dto.codigoProductorOrigen }
-          : {}),
-        ...(dto.nombreProductorOrigen !== undefined
-          ? { sourceProducerName: dto.nombreProductorOrigen }
-          : {}),
-        ...(dto.estado ? { status: dto.estado } : {}),
-        updatedAt: new Date()
-      });
-      this.assertDates(payment.harvestDate, payment.harvestReceptionDate);
-      const saved = await repository.save(payment);
-      if (dto.estado === "ANULADO") {
-        await manager
-          .getRepository(DetallePagoProductorEntity)
-          .update({ paymentId: saved.id }, { status: "ANULADO", updatedAt: new Date() });
-      }
-      return createSuccessResponse(
-        this.toPaymentResponse(await this.findPayment(saved.publicId, manager))
-      );
+  private async updatePaymentWithinTransaction(
+    manager: EntityManager,
+    id: string,
+    dto: UpdatePagoProductorDto
+  ) {
+    const repository = manager.getRepository(PagoProductorEntity);
+    const payment = await this.findPayment(id, manager);
+    if (payment.status === "ANULADO")
+      throw new ConflictException("No se puede modificar un pago anulado.");
+    const nextProducer = dto.productorId
+      ? await this.findProducerByPublicId(dto.productorId, manager)
+      : null;
+    if (nextProducer && nextProducer.id !== payment.productorId) {
+      const detailCount = await manager
+        .getRepository(DetallePagoProductorEntity)
+        .count({ where: { paymentId: payment.id } });
+      if (detailCount > 0)
+        throw new ConflictException(
+          "No se puede cambiar el productor de un pago que ya tiene detalles."
+        );
+    }
+    Object.assign(payment, {
+      ...(nextProducer ? { productorId: nextProducer.id } : {}),
+      ...(dto.sistemaOrigen !== undefined ? { sourceSystem: dto.sistemaOrigen } : {}),
+      ...(dto.nroGuia !== undefined ? { guideNumber: dto.nroGuia } : {}),
+      ...(dto.lote !== undefined ? { lot: dto.lote } : {}),
+      ...(dto.protocolo !== undefined ? { protocol: dto.protocolo } : {}),
+      ...(dto.variedad !== undefined ? { variety: dto.variedad } : {}),
+      ...(dto.tipoCultivo !== undefined ? { cropType: dto.tipoCultivo } : {}),
+      ...(dto.categoria !== undefined ? { category: dto.categoria } : {}),
+      ...(dto.destino !== undefined ? { destination: dto.destino } : {}),
+      ...(dto.fechaCosecha !== undefined ? { harvestDate: dto.fechaCosecha } : {}),
+      ...(dto.fechaRecepcion !== undefined
+        ? { harvestReceptionDate: dto.fechaRecepcion }
+        : {}),
+      ...(dto.jabas !== undefined ? { crateQuantity: dto.jabas } : {}),
+      ...(dto.pesoBruto !== undefined ? { grossWeight: dto.pesoBruto } : {}),
+      ...(dto.pesoTara !== undefined ? { tareWeight: dto.pesoTara } : {}),
+      ...(dto.pesoNeto !== undefined ? { netWeight: dto.pesoNeto } : {}),
+      ...(dto.pesoPromedio !== undefined ? { averageWeight: dto.pesoPromedio } : {}),
+      ...(dto.exportador !== undefined ? { exporter: dto.exportador } : {}),
+      ...(dto.codigoProductorOrigen !== undefined
+        ? { sourceProducerCode: dto.codigoProductorOrigen }
+        : {}),
+      ...(dto.nombreProductorOrigen !== undefined
+        ? { sourceProducerName: dto.nombreProductorOrigen }
+        : {}),
+      ...(dto.estado ? { status: dto.estado } : {}),
+      updatedAt: new Date()
     });
+    this.assertDates(payment.harvestDate, payment.harvestReceptionDate);
+    const saved = await repository.save(payment);
+    if (dto.estado === "ANULADO") {
+      await manager
+        .getRepository(DetallePagoProductorEntity)
+        .update({ paymentId: saved.id }, { status: "ANULADO", updatedAt: new Date() });
+    }
+    return saved;
   }
 
   async remove(id: string) {
@@ -239,8 +315,17 @@ export class PagosProductoresService {
 
   async approvedCreditors(paymentId: string) {
     const payment = await this.findPayment(paymentId);
+    return this.approvedCreditorsForInternalProducer(payment.productorId);
+  }
+
+  async approvedCreditorsByProducer(producerId: string) {
+    const producer = await this.findProducerByPublicId(producerId);
+    return this.approvedCreditorsForInternalProducer(producer.id);
+  }
+
+  private async approvedCreditorsForInternalProducer(producerId: string) {
     const creditors = await this.dataSource.getRepository(AcreedorCosechaEntity).find({
-      where: { productorId: payment.productorId, approvalStatus: "APPROVED" },
+      where: { productorId: producerId, approvalStatus: "APPROVED" },
       order: { creditorLastName: "ASC", creditorFirstName: "ASC" }
     });
     return createSuccessResponse(
@@ -308,60 +393,88 @@ export class PagosProductoresService {
   async saveDetailsBatch(paymentId: string, dto: GuardarDetallesPagoProductorDto) {
     return this.dataSource.transaction(async (manager) => {
       const payment = await this.findPayment(paymentId, manager);
-      if (payment.status === "ANULADO")
-        throw new ConflictException(
-          "No se pueden modificar detalles de un pago anulado."
-        );
-      const repository = manager.getRepository(DetallePagoProductorEntity);
-      const incomingIds = new Set<string>();
-      for (const [index, item] of (dto.actualizar ?? []).entries()) {
+      const rows: DetallePagoCompletoDto[] = [
+        ...(dto.actualizar ?? []),
+        ...(dto.crear ?? [])
+      ];
+      return createSuccessResponse(
+        await this.saveDetailsWithinTransaction(
+          manager,
+          payment,
+          rows,
+          dto.anularIds ?? [],
+          false
+        )
+      );
+    });
+  }
+
+  private async saveDetailsWithinTransaction(
+    manager: EntityManager,
+    payment: PagoProductorEntity,
+    rows: DetallePagoCompletoDto[],
+    annulIds: string[],
+    requireActive: boolean
+  ) {
+    if (payment.status === "ANULADO")
+      throw new ConflictException("No se pueden modificar detalles de un pago anulado.");
+    const repository = manager.getRepository(DetallePagoProductorEntity);
+    const incomingIds = new Set<string>();
+    for (const [index, item] of rows.entries()) {
+      let existing: DetallePagoProductorEntity | null = null;
+      if (item.id) {
         if (incomingIds.has(item.id))
           throw new BadRequestException("Un detalle aparece más de una vez.");
         incomingIds.add(item.id);
-        const detail = await repository.findOne({
+        existing = await repository.findOne({
           where: { publicId: item.id, paymentId: payment.id }
         });
-        if (!detail || detail.status === "ANULADO")
+        if (!existing || existing.status === "ANULADO")
           throw new ConflictException("Uno de los detalles ya no está disponible.");
-        try {
+      }
+      try {
+        if (existing) {
           const replacement = await this.buildDetail(manager, payment, item);
-          this.copyDetailFields(detail, replacement);
-          detail.status = item.estado ?? detail.status;
-          detail.updatedAt = new Date();
-          await repository.save(detail);
-        } catch (error) {
-          throw this.batchDetailError(error, index + 1);
-        }
-      }
-      for (const [index, item] of (dto.crear ?? []).entries()) {
-        try {
+          this.copyDetailFields(existing, replacement);
+          existing.status = item.estado ?? existing.status;
+          existing.updatedAt = new Date();
+          await repository.save(existing);
+        } else {
           await repository.save(await this.buildDetail(manager, payment, item));
-        } catch (error) {
-          throw this.batchDetailError(error, (dto.actualizar?.length ?? 0) + index + 1);
         }
+      } catch (error) {
+        throw this.batchDetailError(error, index + 1);
       }
-      for (const id of dto.anularIds ?? []) {
-        if (incomingIds.has(id))
-          throw new BadRequestException("No se puede editar y anular el mismo detalle.");
-        const detail = await repository.findOne({
-          where: { publicId: id, paymentId: payment.id }
-        });
-        if (!detail) throw new NotFoundException("Detalle de pago no encontrado.");
-        detail.status = "ANULADO";
-        detail.updatedAt = new Date();
-        await repository.save(detail);
-      }
-      const details = await this.listDetailsWithinTransaction(payment, manager);
-      if (
-        payment.status === "BORRADOR" &&
-        details.some((detail) => detail.estado !== "ANULADO")
-      ) {
-        payment.status = "PENDIENTE";
-        payment.updatedAt = new Date();
-        await manager.getRepository(PagoProductorEntity).save(payment);
-      }
-      return createSuccessResponse(details);
-    });
+    }
+    const annulledIds = new Set<string>();
+    for (const id of annulIds) {
+      if (incomingIds.has(id))
+        throw new BadRequestException("No se puede editar y anular el mismo detalle.");
+      if (annulledIds.has(id))
+        throw new BadRequestException("Un detalle se anuló más de una vez.");
+      annulledIds.add(id);
+      const detail = await repository.findOne({
+        where: { publicId: id, paymentId: payment.id }
+      });
+      if (!detail) throw new NotFoundException("Detalle de pago no encontrado.");
+      detail.status = "ANULADO";
+      detail.updatedAt = new Date();
+      await repository.save(detail);
+    }
+    const details = await this.listDetailsWithinTransaction(payment, manager);
+    if (requireActive && !details.some((detail) => detail.estado !== "ANULADO"))
+      throw new BadRequestException(
+        "Agrega al menos un detalle activo antes de guardar."
+      );
+    if (
+      payment.status === "BORRADOR" &&
+      details.some((detail) => detail.estado !== "ANULADO")
+    ) {
+      payment.status = "PENDIENTE";
+      payment.updatedAt = new Date();
+      await manager.getRepository(PagoProductorEntity).save(payment);
+    }
+    return details;
   }
 
   async createDetail(paymentId: string, dto: CreateDetallePagoProductorDto) {
@@ -477,7 +590,7 @@ export class PagosProductoresService {
     const expectedDocumentLength =
       creditor.creditorDocumentType === "DNI"
         ? 8
-        : dto.tipoDocumentoProductor === "RUC"
+        : creditor.creditorDocumentType === "RUC"
           ? 11
           : null;
     if (
