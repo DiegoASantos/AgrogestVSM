@@ -10,8 +10,9 @@ import {
   TableProperties,
   UsersRound
 } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import type { ParcelaListItem } from "../../parcelas/types/parcelas.types";
@@ -23,6 +24,7 @@ import type {
 import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
 import { LoadingState } from "../../../shared/components/loading-state";
+import { Pagination } from "../../../shared/components/pagination";
 import { SearchableSelect } from "../../../shared/components/searchable-select";
 import { TableSkeleton } from "../../../shared/components/skeleton";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
@@ -40,7 +42,11 @@ import {
 } from "../utils/reportes-visitas";
 import { VisitsHectaresChart } from "./visits-hectares-chart";
 
-const emptyReport: VisitsReportData = { summary: [], timeline: [] };
+const emptyReport: VisitsReportData = {
+  summary: [],
+  timeline: [],
+  visits: { items: [], total: 0, page: 1, pageSize: 20 }
+};
 
 export function VisitsReportOverview() {
   const { session, logout } = useAuthSession();
@@ -52,6 +58,8 @@ export function VisitsReportOverview() {
   );
   const [catalogs, setCatalogs] = useState<VisitsReportCatalogs | null>(null);
   const [report, setReport] = useState<VisitsReportData>(emptyReport);
+  const [visitPage, setVisitPage] = useState(1);
+  const reportRequestId = useRef(0);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -66,9 +74,9 @@ export function VisitsReportOverview() {
 
   useEffect(() => {
     if (session) {
-      void loadReport(appliedFilters);
+      void loadReport(appliedFilters, visitPage);
     }
-  }, [appliedFilters, session]);
+  }, [appliedFilters, session, visitPage]);
 
   const agronomistOptions = useMemo(
     () =>
@@ -226,7 +234,7 @@ export function VisitsReportOverview() {
         {reportError ? (
           <ReportError
             message={reportError}
-            onRetry={() => void loadReport(appliedFilters)}
+            onRetry={() => void loadReport(appliedFilters, visitPage)}
           />
         ) : null}
         {!reportError && isLoadingReport ? (
@@ -270,6 +278,78 @@ export function VisitsReportOverview() {
         ) : null}
       </article>
 
+      <article className="panel report-section report-section--visits">
+        <ReportSectionHeader
+          description="Todas las etapas y labores registradas en cada visita, con su cobertura o avance correspondiente."
+          icon={<TableProperties size={18} />}
+          title="Detalle de visitas"
+        />
+        {reportError ? (
+          <ReportError message={reportError} onRetry={() => void loadReport(appliedFilters, visitPage)} />
+        ) : null}
+        {!reportError && isLoadingReport ? (
+          <TableSkeleton columns={4} description="Cargando las etapas de cada visita." />
+        ) : null}
+        {!reportError && !isLoadingReport && report.visits.items.length === 0 ? (
+          <EmptyState
+            description="No hay visitas activas dentro del rango seleccionado."
+            title="Sin visitas para mostrar"
+          />
+        ) : null}
+        {!reportError && !isLoadingReport && report.visits.items.length > 0 ? (
+          <>
+            <div className="data-table__wrapper">
+              <table className="data-table report-visits-detail-table">
+                <caption>Etapas fenológicas por visita · {report.visits.total} visitas</caption>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Parcela</th>
+                    <th>Ingeniero</th>
+                    <th>Distribución de la parcela</th>
+                    <th>Visita</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.visits.items.map((visit) => (
+                    <tr key={visit.id}>
+                      <td>{formatVisitDate(visit.visitDate)}</td>
+                      <td>{visit.parcelCode}{visit.parcelName ? ` · ${visit.parcelName}` : ""}</td>
+                      <td>{visit.engineerName}</td>
+                      <td>
+                        {visit.phenologicalStages.length > 0 ? (
+                          <ul className="report-visits-detail-table__stages">
+                            {visit.phenologicalStages.map((stage, index) => (
+                              <li key={`${visit.id}-${index}`}>
+                                <strong>{stage.stageName}</strong>
+                                {stage.subStageName ? ` · ${stage.subStageName}` : ""}
+                                {stage.coveragePercentage !== null
+                                  ? ` · ${stage.coveragePercentage}% de la parcela`
+                                  : ""}
+                                {stage.laborProgressPercentage !== null
+                                  ? ` · ${stage.laborProgressPercentage}% de avance de labor`
+                                  : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : "No registrada"}
+                      </td>
+                      <td><Link href={`/visitas/${visit.id}`}>Ver detalle</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              loading={isLoadingReport}
+              onPageChange={setVisitPage}
+              page={report.visits.page}
+              totalPages={Math.ceil(report.visits.total / report.visits.pageSize)}
+            />
+          </>
+        ) : null}
+      </article>
+
       <div className="report-visual-grid">
         <article className="panel report-section report-section--map">
           <ReportSectionHeader
@@ -296,7 +376,7 @@ export function VisitsReportOverview() {
           {reportError ? (
             <ReportError
               message={reportError}
-              onRetry={() => void loadReport(appliedFilters)}
+              onRetry={() => void loadReport(appliedFilters, visitPage)}
             />
           ) : null}
           {!reportError && isLoadingReport ? (
@@ -332,12 +412,14 @@ export function VisitsReportOverview() {
     }
 
     setValidationError(null);
+    setVisitPage(1);
     setAppliedFilters(draftFilters);
   }
 
   function handleClearFilters() {
     const initialFilters = currentMonthReportFilters();
     setValidationError(null);
+    setVisitPage(1);
     setDraftFilters(initialFilters);
     setAppliedFilters(initialFilters);
   }
@@ -363,16 +445,19 @@ export function VisitsReportOverview() {
     }
   }
 
-  async function loadReport(filters: VisitReportFilters) {
+  async function loadReport(filters: VisitReportFilters, page: number) {
     if (!session) {
       return;
     }
 
+    const requestId = ++reportRequestId.current;
     try {
       setIsLoadingReport(true);
       setReportError(null);
-      setReport(await reportesService.getVisitsReport(session, filters));
+      const data = await reportesService.getVisitsReport(session, filters, page);
+      if (requestId === reportRequestId.current) setReport(data);
     } catch (error) {
+      if (requestId !== reportRequestId.current) return;
       const apiError = toApiError(error);
       if (apiError.statusCode === 401) {
         logout();
@@ -380,7 +465,7 @@ export function VisitsReportOverview() {
       }
       setReportError(apiError.message);
     } finally {
-      setIsLoadingReport(false);
+      if (requestId === reportRequestId.current) setIsLoadingReport(false);
     }
   }
 }
@@ -506,6 +591,15 @@ function formatAverage(value: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value);
+}
+
+function formatVisitDate(value: string) {
+  return new Intl.DateTimeFormat("es-PE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC"
+  }).format(new Date(`${value}T00:00:00Z`));
 }
 
 function buildReportMetrics(report: VisitsReportData) {

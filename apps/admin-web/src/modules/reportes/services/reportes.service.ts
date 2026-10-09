@@ -54,9 +54,10 @@ export const reportesService = {
 
   async getVisitsReport(
     session: AuthSessionInput,
-    filters: VisitReportFilters
+    filters: VisitReportFilters,
+    page = 1
   ): Promise<VisitsReportData> {
-    const query = buildVisitReportQuery(filters);
+    const query = buildVisitReportQuery(filters, page);
 
     return apiRequest<VisitsReportData>(`/reportes/visitas?${query}`, {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
@@ -198,7 +199,7 @@ export function buildFieldsByStageReportQuery(filters: FieldsByStageFilters) {
   return searchParams.toString();
 }
 
-export function buildVisitReportQuery(filters: VisitReportFilters) {
+export function buildVisitReportQuery(filters: VisitReportFilters, page = 1) {
   const searchParams = new URLSearchParams();
   searchParams.set("fecha_desde", filters.startDate);
   searchParams.set("fecha_hasta", filters.endDate);
@@ -209,6 +210,10 @@ export function buildVisitReportQuery(filters: VisitReportFilters) {
 
   if (filters.productorId) {
     searchParams.set("productor_id", filters.productorId);
+  }
+
+  if (page > 1) {
+    searchParams.set("page", String(page));
   }
 
   return searchParams.toString();

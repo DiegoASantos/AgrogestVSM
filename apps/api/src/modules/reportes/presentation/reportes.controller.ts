@@ -24,7 +24,7 @@ export class ReportesController {
     summary: "Resume las visitas activas y hectareas observadas por dia."
   })
   @ApiOkResponse({
-    description: "Resumen por ingeniero y serie diaria del rango solicitado."
+    description: "Resumen por ingeniero, serie diaria y visitas paginadas con todas sus etapas del rango solicitado."
   })
   @ApiBadRequestResponse({
     description: "El rango o los identificadores de filtro no son validos."

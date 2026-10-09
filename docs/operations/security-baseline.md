@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-07
+last_reviewed: 2026-10-09
 ---
 
 # Línea base de seguridad operativa
@@ -35,9 +35,11 @@ last_reviewed: 2026-10-07
   completas mediante una lista cerrada de hosts y patrones; nunca navega,
   resuelve enlaces cortos, registra ni envía la URL. Solo el GeoJSON extraído
   participa en el guardado explícito de la parcela;
-- `GET /reportes/visitas` exige `ADMIN` o `ANALISTA`, devuelve solo identidad
-  visible del ingeniero y agregados operativos, valida el rango inclusivo y
-  parametriza fechas e identificadores; no habilita acceso a `AGRONOMO`;
+- `GET /reportes/visitas` exige `ADMIN` o `ANALISTA`, devuelve agregados
+  operativos y una página de visitas con identidad visible del ingeniero,
+  código y nombre de parcela y distribución fenológica; valida el rango
+  inclusivo y parametriza fechas, identificadores y paginación. No devuelve
+  identidad del productor ni habilita acceso a `AGRONOMO`;
 - `GET /reportes/estimaciones` exige `ADMIN` o `ANALISTA`, valida y normaliza el
   rango a semanas completas, parametriza el filtro opcional de agrónomo y
   devuelve únicamente fechas, número de semana y agregados de visitas; excluye

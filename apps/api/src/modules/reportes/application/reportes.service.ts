@@ -19,6 +19,22 @@ type VisitTimelineRow = {
   visitsCount: string;
 };
 
+type VisitDetailRow = {
+  id: string;
+  visitDate: string;
+  parcelCode: string;
+  parcelName: string | null;
+  engineerName: string;
+  phenologicalStages: Array<{
+    stageName: string;
+    subStageName: string | null;
+    coveragePercentage: number | null;
+    laborProgressPercentage: number | null;
+  }>;
+};
+
+const VISIT_DETAIL_PAGE_SIZE = 20;
+
 type EstimateReportWeekRow = {
   isoYear: string;
   weekNumber: string;
@@ -90,9 +106,10 @@ export class ReportesService {
   async getVisitsReport(query: ReporteVisitasQueryDto) {
     this.ensureDateRange(query);
 
-    const [summaryRows, timelineRows] = await Promise.all([
+    const [summaryRows, timelineRows, visitRows] = await Promise.all([
       this.getVisitSummary(query),
-      this.getVisitTimeline(query)
+      this.getVisitTimeline(query),
+      this.getVisitDetails(query)
     ]);
 
     return {
@@ -112,7 +129,13 @@ export class ReportesService {
         visitDate: row.visitDate,
         hectares: Number(row.hectares),
         visitsCount: Number(row.visitsCount)
-      }))
+      })),
+      visits: {
+        items: visitRows,
+        total: timelineRows.reduce((total, row) => total + Number(row.visitsCount), 0),
+        page: query.page ?? 1,
+        pageSize: VISIT_DETAIL_PAGE_SIZE
+      }
     };
   }
 
@@ -652,6 +675,74 @@ export class ReportesService {
       WHERE ${filters.join(" AND ")}
       GROUP BY v.fecha_visita
       ORDER BY v.fecha_visita ASC`,
+      values
+    );
+  }
+
+  private getVisitDetailFilters(query: ReporteVisitasQueryDto) {
+    const values: Array<string | number> = [query.fecha_desde, query.fecha_hasta];
+    const filters = ["v.activo = true", "v.fecha_visita >= $1", "v.fecha_visita <= $2"];
+
+    if (query.agronomo_usuario_id) {
+      values.push(query.agronomo_usuario_id);
+      filters.push(`v.agronomo_usuario_id = $${values.length}`);
+    }
+
+    if (query.productor_id) {
+      values.push(query.productor_id);
+      filters.push(`p.productor_id = $${values.length}`);
+    }
+
+    return { values, filters };
+  }
+
+  private getVisitDetails(query: ReporteVisitasQueryDto) {
+    const { values, filters } = this.getVisitDetailFilters(query);
+    const limitParam = values.length + 1;
+    const offsetParam = values.length + 2;
+    values.push(VISIT_DETAIL_PAGE_SIZE, ((query.page ?? 1) - 1) * VISIT_DETAIL_PAGE_SIZE);
+
+    return this.dataSource.query<VisitDetailRow[]>(
+      `SELECT
+        v.id AS "id",
+        TO_CHAR(v.fecha_visita, 'YYYY-MM-DD') AS "visitDate",
+        p.codigo AS "parcelCode",
+        p.nombre AS "parcelName",
+        COALESCE(NULLIF(BTRIM(CONCAT_WS(' ', u.nombres, u.apellidos)), ''), 'Ingeniero sin nombre') AS "engineerName",
+        COALESCE(entries.stages,
+          CASE WHEN primary_stage.id IS NOT NULL THEN JSONB_BUILD_ARRAY(JSONB_BUILD_OBJECT(
+            'stageName', primary_stage.nombre,
+            'subStageName', primary_sub.nombre,
+            'coveragePercentage', NULL,
+            'laborProgressPercentage', CASE WHEN primary_stage.tipo = 'Labor' THEN v.sub_etapa_porcentaje ELSE NULL END
+          )) ELSE '[]'::jsonb END
+        ) AS "phenologicalStages"
+      FROM (
+        SELECT v.id, v.fecha_visita, v.parcela_id, v.agronomo_usuario_id,
+          v.etapa_fenologica_id, v.sub_etapa_id, v.sub_etapa_porcentaje
+        FROM visitas_campo v
+        INNER JOIN parcelas p ON p.id = v.parcela_id
+        WHERE ${filters.join(" AND ")}
+        ORDER BY v.fecha_visita DESC, v.id DESC
+        LIMIT $${limitParam} OFFSET $${offsetParam}
+      ) v
+      INNER JOIN parcelas p ON p.id = v.parcela_id
+      LEFT JOIN usuarios u ON u.id = v.agronomo_usuario_id
+      LEFT JOIN etapas_fenologicas primary_stage ON primary_stage.id = v.etapa_fenologica_id
+      LEFT JOIN sub_etapas primary_sub ON primary_sub.id = v.sub_etapa_id
+      LEFT JOIN LATERAL (
+        SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+          'stageName', stage.nombre,
+          'subStageName', sub.nombre,
+          'coveragePercentage', entry.porcentaje_parcela,
+          'laborProgressPercentage', entry.porcentaje_avance_labor
+        ) ORDER BY entry.orden) AS stages
+        FROM visita_etapas_fenologicas entry
+        INNER JOIN etapas_fenologicas stage ON stage.id = entry.etapa_fenologica_id
+        LEFT JOIN sub_etapas sub ON sub.id = entry.sub_etapa_id
+        WHERE entry.visita_id = v.id
+      ) entries ON true
+      ORDER BY v.fecha_visita DESC, v.id DESC`,
       values
     );
   }

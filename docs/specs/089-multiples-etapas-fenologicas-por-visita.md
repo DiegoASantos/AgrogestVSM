@@ -5,7 +5,7 @@ numero: 089
 area: visitas-campo
 created: 2026-10-02
 approved_by: usuario (Implement the plan)
-implemented_in: apps/api/src/modules/visitas-campo; apps/api/src/database/migrations/065-etapas-fenologicas-por-visita.ts; apps/mobile/src/modules/visitas-campo; apps/mobile/src/shared/database/migrations.ts; apps/mobile/src/shared/sync/sync-handlers.ts; apps/admin-web/src/modules/visitas
+implemented_in: apps/api/src/modules/visitas-campo; apps/api/src/modules/reportes; apps/api/src/database/migrations/065-etapas-fenologicas-por-visita.ts; apps/mobile/src/modules/visitas-campo; apps/mobile/src/shared/database/migrations.ts; apps/mobile/src/shared/sync/sync-handlers.ts; apps/admin-web/src/modules/visitas; apps/admin-web/src/modules/reportes
 ---
 
 # Spec 089: Múltiples etapas fenológicas por visita

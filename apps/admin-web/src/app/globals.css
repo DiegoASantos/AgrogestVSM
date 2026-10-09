@@ -4758,6 +4758,15 @@ canvas {
   font-weight: 650;
 }
 
+.report-visits-detail-table__stages {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.report-visits-detail-table__stages li + li {
+  margin-top: 0.35rem;
+}
+
 .report-section--map .report-section__icon {
   background: #347955;
 }

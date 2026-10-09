@@ -24,13 +24,15 @@ describe("ReportesController", () => {
       fecha_desde: "2026-09-01",
       fecha_hasta: "2026-09-30",
       agronomo_usuario_id: "7",
-      productor_id: "15"
+      productor_id: "15",
+      page: "2"
     });
     const invalidDto = plainToInstance(ReporteVisitasQueryDto, {
       fecha_desde: "",
       fecha_hasta: "not-a-date",
       agronomo_usuario_id: "0",
-      productor_id: "abc"
+      productor_id: "abc",
+      page: "0"
     });
 
     expect(await validate(validDto)).toHaveLength(0);
@@ -39,7 +41,8 @@ describe("ReportesController", () => {
         "fecha_desde",
         "fecha_hasta",
         "agronomo_usuario_id",
-        "productor_id"
+        "productor_id",
+        "page"
       ])
     );
   });

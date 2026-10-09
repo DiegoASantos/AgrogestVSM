@@ -99,7 +99,7 @@ describe("reportesService", () => {
       productorId: "15",
       startDate: "2026-09-01",
       endDate: "2026-09-30"
-    });
+    }, 2);
 
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
     const url = String(fetchMock.mock.calls[0]?.[0]);
@@ -108,6 +108,7 @@ describe("reportesService", () => {
     expect(url).toContain("fecha_hasta=2026-09-30");
     expect(url).toContain("agronomo_usuario_id=7");
     expect(url).toContain("productor_id=15");
+    expect(url).toContain("page=2");
   });
 
   it("omits empty optional filters", () => {

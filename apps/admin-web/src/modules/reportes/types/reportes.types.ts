@@ -32,6 +32,24 @@ export type VisitReportTimelinePoint = {
 export type VisitsReportData = {
   summary: VisitReportSummaryRow[];
   timeline: VisitReportTimelinePoint[];
+  visits: {
+    items: Array<{
+      id: string;
+      visitDate: string;
+      parcelCode: string;
+      parcelName: string | null;
+      engineerName: string;
+      phenologicalStages: Array<{
+        stageName: string;
+        subStageName: string | null;
+        coveragePercentage: number | null;
+        laborProgressPercentage: number | null;
+      }>;
+    }>;
+    total: number;
+    page: number;
+    pageSize: number;
+  };
 };
 
 export type EstimateReportFilters = {

@@ -1,8 +1,20 @@
 import { Transform } from "class-transformer";
-import { IsDateString, IsOptional, Matches } from "class-validator";
+import { IsDateString, IsInt, IsOptional, Matches, Min } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class ReporteVisitasQueryDto {
+  @ApiPropertyOptional({
+    name: "page",
+    example: 1,
+    description: "Página de visitas individuales (20 por página, comienza en 1).",
+    default: 1
+  })
+  @Transform(({ value }) => value === undefined ? undefined : Number(value))
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number;
+
   @ApiProperty({
     name: "fecha_desde",
     example: "2026-09-01",

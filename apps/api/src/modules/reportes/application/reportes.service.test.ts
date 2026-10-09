@@ -26,6 +26,19 @@ describe("ReportesService", () => {
       ])
       .mockResolvedValueOnce([
         { visitDate: "2026-09-03", hectares: "12.50", visitsCount: "3" }
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "42",
+          visitDate: "2026-09-03",
+          parcelCode: "PAR-001",
+          parcelName: "Norte",
+          engineerName: "Ana Lopez",
+          phenologicalStages: [
+            { stageName: "Floración", subStageName: "Inicio", coveragePercentage: 60, laborProgressPercentage: null },
+            { stageName: "Fructificación", subStageName: "Cuajado", coveragePercentage: 40, laborProgressPercentage: null }
+          ]
+        }
       ]);
     const service = new ReportesService({ query } as never);
 
@@ -51,14 +64,32 @@ describe("ReportesService", () => {
           dailyAverage: 0
         }
       ],
-      timeline: [{ visitDate: "2026-09-03", hectares: 12.5, visitsCount: 3 }]
+      timeline: [{ visitDate: "2026-09-03", hectares: 12.5, visitsCount: 3 }],
+      visits: {
+        items: [{
+          id: "42",
+          visitDate: "2026-09-03",
+          parcelCode: "PAR-001",
+          parcelName: "Norte",
+          engineerName: "Ana Lopez",
+          phenologicalStages: [
+            { stageName: "Floración", subStageName: "Inicio", coveragePercentage: 60, laborProgressPercentage: null },
+            { stageName: "Fructificación", subStageName: "Cuajado", coveragePercentage: 40, laborProgressPercentage: null }
+          ]
+        }],
+        total: 3,
+        page: 1,
+        pageSize: 20
+      }
     });
     expect(query.mock.calls[0]?.[0]).toContain("LEFT JOIN visitas_campo");
     expect(query.mock.calls[0]?.[0]).toContain("COUNT(DISTINCT v.fecha_visita)");
     expect(query.mock.calls[1]?.[0]).toContain("SUM(v.area_ha)");
+    expect(query.mock.calls[2]?.[0]).toContain("JSONB_AGG");
+    expect(query.mock.calls[2]?.[0]).toContain("ORDER BY entry.orden");
   });
 
-  it("parameterizes engineer and producer filters in both aggregate queries", async () => {
+  it("parameterizes engineer, producer and page filters in the detail query", async () => {
     const query = vi.fn().mockResolvedValue([]);
     const service = new ReportesService({ query } as never);
 
@@ -66,7 +97,8 @@ describe("ReportesService", () => {
       fecha_desde: "2026-09-01",
       fecha_hasta: "2026-09-30",
       agronomo_usuario_id: "7",
-      productor_id: "15"
+      productor_id: "15",
+      page: 2
     });
 
     expect(query.mock.calls[0]?.[0]).toContain("p.productor_id = $3");
@@ -75,6 +107,8 @@ describe("ReportesService", () => {
     expect(query.mock.calls[1]?.[0]).toContain("v.agronomo_usuario_id = $3");
     expect(query.mock.calls[1]?.[0]).toContain("p.productor_id = $4");
     expect(query.mock.calls[1]?.[1]).toEqual(["2026-09-01", "2026-09-30", "7", "15"]);
+    expect(query.mock.calls[2]?.[0]).toContain("LIMIT $5 OFFSET $6");
+    expect(query.mock.calls[2]?.[1]).toEqual(["2026-09-01", "2026-09-30", "7", "15", 20, 20]);
   });
 
   it("rejects an inverted date range before querying", async () => {

@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-08
+last_reviewed: 2026-10-09
 related_code:
   - apps/api
   - apps/mobile
@@ -116,6 +116,12 @@ visitas, días distintos de trabajo y promedio por ingeniero, junto con
 hectáreas observadas por fecha. El mapa reutiliza los geodatos de las parcelas
 activas y refleja su asignación actual; por diseño, el rango histórico no altera
 esa asignación.
+Una consulta paginada adicional muestra las visitas activas del rango (20 por
+página) con todas las etapas y labores registradas en cada una, su subetapa y
+su porcentaje de cobertura de la parcela o avance de labor. Conserva el orden
+de captura y usa la etapa escalar como referencia para visitas históricas sin
+filas de distribución. Los agregados siguen calculándose directamente en SQL,
+sin sumar las filas de etapas, para contar cada visita una sola vez.
 
 El reporte de estimaciones genera una serie continua de semanas completas para
 comparar las metas activas de `estimaciones_visitas` con las visitas activas
