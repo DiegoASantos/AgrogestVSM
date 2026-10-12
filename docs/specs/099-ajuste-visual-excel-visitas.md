@@ -76,8 +76,10 @@ si falla la descarga; la base de datos no se revierte.
 ## Pruebas
 
 - Pruebas del libro con varias etapas y labores, cobertura ausente y texto largo.
-- `pnpm check`, pruebas de visitas y build de la API.
-- Verificación de salud y descarga autenticada en producción.
+- `pnpm check` (2008 pruebas), pruebas de visitas y build de la API completados
+  el 2026-10-12.
+- API de producción y proxy del panel responden 200; la ruta del reporte exige
+  sesión (401 sin credenciales). Falta verificar una descarga con sesión de usuario.
 
 ## Impacto documental
 
