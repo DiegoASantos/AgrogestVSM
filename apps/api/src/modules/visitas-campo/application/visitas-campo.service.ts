@@ -60,6 +60,12 @@ type ExcelDiagnosisRow = {
   nutrition: string;
 };
 
+type ExcelStageRow = {
+  stage: string;
+  subStage: string;
+  parcelPercentage: number | "";
+};
+
 type StageEntry = {
   phenologicalStageId: string;
   subEtapaId: string | null;
@@ -343,6 +349,7 @@ export class VisitasCampoService {
         agronomoUsuario: true,
         cultivo: true,
         etapaFenologica: true,
+        subEtapa: true,
         phenologicalStages: { stage: true, subStage: true },
         observacionesSanitarias: {
           plagaEnfermedad: true
@@ -370,7 +377,7 @@ export class VisitasCampoService {
     workbook.created = new Date();
 
     const worksheet = workbook.addWorksheet("Visitas");
-    worksheet.mergeCells("A1:R1");
+    worksheet.mergeCells("A1:S1");
     worksheet.getCell("A1").value = "Reporte de visitas de campo";
     worksheet.getCell("A1").font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
     worksheet.getCell("A1").fill = {
@@ -380,7 +387,7 @@ export class VisitasCampoService {
     };
     worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
     worksheet.getRow(1).height = 28;
-    worksheet.mergeCells("A2:R2");
+    worksheet.mergeCells("A2:S2");
     worksheet.getCell("A2").value =
       `Periodo: ${query.fecha_desde} al ${query.fecha_hasta}`;
     worksheet.getCell("A2").font = { bold: true, color: { argb: "FF166534" } };
@@ -391,7 +398,7 @@ export class VisitasCampoService {
     };
     worksheet.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
     worksheet.getRow(2).height = 22;
-    worksheet.mergeCells("A3:R3");
+    worksheet.mergeCells("A3:S3");
     worksheet.getCell("A3").value = `Agrónomo: ${
       agronomistUserId ? "seleccionado" : "Todos"
     } | Visitas activas: ${visitas.length}`;
@@ -410,8 +417,9 @@ export class VisitasCampoService {
       "Parcela",
       "Hora inicio",
       "Hora fin",
-      "Distribución de la parcela",
-      "Avance histórico de subetapa",
+      "Etapa o labor",
+      "Subetapa",
+      "% de parcela",
       "Plagas",
       "Enfermedades",
       "Nutrición",
@@ -441,19 +449,23 @@ export class VisitasCampoService {
     }
 
     const reportColumnFills: Record<number, string> = {
-      13: "FFFFF7ED",
-      14: "FFFEF2F2",
-      15: "FFECFDF5",
-      16: "FFEFF6FF",
+      14: "FFFFF7ED",
+      15: "FFFEF2F2",
+      16: "FFECFDF5",
       17: "FFEFF6FF",
-      18: "FFF0FDF4"
+      18: "FFEFF6FF",
+      19: "FFF0FDF4"
     };
 
     for (const visita of visitas) {
+      const stageRows = buildExcelStageRows(visita);
       const diagnosisRows = buildExcelDiagnosisRows(visita);
+      const rowCount = Math.max(stageRows.length, diagnosisRows.length);
       const firstWorksheetRow = worksheet.rowCount + 1;
 
-      for (const [index, diagnosis] of diagnosisRows.entries()) {
+      for (let index = 0; index < rowCount; index += 1) {
+        const stage = stageRows[index];
+        const diagnosis = diagnosisRows[index];
         worksheet.addRow([
           index === 0 ? toWorksheetText(visita.fechaVisita) : "",
           index === 0 ? toWorksheetText(buildFriendlyVisitNumber(visita.id)) : "",
@@ -471,15 +483,12 @@ export class VisitasCampoService {
           index === 0 ? toWorksheetText(buildParcelaLabel(visita.parcela)) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaInicio) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaFin ?? "No registrado") : "",
-          index === 0 ? toWorksheetText(buildStageExcelLabel(visita)) : "",
-          index === 0
-            ? visita.subEtapaPercentage === null || visita.subEtapaId === null
-              ? "---"
-              : Number(visita.subEtapaPercentage) / 100
-            : "",
-          toWorksheetText(diagnosis.pest),
-          toWorksheetText(diagnosis.disease),
-          toWorksheetText(diagnosis.nutrition),
+          stage ? toWorksheetText(stage.stage) : "",
+          stage ? toWorksheetText(stage.subStage) : "",
+          stage?.parcelPercentage ?? "",
+          diagnosis ? toWorksheetText(diagnosis.pest) : "",
+          diagnosis ? toWorksheetText(diagnosis.disease) : "",
+          diagnosis ? toWorksheetText(diagnosis.nutrition) : "",
           index === 0
             ? toWorksheetText(visita.riego?.[0]?.humedadSuelo ?? "No registrado")
             : "",
@@ -508,13 +517,13 @@ export class VisitasCampoService {
           };
           cell.alignment = {
             ...(cell.alignment ?? {}),
-            ...(column >= 13 && column <= 15 ? { horizontal: "center" as const } : {}),
+            ...(column >= 11 && column <= 16 ? { horizontal: "center" as const } : {}),
             vertical: "middle",
             wrapText: true
           };
 
-          if (column === 12 && typeof cell.value === "number") {
-            cell.numFmt = "0%";
+          if (column === 13 && typeof cell.value === "number") {
+            cell.numFmt = "0.##%";
           }
 
           if (columnFill) {
@@ -528,10 +537,10 @@ export class VisitasCampoService {
       }
 
       for (const column of [
-        ...Array.from({ length: 12 }, (_, index) => index + 1),
-        16,
+        ...Array.from({ length: 10 }, (_, index) => index + 1),
         17,
-        18
+        18,
+        19
       ]) {
         if (lastWorksheetRow > firstWorksheetRow) {
           worksheet.mergeCells(firstWorksheetRow, column, lastWorksheetRow, column);
@@ -544,7 +553,13 @@ export class VisitasCampoService {
         };
       }
 
-      for (const column of [13, 14, 15]) {
+      if (stageRows.length === 1 && lastWorksheetRow > firstWorksheetRow) {
+        for (const column of [11, 12, 13]) {
+          worksheet.mergeCells(firstWorksheetRow, column, lastWorksheetRow, column);
+        }
+      }
+
+      for (const column of [14, 15, 16]) {
         mergeAndCenterSingleDiagnosis(
           worksheet,
           firstWorksheetRow,
@@ -567,6 +582,7 @@ export class VisitasCampoService {
       { width: 14 },
       { width: 24 },
       { width: 22 },
+      { width: 22 },
       { width: 28 },
       { width: 28 },
       { width: 28 },
@@ -575,7 +591,7 @@ export class VisitasCampoService {
       { width: 12 }
     ];
     worksheet.views = [{ state: "frozen", ySplit: 4 }];
-    worksheet.autoFilter = { from: "A4", to: "R4" };
+    worksheet.autoFilter = { from: "A4", to: "S4" };
 
     return {
       content: Buffer.from(await workbook.xlsx.writeBuffer()),
@@ -1535,7 +1551,7 @@ function selectPrimaryStage(entries: StageEntry[]): StageEntry {
 
 function buildProductorLabel(productor: ProductorEntity | null | undefined) {
   return (
-    [productor?.firstName, productor?.lastName].filter(Boolean).join(" ").trim() ||
+    [productor?.lastName, productor?.firstName].filter(Boolean).join(" ").trim() ||
     productor?.documentNumber ||
     "No registrado"
   );
@@ -1553,14 +1569,36 @@ function buildEtapaLabel(etapa: EtapaFenologicaEntity | null | undefined) {
   return etapa?.name ?? "No registrada";
 }
 
-function buildStageExcelLabel(visita: VisitaCampoEntity) {
-  if (!visita.phenologicalStages?.length) return buildEtapaLabel(visita.etapaFenologica);
-  return [...visita.phenologicalStages].sort((a, b) => a.order - b.order).map((entry) => [
-    entry.stage?.name ?? entry.etapaFenologicaId,
-    entry.subStage?.name,
-    entry.coveragePercentage === null ? null : `${entry.coveragePercentage}% parcela`,
-    entry.laborProgressPercentage === null ? null : `${entry.laborProgressPercentage}% avance labor anterior`
-  ].filter(Boolean).join(" - ")).join("; ");
+function buildExcelStageRows(visita: VisitaCampoEntity): ExcelStageRow[] {
+  const entries = [...(visita.phenologicalStages ?? [])].sort(
+    (left, right) => left.order - right.order
+  );
+  const historicSubStagePercentage =
+    visita.subEtapaId !== null && visita.subEtapaPercentage != null
+      ? Number(visita.subEtapaPercentage)
+      : null;
+
+  if (entries.length === 0) {
+    return [{
+      stage: buildEtapaLabel(visita.etapaFenologica),
+      subStage: visita.subEtapa?.name ?? "",
+      parcelPercentage:
+        historicSubStagePercentage === null ? "" : historicSubStagePercentage / 100
+    }];
+  }
+
+  return entries.map((entry) => {
+    const percentage =
+      entry.coveragePercentage ??
+      entry.laborProgressPercentage ??
+      (entries.length === 1 ? historicSubStagePercentage : null);
+
+    return {
+      stage: entry.stage?.name ?? entry.etapaFenologicaId,
+      subStage: entry.subStage?.name ?? "",
+      parcelPercentage: percentage === null ? "" : Number(percentage) / 100
+    };
+  });
 }
 
 function buildExcelDiagnosisRows(visita: VisitaCampoEntity): ExcelDiagnosisRow[] {
@@ -1651,11 +1689,24 @@ function validateVisitTimes(startVisitTime: string, endVisitTime: string | null)
     return;
   }
 
-  if (endVisitTime < startVisitTime) {
+  if (
+    endVisitTime < startVisitTime &&
+    !isTenMinuteMidnightVisit(startVisitTime, endVisitTime)
+  ) {
     throw new BadRequestException(
       "startVisitTime must be less than or equal to endVisitTime."
     );
   }
+}
+
+function isTenMinuteMidnightVisit(startVisitTime: string, endVisitTime: string) {
+  const start = startVisitTime.slice(0, 5);
+  const end = endVisitTime.slice(0, 5);
+  if (!/^23:5\d$/u.test(start) || !/^00:0\d$/u.test(end)) return false;
+
+  const startMinutes = 23 * 60 + Number(start.slice(3));
+  const endMinutes = Number(end.slice(3));
+  return endMinutes + 24 * 60 - startMinutes === 10;
 }
 
 function isAgronomoUser(currentUser?: CurrentUserContext): boolean {

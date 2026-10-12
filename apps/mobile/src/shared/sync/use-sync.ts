@@ -21,6 +21,7 @@ import {
   type SyncRunResult
 } from "./sync-result";
 import { subscribeToSyncRequests, type SyncRequestOptions } from "./sync-requests";
+import { enqueueLegacyFrequencyRecovery } from "./sync-visit-recovery";
 
 const SYNC_INTERVAL_MS = 30 * 1000;
 const OUTBOX_SYNC_DEBOUNCE_MS = 750;
@@ -264,6 +265,19 @@ export function useSync() {
   useEffect(() => {
     return subscribeToSyncRequests(scheduleSync);
   }, [scheduleSync]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    try {
+      if (enqueueLegacyFrequencyRecovery() > 0) {
+        setSyncCounts(getSyncCounts());
+      }
+    } catch (error) {
+      debugLog("Sync", "Legacy recipe recovery deferred", {
+        name: error instanceof Error ? error.name : "unknown"
+      });
+    }
+  }, [authRevision, isAuthenticated]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {

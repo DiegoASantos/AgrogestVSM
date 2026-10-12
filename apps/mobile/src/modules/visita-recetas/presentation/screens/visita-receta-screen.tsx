@@ -126,8 +126,6 @@ import {
   getAvailablePreventiveNutrients,
   getFertilizacionDosisUnits,
   getUnidadDosis,
-  hasFertilizacionData,
-  hasFitosanidadData,
   isValidFertilizacionUnidadDosis,
   mergeMissingFitosanidadFindings,
   mergeNutritionFertilizations,
@@ -1187,9 +1185,7 @@ export function VisitaRecetaScreen() {
     }
     const recetaValidation = validateRecipeRecommendations(
       fitosanidadApps,
-      fertilizaciones,
-      riegoSelection,
-      laborSelections
+      fertilizaciones
     );
 
     if (recetaValidation) {
@@ -2426,19 +2422,8 @@ function IngredienteCard({
 
 function validateRecipeRecommendations(
   fitosanidadApps: AppFitosanidad[],
-  fertilizaciones: AppFertilizacion[],
-  riegoSelection: string | null,
-  laborSelections: Set<string>
+  fertilizaciones: AppFertilizacion[]
 ) {
-  if (
-    !hasFitosanidadData(fitosanidadApps) &&
-    !hasFertilizacionData(fertilizaciones) &&
-    !riegoSelection &&
-    laborSelections.size === 0
-  ) {
-    return "La receta es obligatoria. Registra al menos una recomendacion tecnica antes de continuar.";
-  }
-
   const incompleteFito = fitosanidadApps.some(
     (application) =>
       application.origen !== "mezcla_directa" &&

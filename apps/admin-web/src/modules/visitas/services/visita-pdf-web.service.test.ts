@@ -311,7 +311,7 @@ describe("visitaPdfWebService", () => {
           item: "Spino Max",
           activeIngredient: "Spinosad",
           dose: "25 ml/cilindro",
-          doseFrequency: "-"
+          doseFrequency: "Pendiente"
         }
       ]);
     });

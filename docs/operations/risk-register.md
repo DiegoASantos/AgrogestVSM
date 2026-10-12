@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-07
+last_reviewed: 2026-10-12
 ---
 
 # Registro de riesgos
@@ -53,6 +53,7 @@ last_reviewed: 2026-10-07
 | R-041 | La app nueva puede enviar varias etapas antes de que PostgreSQL 065 y la API compatible estén disponibles | Alta | Abierto | Spec 089: mantener migración y OTA sin aplicar/publicar; desplegar primero PostgreSQL y API, luego distribuir mobile y verificar reintentos offline en piloto. |
 | R-042 | Pagos y mantenimiento web exponen documentos, importes y cuentas bancarias a ADMIN y ANALISTA | Alta | Abierto | Spec 092: guards de API para ambos roles, mutaciones de Analista explícitas, respuestas `no-store`, errores/logs sin datos sensibles, acreedores revisados antes de asignarse y validar acceso/auditoría antes de desplegar. |
 | R-043 | El bootstrap falla en migración 025 porque TypeORM ya creó el índice único `uq_subsectores_sector_nombre` que la migración intenta añadir como constraint | Crítica | Abierto | Preparar spec correctiva; el smoke del 2026-10-06 confirma que la migración 001 ya pasa y se detiene en 025; no considerar validado el bootstrap hasta que `pnpm db:smoke` complete. |
+| R-044 | Recetas historicas con frecuencia pendiente permanecen solo en SQLite hasta que cada agronomo actualice y sincronice su dispositivo | Media | Abierto | Spec 097 conserva productos, reencola por usuario y muestra `Pendiente`; desplegar API antes de mobile, verificar conteos por dispositivo y revisar los rechazos nuevos sin borrar datos. |
 
 ## Revisión
 

@@ -38,6 +38,7 @@ import { ApiError } from "../services/api/errors";
 import { getApiToken } from "../services/api/auth-store";
 import type { SyncOutboxItem } from "../database/sync-outbox";
 import type { SyncEntityType } from "./sync-entities";
+import { isLegacyFrequencyRecoveryPayload } from "./sync-visit-recovery";
 import { generatePublicId, isUuid } from "../utils/local-id";
 
 import { visitaRecetasRepository } from "../../modules/visita-recetas/repositories/visita-recetas.repository";
@@ -1250,7 +1251,7 @@ async function handleReceta(
     labores: receta.labores.map((l) => ({ labor: l.labor }))
   };
 
-  const response = visitaPadre.endVisitTime
+  const response = visitaPadre.endVisitTime && !isLegacyFrequencyRecoveryPayload(entry.payload)
     ? await visitaRecetasRemote.finalize(
         visitaPadre.serverId,
         { ...recetaPayload, endVisitTime: visitaPadre.endVisitTime },

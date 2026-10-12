@@ -139,4 +139,7 @@ en la raíz.
 - [Spec 093: Compatibilidad del bootstrap con migración territorial 001](093-reparacion-bootstrap-migracion-territorial-001.md)
 - [Spec 094: Formulario de pagos de productores por secciones](094-pagos-productores-formulario-por-secciones.md)
 - [Spec 095: Guardado único y detalle simplificado de pagos](095-guardado-unico-pagos-productores.md)
+- [Spec 096: Cierre de visitas mobile sin recomendaciones](096-cierre-visita-sin-recomendaciones.md)
+- [Spec 097: Recuperacion de visitas antiguas con receta sin frecuencia](097-recuperacion-recetas-sin-frecuencia.md)
+- [Spec 098: Etapas y labores en celdas independientes del Excel de visitas](098-etapas-labores-celdas-excel-visitas.md)
 - [Plantilla](TEMPLATE.md)

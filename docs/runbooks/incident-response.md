@@ -2,7 +2,7 @@
 title: Respuesta a incidentes y soporte
 status: active
 owner: mantenimiento
-last_reviewed: 2026-09-10
+last_reviewed: 2026-10-12
 ---
 
 # Respuesta a incidentes y soporte
@@ -70,6 +70,23 @@ Antes de borrar datos locales:
 
 Nunca indicar al usuario reinstalar la aplicación como primera medida si hay
 datos pendientes.
+
+### Recetas antiguas sin frecuencia de dosis
+
+Si el dialogo muestra `Completa la frecuencia de dosis de la mezcla N.`,
+registrar la version mobile y los conteos por agronomo sin copiar la receta.
+La spec 097 repara este caso al abrir la version corregida con la sesion del
+dueno: cambia la hora final a inicio mas diez minutos y pasa visita y receta a
+pendientes. La receta conserva sus productos y la frecuencia figura como
+`Pendiente` en los PDF. El dispositivo necesita volver a conectarse para que
+ambas entidades queden sincronizadas y el contador de pendientes llegue a
+cero. Mantener la app instalada y abierta durante ese proceso.
+
+Aplicar primero la API que acepta el cruce de medianoche de diez minutos y
+despues distribuir mobile y web. Si aparece un mensaje distinto tras el
+reintento, tratarlo como un error nuevo y conservar su evidencia. Repetir la
+revision en cada dispositivo de los agronomos; la API no puede recuperar por
+si sola recetas que solo existen en SQLite.
 
 ### Cola de visitas que baja y vuelve a subir
 

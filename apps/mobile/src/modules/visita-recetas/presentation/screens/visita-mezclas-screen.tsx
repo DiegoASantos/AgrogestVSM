@@ -37,6 +37,7 @@ import { toApiError } from "../../../../shared/services";
 import { scheduleSync } from "../../../../shared/sync";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import {
+  addMinutesToVisitTime,
   formatEditable12HourInput,
   formatTimeFor12HourInput,
   normalize12HourTimeForApi,
@@ -45,6 +46,8 @@ import {
   validateVisitEndTime,
   type TimePeriod
 } from "../../../visitas-campo/domain/time-input";
+import { hasVisitRecommendations } from "../../../visitas-campo/domain/visit-recommendations";
+import { shouldPersistVisitRecipe } from "../../../visitas-campo/domain/should-persist-visit-recipe";
 import { Time12HourInput } from "../../../visitas-campo/presentation/components/time-12-hour-input";
 import { visitasCampoRepository } from "../../../visitas-campo/repositories/visitas-campo.repository";
 import { visitasCampoService } from "../../../visitas-campo/services/visitas-campo.service";
@@ -68,6 +71,8 @@ import {
   createEmptyIngrediente,
   createEmptyMezcla,
   deriveMezclaFactors,
+  hasFertilizacionData,
+  hasFitosanidadData,
   type AppFertilizacion,
   type AppFitosanidad
 } from "./visita-receta-multiple-products";
@@ -101,6 +106,15 @@ type MezclasFormDraft = {
 
 function singleParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+}
+
+function recipeHasRecommendations(recipe: RecetaFormDraft | null) {
+  return hasVisitRecommendations({
+    fitosanidad: recipe ? hasFitosanidadData(recipe.fitosanidadApps) : false,
+    fertilizacion: recipe ? hasFertilizacionData(recipe.fertilizaciones) : false,
+    riego: Boolean(recipe?.riegoSelection),
+    labores: (recipe?.laborSelections.length ?? 0) > 0
+  });
 }
 
 function getMixtureTutorialTargetId(
@@ -198,8 +212,12 @@ export function VisitaMezclasScreen() {
     [recipeCatalogs]
   );
   const tutorialSteps = useMemo(
-    () => buildMixtureTutorialSteps(productOptions.length > 0),
-    [productOptions.length]
+    () =>
+      buildMixtureTutorialSteps(
+        productOptions.length > 0,
+        recipeHasRecommendations(recipeDraft)
+      ),
+    [productOptions.length, recipeDraft]
   );
   const currentTutorialStep = tutorialStepId
     ? (tutorialSteps.find((step) => step.id === tutorialStepId) ?? null)
@@ -742,11 +760,18 @@ export function VisitaMezclasScreen() {
       return;
     }
 
-    const normalizedTime = normalize12HourTimeForApi(
-      normalizeTyped12HourInput(endVisitTimeInput),
-      endVisitTimePeriod
-    );
-    const timeError = validateVisitEndTime(startVisitTime, normalizedTime);
+    const hasRecommendations = recipeHasRecommendations(recipeDraft);
+    const normalizedTime = hasRecommendations
+      ? normalize12HourTimeForApi(
+          normalizeTyped12HourInput(endVisitTimeInput),
+          endVisitTimePeriod
+        )
+      : addMinutesToVisitTime(startVisitTime, 10);
+    const timeError = hasRecommendations
+      ? validateVisitEndTime(startVisitTime, normalizedTime)
+      : normalizedTime
+        ? null
+        : "No se pudo calcular la hora de fin desde la hora de inicio.";
     setEndVisitTimeError(timeError);
     if (timeError) {
       setError(timeError);
@@ -766,16 +791,23 @@ export function VisitaMezclasScreen() {
         recipeDraft.fertilizaciones,
         mixtures
       );
-      visitaRecetasService.save(visitaId, {
-        etapaFenologica:
-          visitaRecetasService.getConsolidacionLocal(visitaId).etapaFenologica,
-        mezclas: buildMezclasForSave(expandedFito, factorized),
-        fertilizacion: buildFertilizacionesForSave(expandedFertilizers),
-        riego: recipeDraft.riegoSelection
-          ? { tipoRecomendacion: recipeDraft.riegoSelection }
-          : null,
-        labores: recipeDraft.laborSelections
-      });
+      if (
+        shouldPersistVisitRecipe(
+          hasRecommendations,
+          Boolean(visitaRecetasService.getByVisitaId(visitaId))
+        )
+      ) {
+        visitaRecetasService.save(visitaId, {
+          etapaFenologica:
+            visitaRecetasService.getConsolidacionLocal(visitaId).etapaFenologica,
+          mezclas: buildMezclasForSave(expandedFito, factorized),
+          fertilizacion: buildFertilizacionesForSave(expandedFertilizers),
+          riego: recipeDraft.riegoSelection
+            ? { tipoRecomendacion: recipeDraft.riegoSelection }
+            : null,
+          labores: recipeDraft.laborSelections
+        });
+      }
       await visitasCampoService.update(visitaId, { endVisitTime: normalizedTime });
       clearDraft();
       if (recipeIdentity) deleteVisitFormDraft(recipeIdentity);
@@ -1599,41 +1631,43 @@ export function VisitaMezclasScreen() {
           ) : null}
         </>
 
-        <View
-          ref={(node) => {
-            tutorialTargets.current.endTime = node;
-          }}
-        >
-          <AppCard>
-            <AppText variant="heading">Cierre de visita</AppText>
-            <AppText variant="muted">
-              {firstPendingMixture
-                ? `Aún falta completar la Mezcla ${firstPendingMixture.numero}. Puedes confirmar la hora ahora y finalizar después.`
-                : "Todas las mezclas están listas. Confirma la hora real de cierre."}
-            </AppText>
-            <Time12HourInput
-              error={endVisitTimeError}
-              label="Hora de fin"
-              onChangeText={handleEndTime}
-              onEndEditing={() => {
-                const normalized = normalizeTyped12HourInput(endVisitTimeInput);
-                setEndVisitTimeInput(normalized);
-                setEndVisitTimeError(
-                  validateVisitEndTime(
-                    startVisitTime,
-                    normalize12HourTimeForApi(normalized, endVisitTimePeriod)
-                  )
-                );
-              }}
-              onPeriodChange={(period) => {
-                setEndVisitTimePeriod(period);
-                setEndVisitTimeError(null);
-              }}
-              period={endVisitTimePeriod}
-              value={endVisitTimeInput}
-            />
-          </AppCard>
-        </View>
+        {recipeHasRecommendations(recipeDraft) ? (
+          <View
+            ref={(node) => {
+              tutorialTargets.current.endTime = node;
+            }}
+          >
+            <AppCard>
+              <AppText variant="heading">Cierre de visita</AppText>
+              <AppText variant="muted">
+                {firstPendingMixture
+                  ? `Aún falta completar la Mezcla ${firstPendingMixture.numero}. Puedes confirmar la hora ahora y finalizar después.`
+                  : "Todas las mezclas están listas. Confirma la hora real de cierre."}
+              </AppText>
+              <Time12HourInput
+                error={endVisitTimeError}
+                label="Hora de fin"
+                onChangeText={handleEndTime}
+                onEndEditing={() => {
+                  const normalized = normalizeTyped12HourInput(endVisitTimeInput);
+                  setEndVisitTimeInput(normalized);
+                  setEndVisitTimeError(
+                    validateVisitEndTime(
+                      startVisitTime,
+                      normalize12HourTimeForApi(normalized, endVisitTimePeriod)
+                    )
+                  );
+                }}
+                onPeriodChange={(period) => {
+                  setEndVisitTimePeriod(period);
+                  setEndVisitTimeError(null);
+                }}
+                period={endVisitTimePeriod}
+                value={endVisitTimeInput}
+              />
+            </AppCard>
+          </View>
+        ) : null}
 
         {error ? (
           <View style={styles.errorBanner}>

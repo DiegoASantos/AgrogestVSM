@@ -123,7 +123,9 @@ vi.mock("../utils/debug-log", () => ({
 }));
 
 vi.mock("./sync-visit-recovery", () => ({
-  enqueueVisitaUpdateRepairOnce: vi.fn()
+  enqueueLegacyFrequencyRecovery: vi.fn(),
+  enqueueVisitaUpdateRepairOnce: vi.fn(),
+  isLegacyFrequencyRecoveryPayload: vi.fn().mockReturnValue(false)
 }));
 
 vi.mock("../utils/local-id", () => ({

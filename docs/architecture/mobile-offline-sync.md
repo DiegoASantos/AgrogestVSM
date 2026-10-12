@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-05
+last_reviewed: 2026-10-12
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -72,6 +72,11 @@ con tutorial como sin el. Hora de fin pertenece exclusivamente al cierre de
 Receta: editar los datos basicos construye una actualizacion parcial que no
 incluye ni reemplaza ese valor. Los borradores anteriores se restauran mediante
 una lista explicita de campos vigentes para ignorar propiedades retiradas.
+Una receta sin productos ni recomendaciones de riego o labores es valida. Al
+finalizar esa visita, mobile no crea un agregado vacio de receta y calcula
+`endVisitTime` como diez minutos despues de `startVisitTime`; oculta la entrada
+manual y guarda el campo mediante la actualizacion local existente de
+`visitas_campo`, conservando la misma outbox.
 
 ### Catalogos territoriales por sesion y reactivacion
 
@@ -395,6 +400,14 @@ y programa un sync inmediato con `bypassBackoff`.
   accion separada que reencola solo fallos `transient` en orden padre-hijos;
 - errores `permanent` permanecen visibles y requieren correccion explicita
   desde el detalle del dato;
+- la excepcion de la spec 097 recupera un fallo permanente de receta solo si
+  coincide con `Completa la frecuencia de dosis de la mezcla N.` y pertenece al
+  agronomo autenticado. En una transaccion calcula fin = inicio + 10 minutos,
+  reencola la visita antes de la receta y pasa ambas a `pending`. La receta
+  historica usa el POST compatible, que conserva productos y frecuencia vacia;
+  los cierres nuevos siguen exigiendo frecuencia. Si la API rechaza otro dato,
+  el nuevo fallo permanece visible. La reparacion puede preparar la cola sin
+  conexion y cada dispositivo la envia al recuperar red;
 - los fallos permanentes de ingredientes activos, marcas y fertilizantes dejan
   la fila local en `error` y la reconciliacion no la vuelve a encolar mientras
   exista su `sync_failures`; el detalle conserva los campos de validacion que

@@ -92,6 +92,7 @@ vi.mock("../utils/debug-log", () => ({
 
 const enqueueVisitaUpdateRepairOnce = vi.fn();
 vi.mock("./sync-visit-recovery", () => ({
+  enqueueLegacyFrequencyRecovery: vi.fn(),
   enqueueVisitaUpdateRepairOnce: (...args: unknown[]) =>
     enqueueVisitaUpdateRepairOnce(...args)
 }));

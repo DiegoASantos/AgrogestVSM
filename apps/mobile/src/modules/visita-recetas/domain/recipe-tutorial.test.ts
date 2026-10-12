@@ -108,6 +108,9 @@ describe("tutorial de receta y mezclas", () => {
       "endTime",
       "finish"
     ]);
+    expect(buildMixtureTutorialSteps(false, false).map((step) => step.id)).toEqual([
+      "finish"
+    ]);
   });
 
   it("genera un recorrido independiente para cada tarjeta fitosanitaria", () => {

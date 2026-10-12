@@ -33,7 +33,10 @@ import { getCatalogSessionUserId } from "../database/catalog-session";
 import { runInSafeTransactionSync } from "../database/safe-transaction";
 import { runWithSyncMutationLock } from "./sync-mutation-lock";
 import { orderSyncOutboxEntries } from "./sync-outbox-planner";
-import { enqueueVisitaUpdateRepairOnce } from "./sync-visit-recovery";
+import {
+  enqueueLegacyFrequencyRecovery,
+  enqueueVisitaUpdateRepairOnce
+} from "./sync-visit-recovery";
 import { getSyncEntityOwnership } from "./sync-ownership";
 import {
   catalogoFertilizantesRepo,
@@ -130,6 +133,13 @@ async function processOutboxUnlocked(
     enqueueVisitaUpdateRepairOnce();
   } catch (error) {
     debugLog("Sync", "Visit update repair deferred", {
+      name: error instanceof Error ? error.name : "unknown"
+    });
+  }
+  try {
+    enqueueLegacyFrequencyRecovery();
+  } catch (error) {
+    debugLog("Sync", "Legacy recipe recovery deferred", {
       name: error instanceof Error ? error.name : "unknown"
     });
   }

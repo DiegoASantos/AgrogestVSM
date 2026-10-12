@@ -62,6 +62,18 @@ export function resolveInitialEndVisitTime(existing: string | null, now: Date) {
   return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
+export function addMinutesToVisitTime(value: string, minutes: number) {
+  const match = value.trim().match(/^(\d{2}):(\d{2})(?::\d{2})?$/u);
+  if (!match || !Number.isInteger(minutes)) return "";
+
+  const hours = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hours > 23 || minute > 59) return "";
+
+  const totalMinutes = (hours * 60 + minute + minutes + 24 * 60) % (24 * 60);
+  return `${pad(Math.floor(totalMinutes / 60))}:${pad(totalMinutes % 60)}`;
+}
+
 export function validateVisitEndTime(startVisitTime: string, endVisitTime: string) {
   const normalizedStart = startVisitTime.trim().slice(0, 5);
   const normalizedEnd = endVisitTime.trim().slice(0, 5);

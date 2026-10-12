@@ -111,7 +111,9 @@ export function buildProducerMixtureRows(
         activeIngredient: item.activeIngredient,
         dose: item.dose,
         item: item.item,
-        doseFrequency: mezcla.frecuenciaDosis?.trim() || "-",
+        doseFrequency:
+          mezcla.frecuenciaDosis?.trim() ||
+          (mezcla.productos.length > 0 || fertilizers.length > 0 ? "Pendiente" : "-"),
         mixtureNumber: mezcla.numero,
         order: index + 1
       }));

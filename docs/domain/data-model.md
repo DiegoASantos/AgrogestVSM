@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-08
+last_reviewed: 2026-10-12
 ---
 
 # Modelo del dominio
@@ -162,6 +162,13 @@ visitas dividida entre esos días. La serie diaria suma `area_ha` de las visitas
 del día, tratando el valor nulo como cero. El mapa asociado no reconstruye
 asignaciones históricas: muestra las parcelas activas actualmente asignadas.
 
+El Excel de visitas muestra cada etapa o labor en una fila, con subetapa y
+porcentaje en celdas independientes. Para el porcentaje prioriza la cobertura
+guardada. Por decisión de presentación, si falta cobertura usa el avance
+histórico de labor o, en visitas antiguas de una sola etapa, el avance de
+subetapa. Esta equivalencia se aplica solo al Excel y no cambia el significado
+ni el valor de los datos persistidos.
+
 Entidades hijas:
 
 - evaluaciones nutricionales;
@@ -273,7 +280,10 @@ que indica cada cuanto se repite la dosis del tanque completo. Una finalizacion
 nueva exige de 1 a 200 caracteres, mientras la columna permanece nullable para
 recetas historicas y clientes anteriores. En los reportes mobile y web la
 frecuencia aparece a la derecha de `Dosis`, una sola vez por mezcla mediante una
-celda agrupada; si falta en datos historicos se muestra `-`.
+celda agrupada. Si falta en una mezcla historica con productos se muestra
+`Pendiente`; una mezcla vacia historica conserva `-`. La recuperacion de la spec
+097 guarda esas recetas antiguas por el endpoint compatible sin inventar una
+frecuencia, y ajusta la hora final de sus visitas a inicio mas diez minutos.
 
 Desde la spec 057, un mismo producto puede reutilizarse en varias mezclas con
 una dosis distinta en cada uso. `producto_ref` identifica la definicion estable

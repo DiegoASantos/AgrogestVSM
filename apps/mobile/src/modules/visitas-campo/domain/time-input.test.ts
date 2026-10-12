@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatEditable12HourInput,
   formatTimeFor12HourInput,
+  addMinutesToVisitTime,
   isComplete12HourInput,
   normalize12HourTimeForApi,
   resolveInitialEndVisitTime,
@@ -43,5 +44,12 @@ describe("time input editing", () => {
       "La hora de fin no puede ser anterior a la hora de inicio."
     );
     expect(validateVisitEndTime("08:00", "08:00")).toBeNull();
+  });
+
+  it("calcula diez minutos despues de la hora de inicio", () => {
+    expect(addMinutesToVisitTime("10:30", 10)).toBe("10:40");
+    expect(addMinutesToVisitTime("10:55:00", 10)).toBe("11:05");
+    expect(addMinutesToVisitTime("23:55", 10)).toBe("00:05");
+    expect(addMinutesToVisitTime("invalida", 10)).toBe("");
   });
 });

@@ -490,7 +490,10 @@ function isPositiveNumber(value: string) {
   return Number.isFinite(parsed) && parsed > 0;
 }
 
-export function buildMixtureTutorialSteps(hasProducts: boolean): MixtureTutorialStep[] {
+export function buildMixtureTutorialSteps(
+  hasProducts: boolean,
+  hasManualEndTime = true
+): MixtureTutorialStep[] {
   const steps: MixtureTutorialStep[] = [];
 
   if (hasProducts) {
@@ -528,12 +531,17 @@ export function buildMixtureTutorialSteps(hasProducts: boolean): MixtureTutorial
     );
   }
 
+  if (hasManualEndTime) {
+    steps.push(
+      tutorialStep(
+        "endTime",
+        "Hora de fin",
+        "Confirma la hora real de cierre de la visita. Este dato es obligatorio para finalizar."
+      )
+    );
+  }
+
   steps.push(
-    tutorialStep(
-      "endTime",
-      "Hora de fin",
-      "Confirma la hora real de cierre de la visita. Este dato es obligatorio para finalizar."
-    ),
     tutorialStep(
       "finish",
       "Finalizar visita",
