@@ -142,4 +142,5 @@ en la raíz.
 - [Spec 096: Cierre de visitas mobile sin recomendaciones](096-cierre-visita-sin-recomendaciones.md)
 - [Spec 097: Recuperacion de visitas antiguas con receta sin frecuencia](097-recuperacion-recetas-sin-frecuencia.md)
 - [Spec 098: Etapas y labores en celdas independientes del Excel de visitas](098-etapas-labores-celdas-excel-visitas.md)
+- [Spec 099: Ajuste visual y semántico del Excel de visitas](099-ajuste-visual-excel-visitas.md)
 - [Plantilla](TEMPLATE.md)

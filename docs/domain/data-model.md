@@ -162,12 +162,11 @@ visitas dividida entre esos días. La serie diaria suma `area_ha` de las visitas
 del día, tratando el valor nulo como cero. El mapa asociado no reconstruye
 asignaciones históricas: muestra las parcelas activas actualmente asignadas.
 
-El Excel de visitas muestra cada etapa o labor en una fila, con subetapa y
-porcentaje en celdas independientes. Para el porcentaje prioriza la cobertura
-guardada. Por decisión de presentación, si falta cobertura usa el avance
-histórico de labor o, en visitas antiguas de una sola etapa, el avance de
-subetapa. Esta equivalencia se aplica solo al Excel y no cambia el significado
-ni el valor de los datos persistidos.
+El Excel de visitas muestra cada etapa o labor en una fila, con su nombre y el
+porcentaje de parcela en dos columnas. El porcentaje se muestra únicamente
+cuando existe cobertura guardada; si falta, la celda queda vacía. Los avances
+históricos de labor y subetapa no se presentan como cobertura. El ancho de las
+columnas y la altura de las filas se ajustan al contenido del archivo.
 
 Entidades hijas:
 
