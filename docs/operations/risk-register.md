@@ -57,7 +57,7 @@ last_reviewed: 2026-10-13
 | R-045 | La OTA mobile puede consultar avisos antes de que la migracion 067 y la API esten desplegadas | Media | Abierto | Desplegar primero migracion y API; despues distribuir mobile. Los avisos fallan de forma no bloqueante mientras el servidor no los soporte. |
 | R-046 | Una reasignacion historica de parcela puede atribuir avisos de visitas repetidas a otro productor | Baja | Aceptado temporalmente | La consulta usa la relacion actual parcela-productor porque la visita no conserva snapshot; reevaluar si se requiere auditoria historica exacta. |
 | R-047 | El panel nuevo puede consultar avisos antes de aplicar la migracion 068 en PostgreSQL | Media | Abierto | Aplicar y verificar 068 antes de desplegar API y panel; la falla operativa no impide mostrar clima. |
-| R-048 | Las fotos comerciales de documentos personales y bancarios y las credenciales que las protegen viajarían por HTTP público sin cifrado | Alta | Aceptado explícitamente por el usuario para la spec 102 (2026-10-13) | Documentar la exposición; limitar acceso, auditar, validar archivos y cifrar almacenamiento/backup, sin presentar estos controles como protección del tránsito. Reevaluar antes de ampliar usuarios o si se habilita HTTPS/VPN. |
+| R-048 | Las fotos comerciales de documentos personales y bancarios y las credenciales que las protegen viajarían por HTTP público sin cifrado | Alta | Aceptado explícitamente por el usuario para la spec 103 (2026-10-13) | Documentar la exposición; limitar acceso, auditar, validar archivos y cifrar almacenamiento/backup, sin presentar estos controles como protección del tránsito. Reevaluar antes de ampliar usuarios o si se habilita HTTPS/VPN. |
 
 ## Revisión
 

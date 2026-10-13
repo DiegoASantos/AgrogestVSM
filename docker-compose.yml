@@ -7,7 +7,12 @@ services:
       - "172.16.0.8:5440:5432"
     volumes:
       - agrogest_produccion_data:/var/lib/postgresql
-      - /var/www/idl/agrogest-20260921-produccion.dump:/backups/agrogest.dump:ro
+      - type: bind
+        source: /var/www/idl/backups/bootstrap/agrogest_vsm/produccion.dump
+        target: /backups/agrogest.dump
+        read_only: true
+        bind:
+          create_host_path: false
       - ./docker/postgres/20-restore.sh:/docker-entrypoint-initdb.d/20-restore.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]

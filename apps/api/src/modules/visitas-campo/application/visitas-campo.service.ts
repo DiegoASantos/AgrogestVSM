@@ -67,8 +67,13 @@ type ExcelDiagnosisRow = {
 
 type ExcelStageRow = {
   stage: string;
-  subStage: string;
   parcelPercentage: number | "";
+};
+
+type ExcelMergedCell = {
+  firstRow: number;
+  lastRow: number;
+  column: number;
 };
 
 type StageEntry = {
@@ -354,8 +359,7 @@ export class VisitasCampoService {
         agronomoUsuario: true,
         cultivo: true,
         etapaFenologica: true,
-        subEtapa: true,
-        phenologicalStages: { stage: true, subStage: true },
+        phenologicalStages: { stage: true },
         observacionesSanitarias: {
           plagaEnfermedad: true
         },
@@ -382,7 +386,7 @@ export class VisitasCampoService {
     workbook.created = new Date();
 
     const worksheet = workbook.addWorksheet("Visitas");
-    worksheet.mergeCells("A1:W1");
+    worksheet.mergeCells("A1:V1");
     worksheet.getCell("A1").value = "Reporte de visitas de campo";
     worksheet.getCell("A1").font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
     worksheet.getCell("A1").fill = {
@@ -392,7 +396,7 @@ export class VisitasCampoService {
     };
     worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
     worksheet.getRow(1).height = 28;
-    worksheet.mergeCells("A2:W2");
+    worksheet.mergeCells("A2:V2");
     worksheet.getCell("A2").value =
       `Periodo: ${query.fecha_desde} al ${query.fecha_hasta}`;
     worksheet.getCell("A2").font = { bold: true, color: { argb: "FF166534" } };
@@ -403,7 +407,7 @@ export class VisitasCampoService {
     };
     worksheet.getCell("A2").alignment = { horizontal: "center", vertical: "middle" };
     worksheet.getRow(2).height = 22;
-    worksheet.mergeCells("A3:W3");
+    worksheet.mergeCells("A3:V3");
     worksheet.getCell("A3").value = `Agrónomo: ${
       agronomistUserId ? "seleccionado" : "Todos"
     } | Visitas activas: ${visitas.length}`;
@@ -427,7 +431,6 @@ export class VisitasCampoService {
       "Hora inicio",
       "Hora fin",
       "Etapa o labor",
-      "Subetapa",
       "% de parcela",
       "Plagas",
       "Enfermedades",
@@ -458,13 +461,14 @@ export class VisitasCampoService {
     }
 
     const reportColumnFills: Record<number, string> = {
-      18: "FFFFF7ED",
-      19: "FFFEF2F2",
-      20: "FFECFDF5",
+      17: "FFFFF7ED",
+      18: "FFFEF2F2",
+      19: "FFECFDF5",
+      20: "FFEFF6FF",
       21: "FFEFF6FF",
-      22: "FFEFF6FF",
-      23: "FFF0FDF4"
+      22: "FFF0FDF4"
     };
+    const mergedReportCells: ExcelMergedCell[] = [];
 
     for (const visita of visitas) {
       const parcelArea = normalizePositiveArea(visita.parcela?.areaHectares);
@@ -498,7 +502,6 @@ export class VisitasCampoService {
           index === 0 ? toWorksheetText(visita.horaVisitaInicio) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaFin ?? "No registrado") : "",
           stage ? toWorksheetText(stage.stage) : "",
-          stage ? toWorksheetText(stage.subStage) : "",
           stage?.parcelPercentage ?? "",
           diagnosis ? toWorksheetText(diagnosis.pest) : "",
           diagnosis ? toWorksheetText(diagnosis.disease) : "",
@@ -531,7 +534,7 @@ export class VisitasCampoService {
           };
           cell.alignment = {
             ...(cell.alignment ?? {}),
-            ...(column >= 15 && column <= 20 ? { horizontal: "center" as const } : {}),
+            ...(column >= 15 && column <= 19 ? { horizontal: "center" as const } : {}),
             vertical: "middle",
             wrapText: true
           };
@@ -540,7 +543,7 @@ export class VisitasCampoService {
             cell.numFmt = "0.####";
           }
 
-          if (column === 17 && typeof cell.value === "number") {
+          if (column === 16 && typeof cell.value === "number") {
             cell.numFmt = "0.##%";
           }
 
@@ -556,12 +559,17 @@ export class VisitasCampoService {
 
       for (const column of [
         ...Array.from({ length: 14 }, (_, index) => index + 1),
+        20,
         21,
-        22,
-        23
+        22
       ]) {
         if (lastWorksheetRow > firstWorksheetRow) {
           worksheet.mergeCells(firstWorksheetRow, column, lastWorksheetRow, column);
+          mergedReportCells.push({
+            firstRow: firstWorksheetRow,
+            lastRow: lastWorksheetRow,
+            column
+          });
         }
 
         worksheet.getCell(firstWorksheetRow, column).alignment = {
@@ -572,48 +580,36 @@ export class VisitasCampoService {
       }
 
       if (stageRows.length === 1 && lastWorksheetRow > firstWorksheetRow) {
-        for (const column of [15, 16, 17]) {
+        for (const column of [15, 16]) {
           worksheet.mergeCells(firstWorksheetRow, column, lastWorksheetRow, column);
+          mergedReportCells.push({
+            firstRow: firstWorksheetRow,
+            lastRow: lastWorksheetRow,
+            column
+          });
         }
       }
 
-      for (const column of [18, 19, 20]) {
-        mergeAndCenterSingleDiagnosis(
+      for (const column of [17, 18, 19]) {
+        const merged = mergeAndCenterSingleDiagnosis(
           worksheet,
           firstWorksheetRow,
           lastWorksheetRow,
           column
         );
+        if (merged) {
+          mergedReportCells.push({
+            firstRow: firstWorksheetRow,
+            lastRow: lastWorksheetRow,
+            column
+          });
+        }
       }
     }
 
-    worksheet.columns = [
-      { width: 14 },
-      { width: 18 },
-      { width: 22 },
-      { width: 26 },
-      { width: 28 },
-      { width: 22 },
-      { width: 22 },
-      { width: 28 },
-      { width: 20 },
-      { width: 22 },
-      { width: 20 },
-      { width: 18 },
-      { width: 14 },
-      { width: 14 },
-      { width: 24 },
-      { width: 22 },
-      { width: 22 },
-      { width: 28 },
-      { width: 28 },
-      { width: 28 },
-      { width: 24 },
-      { width: 26 },
-      { width: 12 }
-    ];
+    fitExcelReportLayout(worksheet, headers, mergedReportCells);
     worksheet.views = [{ state: "frozen", ySplit: 4 }];
-    worksheet.autoFilter = { from: "A4", to: "W4" };
+    worksheet.autoFilter = { from: "A4", to: "V4" };
 
     return {
       content: Buffer.from(await workbook.xlsx.writeBuffer()),
@@ -1612,32 +1608,21 @@ function buildExcelStageRows(visita: VisitaCampoEntity): ExcelStageRow[] {
   const entries = [...(visita.phenologicalStages ?? [])].sort(
     (left, right) => left.order - right.order
   );
-  const historicSubStagePercentage =
-    visita.subEtapaId !== null && visita.subEtapaPercentage != null
-      ? Number(visita.subEtapaPercentage)
-      : null;
 
   if (entries.length === 0) {
-    return [{
-      stage: buildEtapaLabel(visita.etapaFenologica),
-      subStage: visita.subEtapa?.name ?? "",
-      parcelPercentage:
-        historicSubStagePercentage === null ? "" : historicSubStagePercentage / 100
-    }];
+    return [
+      {
+        stage: buildEtapaLabel(visita.etapaFenologica),
+        parcelPercentage: ""
+      }
+    ];
   }
 
-  return entries.map((entry) => {
-    const percentage =
-      entry.coveragePercentage ??
-      entry.laborProgressPercentage ??
-      (entries.length === 1 ? historicSubStagePercentage : null);
-
-    return {
-      stage: buildExcelStageLabel(entry.stage?.name ?? entry.etapaFenologicaId),
-      subStage: entry.subStage?.name ?? "",
-      parcelPercentage: percentage === null ? "" : Number(percentage) / 100
-    };
-  });
+  return entries.map((entry) => ({
+    stage: buildExcelStageLabel(entry.stage?.name ?? entry.etapaFenologicaId),
+    parcelPercentage:
+      entry.coveragePercentage === null ? "" : Number(entry.coveragePercentage) / 100
+  }));
 }
 
 function buildExcelDiagnosisRows(visita: VisitaCampoEntity): ExcelDiagnosisRow[] {
@@ -1687,6 +1672,94 @@ function compareEntityIds(left: string, right: string) {
   return left.localeCompare(right, undefined, { numeric: true });
 }
 
+function fitExcelReportLayout(
+  worksheet: ExcelJS.Worksheet,
+  headers: string[],
+  mergedCells: ExcelMergedCell[]
+) {
+  const compactColumns = new Set([1, 2, 9, 10, 12, 18]);
+  const widths = headers.map((_, index) => {
+    const column = index + 1;
+    let width = compactColumns.has(column) ? 14 : 18;
+
+    for (let row = 4; row <= worksheet.rowCount; row += 1) {
+      const cell = worksheet.getCell(row, column);
+      const text = excelReportDisplayText(cell.value, column === 12);
+      const longestLine = Math.max(
+        0,
+        ...text.split(/\r?\n/u).map((line) => Array.from(line).length)
+      );
+      width = Math.max(width, Math.min(48, longestLine + 5));
+    }
+
+    return width;
+  });
+
+  worksheet.columns = widths.map((width) => ({ width }));
+
+  for (let row = 5; row <= worksheet.rowCount; row += 1) {
+    const worksheetRow = worksheet.getRow(row);
+    let height = 23;
+
+    for (let column = 1; column <= headers.length; column += 1) {
+      const cell = worksheetRow.getCell(column);
+      if (cell.isMerged) {
+        continue;
+      }
+
+      height = Math.max(
+        height,
+        estimateExcelReportCellHeight(
+          excelReportDisplayText(cell.value, column === 12),
+          widths[column - 1]
+        )
+      );
+    }
+
+    worksheetRow.height = height;
+  }
+
+  for (const { firstRow, lastRow, column } of mergedCells) {
+    const text = excelReportDisplayText(
+      worksheet.getCell(firstRow, column).value,
+      column === 12
+    );
+    const requiredHeight = estimateExcelReportCellHeight(text, widths[column - 1]);
+    const rows = Array.from({ length: lastRow - firstRow + 1 }, (_, index) =>
+      worksheet.getRow(firstRow + index)
+    );
+    const availableHeight = rows.reduce((sum, row) => sum + (row.height ?? 23), 0);
+
+    if (requiredHeight > availableHeight) {
+      const extraPerRow = (requiredHeight - availableHeight) / rows.length;
+      for (const row of rows) {
+        row.height = Math.min(409.5, (row.height ?? 23) + extraPerRow);
+      }
+    }
+  }
+}
+
+function excelReportDisplayText(value: unknown, percentage: boolean) {
+  if (typeof value === "number") {
+    return percentage ? `${Number((value * 100).toFixed(2))}%` : String(value);
+  }
+
+  return typeof value === "string" ? value : "";
+}
+
+function estimateExcelReportCellHeight(text: string, width: number) {
+  const usableWidth = Math.max(1, Math.floor(width) - 5);
+  const lines = text
+    .split(/\r?\n/u)
+    .reduce(
+      (total, line) =>
+        total + Math.max(1, Math.ceil(Array.from(line).length / usableWidth)),
+      0
+    );
+
+  return Math.min(409.5, Math.max(23, 8 + lines * 15));
+}
+
 function mergeAndCenterSingleDiagnosis(
   worksheet: ExcelJS.Worksheet,
   firstRow: number,
@@ -1702,7 +1775,8 @@ function mergeAndCenterSingleDiagnosis(
     return typeof value === "string" && value.trim() !== "";
   });
 
-  if (diagnosisRows.length === 1 && lastRow > firstRow) {
+  const merged = diagnosisRows.length === 1 && lastRow > firstRow;
+  if (merged) {
     worksheet.mergeCells(firstRow, column, lastRow, column);
   }
 
@@ -1713,6 +1787,8 @@ function mergeAndCenterSingleDiagnosis(
       wrapText: true
     };
   }
+
+  return merged;
 }
 
 function toWorksheetText(value: string) {

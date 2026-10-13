@@ -1,14 +1,14 @@
 ---
 title: Notificaciones operativas de visitas en el panel web
 status: implemented
-numero: 100
+numero: 101
 area: api, admin-web, database, seguridad
 created: 2026-10-13
 approved_by: usuario mediante instruccion "Implement the plan", 2026-10-13
 implemented_in: apps/api/src/modules/notificaciones y apps/admin-web/src/shared/components/notification-bell.tsx, 2026-10-13
 ---
 
-# Spec 100: Notificaciones operativas de visitas en el panel web
+# Spec 101: Notificaciones operativas de visitas en el panel web
 
 ## Contexto
 

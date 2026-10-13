@@ -1,14 +1,14 @@
 ---
 title: Fotos comerciales independientes por productor
 status: implemented
-numero: 102
+numero: 103
 area: mobile, api, admin-web, database, sync, seguridad, operacion
 created: 2026-10-13
 approved_by: usuario mediante instrucción "implementa la spec", 2026-10-13
 implemented_in: API comercial y migración 069; mobile Comercial, SQLite 77 y outbox; admin-web Mantenimiento/Acreedores; docker-compose y runbooks (2026-10-13)
 ---
 
-# Spec 102: Fotos comerciales independientes por productor
+# Spec 103: Fotos comerciales independientes por productor
 
 ## Contexto
 

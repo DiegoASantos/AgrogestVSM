@@ -1,14 +1,14 @@
 ---
 title: Avisos de visitas repetidas y continuidad de productores
 status: implemented
-numero: 099
+numero: 100
 area: mobile, api, database, visitas-campo, productores, seguridad
 created: 2026-10-12
 approved_by: usuario mediante instruccion "Implement the plan", 2026-10-12
 implemented_in: apps/api/src/modules/productores/application/seguimiento-productores.service.ts y apps/mobile/src/modules/home/presentation/screens/home-screen.tsx, 2026-10-12
 ---
 
-# Spec 099: Avisos de visitas repetidas y continuidad de productores
+# Spec 100: Avisos de visitas repetidas y continuidad de productores
 
 ## Contexto
 

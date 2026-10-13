@@ -1,14 +1,14 @@
 ---
 title: Columnas de cultivo y area en el Excel de visitas
 status: implemented
-numero: 101
+numero: 102
 area: api, visitas-campo, reportes
 created: 2026-10-13
 approved_by: usuario mediante instruccion "Implement the plan", 2026-10-13
 implemented_in: apps/api/src/modules/visitas-campo/application/visitas-campo.service.ts, apps/api/src/modules/reportes/domain/parcel-area-category.ts, 2026-10-13
 ---
 
-# Spec 101: Columnas de cultivo y area en el Excel de visitas
+# Spec 102: Columnas de cultivo y area en el Excel de visitas
 
 ## Contexto
 
@@ -38,15 +38,15 @@ mostrar la edad en anos y meses completos.
   deja hectareas vacias y muestra `Sin categoria`.
 - RF-003: Datos generales se combinan verticalmente cuando una visita ocupa
   varias filas.
-- RF-004: La hoja conserva sus columnas previas, estilos y diagnósticos; pasa
-  de 19 a 23 columnas.
+- RF-004: La hoja conserva las columnas, estilos y diagnósticos de la spec 099;
+  pasa de 18 a 22 columnas.
 - RNF-001: Reutilizar la regla vigente de clasificacion sin duplicar umbrales.
 
 ## Contratos afectados
 
 La ruta, query, MIME y nombre del archivo permanecen. La hoja Excel agrega
 `Fecha de siembra`, `Edad del cultivo`, `Nro de hectareas` y `Categoria` como
-columnas I-L; el ultimo encabezado pasa a W. Sin cambio JSON ni mobile.
+columnas I-L; el ultimo encabezado pasa a V. Sin cambio JSON ni mobile.
 
 ## Seguridad y datos
 

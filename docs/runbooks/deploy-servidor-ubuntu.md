@@ -36,7 +36,7 @@ Confirmar antes de seguir:
 Si el release cambia datos y no se puede confirmar un backup restaurable, no
 ejecutar la migración.
 
-## Preparación de fotos comerciales (spec 102)
+## Preparación de fotos comerciales (spec 103)
 
 Antes de habilitar cargas reales, asignar `COMERCIAL_PHOTOS_KEY_V1` en
 `apps/api/.env` con 32 bytes aleatorios en hexadecimal (64 caracteres) y

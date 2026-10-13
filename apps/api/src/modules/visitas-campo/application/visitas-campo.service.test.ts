@@ -361,7 +361,6 @@ describe("VisitasCampoService", () => {
         "Hora inicio",
         "Hora fin",
         "Etapa o labor",
-        "Subetapa",
         "% de parcela",
         "Plagas",
         "Enfermedades",
@@ -375,12 +374,12 @@ describe("VisitasCampoService", () => {
         expect(worksheet!.getRow(4).getCell(index + 1).value).toBe(value);
       }
       expect(worksheet!.getRow(4).height).toBe(32);
-      expect(worksheet!.autoFilter).toBe("A4:W4");
-      expect(worksheet!.getCell("W1").isMerged).toBe(true);
-      expect(worksheet!.getCell("W4").fill).toMatchObject({
+      expect(worksheet!.autoFilter).toBe("A4:V4");
+      expect(worksheet!.getCell("V1").isMerged).toBe(true);
+      expect(worksheet!.getCell("V4").fill).toMatchObject({
         fgColor: { argb: "FF2F6B4F" }
       });
-      expect(worksheet!.getCell("W4").font).toMatchObject({
+      expect(worksheet!.getCell("V4").font).toMatchObject({
         bold: true,
         color: { argb: "FFFFFFFF" }
       });
@@ -400,26 +399,23 @@ describe("VisitasCampoService", () => {
       expect(worksheet!.getRow(5).getCell(14).value).toBe("09:30");
       expect(worksheet!.getRow(5).getCell(15).value).toBe("Floracion");
       expect(worksheet!.getRow(5).getCell(16).value).toBe("");
-      expect(worksheet!.getRow(5).getCell(17).value).toBe(0.375);
-      expect(worksheet!.getRow(5).getCell(17).numFmt).toBe("0.##%");
-      expect(worksheet!.getRow(5).getCell(18).value).toBe("Mosca de la fruta");
-      expect(worksheet!.getRow(6).getCell(18).value).toBe("Trips");
-      expect(worksheet!.getRow(7).getCell(18).value).toBe("Acaros");
-      expect(worksheet!.getRow(8).getCell(18).value).toBe("Cochinilla");
-      expect(worksheet!.getRow(5).getCell(19).value).toBe("Antracnosis");
-      expect(worksheet!.getRow(6).getCell(19).value).toBe("Oidio");
-      expect(worksheet!.getRow(7).getCell(19).value).toBe("Mildiu");
-      expect(worksheet!.getRow(8).getCell(19).value).toBe("");
-      expect(worksheet!.getRow(5).getCell(20).value).toBe("Calcio");
-      expect(worksheet!.getRow(5).getCell(21).value).toBe("Húmedo");
-      expect(worksheet!.getRow(5).getCell(22).value).toBe("Sí");
+      expect(worksheet!.getRow(5).getCell(17).value).toBe("Mosca de la fruta");
+      expect(worksheet!.getRow(6).getCell(17).value).toBe("Trips");
+      expect(worksheet!.getRow(7).getCell(17).value).toBe("Acaros");
+      expect(worksheet!.getRow(8).getCell(17).value).toBe("Cochinilla");
+      expect(worksheet!.getRow(5).getCell(18).value).toBe("Antracnosis");
+      expect(worksheet!.getRow(6).getCell(18).value).toBe("Oidio");
+      expect(worksheet!.getRow(7).getCell(18).value).toBe("Mildiu");
+      expect(worksheet!.getRow(8).getCell(18).value).toBe("");
+      expect(worksheet!.getRow(5).getCell(19).value).toBe("Calcio");
+      expect(worksheet!.getRow(5).getCell(20).value).toBe("Húmedo");
+      expect(worksheet!.getRow(5).getCell(21).value).toBe("Sí");
       expect(worksheet!.getCell("P5").isMerged).toBe(true);
       expect(worksheet!.getCell("P8").isMerged).toBe(true);
       expect(worksheet!.getCell("T5").isMerged).toBe(true);
       expect(worksheet!.getCell("T8").isMerged).toBe(true);
       expect(worksheet!.getCell("U5").isMerged).toBe(true);
       expect(worksheet!.getCell("V5").isMerged).toBe(true);
-      expect(worksheet!.getCell("W5").isMerged).toBe(true);
       expect(worksheet!.getCell("I5").isMerged).toBe(true);
       expect(worksheet!.getCell("L8").isMerged).toBe(true);
       expect(worksheet!.getCell("A5").isMerged).toBe(true);
@@ -428,69 +424,70 @@ describe("VisitasCampoService", () => {
         horizontal: "center",
         vertical: "middle"
       });
-      expect(worksheet!.getCell("R5").fill).toMatchObject({
+      expect(worksheet!.getCell("Q5").fill).toMatchObject({
         fgColor: { argb: "FFFFF7ED" }
       });
     });
 
     it("exports each stage and labor with its own percentage and keeps diagnoses aligned", async () => {
-      repo.find.mockResolvedValue([makeVisita({
-        fechaVisita: "2026-08-15",
-        phenologicalStages: [
-          {
-            order: 2,
-            etapaFenologicaId: "52",
-            stage: { name: "Cosecha", type: "Etapa" },
-            subStage: { name: "Final" },
-            coveragePercentage: null,
-            laborProgressPercentage: null
-          },
-          {
-            order: 0,
-            etapaFenologicaId: "50",
-            stage: { name: "Floración", type: "Etapa" },
-            subStage: { name: "Inicio" },
-            coveragePercentage: 40,
-            laborProgressPercentage: null
-          },
-          {
-            order: 1,
-            etapaFenologicaId: "51",
-            stage: { name: "Poda", type: "Labor" },
-            subStage: null,
-            coveragePercentage: null,
-            laborProgressPercentage: "25"
-          }
-        ] as VisitaCampoEntity["phenologicalStages"],
-        observacionesSanitarias: [
-          { id: "1", plagaEnfermedad: { type: "plaga", name: "Trips" } }
-        ] as VisitaCampoEntity["observacionesSanitarias"]
-      })]);
+      repo.find.mockResolvedValue([
+        makeVisita({
+          fechaVisita: "2026-08-15",
+          phenologicalStages: [
+            {
+              order: 2,
+              etapaFenologicaId: "52",
+              stage: { name: "Cosecha", type: "Etapa" },
+              subStage: { name: "Final" },
+              coveragePercentage: null,
+              laborProgressPercentage: null
+            },
+            {
+              order: 0,
+              etapaFenologicaId: "50",
+              stage: { name: "Floración", type: "Etapa" },
+              subStage: { name: "Inicio" },
+              coveragePercentage: 40,
+              laborProgressPercentage: null
+            },
+            {
+              order: 1,
+              etapaFenologicaId: "51",
+              stage: { name: "Poda", type: "Labor" },
+              subStage: null,
+              coveragePercentage: null,
+              laborProgressPercentage: "25"
+            }
+          ] as VisitaCampoEntity["phenologicalStages"],
+          observacionesSanitarias: [
+            { id: "1", plagaEnfermedad: { type: "plaga", name: "Trips" } }
+          ] as VisitaCampoEntity["observacionesSanitarias"]
+        })
+      ]);
 
       const report = await service.exportExcelReport({
         fecha_desde: "2026-08-01",
         fecha_hasta: "2026-08-31"
       });
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.load(report.content as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+      await workbook.xlsx.load(
+        report.content as unknown as Parameters<typeof workbook.xlsx.load>[0]
+      );
       const worksheet = workbook.getWorksheet("Visitas")!;
 
       expect(worksheet.getCell("O5").value).toBe("Floración");
-      expect(worksheet.getCell("P5").value).toBe("Inicio");
-      expect(worksheet.getCell("Q5").value).toBe(0.4);
+      expect(worksheet.getCell("P5").value).toBe(0.4);
       expect(worksheet.getCell("O6").value).toBe("Poda");
       expect(worksheet.getCell("P6").value).toBe("");
-      expect(worksheet.getCell("Q6").value).toBe(0.25);
       expect(worksheet.getCell("O7").value).toBe("Cosecha");
-      expect(worksheet.getCell("P7").value).toBe("Final");
-      expect(worksheet.getCell("Q7").value).toBe("");
-      expect(worksheet.getCell("Q5").numFmt).toBe("0.##%");
-      expect(worksheet.getCell("Q6").numFmt).toBe("0.##%");
+      expect(worksheet.getCell("P7").value).toBe("");
+      expect(worksheet.getCell("P5").numFmt).toBe("0.##%");
+      expect(worksheet.getRow(4).getCell(16).value).toBe("% de parcela");
       expect(worksheet.getCell("O5").isMerged).toBe(false);
       expect(worksheet.getCell("A5").isMerged).toBe(true);
       expect(worksheet.getCell("A7").isMerged).toBe(true);
-      expect(worksheet.getCell("R5").value).toBe("Trips");
-      expect(worksheet.getCell("R7").isMerged).toBe(true);
+      expect(worksheet.getCell("Q5").value).toBe("Trips");
+      expect(worksheet.getCell("Q7").isMerged).toBe(true);
     });
 
     it("uses current parcel area at category boundaries and leaves missing values clear", async () => {
@@ -519,7 +516,7 @@ describe("VisitasCampoService", () => {
       expect(worksheet.getCell("J9").value).toBe("");
     });
 
-    it("keeps a 23-column header and filter when there are no visits", async () => {
+    it("keeps a 22-column header and filter when there are no visits", async () => {
       repo.find.mockResolvedValue([]);
 
       const report = await service.exportExcelReport({
@@ -530,8 +527,8 @@ describe("VisitasCampoService", () => {
       const worksheet = workbook.getWorksheet("Visitas")!;
 
       expect(worksheet.rowCount).toBe(4);
-      expect(worksheet.getRow(4).cellCount).toBe(23);
-      expect(worksheet.autoFilter).toBe("A4:W4");
+      expect(worksheet.getRow(4).cellCount).toBe(22);
+      expect(worksheet.autoFilter).toBe("A4:V4");
     });
 
     it("renames only the two requested stages in the Excel for legacy and multi-stage visits", async () => {
@@ -576,9 +573,72 @@ describe("VisitasCampoService", () => {
       expect(worksheet.getCell("O6").value).toBe("Maduración de yemas");
       expect(worksheet.getCell("O7").value).toBe("Llenado de fruto");
       expect(worksheet.getCell("O8").value).toBe("Poda");
-      expect(worksheet.getCell("Q6").value).toBe(0.4);
-      expect(worksheet.getCell("Q7").value).toBe(0.4);
-      expect(worksheet.getCell("Q8").value).toBe(0.2);
+      expect(worksheet.getCell("P6").value).toBe(0.4);
+      expect(worksheet.getCell("P7").value).toBe(0.4);
+      expect(worksheet.getCell("P8").value).toBe(0.2);
+    });
+
+    it("sizes long distribution and merged parcel text without losing content", async () => {
+      const longStageName =
+        "Etapa de floración con observaciones extensas en toda la parcela";
+      const longDiagnosisName = "Diagnóstico sanitario extenso ".repeat(4).trim();
+      const longParcelName = "Parcela de producción con descripción extensa "
+        .repeat(5)
+        .trim();
+      repo.find.mockResolvedValue([
+        makeVisita({
+          fechaVisita: "2026-08-15",
+          phenologicalStages: [
+            {
+              order: 0,
+              etapaFenologicaId: "50",
+              stage: { name: longStageName, type: "Etapa" },
+              coveragePercentage: 60,
+              laborProgressPercentage: null
+            },
+            {
+              order: 1,
+              etapaFenologicaId: "51",
+              stage: { name: "Poda", type: "Labor" },
+              coveragePercentage: 40,
+              laborProgressPercentage: null
+            }
+          ] as VisitaCampoEntity["phenologicalStages"],
+          observacionesSanitarias: [
+            { id: "1", plagaEnfermedad: { type: "plaga", name: longDiagnosisName } },
+            { id: "2", plagaEnfermedad: { type: "plaga", name: "Acaros" } }
+          ] as VisitaCampoEntity["observacionesSanitarias"],
+          parcela: {
+            code: "PAR-100",
+            name: longParcelName,
+            productor: { firstName: "Rosa", lastName: "Diaz" },
+            subsector: { name: "Norte", sector: { name: "Sector Norte" } }
+          } as VisitaCampoEntity["parcela"]
+        })
+      ]);
+
+      const report = await service.exportExcelReport({
+        fecha_desde: "2026-08-01",
+        fecha_hasta: "2026-08-31"
+      });
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(
+        report.content as unknown as Parameters<typeof workbook.xlsx.load>[0]
+      );
+      const worksheet = workbook.getWorksheet("Visitas")!;
+
+      expect(worksheet.getColumn(15).width).toBe(48);
+      expect(worksheet.getColumn(17).width).toBe(48);
+      expect(worksheet.getCell("O5").value).toBe(longStageName);
+      expect(worksheet.getCell("Q5").value).toBe(longDiagnosisName);
+      expect(worksheet.getCell("O5").alignment?.wrapText).toBe(true);
+      expect(worksheet.getRow(5).height).toBeGreaterThan(23);
+      expect(worksheet.getCell("H5").isMerged).toBe(true);
+      expect(worksheet.getCell("H6").isMerged).toBe(true);
+      expect(worksheet.getCell("H5").value).toBe(`PAR-100 - ${longParcelName}`);
+      expect(
+        (worksheet.getRow(5).height ?? 0) + (worksheet.getRow(6).height ?? 0)
+      ).toBeGreaterThan(90);
     });
 
     it("should show the absence labels when a visit has no diagnoses", async () => {
@@ -614,15 +674,15 @@ describe("VisitasCampoService", () => {
       await workbook.xlsx.load(xlsxContent);
       const worksheet = workbook.getWorksheet("Visitas");
 
-      expect(worksheet!.getRow(5).getCell(17).value).toBe("");
-      expect(worksheet!.getRow(5).getCell(18).value).toBe("Sin plagas");
-      expect(worksheet!.getRow(5).getCell(19).value).toBe("Sin enfermedades");
-      expect(worksheet!.getRow(5).getCell(20).value).toBe(
+      expect(worksheet!.getRow(5).getCell(16).value).toBe("");
+      expect(worksheet!.getRow(5).getCell(17).value).toBe("Sin plagas");
+      expect(worksheet!.getRow(5).getCell(18).value).toBe("Sin enfermedades");
+      expect(worksheet!.getRow(5).getCell(19).value).toBe(
         "Sin deficiencias nutricionales"
       );
       expect(worksheet!.getRow(5).getCell(2).value).toBe("VSM0027");
-      expect(worksheet!.getRow(5).getCell(21).value).toBe("No registrado");
-      expect(worksheet!.getRow(5).getCell(22).value).toBe("No");
+      expect(worksheet!.getRow(5).getCell(20).value).toBe("No registrado");
+      expect(worksheet!.getRow(5).getCell(21).value).toBe("No");
     });
 
     it("should center absence labels across all rows created by pest diagnoses", async () => {
@@ -659,13 +719,13 @@ describe("VisitasCampoService", () => {
       await workbook.xlsx.load(xlsxContent);
       const worksheet = workbook.getWorksheet("Visitas");
 
-      expect(worksheet!.getRow(5).getCell(18).value).toBe("Trips");
-      expect(worksheet!.getRow(6).getCell(18).value).toBe("Acaros");
+      expect(worksheet!.getRow(5).getCell(17).value).toBe("Trips");
+      expect(worksheet!.getRow(6).getCell(17).value).toBe("Acaros");
+      expect(worksheet!.getCell("R5").isMerged).toBe(true);
+      expect(worksheet!.getCell("R6").isMerged).toBe(true);
       expect(worksheet!.getCell("S5").isMerged).toBe(true);
       expect(worksheet!.getCell("S6").isMerged).toBe(true);
-      expect(worksheet!.getCell("T5").isMerged).toBe(true);
-      expect(worksheet!.getCell("T6").isMerged).toBe(true);
-      expect(worksheet!.getCell("S5").alignment).toMatchObject({
+      expect(worksheet!.getCell("R5").alignment).toMatchObject({
         horizontal: "center",
         vertical: "middle"
       });

@@ -68,7 +68,7 @@ Para el simulacro local aislado sin Docker:
 pnpm db:smoke
 ```
 
-## Fotos comerciales de productores (spec 102)
+## Fotos comerciales de productores (spec 103)
 
 El dump de PostgreSQL **no contiene los archivos** de `agrogest_commercial_photos`.
 Un respaldo recuperable reúne tres piezas de la misma ventana: dump de la base,
