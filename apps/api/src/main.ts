@@ -2,6 +2,7 @@ import "reflect-metadata";
 
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, NestFastifyApplication } from "@nestjs/platform-fastify";
+import multipart from "@fastify/multipart";
 
 import { AppModule } from "./app.module";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
@@ -30,6 +31,9 @@ async function bootstrap() {
   );
 
   app.enableShutdownHooks();
+  await app.register(multipart as unknown as Parameters<typeof app.register>[0], {
+    limits: { files: 1, fields: 0, parts: 1, fileSize: 10 * 1024 * 1024 }
+  });
 
   const appConfig = app.get(AppConfigService);
 

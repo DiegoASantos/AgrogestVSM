@@ -4,7 +4,7 @@
     "slug": "agrogest-vsm-mobile-pilot",
     "scheme": "agrogest-vsm",
     "platforms": ["android"],
-    "version": "0.2.2",
+    "version": "0.2.3",
     "icon": "./assets/images/icon_vsm.png",
     "orientation": "portrait",
     "splash": {
@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.diegoasantos.agrogestvsm",
-      "versionCode": 13,
+      "versionCode": 14,
       "icon": "./assets/images/icon_vsm.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive_icon_vsm.png",
@@ -55,7 +55,15 @@
         }
       ],
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Permite tomar fotos comerciales del productor.",
+          "photosPermission": "Permite elegir fotos comerciales del productor desde la galeria.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "extra": {
       "router": {},

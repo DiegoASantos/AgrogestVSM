@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bell,
@@ -14,7 +14,13 @@ import {
 } from "lucide-react";
 
 import { useAuthSession } from "../../modules/auth/hooks/use-auth-session";
+import { isAdminOrAnalystSession } from "../../modules/auth/utils/authorization";
 import { climaService } from "../../modules/clima/services/clima.service";
+import {
+  notificacionesService,
+  type OperationalNotice,
+  type OperationalNoticesPage
+} from "../../modules/notificaciones/services/notificaciones.service";
 
 type AlertRow = {
   publicId: string;
@@ -165,25 +171,54 @@ const POLL_INTERVAL = 5 * 60 * 1000;
 export function NotificationBell() {
   const { session } = useAuthSession();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [operational, setOperational] = useState<OperationalNoticesPage>({
+    items: [], unreadCount: 0, nextCursor: null
+  });
+  const [operationalOwner, setOperationalOwner] = useState<string | null>(null);
+  const [operationalError, setOperationalError] = useState("");
+  const [loadingMore, setLoadingMore] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<AlertRow | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLButtonElement>(null);
+  const sessionTokenRef = useRef(session?.accessToken);
+  sessionTokenRef.current = session?.accessToken;
+
+  const fetchOperational = useCallback(() => {
+    if (!session || !isAdminOrAnalystSession(session)) return;
+    const token = session.accessToken;
+    void notificacionesService.list(session)
+      .then((page) => {
+        if (sessionTokenRef.current !== token) return;
+        setOperational(page);
+        setOperationalOwner(token);
+        setOperationalError("");
+      })
+      .catch(() => {
+        if (sessionTokenRef.current === token) {
+          setOperationalError("No se pudieron actualizar los avisos de visitas.");
+        }
+      });
+  }, [session]);
 
   useEffect(() => {
+    setOperational({ items: [], unreadCount: 0, nextCursor: null });
+    setOperationalOwner(null);
     if (!session) return;
+    let active = true;
     const fetchAlerts = () => {
       void climaService
         .getAlerts(session)
-        .then((rows) => setAlerts(rows as AlertRow[]))
+        .then((rows) => { if (active) setAlerts(rows as AlertRow[]); })
         .catch(() => {
           /* silencioso */
         });
     };
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [session]);
+    fetchOperational();
+    const interval = setInterval(() => { fetchAlerts(); fetchOperational(); }, POLL_INTERVAL);
+    return () => { active = false; clearInterval(interval); };
+  }, [session, fetchOperational]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -203,7 +238,38 @@ export function NotificationBell() {
   const active = alerts.filter(
     (alert) => alert.status === "ACTIVA" && isAlertFromToday(alert)
   );
-  const count = active.length;
+  const visibleOperational = operationalOwner === session?.accessToken
+    ? operational
+    : { items: [], unreadCount: 0, nextCursor: null };
+  const count = active.length + (isAdminOrAnalystSession(session) ? visibleOperational.unreadCount : 0);
+
+  const markOperationalRead = (notice: OperationalNotice) => {
+    if (!session) return;
+    void notificacionesService.markRead(session, notice)
+      .then(fetchOperational)
+      .catch(() => setOperationalError("No se pudo marcar el aviso como leído."));
+  };
+
+  const loadMore = () => {
+    if (!session || !visibleOperational.nextCursor || loadingMore) return;
+    const token = session.accessToken;
+    setLoadingMore(true);
+    void notificacionesService.list(session, visibleOperational.nextCursor)
+      .then((page) => {
+        if (sessionTokenRef.current !== token) return;
+        setOperational((previous) => ({
+          ...page,
+          items: Array.from(new Map(
+            [...previous.items, ...page.items].map((item) => [`${item.kind}:${item.key}`, item])
+          ).values())
+        }));
+        setOperationalError("");
+      })
+      .catch(() => {
+        if (sessionTokenRef.current === token) setOperationalError("No se pudieron cargar más avisos.");
+      })
+      .finally(() => setLoadingMore(false));
+  };
 
   if (!session) return null;
 
@@ -212,10 +278,13 @@ export function NotificationBell() {
       <button
         ref={bellRef}
         className="notification-bell"
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={() => {
+          if (!isOpen) fetchOperational();
+          setIsOpen((v) => !v);
+        }}
         type="button"
-        aria-label={`Notificaciones${count > 0 ? `: ${count} alertas activas` : ""}`}
-        title="Alertas climáticas"
+        aria-label={`Notificaciones${count > 0 ? `: ${count} avisos activos` : ""}`}
+        title="Notificaciones"
       >
         <Bell size={18} />
         {count > 0 && <span className="notification-bell__badge">{count}</span>}
@@ -224,12 +293,42 @@ export function NotificationBell() {
       {isOpen && (
         <div ref={panelRef} className="notification-panel">
           <div className="notification-panel__header">
-            <h3>Alertas climáticas</h3>
+            <h3>Notificaciones</h3>
             <span>
               {count} activa{count !== 1 ? "s" : ""}
             </span>
           </div>
           <div className="notification-panel__body">
+            {isAdminOrAnalystSession(session) && (
+              <section className="operational-notices" aria-label="Avisos de visitas">
+                <h4>Avisos de visitas</h4>
+                {operationalError && <p className="operational-notices__error" role="status">{operationalError}</p>}
+                {visibleOperational.items.length === 0 && !operationalError && (
+                  <p className="notification-panel__empty">No hay avisos de visitas pendientes.</p>
+                )}
+                {visibleOperational.items.map((notice) => (
+                  <article className="operational-notice" key={`${notice.kind}:${notice.key}`}>
+                    <strong>
+                      {notice.kind === "VISITAS_DUPLICADAS" ? "Visitas repetidas" : "Productor sin visita reciente"}
+                    </strong>
+                    {notice.kind === "VISITAS_DUPLICADAS" ? (
+                      <>
+                        <p>{notice.productorNombre}: {notice.cantidadVisitas} visitas el {notice.fechaVisita} por {notice.agronomoNombre}.</p>
+                        <button type="button" onClick={() => markOperationalRead(notice)}>Marcar como leída</button>
+                      </>
+                    ) : (
+                      <p>{notice.productorNombre}: 45 días sin visita ni confirmación de continuidad desde {notice.fechaBase}.</p>
+                    )}
+                  </article>
+                ))}
+                {visibleOperational.nextCursor && (
+                  <button className="operational-notices__more" type="button" onClick={loadMore} disabled={loadingMore}>
+                    {loadingMore ? "Cargando…" : "Ver más avisos"}
+                  </button>
+                )}
+              </section>
+            )}
+            <h4 className="operational-notices__climate-heading">Alertas climáticas</h4>
             {active.length === 0 ? (
               <p className="notification-panel__empty">
                 No hay alertas activas en este momento.

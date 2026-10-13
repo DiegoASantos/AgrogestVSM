@@ -23,6 +23,7 @@ function buildProductor(overrides: Partial<ProductorEntity> = {}): ProductorEnti
     email: null,
     address: null,
     isActive: true,
+    lastContinuityConfirmationAt: null,
     createdByUserId: null,
     createdAt: now,
     updatedAt: now,

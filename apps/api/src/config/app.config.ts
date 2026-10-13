@@ -16,6 +16,10 @@ export const appConfig = registerAs("app", (): AppRuntimeConfig => {
     logLevel: environment.LOG_LEVEL,
     allowedOrigins: environment.CORS_ALLOWED_ORIGINS,
     costBuildApiKey: environment.COST_BUILD_API_KEY,
+    commercialPhotos: {
+      directory: environment.COMERCIAL_PHOTOS_DIR,
+      keyHex: environment.COMERCIAL_PHOTOS_KEY_V1
+    },
     loginRateLimit: {
       ttlMs: environment.LOGIN_RATE_LIMIT_TTL_MS,
       max: environment.LOGIN_RATE_LIMIT_MAX,

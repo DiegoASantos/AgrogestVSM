@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-12
+last_reviewed: 2026-10-13
 ---
 
 # Modelo del dominio
@@ -29,12 +29,33 @@ persona, un fundo o una cooperativa. Las personas requieren `nombres` y
 juntos cuando se informan. Fundos y cooperativas usan `nombres` como nombre de
 la entidad y no requieren documento.
 
+En el alta mobile de una persona se solicitan ambos apellidos en un solo campo
+obligatorio, con al menos dos partes separadas por espacios. Se normaliza cada
+palabra de los nombres y apellidos con inicial mayuscula y resto minuscula.
+Esta captura no cambia el contrato ni los datos historicos de productores.
+
 El estado de un productor es derivado y global: esta activo si y solo si tiene
 al menos una parcela activa. Crear, activar, desactivar o mover una parcela
 recalcula en la misma transaccion los productores afectados. Por ello el estado
 no se edita de forma independiente. Un productor compartido puede aparecer
 activo para un agronomo aunque la parcela asignada a ese usuario este inactiva,
 si otra parcela del productor permanece activa.
+
+Para productores `persona`, el seguimiento de continuidad vence tras 45 dias
+calendario sin visitas activas a cualquiera de sus parcelas, contados desde la
+fecha mas reciente entre alta, ultima visita y ultima confirmacion de
+continuidad. La confirmacion reinicia el plazo para todos los agronomos. Una
+respuesta negativa desactiva solo las parcelas asignadas al agronomo que la
+registra; el productor puede seguir activo si otros conservan parcelas activas.
+
+La campana web muestra a ADMIN y ANALISTA avisos por productor `persona`
+activo con al menos una parcela activa al cumplir ese plazo de 45 dias. Muestra
+tambien visitas repetidas agrupadas por productor, agronomo y fecha Peru cuando
+hay al menos dos visitas activas, aunque pertenezcan a parcelas distintas. Cada
+usuario lee independientemente esos avisos; el recordatorio de continuidad se
+resuelve con una visita, una confirmacion `si` o la desactivacion. Las visitas
+mobile entran al calculo al sincronizarse. Las visitas historicas se atribuyen
+al productor actual de la parcela, ya que no hay snapshot de esa relacion.
 
 Cada parcela puede asignarse a un unico agronomo. Un usuario `AGRONOMO` recibe
 solo los productores con alguna parcela asignada a el y solo sus parcelas,
@@ -168,6 +189,14 @@ guardada. Por decisión de presentación, si falta cobertura usa el avance
 histórico de labor o, en visitas antiguas de una sola etapa, el avance de
 subetapa. Esta equivalencia se aplica solo al Excel y no cambia el significado
 ni el valor de los datos persistidos.
+El mismo archivo presenta `Maduración del brote` (o `Maduración de brotes`)
+como `Maduración de yemas` y `Desarrollo del fruto` como `Llenado de fruto`.
+Estos nombres de presentación no modifican el catálogo ni la captura mobile.
+El Excel agrega fecha de siembra y edad del cultivo en años y meses completos
+hasta la fecha de cada visita. Las hectáreas y la categoría se calculan desde
+el área actual de la parcela con los límites del reporte de parcelas; por eso
+pueden cambiar al volver a exportar visitas históricas. Un área ausente o
+inválida deja hectáreas vacías y muestra `Sin categoría`.
 
 Entidades hijas:
 
@@ -596,6 +625,14 @@ por la spec 078. Cada endpoint requiere rol explícito y la marca
 `AllowAnalystMutation`; el bloqueo global continúa aplicando a todas las demás
 mutaciones. `AGRONOMO` puede consultar reservorios e histórico, pero no crear,
 editar ni eliminar lecturas o estimaciones.
+
+## Fotos comerciales
+
+`fotos_comerciales_productor` relaciona una o varias fotos con un productor,
+sin FK a acreedores. Guarda autor, fecha, UUID idempotente, nombre opaco del
+archivo, hashes y metadatos de cifrado. Los bytes cifrados residen en el volumen
+privado de API; la tabla `fotos_comerciales_accesos` registra cada consulta de
+contenido con usuario y fecha. La baja lógica del productor conserva las fotos.
 
 ## Fuente estructural
 

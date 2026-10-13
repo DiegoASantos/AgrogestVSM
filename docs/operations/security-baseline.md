@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-09
+last_reviewed: 2026-10-13
 ---
 
 # Línea base de seguridad operativa
@@ -62,6 +62,12 @@ last_reviewed: 2026-10-09
 - aislamiento horizontal de parcelas para `AGRONOMO`: listados, lectura y
   mutaciones por ID se limitan a `agronomo_usuario_id` y una visita nueva exige
   una parcela activa asignada al usuario autenticado;
+- los avisos de continuidad y de visita del dia exigen rol `AGRONOMO` y parcela
+  activa asignada; la respuesta negativa solo desactiva parcelas del actor y
+  la consulta de visita del dia devuelve un booleano sin IDs de visitas ajenas;
+- los avisos operativos de la campana web exigen `ADMIN` o `ANALISTA` en la
+  API; el registro de lectura utiliza exclusivamente el ID del JWT, verifica
+  que existan dos visitas activas y permite a `ANALISTA` mutar solo esa lectura;
 - catalogos SQLite de productores y parcelas aislados por el usuario de la
   sesion, sin reutilizar como visibles los datos descargados por otra cuenta.
 - outbox y fallos mobile particionados por usuario; un cambio de cuenta no
@@ -138,6 +144,23 @@ Docker Compose. El archivo `docker-compose.yml` también publica PostgreSQL en
 equipos que realmente lo necesiten y nunca exponerlo a Internet. Si se habilitan
 conexiones fuera del host o de la red privada, configurar TLS y verificación de
 certificado antes de permitirlas.
+
+## Fotos comerciales privadas
+
+La API acepta una foto JPEG por solicitud con límite de 10 MiB y dimensiones
+acotadas. Reconstruye la imagen sin EXIF/GPS, cifra el archivo con AES-256-GCM
+y guarda solo el nombre opaco en PostgreSQL. `COMERCIAL_PHOTOS_KEY_V1` debe ser
+una clave aleatoria de 32 bytes expresada en 64 caracteres hexadecimales y
+guardarse fuera de Git; `COMERCIAL_PHOTOS_DIR` apunta al volumen privado de API.
+La consulta del contenido requiere sesión ADMIN o ANALISTA y registra el acceso.
+El volumen, dump de base y clave se respaldan como conjunto; consultar el
+runbook de backup/restore.
+
+El usuario aceptó mantener HTTP público. Esto deja expuestos en tránsito las
+fotos y los tokens a interceptación o modificación; el cifrado en reposo no
+protege ese trayecto. Véase R-048 del registro de riesgos. No considerar la
+función lista para datos reales hasta probar un respaldo externo y restauración
+conjunta.
 
 ## Secretos
 

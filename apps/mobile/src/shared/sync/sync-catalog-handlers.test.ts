@@ -4,6 +4,16 @@ vi.mock("../database/connection", () => ({
   getDatabase: vi.fn()
 }));
 
+vi.mock("../../modules/comercial/services/fotos-comerciales.service", () => ({
+  getFotosComercialesLocales: vi.fn(() => []),
+  leerFotoComercialParaSync: vi.fn(),
+  marcarFotoComercialSincronizada: vi.fn(),
+  limpiarFotosComercialesSincronizadas: vi.fn()
+}));
+vi.mock("../../modules/comercial/services/fotos-comerciales.remote", () => ({
+  subirFotoComercial: vi.fn()
+}));
+
 vi.mock("../services", () => ({
   apiRequest: vi.fn(),
   apiRequestAllPages: vi.fn()

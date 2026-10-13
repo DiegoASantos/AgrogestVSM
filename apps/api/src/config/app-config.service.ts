@@ -66,6 +66,10 @@ export class AppConfigService {
     return this.runtimeAppConfig.costBuildApiKey;
   }
 
+  get commercialPhotos(): AppRuntimeConfig["commercialPhotos"] {
+    return this.runtimeAppConfig.commercialPhotos;
+  }
+
   get isDevelopment(): boolean {
     return this.nodeEnv === "development";
   }

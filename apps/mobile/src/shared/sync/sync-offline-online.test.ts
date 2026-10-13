@@ -39,6 +39,16 @@ vi.mock("../database/sync-outbox", () => ({
   incrementOutboxRetryCount
 }));
 
+vi.mock("../../modules/comercial/services/fotos-comerciales.service", () => ({
+  getFotosComercialesLocales: vi.fn(() => []),
+  leerFotoComercialParaSync: vi.fn(),
+  marcarFotoComercialSincronizada: vi.fn(),
+  limpiarFotosComercialesSincronizadas: vi.fn()
+}));
+vi.mock("../../modules/comercial/services/fotos-comerciales.remote", () => ({
+  subirFotoComercial: vi.fn()
+}));
+
 const runSync = vi.fn();
 const getAllSync = vi.fn(() => []);
 const getFirstSync = vi.fn(() => null);

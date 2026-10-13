@@ -23,6 +23,7 @@ import { ScoreSanitarioEnfermedadesService } from "./application/score-sanitario
 import { ScoreTecnicoNutricionService } from "./application/score-tecnico-nutricion.service";
 import { TechnicalScoresService } from "./application/technical-scores.service";
 import { VisitasCampoService } from "./application/visitas-campo.service";
+import { VisitasHoyService } from "./application/visitas-hoy.service";
 import { EtapaFenologicaEntity } from "./infrastructure/persistence/entities/etapa-fenologica.entity";
 import { SubEtapaEntity } from "./infrastructure/persistence/entities/sub-etapa.entity";
 import { VisitaCampoEntity } from "./infrastructure/persistence/entities/visita-campo.entity";
@@ -34,6 +35,7 @@ import { VisitaPasoObservacionesController } from "./presentation/visita-paso-ob
 import { ScoreSanitarioPlagasController } from "./presentation/score-sanitario-plagas.controller";
 import { TechnicalScoresController } from "./presentation/technical-scores.controller";
 import { VisitasCampoController } from "./presentation/visitas-campo.controller";
+import { VisitasHoyController } from "./presentation/visitas-hoy.controller";
 
 @Module({
   imports: [
@@ -61,6 +63,7 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
   ],
   controllers: [
     VisitasCampoController,
+    VisitasHoyController,
     EtapasFenologicasController,
     SubEtapasController,
     VisitaPasoObservacionesController,
@@ -69,6 +72,7 @@ import { VisitasCampoController } from "./presentation/visitas-campo.controller"
   ],
   providers: [
     VisitasCampoService,
+    VisitasHoyService,
     EtapasFenologicasService,
     SubEtapasService,
     VisitaPasoObservacionesService,

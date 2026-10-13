@@ -20,6 +20,7 @@ import { theme } from "../../../../shared/constants/theme";
 import { getNowIsoString } from "../../../../shared/database/sqlite-utils";
 import { insertSyncOutboxEntry } from "../../../../shared/database/sync-outbox";
 import { getDatabase } from "../../../../shared/database/connection";
+import { prepararNombrePersona, tieneDosApellidos } from "../../domain/normalizar-nombre-persona";
 import { productoresRepository } from "../../repositories/productores.repository";
 import { tiposDocumentoRepository } from "../../../tipos-documento/repositories/tipos-documento.repository";
 import { generatePublicId } from "../../../../shared/utils/local-id";
@@ -64,7 +65,7 @@ export function NuevoProductorScreen() {
 
   function validar(): string | null {
     const nombresNormalizados = nombres.trim();
-    const apellidosNormalizados = apellidos.trim();
+    const apellidosNormalizados = prepararNombrePersona(apellidos);
     const documentoNormalizado = numeroDocumento.trim();
     const telefonoNormalizado = telefono.trim();
     const emailNormalizado = email.trim();
@@ -75,8 +76,8 @@ export function NuevoProductorScreen() {
     if (nombresNormalizados.length > 100) {
       return "El nombre no puede superar 100 caracteres.";
     }
-    if (tipoEntidad === "persona" && !apellidosNormalizados) {
-      return "Los apellidos son obligatorios para personas.";
+    if (tipoEntidad === "persona" && !tieneDosApellidos(apellidos)) {
+      return "Ingresa los dos apellidos en el mismo campo.";
     }
     if (apellidosNormalizados.length > 100) {
       return "Los apellidos no pueden superar 100 caracteres.";
@@ -138,8 +139,8 @@ export function NuevoProductorScreen() {
               : null,
           documentNumber:
             tipoEntidad === "persona" ? numeroDocumento.trim() || null : null,
-          firstName: nombres.trim(),
-          lastName: tipoEntidad === "persona" ? apellidos.trim() || null : null,
+          firstName: tipoEntidad === "persona" ? prepararNombrePersona(nombres) : nombres.trim(),
+          lastName: tipoEntidad === "persona" ? prepararNombrePersona(apellidos) : null,
           phone: telefono.trim() || null,
           email: email.trim().toLowerCase() || null,
           address: direccion.trim() || null,
@@ -174,7 +175,10 @@ export function NuevoProductorScreen() {
   }
 
   function construirEtiqueta() {
-    const nombreCompleto = [nombres.trim(), apellidos.trim()]
+    const nombreCompleto = [
+      tipoEntidad === "persona" ? prepararNombrePersona(nombres) : nombres.trim(),
+      ...(tipoEntidad === "persona" ? [prepararNombrePersona(apellidos)] : [])
+    ]
       .filter(Boolean)
       .join(" ")
       .trim();
@@ -234,14 +238,20 @@ export function NuevoProductorScreen() {
             placeholder={esPersona ? "Ej: Juan Carlos" : "Ej: Fundo San Pedro"}
             value={nombres}
             onChangeText={setNombres}
+            onBlur={() => {
+              if (esPersona) setNombres((valor) => prepararNombrePersona(valor));
+            }}
+            autoCapitalize={esPersona ? "words" : "sentences"}
           />
 
           {esPersona ? (
             <AppInput
               label="Apellidos *"
-              placeholder="Ej: Perez Lopez"
+              placeholder="Ej: Pérez López"
               value={apellidos}
               onChangeText={setApellidos}
+              onBlur={() => setApellidos((valor) => prepararNombrePersona(valor))}
+              autoCapitalize="words"
             />
           ) : null}
         </AppCard>

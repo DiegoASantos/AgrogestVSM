@@ -46,6 +46,9 @@ import { appUpdateService } from "../../../../shared/updates/app-update.service"
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { ClimateDashboard } from "../../../clima/presentation/components/climate-dashboard";
 import { parcelasService } from "../../../parcelas/services/parcelas.service";
+import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
+import { productoresRepository } from "../../../productores/repositories/productores.repository";
+import { productoresRemote } from "../../../productores/services/productores.remote";
 import { visitasCampoService } from "../../../visitas-campo/services";
 import type { RecentVisitaCampo } from "../../../visitas-campo/types";
 
@@ -53,6 +56,12 @@ import type { RecentVisitaCampo } from "../../../visitas-campo/types";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const HOME_BACKGROUND = require("../../../../../assets/images/fondo_home_movil.webp");
 const HISTORY_ROUTE = "/visitas-campo/historial";
+type ContinuityReminder = {
+  productorId: string;
+  name: string;
+  baseDate: string;
+  dueDate: string;
+};
 
 export function HomeScreen() {
   const router = useRouter();
@@ -89,6 +98,9 @@ export function HomeScreen() {
   const [isApplyingAppUpdate, setIsApplyingAppUpdate] = useState(false);
   const [appUpdateError, setAppUpdateError] = useState<string | null>(null);
   const [recentVisits, setRecentVisits] = useState<RecentVisitaCampo[]>([]);
+  const [continuityReminders, setContinuityReminders] = useState<ContinuityReminder[]>([]);
+  const [continuityBusy, setContinuityBusy] = useState(false);
+  const dismissedContinuityIds = useRef(new Set<string>());
   const catalogStatus = useCatalogDownloadStatus();
   const heroHeight = Math.min(Math.max(width * 0.58, 218), 330);
   const connectivity = useMemo(
@@ -126,6 +138,84 @@ export function HomeScreen() {
   }, [loadSyncState, session.accessToken]);
 
   useFocusEffect(loadDashboard);
+
+  const loadContinuity = useCallback(() => {
+    if (!isOnline || !session.user?.roles.includes("AGRONOMO") ||
+        onlineSessionStatus === "reauth_required") {
+      setContinuityReminders([]);
+      return;
+    }
+    void productoresRemote.getPendingContinuity()
+      .then((items) => setContinuityReminders(
+        items.filter((item) => !dismissedContinuityIds.current.has(item.productorId))
+      ))
+      .catch(() => setContinuityReminders([]));
+  }, [isOnline, onlineSessionStatus, session.user?.roles]);
+
+  useFocusEffect(loadContinuity);
+
+  useEffect(() => {
+    dismissedContinuityIds.current.clear();
+    setContinuityReminders([]);
+  }, [session.user?.userId]);
+
+  const dismissContinuity = useCallback((id: string) => {
+    dismissedContinuityIds.current.add(id);
+    setContinuityReminders((current) => current.filter((item) => item.productorId !== id));
+  }, []);
+
+  const deferContinuity = useCallback(() => {
+    for (const item of continuityReminders) {
+      dismissedContinuityIds.current.add(item.productorId);
+    }
+    setContinuityReminders([]);
+  }, [continuityReminders]);
+
+  const respondContinuity = useCallback(async (item: ContinuityReminder, decision: "si" | "no") => {
+    if (continuityBusy) return;
+    setContinuityBusy(true);
+    try {
+      const response = await productoresRemote.respondContinuity(item.productorId, decision);
+      if (decision === "no") {
+        try {
+          const localProductor = productoresRepository.getAll()
+            .find((productor) => productor.serverId === item.productorId);
+          const localParcelas = localProductor
+            ? await parcelasService.getByProductorId(localProductor.id)
+            : [];
+          for (const parcela of localParcelas) {
+            if (parcela.isActive) {
+              parcelasRepository.update(parcela.id, { isActive: false });
+            }
+          }
+          if (localProductor && response.producerIsActive !== undefined) {
+            productoresRepository.update(localProductor.id, { isActive: response.producerIsActive });
+          }
+        } catch {
+          // La respuesta ya quedó guardada en API; la siguiente descarga reconcilia la copia local.
+          void forceRefreshAllCatalogs().catch(() => {});
+        }
+      }
+      dismissContinuity(item.productorId);
+    } catch {
+      Alert.alert("No se guardó la respuesta", "Intenta nuevamente cuando tengas conexión.");
+    } finally {
+      setContinuityBusy(false);
+    }
+  }, [continuityBusy, dismissContinuity]);
+
+  const confirmStopWorking = useCallback((item: ContinuityReminder) => {
+    Alert.alert(
+      "Dejar de trabajar con este productor",
+      `Se desactivarán solo las parcelas de ${item.name} asignadas a ti. Las visitas anteriores se conservarán.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Desactivar mis parcelas", style: "destructive", onPress: () => {
+          void respondContinuity(item, "no");
+        } }
+      ]
+    );
+  }, [respondContinuity]);
 
   const checkForAppUpdate = useCallback(() => {
     if (!isOnline || updateCheckInFlightRef.current || updateReadyRef.current) {
@@ -362,6 +452,35 @@ export function HomeScreen() {
             </Pressable>
           ) : null}
         </View>
+
+        {continuityReminders[0] ? (
+          <View style={styles.continuityCard}>
+            <AppText style={styles.continuityTitle} variant="heading">
+              Seguimiento de {continuityReminders[0].name}
+            </AppText>
+            <AppText style={styles.continuityText} variant="caption">
+              Han pasado 45 días sin visitas a sus parcelas. ¿Seguirás trabajando con este productor en la campaña?
+            </AppText>
+            <View style={styles.continuityActions}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={continuityBusy}
+                onPress={() => { void respondContinuity(continuityReminders[0], "si"); }}
+                style={styles.continuityPrimary}
+              >
+                <AppText style={styles.continuityPrimaryText} variant="label">Sí, continuar</AppText>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={continuityBusy}
+                onPress={() => confirmStopWorking(continuityReminders[0])}>
+                <AppText style={styles.continuitySecondary} variant="label">No, dejar de trabajar</AppText>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={continuityBusy}
+                onPress={deferContinuity}>
+                <AppText style={styles.continuityLater} variant="label">Más tarde</AppText>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {isAppUpdateReady ? (
           <View style={styles.appUpdateBanner}>
@@ -1406,6 +1525,27 @@ const statusDotStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  continuityCard: {
+    marginHorizontal: 18,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#bed7c8",
+    backgroundColor: "#f2f8f3"
+  },
+  continuityTitle: { color: "#064b31", marginBottom: 6 },
+  continuityText: { color: "#40574a", marginBottom: 12 },
+  continuityActions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 14 },
+  continuityPrimary: {
+    backgroundColor: "#08643f",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9
+  },
+  continuityPrimaryText: { color: "#ffffff" },
+  continuitySecondary: { color: "#7b352f" },
+  continuityLater: { color: "#52665a" },
   safeArea: {
     flex: 1,
     backgroundColor: "#fbfcf9"

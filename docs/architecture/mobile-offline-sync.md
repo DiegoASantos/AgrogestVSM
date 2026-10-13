@@ -80,6 +80,16 @@ manual y guarda el campo mediante la actualizacion local existente de
 
 ### Catalogos territoriales por sesion y reactivacion
 
+Inicio consulta con conexion los recordatorios de productores `persona` que
+llevan 45 dias sin visitas a ninguna parcela. La tarjeta es informativa y se
+puede aplazar durante la sesion. La confirmacion `si` se guarda en API para
+todos los agronomos; `no` desactiva en servidor solo las parcelas asignadas al
+usuario, y mobile actualiza su copia local tras la respuesta. Sin conexion no
+se calcula ni ejecuta la baja desde datos posiblemente incompletos. Antes de
+crear otra visita del mismo dia a una parcela, mobile ofrece continuar o ver la
+visita local anterior; si la visita solo existe en servidor, avisa sin ofrecer
+edicion remota. El aviso nunca bloquea un registro nuevo.
+
 La migracion SQLite 59 agrega a productores y parcelas el propietario de la
 descarga y una marca de visibilidad. Cada descarga oculta primero el catalogo
 sincronizado de la sesion actual y vuelve a marcar solo los elementos devueltos
@@ -703,6 +713,18 @@ Un borrador no representa una entidad del dominio, no usa `sync_status`, no
 crea entradas en `sync_outbox` ni llega a la API. Cambiar de cuenta deja los
 borradores anteriores almacenados, pero ninguna lectura o escritura puede
 acceder a ellos con el propietario de la nueva sesion.
+
+## Fotos comerciales por productor
+
+SQLite 77 incorpora `fotos_comerciales_productor` y una operación `create` de
+outbox por imagen. El binario no reside en SQLite: se normaliza a JPEG, se cifra
+con una clave de SecureStore separada por usuario y se escribe en el directorio
+privado de la app. El handler espera el `server_id` del productor, descifra a un
+temporal de caché, carga una foto por petición y borra el temporal. El UUID de
+foto permanece estable ante reintentos. Solo al confirmar el mismo UUID remoto
+se marca `synced` y se retira el archivo local cifrado. Los pendientes de otro
+usuario permanecen aislados al cambiar de sesión. Las fotos no crean acreedores
+ni son un requisito para registrar datos comerciales.
 
 ## Acreedores y registros de cosecha
 

@@ -1,5 +1,11 @@
 import { evaluacionesRepository } from "../../modules/evaluaciones/repositories/evaluaciones.repository";
 import { createAcreedorCosecha } from "../../modules/comercial/services/acreedores-cosecha.remote";
+import {
+  getFotosComercialesLocales,
+  leerFotoComercialParaSync,
+  marcarFotoComercialSincronizada
+} from "../../modules/comercial/services/fotos-comerciales.service";
+import { subirFotoComercial } from "../../modules/comercial/services/fotos-comerciales.remote";
 import { createRegistroCosecha } from "../../modules/comercial/services/registros-cosecha.remote";
 import { evaluacionesRemote } from "../../modules/evaluaciones/services/evaluaciones.remote";
 import type { VisitaEvaluacion } from "../../modules/evaluaciones/types";
@@ -32,9 +38,10 @@ import type {
 } from "../../modules/visitas-campo/types";
 import { getNowIsoString } from "../database/sqlite-utils";
 import { getDatabase } from "../database/connection";
+import { getCatalogSessionUserId } from "../database/catalog-session";
 import { getSyncFailures } from "../database/sync-failures";
 import { getPendingOutboxEntries } from "../database/sync-outbox";
-import { ApiError } from "../services/api/errors";
+import { ApiError, ApiRequestAbortedError } from "../services/api/errors";
 import { getApiToken } from "../services/api/auth-store";
 import type { SyncOutboxItem } from "../database/sync-outbox";
 import type { SyncEntityType } from "./sync-entities";
@@ -233,6 +240,42 @@ async function handleRegistroCosecha(
   );
 
   return { status: "synced", serverId: response.id };
+}
+
+async function handleFotoComercial(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
+  const db = getDatabase();
+  const owner = entry.ownerUserId;
+  if (!owner) return { status: "skipped" };
+  const row = db.getFirstSync<{ productor_id: string }>(
+    "SELECT productor_id FROM fotos_comerciales_productor WHERE local_id = ? AND owner_user_id = ?",
+    entry.entityLocalId, owner
+  );
+  if (!row) return { status: "deleted_local" };
+  const producer = productoresRepository.getById(row.productor_id);
+  if (!producer?.serverId) return { status: "skipped" };
+  const photo = getFotosComercialesLocales(row.productor_id).find(
+    (item) => item.localId === entry.entityLocalId
+  );
+  if (!photo) return { status: "skipped" };
+  const temporary = await leerFotoComercialParaSync(photo, owner);
+  try {
+    if (getCatalogSessionUserId(db) !== owner) {
+      throw new ApiRequestAbortedError("La sesión cambió durante la carga.");
+    }
+    const response = await subirFotoComercial(
+      producer.serverId, photo.publicId, temporary.uri, context
+    );
+    if (response.publicId !== photo.publicId || !response.id) {
+      throw new Error("La API no confirmó la identidad de la foto.");
+    }
+    marcarFotoComercialSincronizada(photo.localId, response.id, owner);
+    return { status: "synced", serverId: response.id };
+  } finally {
+    if (temporary.exists) temporary.delete();
+  }
 }
 
 export async function handleVisitaCampo(
@@ -967,6 +1010,7 @@ export const entityHandlerMap: Record<
   marcas_producto: handleMarcaProducto,
   pagos_cosecha: handlePagoCosecha,
   acreedores_cosecha: handleAcreedorCosecha,
+    fotos_comerciales_productor: handleFotoComercial,
   registros_cosecha: handleRegistroCosecha,
   visitas_campo: handleVisitaCampo,
   visita_evaluaciones: handleEvaluacion,

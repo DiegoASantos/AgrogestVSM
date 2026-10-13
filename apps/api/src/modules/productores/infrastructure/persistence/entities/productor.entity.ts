@@ -90,6 +90,13 @@ export class ProductorEntity {
   isActive!: boolean;
 
   @Column({
+    name: "ultima_confirmacion_continuidad_at",
+    type: "timestamptz",
+    nullable: true
+  })
+  lastContinuityConfirmationAt!: Date | null;
+
+  @Column({
     name: "creado_por_usuario_id",
     type: "bigint",
     nullable: true

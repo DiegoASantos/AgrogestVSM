@@ -9,6 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---- Mocks --------------------------------------------------------------
 
+const cleanupPhoto = vi.fn();
+vi.mock("../../modules/comercial/services/fotos-comerciales.service", () => ({
+  limpiarFotosComercialesSincronizadas: cleanupPhoto
+}));
+
 const getPendingOutboxEntries = vi.fn();
 const deleteOutboxEntry = vi.fn();
 const incrementOutboxRetryCount = vi.fn();
@@ -189,12 +194,14 @@ const handlerVisita = vi.fn();
 const handlerEvaluacion = vi.fn();
 const handlerObservacion = vi.fn();
 const handlerFertilizante = vi.fn();
+const handlerPhoto = vi.fn();
 vi.mock("./sync-handlers", () => ({
   entityHandlerMap: {
     visitas_campo: (entry: unknown) => handlerVisita(entry),
     visita_evaluaciones: (entry: unknown) => handlerEvaluacion(entry),
     visita_observaciones_sanitarias: (entry: unknown) => handlerObservacion(entry),
-    fertilizantes: (entry: unknown) => handlerFertilizante(entry)
+    fertilizantes: (entry: unknown) => handlerFertilizante(entry),
+    fotos_comerciales_productor: (entry: unknown) => handlerPhoto(entry)
   }
 }));
 
@@ -315,6 +322,19 @@ describe("processOutbox", () => {
     expect(handlerVisita).toHaveBeenCalledOnce();
     expect(deleteOutboxEntry).toHaveBeenCalledWith(1);
     expect(result).toMatchObject({ processed: 1, skipped: 0, errors: 0 });
+  });
+
+  it("cleans a confirmed photo only after removing its outbox entry", async () => {
+    getPendingOutboxEntries.mockReturnValue([makeEntry({ entityType: "fotos_comerciales_productor" })]);
+    handlerPhoto.mockResolvedValue({ status: "synced", serverId: "photo-1" });
+
+    await processOutbox();
+
+    expect(deleteOutboxEntry).toHaveBeenCalledWith(1);
+    expect(cleanupPhoto).toHaveBeenCalledOnce();
+    expect(deleteOutboxEntry.mock.invocationCallOrder[0]).toBeLessThan(
+      cleanupPhoto.mock.invocationCallOrder[0]
+    );
   });
 
   it("removes the entry on deleted_local result", async () => {

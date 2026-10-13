@@ -33,6 +33,7 @@ import { getCatalogSessionUserId } from "../database/catalog-session";
 import { runInSafeTransactionSync } from "../database/safe-transaction";
 import { runWithSyncMutationLock } from "./sync-mutation-lock";
 import { orderSyncOutboxEntries } from "./sync-outbox-planner";
+import { limpiarFotosComercialesSincronizadas } from "../../modules/comercial/services/fotos-comerciales.service";
 import {
   enqueueLegacyFrequencyRecovery,
   enqueueVisitaUpdateRepairOnce
@@ -76,6 +77,7 @@ const RECONCILABLE_SYNC_ENTITIES: Array<{
   { entityType: "marcas_producto", table: "marcas_producto" },
   { entityType: "pagos_cosecha", table: "pagos_cosecha" },
   { entityType: "acreedores_cosecha", table: "acreedores_cosecha" },
+  { entityType: "fotos_comerciales_productor", table: "fotos_comerciales_productor" },
   { entityType: "registros_cosecha", table: "registros_cosecha" },
   { entityType: "visitas_campo", table: "visitas_campo" },
   { entityType: "visita_evaluaciones", table: "visita_evaluaciones" },
@@ -208,6 +210,13 @@ async function processOutboxUnlocked(
         processed++;
         if (result.status === "synced") {
           successfulRequests++;
+          if (entry.entityType === "fotos_comerciales_productor") {
+            try {
+              limpiarFotosComercialesSincronizadas();
+            } catch {
+              // El próximo arranque o apertura de Comercial reintentará la limpieza.
+            }
+          }
         }
       } else if (result.status === "skipped") {
         skipped++;
@@ -557,6 +566,16 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
            WHERE local_id = ?`,
           message,
           entry.entityLocalId
+        );
+        break;
+      case "fotos_comerciales_productor":
+        getDatabase().runSync(
+          `UPDATE fotos_comerciales_productor
+           SET sync_status = 'error', sync_error_message = ?
+           WHERE local_id = ? AND owner_user_id = ?`,
+          message,
+          entry.entityLocalId,
+          entry.ownerUserId ?? null
         );
         break;
       case "registros_cosecha":

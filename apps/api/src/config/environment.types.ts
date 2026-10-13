@@ -8,6 +8,8 @@ export type EnvironmentVariables = {
   LOG_LEVEL: string;
   CORS_ALLOWED_ORIGINS: string[];
   COST_BUILD_API_KEY: string;
+  COMERCIAL_PHOTOS_DIR: string;
+  COMERCIAL_PHOTOS_KEY_V1: string;
   DB_HOST: string;
   DB_PORT: number;
   DB_NAME: string;
@@ -41,6 +43,7 @@ export type AppRuntimeConfig = {
   logLevel: string;
   allowedOrigins?: string[];
   costBuildApiKey: string;
+  commercialPhotos: { directory: string; keyHex: string };
   loginRateLimit: {
     ttlMs: number;
     max: number;

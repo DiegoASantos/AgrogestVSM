@@ -25,6 +25,9 @@ services:
     environment:
       JWT_ACCESS_EXPIRES_IN: "15m"
       JWT_REFRESH_EXPIRES_IN: "150d"
+      COMERCIAL_PHOTOS_DIR: /var/lib/agrogest/commercial-photos
+    volumes:
+      - agrogest_commercial_photos:/var/lib/agrogest/commercial-photos
     ports:
       - "5177:3001"
     restart: unless-stopped
@@ -51,3 +54,4 @@ services:
 
 volumes:
   agrogest_produccion_data:
+  agrogest_commercial_photos:

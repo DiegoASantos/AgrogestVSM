@@ -6,6 +6,21 @@ import {
 import type { Productor, CreateProductorDraft } from "../types";
 
 export const productoresRemote = {
+  getPendingContinuity() {
+    return apiRequest<Array<{
+      productorId: string;
+      name: string;
+      baseDate: string;
+      dueDate: string;
+    }>>("/productores/seguimiento-pendiente");
+  },
+
+  respondContinuity(id: string, decision: "si" | "no") {
+    return apiRequest<{ productorId: string; decision: "si" | "no"; deactivatedParcelIds: string[]; producerIsActive?: boolean }>(
+      `/productores/${id}/seguimiento`,
+      { method: "POST", body: { decision } }
+    );
+  },
   getAll() {
     return apiRequestAllPages<Productor>("/productores");
   },

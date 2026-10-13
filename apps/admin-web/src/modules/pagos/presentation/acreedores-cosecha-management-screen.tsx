@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { pagosService } from "../services/pagos.service";
@@ -156,6 +157,9 @@ export function AcreedoresCosechaManagementScreen() {
         <button className={styles.primary} onClick={openCreate} type="button">
           Nuevo acreedor
         </button>
+        <Link className={styles.secondary} href="/mantenimiento/acreedores-cosecha/fotos">
+          Fotos por productor
+        </Link>
       </header>
       {message && (
         <p className={styles.success} role="status">

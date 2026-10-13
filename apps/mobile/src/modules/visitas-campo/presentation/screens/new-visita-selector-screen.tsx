@@ -13,10 +13,13 @@ import {
   ScreenContainer
 } from "../../../../shared/components";
 import { theme } from "../../../../shared/constants/theme";
+import { useConnectivity } from "../../../../shared/connectivity/use-connectivity";
 import { getDatabase } from "../../../../shared/database/connection";
 import { getCatalogSessionUserId } from "../../../../shared/database/catalog-session";
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
+import { getUserIdFromAccessToken } from "../../../../shared/utils/auth-token";
+import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { parcelasService } from "../../../parcelas/services";
 import type { Parcela } from "../../../parcelas/types";
 import { productoresService } from "../../../productores/services";
@@ -25,6 +28,9 @@ import { sectoresService } from "../../../sectores/services";
 import type { Sector } from "../../../sectores/types";
 import { subsectoresService } from "../../../subsectores/services";
 import type { Subsector } from "../../../subsectores/types";
+import { visitasCampoService } from "../../services/visitas-campo.service";
+import { visitasCampoRemote } from "../../services/visitas-campo.remote";
+import { findPreferredTodayVisit } from "../../domain/today-visit";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PARCELAS_BACKGROUND = require("../../../../../assets/images/parcelas.webp");
@@ -34,6 +40,8 @@ type LoadingCatalog = Exclude<OpenCatalog, null>;
 
 export function NewVisitaSelectorScreen() {
   const router = useRouter();
+  const { isOnline } = useConnectivity();
+  const { session } = useAuthSession();
   const { nuevoProductorId, nuevoProductorLabel, nuevaParcelaId } = useLocalSearchParams<{
     nuevoProductorId?: string;
     nuevoProductorLabel?: string;
@@ -43,6 +51,7 @@ export function NewVisitaSelectorScreen() {
   const [loadingCatalog, setLoadingCatalog] =
     useState<LoadingCatalog | null>("productor");
   const [error, setError] = useState<string | null>(null);
+  const [checkingVisit, setCheckingVisit] = useState(false);
   const [productorId, setProductorId] = useState("");
   const [sectorId, setSectorId] = useState("");
   const [subsectorId, setSubsectorId] = useState("");
@@ -241,23 +250,11 @@ export function NewVisitaSelectorScreen() {
 
           <View style={styles.actions}>
             <AppButton
-              disabled={!selectedParcela}
+              disabled={!selectedParcela || checkingVisit}
               icon="leaf-outline"
-              label="Continuar con la visita"
+              label={checkingVisit ? "Revisando visitas..." : "Continuar con la visita"}
               onPress={() => {
-                if (!selectedParcela) {
-                  return;
-                }
-
-                router.push({
-                  pathname: "/visitas-campo/registrar",
-                  params: {
-                    id: selectedParcela.id,
-                    parcelaCode: selectedParcela.code,
-                    parcelaName: selectedParcela.name,
-                    parcelaAreaHectares: formatearArea(selectedParcela.areaHectares)
-                  }
-                });
+                if (selectedParcela) void checkTodayAndContinue(selectedParcela);
               }}
             />
             <AppButton
@@ -277,6 +274,73 @@ export function NewVisitaSelectorScreen() {
 
   function toggleCatalog(catalog: LoadingCatalog) {
     setOpenCatalog((current) => (current === catalog ? null : catalog));
+  }
+
+  function openNewVisit(parcela: Parcela) {
+    router.push({
+      pathname: "/visitas-campo/registrar",
+      params: {
+        id: parcela.id,
+        parcelaCode: parcela.code,
+        parcelaName: parcela.name,
+        parcelaAreaHectares: formatearArea(parcela.areaHectares)
+      }
+    });
+  }
+
+  async function checkTodayAndContinue(parcela: Parcela) {
+    if (checkingVisit) return;
+    setCheckingVisit(true);
+    try {
+      const currentUserId = session.accessToken
+        ? getUserIdFromAccessToken(session.accessToken)
+        : null;
+      const local = await visitasCampoService.getByParcelaId(parcela.id);
+      const previous = findPreferredTodayVisit(local, currentUserId, new Date());
+
+      if (previous) {
+        const open = !previous.endVisitTime;
+        Alert.alert(
+          "Ya hay una visita de hoy",
+          open
+            ? "Puedes continuar la visita anterior de esta parcela o registrar una nueva."
+            : "La visita anterior de esta parcela ya terminó. Puedes verla o registrar una nueva.",
+          [
+            { text: "Ahora no", style: "cancel" },
+            { text: "Crear nueva", onPress: () => openNewVisit(parcela) },
+            {
+              text: open ? "Continuar anterior" : "Ver anterior",
+              onPress: () => router.push(open
+                ? { pathname: "/visitas-campo/registrar", params: { id: parcela.id, visitaId: previous.id } }
+                : { pathname: "/visitas-campo/[id]", params: { id: previous.id } })
+            }
+          ]
+        );
+        return;
+      }
+
+      const remote = isOnline && parcela.serverId
+        ? await visitasCampoRemote.getTodayByParcela(parcela.serverId).catch(() => ({ exists: false }))
+        : { exists: false };
+      if (remote.exists) {
+        Alert.alert(
+          "Ya hay una visita de hoy",
+          "Ya se registró una visita a esta parcela que no está disponible para continuar aquí. Puedes crear otra si lo necesitas.",
+          [
+            { text: "Ahora no", style: "cancel" },
+            { text: "Crear nueva", onPress: () => openNewVisit(parcela) }
+          ]
+        );
+        return;
+      }
+
+      openNewVisit(parcela);
+    } catch {
+      // El aviso es informativo: nunca impide iniciar una visita.
+      openNewVisit(parcela);
+    } finally {
+      setCheckingVisit(false);
+    }
   }
 
   async function ensureProductoresAvailable() {

@@ -64,4 +64,17 @@ describe("orderSyncOutboxEntries", () => {
       "receta-1"
     ]);
   });
+
+  it("places a producer before its independently queued commercial photos", () => {
+    const ordered = orderSyncOutboxEntries(
+      [
+        makeEntry(3, "fotos_comerciales_productor", "photo-2"),
+        makeEntry(2, "fotos_comerciales_productor", "photo-1"),
+        makeEntry(1, "productores", "producer-1")
+      ],
+      () => null
+    );
+
+    expect(ordered.map((entry) => entry.id)).toEqual([1, 2, 3]);
+  });
 });

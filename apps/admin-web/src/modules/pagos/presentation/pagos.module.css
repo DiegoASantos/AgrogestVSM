@@ -538,3 +538,37 @@
     padding: 18px;
   }
 }
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.photoTile {
+  min-height: 90px;
+  padding: 16px;
+  border: 1px solid #d7e3dc;
+  border-radius: 10px;
+  background: #fff;
+  color: #173b2b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.photoViewer {
+  max-width: min(96vw, 1100px);
+  max-height: 95vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.photoViewer img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}

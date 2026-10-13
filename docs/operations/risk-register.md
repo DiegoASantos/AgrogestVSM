@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-12
+last_reviewed: 2026-10-13
 ---
 
 # Registro de riesgos
@@ -54,6 +54,10 @@ last_reviewed: 2026-10-12
 | R-042 | Pagos y mantenimiento web exponen documentos, importes y cuentas bancarias a ADMIN y ANALISTA | Alta | Abierto | Spec 092: guards de API para ambos roles, mutaciones de Analista explícitas, respuestas `no-store`, errores/logs sin datos sensibles, acreedores revisados antes de asignarse y validar acceso/auditoría antes de desplegar. |
 | R-043 | El bootstrap falla en migración 025 porque TypeORM ya creó el índice único `uq_subsectores_sector_nombre` que la migración intenta añadir como constraint | Crítica | Abierto | Preparar spec correctiva; el smoke del 2026-10-06 confirma que la migración 001 ya pasa y se detiene en 025; no considerar validado el bootstrap hasta que `pnpm db:smoke` complete. |
 | R-044 | Recetas historicas con frecuencia pendiente permanecen solo en SQLite hasta que cada agronomo actualice y sincronice su dispositivo | Media | Abierto | Spec 097 conserva productos, reencola por usuario y muestra `Pendiente`; desplegar API antes de mobile, verificar conteos por dispositivo y revisar los rechazos nuevos sin borrar datos. |
+| R-045 | La OTA mobile puede consultar avisos antes de que la migracion 067 y la API esten desplegadas | Media | Abierto | Desplegar primero migracion y API; despues distribuir mobile. Los avisos fallan de forma no bloqueante mientras el servidor no los soporte. |
+| R-046 | Una reasignacion historica de parcela puede atribuir avisos de visitas repetidas a otro productor | Baja | Aceptado temporalmente | La consulta usa la relacion actual parcela-productor porque la visita no conserva snapshot; reevaluar si se requiere auditoria historica exacta. |
+| R-047 | El panel nuevo puede consultar avisos antes de aplicar la migracion 068 en PostgreSQL | Media | Abierto | Aplicar y verificar 068 antes de desplegar API y panel; la falla operativa no impide mostrar clima. |
+| R-048 | Las fotos comerciales de documentos personales y bancarios y las credenciales que las protegen viajarían por HTTP público sin cifrado | Alta | Aceptado explícitamente por el usuario para la spec 102 (2026-10-13) | Documentar la exposición; limitar acceso, auditar, validar archivos y cifrar almacenamiento/backup, sin presentar estos controles como protección del tránsito. Reevaluar antes de ampliar usuarios o si se habilita HTTPS/VPN. |
 
 ## Revisión
 

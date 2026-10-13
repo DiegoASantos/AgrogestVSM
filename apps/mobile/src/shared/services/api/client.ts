@@ -149,11 +149,15 @@ async function performRequest(
     const response = await fetch(url, {
       method: options.method ?? "GET",
       headers: {
-        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(options.body !== undefined && !(options.body instanceof FormData)
+          ? { "Content-Type": "application/json" }
+          : {}),
         ...(includeAuth ? { Authorization: `Bearer ${apiToken}` } : {}),
         ...(options.headers ?? {})
       },
-      ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+      ...(options.body !== undefined
+        ? { body: options.body instanceof FormData ? options.body : JSON.stringify(options.body) }
+        : {}),
       signal: controller.signal
     });
     const rawPayload = await response.text();

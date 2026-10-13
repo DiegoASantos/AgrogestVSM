@@ -502,6 +502,50 @@
   overflow-y: auto;
   padding: 8px;
 }
+.operational-notices {
+  border-bottom: 1px solid var(--border, #dbeafe);
+  padding: 4px 4px 12px;
+}
+.operational-notices h4,
+.operational-notices__climate-heading {
+  margin: 8px 8px 10px;
+  color: #123b63;
+  font-size: 0.82rem;
+}
+.operational-notice {
+  border-left: 3px solid #0284c7;
+  border-radius: 8px;
+  background: #f0f9ff;
+  margin: 6px 0;
+  padding: 10px 12px;
+}
+.operational-notice strong {
+  color: #123b63;
+  font-size: 0.82rem;
+}
+.operational-notice p {
+  color: #334155;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+.operational-notice button,
+.operational-notices__more {
+  background: transparent;
+  border: 0;
+  color: #0369a1;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-top: 7px;
+  padding: 2px 0;
+  text-decoration: underline;
+}
+.operational-notices__error {
+  color: #b91c1c;
+  font-size: 0.78rem;
+  margin: 8px;
+}
 .notification-panel__empty {
   padding: 24px;
   text-align: center;

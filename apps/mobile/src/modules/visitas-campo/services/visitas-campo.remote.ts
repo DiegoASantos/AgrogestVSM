@@ -14,6 +14,12 @@ type AuthToken = {
 };
 
 export const visitasCampoRemote = {
+  getTodayByParcela(parcelaServerId: string) {
+    return apiRequest<{ exists: boolean }>(
+      `/visitas-campo/parcela/${parcelaServerId}/visitas-hoy`,
+      { timeoutMs: 3000 }
+    );
+  },
   create(
     draft: CreateVisitaCampoDraft,
     authToken: AuthToken,

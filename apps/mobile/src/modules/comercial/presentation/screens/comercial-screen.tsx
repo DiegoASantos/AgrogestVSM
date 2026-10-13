@@ -36,6 +36,7 @@ import {
   type CreditorPendingField
 } from "./creditor-autofill";
 import { isProducerWebUrlAllowed } from "./producer-web-url";
+import { FotosComercialesCard } from "./fotos-comerciales-card";
 
 const DOCUMENTOS: AppSelectOption[] = [
   { value: "DNI", label: "DNI" },
@@ -432,6 +433,7 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
 
         {step === "acreedores" ? (
           <>
+            <FotosComercialesCard productorId={productorId} />
             <AppCard style={styles.sectionCard}>
               <SectionHeader
                 icon="people-outline"

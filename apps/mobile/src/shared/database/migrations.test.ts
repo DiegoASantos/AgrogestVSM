@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 76;
+const LATEST_MIGRATION_VERSION = 77;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1912,7 +1912,7 @@ describe("runMigrations", () => {
   it("adds approval fields and backfills only previously synced creditors", () => {
     const db = createFakeDatabase(74);
     runMigrations(db as never);
-    expect(db.currentVersion).toBe(76);
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
     expect(db.executedStatements).toContain(
       "UPDATE acreedores_cosecha SET approval_status = 'APPROVED' WHERE sync_status = 'synced'"
     );
@@ -1923,13 +1923,23 @@ describe("runMigrations", () => {
   it("adds visit stage entries without deleting pending visits", () => {
     const db = createFakeDatabase(75);
     runMigrations(db as never);
-    expect(db.currentVersion).toBe(76);
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
     expect(db.executedStatements.some((statement) =>
       statement.includes("CREATE TABLE IF NOT EXISTS visita_etapas_fenologicas"))).toBe(true);
     expect(db.executedStatements.some((statement) =>
       statement.includes("INSERT INTO visita_etapas_fenologicas"))).toBe(true);
     expect(db.executedStatements.some((statement) =>
       /DELETE FROM visitas_campo|DROP TABLE visitas_campo/u.test(statement))).toBe(false);
+  });
+
+  it("adds private commercial photo metadata without changing prior commercial rows", () => {
+    const db = createFakeDatabase(76);
+    runMigrations(db as never);
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.executedStatements.some((statement) =>
+      statement.includes("CREATE TABLE IF NOT EXISTS fotos_comerciales_productor"))).toBe(true);
+    expect(db.executedStatements.some((statement) =>
+      /DROP TABLE (acreedores_cosecha|pagos_cosecha)/u.test(statement))).toBe(false);
   });
 
   it("reuses an active transaction while applying pending migrations", () => {

@@ -1825,6 +1825,28 @@ const MIGRATIONS: Migration[] = [
          SELECT 1 FROM visita_etapas_fenologicas x WHERE x.visita_local_id = v.local_id
        )`
     ]
+  },
+  {
+    version: 77,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS fotos_comerciales_productor (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        public_id TEXT NOT NULL UNIQUE,
+        productor_id TEXT NOT NULL,
+        owner_user_id TEXT NOT NULL,
+        file_name TEXT,
+        sha256_original TEXT NOT NULL,
+        tamano_bytes INTEGER NOT NULL CHECK(tamano_bytes > 0),
+        server_id TEXT,
+        sync_status TEXT NOT NULL DEFAULT 'pending'
+          CHECK(sync_status IN ('pending','synced','error')),
+        sync_error_message TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (productor_id) REFERENCES productores(id)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_fotos_comerciales_owner_productor ON fotos_comerciales_productor(owner_user_id, productor_id, sync_status, created_at)"
+    ]
   }
 ];
 

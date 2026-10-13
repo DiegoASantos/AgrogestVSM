@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { DataSource } from "typeorm";
 
+import {
+  PARCEL_AREA_CATEGORIES,
+  classifyParcelArea,
+  normalizePositiveArea,
+  type ParcelAreaCategoryCode
+} from "../domain/parcel-area-category";
 import { ReporteCamposEtapasQueryDto } from "../presentation/dto/reporte-campos-etapas-query.dto";
 import { ReporteEstimacionesQueryDto } from "../presentation/dto/reporte-estimaciones-query.dto";
 import { ReporteParcelasQueryDto } from "../presentation/dto/reporte-parcelas-query.dto";
@@ -71,14 +77,8 @@ type LatestParcelStageRow = {
   referencePoint: unknown | null;
 };
 
-const PARCEL_AREA_CATEGORIES = [
-  { code: "MICRO", name: "Micro" },
-  { code: "PEQUENO", name: "Pequeño" },
-  { code: "MEDIANO", name: "Mediano" },
-  { code: "GRANDE", name: "Grande" }
-] as const;
-
-export type ParcelAreaCategoryCode = (typeof PARCEL_AREA_CATEGORIES)[number]["code"];
+export { classifyParcelArea } from "../domain/parcel-area-category";
+export type { ParcelAreaCategoryCode } from "../domain/parcel-area-category";
 
 type ParcelReportRow = {
   parcelId: string;
@@ -760,20 +760,6 @@ export class ReportesService {
 
 function percentage(count: number, total: number) {
   return total === 0 ? 0 : Number(((count / total) * 100).toFixed(2));
-}
-
-export function classifyParcelArea(area: number): ParcelAreaCategoryCode | null {
-  if (!Number.isFinite(area) || area <= 0) return null;
-  if (area < 4) return "MICRO";
-  if (area < 7) return "PEQUENO";
-  if (area < 10) return "MEDIANO";
-  return "GRANDE";
-}
-
-function normalizePositiveArea(value: string | null) {
-  if (value === null) return null;
-  const area = Number(value);
-  return Number.isFinite(area) && area > 0 ? area : null;
 }
 
 function round2(value: number) {

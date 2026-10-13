@@ -11,6 +11,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { GeografiasModule } from "./modules/geografias/geografias.module";
 import { IntegracionesModule } from "./modules/integraciones/integraciones.module";
 import { NutricionModule } from "./modules/nutricion/nutricion.module";
+import { NotificacionesModule } from "./modules/notificaciones/notificaciones.module";
 import { OperacionesCampoModule } from "./modules/operaciones-campo/operaciones-campo.module";
 import { ParcelasModule } from "./modules/parcelas/parcelas.module";
 import { ProductoresModule } from "./modules/productores/productores.module";
@@ -51,6 +52,7 @@ import { ComercialModule } from "./modules/comercial/comercial.module";
     ParcelasModule,
     VisitasCampoModule,
     NutricionModule,
+    NotificacionesModule,
     OperacionesCampoModule,
     VisitaEvaluacionesModule,
     VisitaCalificacionesModule,

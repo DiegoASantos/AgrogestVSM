@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-08
+last_reviewed: 2026-10-13
 ---
 
 # Documentación de AgroGest VSM
@@ -151,6 +151,10 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 096: Cierre de visitas mobile sin recomendaciones](specs/096-cierre-visita-sin-recomendaciones.md)
 - [Spec 097: Recuperacion de visitas antiguas con receta sin frecuencia](specs/097-recuperacion-recetas-sin-frecuencia.md)
 - [Spec 098: Etapas y labores en celdas independientes del Excel de visitas](specs/098-etapas-labores-celdas-excel-visitas.md)
+- [Spec 099: Avisos de visitas repetidas y continuidad de productores](specs/099-avisos-visitas-y-continuidad-productores.md)
+- [Spec 100: Notificaciones operativas de visitas en el panel web](specs/100-notificaciones-operativas-visitas-web.md)
+- [Spec 101: Columnas de cultivo y area en el Excel de visitas](specs/101-columnas-cultivo-area-excel-visitas.md)
+- [Spec 102: Fotos comerciales independientes por productor](specs/102-fotos-comerciales-por-productor.md)
 
 ## Runbooks
 

@@ -2,7 +2,7 @@
 title: Despliegue en servidor físico Ubuntu
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-07
+last_reviewed: 2026-10-13
 ---
 
 # Despliegue en servidor físico Ubuntu
@@ -35,6 +35,23 @@ Confirmar antes de seguir:
 
 Si el release cambia datos y no se puede confirmar un backup restaurable, no
 ejecutar la migración.
+
+## Preparación de fotos comerciales (spec 102)
+
+Antes de habilitar cargas reales, asignar `COMERCIAL_PHOTOS_KEY_V1` en
+`apps/api/.env` con 32 bytes aleatorios en hexadecimal (64 caracteres) y
+conservar una copia protegida fuera del servidor. Compose monta
+`agrogest_commercial_photos` únicamente en API y fija
+`COMERCIAL_PHOTOS_DIR=/var/lib/agrogest/commercial-photos`. Comprobar permisos,
+espacio libre, migración 069 y el respaldo/restauración conjuntos descritos en
+el [runbook de backup](database-backup-restore.md). Sin la clave, los endpoints
+de fotos responden indisponibilidad y el resto de la API puede seguir activo.
+
+La app incorpora `expo-image-picker` y `expo-image-manipulator`, por lo que esta
+versión requiere un APK nuevo (versión 0.2.3, código Android 14), no solo OTA.
+Probar cámara, galería, texto pequeño, captura sin red, reintento y consulta web
+con datos sintéticos antes de distribuirlo. El tráfico público continúa por
+HTTP según la decisión registrada en R-048.
 
 ## Despliegue
 
