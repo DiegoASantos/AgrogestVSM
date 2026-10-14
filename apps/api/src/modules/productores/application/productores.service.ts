@@ -5,7 +5,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Brackets, QueryFailedError, Repository } from "typeorm";
+import { Brackets, In, QueryFailedError, Repository } from "typeorm";
 
 import {
   createPaginatedMeta,
@@ -17,6 +17,7 @@ import { SectoresService } from "../../sectores/application/sectores.service";
 import { SectorEntity } from "../../sectores/infrastructure/persistence/entities/sector.entity";
 import { SubsectorEntity } from "../../subsectores/infrastructure/persistence/entities/subsector.entity";
 import { VisitasCampoService } from "../../visitas-campo/application/visitas-campo.service";
+import { DuplicadosProductoresService } from "./duplicados-productores.service";
 import { FindHistorialVisitasProductorQueryDto } from "../../visitas-campo/presentation/dto/find-historial-visitas-productor-query.dto";
 import { CreateProductorDto } from "../presentation/dto/create-productor.dto";
 import { FindProductoresQueryDto } from "../presentation/dto/find-productores-query.dto";
@@ -38,7 +39,8 @@ export class ProductoresService {
     private readonly productoresRepository: Repository<ProductorEntity>,
     private readonly sectoresService: SectoresService,
     private readonly parcelasService: ParcelasService,
-    private readonly visitasCampoService: VisitasCampoService
+    private readonly visitasCampoService: VisitasCampoService,
+    private readonly duplicadosService: DuplicadosProductoresService
   ) {}
 
   async create(
@@ -62,7 +64,11 @@ export class ProductoresService {
           throw new NotFoundException("Productor not found.");
         }
 
-        return createSuccessResponse(this.toResponse(existing));
+        const canonical = existing.mergedIntoId
+          ? await this.productoresRepository.findOne({ where: { id: existing.mergedIntoId } })
+          : existing;
+        if (!existing.mergedIntoId) await this.duplicadosService.scanFor(existing.id);
+        return createSuccessResponse(this.toResponse(canonical ?? existing));
       }
     }
 
@@ -105,6 +111,8 @@ export class ProductoresService {
     try {
       const savedProductor = await this.productoresRepository.save(productor);
 
+      await this.duplicadosService.scanFor(savedProductor.id);
+
       return createSuccessResponse(this.toResponse(savedProductor));
     } catch (error) {
       this.handlePersistenceError(error);
@@ -114,6 +122,7 @@ export class ProductoresService {
   async findAll(query: FindProductoresQueryDto, currentUser?: CurrentUserContext) {
     const queryBuilder = this.productoresRepository
       .createQueryBuilder("productor")
+      .where("productor.fusionado_en_id IS NULL")
       .orderBy("productor.activo", "DESC")
       .addOrderBy("productor.creado_at", "DESC")
       .skip(query.skip)
@@ -156,9 +165,22 @@ export class ProductoresService {
     }
 
     const [productores, total] = await queryBuilder.getManyAndCount();
+    const aliases = productores.length
+      ? await this.productoresRepository.find({
+          where: { mergedIntoId: In(productores.map((productor) => productor.id)) }
+        })
+      : [];
+    const aliasPublicIds = new Map<string, string[]>();
+    for (const alias of aliases) {
+      if (!alias.mergedIntoId) continue;
+      const entries = aliasPublicIds.get(alias.mergedIntoId) ?? [];
+      entries.push(alias.publicId);
+      aliasPublicIds.set(alias.mergedIntoId, entries);
+    }
 
     return createSuccessResponse(
-      productores.map((productor) => this.toResponse(productor)),
+      productores.map((productor) => ({ ...this.toResponse(productor),
+        mergedAliasPublicIds: aliasPublicIds.get(productor.id) ?? [] })),
       createPaginatedMeta(total, query.page, query.limit)
     );
   }
@@ -175,11 +197,11 @@ export class ProductoresService {
       ? currentUser!.userId
       : undefined;
     const sectores = await this.sectoresService.findEntitiesByProductorId(
-      id,
+      productor.id,
       agronomoUserId
     );
     const parcelasCount = await this.parcelasService.countByProductorId(
-      id,
+      productor.id,
       currentUser
     );
 
@@ -198,11 +220,11 @@ export class ProductoresService {
       ? currentUser!.userId
       : undefined;
     const sectores = await this.sectoresService.findEntitiesByProductorId(
-      id,
+      productor.id,
       agronomoUserId
     );
     const parcelas = await this.parcelasService.findEntitiesByProductorId(
-      id,
+      productor.id,
       currentUser
     );
 
@@ -255,8 +277,8 @@ export class ProductoresService {
     query: FindHistorialVisitasProductorQueryDto,
     currentUser?: CurrentUserContext
   ) {
-    await this.findEntityById(id, currentUser);
-    return this.visitasCampoService.findHistoryByProductorId(id, query, currentUser);
+    const productor = await this.findEntityById(id, currentUser);
+    return this.visitasCampoService.findHistoryByProductorId(productor.id, query, currentUser);
   }
 
   async update(
@@ -265,6 +287,7 @@ export class ProductoresService {
     currentUser?: CurrentUserContext
   ) {
     const productor = await this.findEntityById(id, currentUser);
+    id = productor.id;
     const derivedIsActive = await this.parcelasService.hasActiveParcelByProductorId(id);
 
     if (
@@ -350,6 +373,8 @@ export class ProductoresService {
     try {
       const savedProductor = await this.productoresRepository.save(updatedProductor);
 
+      await this.duplicadosService.scanFor(savedProductor.id);
+
       return createSuccessResponse(this.toResponse(savedProductor));
     } catch (error) {
       this.handlePersistenceError(error);
@@ -358,6 +383,7 @@ export class ProductoresService {
 
   async remove(id: string, currentUser?: CurrentUserContext) {
     const productor = await this.findEntityById(id, currentUser);
+    id = productor.id;
     const hasActiveParcela = await this.parcelasService.hasActiveParcelByProductorId(id);
 
     if (hasActiveParcela) {
@@ -396,6 +422,14 @@ export class ProductoresService {
       ))
     ) {
       throw new NotFoundException("Productor not found.");
+    }
+
+    if (productor.mergedIntoId) {
+      const canonical = await this.productoresRepository.findOne({
+        where: { id: productor.mergedIntoId }
+      });
+      if (!canonical) throw new NotFoundException("Productor principal no encontrado.");
+      return canonical;
     }
 
     return productor;

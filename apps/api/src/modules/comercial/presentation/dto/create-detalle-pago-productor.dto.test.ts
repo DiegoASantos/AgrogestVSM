@@ -10,7 +10,7 @@ const detail = {
   cantidadJabas: 10,
   precioJaba: "5.00",
   precioKilo: "1.25",
-  porcentajePeso: "0.00",
+  porcentajePeso: "80.00",
   aplicaFairtrade: false,
   supervisorId: "550e8400-e29b-41d4-a716-446655440001",
   subTotal: "50.00",
@@ -24,7 +24,7 @@ const detail = {
 };
 
 describe("CreateDetallePagoProductorDto", () => {
-  it.each(["0", "0.00", "37.25", "100", "100.00"])(
+  it.each(["0.01", "0.50", "37.25", "100", "100.00"])(
     "accepts a weight percentage of %s without requiring a sum across details",
     async (porcentajePeso) => {
       const dto = plainToInstance(CreateDetallePagoProductorDto, {
@@ -35,7 +35,7 @@ describe("CreateDetallePagoProductorDto", () => {
     }
   );
 
-  it.each(["-0.01", "100.01", "101", "01.00"])(
+  it.each(["0", "0.00", "-0.01", "100.01", "101", "01.00"])(
     "rejects an invalid weight percentage of %s",
     async (porcentajePeso) => {
       const dto = plainToInstance(CreateDetallePagoProductorDto, {

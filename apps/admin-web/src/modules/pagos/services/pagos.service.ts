@@ -9,12 +9,15 @@ import type {
   AcreedorCosechaPayload,
   AcreedorPago,
   AcreedorPagoPayload,
+  BusquedaRecepcionesSystrace,
   DetallePagoProductor,
   DetallePagoProductorPayload,
   PagoCatalogs,
   PagoProductor,
   PagoProductorPayload,
-  PagoProductorStatus
+  PagoProductorStatus,
+  ProductorSystrace,
+  SaldoRecepcionPago
 } from "../types/pagos.types";
 
 type Auth = Pick<AuthSession, "accessToken" | "tokenType">;
@@ -22,8 +25,48 @@ const headers = (session: Auth) =>
   createAuthHeaders(session.accessToken, session.tokenType);
 
 export const pagosService = {
+  searchRecepcionesSystrace(
+    session: Auth,
+    fechaRecepcion: string,
+    codigoProductor = "",
+    page = 1
+  ) {
+    const query = new URLSearchParams({ fechaRecepcion, page: String(page), limit: "20" });
+    if (codigoProductor) query.set("codigoProductor", codigoProductor);
+    return apiRequest<BusquedaRecepcionesSystrace>(
+      `/pagos/recepciones-systrace?${query.toString()}`,
+      { headers: headers(session) }
+    );
+  },
+  linkProductorSystrace(
+    session: Auth,
+    payload: {
+      codigoProductor: string;
+      productorId: string;
+      confirmarCorreccion?: boolean;
+      confirmarInactivo?: boolean;
+    }
+  ) {
+    return apiRequest<ProductorSystrace>("/pagos/vinculos-systrace", {
+      method: "POST",
+      body: payload,
+      headers: headers(session)
+    });
+  },
   async catalogs(session: Auth) {
     return apiRequest<PagoCatalogs>("/pagos/catalogos", { headers: headers(session) });
+  },
+  receptionBalance(session: Auth, key: {
+    sistemaOrigen: string;
+    codigoProductorOrigen: string;
+    nroGuia: string;
+    lote: string;
+    fechaRecepcion: string;
+  }) {
+    return apiRequest<SaldoRecepcionPago>(
+      `/pagos/productores/saldo-recepcion?${new URLSearchParams(key).toString()}`,
+      { headers: headers(session) }
+    );
   },
   async list(session: Auth, page = 1, limit = 50) {
     const response = await apiRequestEnvelope<PagoProductor[]>(

@@ -89,6 +89,9 @@ export class ProductorEntity {
   })
   isActive!: boolean;
 
+  @Column({ name: "fusionado_en_id", type: "bigint", nullable: true })
+  mergedIntoId!: string | null;
+
   @Column({
     name: "ultima_confirmacion_continuidad_at",
     type: "timestamptz",

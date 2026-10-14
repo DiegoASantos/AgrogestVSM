@@ -319,7 +319,8 @@ export function PagosProductoresOverview() {
       if (editingDetailId)
         await pagosService.updateDetail(session, selected.id, editingDetailId, {
           ...payload,
-          estado: detailStatus
+          estado: detailStatus === "PAGADO" || detailStatus === "OBSERVADO"
+            ? detailStatus : "PENDIENTE"
         });
       else await pagosService.createDetail(session, selected.id, payload);
       setDetailFormOpen(false);

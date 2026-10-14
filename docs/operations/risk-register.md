@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # Registro de riesgos
@@ -58,6 +58,9 @@ last_reviewed: 2026-10-13
 | R-046 | Una reasignacion historica de parcela puede atribuir avisos de visitas repetidas a otro productor | Baja | Aceptado temporalmente | La consulta usa la relacion actual parcela-productor porque la visita no conserva snapshot; reevaluar si se requiere auditoria historica exacta. |
 | R-047 | El panel nuevo puede consultar avisos antes de aplicar la migracion 068 en PostgreSQL | Media | Abierto | Aplicar y verificar 068 antes de desplegar API y panel; la falla operativa no impide mostrar clima. |
 | R-048 | Las fotos comerciales de documentos personales y bancarios y las credenciales que las protegen viajarían por HTTP público sin cifrado | Alta | Aceptado explícitamente por el usuario para la spec 103 (2026-10-13) | Documentar la exposición; limitar acceso, auditar, validar archivos y cifrar almacenamiento/backup, sin presentar estos controles como protección del tránsito. Reevaluar antes de ampliar usuarios o si se habilita HTTPS/VPN. |
+| R-049 | Una unificación manual de productores puede atribuir parcelas, visitas o datos bancarios a la persona equivocada | Alta | Abierto | Spec 104 exige vista previa, contradicciones resueltas, mapeos explícitos, transacción serializable y auditoría; comprobar respaldo restaurable y validar cada caso antes de confirmar. La migración 070 y el flujo requieren un ensayo en PostgreSQL antes de uso real. Distribuir mobile compatible después de API: versiones anteriores podrían seguir mostrando temporalmente la ficha alias local. |
+| R-050 | La consulta Systrace de recepciones envía clave y datos personales por HTTP sin cifrado; un vínculo erróneo puede atribuir pagos al productor incorrecto | Alta | Abierto | Spec 105: restringir red y roles, mantener la clave solo en API, no registrar respuestas, confirmar y auditar vínculos, probar correcciones y migración 071. Revaluar cuando Systrace ofrezca HTTPS o cambie la red. |
+| R-051 | Pagos históricos pueden tener jabas sobreasignadas, precios incoherentes, porcentaje cero o fecha de pago ausente; la nueva regla no los corrige automáticamente | Alta | Abierto | Spec 106: auditar estos casos antes del despliegue, preservar lectura, bloquear solo nuevas asignaciones que aumenten exceso y corregir registros con revisión humana. Aplicar 072 antes de API/web y ensayar dos escrituras concurrentes en PostgreSQL. |
 
 ## Revisión
 

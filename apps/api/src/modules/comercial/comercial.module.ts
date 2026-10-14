@@ -16,6 +16,10 @@ import { RevisionAcreedorCosechaEntity } from "./infrastructure/persistence/enti
 import { PagoProductorEntity } from "./infrastructure/persistence/entities/pago-productor.entity";
 import { DetallePagoProductorEntity } from "./infrastructure/persistence/entities/detalle-pago-productor.entity";
 import { FotoComercialProductorEntity } from "./infrastructure/persistence/entities/foto-comercial-productor.entity";
+import { VinculoProductorSystraceEntity } from "./infrastructure/persistence/entities/vinculo-productor-systrace.entity";
+import { RecepcionSystraceClient } from "./infrastructure/systrace/recepcion-systrace.client";
+import { RecepcionesSystraceService } from "./application/recepciones-systrace.service";
+import { RecepcionesSystraceController } from "./presentation/recepciones-systrace.controller";
 import { FotosComercialesService } from "./application/fotos-comerciales.service";
 import { FotosComercialesController } from "./presentation/fotos-comerciales.controller";
 import { ComercialController } from "./presentation/comercial.controller";
@@ -24,11 +28,11 @@ import { ProducerCodeThrottlerGuard } from "./presentation/producer-code-throttl
 import { AdminAcreedoresCosechaController, PagosProductoresController } from "./presentation/pagos-productores.controller";
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PagoCosechaEntity, AcreedorCosechaEntity, RegistroCosechaEntity, InvitacionAcreedorProductorEntity, RevisionAcreedorCosechaEntity, PagoProductorEntity, DetallePagoProductorEntity, FotoComercialProductorEntity, ProductorEntity, UserEntity]),
+    TypeOrmModule.forFeature([PagoCosechaEntity, AcreedorCosechaEntity, RegistroCosechaEntity, InvitacionAcreedorProductorEntity, RevisionAcreedorCosechaEntity, PagoProductorEntity, DetallePagoProductorEntity, FotoComercialProductorEntity, VinculoProductorSystraceEntity, ProductorEntity, UserEntity]),
     ProductoresModule,
     AuthModule
   ],
-  controllers: [ComercialController, ProducerCreditorController, CreditorReviewController, PagosProductoresController, AdminAcreedoresCosechaController, FotosComercialesController],
-  providers: [ComercialService, PagosProductoresService, AdminAcreedoresCosechaService, ProducerCreditorAccessService, ProducerCodeThrottlerGuard, FotosComercialesService]
+  controllers: [ComercialController, ProducerCreditorController, CreditorReviewController, PagosProductoresController, AdminAcreedoresCosechaController, FotosComercialesController, RecepcionesSystraceController],
+  providers: [ComercialService, PagosProductoresService, AdminAcreedoresCosechaService, ProducerCreditorAccessService, ProducerCodeThrottlerGuard, FotosComercialesService, RecepcionesSystraceService, RecepcionSystraceClient]
 })
 export class ComercialModule {}

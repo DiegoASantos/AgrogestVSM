@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # Documentación de AgroGest VSM
@@ -156,6 +156,9 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 101: Notificaciones operativas de visitas en el panel web](specs/101-notificaciones-operativas-visitas-web.md)
 - [Spec 102: Columnas de cultivo y area en el Excel de visitas](specs/102-columnas-cultivo-area-excel-visitas.md)
 - [Spec 103: Fotos comerciales independientes por productor](specs/103-fotos-comerciales-por-productor.md)
+- [Spec 104: Revisión y unificación de personas productoras duplicadas](specs/104-revision-unificacion-productores-duplicados.md)
+- [Spec 105: Precarga individual de recepciones y vínculo de productores Systrace](specs/105-precarga-recepcion-pagos-productores.md)
+- [Spec 106: Distribución y cálculo de detalles de pagos de productores](specs/106-distribucion-y-calculo-detalles-pagos-productores.md)
 
 ## Runbooks
 

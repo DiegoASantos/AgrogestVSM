@@ -44,6 +44,17 @@ describe("validateEnvironment", () => {
     expect(result.LOGIN_RATE_LIMIT_BLOCK_MS).toBe(120_000);
   });
 
+  it("keeps Systrace credentials in server configuration", () => {
+    const result = validateEnvironment({
+      ...REQUIRED_ENV,
+      RECEPCION_API_URL: " http://systrace.test/recepcion-cth ",
+      SYSTRACE_API_KEY: " fixture-secret "
+    });
+
+    expect(result.RECEPCION_API_URL).toBe("http://systrace.test/recepcion-cth");
+    expect(result.SYSTRACE_API_KEY).toBe("fixture-secret");
+  });
+
   it("rejects invalid operational limits", () => {
     expect(() =>
       validateEnvironment({

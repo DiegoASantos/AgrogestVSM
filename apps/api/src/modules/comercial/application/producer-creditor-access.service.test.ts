@@ -73,7 +73,7 @@ function buildService() {
     findOne: vi.fn(async () => ({ id: "11", firstName: "Pedro", lastName: "Rios" }))
   };
   const users = { find: vi.fn(async () => []) };
-  const scope = { findById: vi.fn(async () => ({ data: {} })) };
+  const scope = { findById: vi.fn(async (id: string) => ({ data: { id } })) };
   const jwt = {
     signAsync: vi.fn(async () => "short-session"),
     verifyAsync: vi.fn(async () => ({

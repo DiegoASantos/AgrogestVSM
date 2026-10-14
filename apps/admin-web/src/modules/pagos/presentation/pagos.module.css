@@ -4,6 +4,44 @@
   min-width: 0;
   color: var(--text, #17211b);
 }
+.systracePicker {
+  display: grid;
+  gap: 14px;
+  padding: 17px;
+  border: 1px solid var(--border, #d8e2db);
+  border-radius: 12px;
+  background: var(--surface-strong, #f6f9f6);
+}
+.systracePicker p {
+  margin: 4px 0;
+  color: var(--text-secondary, #66736a);
+}
+.systraceControls,
+.systraceRow {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.systraceControls .field {
+  flex: 1 1 220px;
+}
+.systraceLink,
+.systraceResults {
+  display: grid;
+  gap: 10px;
+}
+.systraceRow {
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--border, #d8e2db);
+}
+.systraceRow small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-secondary, #66736a);
+}
 .header,
 .sectionHeading,
 .modalHeading,

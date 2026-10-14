@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # Modelo del dominio
@@ -33,6 +33,20 @@ En el alta mobile de una persona se solicitan ambos apellidos en un solo campo
 obligatorio, con al menos dos partes separadas por espacios. Se normaliza cada
 palabra de los nombres y apellidos con inicial mayuscula y resto minuscula.
 Esta captura no cambia el contrato ni los datos historicos de productores.
+
+Las personas productoras pueden generar candidatos de duplicidad por nombre,
+documento o contacto. El aviso se revisa únicamente en el panel ADMIN/ANALISTA;
+la app móvil no pide decisiones al agrónomo. La unificación confirmada conserva
+una ficha principal y deja la secundaria como alias inactivo. Sus parcelas,
+visitas, pagos, registros de cosecha y fotos se asocian a la principal. Una
+parcela coincidente y un acreedor exactamente repetido requieren confirmación
+explícita; sus IDs antiguos quedan como alias para los envíos móviles pendientes.
+La confirmación de continuidad más reciente entre ambas fichas permanece en
+la principal, para conservar el plazo de 45 días.
+Las invitaciones comerciales de la ficha secundaria se revocan y deben
+reemitirse desde la principal. Las fichas y parcelas alias no aparecen en los
+selectores normales. El caso y el manifiesto de IDs quedan auditados en
+`productor_duplicado_casos` y `productor_unificaciones`.
 
 El estado de un productor es derivado y global: esta activo si y solo si tiene
 al menos una parcela activa. Crear, activar, desactivar o mover una parcela
@@ -123,17 +137,44 @@ origen `ADMIN_WEB` y estado `PENDING`; cualquier edición de un perfil aprobado
 lo devuelve a pendiente sin eliminar el historial de revisiones. Solo los
 acreedores aprobados pueden asignarse a pagos nuevos.
 
-`pago_productores` representa una liquidación manual asociada a un productor,
-con guía y lote capturados como texto. Cada cabecera puede distribuirse entre
-varios acreedores aprobados del mismo productor mediante
+`pago_productores` representa una liquidación asociada a un productor,
+con guía y lote capturados como texto. La cabecera puede digitarse manualmente
+o precargarse de una recepción Systrace elegida por fecha exacta y productor;
+la selección no guarda el pago. `vinculos_productores_systrace` relaciona un
+código externo con una ficha principal de AgroGest tras confirmación de
+ADMIN/ANALISTA. Una corrección se audita en
+`vinculos_productores_systrace_cambios` y no reescribe pagos anteriores. Cada
+cabecera puede distribuirse entre varios acreedores aprobados del mismo
+productor mediante
 `detalle_pago_productores`. Cabeceras y detalles usan `BORRADOR`, `OBSERVADO`,
 `PENDIENTE`, `PAGADO` y `ANULADO`; la primera línea convierte la cabecera de
-borrador a pendiente. Los estados de detalle son independientes. Importes,
-pesos, jabas, descuentos y detracciones se guardan como fueron digitados y no
-se derivan entre sí. El porcentaje de peso de cada detalle se valida entre 0 y
-100 sin exigir que la suma sea 100. Eliminar una liquidación con detalles o
+borrador a pendiente. Los estados de detalle son independientes. Un detalle
+operativo es `PENDIENTE`, `OBSERVADO` o `PAGADO`; los pagados conservan
+`fecha_pago` por línea (los históricos pueden carecer de ella). La observación
+es obligatoria al observar y procede de tres motivos predefinidos. Eliminar una liquidación con detalles o
 eliminar una línea conserva las filas y las anula; solo se elimina físicamente
 un borrador sin detalles.
+
+Cada recepción se identifica por sistema, código de productor de origen,
+guía, lote y fecha de recepción. Las jabas asignadas en todos sus detalles no
+anulados no pueden superar las recibidas; pendientes y observadas reservan
+cupo. Un lote se completa cuando todas sus jabas figuran en detalles pagados.
+Se pueden registrar pagos parciales en distintas fechas y separar jabas
+Fairtrade en el mismo día. La API serializa las mutaciones del mismo cupo.
+Para Systrace se contrasta la primera instantánea con la recepción externa;
+las cabeceras siguientes deben mantener jabas y peso neto. La captura manual
+usa la primera cabecera activa como referencia declarada.
+
+El precio por jaba y por kilo se deriva bidireccionalmente con factor 20 según
+el último precio ingresado. El porcentaje de peso debe ser mayor que cero y
+como máximo 100. `sub_total` es el peso neto por jaba recibido, multiplicado
+por las jabas del detalle y por el porcentaje dividido entre 100. Se almacena
+en kg con seis decimales. El importe bruto es subtotal por precio por kilo;
+se restan el descuento y la detracción para obtener los dos totales en soles.
+La API calcula y redondea importes monetarios a centavos. `NO_APLICA` fuerza
+descuento cero; `CLP`, `INSUMOS` y `COMISION` requieren un monto positivo.
+Las líneas históricas no se recalculan al consultar ni al reenviarlas sin
+cambios.
 
 En la vista web de pago completo, la cabecera y las líneas se confirman juntas
 en una transacción y se exige al menos una línea activa. La creación de

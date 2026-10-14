@@ -22,6 +22,7 @@ export class AdminAcreedoresCosechaService {
       .getRepository(AcreedorCosechaEntity)
       .createQueryBuilder("creditor")
       .leftJoinAndSelect("creditor.productor", "productor")
+      .where("creditor.fusionado_en_id IS NULL")
       .orderBy("creditor.createdAt", "DESC")
       .addOrderBy("creditor.id", "DESC")
       .skip(pagination.skip)
@@ -140,14 +141,18 @@ export class AdminAcreedoresCosechaService {
       .getRepository(ProductorEntity)
       .findOne({ where: { publicId } });
     if (!producer) throw new NotFoundException("Productor no encontrado.");
-    return producer;
+    if (!producer.mergedIntoId) return producer;
+    const canonical = await this.dataSource.getRepository(ProductorEntity)
+      .findOne({ where: { id: producer.mergedIntoId } });
+    if (!canonical) throw new NotFoundException("Productor principal no encontrado.");
+    return canonical;
   }
 
   private async findEntity(publicId: string) {
     const creditor = await this.dataSource
       .getRepository(AcreedorCosechaEntity)
       .findOne({ where: { publicId }, relations: { productor: true } });
-    if (!creditor) throw new NotFoundException("Acreedor de cosecha no encontrado.");
+    if (!creditor || creditor.mergedIntoId) throw new NotFoundException("Acreedor de cosecha no encontrado.");
     return creditor;
   }
 

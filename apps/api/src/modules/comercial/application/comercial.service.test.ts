@@ -49,6 +49,7 @@ function buildCreditor(
     id: "10",
     publicId: "550e8400-e29b-41d4-a716-446655440001",
     productorId: "1",
+    mergedIntoId: null,
     creditorFirstName: dto.creditorFirstName,
     creditorLastName: dto.creditorLastName,
     creditorDocumentType: dto.creditorDocumentType,
@@ -74,7 +75,7 @@ function buildService(existing: PagoCosechaEntity | null = null) {
     save: vi.fn(async (value: PagoCosechaEntity) => value)
   };
   const acreedores = {
-    findOne: vi.fn(async (): Promise<AcreedorCosechaEntity | null> => null),
+    findOne: vi.fn<(options?: { where: Record<string, string> }) => Promise<AcreedorCosechaEntity | null>>(async () => null),
     find: vi.fn(async () => []),
     create: vi.fn((value: Record<string, unknown>) => value),
     save: vi.fn(async (value: Record<string, unknown>) => value)
@@ -84,7 +85,7 @@ function buildService(existing: PagoCosechaEntity | null = null) {
     create: vi.fn((value: Record<string, unknown>) => value),
     save: vi.fn(async (value: Record<string, unknown>) => value)
   };
-  const productores = { findById: vi.fn(async () => ({ data: {} })) };
+  const productores = { findById: vi.fn(async (id: string) => ({ data: { id } })) };
   const service = new ComercialService(
     pagos as never,
     acreedores as never,
@@ -118,6 +119,24 @@ describe("ComercialService", () => {
       expect.objectContaining({ createdByUserId: "7", productorId: "1" })
     );
     expect(result.data.id).toBe("9");
+  });
+
+  it("routes a pending mobile payment from an old producer ID to the canonical one", async () => {
+    const { pagos, productores, service } = buildService();
+    productores.findById.mockImplementation(async () => ({ data: { id: "1" } }));
+    await service.create({ ...dto, productorId: "2" }, user);
+    expect(pagos.create).toHaveBeenCalledWith(expect.objectContaining({ productorId: "1" }));
+  });
+
+  it("replays a merged creditor's public ID as the canonical creditor", async () => {
+    const { acreedores, productores, service } = buildService();
+    productores.findById.mockImplementation(async () => ({ data: { id: "1" } }));
+    acreedores.findOne.mockImplementation(async (options?: { where: Record<string, string> }) => {
+      if (options?.where.publicId) return buildCreditor({ productorId: "2", mergedIntoId: "30" });
+      return buildCreditor({ id: "30", productorId: "1" });
+    });
+    const result = await service.createCreditor({ ...dto, productorId: "2" }, user);
+    expect(result.data.id).toBe("30");
   });
 
   it("rejects a document that does not match its declared type", async () => {

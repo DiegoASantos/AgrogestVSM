@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # Especificaciones
@@ -147,4 +147,7 @@ en la raíz.
 - [Spec 101: Notificaciones operativas de visitas en el panel web](101-notificaciones-operativas-visitas-web.md)
 - [Spec 102: Columnas de cultivo y area en el Excel de visitas](102-columnas-cultivo-area-excel-visitas.md)
 - [Spec 103: Fotos comerciales independientes por productor](103-fotos-comerciales-por-productor.md)
+- [Spec 104: Revisión y unificación de personas productoras duplicadas](104-revision-unificacion-productores-duplicados.md)
+- [Spec 105: Precarga individual de recepciones y vínculo de productores Systrace](105-precarga-recepcion-pagos-productores.md)
+- [Spec 106: Distribución y cálculo de detalles de pagos de productores](106-distribucion-y-calculo-detalles-pagos-productores.md)
 - [Plantilla](TEMPLATE.md)

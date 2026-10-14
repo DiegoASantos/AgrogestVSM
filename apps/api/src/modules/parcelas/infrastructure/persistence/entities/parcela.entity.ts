@@ -53,6 +53,9 @@ export class ParcelaEntity {
   })
   productorId!: string;
 
+  @Column({ name: "fusionada_en_id", type: "bigint", nullable: true })
+  mergedIntoId!: string | null;
+
   @Column({
     name: "agronomo_usuario_id",
     type: "bigint",

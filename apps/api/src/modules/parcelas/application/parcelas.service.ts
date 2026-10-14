@@ -59,7 +59,7 @@ export class ParcelasService {
   async create(createParcelaDto: CreateParcelaDto, currentUser?: CurrentUserContext) {
     if (createParcelaDto.publicId) {
       const existing = await this.parcelasRepository.findOne({
-        where: { publicId: createParcelaDto.publicId }
+        where: { publicId: createParcelaDto.publicId }, relations: { subsector: true }
       });
 
       if (existing) {
@@ -70,16 +70,17 @@ export class ParcelasService {
           throw new NotFoundException("Parcela not found.");
         }
 
-        existing.subsector = await this.ensureSubsectorExists(
-          createParcelaDto.subsectorId
-        );
+        const canonical = existing.mergedIntoId
+          ? await this.parcelasRepository.findOne({ where: { id: existing.mergedIntoId }, relations: { subsector: true } })
+          : existing;
+        if (!canonical) throw new NotFoundException("Parcela principal no encontrada.");
 
-        return createSuccessResponse(this.toResponse(existing));
+        return createSuccessResponse(this.toResponse(canonical));
       }
     }
 
     const subsector = await this.ensureSubsectorExists(createParcelaDto.subsectorId);
-    await this.ensureProductorExists(createParcelaDto.productorId, currentUser);
+    createParcelaDto.productorId = await this.ensureProductorExists(createParcelaDto.productorId, currentUser);
     await this.ensureUniqueName(
       createParcelaDto.productorId,
       createParcelaDto.subsectorId,
@@ -185,7 +186,7 @@ export class ParcelasService {
     const parcela = await this.findEntityById(id, currentUser);
     const previousProductorId = parcela.productorId;
     const nextSubsectorId = updateParcelaDto.subsectorId ?? parcela.subsectorId;
-    const nextProductorId = updateParcelaDto.productorId ?? parcela.productorId;
+    let nextProductorId = updateParcelaDto.productorId ?? parcela.productorId;
     const nextCode = updateParcelaDto.code ?? parcela.code;
     const nextName =
       updateParcelaDto.name !== undefined ? updateParcelaDto.name : parcela.name;
@@ -201,7 +202,8 @@ export class ParcelasService {
     }
 
     if (updateParcelaDto.productorId !== undefined) {
-      await this.ensureProductorExists(updateParcelaDto.productorId, currentUser);
+      updateParcelaDto.productorId = await this.ensureProductorExists(updateParcelaDto.productorId, currentUser);
+      nextProductorId = updateParcelaDto.productorId;
     }
 
     await this.ensureUniqueCode(nextProductorId, nextSubsectorId, nextCode, parcela.id);
@@ -442,7 +444,8 @@ export class ParcelasService {
     const queryBuilder = this.parcelasRepository
       .createQueryBuilder("parcela")
       .innerJoinAndSelect("parcela.subsector", "subsector")
-      .where("parcela.productor_id = :productorId", { productorId });
+      .where("parcela.productor_id = :productorId", { productorId })
+      .andWhere("parcela.fusionada_en_id IS NULL");
 
     if (isAgronomoUser(currentUser)) {
       queryBuilder.andWhere("parcela.agronomo_usuario_id = :currentUserId", {
@@ -467,7 +470,8 @@ export class ParcelasService {
   ) {
     const queryBuilder = this.parcelasRepository
       .createQueryBuilder("parcela")
-      .innerJoinAndSelect("parcela.subsector", "subsector");
+      .innerJoinAndSelect("parcela.subsector", "subsector")
+      .where("parcela.fusionada_en_id IS NULL");
 
     if (query.productor_id !== undefined) {
       queryBuilder.andWhere("parcela.productor_id = :productorId", {
@@ -523,6 +527,13 @@ export class ParcelasService {
       throw new NotFoundException("Parcela not found.");
     }
 
+    if (parcela.mergedIntoId) {
+      const canonical = await this.parcelasRepository.findOne({
+        where: { id: parcela.mergedIntoId }, relations: { subsector: true }
+      });
+      if (!canonical) throw new NotFoundException("Parcela principal no encontrada.");
+      return canonical;
+    }
     return parcela;
   }
 
@@ -605,6 +616,7 @@ export class ParcelasService {
     ) {
       throw new NotFoundException("Productor not found.");
     }
+    return productor.mergedIntoId ?? productor.id;
   }
 
   private async ensureUniqueCode(
@@ -643,6 +655,7 @@ export class ParcelasService {
         "LOWER(regexp_replace(BTRIM(COALESCE(parcela.nombre, '')), '\\s+', ' ', 'g')) = :name",
         { name: normalizedName }
       )
+      .andWhere("parcela.fusionada_en_id IS NULL")
       .getOne();
 
     if (existingParcela && existingParcela.id !== excludedId) {

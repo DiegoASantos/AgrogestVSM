@@ -25,6 +25,7 @@ function buildService() {
   };
   const payments = { save: vi.fn(async (value: PagoProductorEntity) => value) };
   const manager = {
+    query: vi.fn(async () => []),
     getRepository: vi.fn((entity: unknown) => {
       if (entity === DetallePagoProductorEntity) return details;
       if (entity === PagoProductorEntity) return payments;
@@ -42,7 +43,7 @@ function buildService() {
       }
     })
   };
-  const service = new PagosProductoresService(dataSource as never);
+  const service = new PagosProductoresService(dataSource as never, { list: vi.fn() } as never);
   const internal = service as unknown as Record<string, unknown>;
   internal.createPaymentWithinTransaction = vi.fn(async () => ({ ...payment }));
   internal.findPayment = vi.fn(async () => ({ ...payment }));

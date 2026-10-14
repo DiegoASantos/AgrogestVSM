@@ -43,6 +43,7 @@ export const adminRoutes = {
     etapasFenologicas: "/mantenimiento/etapas-fenologicas",
     subEtapas: "/mantenimiento/sub-etapas",
     productores: "/mantenimiento/productores",
+    productoresDuplicados: "/mantenimiento/productores/duplicados",
     parcelas: "/mantenimiento/parcelas",
     nivelesIncidencia: "/mantenimiento/niveles-incidencia-severidad",
     plagasEnfermedades: "/mantenimiento/plagas-enfermedades",

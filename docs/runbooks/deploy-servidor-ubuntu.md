@@ -2,7 +2,7 @@
 title: Despliegue en servidor físico Ubuntu
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # Despliegue en servidor físico Ubuntu
@@ -54,6 +54,28 @@ con datos sintéticos antes de distribuirlo. El tráfico público continúa por
 HTTP según la decisión registrada en R-048.
 
 ## Despliegue
+
+Para habilitar la precarga de recepciones en Pagos, configurar
+`RECEPCION_API_URL` y `SYSTRACE_API_KEY` solo en el entorno privado de la API.
+No colocar la clave en el panel ni en Git. Comprobar conectividad desde el
+contenedor de API con una consulta que informe solo estado y conteo, sin
+imprimir la respuesta ni los encabezados. Aplicar la migración 071 antes de
+publicar la web; el endpoint de calibrado no se usa en esta entrega. Si
+Systrace no responde, el formulario manual continúa disponible. La conexión
+actual al proveedor usa HTTP y se registra en R-050.
+
+Para los cálculos y el control de jabas de la spec 106, aplicar la migración
+072 antes de levantar la nueva API y la web. Verificar que
+`detalle_pago_productores.fecha_pago` existe, que sus precios y `sub_total`
+aceptan seis decimales y que el índice de identidad de recepción se creó.
+Antes del corte, revisar en una copia los lotes con suma de jabas no anuladas
+superior a la recepción y los detalles históricos con porcentaje cero, precios
+incoherentes o estado `PAGADO` sin fecha. No inventar fechas ni alterar importes
+durante la migración. Después de publicar, ensayar con datos sintéticos dos
+pagos parciales de un mismo lote y comprobar que se rechaza una asignación que
+excede el saldo. Si hay que retirar la versión nueva, conservar la columna y
+la precisión ampliada; no reducir escala ni borrar pagos, según la estrategia
+de rollback de la spec 106.
 
 ```bash
 docker compose build api admin-web

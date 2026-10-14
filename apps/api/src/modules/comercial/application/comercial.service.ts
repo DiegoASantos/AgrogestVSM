@@ -51,8 +51,8 @@ export class ComercialService {
       return createSuccessResponse(existing);
     }
 
-    await this.productores.findById(dto.productorId, user);
-    const payment = this.pagos.create({ ...dto, createdByUserId: user.userId });
+    const canonical = await this.productores.findById(dto.productorId, user);
+    const payment = this.pagos.create({ ...dto, productorId: canonical.data.id, createdByUserId: user.userId });
     const saved = await this.pagos.save(payment);
     await this.ensureCreditor(saved, user.userId);
     return createSuccessResponse(saved);
@@ -65,13 +65,16 @@ export class ComercialService {
       ? await this.acreedores.findOne({ where: { publicId: dto.publicId } })
       : null;
 
+    const canonical = await this.productores.findById(dto.productorId, user);
     if (idempotent) {
-      if (idempotent.productorId !== dto.productorId) throw new ConflictException("El perfil ya existe en otro productor.");
-      await this.productores.findById(idempotent.productorId, user);
-      return createSuccessResponse(idempotent);
+      const resolved = idempotent.mergedIntoId
+        ? await this.acreedores.findOne({ where: { id: idempotent.mergedIntoId } })
+        : idempotent;
+      if (!resolved || resolved.productorId !== canonical.data.id) throw new ConflictException("El perfil ya existe en otro productor.");
+      return createSuccessResponse(resolved);
     }
 
-    await this.productores.findById(dto.productorId, user);
+    dto.productorId = canonical.data.id;
     const existing = await this.acreedores.findOne({
       where: {
         productorId: dto.productorId,
@@ -90,10 +93,10 @@ export class ComercialService {
   }
 
   async findCreditors(productorId: string, user: AccessTokenPayload) {
-    await this.productores.findById(productorId, user);
+    const canonical = await this.productores.findById(productorId, user);
     return createSuccessResponse(
       await this.acreedores.find({
-        where: { productorId },
+        where: { productorId: canonical.data.id },
         order: { createdAt: "ASC", id: "ASC" }
       })
     );
@@ -111,8 +114,12 @@ export class ComercialService {
       return createSuccessResponse(idempotent);
     }
 
-    await this.productores.findById(dto.productorId, user);
-    const creditor = await this.acreedores.findOne({ where: { id: dto.creditorId } });
+    const canonical = await this.productores.findById(dto.productorId, user);
+    dto.productorId = canonical.data.id;
+    let creditor = await this.acreedores.findOne({ where: { id: dto.creditorId } });
+    if (creditor?.mergedIntoId) {
+      creditor = await this.acreedores.findOne({ where: { id: creditor.mergedIntoId } });
+    }
 
     if (!creditor || creditor.productorId !== dto.productorId) {
       throw new NotFoundException("Acreedor no disponible para el productor seleccionado.");

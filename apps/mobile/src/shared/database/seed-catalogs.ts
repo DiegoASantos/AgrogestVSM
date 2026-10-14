@@ -552,6 +552,13 @@ async function performCatalogDownload() {
             1,
             0
           );
+          for (const aliasPublicId of productor.mergedAliasPublicIds ?? []) {
+            db.runSync(
+              `UPDATE productores SET catalog_visible = 0, is_active = 0
+               WHERE public_id = ? AND sync_status = 'synced'`,
+              aliasPublicId
+            );
+          }
         }
 
         for (const distrito of distritos) {

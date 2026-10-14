@@ -35,8 +35,8 @@ export class FotosComercialesService {
 
   async assertProducerAccess(producerId: string, user: AccessTokenPayload) {
     if (!/^[1-9]\d*$/.test(producerId)) throw new BadRequestException("Identificador de productor inválido.");
-    await this.authorizedProducers.findById(producerId, user);
-    const producer = await this.producers.findOne({ where: { id: producerId } });
+    const canonical = await this.authorizedProducers.findById(producerId, user);
+    const producer = await this.producers.findOne({ where: { id: canonical.data.id } });
     if (!producer) throw new NotFoundException("Productor no encontrado.");
     return producer;
   }

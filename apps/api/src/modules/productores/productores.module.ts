@@ -6,9 +6,11 @@ import { SectoresModule } from "../sectores/sectores.module";
 import { VisitasCampoModule } from "../visitas-campo/visitas-campo.module";
 import { ProductoresService } from "./application/productores.service";
 import { SeguimientoProductoresService } from "./application/seguimiento-productores.service";
+import { DuplicadosProductoresService } from "./application/duplicados-productores.service";
 import { ProductorEntity } from "./infrastructure/persistence/entities/productor.entity";
 import { ProductoresController } from "./presentation/productores.controller";
 import { SeguimientoProductoresController } from "./presentation/seguimiento-productores.controller";
+import { DuplicadosProductoresController } from "./presentation/duplicados-productores.controller";
 
 @Module({
   imports: [
@@ -17,8 +19,8 @@ import { SeguimientoProductoresController } from "./presentation/seguimiento-pro
     ParcelasModule,
     VisitasCampoModule
   ],
-  controllers: [ProductoresController, SeguimientoProductoresController],
-  providers: [ProductoresService, SeguimientoProductoresService],
-  exports: [TypeOrmModule, ProductoresService]
+  controllers: [ProductoresController, SeguimientoProductoresController, DuplicadosProductoresController],
+  providers: [ProductoresService, SeguimientoProductoresService, DuplicadosProductoresService],
+  exports: [TypeOrmModule, ProductoresService, DuplicadosProductoresService]
 })
 export class ProductoresModule {}

@@ -66,6 +66,10 @@ export class AppConfigService {
     return this.runtimeAppConfig.costBuildApiKey;
   }
 
+  get systrace(): AppRuntimeConfig["systrace"] {
+    return this.runtimeAppConfig.systrace;
+  }
+
   get commercialPhotos(): AppRuntimeConfig["commercialPhotos"] {
     return this.runtimeAppConfig.commercialPhotos;
   }

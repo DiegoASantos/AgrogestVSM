@@ -103,7 +103,7 @@ export function PagosProductoresListScreen() {
       <div className={styles.sectionHeading}>
         <div>
           <h2>Liquidaciones de productores</h2>
-          <p>{total} registros · Los importes se guardan como fueron ingresados.</p>
+          <p>{total} registros · Consulta los detalles para ver su estado y fecha de pago.</p>
         </div>
         <button className={styles.secondary} onClick={() => void load()} type="button">
           Actualizar

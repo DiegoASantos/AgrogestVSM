@@ -31,6 +31,18 @@ la API cuando vuelva a tener conectividad.
 6. Se sincronizan evaluaciones, sanidad, notas, riego, labores y receta.
 7. Los registros pasan a `synced`, quedan `pending` o terminan en `error`.
 
+Cuando ADMIN/ANALISTA unifica dos personas productoras, la API conserva los ID
+internos y públicos anteriores como alias. Un reintento de alta por `publicId`
+devuelve la ficha principal; las altas pendientes de parcela, visita, pago,
+acreedor y foto resuelven el ID antiguo en la API. El outbox local no se borra
+ni se marca sincronizado por la unificación: cada operación mantiene su orden,
+reintento e idempotencia habituales. Un conflicto real continúa en `error` para
+revisión; no se descarta automáticamente.
+La descarga de productores incluye `mergedAliasPublicIds` en cada ficha
+principal. Mobile oculta los alias ya sincronizados del catálogo local sin
+borrar filas ni cambiar operaciones `pending`; al volver a descargar, la ficha
+principal queda disponible para seleccionar.
+
 ### Tutoriales guiados de visita
 
 El paso 1 de una visita ofrece un tutorial visual manual y completamente local.

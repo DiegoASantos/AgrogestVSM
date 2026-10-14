@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -21,6 +22,10 @@ import {
   type OperationalNotice,
   type OperationalNoticesPage
 } from "../../modules/notificaciones/services/notificaciones.service";
+import {
+  duplicadosProductoresService,
+  type DuplicateCase
+} from "../../modules/productores/services/duplicados-productores.service";
 
 type AlertRow = {
   publicId: string;
@@ -175,6 +180,8 @@ export function NotificationBell() {
     items: [], unreadCount: 0, nextCursor: null
   });
   const [operationalOwner, setOperationalOwner] = useState<string | null>(null);
+  const [duplicateCases, setDuplicateCases] = useState<DuplicateCase[]>([]);
+  const [duplicateOwner, setDuplicateOwner] = useState<string | null>(null);
   const [operationalError, setOperationalError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -187,22 +194,30 @@ export function NotificationBell() {
   const fetchOperational = useCallback(() => {
     if (!session || !isAdminOrAnalystSession(session)) return;
     const token = session.accessToken;
-    void notificacionesService.list(session)
-      .then((page) => {
+    void Promise.allSettled([
+      notificacionesService.list(session),
+      duplicadosProductoresService.list(session)
+    ])
+      .then(([notices, duplicates]) => {
         if (sessionTokenRef.current !== token) return;
-        setOperational(page);
-        setOperationalOwner(token);
-        setOperationalError("");
-      })
-      .catch(() => {
-        if (sessionTokenRef.current === token) {
-          setOperationalError("No se pudieron actualizar los avisos de visitas.");
+        if (notices.status === "fulfilled") {
+          setOperational(notices.value);
+          setOperationalOwner(token);
+          setOperationalError("");
+        } else {
+          setOperationalError("No se pudieron actualizar las notificaciones.");
+        }
+        if (duplicates.status === "fulfilled") {
+          setDuplicateCases(duplicates.value);
+          setDuplicateOwner(token);
         }
       });
   }, [session]);
 
   useEffect(() => {
     setOperational({ items: [], unreadCount: 0, nextCursor: null });
+    setDuplicateCases([]);
+    setDuplicateOwner(null);
     setOperationalOwner(null);
     if (!session) return;
     let active = true;
@@ -241,7 +256,10 @@ export function NotificationBell() {
   const visibleOperational = operationalOwner === session?.accessToken
     ? operational
     : { items: [], unreadCount: 0, nextCursor: null };
-  const count = active.length + (isAdminOrAnalystSession(session) ? visibleOperational.unreadCount : 0);
+  const visibleDuplicates = duplicateOwner === session?.accessToken ? duplicateCases : [];
+  const count = active.length + (isAdminOrAnalystSession(session)
+    ? visibleOperational.unreadCount + visibleDuplicates.length
+    : 0);
 
   const markOperationalRead = (notice: OperationalNotice) => {
     if (!session) return;
@@ -301,6 +319,14 @@ export function NotificationBell() {
           <div className="notification-panel__body">
             {isAdminOrAnalystSession(session) && (
               <section className="operational-notices" aria-label="Avisos de visitas">
+                <h4>Productores posiblemente duplicados</h4>
+                {visibleDuplicates.length === 0 && <p>No hay casos pendientes.</p>}
+                {visibleDuplicates.slice(0, 5).map((item) => <article className="operational-notice" key={`duplicado:${item.id}`}>
+                  <strong>Revisión de identidad</strong>
+                  <p>{item.lesserName} y {item.greaterName} podrían ser la misma persona.</p>
+                  <Link href="/mantenimiento/productores/duplicados" onClick={() => setIsOpen(false)}>Revisar caso</Link>
+                </article>)}
+                {visibleDuplicates.length > 5 && <Link href="/mantenimiento/productores/duplicados">Ver los demás casos</Link>}
                 <h4>Avisos de visitas</h4>
                 {operationalError && <p className="operational-notices__error" role="status">{operationalError}</p>}
                 {visibleOperational.items.length === 0 && !operationalError && (

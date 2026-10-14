@@ -16,6 +16,10 @@ export const appConfig = registerAs("app", (): AppRuntimeConfig => {
     logLevel: environment.LOG_LEVEL,
     allowedOrigins: environment.CORS_ALLOWED_ORIGINS,
     costBuildApiKey: environment.COST_BUILD_API_KEY,
+    systrace: {
+      receptionUrl: environment.RECEPCION_API_URL,
+      apiKey: environment.SYSTRACE_API_KEY
+    },
     commercialPhotos: {
       directory: environment.COMERCIAL_PHOTOS_DIR,
       keyHex: environment.COMERCIAL_PHOTOS_KEY_V1

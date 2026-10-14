@@ -12,6 +12,7 @@ function buildParcela(overrides: Partial<ParcelaEntity> = {}): ParcelaEntity {
     publicId: "parcela-public-1",
     subsectorId: "10",
     productorId: "1",
+    mergedIntoId: null,
     agronomoUsuarioId: null,
     code: "PAR-001",
     name: "Parcela Norte",

@@ -248,6 +248,22 @@ describe("seed-catalogs convergence", () => {
     expect(productorInsert!.params[0]).toBe("existing-local-1");
   });
 
+  it("hides merged producer aliases only after their local sync completes", async () => {
+    mockGetAllProductores.mockResolvedValue([{ id: "101", publicId: "canonical-101",
+      entityType: "persona", firstName: "José", lastName: "Fernández Pérez",
+      documentTypeId: null, documentNumber: null, phone: null, email: null,
+      address: null, isActive: true, createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z", mergedAliasPublicIds: ["old-22"] }]);
+    const { downloadAllCatalogs } = await import("./seed-catalogs");
+    await downloadAllCatalogs();
+    expect(runSyncCalls).toContainEqual(expect.objectContaining({
+      sql: expect.stringContaining("UPDATE productores SET catalog_visible = 0, is_active = 0"),
+      params: ["old-22"]
+    }));
+    expect(runSyncCalls.find((call) => call.sql.includes("UPDATE productores SET catalog_visible = 0, is_active = 0"))?.sql)
+      .toContain("sync_status = 'synced'");
+  });
+
   it("does NOT delete productores without parcelas (no cleanup for productores)", async () => {
     const { downloadAllCatalogs } = await import("./seed-catalogs");
     await downloadAllCatalogs();

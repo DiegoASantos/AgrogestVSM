@@ -23,6 +23,7 @@ function buildProductor(overrides: Partial<ProductorEntity> = {}): ProductorEnti
     email: null,
     address: null,
     isActive: true,
+    mergedIntoId: null,
     lastContinuityConfirmationAt: null,
     createdByUserId: null,
     createdAt: now,
@@ -41,6 +42,7 @@ function buildService(
   } = {}
 ) {
   const queryBuilder = {
+    where: vi.fn(() => queryBuilder),
     orderBy: vi.fn(() => queryBuilder),
     addOrderBy: vi.fn(() => queryBuilder),
     skip: vi.fn(() => queryBuilder),
@@ -51,6 +53,7 @@ function buildService(
   const repository = {
     create: vi.fn((value: Partial<ProductorEntity>) => buildProductor(value)),
     save: vi.fn(async (value: ProductorEntity) => value),
+    find: vi.fn(async () => [] as ProductorEntity[]),
     findOne: vi.fn(async () => options.existingProductor ?? null),
     findAndCount: vi.fn(),
     createQueryBuilder: vi.fn(() => queryBuilder)
@@ -68,7 +71,8 @@ function buildService(
     repository as never,
     {} as never,
     parcelasService as never,
-    {} as never
+    {} as never,
+    { scanFor: vi.fn(async () => {}) } as never
   );
 
   return { parcelasService, queryBuilder, repository, service };
@@ -312,6 +316,17 @@ describe("ProductoresService", () => {
   });
 
   describe("findAll", () => {
+    it("includes merged public IDs for mobile catalog reconciliation", async () => {
+      const { repository, service } = buildService({
+        findAllResult: [[buildProductor({ id: "1" })], 1]
+      });
+      repository.find.mockResolvedValue([buildProductor({
+        id: "2", publicId: "old-public-2", mergedIntoId: "1"
+      })]);
+      const result = await service.findAll({ page: 1, limit: 20, get skip() { return 0; }, get take() { return 20; } });
+      expect(result.data[0]).toMatchObject({ mergedAliasPublicIds: ["old-public-2"] });
+    });
+
     it("applies pagination, active filter and simple search", async () => {
       const productor = buildProductor({
         firstName: "Maria",

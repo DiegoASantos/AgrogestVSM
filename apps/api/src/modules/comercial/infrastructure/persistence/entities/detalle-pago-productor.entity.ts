@@ -51,10 +51,10 @@ export class DetallePagoProductorEntity {
   @Column({ name: "cantidad_jabas", type: "integer" })
   crateQuantity!: number;
 
-  @Column({ name: "precio_jaba", type: "numeric", precision: 10, scale: 2 })
+  @Column({ name: "precio_jaba", type: "numeric", precision: 14, scale: 6 })
   cratePrice!: string;
 
-  @Column({ name: "precio_kilo", type: "numeric", precision: 10, scale: 2 })
+  @Column({ name: "precio_kilo", type: "numeric", precision: 14, scale: 6 })
   kiloPrice!: string;
 
   @Column({ name: "porcentaje_peso", type: "numeric", precision: 10, scale: 2 })
@@ -70,7 +70,7 @@ export class DetallePagoProductorEntity {
   @JoinColumn({ name: "supervisor_id" })
   supervisor!: UserEntity;
 
-  @Column({ name: "sub_total", type: "numeric", precision: 10, scale: 2 })
+  @Column({ name: "sub_total", type: "numeric", precision: 14, scale: 6 })
   subtotal!: string;
 
   @Column({ name: "tipo_descuento", type: "varchar", length: 200, default: "NO_APLICA" })
@@ -102,6 +102,9 @@ export class DetallePagoProductorEntity {
 
   @Column({ name: "estado", type: "varchar", length: 10, default: "PENDIENTE" })
   status!: PagoProductorStatus;
+
+  @Column({ name: "fecha_pago", type: "date", nullable: true })
+  paymentDate!: string | null;
 
   @Column({ name: "creado_at", type: "timestamptz", default: () => "now()" })
   createdAt!: Date;

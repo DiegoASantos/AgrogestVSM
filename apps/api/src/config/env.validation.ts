@@ -57,6 +57,8 @@ function buildEnvironmentVariables(
     LOG_LEVEL: parseLogLevel(source.LOG_LEVEL),
     CORS_ALLOWED_ORIGINS: parseAllowedOrigins(source.CORS_ALLOWED_ORIGINS),
     COST_BUILD_API_KEY: getOptionalString(source.COST_BUILD_API_KEY),
+    RECEPCION_API_URL: getOptionalString(source.RECEPCION_API_URL),
+    SYSTRACE_API_KEY: getOptionalString(source.SYSTRACE_API_KEY),
     COMERCIAL_PHOTOS_DIR: getOptionalString(source.COMERCIAL_PHOTOS_DIR),
     COMERCIAL_PHOTOS_KEY_V1: parseCommercialPhotoKey(source.COMERCIAL_PHOTOS_KEY_V1),
     DB_HOST: getString(source.DB_HOST, DEFAULT_DB_HOST),

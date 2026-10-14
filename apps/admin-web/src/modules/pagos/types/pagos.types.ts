@@ -70,6 +70,7 @@ export type DetallePagoProductor = {
   nroLiquidacion: string | null;
   observacion: string;
   estado: PagoProductorStatus;
+  fechaPago: string | null;
   creadoAt: string;
   actualizadoAt: string;
 };
@@ -81,14 +82,52 @@ export type DetallePagoProductorPayload = Omit<
   | "acreedorNombre"
   | "supervisorNombre"
   | "estado"
+  | "fechaPago"
   | "creadoAt"
   | "actualizadoAt"
->;
+> & {
+  estado?: "PENDIENTE" | "OBSERVADO" | "PAGADO";
+  precioBase?: "JABA" | "KILO";
+  fechaPago?: string | null;
+};
+
+export type SaldoRecepcionPago = {
+  jabasRecepcion: number | null;
+  asignadas: number;
+  pagadas: number;
+  disponibles: number | null;
+  pendientesPago: number | null;
+  completo: boolean;
+};
 
 export type PagoCatalogs = {
   productores: Array<{ id: string; nombre: string; activo: boolean }>;
   supervisores: Array<{ id: string; nombre: string }>;
   tiposDocumento: Array<{ codigo: string; nombre: string }>;
+};
+
+export type ProductorSystrace = {
+  codigo: string;
+  nombre: string;
+  productorId: string | null;
+  productorNombre: string | null;
+  productorActivo: boolean | null;
+};
+
+export type RecepcionSystrace = {
+  nroGuia: string;
+  lote: string;
+  cabecera: Omit<PagoProductorPayload, "productorId"> | null;
+  invalida: boolean;
+  pagoExistenteId: string | null;
+};
+
+export type BusquedaRecepcionesSystrace = {
+  productores: ProductorSystrace[];
+  recepciones: RecepcionSystrace[];
+  total: number;
+  page: number;
+  limit: number;
 };
 
 export type AcreedorPago = {

@@ -4,21 +4,21 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  Min,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
   MaxLength
 } from "class-validator";
-import {
-  PAGO_PRODUCTOR_STATUSES,
-  type PagoProductorStatus
-} from "../../infrastructure/persistence/entities/pago-productor.entity";
 
 const clean = ({ value }: { value: unknown }) =>
   value == null ? value : String(value).trim();
 const decimal = /^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/;
-const weightPercentage = /^(?:(?:0|[1-9]\d?)(?:\.\d{1,2})?|100(?:\.0{1,2})?)$/;
+const price = /^(?:0|[1-9]\d{0,7})(?:\.\d{1,6})?$/;
+const weightPercentage = /^(?:(?:[1-9]\d?)(?:\.\d{1,2})?|100(?:\.0{1,2})?|0\.(?:0[1-9]|[1-9]\d?))$/;
+const discountTypes = ["NO_APLICA", "CLP", "INSUMOS", "COMISION"] as const;
+const detailStatuses = ["PENDIENTE", "OBSERVADO", "PAGADO"] as const;
 
 export class CreateDetallePagoProductorDto {
   @ApiProperty({ description: "UUID público de un acreedor aprobado del productor." })
@@ -57,15 +57,20 @@ export class CreateDetallePagoProductorDto {
   @ApiProperty()
   @Type(() => Number)
   @IsInt()
+  @Min(1)
   cantidadJabas!: number;
   @ApiProperty()
   @Transform(clean)
-  @Matches(decimal)
+  @Matches(price)
   precioJaba!: string;
   @ApiProperty()
   @Transform(clean)
-  @Matches(decimal)
+  @Matches(price)
   precioKilo!: string;
+  @ApiPropertyOptional({ enum: ["JABA", "KILO"] })
+  @IsOptional()
+  @IsIn(["JABA", "KILO"])
+  precioBase?: "JABA" | "KILO";
   @ApiProperty({ example: "100.00" })
   @Transform(clean)
   @Matches(weightPercentage)
@@ -77,11 +82,12 @@ export class CreateDetallePagoProductorDto {
   @Transform(clean)
   @IsUUID("4")
   supervisorId!: string;
-  @ApiProperty()
+  @ApiPropertyOptional({ description: "Calculado por el servidor; aceptado por compatibilidad." })
+  @IsOptional()
   @Transform(clean)
-  @Matches(decimal)
-  subTotal!: string;
-  @ApiPropertyOptional()
+  @Matches(price)
+  subTotal?: string;
+  @ApiPropertyOptional({ enum: discountTypes })
   @IsOptional()
   @Transform(clean)
   @IsString()
@@ -92,35 +98,40 @@ export class CreateDetallePagoProductorDto {
   @Transform(clean)
   @Matches(decimal)
   montoDescuento?: string;
-  @ApiProperty()
+  @ApiPropertyOptional({ description: "Calculado por el servidor; aceptado por compatibilidad." })
+  @IsOptional()
   @Transform(clean)
   @Matches(decimal)
-  totalPostDescuento!: string;
+  totalPostDescuento?: string;
   @ApiProperty()
   @Transform(clean)
   @Matches(decimal)
   detraccion!: string;
-  @ApiProperty()
+  @ApiPropertyOptional({ description: "Calculado por el servidor; aceptado por compatibilidad." })
+  @IsOptional()
   @Transform(clean)
   @Matches(decimal)
-  totalPostDetraccion!: string;
+  totalPostDetraccion?: string;
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @Transform(clean)
   @IsString()
   @MaxLength(50)
   nroLiquidacion?: string | null;
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @Transform(clean)
   @IsString()
-  @Matches(/\S/)
   @MaxLength(300)
-  observacion!: string;
+  observacion?: string;
+  @ApiPropertyOptional({ enum: detailStatuses })
+  @IsOptional()
+  @IsIn(detailStatuses)
+  estado?: (typeof detailStatuses)[number];
+  @ApiPropertyOptional({ example: "2026-10-14" })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  fechaPago?: string | null;
 }
 
-export class UpdateDetallePagoProductorDto extends CreateDetallePagoProductorDto {
-  @ApiPropertyOptional({ enum: PAGO_PRODUCTOR_STATUSES })
-  @IsOptional()
-  @IsIn(PAGO_PRODUCTOR_STATUSES)
-  estado?: PagoProductorStatus;
-}
+export class UpdateDetallePagoProductorDto extends CreateDetallePagoProductorDto {}

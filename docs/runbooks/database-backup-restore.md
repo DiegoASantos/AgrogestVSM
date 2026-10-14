@@ -111,6 +111,19 @@ los `.tmp` antiguos y retirarlos solo después de confirmar que no hay cargas
 activas y de conservar el manifiesto. Probar este conjunto antes de
 aceptar fotos reales y repetir la restauración de forma periódica.
 
+## Antes de unificar productores
+
+Verificar un respaldo PostgreSQL restaurable y, si hay fotos comerciales, el
+respaldo correspondiente del volumen cifrado y la clave custodiada por separado.
+La vista previa de Mantenimiento > Productores duplicados debe mostrar las dos
+fichas y sus relaciones. Resolver documentos, acreedores y asignaciones de
+parcelas contradictorios; confirmar el mapeo de cada parcela y acreedor
+repetido. Tras la operación, comprobar en la ficha principal las parcelas,
+visitas, pagos, registros, acreedores y fotos. Conservar el registro de
+`productor_unificaciones` y su `manifiesto`; no borrar alias. Si se requiere
+revertir, restaurar en un entorno aislado y comparar cambios posteriores antes
+de una corrección supervisada. No ejecutar un rollback SQL ciego.
+
 ## Frecuencia recomendada
 
 - backup diario de producción con copia fuera del servidor;

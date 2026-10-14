@@ -12,6 +12,7 @@ export type Productor = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  mergedAliasPublicIds?: string[];
   serverId: string | null;
   syncStatus: "pending" | "synced" | "error";
   syncErrorMessage: string | null;

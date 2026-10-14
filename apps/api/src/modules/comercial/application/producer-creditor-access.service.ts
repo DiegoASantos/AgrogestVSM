@@ -49,7 +49,8 @@ export class ProducerCreditorAccessService {
   ) {}
 
   async issue(productorId: string, user: AccessTokenPayload) {
-    await this.productores.findById(productorId, user);
+    const canonical = await this.productores.findById(productorId, user);
+    productorId = canonical.data.id;
     const code = randomInt(0, 100_000_000).toString().padStart(8, "0");
     const formattedCode = `${code.slice(0, 4)}-${code.slice(4)}`;
     const expiresAt = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);

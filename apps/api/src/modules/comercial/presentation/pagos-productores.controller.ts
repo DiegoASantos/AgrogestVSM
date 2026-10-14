@@ -31,6 +31,7 @@ import {
 } from "./dto/pago-productor-completo.dto";
 import { CrearAcreedorAprobadoPagoDto } from "./dto/crear-acreedor-aprobado-pago.dto";
 import { FindAdminAcreedoresCosechaQueryDto } from "./dto/find-admin-acreedores-cosecha-query.dto";
+import { SaldoRecepcionPagoQueryDto } from "./dto/saldo-recepcion-pago-query.dto";
 import {
   CreateAdminAcreedorCosechaDto,
   UpdateAdminAcreedorCosechaDto
@@ -57,6 +58,12 @@ export class PagosProductoresController {
     @Query("estado") estado?: string
   ) {
     return this.pagos.list(pagination, productorId, estado);
+  }
+
+  @Get("productores/saldo-recepcion")
+  @Header("Cache-Control", "no-store")
+  receptionBalance(@Query() query: SaldoRecepcionPagoQueryDto) {
+    return this.pagos.receptionBalance(query);
   }
 
   @Post("productores")

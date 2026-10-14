@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-09
+last_reviewed: 2026-10-14
 related_code:
   - apps/api
   - apps/mobile
@@ -85,7 +85,9 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 - formulario de pagos de productores con una sola operación transaccional para
   cabecera y detalles. La API ofrece rutas completas de alta y edición, y una
   consulta de acreedores aprobados por productor previa a crear el pago. Las
-  rutas anteriores siguen disponibles para otros clientes.
+  rutas anteriores siguen disponibles para otros clientes. La API calcula
+  pesos e importes de los detalles, conserva fecha de pago por línea y controla
+  atómicamente el saldo de jabas de cada recepción entre distintos pagos.
 
 El agrónomo comparte desde mobile un enlace general y un código temporal.
 La web pública canjea el código por una sesión corta limitada al productor;
@@ -110,6 +112,15 @@ servicios ni credenciales de Google.
 
 El panel controla visibilidad por rol, pero la API conserva la autorización
 definitiva.
+
+En Pagos de Productores, la web consulta la API de AgroGest para buscar
+recepciones Systrace por fecha exacta y productor. Solo la API conoce la clave
+externa y consulta `recepcion-cth`; como el proveedor no aplicó los filtros
+probados, AgroGest filtra y pagina antes de responder a la web. El usuario
+elige una recepción para precargar una cabecera individual, vincula el código
+externo con el productor interno cuando falta la relación y guarda el pago
+con el flujo transaccional existente. Calibrado y los detalles del pago no
+participan de esta precarga.
 
 El reporte de visitas consulta agregados diarios desde la API: cantidad de
 visitas, días distintos de trabajo y promedio por ingeniero, junto con

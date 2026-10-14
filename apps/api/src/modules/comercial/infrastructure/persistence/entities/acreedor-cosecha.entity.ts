@@ -41,6 +41,9 @@ export class AcreedorCosechaEntity {
   @Column({ name: "productor_id", type: "bigint" })
   productorId!: string;
 
+  @Column({ name: "fusionado_en_id", type: "bigint", nullable: true })
+  mergedIntoId!: string | null;
+
   @ManyToOne(() => ProductorEntity, { onDelete: "RESTRICT" })
   @JoinColumn({ name: "productor_id" })
   productor?: ProductorEntity;

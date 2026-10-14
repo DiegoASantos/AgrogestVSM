@@ -21,6 +21,7 @@ describe("FotosComercialesService", () => {
   let input: Buffer;
   let query: ReturnType<typeof vi.fn>;
   let authorize: ReturnType<typeof vi.fn>;
+  let findProducer: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), "agrogest-photo-test-"));
@@ -36,10 +37,11 @@ describe("FotosComercialesService", () => {
       })
     } as unknown as Repository<FotoComercialProductorEntity>;
     query = vi.fn().mockResolvedValue([]);
-    authorize = vi.fn().mockResolvedValue({});
+    authorize = vi.fn().mockResolvedValue({ data: { id: "42" } });
+    findProducer = vi.fn(async () => producer);
     service = new FotosComercialesService(
       photos,
-      { findOne: vi.fn(async () => producer) } as unknown as Repository<ProductorEntity>,
+      { findOne: findProducer } as unknown as Repository<ProductorEntity>,
       { query } as unknown as DataSource,
       { findById: authorize } as unknown as ProductoresService,
       { commercialPhotos: { directory, keyHex: "a".repeat(64) } } as AppConfigService
@@ -88,6 +90,13 @@ describe("FotosComercialesService", () => {
     await expect(service.assertProducerAccess("42", user))
       .rejects.toBeInstanceOf(NotFoundException);
     expect(authorize).toHaveBeenCalledWith("42", user);
+  });
+
+  it("resolves a pending photo upload through an old producer ID", async () => {
+    const user = { sub: "8", userId: "8", email: "test@example.invalid", roles: ["AGRONOMO"] };
+    const resolved = await service.assertProducerAccess("22", user);
+    expect(resolved.id).toBe("42");
+    expect(findProducer).toHaveBeenCalledWith({ where: { id: "42" } });
   });
 
   it("lists producers with photos even when they have no creditor", async () => {

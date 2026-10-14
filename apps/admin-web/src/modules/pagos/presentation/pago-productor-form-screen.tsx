@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { SearchableSelect } from "../../../shared/components/searchable-select";
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { pagosService } from "../services/pagos.service";
+import { calculatedAmounts, derivedPrice } from "../domain/calculo-detalle-pago";
+import { RecepcionSystracePicker } from "./recepcion-systrace-picker";
 import type {
   AcreedorPago,
   DetallePagoProductor,
@@ -12,7 +14,9 @@ import type {
   PagoCatalogs,
   PagoProductor,
   PagoProductorPayload,
-  PagoProductorStatus
+  PagoProductorStatus,
+  RecepcionSystrace,
+  SaldoRecepcionPago
 } from "../types/pagos.types";
 import styles from "./pagos.module.css";
 
@@ -52,10 +56,11 @@ const blankDetail: DetailDraft = {
   acreedorId: "",
   tipoDocumentoProductor: "DNI",
   nroDocumentoProductor: "",
-  cantidadJabas: "0",
+  cantidadJabas: "1",
   precioJaba: "0.00",
   precioKilo: "0.00",
-  porcentajePeso: "0.00",
+  precioBase: "JABA",
+  porcentajePeso: "100.00",
   aplicaFairtrade: false,
   supervisorId: "",
   subTotal: "0.00",
@@ -65,7 +70,8 @@ const blankDetail: DetailDraft = {
   detraccion: "0.00",
   totalPostDetraccion: "0.00",
   nroLiquidacion: null,
-  observacion: ""
+  observacion: "",
+  fechaPago: null
 };
 const headerFields: Array<{ key: keyof HeaderDraft; label: string; type?: string }> = [
   { key: "sistemaOrigen", label: "Sistema de origen" },
@@ -119,6 +125,19 @@ const statusLabels: Record<PagoProductorStatus, string> = {
   PAGADO: "Pagado",
   ANULADO: "Anulado"
 };
+const discountOptions = ["NO_APLICA", "CLP", "INSUMOS", "COMISION"] as const;
+const observationOptions = [
+  "Cuenta bancaria inexistente o equivocada",
+  "Datos personales inconsistentes",
+  "Transaccion en proceso por CCI"
+] as const;
+const todayInLima = () => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Lima", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date());
+  const value = (type: string) => parts.find((part) => part.type === type)?.value;
+  return `${value("year")}-${value("month")}-${value("day")}`;
+};
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -136,13 +155,15 @@ export function PagoProductorFormScreen() {
   const [status, setStatus] = useState<PagoProductorStatus>("BORRADOR");
   const [creditors, setCreditors] = useState<AcreedorPago[]>([]);
   const [rows, setRows] = useState<DetailRow[]>([
-    { localId: newId(), form: { ...blankDetail } }
+    { localId: newId(), estado: "PENDIENTE", form: { ...blankDetail } }
   ]);
   const [removedIds, setRemovedIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [creditorRevision, setCreditorRevision] = useState(0);
+  const [balance, setBalance] = useState<SaldoRecepcionPago | null>(null);
+  const [balanceRevision, setBalanceRevision] = useState(0);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -151,10 +172,6 @@ export function PagoProductorFormScreen() {
       const lookups = await pagosService.catalogs(session);
       setCatalogs(lookups);
       if (!paymentId) {
-        setHeader((current) => ({
-          ...current,
-          productorId: current.productorId || lookups.productores[0]?.id || ""
-        }));
         return;
       }
       const full = await pagosService.get(session, paymentId);
@@ -212,6 +229,29 @@ export function PagoProductorFormScreen() {
     };
   }, [session, header.productorId, creditorRevision]);
 
+  useEffect(() => {
+    if (!session || !header.sistemaOrigen || !header.codigoProductorOrigen ||
+      !header.nroGuia || !header.lote || !header.fechaRecepcion) {
+      setBalance(null);
+      return;
+    }
+    let active = true;
+    setBalance(null);
+    void pagosService.receptionBalance(session, {
+      sistemaOrigen: header.sistemaOrigen,
+      codigoProductorOrigen: header.codigoProductorOrigen,
+      nroGuia: header.nroGuia,
+      lote: header.lote,
+      fechaRecepcion: header.fechaRecepcion
+    }).then((value) => {
+      if (active) setBalance(value);
+    }).catch(() => {
+      if (active) setBalance(null);
+    });
+    return () => { active = false; };
+  }, [session, header.sistemaOrigen, header.codigoProductorOrigen,
+    header.nroGuia, header.lote, header.fechaRecepcion, balanceRevision]);
+
   const producer = useMemo(
     () =>
       catalogs?.productores.find((item) => item.id === header.productorId)?.nombre ??
@@ -221,18 +261,70 @@ export function PagoProductorFormScreen() {
   );
   const chosenCreditor = (creditorId: string) =>
     creditors.find((item) => item.id === creditorId);
+  const unchangedRow = (row: DetailRow) => {
+    const original = payment?.detalles?.find((item) => item.id === row.id);
+    if (!original) return false;
+    return original.acreedorId === row.form.acreedorId &&
+      original.supervisorId === row.form.supervisorId &&
+      original.cantidadJabas === Number(row.form.cantidadJabas) &&
+      Number(original.precioJaba) === Number(row.form.precioJaba) &&
+      Number(original.precioKilo) === Number(row.form.precioKilo) &&
+      Number(original.porcentajePeso) === Number(row.form.porcentajePeso) &&
+      original.aplicaFairtrade === row.form.aplicaFairtrade &&
+      original.tipoDescuento === row.form.tipoDescuento &&
+      Number(original.montoDescuento) === Number(row.form.montoDescuento) &&
+      Number(original.detraccion) === Number(row.form.detraccion) &&
+      (original.nroLiquidacion ?? "") === (row.form.nroLiquidacion ?? "") &&
+      original.observacion === row.form.observacion &&
+      original.estado === row.estado &&
+      original.fechaPago === (row.form.fechaPago ?? null);
+  };
+  const receivedCrates = balance?.jabasRecepcion ?? Number(header.jabas);
+  const ownSavedCrates = (payment?.detalles ?? [])
+    .filter((detail) => detail.estado !== "ANULADO")
+    .reduce((sum, detail) => sum + detail.cantidadJabas, 0);
+  const outsideCrates = Math.max(0, (balance?.asignadas ?? 0) - ownSavedCrates);
+  const draftCrates = rows.reduce((sum, row) => sum + Number(row.form.cantidadJabas || 0), 0);
+  const draftAvailable = receivedCrates - outsideCrates - draftCrates;
   function updateRow(localId: string, update: Partial<DetailDraft>) {
     setRows((current) =>
-      current.map((row) =>
-        row.localId === localId ? { ...row, form: { ...row.form, ...update } } : row
-      )
+      current.map((row) => {
+        if (row.localId !== localId) return row;
+        const next = { ...row.form, ...update };
+        if (update.precioJaba !== undefined) {
+          next.precioBase = "JABA";
+          next.precioKilo = derivedPrice(update.precioJaba, "JABA");
+        }
+        if (update.precioKilo !== undefined) {
+          next.precioBase = "KILO";
+          next.precioJaba = derivedPrice(update.precioKilo, "KILO");
+        }
+        if (update.tipoDescuento === "NO_APLICA") next.montoDescuento = "0.00";
+        if (update.tipoDescuento && update.tipoDescuento !== "NO_APLICA" &&
+          row.form.tipoDescuento === "NO_APLICA") next.montoDescuento = "";
+        return { ...row, form: next };
+      })
     );
+  }
+  function updateRowStatus(localId: string, estado: PagoProductorStatus) {
+    setRows((current) => current.map((row) => row.localId === localId ? {
+      ...row,
+      estado,
+      form: {
+        ...row.form,
+        observacion: estado === "OBSERVADO" ? row.form.observacion : "",
+        fechaPago: estado === "PAGADO"
+          ? row.form.fechaPago || todayInLima()
+          : null
+      }
+    } : row));
   }
   function addRow() {
     setRows((current) => [
       ...current,
       {
         localId: newId(),
+        estado: "PENDIENTE",
         form: {
           ...blankDetail,
           supervisorId: catalogs?.supervisores[0]?.id ?? ""
@@ -243,6 +335,28 @@ export function PagoProductorFormScreen() {
   function removeRow(row: DetailRow) {
     setRows((current) => current.filter((item) => item.localId !== row.localId));
     if (row.id) setRemovedIds((current) => [...current, row.id!]);
+  }
+
+  function applyReception(reception: RecepcionSystrace, producerId: string) {
+    if (!reception.cabecera) return;
+    const producerChanged = header.productorId !== producerId;
+    setHeader({
+      ...reception.cabecera,
+      productorId: producerId,
+      jabas: String(reception.cabecera.jabas)
+    });
+    if (producerChanged) {
+      setRows((current) => current.map((row) => ({
+        ...row,
+        form: {
+          ...row.form,
+          acreedorId: "",
+          tipoDocumentoProductor: "DNI",
+          nroDocumentoProductor: ""
+        }
+      })));
+    }
+    setError("");
   }
 
   async function savePayment(event: FormEvent<HTMLFormElement>) {
@@ -263,15 +377,39 @@ export function PagoProductorFormScreen() {
       return;
     }
     const invalidRow = rows.findIndex(
-      (row) => !row.form.acreedorId || !row.form.supervisorId
+      (row) => !unchangedRow(row) && (!row.form.acreedorId || !row.form.supervisorId ||
+        (row.estado === "OBSERVADO" && !observationOptions.includes(row.form.observacion as typeof observationOptions[number])) ||
+        (row.form.tipoDescuento !== "NO_APLICA" && Number(row.form.montoDescuento) <= 0))
     );
     if (invalidRow >= 0) {
       setError(
-        `Detalle ${invalidRow + 1}: selecciona un acreedor aprobado y un supervisor agrónomo.`
+        `Detalle ${invalidRow + 1}: revisa acreedor, supervisor, descuento y observación.`
       );
       form.querySelector(`.${styles.detailsSection}`)?.setAttribute("open", "");
       const cards = form.querySelectorAll<HTMLDetailsElement>(`.${styles.detailCard}`);
       cards[invalidRow]?.setAttribute("open", "");
+      return;
+    }
+    if (!Number.isFinite(draftAvailable) || (draftAvailable < 0 && draftCrates > ownSavedCrates)) {
+      setError(`Las jabas superan las recibidas para este lote. Disponibles tras este formulario: ${Math.max(0, draftAvailable)}.`);
+      return;
+    }
+    const invalidPrice = rows.findIndex((row) => {
+      if (unchangedRow(row)) return false;
+      const price = row.form.precioBase === "KILO" ? row.form.precioKilo : row.form.precioJaba;
+      return (price.split(".")[1]?.length ?? 0) > 4;
+    });
+    if (invalidPrice >= 0) {
+      setError(`Detalle ${invalidPrice + 1}: el precio ingresado permite hasta cuatro decimales.`);
+      return;
+    }
+    const invalidTotal = rows.findIndex((row) => {
+      if (unchangedRow(row)) return false;
+      const amounts = calculatedAmounts(row.form, header);
+      return Number(amounts.totalPostDescuento) < 0 || Number(amounts.totalPostDetraccion) < 0;
+    });
+    if (invalidTotal >= 0) {
+      setError(`Detalle ${invalidTotal + 1}: el descuento o la detracción supera el importe disponible.`);
       return;
     }
     const invalid = form.querySelector<HTMLInputElement | HTMLSelectElement>(":invalid");
@@ -287,26 +425,31 @@ export function PagoProductorFormScreen() {
     setNotice("");
     try {
       const cabecera = { ...header, jabas: Number(header.jabas) } as PagoProductorPayload;
-      const mapPayload = (form: DetailDraft): DetallePagoProductorPayload => ({
-        ...form,
-        cantidadJabas: Number(form.cantidadJabas),
-        nroLiquidacion: form.nroLiquidacion || null
+      const mapPayload = (row: DetailRow): DetallePagoProductorPayload => ({
+        ...row.form,
+        ...calculatedAmounts(row.form, header),
+        cantidadJabas: Number(row.form.cantidadJabas),
+        nroLiquidacion: row.form.nroLiquidacion || null,
+        estado: row.estado === "PAGADO" || row.estado === "OBSERVADO" || row.estado === "PENDIENTE"
+          ? row.estado : row.estado === "BORRADOR" ? undefined : "PENDIENTE",
+        fechaPago: row.estado === "PAGADO" ? row.form.fechaPago : null
       });
       const saved = paymentId
         ? await pagosService.updateComplete(session, paymentId, {
             cabecera: { ...cabecera, estado: status },
             detalles: rows.map((row) => ({
-              ...mapPayload(row.form),
-              ...(row.id ? { id: row.id, estado: row.estado } : {})
+              ...mapPayload(row),
+              ...(row.id ? { id: row.id } : {})
             })),
             anularIds: removedIds
           })
         : await pagosService.createComplete(session, {
             cabecera,
-            detalles: rows.map((row) => mapPayload(row.form))
+            detalles: rows.map(mapPayload)
           });
       setPayment(saved);
       setRemovedIds([]);
+      setBalanceRevision((value) => value + 1);
       setNotice("Pago guardado con todos sus detalles.");
       if (!paymentId) router.replace(`/pagos/productores/${saved.id}/editar`);
       else await load();
@@ -326,8 +469,15 @@ export function PagoProductorFormScreen() {
       <input
         required
         type={type}
+        min={key === "jabas" ? 1 : undefined}
         step={type === "number" && key !== "jabas" ? "0.01" : undefined}
         value={header[key]}
+        readOnly={(
+          header.sistemaOrigen === "SYSTRACE" && (key === "jabas" || key === "pesoNeto")
+        ) || Boolean(payment?.detalles?.length && [
+          "sistemaOrigen", "codigoProductorOrigen", "nroGuia", "lote",
+          "fechaRecepcion", "jabas", "pesoNeto"
+        ].includes(key))}
         onChange={(event) =>
           setHeader((current) => ({ ...current, [key]: event.target.value }))
         }
@@ -378,6 +528,13 @@ export function PagoProductorFormScreen() {
             <span>{payment ? "En edición" : "Nuevo"}</span>
           </summary>
           <div className={styles.sectionBody}>
+            {!isEditing && session && catalogs && (
+              <RecepcionSystracePicker
+                session={session}
+                catalogs={catalogs}
+                onApply={applyReception}
+              />
+            )}
             <label className={styles.field}>
               <span>Productor</span>
               <select
@@ -414,6 +571,14 @@ export function PagoProductorFormScreen() {
             <div className={styles.formGrid}>
               {headerFields.map((item) => field(item.key, item.label, item.type))}
             </div>
+            {header.nroGuia && header.lote && (
+              <div className={styles.helper} role="status">
+                Jabas de recepción: {receivedCrates || 0} · Asignadas guardadas: {balance?.asignadas ?? 0}
+                {" · "}Pagadas: {balance?.pagadas ?? 0} · Disponibles después de este formulario: {Math.max(0, draftAvailable)}
+                {" · "}Pendientes de pago: {balance?.pendientesPago ?? receivedCrates}
+                {balance?.completo ? " · Lote pagado completamente" : ""}
+              </div>
+            )}
             {paymentId && (
               <label className={styles.field}>
                 <span>Estado del pago</span>
@@ -455,8 +620,28 @@ export function PagoProductorFormScreen() {
                     : "Selecciona un productor para consultar sus acreedores aprobados."}
                 </div>
               )}
+              {rows.length > 0 && (
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead><tr>
+                      <th>Detalle</th><th>Jabas</th><th>Fairtrade</th><th>Estado</th><th>Fecha de pago</th>
+                    </tr></thead>
+                    <tbody>{rows.map((row, index) => (
+                      <tr key={row.localId}>
+                        <td>{index + 1} · {chosenCreditor(row.form.acreedorId)?.nombre ?? "Sin acreedor"}</td>
+                        <td>{row.form.cantidadJabas}</td>
+                        <td>{row.form.aplicaFairtrade ? "Sí" : "No"}</td>
+                        <td>{statusLabels[row.estado ?? "PENDIENTE"]}</td>
+                        <td>{row.estado === "PAGADO" ? row.form.fechaPago || "Por definir" : "—"}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              )}
               {rows.map((row, index) => {
                 const selected = chosenCreditor(row.form.acreedorId);
+                const amounts = calculatedAmounts(row.form, header);
+                const historicalUnchanged = unchangedRow(row);
                 return (
                   <details
                     className={styles.detailCard}
@@ -552,30 +737,79 @@ export function PagoProductorFormScreen() {
                           />
                           <span>Aplica Fairtrade</span>
                         </label>
+                        <label className={styles.field}>
+                          <span>Estado del detalle</span>
+                          <select
+                            value={row.estado === "BORRADOR" ? "PENDIENTE" : row.estado ?? "PENDIENTE"}
+                            onChange={(event) => updateRowStatus(row.localId, event.target.value as PagoProductorStatus)}
+                          >
+                            <option value="PENDIENTE">Pendiente</option>
+                            <option value="OBSERVADO">Observado</option>
+                            <option value="PAGADO">Pagado</option>
+                          </select>
+                        </label>
+                        {row.estado === "PAGADO" && (
+                          <label className={styles.field}>
+                            <span>Fecha de pago</span>
+                            <input type="date"
+                              required={!row.id || Boolean(payment?.detalles?.find((detail) => detail.id === row.id)?.fechaPago)}
+                              value={row.form.fechaPago ?? ""}
+                              onChange={(event) => updateRow(row.localId, { fechaPago: event.target.value })} />
+                            {row.id && !row.form.fechaPago && <small>Fecha histórica no registrada</small>}
+                          </label>
+                        )}
                       </div>
                       <div className={styles.detailValuesGrid}>
-                        {amountFields.map(({ key, label, type }) => (
-                          <label className={styles.field} key={key}>
-                            <span>{label}</span>
-                            <input
-                              required={key !== "nroLiquidacion"}
-                              type={type ?? "text"}
-                              min={key === "porcentajePeso" ? 0 : undefined}
-                              max={key === "porcentajePeso" ? 100 : undefined}
-                              step={
-                                type === "number" && key !== "cantidadJabas"
-                                  ? "0.01"
-                                  : undefined
-                              }
-                              value={row.form[key] ?? ""}
-                              onChange={(event) =>
-                                updateRow(row.localId, {
+                        {amountFields.map(({ key, label, type }) => {
+                          if (key === "tipoDescuento") return (
+                            <label className={styles.field} key={key}>
+                              <span>{label}</span>
+                              <select value={discountOptions.includes(row.form.tipoDescuento as typeof discountOptions[number])
+                                ? row.form.tipoDescuento : ""} onChange={(event) =>
+                                updateRow(row.localId, { tipoDescuento: event.target.value })}>
+                                {!discountOptions.includes(row.form.tipoDescuento as typeof discountOptions[number]) &&
+                                  <option value="">Tipo histórico: {row.form.tipoDescuento}</option>}
+                                {discountOptions.map((option) => <option key={option} value={option}>
+                                  {option === "NO_APLICA" ? "No aplica" : option}
+                                </option>)}
+                              </select>
+                            </label>
+                          );
+                          if (key === "observacion") return (
+                            <label className={styles.field} key={key}>
+                              <span>{label}</span>
+                              <select required={row.estado === "OBSERVADO" && !historicalUnchanged}
+                                value={observationOptions.includes(row.form.observacion as typeof observationOptions[number])
+                                  ? row.form.observacion : ""}
+                                onChange={(event) => updateRow(row.localId, { observacion: event.target.value })}>
+                                <option value="">Sin observación</option>
+                                {observationOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                              </select>
+                              {row.form.observacion && !observationOptions.includes(row.form.observacion as typeof observationOptions[number]) &&
+                                <small>Observación histórica: {row.form.observacion}</small>}
+                            </label>
+                          );
+                          const calculated = key === "subTotal" || key === "totalPostDescuento" || key === "totalPostDetraccion";
+                          return (
+                            <label className={styles.field} key={key}>
+                              <span>{key === "subTotal" ? `${label} (kg)` : label}</span>
+                              <input
+                                required={key !== "nroLiquidacion" && !(key === "montoDescuento" && row.form.tipoDescuento === "NO_APLICA")}
+                                readOnly={calculated || (key === "montoDescuento" && row.form.tipoDescuento === "NO_APLICA")}
+                                type={type ?? "text"}
+                                min={key === "porcentajePeso" ? historicalUnchanged ? 0 : 0.01 : key === "cantidadJabas" ? historicalUnchanged ? 0 : 1 :
+                                  key === "precioJaba" || key === "precioKilo" || key === "montoDescuento" || key === "detraccion" ? 0 : undefined}
+                                max={key === "porcentajePeso" ? 100 : key === "cantidadJabas" && !historicalUnchanged ? receivedCrates : undefined}
+                                step={key === "precioJaba" || key === "precioKilo" ? "any" :
+                                  type === "number" && key !== "cantidadJabas" ? "0.01" : undefined}
+                                value={calculated ? amounts[key] : row.form[key] ?? ""}
+                                onChange={(event) => updateRow(row.localId, {
                                   [key]: event.target.value
-                                } as Partial<DetailDraft>)
-                              }
-                            />
-                          </label>
-                        ))}
+                                } as Partial<DetailDraft>)}
+                              />
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
                   </details>
@@ -606,7 +840,7 @@ export function PagoProductorFormScreen() {
         </details>
         <div className={styles.stickySave}>
           <span>
-            Los montos son manuales. Se guardan la cabecera y todos los detalles juntos.
+            Revisa el saldo de jabas y los importes calculados antes de guardar.
           </span>
           <button
             className={styles.primary}
@@ -633,6 +867,7 @@ function toRow(item: DetallePagoProductor): DetailRow {
       cantidadJabas: String(item.cantidadJabas),
       precioJaba: item.precioJaba,
       precioKilo: item.precioKilo,
+      precioBase: "JABA",
       porcentajePeso: item.porcentajePeso,
       aplicaFairtrade: item.aplicaFairtrade,
       supervisorId: item.supervisorId,
@@ -643,7 +878,8 @@ function toRow(item: DetallePagoProductor): DetailRow {
       detraccion: item.detraccion,
       totalPostDetraccion: item.totalPostDetraccion,
       nroLiquidacion: item.nroLiquidacion,
-      observacion: item.observacion
+      observacion: item.observacion,
+      fechaPago: item.fechaPago
     }
   };
 }

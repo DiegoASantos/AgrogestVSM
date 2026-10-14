@@ -784,8 +784,7 @@ export class VisitasCampoService {
           ? null
           : Number(visitaCampo.subEtapaPercentage);
 
-    await this.validateReferences(
-      {
+    const references = {
         cropId: nextCropId,
         varietyId: nextVarietyId,
         parcelaId: updateVisitaCampoDto.parcelaId ?? visitaCampo.parcelaId,
@@ -795,9 +794,11 @@ export class VisitasCampoService {
         phenologicalStageId: nextPhenologicalStageId ?? undefined,
         subEtapaId: nextSubEtapaId ?? undefined,
         subEtapaPercentage: nextSubEtapaPercentage
-      },
-      currentUser
-    );
+      };
+    await this.validateReferences(references, currentUser);
+    if (updateVisitaCampoDto.parcelaId !== undefined) {
+      updateVisitaCampoDto.parcelaId = references.parcelaId;
+    }
 
     await this.ensureUniqueNroFicha(nextNroFicha ?? null, visitaCampo.id);
     validateVisitTimes(nextStartVisitTime, nextEndVisitTime ?? null);
@@ -1073,11 +1074,25 @@ export class VisitasCampoService {
       input.varietyId,
       "Variedad not found."
     );
-    const parcela = await this.findRequiredEntity(
+    let parcela = await this.findRequiredEntity(
       this.parcelasRepository,
       input.parcelaId,
       "Parcela not found."
     );
+
+    const authorizedThroughAlias = Boolean(
+      parcela.mergedIntoId && isAgronomoUser(currentUser) &&
+      parcela.agronomoUsuarioId === currentUser!.userId
+    );
+    if (parcela.mergedIntoId) {
+      if (isAgronomoUser(currentUser) && parcela.agronomoUsuarioId !== currentUser!.userId) {
+        throw new NotFoundException("Parcela not found.");
+      }
+      parcela = await this.findRequiredEntity(
+        this.parcelasRepository, parcela.mergedIntoId, "Parcela principal no encontrada."
+      );
+      input.parcelaId = parcela.id;
+    }
 
     if (!parcela.isActive) {
       throw new BadRequestException(
@@ -1087,7 +1102,7 @@ export class VisitasCampoService {
 
     if (
       isAgronomoUser(currentUser) &&
-      (parcela.agronomoUsuarioId !== currentUser!.userId ||
+      ((!authorizedThroughAlias && parcela.agronomoUsuarioId !== currentUser!.userId) ||
         input.agronomistUserId !== currentUser!.userId)
     ) {
       throw new NotFoundException("Parcela not found.");
