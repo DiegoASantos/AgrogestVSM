@@ -73,6 +73,65 @@ function buildService() {
 }
 
 describe("PagosProductoresService complete payment", () => {
+  it("generates the filtered PDF report and excludes annulled rows in its query", async () => {
+    const queryBuilder = {
+      innerJoinAndSelect: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      addOrderBy: vi.fn().mockReturnThis(),
+      getMany: vi.fn(async () => [{
+        subtotal: "125.500000",
+        kiloPrice: "2.50",
+        cratePrice: "31.25",
+        totalAfterWithholding: "300.00",
+        payment: {
+          lot: "L-01", guideNumber: "G-01", harvestDate: "2026-10-01",
+          productor: { firstName: "Ana", lastName: "Productora", entityType: "PERSONA" }
+        },
+        creditor: {
+          creditorDocumentType: "DNI", creditorDocumentNumber: "12345678",
+          creditorFirstName: "Luis", creditorLastName: "Acreedor"
+        }
+      }])
+    };
+    const dataSource = {
+      getRepository: vi.fn(() => ({ createQueryBuilder: vi.fn(() => queryBuilder) }))
+    };
+    const service = new PagosProductoresService(dataSource as never, { list: vi.fn() } as never);
+
+    const result = await service.exportPaymentsPdf({
+      productorId: "550e8400-e29b-41d4-a716-446655440000",
+      fecha_desde: "2026-10-01",
+      fecha_hasta: "2026-10-31"
+    });
+
+    expect(Buffer.from(result.content).subarray(0, 4).toString()).toBe("%PDF");
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      "payment.status <> :annulled", { annulled: "ANULADO" }
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "detail.status <> :annulled", { annulled: "ANULADO" }
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "producer.public_id = :producerId", { producerId: "550e8400-e29b-41d4-a716-446655440000" }
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "payment.harvestReceptionDate >= :fromDate", { fromDate: "2026-10-01" }
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "payment.harvestReceptionDate <= :toDate", { toDate: "2026-10-31" }
+    );
+  });
+
+  it("rejects a report with inverted reception date filters", async () => {
+    const { service } = buildService();
+    await expect(service.exportPaymentsPdf({
+      fecha_desde: "2026-10-10",
+      fecha_hasta: "2026-10-01"
+    })).rejects.toThrow("La fecha hasta debe ser igual o posterior");
+  });
+
   it("filters active supervisors through TypeORM property paths", async () => {
     const queryBuilder = {
       select: vi.fn().mockReturnThis(),

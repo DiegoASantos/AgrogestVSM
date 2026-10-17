@@ -67,6 +67,7 @@ last_reviewed: 2026-10-17
 | R-055 | La pantalla Inicio podía consultar `visitas_comerciales` antes de ejecutar la migración SQLite 78 o en una instalación con versión marcada y DDL ausente | Alta | Mitigado | `getDatabase()` migra antes de devolver la conexión; `runMigrations()` repara idempotentemente la tabla e índice comercial incluso con `user_version` >= 78. OTA correctiva pendiente de validación en dispositivo. |
 | R-056 | Los errores 500 podían ocultar la causa técnica o registrar SQL, parámetros y stack con identificadores | Alta | Mitigado | SQLSTATE 42601 de pagos se rastreó al filtro del supervisor con ruta cruda de columna/alias; consulta corregida para usar propiedades TypeORM. Todos los 5xx registran solo clase, SQLSTATE y constraint validado, nunca SQL, valores ni payload. |
 | R-057 | La campana operativa consultaba una FK `bigint` con UUID público del JWT y devolvía 500 | Media | Mitigado | Especificación 101 requiere el ID interno; los endpoints ahora usan el claim `userId` para consultar y marcar lecturas. |
+| R-058 | El reporte PDF de pagos puede incluir todo el historial cuando se omiten filtros y consume memoria proporcional al volumen | Media | Abierto | La ruta requiere ADMIN/ANALISTA y `private, no-store`; para grandes volúmenes usar filtros. Medir duración y memoria con un volumen representativo; considerar generación asíncrona si se acercan a los límites operativos. |
 
 ## Revisión
 

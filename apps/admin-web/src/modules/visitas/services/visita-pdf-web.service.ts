@@ -39,12 +39,14 @@ export function createPrintablePdfWindow() {
 
 export function openDiagnosticPdf(
   detail: VisitaDetailData,
-  popup: PrintablePdfWindow = createPrintablePdfWindow()
+  popup: PrintablePdfWindow = createPrintablePdfWindow(),
+  autoPrint = true
 ) {
   openPrintableDocument(
     popup,
     buildDiagnosticHtml(detail),
-    buildDocumentTitle("diagnostico", detail)
+    buildDocumentTitle("diagnostico", detail),
+    autoPrint
   );
 }
 
@@ -53,12 +55,14 @@ export function openRecipePdf(
   receta: VisitaRecetaCompleta | null,
   consolidacion: ConsolidacionHallazgo,
   coadyuvantes: CoadyuvanteCatalogItem[],
-  popup: PrintablePdfWindow = createPrintablePdfWindow()
+  popup: PrintablePdfWindow = createPrintablePdfWindow(),
+  autoPrint = true
 ) {
   openPrintableDocument(
     popup,
     buildRecipeHtml(detail, receta, consolidacion, coadyuvantes),
-    buildDocumentTitle("receta", detail)
+    buildDocumentTitle("receta", detail),
+    autoPrint
   );
 }
 
@@ -74,13 +78,15 @@ export function showPrintablePdfError(popup: PrintablePdfWindow, message: string
   );
 }
 
-function openPrintableDocument(popup: PrintablePdfWindow, html: string, title: string) {
+function openPrintableDocument(popup: PrintablePdfWindow, html: string, title: string, autoPrint: boolean) {
   writePopupHtml(popup, html, title);
   popup.focus();
 
-  window.setTimeout(() => {
-    popup.print();
-  }, 300);
+  if (autoPrint) {
+    window.setTimeout(() => {
+      popup.print();
+    }, 300);
+  }
 }
 
 function writePopupHtml(popup: PrintablePdfWindow, html: string, title: string) {

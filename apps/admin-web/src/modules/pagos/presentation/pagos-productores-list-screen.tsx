@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { pagosService } from "../services/pagos.service";
-import type { PagoProductor, PagoProductorStatus } from "../types/pagos.types";
+import type {
+  DetallePagoProductor,
+  PagoProductor,
+  PagoProductorStatus
+} from "../types/pagos.types";
 import styles from "./pagos.module.css";
 
 const labels: Record<PagoProductorStatus, string> = {
@@ -24,6 +28,11 @@ export function PagosProductoresListScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [producers, setProducers] = useState<Array<{ id: string; nombre: string }>>([]);
+  const [producerId, setProducerId] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [reportBusy, setReportBusy] = useState(false);
   const load = useCallback(async () => {
     if (!session) return;
     setError("");
@@ -38,7 +47,59 @@ export function PagosProductoresListScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    if (!session) return;
+    void pagosService
+      .catalogs(session)
+      .then((result) => {
+        setProducers(result.productores.map(({ id, nombre }) => ({ id, nombre })));
+      })
+      .catch(() => {
+        setError("No se pudo cargar el catálogo de productores para el reporte.");
+      });
+  }, [session]);
   const pageCount = Math.max(1, Math.ceil(total / 50));
+  const rows = items.reduce<
+    Array<{
+      payment: PagoProductor;
+      detail: DetallePagoProductor | null;
+    }>
+  >((result, payment) => {
+    if (payment.detalles?.length) {
+      result.push(...payment.detalles.map((detail) => ({ payment, detail })));
+    } else {
+      result.push({ payment, detail: null });
+    }
+    return result;
+  }, []);
+  async function downloadReport() {
+    if (!session) return;
+    setReportBusy(true);
+    setError("");
+    try {
+      const result = await pagosService.downloadReport(session, {
+        productorId: producerId,
+        fechaDesde,
+        fechaHasta
+      });
+      const url = URL.createObjectURL(result.blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.fileName ?? "reporte-pagos-productores.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      setError(
+        downloadError instanceof Error
+          ? downloadError.message
+          : "No se pudo descargar el reporte PDF."
+      );
+    } finally {
+      setReportBusy(false);
+    }
+  }
   async function remove(item: PagoProductor) {
     if (
       !session ||
@@ -103,10 +164,52 @@ export function PagosProductoresListScreen() {
       <div className={styles.sectionHeading}>
         <div>
           <h2>Liquidaciones de productores</h2>
-          <p>{total} registros · Consulta los detalles para ver su estado y fecha de pago.</p>
+          <p>
+            {total} registros · Consulta los detalles para ver su estado y fecha de pago.
+          </p>
         </div>
         <button className={styles.secondary} onClick={() => void load()} type="button">
           Actualizar
+        </button>
+      </div>
+      <div className={styles.filters}>
+        <label>
+          Productor
+          <select
+            value={producerId}
+            onChange={(event) => setProducerId(event.target.value)}
+          >
+            <option value="">Todos</option>
+            {producers.map((producer) => (
+              <option key={producer.id} value={producer.id}>
+                {producer.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Recepción desde
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(event) => setFechaDesde(event.target.value)}
+          />
+        </label>
+        <label>
+          Recepción hasta
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(event) => setFechaHasta(event.target.value)}
+          />
+        </label>
+        <button
+          className={styles.secondary}
+          disabled={reportBusy}
+          onClick={() => void downloadReport()}
+          type="button"
+        >
+          {reportBusy ? "Generando PDF..." : "Descargar reporte PDF"}
         </button>
       </div>
       {items.length === 0 ? (
@@ -124,21 +227,30 @@ export function PagosProductoresListScreen() {
                 <th>Guía / Lote</th>
                 <th>Variedad</th>
                 <th>Jabas</th>
+                <th>Total después de detracción</th>
+                <th>N.º de liquidación</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
+              {rows.map(({ payment: item, detail }) => (
+                <tr key={`${item.id}:${detail?.id ?? "sin-detalle"}`}>
                   <td>{item.fechaRecepcion}</td>
-                  <td>{item.productorNombre}</td>
+                  <td>
+                    {item.productorNombre}
+                    <small>{detail?.acreedorNombre ?? ""}</small>
+                  </td>
                   <td>
                     {item.nroGuia}
                     <small>{item.lote}</small>
                   </td>
                   <td>{item.variedad}</td>
-                  <td>{item.jabas}</td>
+                  <td>{detail?.cantidadJabas ?? item.jabas}</td>
+                  <td>
+                    {detail ? `S/ ${Number(detail.totalPostDetraccion).toFixed(2)}` : "—"}
+                  </td>
+                  <td>{detail?.nroLiquidacion || "—"}</td>
                   <td>
                     <span
                       className={`${styles.status} ${styles[`status${item.estado}`]}`}

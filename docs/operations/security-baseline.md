@@ -57,6 +57,10 @@ last_reviewed: 2026-10-17
 - `GET /reportes/campos-por-etapas` exige `ADMIN` o `ANALISTA`, valida y
   parametriza el rango inclusivo junto con ingeniero y productor, y no habilita
   acceso a `AGRONOMO`;
+- `GET /pagos/productores/reporte-pdf` exige `ADMIN` o `ANALISTA`, valida los
+  filtros opcionales de productor y fecha de recepción, parametriza la consulta
+  y responde `private, no-store`; al omitir filtros puede consumir memoria en
+  proporción al historial incluido (R-058);
 - `GET` y `PUT /estimaciones/semanas/:fecha` exigen `ADMIN` o `ANALISTA`; el
   `PUT` declara `AllowAnalystMutation`, toma el autor exclusivamente del JWT y
   vuelve a comprobar en base de datos que el actor esté activo y que cada

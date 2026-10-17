@@ -6,6 +6,7 @@ import {
   CalendarDays,
   ClipboardCheck,
   Download,
+  Eye,
   Droplets,
   FileText,
   Leaf,
@@ -51,7 +52,7 @@ type VisitaDetailScreenProps = {
   visitaId: string;
 };
 
-type PdfAction = "diagnostico" | "receta";
+type PdfAction = "diagnostico" | "receta" | "previsualizar-diagnostico" | "previsualizar-receta";
 
 export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
   const { session, logout } = useAuthSession();
@@ -185,11 +186,29 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
             <button
               className="ui-button ui-button--secondary"
               disabled={activePdfAction !== null}
+              onClick={() => void handlePdfAction("previsualizar-diagnostico")}
+              type="button"
+            >
+              <Eye aria-hidden="true" size={16} />
+              {activePdfAction === "previsualizar-diagnostico" ? "Preparando..." : "Previsualizar diagnóstico"}
+            </button>
+            <button
+              className="ui-button ui-button--secondary"
+              disabled={activePdfAction !== null}
               onClick={() => void handlePdfAction("receta")}
               type="button"
             >
               <FileText aria-hidden="true" size={16} />
               {activePdfAction === "receta" ? "Preparando..." : "PDF receta"}
+            </button>
+            <button
+              className="ui-button ui-button--secondary"
+              disabled={activePdfAction !== null}
+              onClick={() => void handlePdfAction("previsualizar-receta")}
+              type="button"
+            >
+              <Eye aria-hidden="true" size={16} />
+              {activePdfAction === "previsualizar-receta" ? "Preparando..." : "Previsualizar receta"}
             </button>
           </div>
         </div>
@@ -460,8 +479,10 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
       setActivePdfAction(action);
       setPdfErrorMessage(null);
 
-      if (action === "diagnostico") {
-        openDiagnosticPdf(detail, popup);
+      const isPreview = action.startsWith("previsualizar-");
+      const documentType = action.endsWith("diagnostico") ? "diagnostico" : "receta";
+      if (documentType === "diagnostico") {
+        openDiagnosticPdf(detail, popup, !isPreview);
         return;
       }
 
@@ -471,7 +492,7 @@ export function VisitaDetailScreen({ visitaId }: VisitaDetailScreenProps) {
         visitasService.getCoadyuvantes(session)
       ]);
 
-      openRecipePdf(detail, receta, consolidacion, coadyuvantes, popup);
+      openRecipePdf(detail, receta, consolidacion, coadyuvantes, popup, !isPreview);
     } catch (error) {
       const apiError = toApiError(error);
 
