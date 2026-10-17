@@ -90,7 +90,8 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
   atómicamente el saldo de jabas de cada recepción entre distintos pagos. El
   listado muestra cada detalle de acreedor con su neto post detracción y número
   de liquidación; el reporte PDF permite filtrar por productor y fecha de
-  recepción. Ambos endpoints son exclusivos de ADMIN/ANALISTA.
+  recepción, muestra fecha de pago por detalle cuando existe y presenta filtros
+  y totales con jerarquía visual. Ambos endpoints son exclusivos de ADMIN/ANALISTA.
 
 En el detalle de visitas, diagnóstico y receta se pueden abrir para
 previsualización sin iniciar la impresión; los botones PDF mantienen la acción

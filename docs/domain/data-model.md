@@ -192,9 +192,11 @@ sin atribuirlo a los datos ingresados. La ausencia de una tabla o columna de
 pagos se comunica como esquema pendiente de actualización.
 
 El reporte PDF de pagos toma el productor, recepción, guía, lote y cosecha de
-la cabecera, y el acreedor, peso asignado y precios de cada detalle. El neto a
-cobrar es `total_post_detraccion`; la suma general excluye las cabeceras y
-detalles anulados. Sus filtros de productor y fecha de recepción son opcionales.
+la cabecera, y el acreedor, peso asignado, precios y fecha de pago (si existe)
+de cada detalle. Cuando una línea no tiene fecha de pago, el PDF la representa
+con “—”. El neto a cobrar es `total_post_detraccion`; la suma general excluye
+las cabeceras y detalles anulados. Sus filtros de productor y fecha de recepción
+son opcionales.
 
 ## Producción agrícola
 

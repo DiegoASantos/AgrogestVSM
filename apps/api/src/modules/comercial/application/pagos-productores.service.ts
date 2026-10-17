@@ -175,6 +175,7 @@ export class PagosProductoresService {
       const producerName = [payment.productor.firstName, payment.productor.lastName]
         .filter(Boolean).join(" ") || payment.productor.entityType;
       return [producerName, payment.lot, payment.guideNumber, payment.harvestDate,
+        detail.paymentDate || "—",
         detail.creditor.creditorDocumentType, detail.creditor.creditorDocumentNumber,
         [detail.creditor.creditorFirstName, detail.creditor.creditorLastName].filter(Boolean).join(" "),
         `${Number(detail.subtotal).toFixed(2)} kg`, money(detail.kiloPrice), money(detail.cratePrice),
@@ -182,20 +183,51 @@ export class PagosProductoresService {
     });
     const totalCents = details.reduce((sum, detail) => sum + decimalCents(detail.totalAfterWithholding), 0n);
     const formattedTotal = `${totalCents / 100n}.${String(totalCents % 100n).padStart(2, "0")}`;
+    const receptionRange = query.fecha_desde || query.fecha_hasta
+      ? `${query.fecha_desde || "Inicio"} — ${query.fecha_hasta || "Hoy"}`
+      : "Todas las fechas";
+    const generatedAt = new Intl.DateTimeFormat("es-PE", {
+      dateStyle: "medium", timeStyle: "short", timeZone: "America/Lima"
+    }).format(new Date());
     const content: Content[] = details.length ? [{
       table: {
         headerRows: 1,
-        widths: ["*", 34, 42, 48, 36, 48, "*", 42, 40, 40, 45],
-        body: [["Productor", "Lote", "N.º guía", "Fecha cosecha", "Tipo doc.", "N.º doc.",
+        widths: ["*", 32, 40, 48, 48, 36, 48, "*", 44, 48, 48, 52],
+        body: [["Productor", "Lote", "N.º guía", "Fecha cosecha", "Fecha pago", "Tipo doc.", "N.º doc.",
           "Acreedor", "Peso neto a pagar", "Precio compra/kg", "Precio compra/jaba", "Neto a cobrar"], ...rows]
-      }, layout: "lightHorizontalLines", fontSize: 6
+      },
+      layout: {
+        fillColor: (rowIndex: number) => rowIndex === 0 ? "#176B45" : rowIndex % 2 === 0 ? "#F1F7F3" : null,
+        hLineColor: (rowIndex: number) => rowIndex === 1 ? "#A8CDB7" : "#DCE8E0",
+        vLineWidth: () => 0,
+        hLineWidth: (rowIndex: number) => rowIndex === 1 ? 1 : 0.5,
+        paddingLeft: () => 5,
+        paddingRight: () => 5,
+        paddingTop: (rowIndex: number) => rowIndex === 0 ? 7 : 5,
+        paddingBottom: (rowIndex: number) => rowIndex === 0 ? 7 : 5
+      },
+      fontSize: 6.5
     }] : [{ text: "No hay detalles para los filtros seleccionados.", margin: [0, 12, 0, 0] as [number, number, number, number] }];
     const pdf = pdfmake.createPdf({ pageOrientation: "landscape", pageSize: "A4",
-      pageMargins: [20, 28, 20, 28], defaultStyle: { font: "Roboto", fontSize: 8 },
-      content: [{ text: "Reporte de pagos de productores", fontSize: 15, bold: true,
-        margin: [0, 0, 0, 12] as [number, number, number, number] }, ...content,
-      { text: `Total general neto a cobrar: S/ ${formattedTotal}`, alignment: "right", bold: true,
-        margin: [0, 12, 0, 0] as [number, number, number, number] }] });
+      pageMargins: [28, 34, 28, 34], defaultStyle: { font: "Roboto", fontSize: 8, color: "#26352C" },
+      content: [
+        { text: "AGROGEST VSM  /  COMERCIAL", color: "#176B45", fontSize: 8, bold: true,
+          characterSpacing: 1.1, margin: [0, 0, 0, 5] as [number, number, number, number] },
+        { text: "Reporte de pagos de productores", fontSize: 18, bold: true, color: "#183D2A",
+          margin: [0, 0, 0, 4] as [number, number, number, number] },
+        { text: `Recepción: ${receptionRange}     ·     Productor: ${query.productorId ? "Filtrado" : "Todos"}`,
+          fontSize: 9, color: "#52645A", margin: [0, 0, 0, 3] as [number, number, number, number] },
+        { text: `Generado ${generatedAt}     ·     Importes en soles (S/)`,
+          fontSize: 8, color: "#718078", margin: [0, 0, 0, 14] as [number, number, number, number] },
+        ...content,
+        { table: { widths: ["*"], body: [[{
+          text: `TOTAL GENERAL NETO A COBRAR     S/ ${formattedTotal}`,
+          alignment: "right", bold: true, color: "#155B3B", fontSize: 11
+        }]] },
+          layout: { fillColor: () => "#E8F3EC", hLineWidth: () => 0, vLineWidth: () => 0,
+            paddingLeft: () => 10, paddingRight: () => 10, paddingTop: () => 9, paddingBottom: () => 9 },
+          margin: [0, 12, 0, 0] as [number, number, number, number] }
+      ] });
     return { fileName: "reporte-pagos-productores.pdf", content: await pdf.getBuffer() };
   }
 

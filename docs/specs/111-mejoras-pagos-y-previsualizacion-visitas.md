@@ -26,8 +26,10 @@ se requiere poder revisarlos antes sin iniciar esa acción.
   después de detracción y número de liquidación.
 - Descargar PDF filtrable opcionalmente por productor y fecha de recepción
   desde/hasta. Cada detalle incluido aporta productor, lote, guía, fecha de
-  cosecha, documento y nombre del acreedor, peso neto a pagar, precios por kilo
-  y jaba y neto a cobrar. Mostrar el total general del neto a cobrar.
+  cosecha, fecha de pago cuando exista, documento y nombre del acreedor, peso
+  neto a pagar, precios por kilo y jaba y neto a cobrar. El PDF muestra filtros,
+  fecha de generación, cabecera visual diferenciada y el total general resaltado;
+  si no hay fecha de pago, presenta “—”.
 - Excluir pagos y detalles anulados del PDF; conservar sus estados en el
   listado web.
 - Agregar previsualización de diagnóstico y receta en el detalle de visita,
@@ -47,7 +49,7 @@ se requiere poder revisarlos antes sin iniciar esa acción.
 - RF-003: El PDF permite cero, uno o ambos límites de recepción y un productor
   opcional; los límites son inclusivos y un rango invertido se rechaza.
 - RF-004: El PDF contiene las columnas acordadas y suma neto a cobrar; omite
-  registros anulados.
+  registros anulados y muestra fecha de pago por detalle cuando exista.
 - RF-005: Previsualizar diagnóstico o receta abre el mismo documento que los
   botones PDF actuales y no invoca la impresión automáticamente.
 - RNF-001: El reporte queda protegido por los roles ADMIN y ANALISTA, no se
@@ -79,6 +81,8 @@ revertir.
       liquidación; pagos sin detalle conservan una fila.
 - [x] CA-003: El PDF aplica cada filtro opcional, excluye anulados y presenta
       total general coherente con sus filas.
+- [x] CA-005: El PDF presenta filtros y fecha de generación con jerarquía visual,
+      y muestra fecha de pago o “—” por detalle.
 - [x] CA-004: Los botones de previsualización muestran el diagnóstico o receta
       sin abrir automáticamente el diálogo de impresión.
 
