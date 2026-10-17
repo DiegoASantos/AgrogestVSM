@@ -189,12 +189,13 @@ export class PagosProductoresService {
     const generatedAt = new Intl.DateTimeFormat("es-PE", {
       dateStyle: "medium", timeStyle: "short", timeZone: "America/Lima"
     }).format(new Date());
+    const tableHeaders = ["Productor", "Lote", "N.º guía", "Fecha cosecha", "Fecha pago", "Tipo doc.", "N.º doc.",
+      "Acreedor", "Peso neto a pagar", "Precio compra/kg", "Precio compra/jaba", "Neto a cobrar"];
     const content: Content[] = details.length ? [{
       table: {
         headerRows: 1,
         widths: ["*", 32, 40, 48, 48, 36, 48, "*", 44, 48, 48, 52],
-        body: [["Productor", "Lote", "N.º guía", "Fecha cosecha", "Fecha pago", "Tipo doc.", "N.º doc.",
-          "Acreedor", "Peso neto a pagar", "Precio compra/kg", "Precio compra/jaba", "Neto a cobrar"], ...rows]
+        body: [tableHeaders.map((text) => ({ text, color: "#FFFFFF", bold: true })), ...rows]
       },
       layout: {
         fillColor: (rowIndex: number) => rowIndex === 0 ? "#176B45" : rowIndex % 2 === 0 ? "#F1F7F3" : null,
