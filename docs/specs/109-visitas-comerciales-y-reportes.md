@@ -101,6 +101,8 @@ base vacía y existente con backup previo.
   tipo; General produce dos hojas y el PDF comercial descarga un archivo.
 - [x] CA-005: Dashboard coincide con los conteos por tipo y General es la suma.
 - [ ] CA-006: La vista previa de receta no abre impresión; Imprimir sí.
+- [x] CA-007: Toda consulta SQLite ejecuta las migraciones pendientes antes de
+  devolver una conexión a pantallas o servicios.
 
 ## Pruebas
 

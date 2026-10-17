@@ -32,6 +32,25 @@ describe("mobile database connection", () => {
     expect(execSync).toHaveBeenLastCalledWith("PRAGMA foreign_keys = ON");
   });
 
+  it("runs migrations on the first database access before returning the handle", async () => {
+    const { getDatabase } = await import("./connection");
+
+    getDatabase();
+
+    expect(runMigrations).toHaveBeenCalledTimes(1);
+    expect(execSync).toHaveBeenCalledWith("PRAGMA foreign_keys = OFF");
+    expect(execSync).toHaveBeenLastCalledWith("PRAGMA foreign_keys = ON");
+  });
+
+  it("runs migrations only once across repeated database accesses", async () => {
+    const { getDatabase } = await import("./connection");
+
+    getDatabase();
+    getDatabase();
+
+    expect(runMigrations).toHaveBeenCalledTimes(1);
+  });
+
   it("reenables foreign keys when migrations fail", async () => {
     runMigrations.mockImplementationOnce(() => {
       throw new Error("migration failed");

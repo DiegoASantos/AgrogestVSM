@@ -20,7 +20,7 @@ describe("sensitive financial route detection", () => {
     (path) => expect(isSensitiveFinancialRoute(path)).toBe(false)
   );
 
-  it("does not return or log exception details for a financial route", () => {
+  it("logs only safe error metadata for a financial route", () => {
     const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn() };
     const sent: unknown[] = [];
     const reply = {
@@ -37,13 +37,27 @@ describe("sensitive financial route detection", () => {
       switchToHttp: () => ({ getRequest: () => request, getResponse: () => reply })
     };
 
+    const databaseError = Object.assign(
+      new Error("sensitive database values 123456"),
+      {
+        driverError: {
+          code: "23503",
+          constraint: "fk_payment_creditor"
+        }
+      }
+    );
     new GlobalExceptionFilter(true, logger as never).catch(
-      new Error("sensitive database values"),
+      databaseError,
       host as never
     );
 
     expect(JSON.stringify(sent)).not.toContain("sensitive database values");
     expect(logger.error.mock.calls[0]?.[0]).not.toHaveProperty("error");
+    expect(logger.error.mock.calls[0]?.[0]).toMatchObject({
+      errorClass: "Error",
+      sqlState: "23503",
+      constraint: "fk_payment_creditor"
+    });
   });
 
   it("names only safe payment fields, never submitted values", () => {

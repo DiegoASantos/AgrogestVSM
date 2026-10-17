@@ -44,7 +44,10 @@ function buildService() {
       }
     })
   };
-  const service = new PagosProductoresService(dataSource as never, { list: vi.fn() } as never);
+  const service = new PagosProductoresService(
+    dataSource as never,
+    { list: vi.fn() } as never
+  );
   const internal = service as unknown as Record<string, unknown>;
   internal.createPaymentWithinTransaction = vi.fn(async () => ({ ...payment }));
   internal.findPayment = vi.fn(async () => ({ ...payment }));

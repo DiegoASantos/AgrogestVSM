@@ -103,6 +103,9 @@ last_reviewed: 2026-10-17
   vuelve a autorizar el productor y el registro exige un acreedor de ese mismo
   productor en estado `APPROVED`. Documento y cuenta no se registran en logs ni
   errores.
+- En rutas de pagos, los errores 5xx registran request ID, clase de error,
+  SQLSTATE y constraint validado como identificador; no registran mensaje,
+  consulta SQL, valores ni payload. La respuesta al cliente sigue genérica.
 - `POST /comercial/productores/:productorId/acceso-acreedores` exige `ADMIN` o
   `AGRONOMO` y autorización horizontal. El código aleatorio dura 180 días, se
   guarda solo como hash y la reemisión revoca el anterior. La sesión derivada
