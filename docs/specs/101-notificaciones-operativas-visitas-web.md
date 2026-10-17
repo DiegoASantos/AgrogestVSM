@@ -65,6 +65,11 @@ pueden leerlos. El ID de lector sale exclusivamente del JWT. El guard global de
 mutaciones de ANALISTA se exceptua solo para su propia lectura. No se registran
 datos personales en logs.
 
+La columna `usuario_id` es una FK bigint; las consultas usan el claim `userId`
+del JWT (ID interno), mientras `sub` conserva el UUID público. Los errores 5xx
+solo registran clase, SQLSTATE y constraint validado, nunca SQL, parámetros ni
+stack.
+
 ## Migracion y rollback
 
 Aplicar la migracion 068 antes de la API y el panel nuevos. La API antigua

@@ -45,14 +45,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           path: getPathWithoutQuery(request.url),
           statusCode: normalizedException.statusCode,
           errorCode: normalizedException.code,
-          ...(sensitiveFinancialRoute
-            ? safeFinancialExceptionMetadata(exception)
-            : {
-                error:
-                  exception instanceof Error
-                    ? exception
-                    : new Error(normalizedException.message)
-              })
+          ...safeExceptionMetadata(exception)
         },
         "Unhandled HTTP exception"
       );
@@ -206,7 +199,7 @@ export function safeFinancialValidationMessage(details: unknown): string {
   return "Revisa los campos del formulario.";
 }
 
-function safeFinancialExceptionMetadata(exception: unknown) {
+function safeExceptionMetadata(exception: unknown) {
   const errorClass = exception instanceof Error
     ? exception.constructor.name
     : typeof exception;

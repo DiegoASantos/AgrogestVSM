@@ -31,7 +31,7 @@ export class NotificacionesController {
     @Query("limit") limit?: string,
     @Query("cursor") cursor?: string
   ) {
-    return this.service.list(user.sub, limit, cursor);
+    return this.service.list(user.userId, limit, cursor);
   }
 
   @Post("visitas-duplicadas/lectura")
@@ -45,6 +45,6 @@ export class NotificacionesController {
     @CurrentAuthUser() user: AccessTokenPayload,
     @Body() dto: MarcarVisitaDuplicadaLeidaDto
   ) {
-    return this.service.markRead(user.sub, dto);
+    return this.service.markRead(user.userId, dto);
   }
 }
