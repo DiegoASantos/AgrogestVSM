@@ -222,6 +222,18 @@ export const pagosService = {
       { headers: headers(session) }
     );
   },
+  searchCreditorsByDocument(session: Auth, tipoDocumento: "DNI" | "RUC", nroDocumento: string) {
+    return apiRequest<AcreedorCosecha[]>(
+      "/comercial/mantenimiento/acreedores-cosecha/buscar-documento",
+      { method: "POST", body: { tipoDocumento, nroDocumento }, headers: headers(session) }
+    );
+  },
+  reviewCreditor(session: Auth, id: string, decision: "APPROVED" | "OBSERVED", observation?: string) {
+    return apiRequest<AcreedorCosecha>(
+      `/comercial/mantenimiento/acreedores-cosecha/${id}/revision`,
+      { method: "POST", body: { decision, observation }, headers: headers(session) }
+    );
+  },
   createCreditor(session: Auth, payload: AcreedorCosechaPayload) {
     return apiRequest<AcreedorCosecha>("/comercial/mantenimiento/acreedores-cosecha", {
       method: "POST",

@@ -103,6 +103,7 @@ export function VisitaCampoDetailScreen() {
     activeAction: activeReportAction,
     captureHost,
     previewReport,
+    printReceta,
     promptShareReport
   } = useReportSharing({ onError: setReportError });
 
@@ -204,6 +205,7 @@ export function VisitaCampoDetailScreen() {
                 setReportError(null);
                 void previewReport(visita.id, action);
               }}
+              onPrintReceta={() => void printReceta(visita.id)}
               onShareReport={(action) => {
                 setReportError(null);
                 promptShareReport(visita.id, action);
@@ -686,6 +688,7 @@ type VisitDossierProps = {
   mixtureRows: ProducerMixtureRow[];
   mixtureError: string | null;
   onPreviewReport: (action: ReportKind) => void;
+  onPrintReceta: () => void;
   onShareReport: (action: ReportKind) => void;
   onRetrySync: () => void;
   reportError: string | null;
@@ -703,6 +706,7 @@ function VisitDossier({
   mixtureRows,
   mixtureError,
   onPreviewReport,
+  onPrintReceta,
   onShareReport,
   onRetrySync,
   reportError,
@@ -876,7 +880,7 @@ function VisitDossier({
           <AppButton
             disabled={activeReportAction !== null}
             icon="eye-outline"
-            label="Ver receta"
+            label="Previsualizar receta"
             loading={isReportActionActive(
               activeReportAction,
               visita.id,
@@ -884,6 +888,15 @@ function VisitDossier({
               "preview"
             )}
             onPress={() => onPreviewReport("receta")}
+            size="small"
+            variant="outline"
+          />
+          <AppButton
+            disabled={activeReportAction !== null}
+            icon="print-outline"
+            label="Imprimir receta"
+            loading={isReportActionActive(activeReportAction, visita.id, "receta", "print")}
+            onPress={onPrintReceta}
             size="small"
             variant="outline"
           />

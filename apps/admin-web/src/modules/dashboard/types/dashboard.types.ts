@@ -2,6 +2,7 @@ export type VisitasPorMes = {
   mes: string;
   count: number;
 };
+export type TipoVisitaDashboard = "GENERAL" | "TECNICA" | "COMERCIAL";
 
 export type VisitasPorCampania = {
   campania: string;

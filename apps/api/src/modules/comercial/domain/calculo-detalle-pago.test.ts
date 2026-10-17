@@ -37,6 +37,17 @@ describe("calculatePaymentDetail", () => {
     });
   });
 
+  it("calculates an advance discount with the same positive amount rule", () => {
+    expect(calculatePaymentDetail({ ...base, tipoDescuento: "ANTICIPO" })).toMatchObject({
+      tipoDescuento: "ANTICIPO",
+      montoDescuento: "100.00",
+      totalPostDescuento: "1180.00"
+    });
+    expect(() => calculatePaymentDetail({
+      ...base, tipoDescuento: "ANTICIPO", montoDescuento: "0"
+    })).toThrow("descuento");
+  });
+
   it.each([
     [{ porcentajePeso: "0" }, "porcentaje"],
     [{ porcentajePeso: "100.01" }, "porcentaje"],

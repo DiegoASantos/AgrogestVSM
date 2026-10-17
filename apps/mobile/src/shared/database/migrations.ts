@@ -1847,6 +1847,28 @@ const MIGRATIONS: Migration[] = [
       )`,
       "CREATE INDEX IF NOT EXISTS idx_fotos_comerciales_owner_productor ON fotos_comerciales_productor(owner_user_id, productor_id, sync_status, created_at)"
     ]
+  },
+  {
+    version: 78,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS visitas_comerciales (
+        local_id TEXT PRIMARY KEY NOT NULL,
+        public_id TEXT NOT NULL UNIQUE,
+        server_id TEXT,
+        owner_user_id TEXT NOT NULL,
+        tipo_sujeto TEXT NOT NULL CHECK(tipo_sujeto IN ('PERSONA','FUNDO','ASOCIATIVA','RECORREDOR')),
+        nombres TEXT NOT NULL,
+        apellidos TEXT,
+        descripcion TEXT NOT NULL,
+        fecha_visita TEXT NOT NULL,
+        ubicacion_visita TEXT,
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending','synced','error')),
+        sync_error_message TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_visitas_comerciales_owner_fecha ON visitas_comerciales(owner_user_id, fecha_visita DESC)"
+    ]
   }
 ];
 

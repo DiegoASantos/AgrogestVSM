@@ -17,6 +17,8 @@ import { toApiError } from "../../../shared/services";
 import { buildAdminMapHref } from "../../mapas/utils/map-query";
 import { VisitasTable } from "./visitas-table";
 import { visitasService } from "../services/visitas.service";
+import { CommercialVisitsPanel } from "./commercial-visits-panel";
+import { downloadBlob, visitasComercialesService, type TipoVisitaFiltro } from "../services/visitas-comerciales.service";
 import type {
   VisitaCampo,
   VisitaFilterCatalogs,
@@ -54,6 +56,7 @@ export function VisitasOverview() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [tipoVisita, setTipoVisita] = useState<TipoVisitaFiltro>("GENERAL");
 
   useEffect(() => {
     setDraftFilters(queryState.filters);
@@ -97,7 +100,7 @@ export function VisitasOverview() {
 
   const fromItem = (page - 1) * PAGE_SIZE + 1;
   const toItem = Math.min(page * PAGE_SIZE, count);
-  const resultsSummary = `${count} visita${count === 1 ? "" : "s"} encontrada${count === 1 ? "" : "s"}${
+  const resultsSummary = `${count} visita${count === 1 ? "" : "s"} técnica${count === 1 ? "" : "s"} encontrada${count === 1 ? "" : "s"}${
     totalPages > 1 ? ` -- Mostrando ${fromItem} - ${toItem}` : ""
   }.`;
   const canExport = Boolean(
@@ -151,7 +154,7 @@ export function VisitasOverview() {
                 <Download size={15} />
                 {isExporting ? "Generando Excel..." : "Exportar Excel"}
               </button>
-              <Link
+              {tipoVisita !== "COMERCIAL" ? <Link
                 className="ui-button ui-button--ghost"
                 href={buildAdminMapHref({
                   productorId: appliedFilters.productorId,
@@ -162,14 +165,14 @@ export function VisitasOverview() {
                 })}
               >
                 <Map size={15} />
-                Abrir mapa
-              </Link>
-              <Link
+                Abrir mapa técnico
+              </Link> : null}
+              {tipoVisita !== "COMERCIAL" ? <Link
                 className="ui-button ui-button--secondary"
                 href="/visitas/parcelas-visitadas"
               >
                 Parcelas visitadas por agronomo
-              </Link>
+              </Link> : null}
               <Link
                 className="ui-button ui-button--secondary"
                 href={adminRoutes.dashboard}
@@ -178,7 +181,7 @@ export function VisitasOverview() {
               </Link>
             </>
           }
-          description="Listado administrativo de visitas de campo con filtros operativos."
+          description="Consulta visitas técnicas y comerciales con filtros operativos."
           eyebrow="Visitas"
           title="Gestion administrativa de visitas"
         />
@@ -189,6 +192,14 @@ export function VisitasOverview() {
             <span>Filtros de busqueda</span>
           </div>
           <div className="filter-card__body">
+            <label className="field-group">
+              <span className="field-group__label">Tipo de visita</span>
+              <select value={tipoVisita} onChange={(event) => setTipoVisita(event.target.value as TipoVisitaFiltro)}>
+                <option value="GENERAL">General</option>
+                <option value="TECNICA">Técnica</option>
+                <option value="COMERCIAL">Comercial</option>
+              </select>
+            </label>
             <label className="field-group">
               <span className="field-group__label">
                 <User size={13} />
@@ -207,7 +218,7 @@ export function VisitasOverview() {
               </select>
             </label>
 
-            <SearchableSelect
+            {tipoVisita !== "COMERCIAL" ? <SearchableSelect
               disabled={isLoadingCatalogs}
               emptyMessage="No hay productores disponibles."
               label="Productor"
@@ -215,9 +226,9 @@ export function VisitasOverview() {
               options={productorOptions}
               placeholder="Todos · escribe para buscar"
               value={draftFilters.productorId}
-            />
+            /> : null}
 
-            <label className="field-group">
+            {tipoVisita !== "COMERCIAL" ? <label className="field-group">
               <span className="field-group__label">Campaña</span>
               <select
                 onChange={(event) => updateDraft("campaignId", event.target.value)}
@@ -230,7 +241,8 @@ export function VisitasOverview() {
                   </option>
                 ))}
               </select>
-            </label>
+            </label> : null}
+            {tipoVisita === "GENERAL" ? <p className="form-hint">Productor y campaña filtran las visitas técnicas. Las comerciales usan agrónomo y fechas.</p> : null}
 
             <label className="field-group">
               <span className="field-group__label">
@@ -301,7 +313,7 @@ export function VisitasOverview() {
           <LoadingState description="Cargando productores, campañas y parcelas para los filtros." />
         ) : null}
 
-        {listError ? (
+        {tipoVisita !== "COMERCIAL" && listError ? (
           <ErrorState
             action={
               <button
@@ -316,21 +328,21 @@ export function VisitasOverview() {
           />
         ) : null}
 
-        {!listError && isLoadingList ? (
+        {tipoVisita !== "COMERCIAL" && !listError && isLoadingList ? (
           <TableSkeleton
             columns={7}
             description="Cargando visitas segun los filtros administrativos seleccionados."
           />
         ) : null}
 
-        {!listError && !isLoadingList && items.length === 0 ? (
+        {tipoVisita !== "COMERCIAL" && !listError && !isLoadingList && items.length === 0 ? (
           <EmptyState
             description="No hay visitas para los filtros actuales. Puedes limpiar el formulario o ajustar el rango de fechas."
             title="No se encontraron visitas"
           />
         ) : null}
 
-        {!listError && !isLoadingList && items.length > 0 ? (
+        {tipoVisita !== "COMERCIAL" && !listError && !isLoadingList && items.length > 0 ? (
           <VisitasTable
             agronomistLabels={agronomistLabels}
             campaignLabels={campaignLabels}
@@ -352,6 +364,7 @@ export function VisitasOverview() {
           />
         ) : null}
       </article>
+      {tipoVisita !== "TECNICA" ? <CommercialVisitsPanel filters={appliedFilters} /> : null}
     </section>
   );
 
@@ -417,16 +430,8 @@ export function VisitasOverview() {
     try {
       setIsExporting(true);
       setExportError(null);
-      const report = await visitasService.exportExcelReport(session, appliedFilters);
-      const downloadUrl = URL.createObjectURL(report.blob);
-      const downloadLink = document.createElement("a");
-
-      downloadLink.href = downloadUrl;
-      downloadLink.download = report.fileName ?? "reporte-visitas.xlsx";
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      downloadLink.remove();
-      URL.revokeObjectURL(downloadUrl);
+      const report = await visitasComercialesService.downloadExcel(session, appliedFilters, tipoVisita);
+      downloadBlob(report.blob, report.fileName ?? "reporte-visitas.xlsx");
     } catch (error) {
       const apiError = toApiError(error);
 

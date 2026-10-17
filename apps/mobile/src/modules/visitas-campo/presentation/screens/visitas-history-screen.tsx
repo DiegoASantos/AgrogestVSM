@@ -107,6 +107,9 @@ export function VisitasHistoryScreen() {
           subtitle="Consulta las visitas que registraste desde este dispositivo."
         />
 
+        <AppButton label="Ver visitas comerciales" variant="outline"
+          onPress={() => router.push("/visitas-campo/historial-comercial")} />
+
         {!isLoading && !error && productorOptions.length > 0 ? (
           <View style={styles.filterContainer}>
             <View style={styles.filterInputRow}>

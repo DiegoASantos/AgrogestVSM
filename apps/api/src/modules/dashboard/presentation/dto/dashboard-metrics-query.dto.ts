@@ -1,8 +1,12 @@
 import { Transform, Type } from "class-transformer";
-import { IsDateString, IsInt, IsOptional, Max, Min } from "class-validator";
+import { IsDateString, IsIn, IsInt, IsOptional, Max, Min } from "class-validator";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export class DashboardResumenQueryDto {
+  @ApiPropertyOptional({ enum: ["GENERAL", "TECNICA", "COMERCIAL"] })
+  @IsOptional()
+  @IsIn(["GENERAL", "TECNICA", "COMERCIAL"])
+  tipo?: "GENERAL" | "TECNICA" | "COMERCIAL";
   @ApiPropertyOptional({ name: "year", example: 2026 })
   @IsOptional()
   @Type(() => Number)
@@ -29,6 +33,10 @@ export class DashboardResumenQueryDto {
 }
 
 export class DashboardDateRangeQueryDto {
+  @ApiPropertyOptional({ enum: ["GENERAL", "TECNICA", "COMERCIAL"] })
+  @IsOptional()
+  @IsIn(["GENERAL", "TECNICA", "COMERCIAL"])
+  tipo?: "GENERAL" | "TECNICA" | "COMERCIAL";
   @ApiPropertyOptional({ name: "fecha_desde", example: "2026-08-01" })
   @Transform(({ value }) => trimOptionalString(value))
   @IsOptional()

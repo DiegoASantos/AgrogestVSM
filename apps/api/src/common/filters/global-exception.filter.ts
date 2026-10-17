@@ -87,7 +87,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
 
       if (isRecord(response)) {
-        const message = this.getMessage(response.message, exception.message);
+        const message = sensitiveFinancialRoute && response.message === "Validation failed."
+          ? safeFinancialValidationMessage(response.details)
+          : this.getMessage(response.message, exception.message);
         const details = response.details ?? this.getDetails(response.message);
 
         return {
@@ -162,6 +164,46 @@ export function isSensitiveFinancialRoute(url: string) {
     path === "/comercial/mantenimiento/acreedores-cosecha" ||
     path.startsWith("/comercial/mantenimiento/acreedores-cosecha/")
   );
+}
+
+const safePaymentFields: Record<string, string> = {
+  productorId: "productor", sistemaOrigen: "sistema de origen", nroGuia: "número de guía",
+  lote: "lote", protocolo: "protocolo", variedad: "variedad", tipoCultivo: "tipo de cultivo",
+  categoria: "categoría", destino: "destino", fechaCosecha: "fecha de cosecha",
+  fechaRecepcion: "fecha de recepción", jabas: "jabas", pesoBruto: "peso bruto",
+  pesoTara: "peso tara", pesoNeto: "peso neto", pesoPromedio: "peso promedio",
+  exportador: "exportador", codigoProductorOrigen: "código del productor de origen",
+  nombreProductorOrigen: "nombre del productor de origen", acreedorId: "acreedor aprobado",
+  supervisorId: "supervisor", cantidadJabas: "cantidad de jabas", precioJaba: "precio por jaba",
+  precioKilo: "precio por kilo", precioBase: "base del precio",
+  porcentajePeso: "porcentaje de peso", aplicaFairtrade: "Fairtrade",
+  subTotal: "subtotal", tipoDescuento: "tipo de descuento",
+  montoDescuento: "monto de descuento", totalPostDescuento: "total después del descuento",
+  detraccion: "detracción", totalPostDetraccion: "total después de detracción",
+  nroLiquidacion: "número de liquidación", observacion: "observación",
+  estado: "estado", fechaPago: "fecha de pago", tipoDocumentoProductor: "tipo de documento",
+  nroDocumentoProductor: "número de documento", tipoDocumentoAcreedor: "tipo de documento",
+  nroDocumentoAcreedor: "número de documento", tipoDocumento: "tipo de documento",
+  nroDocumento: "número de documento", nombres: "nombres", apellidos: "apellidos",
+  banco: "banco", nroCuenta: "cuenta o CCI"
+};
+
+export function safeFinancialValidationMessage(details: unknown): string {
+  if (!Array.isArray(details)) return "Revisa los campos del formulario.";
+  for (const issue of details) {
+    if (!isRecord(issue) || typeof issue.field !== "string") continue;
+    if (["tipoDocumento", "nroDocumento", "nombres", "apellidos", "banco", "nroCuenta"].includes(issue.field)) {
+      return `Revisa el acreedor: ${safePaymentFields[issue.field]}.`;
+    }
+    const match = /^(cabecera|detalles\.(\d+))\.([A-Za-z]+)$/.exec(issue.field);
+    if (!match) continue;
+    const label = safePaymentFields[match[3]];
+    if (!label) continue;
+    return match[1] === "cabecera"
+      ? `Revisa la cabecera: ${label}.`
+      : `Revisa el detalle ${Number(match[2]) + 1}: ${label}.`;
+  }
+  return "Revisa los campos del formulario.";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

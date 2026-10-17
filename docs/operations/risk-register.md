@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-17
 ---
 
 # Registro de riesgos
@@ -61,6 +61,9 @@ last_reviewed: 2026-10-14
 | R-049 | Una unificación manual de productores puede atribuir parcelas, visitas o datos bancarios a la persona equivocada | Alta | Abierto | Spec 104 exige vista previa, contradicciones resueltas, mapeos explícitos, transacción serializable y auditoría; comprobar respaldo restaurable y validar cada caso antes de confirmar. La migración 070 y el flujo requieren un ensayo en PostgreSQL antes de uso real. Distribuir mobile compatible después de API: versiones anteriores podrían seguir mostrando temporalmente la ficha alias local. |
 | R-050 | La consulta Systrace de recepciones envía clave y datos personales por HTTP sin cifrado; un vínculo erróneo puede atribuir pagos al productor incorrecto | Alta | Abierto | Spec 105: restringir red y roles, mantener la clave solo en API, no registrar respuestas, confirmar y auditar vínculos, probar correcciones y migración 071. Revaluar cuando Systrace ofrezca HTTPS o cambie la red. |
 | R-051 | Pagos históricos pueden tener jabas sobreasignadas, precios incoherentes, porcentaje cero o fecha de pago ausente; la nueva regla no los corrige automáticamente | Alta | Abierto | Spec 106: auditar estos casos antes del despliegue, preservar lectura, bloquear solo nuevas asignaciones que aumenten exceso y corregir registros con revisión humana. Aplicar 072 antes de API/web y ensayar dos escrituras concurrentes en PostgreSQL. |
+| R-052 | La búsqueda de acreedores por documento permite a ADMIN/ANALISTA consultar datos bancarios vinculados a otros productores | Alta | Abierto | Spec 107: exigir rol en API, documento completo en cuerpo POST, `no-store`, evitar valores en URL, logs y errores; comprobar permisos y auditoría. Reevaluar el alcance de consulta si se amplían los roles. |
+| R-053 | Mobile puede sincronizar visitas comerciales antes de PostgreSQL 073 y la API compatible | Media | Abierto | Spec 109: desplegar migración y API primero; la outbox conserva el UUID y reintenta. Verificar captura offline y reconciliación antes de distribuir mobile. |
+| R-054 | Visitas técnicas duplicadas ya sincronizadas pueden incluir una visita abierta y otra cerrada con receta | Media | Abierto | Spec 110 evita nuevos duplicados del mismo intento en mobile. Revisar cada pareja histórica con IDs, UUID públicos, hijos y receta antes de corregir datos; no fusionar ni borrar automáticamente. Validar el comportamiento en un dispositivo tras distribuir la actualización. |
 
 ## Revisión
 

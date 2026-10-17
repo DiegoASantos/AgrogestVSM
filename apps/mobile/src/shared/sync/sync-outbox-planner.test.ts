@@ -77,4 +77,15 @@ describe("orderSyncOutboxEntries", () => {
 
     expect(ordered.map((entry) => entry.id)).toEqual([1, 2, 3]);
   });
+
+  it("keeps a commercial visit as an independent root without a parcel", () => {
+    const ordered = orderSyncOutboxEntries([
+      makeEntry(3, "visitas_campo", "technical-1"),
+      makeEntry(2, "visitas_comerciales", "commercial-1"),
+      makeEntry(1, "productores", "producer-1")
+    ], () => null);
+    expect(ordered.map((entry) => entry.entityLocalId)).toEqual([
+      "producer-1", "commercial-1", "technical-1"
+    ]);
+  });
 });

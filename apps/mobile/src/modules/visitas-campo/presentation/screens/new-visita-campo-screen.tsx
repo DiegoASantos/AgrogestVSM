@@ -35,6 +35,7 @@ import { useVisitFormDraft } from "../../../../shared/hooks/use-visit-form-draft
 import { captureCurrentDeviceLocation } from "../../../../shared/location/device-location";
 import type { GeoJsonPointGeometry } from "../../../../shared/maps/geo";
 import { toApiError } from "../../../../shared/services";
+import { generatePublicId, isUuid } from "../../../../shared/utils/local-id";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { visitaCampoCatalogsService, visitasCampoService } from "../../services";
 import type {
@@ -125,11 +126,16 @@ export function NewVisitaCampoScreen() {
     parcelaName?: string | string[];
     parcelaAreaHectares?: string | string[];
     visitaId?: string | string[];
+    attemptId?: string | string[];
   }>();
 
   const today = useMemo(() => formatDateForApi(new Date()), []);
   const parcelaId = toSingleParam(params.id);
   const existingVisitaId = toSingleParam(params.visitaId);
+  const attemptIdParam = toSingleParam(params.attemptId);
+  const [attemptPublicId] = useState(
+    () => attemptIdParam && isUuid(attemptIdParam) ? attemptIdParam : generatePublicId()
+  );
   const isEditingVisita = !!existingVisitaId;
   const parcelaCode = toSingleParam(params.parcelaCode);
   const parcelaName = toSingleParam(params.parcelaName);
@@ -196,6 +202,8 @@ export function NewVisitaCampoScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [stageDistributionError, setStageDistributionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const savedVisitaIdRef = useRef<string | null>(null);
   const [isDraftReady, setIsDraftReady] = useState(false);
   const tutorialScrollRef = useRef<ScrollView>(null);
   const tutorialTargets = useRef<Partial<Record<StepOneTutorialFieldId, View | null>>>(
@@ -1228,6 +1236,7 @@ export function NewVisitaCampoScreen() {
     ));
   }
   async function handleSubmit() {
+    if (submittingRef.current) return;
     const normalizedValues = values;
     const nextErrors = validateForm(normalizedValues, today);
     const stageEntries = buildStageEntries(normalizedValues, additionalStages, etapasFenologicas);
@@ -1245,21 +1254,24 @@ export function NewVisitaCampoScreen() {
       return;
     }
 
+    submittingRef.current = true;
     setIsSubmitting(true);
     setSubmitError(null);
     setValues(normalizedValues);
 
+    let navigationStarted = false;
     try {
       const location = await captureLocationSilently();
       const draft = buildCreateDraft(normalizedValues, location, stageEntries);
-      const targetVisitaId = existingVisitaId ?? null;
+      const targetVisitaId = existingVisitaId ?? savedVisitaIdRef.current;
       const savedVisita = targetVisitaId
         ? await visitasCampoService.update(targetVisitaId, draft)
-        : await visitasCampoService.create(draft, {
+        : await visitasCampoService.create({ ...draft, publicId: attemptPublicId }, {
             accessToken: session.accessToken,
             tokenType: session.tokenType
           });
 
+      savedVisitaIdRef.current = savedVisita.id;
       clearDraft();
 
       router.replace({
@@ -1268,11 +1280,15 @@ export function NewVisitaCampoScreen() {
           id: savedVisita.id
         }
       });
+      navigationStarted = true;
     } catch (error) {
       const apiError = toApiError(error);
       setSubmitError(apiError.message || "No se pudo guardar la visita de campo.");
     } finally {
-      setIsSubmitting(false);
+      if (!navigationStarted) {
+        submittingRef.current = false;
+        setIsSubmitting(false);
+      }
     }
   }
 

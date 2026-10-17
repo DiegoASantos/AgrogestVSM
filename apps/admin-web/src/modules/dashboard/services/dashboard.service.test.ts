@@ -25,10 +25,11 @@ function fetchUrl() {
 
 describe("dashboardService", () => {
   it("getResumen calls /dashboard/resumen with the selected period", async () => {
-    await dashboardService.getResumen(session, { year: 2026, month: 9, day: 5 });
+    await dashboardService.getResumen(session, { year: 2026, month: 9, day: 5 }, "COMERCIAL");
     expect(fetchUrl()).toContain("year=2026");
     expect(fetchUrl()).toContain("month=9");
     expect(fetchUrl()).toContain("day=5");
+    expect(fetchUrl()).toContain("tipo=COMERCIAL");
   });
 
   it("omits optional month and day from the dashboard period query", () => {
@@ -41,11 +42,12 @@ describe("dashboardService", () => {
     await dashboardService.getVisitasPorAgronomo(session, {
       startDate: "2026-08-01",
       endDate: "2026-08-24"
-    });
+    }, "TECNICA");
 
     expect(fetchUrl()).toContain("/dashboard/visitas-por-agronomo?");
     expect(fetchUrl()).toContain("fecha_desde=2026-08-01");
     expect(fetchUrl()).toContain("fecha_hasta=2026-08-24");
+    expect(fetchUrl()).toContain("tipo=TECNICA");
   });
 
   it("requests parcels per stage with its date range", async () => {

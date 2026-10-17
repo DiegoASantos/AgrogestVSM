@@ -37,9 +37,13 @@ export const visitaRecetaPdfReportService = {
 
   async preview(visitaId: string) {
     const { Print } = await loadPdfNativeModules();
-    const html = await buildRecetaReportHtml(visitaId);
+    const pdf = await Print.printToFileAsync({ html: await buildRecetaReportHtml(visitaId) });
+    return pdf.uri;
+  },
 
-    await Print.printAsync({ html });
+  async print(visitaId: string) {
+    const { Print } = await loadPdfNativeModules();
+    await Print.printAsync({ html: await buildRecetaReportHtml(visitaId) });
   },
 
   async share(visitaId: string) {

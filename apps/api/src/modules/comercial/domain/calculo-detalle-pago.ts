@@ -60,7 +60,7 @@ export function calculatePaymentDetail(input: {
     throw new BadRequestException("Los precios por jaba y por kilo no coinciden.");
   }
   const discountType = input.tipoDescuento || "NO_APLICA";
-  if (!["NO_APLICA", "CLP", "INSUMOS", "COMISION"].includes(discountType)) {
+  if (!["NO_APLICA", "CLP", "INSUMOS", "COMISION", "ANTICIPO"].includes(discountType)) {
     throw new BadRequestException("Tipo de descuento no válido.");
   }
   const discount = decimal(input.montoDescuento ?? "0", 2);

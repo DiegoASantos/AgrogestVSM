@@ -1,4 +1,5 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ServiceUnavailableException } from "@nestjs/common";
+import { QueryFailedError } from "typeorm";
 import { describe, expect, it, vi } from "vitest";
 import { DetallePagoProductorEntity } from "../infrastructure/persistence/entities/detalle-pago-productor.entity";
 import { PagoProductorEntity } from "../infrastructure/persistence/entities/pago-productor.entity";
@@ -92,6 +93,33 @@ describe("PagosProductoresService complete payment", () => {
     ).rejects.toThrow("Detalle 2");
 
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(getPersisted()).toHaveLength(0);
+  });
+
+  it("reports an outdated payment schema without blaming creditor data", async () => {
+    const { service, internal, details, getPersisted } = buildService();
+    internal.buildDetail = vi.fn(async () => ({ paymentId: payment.id }));
+    details.save.mockRejectedValueOnce(new QueryFailedError(
+      "INSERT INTO detalle_pago_productores ...", [], Object.assign(new Error(), { code: "42703" })
+    ));
+
+    await expect(service.createComplete({
+      cabecera: {} as never,
+      detalles: [{ acreedorId: "first" }] as never
+    }, "7")).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(getPersisted()).toHaveLength(0);
+  });
+
+  it("preserves unexpected errors for server diagnosis instead of reporting invalid user data", async () => {
+    const { service, internal, details, getPersisted } = buildService();
+    const failure = new Error("Unexpected persistence failure");
+    internal.buildDetail = vi.fn(async () => ({ paymentId: payment.id }));
+    details.save.mockRejectedValueOnce(failure);
+
+    await expect(service.createComplete({
+      cabecera: {} as never,
+      detalles: [{ acreedorId: "first" }] as never
+    }, "7")).rejects.toBe(failure);
     expect(getPersisted()).toHaveLength(0);
   });
 

@@ -109,6 +109,22 @@ describe("DashboardService", () => {
     expect(result[0]).toEqual({ mes: "2026-08-01", count: 0 });
   });
 
+  it("selects both visit sources for General and only the requested source for each type", async () => {
+    const builder = createQueryBuilder([]);
+    const service = new DashboardService({ createQueryBuilder: () => builder } as never, {} as never);
+    const get = (tipo: "GENERAL" | "TECNICA" | "COMERCIAL") => (
+      service as unknown as { getVisitasPorMes: (period: { year: number; tipo: string }) => Promise<unknown> }
+    ).getVisitasPorMes({ year: 2026, tipo });
+    await get("GENERAL");
+    expect(builder.calls.find((call) => call.method === "from")?.args[0]).toContain("UNION ALL");
+    builder.calls.length = 0;
+    await get("TECNICA");
+    expect(builder.calls.find((call) => call.method === "from")?.args[0]).toBe("visitas_campo");
+    builder.calls.length = 0;
+    await get("COMERCIAL");
+    expect(builder.calls.find((call) => call.method === "from")?.args[0]).toBe("visitas_comerciales");
+  });
+
   it("rejects an inverted date range before querying dashboard metrics", async () => {
     const service = new DashboardService({} as never, {} as never);
 

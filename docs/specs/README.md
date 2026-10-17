@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-17
 ---
 
 # Especificaciones
@@ -150,4 +150,8 @@ en la raíz.
 - [Spec 104: Revisión y unificación de personas productoras duplicadas](104-revision-unificacion-productores-duplicados.md)
 - [Spec 105: Precarga individual de recepciones y vínculo de productores Systrace](105-precarga-recepcion-pagos-productores.md)
 - [Spec 106: Distribución y cálculo de detalles de pagos de productores](106-distribucion-y-calculo-detalles-pagos-productores.md)
+- [Spec 107: Alta y revisión de productores y acreedores desde pagos](107-alta-revision-acreedores-en-pagos.md)
+- [Spec 108: Anticipo como tipo de descuento en pagos de productores](108-anticipo-tipo-descuento-pagos.md)
+- [Spec 109: Visitas comerciales y reportes](109-visitas-comerciales-y-reportes.md)
+- [Spec 110: Idempotencia del registro de visitas técnicas en mobile](110-idempotencia-registro-visitas-tecnicas-mobile.md)
 - [Plantilla](TEMPLATE.md)

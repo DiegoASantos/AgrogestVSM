@@ -104,9 +104,13 @@ function AppNavigation() {
         <Stack.Screen
           name="visitas-campo/nueva"
           options={{
-            title: "Seleccionar parcela"
+            title: "Nueva visita"
           }}
         />
+        <Stack.Screen name="visitas-campo/registrar-comercial" options={{ title: "Visita comercial" }} />
+        <Stack.Screen name="visitas-campo/historial-comercial" options={{ title: "Historial comercial" }} />
+        <Stack.Screen name="visitas-campo/comercial/[id]" options={{ title: "Detalle comercial" }} />
+        <Stack.Screen name="visitas-campo/[id]/receta-preview" options={{ title: "Previsualizar receta" }} />
         <Stack.Screen
           name="visitas-campo/historial"
           options={{

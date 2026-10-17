@@ -41,6 +41,8 @@ import {
   resolveReportParcelaGeodata
 } from "../utils/reportes-visitas";
 import { VisitsHectaresChart } from "./visits-hectares-chart";
+import { CommercialVisitsPanel } from "../../visitas/presentation/commercial-visits-panel";
+import { downloadBlob, visitasComercialesService, type TipoVisitaFiltro } from "../../visitas/services/visitas-comerciales.service";
 
 const emptyReport: VisitsReportData = {
   summary: [],
@@ -65,6 +67,9 @@ export function VisitsReportOverview() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
   const [isLoadingReport, setIsLoadingReport] = useState(true);
+  const [tipoVisita, setTipoVisita] = useState<TipoVisitaFiltro>("GENERAL");
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -116,6 +121,14 @@ export function VisitsReportOverview() {
             <span>Filtros del reporte</span>
           </div>
           <div className="filter-card__body">
+            <label className="field-group">
+              <span className="field-group__label">Tipo de visita</span>
+              <select value={tipoVisita} onChange={(event) => setTipoVisita(event.target.value as TipoVisitaFiltro)}>
+                <option value="GENERAL">General</option>
+                <option value="TECNICA">Técnica</option>
+                <option value="COMERCIAL">Comercial</option>
+              </select>
+            </label>
             <SearchableSelect
               disabled={isLoadingCatalogs}
               emptyMessage="No hay ingenieros activos."
@@ -125,7 +138,7 @@ export function VisitsReportOverview() {
               placeholder="Todos · escribe para buscar"
               value={draftFilters.agronomistUserId}
             />
-            <SearchableSelect
+            {tipoVisita !== "COMERCIAL" ? <SearchableSelect
               disabled={isLoadingCatalogs}
               emptyMessage="No hay productores activos."
               label="Productor"
@@ -133,7 +146,8 @@ export function VisitsReportOverview() {
               options={productorOptions}
               placeholder="Todos · escribe para buscar"
               value={draftFilters.productorId}
-            />
+            /> : null}
+            {tipoVisita === "GENERAL" ? <p className="form-hint">El productor filtra la sección técnica; la comercial usa ingeniero y fechas.</p> : null}
             <label className="field-group">
               <span className="field-group__label">
                 <CalendarRange size={13} />
@@ -159,6 +173,9 @@ export function VisitsReportOverview() {
           </div>
           {validationError ? <p className="form-error">{validationError}</p> : null}
           <div className="filter-card__footer">
+            <button className="ui-button ui-button--secondary" type="button"
+              disabled={exporting || !appliedFilters.startDate || !appliedFilters.endDate}
+              onClick={() => void exportExcel()}>{exporting ? "Generando Excel..." : "Descargar Excel"}</button>
             <button
               className="ui-button ui-button--ghost ui-button--compact"
               onClick={handleClearFilters}
@@ -174,9 +191,10 @@ export function VisitsReportOverview() {
               Aplicar filtros
             </button>
           </div>
+          {exportError ? <p className="form-error">{exportError}</p> : null}
         </div>
 
-        {catalogError ? (
+        {tipoVisita !== "COMERCIAL" && catalogError ? (
           <ErrorState
             action={
               <button
@@ -191,14 +209,14 @@ export function VisitsReportOverview() {
             title="No se pudieron cargar los filtros y el mapa"
           />
         ) : null}
-        {isLoadingCatalogs ? (
+        {tipoVisita !== "COMERCIAL" && isLoadingCatalogs ? (
           <LoadingState description="Cargando ingenieros, productores y parcelas asignadas." />
         ) : null}
 
-        <div aria-label="Indicadores del reporte" className="report-metrics" role="group">
+        {tipoVisita !== "COMERCIAL" ? <div aria-label="Indicadores técnicos del reporte" className="report-metrics" role="group">
           <ReportMetric
             icon={<Activity size={19} />}
-            label="Visitas registradas"
+            label="Visitas técnicas registradas"
             status={reportError ? "No disponible" : isLoadingReport ? "Cargando" : null}
             value={formatInteger(reportMetrics.totalVisits)}
           />
@@ -222,9 +240,11 @@ export function VisitsReportOverview() {
             }
             value={formatInteger(mapData.assignedCount)}
           />
-        </div>
+        </div> : null}
       </article>
 
+      {tipoVisita !== "TECNICA" ? <CommercialVisitsPanel filters={appliedFilters} /> : null}
+      {tipoVisita !== "COMERCIAL" ? <>
       <article className="panel report-section report-section--summary">
         <ReportSectionHeader
           description="Cada día se cuenta una sola vez por ingeniero, aunque registre varias visitas."
@@ -393,11 +413,23 @@ export function VisitsReportOverview() {
           ) : null}
         </article>
       </div>
+      </> : null}
     </section>
   );
 
   function updateDraft(key: keyof VisitReportFilters, value: string) {
     setDraftFilters((current) => ({ ...current, [key]: value }));
+  }
+
+  async function exportExcel() {
+    if (!session) return;
+    setExportError(null);
+    setExporting(true);
+    try {
+      const reportFile = await visitasComercialesService.downloadExcel(session, appliedFilters, tipoVisita);
+      downloadBlob(reportFile.blob, reportFile.fileName ?? "reporte-visitas.xlsx");
+    } catch (reason) { setExportError(toApiError(reason).message); }
+    finally { setExporting(false); }
   }
 
   function handleApplyFilters() {

@@ -80,6 +80,7 @@ const RECONCILABLE_SYNC_ENTITIES: Array<{
   { entityType: "fotos_comerciales_productor", table: "fotos_comerciales_productor" },
   { entityType: "registros_cosecha", table: "registros_cosecha" },
   { entityType: "visitas_campo", table: "visitas_campo" },
+  { entityType: "visitas_comerciales", table: "visitas_comerciales" },
   { entityType: "visita_evaluaciones", table: "visita_evaluaciones" },
   {
     entityType: "visita_observaciones_sanitarias",
@@ -100,7 +101,8 @@ const ROOT_ENTITY_TYPES = new Set<string>([
   "marcas_producto",
   "pagos_cosecha",
   "acreedores_cosecha",
-  "visitas_campo"
+  "visitas_campo",
+  "visitas_comerciales"
 ]);
 
 export function processOutbox(
@@ -591,6 +593,13 @@ function markEntityError(entry: SyncOutboxItem, message: string) {
         visitasCampoRepository.update(entry.entityLocalId, {
           syncStatus: "error"
         });
+        break;
+      case "visitas_comerciales":
+        getDatabase().runSync(
+          "UPDATE visitas_comerciales SET sync_status = 'error', sync_error_message = ? WHERE local_id = ?",
+          message,
+          entry.entityLocalId
+        );
         break;
       case "visita_evaluaciones":
         evaluacionesRepository.update(entry.entityLocalId, {

@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-17
 ---
 
 # Modelo del dominio
@@ -136,6 +136,11 @@ editar y consultar acreedores de cosecha. Los creados desde esa pantalla tienen
 origen `ADMIN_WEB` y estado `PENDING`; cualquier edición de un perfil aprobado
 lo devuelve a pendiente sin eliminar el historial de revisiones. Solo los
 acreedores aprobados pueden asignarse a pagos nuevos.
+ADMIN y ANALISTA pueden aprobar u observar perfiles desde Mantenimiento o
+aprobarlos explícitamente durante la preparación de un pago; ambas acciones
+conservan el historial de revisión. La búsqueda por DNI/RUC puede precargar un
+perfil de otro productor, pero guardarlo crea un perfil independiente para el
+productor del pago y no modifica el original.
 
 `pago_productores` representa una liquidación asociada a un productor,
 con guía y lote capturados como texto. La cabecera puede digitarse manualmente
@@ -172,15 +177,19 @@ por las jabas del detalle y por el porcentaje dividido entre 100. Se almacena
 en kg con seis decimales. El importe bruto es subtotal por precio por kilo;
 se restan el descuento y la detracción para obtener los dos totales en soles.
 La API calcula y redondea importes monetarios a centavos. `NO_APLICA` fuerza
-descuento cero; `CLP`, `INSUMOS` y `COMISION` requieren un monto positivo.
+descuento cero; `CLP`, `INSUMOS`, `COMISION` y `ANTICIPO` requieren un monto positivo.
 Las líneas históricas no se recalculan al consultar ni al reenviarlas sin
 cambios.
 
 En la vista web de pago completo, la cabecera y las líneas se confirman juntas
 en una transacción y se exige al menos una línea activa. La creación de
-acreedores se realiza en Mantenimiento; el formulario solo selecciona perfiles
-aprobados del productor. Las rutas antiguas de cabecera y detalle permanecen
+acreedores puede hacerse en Mantenimiento o desde el pago sin perder la captura.
+Un acreedor nuevo o editado requiere aprobación explícita antes de seleccionarse
+para un detalle. Las rutas antiguas de cabecera y detalle permanecen
 disponibles para compatibilidad.
+Si falla la persistencia de un detalle, la API conserva el error de servidor
+sin atribuirlo a los datos ingresados. La ausencia de una tabla o columna de
+pagos se comunica como esquema pendiente de actualización.
 
 ## Producción agrícola
 
@@ -198,6 +207,18 @@ Para integraciones externas, cultivos, variedades, campañas, productores,
 sectores, subsectores y parcelas exponen un `publicId` UUID estable. Cost-Build
 consume esos identificadores como `id_origen` mediante un endpoint de solo
 lectura protegido por API key.
+
+## Visita comercial
+
+La visita comercial es un registro distinto de la visita técnica. No tiene
+productor ni parcela vinculados. Guarda tipo de sujeto (`PERSONA`, `FUNDO`,
+`ASOCIATIVA`, `RECORREDOR`), nombre, apellidos para persona o recorredor,
+descripción, fecha de visita, autor autenticado y un punto GPS opcional. El
+agrónomo puede consultar sus propias visitas; ADMIN y ANALISTA pueden consultar
+las visitas comerciales desde web y descargar el PDF individual. Los Excel de
+visitas admiten Técnica, Comercial o General; General conserva la hoja técnica
+y agrega otra hoja comercial. Las métricas generales de cantidad de visitas en
+dashboard suman ambos tipos; área, campañas y etapas siguen siendo técnicas.
 
 ## Visita de campo
 

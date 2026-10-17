@@ -29,6 +29,7 @@ import { VisitaObservacionesSanitariasModule } from "./modules/visita-observacio
 import { VisitaRecetasModule } from "./modules/visita-recetas/visita-recetas.module";
 import { VisitaRiegosModule } from "./modules/visita-riegos/visita-riegos.module";
 import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module";
+import { VisitasComercialesModule } from "./modules/visitas-comerciales/visitas-comerciales.module";
 import { EstimacionesModule } from "./modules/estimaciones/estimaciones.module";
 import { ComercialModule } from "./modules/comercial/comercial.module";
 
@@ -51,6 +52,7 @@ import { ComercialModule } from "./modules/comercial/comercial.module";
     SubsectoresModule,
     ParcelasModule,
     VisitasCampoModule,
+    VisitasComercialesModule,
     NutricionModule,
     NotificacionesModule,
     OperacionesCampoModule,

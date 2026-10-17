@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, ImageBackground, ScrollView, StyleSheet, View } from "react-native";
 
 import {
@@ -19,6 +19,7 @@ import { getCatalogSessionUserId } from "../../../../shared/database/catalog-ses
 import { downloadAllCatalogs } from "../../../../shared/database/seed-catalogs";
 import { toApiError } from "../../../../shared/services";
 import { getUserIdFromAccessToken } from "../../../../shared/utils/auth-token";
+import { generatePublicId } from "../../../../shared/utils/local-id";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
 import { parcelasService } from "../../../parcelas/services";
 import type { Parcela } from "../../../parcelas/types";
@@ -52,14 +53,21 @@ export function NewVisitaSelectorScreen() {
     useState<LoadingCatalog | null>("productor");
   const [error, setError] = useState<string | null>(null);
   const [checkingVisit, setCheckingVisit] = useState(false);
+  const checkingVisitRef = useRef(false);
+  const openingVisitRef = useRef(false);
   const [productorId, setProductorId] = useState("");
   const [sectorId, setSectorId] = useState("");
   const [subsectorId, setSubsectorId] = useState("");
   const [parcelaId, setParcelaId] = useState("");
+  const [tipoVisitaAbierto, setTipoVisitaAbierto] = useState(false);
   const [selectedProductorLabel, setSelectedProductorLabel] = useState<string>();
   const [sectores, setSectores] = useState<Sector[]>([]);
   const [subsectores, setSubsectores] = useState<Subsector[]>([]);
   const [parcelas, setParcelas] = useState<Parcela[]>([]);
+
+  useFocusEffect(useCallback(() => {
+    openingVisitRef.current = false;
+  }, []));
 
   useEffect(() => {
     if (nuevoProductorId && nuevaParcelaId) {
@@ -156,6 +164,21 @@ export function NewVisitaSelectorScreen() {
             Elige productor, sector, subsector y finalmente la parcela.
           </AppText>
         </ImageBackground>
+
+        <AppCard>
+          <AppSelectField
+            label="Tipo de visita"
+            placeholder="Selecciona el tipo de visita"
+            selectedLabel="Técnica"
+            options={[{ value: "TECNICA", label: "Técnica" }, { value: "COMERCIAL", label: "Comercial" }]}
+            isOpen={tipoVisitaAbierto}
+            onToggle={() => setTipoVisitaAbierto(!tipoVisitaAbierto)}
+            onSelect={(value) => {
+              setTipoVisitaAbierto(false);
+              if (value === "COMERCIAL") router.push("/visitas-campo/registrar-comercial");
+            }}
+          />
+        </AppCard>
 
         <View style={styles.accionNuevoProductor}>
           <AppButton
@@ -277,10 +300,13 @@ export function NewVisitaSelectorScreen() {
   }
 
   function openNewVisit(parcela: Parcela) {
+    if (openingVisitRef.current) return;
+    openingVisitRef.current = true;
     router.push({
       pathname: "/visitas-campo/registrar",
       params: {
         id: parcela.id,
+        attemptId: generatePublicId(),
         parcelaCode: parcela.code,
         parcelaName: parcela.name,
         parcelaAreaHectares: formatearArea(parcela.areaHectares)
@@ -289,7 +315,8 @@ export function NewVisitaSelectorScreen() {
   }
 
   async function checkTodayAndContinue(parcela: Parcela) {
-    if (checkingVisit) return;
+    if (checkingVisitRef.current || openingVisitRef.current) return;
+    checkingVisitRef.current = true;
     setCheckingVisit(true);
     try {
       const currentUserId = session.accessToken
@@ -310,9 +337,13 @@ export function NewVisitaSelectorScreen() {
             { text: "Crear nueva", onPress: () => openNewVisit(parcela) },
             {
               text: open ? "Continuar anterior" : "Ver anterior",
-              onPress: () => router.push(open
-                ? { pathname: "/visitas-campo/registrar", params: { id: parcela.id, visitaId: previous.id } }
-                : { pathname: "/visitas-campo/[id]", params: { id: previous.id } })
+              onPress: () => {
+                if (openingVisitRef.current) return;
+                openingVisitRef.current = true;
+                router.push(open
+                  ? { pathname: "/visitas-campo/registrar", params: { id: parcela.id, visitaId: previous.id } }
+                  : { pathname: "/visitas-campo/[id]", params: { id: previous.id } });
+              }
             }
           ]
         );
@@ -339,6 +370,7 @@ export function NewVisitaSelectorScreen() {
       // El aviso es informativo: nunca impide iniciar una visita.
       openNewVisit(parcela);
     } finally {
+      checkingVisitRef.current = false;
       setCheckingVisit(false);
     }
   }

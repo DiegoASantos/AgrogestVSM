@@ -17,6 +17,8 @@ import { CurrentAuthUser } from "../../auth/presentation/decorators/current-auth
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { AdminAcreedoresCosechaService } from "../application/admin-acreedores-cosecha.service";
+import { BuscarAcreedorDocumentoDto } from "./dto/buscar-acreedor-documento.dto";
+import { ReviewCreditorDto } from "./dto/public-acreedor-cosecha.dto";
 import { PagosProductoresService } from "../application/pagos-productores.service";
 import {
   CreateDetallePagoProductorDto,
@@ -208,6 +210,24 @@ export class PagosProductoresController {
 @Roles("ADMIN", "ANALISTA")
 export class AdminAcreedoresCosechaController {
   constructor(private readonly acreedores: AdminAcreedoresCosechaService) {}
+
+  @Post("buscar-documento")
+  @AllowAnalystMutation()
+  @Header("Cache-Control", "no-store")
+  searchByDocument(@Body() dto: BuscarAcreedorDocumentoDto) {
+    return this.acreedores.searchByDocument(dto);
+  }
+
+  @Post(":id/revision")
+  @AllowAnalystMutation()
+  @Header("Cache-Control", "no-store")
+  review(
+    @Param("id", new ParseUUIDPipe()) id: string,
+    @Body() dto: ReviewCreditorDto,
+    @CurrentAuthUser() user: AccessTokenPayload
+  ) {
+    return this.acreedores.reviewByPublicId(id, dto, user);
+  }
 
   @Get()
   @Header("Cache-Control", "no-store")

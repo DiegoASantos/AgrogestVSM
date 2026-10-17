@@ -3,7 +3,8 @@ import {
   ConflictException,
   HttpException,
   Injectable,
-  NotFoundException
+  NotFoundException,
+  ServiceUnavailableException
 } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource, Not, QueryFailedError, type EntityManager } from "typeorm";
@@ -1095,9 +1096,15 @@ export class PagosProductoresService {
       if (typeof message === "string")
         return new BadRequestException(`Detalle ${index}: ${message}`);
     }
-    return new BadRequestException(
-      `Detalle ${index}: revisa los datos del acreedor, supervisor e importes.`
-    );
+    if (error instanceof QueryFailedError) {
+      const code = (error as QueryFailedError & { driverError?: { code?: string } }).driverError?.code;
+      if (code === "42703" || code === "42P01") {
+        return new ServiceUnavailableException(
+          "El esquema de pagos del servidor requiere actualización. Contacta al administrador."
+        );
+      }
+    }
+    throw error;
   }
 }
 

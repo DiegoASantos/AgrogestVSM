@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { ConfirmDialog } from "../../../shared/components/confirm-dialog";
@@ -10,7 +10,7 @@ import { EmptyState } from "../../../shared/components/empty-state";
 import { ErrorState } from "../../../shared/components/error-state";
 import { FeedbackBanner } from "../../../shared/components/feedback-banner";
 import { FilterBar } from "../../../shared/components/filter-bar";
-import { FormModal } from "../../../shared/components/form-modal";
+import { ProductorFormModal } from "./productor-form-modal";
 import { LoadingState } from "../../../shared/components/loading-state";
 import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { adminRoutes } from "../../../shared/constants/site";
@@ -27,32 +27,6 @@ import type {
   ProductorEntityType,
   ProductorListItem
 } from "../types/productores.types";
-
-type ProductorFormState = {
-  id: string | null;
-  entityType: ProductorEntityType;
-  documentTypeId: string;
-  documentNumber: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email: string;
-  address: string;
-  status: "active" | "inactive";
-};
-
-const emptyForm: ProductorFormState = {
-  id: null,
-  entityType: "persona",
-  documentTypeId: "",
-  documentNumber: "",
-  firstName: "",
-  lastName: "",
-  phone: "",
-  email: "",
-  address: "",
-  status: "active"
-};
 
 const PRODUCTOR_ENTITY_LABELS: Record<ProductorEntityType, string> = {
   persona: "Persona",
@@ -74,12 +48,10 @@ export function ProductoresOverview() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [formState, setFormState] = useState<ProductorFormState>(emptyForm);
+  const [editing, setEditing] = useState<ProductorListItem | null>(null);
   const [itemToDeactivate, setItemToDeactivate] =
     useState<ProductorListItem | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -211,106 +183,8 @@ export function ProductoresOverview() {
   }
 
   function handleEdit(item: ProductorListItem) {
-    setFormError(null);
-    setSuccessMessage(null);
-    setFormState({
-      id: item.id,
-      entityType: item.entityType,
-      documentTypeId: item.documentTypeId === null ? "" : String(item.documentTypeId),
-      documentNumber: item.documentNumber ?? "",
-      firstName: item.firstName ?? "",
-      lastName: item.lastName ?? "",
-      phone: item.phone ?? "",
-      email: item.email ?? "",
-      address: item.address ?? "",
-      status: item.isActive ? "active" : "inactive"
-    });
+    setEditing(item);
     setModalOpen(true);
-  }
-
-  function resetForm() {
-    setFormError(null);
-    setSuccessMessage(null);
-    setFormState(emptyForm);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!session) {
-      return;
-    }
-
-    const documentTypeId = Number(formState.documentTypeId);
-    const documentNumber = formState.documentNumber.trim();
-    const firstName = formState.firstName.trim();
-    const lastName = formState.lastName.trim();
-    const phone = formState.phone.trim();
-    const email = formState.email.trim().toLowerCase();
-    const address = formState.address.trim();
-
-    if (formState.entityType === "persona" && (!firstName || !lastName)) {
-      setFormError("Nombres y apellidos son obligatorios para personas.");
-      return;
-    }
-
-    if (
-      formState.entityType === "persona" &&
-      ((formState.documentTypeId && !documentNumber) ||
-        (!formState.documentTypeId && documentNumber))
-    ) {
-      setFormError("Tipo y numero de documento deben registrarse juntos.");
-      return;
-    }
-
-    if (formState.entityType !== "persona" && !firstName) {
-      setFormError("El nombre es obligatorio para fundos y cooperativas.");
-      return;
-    }
-
-    setIsSaving(true);
-    setFormError(null);
-    setSuccessMessage(null);
-
-    try {
-      const payload = {
-        entityType: formState.entityType,
-        documentTypeId:
-          formState.entityType === "persona" && formState.documentTypeId
-            ? documentTypeId
-            : null,
-        documentNumber:
-          formState.entityType === "persona" && documentNumber ? documentNumber : null,
-        firstName: firstName || null,
-        lastName: formState.entityType === "persona" ? lastName || null : null,
-        phone: phone || null,
-        email: email || null,
-        address: address || null
-      };
-
-      if (formState.id) {
-        await productoresService.update(session, formState.id, payload);
-        setSuccessMessage("Productor actualizado correctamente.");
-      } else {
-        await productoresService.create(session, payload);
-        setSuccessMessage("Productor creado correctamente.");
-      }
-
-      await loadData(page);
-      setFormState(emptyForm);
-      setModalOpen(false);
-    } catch (error) {
-      const apiError = toApiError(error);
-
-      if (apiError.statusCode === 401) {
-        logout();
-        return;
-      }
-
-      setFormError(apiError.message);
-    } finally {
-      setIsSaving(false);
-    }
   }
 
   async function handleDeactivateConfirm() {
@@ -323,8 +197,8 @@ export function ProductoresOverview() {
       await productoresService.remove(session, itemToDeactivate.id);
       setSuccessMessage("Productor desactivado correctamente.");
 
-      if (formState.id === itemToDeactivate.id) {
-        setFormState(emptyForm);
+      if (editing?.id === itemToDeactivate.id) {
+        setEditing(null);
       }
 
       setItemToDeactivate(null);
@@ -355,7 +229,7 @@ export function ProductoresOverview() {
               <Link className="ui-button ui-button--secondary" href={adminRoutes.mantenimiento}>
                 Volver a mantenimiento
               </Link>
-              <button className="ui-button ui-button--primary" onClick={() => { resetForm(); setModalOpen(true); }} type="button">
+              <button className="ui-button ui-button--primary" onClick={() => { setEditing(null); setModalOpen(true); }} type="button">
                 Nuevo productor
               </button>
             </>
@@ -450,186 +324,14 @@ export function ProductoresOverview() {
           />
         ) : null}
 
-        <FormModal
-          open={modalOpen}
-          onClose={() => { resetForm(); setModalOpen(false); }}
-          title={formState.id ? "Editar productor" : "Nuevo productor"}
-          description="Alta o edicion simple de productores."
-          footer={
-            <>
-              <button className="ui-button ui-button--ghost" onClick={() => { resetForm(); setModalOpen(false); }} type="button">
-                Cancelar
-              </button>
-              <button
-                className="ui-button ui-button--primary"
-                disabled={isSaving}
-                form="productores-form"
-                type="submit"
-              >
-                {isSaving
-                  ? "Guardando..."
-                  : formState.id
-                    ? "Guardar cambios"
-                    : "Crear productor"}
-              </button>
-            </>
-          }
-        >
-          <form className="form-layout" id="productores-form" onSubmit={handleSubmit}>
-            <label className="field-group">
-              <span>Entidad</span>
-              <select
-                onChange={(event) =>
-                  setFormState((currentState) => ({
-                    ...currentState,
-                    entityType: event.target.value as ProductorEntityType,
-                    documentTypeId:
-                      event.target.value === "persona"
-                        ? currentState.documentTypeId
-                        : "",
-                    documentNumber:
-                      event.target.value === "persona"
-                        ? currentState.documentNumber
-                        : "",
-                    lastName:
-                      event.target.value === "persona" ? currentState.lastName : ""
-                  }))
-                }
-                value={formState.entityType}
-              >
-                <option value="persona">Persona</option>
-                <option value="fundo">Fundo</option>
-                <option value="cooperativa">Cooperativa</option>
-              </select>
-            </label>
-
-            {formState.entityType === "persona" ? (
-              <>
-                <label className="field-group">
-                  <span>Tipo de documento</span>
-                  <select
-                    onChange={(event) =>
-                      setFormState((currentState) => ({
-                        ...currentState,
-                        documentTypeId: event.target.value
-                      }))
-                    }
-                    value={formState.documentTypeId}
-                  >
-                    <option value="">Selecciona un tipo</option>
-                    {documentTypeOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="field-group">
-                  <span>Numero de documento</span>
-                  <input
-                    onChange={(event) =>
-                      setFormState((currentState) => ({
-                        ...currentState,
-                        documentNumber: event.target.value
-                      }))
-                    }
-                    placeholder="12345678"
-                    value={formState.documentNumber}
-                  />
-                </label>
-              </>
-            ) : null}
-
-            <div className="field-grid">
-              <label className="field-group">
-                <span>{formState.entityType === "persona" ? "Nombres" : "Nombre"}</span>
-                <input
-                  onChange={(event) =>
-                    setFormState((currentState) => ({
-                      ...currentState,
-                      firstName: event.target.value
-                    }))
-                  }
-                  placeholder={
-                    formState.entityType === "persona" ? "Juan" : "Fundo La Esperanza"
-                  }
-                  value={formState.firstName}
-                />
-              </label>
-
-              {formState.entityType === "persona" ? (
-                <label className="field-group">
-                  <span>Apellidos</span>
-                  <input
-                    onChange={(event) =>
-                      setFormState((currentState) => ({
-                        ...currentState,
-                        lastName: event.target.value
-                      }))
-                    }
-                    placeholder="Perez"
-                    value={formState.lastName}
-                  />
-                </label>
-              ) : null}
-            </div>
-
-            <div className="field-grid">
-              <label className="field-group">
-                <span>Telefono</span>
-                <input
-                  onChange={(event) =>
-                    setFormState((currentState) => ({
-                      ...currentState,
-                      phone: event.target.value
-                    }))
-                  }
-                  placeholder="999888777"
-                  value={formState.phone}
-                />
-              </label>
-
-              <label className="field-group">
-                <span>Correo</span>
-                <input
-                  onChange={(event) =>
-                    setFormState((currentState) => ({
-                      ...currentState,
-                      email: event.target.value
-                    }))
-                  }
-                  placeholder="productor@correo.com"
-                  value={formState.email}
-                />
-              </label>
-            </div>
-
-            <label className="field-group">
-              <span>Direccion</span>
-              <textarea
-                onChange={(event) =>
-                  setFormState((currentState) => ({
-                    ...currentState,
-                    address: event.target.value
-                  }))
-                }
-                placeholder="Direccion del productor"
-                value={formState.address}
-              />
-            </label>
-
-            <label className="field-group">
-              <span>Estado</span>
-              <p className="form-help">
-                {formState.id
-                  ? `Calculado desde sus parcelas: ${formState.status === "active" ? "Activo" : "Inactivo"}.`
-                  : "El productor quedara inactivo hasta que tenga una parcela activa."}
-              </p>
-            </label>
-          </form>
-          {formError ? <p className="form-error">{formError}</p> : null}
-        </FormModal>
+        <ProductorFormModal open={modalOpen} session={session} initial={editing}
+          documentTypeOptions={documentTypeOptions}
+          onClose={() => setModalOpen(false)}
+          onSaved={async () => {
+            setModalOpen(false);
+            setSuccessMessage(editing ? "Productor actualizado correctamente." : "Productor creado correctamente.");
+            await loadData(page);
+          }} />
       </article>
 
       <ConfirmDialog

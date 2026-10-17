@@ -19,7 +19,8 @@ vi.mock("../../../shared/database/catalog-session", () => ({
 vi.mock("../../../shared/sync/sync-events", () => ({ notifySyncStatusChanged }));
 vi.mock("../../../shared/utils/local-id", () => ({
   generateLocalId: vi.fn(() => "local-1"),
-  generatePublicId: vi.fn(() => "pub-1")
+  generatePublicId: vi.fn(() => "pub-1"),
+  isUuid: vi.fn((value: string) => /^[0-9a-f-]{36}$/i.test(value))
 }));
 
 import { visitasCampoRepository } from "./visitas-campo.repository";
@@ -66,6 +67,101 @@ describe("visitasCampoRepository", () => {
     database.getAllSync.mockReturnValue([]);
     database.getFirstSync.mockReturnValue(null);
     database.withTransactionSync.mockImplementation((cb: () => void) => cb());
+  });
+
+  describe("#insert", () => {
+    const attemptId = "00000000-0000-4000-8000-000000000001";
+    const input = {
+      publicId: attemptId,
+      cropId: "c1",
+      varietyId: "var1",
+      parcelaId: "p1",
+      campaignId: "camp1",
+      agronomistUserId: "u1",
+      visitDate: "2026-06-15",
+      startVisitTime: "08:00",
+      phenologicalStageId: "stage1",
+      phenologicalStages: [{
+        phenologicalStageId: "stage1",
+        subEtapaId: null,
+        coveragePercentage: 100,
+        laborProgressPercentage: null
+      }]
+    };
+
+    it("reuses one local visit and one outbox entry for a repeated attempt", () => {
+      let inserted = false;
+      database.runSync.mockImplementation((sql) => {
+        if (sql.includes("INSERT INTO visitas_campo")) inserted = true;
+        return { changes: 1 };
+      });
+      database.getFirstSync.mockImplementation((sql) => {
+        if (sql.includes("WHERE public_id = ?")) {
+          return inserted ? {
+            local_id: "local-1",
+            agronomist_user_id: "u1",
+            parcela_id: "p1",
+            visit_date: "2026-06-15",
+            is_active: 1
+          } : null;
+        }
+        return sql.includes("FROM visitas_campo")
+          ? { ...visitaRow, local_id: "local-1", public_id: attemptId }
+          : null;
+      });
+
+      const first = visitasCampoRepository.insert(input);
+      const repeated = visitasCampoRepository.insert(input);
+
+      expect(first.id).toBe("local-1");
+      expect(repeated.id).toBe(first.id);
+      expect(database.runSync.mock.calls.filter(([sql]) =>
+        String(sql).includes("INSERT INTO visitas_campo")
+      )).toHaveLength(1);
+      expect(insertSyncOutboxEntry).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects an attempt owned by another agronomist without inserting", () => {
+      database.getFirstSync.mockReturnValue({
+        local_id: "other",
+        agronomist_user_id: "other-user",
+        parcela_id: "p1",
+        visit_date: "2026-06-15",
+        is_active: 1
+      });
+
+      expect(() => visitasCampoRepository.insert(input)).toThrow(
+        "El intento de visita ya pertenece a otro registro."
+      );
+      expect(database.runSync).not.toHaveBeenCalled();
+      expect(insertSyncOutboxEntry).not.toHaveBeenCalled();
+    });
+
+    it("allows two explicitly different attempts on the same parcel and date", () => {
+      database.getFirstSync.mockImplementation((sql) =>
+        sql.includes("WHERE public_id = ?")
+          ? null
+          : sql.includes("FROM visitas_campo")
+            ? { ...visitaRow, local_id: "local-1" }
+            : null
+      );
+
+      visitasCampoRepository.insert(input);
+      visitasCampoRepository.insert({
+        ...input,
+        publicId: "00000000-0000-4000-8000-000000000002"
+      });
+
+      const inserts = database.runSync.mock.calls.filter(([sql]) =>
+        String(sql).includes("INSERT INTO visitas_campo")
+      );
+      expect(inserts).toHaveLength(2);
+      expect(inserts.map((call) => call[3])).toEqual([
+        attemptId,
+        "00000000-0000-4000-8000-000000000002"
+      ]);
+      expect(insertSyncOutboxEntry).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe("#getAll", () => {

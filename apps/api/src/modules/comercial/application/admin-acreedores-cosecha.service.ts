@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
-import { DataSource, QueryFailedError } from "typeorm";
+import { DataSource, IsNull, QueryFailedError } from "typeorm";
 import {
   createPaginatedMeta,
   createSuccessResponse
@@ -8,6 +8,10 @@ import {
 import type { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { ProductorEntity } from "../../productores/infrastructure/persistence/entities/productor.entity";
 import { AcreedorCosechaEntity } from "../infrastructure/persistence/entities/acreedor-cosecha.entity";
+import { ProducerCreditorAccessService } from "./producer-creditor-access.service";
+import type { AccessTokenPayload } from "../../auth/types/auth.types";
+import type { ReviewCreditorDto } from "../presentation/dto/public-acreedor-cosecha.dto";
+import type { BuscarAcreedorDocumentoDto } from "../presentation/dto/buscar-acreedor-documento.dto";
 import {
   CreateAdminAcreedorCosechaDto,
   UpdateAdminAcreedorCosechaDto
@@ -15,7 +19,31 @@ import {
 
 @Injectable()
 export class AdminAcreedoresCosechaService {
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly reviews: ProducerCreditorAccessService
+  ) {}
+
+  async searchByDocument(dto: BuscarAcreedorDocumentoDto) {
+    this.assertDocumentNumber(dto.tipoDocumento, dto.nroDocumento);
+    const creditors = await this.dataSource.getRepository(AcreedorCosechaEntity).find({
+      where: {
+        creditorDocumentType: dto.tipoDocumento,
+        creditorDocumentNumber: dto.nroDocumento,
+        mergedIntoId: IsNull()
+      },
+      relations: { productor: true },
+      order: { createdAt: "DESC", id: "DESC" },
+      take: 100
+    });
+    return createSuccessResponse(creditors.map((creditor) => this.toResponse(creditor)));
+  }
+
+  async reviewByPublicId(id: string, dto: ReviewCreditorDto, user: AccessTokenPayload) {
+    const creditor = await this.findEntity(id);
+    await this.reviews.review(creditor.id, dto, user);
+    return this.findOne(id);
+  }
 
   async list(pagination: PaginationQueryDto, search?: string) {
     const query = this.dataSource
@@ -61,7 +89,8 @@ export class AdminAcreedoresCosechaService {
       source: "ADMIN_WEB"
     });
     try {
-      return createSuccessResponse(this.toResponse(await repository.save(creditor)));
+      const saved = await repository.save(creditor);
+      return createSuccessResponse(this.toResponse(await this.findEntity(saved.publicId)));
     } catch (error) {
       this.handlePersistenceError(error);
     }
@@ -86,7 +115,7 @@ export class AdminAcreedoresCosechaService {
         : {}),
       ...(dto.banco !== undefined ? { bank: dto.banco } : {}),
       ...(dto.nroCuenta !== undefined ? { accountNumber: dto.nroCuenta } : {}),
-      ...(creditor.approvalStatus === "APPROVED"
+      ...(creditor.approvalStatus !== "PENDING"
         ? {
             approvalStatus: "PENDING",
             reviewedByUserId: null,
@@ -97,7 +126,8 @@ export class AdminAcreedoresCosechaService {
       updatedAt: new Date()
     });
     try {
-      return createSuccessResponse(this.toResponse(await repository.save(creditor)));
+      const saved = await repository.save(creditor);
+      return createSuccessResponse(this.toResponse(await this.findEntity(saved.publicId)));
     } catch (error) {
       this.handlePersistenceError(error);
     }

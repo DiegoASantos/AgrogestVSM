@@ -17,7 +17,7 @@ const clean = ({ value }: { value: unknown }) =>
 const decimal = /^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/;
 const price = /^(?:0|[1-9]\d{0,7})(?:\.\d{1,6})?$/;
 const weightPercentage = /^(?:(?:[1-9]\d?)(?:\.\d{1,2})?|100(?:\.0{1,2})?|0\.(?:0[1-9]|[1-9]\d?))$/;
-const discountTypes = ["NO_APLICA", "CLP", "INSUMOS", "COMISION"] as const;
+const discountTypes = ["NO_APLICA", "CLP", "INSUMOS", "COMISION", "ANTICIPO"] as const;
 const detailStatuses = ["PENDIENTE", "OBSERVADO", "PAGADO"] as const;
 
 export class CreateDetallePagoProductorDto {

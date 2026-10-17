@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-17
 ---
 
 # Documentación de AgroGest VSM
@@ -46,6 +46,10 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 ## Especificaciones
 
 - [Política e índice de specs](specs/README.md)
+- [Spec 107: Alta y revisión de productores y acreedores desde pagos](specs/107-alta-revision-acreedores-en-pagos.md)
+- [Spec 108: Anticipo como tipo de descuento en pagos de productores](specs/108-anticipo-tipo-descuento-pagos.md)
+- [Spec 109: Visitas comerciales y reportes](specs/109-visitas-comerciales-y-reportes.md)
+- [Spec 110: Idempotencia del registro de visitas técnicas en mobile](specs/110-idempotencia-registro-visitas-tecnicas-mobile.md)
 - [Plantilla de spec](specs/TEMPLATE.md)
 - [Spec 001: Validación geoespacial backend pendiente](specs/001-geodata-validation-backend.md)
 - [Spec 002: Restaurar prueba mobile de recetas](specs/002-fix-mobile-recipe-test-runner.md)

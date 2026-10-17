@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-12
+last_reviewed: 2026-10-17
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -11,6 +11,7 @@ related_code:
   - apps/mobile/src/modules/auth
   - apps/mobile/src/modules/parcelas
   - apps/mobile/src/modules/visitas-campo
+  - apps/mobile/src/modules/visitas-comerciales
   - apps/mobile/src/modules/visita-recetas
 ---
 
@@ -30,6 +31,16 @@ la API cuando vuelva a tener conectividad.
 5. El ID del servidor se guarda junto al ID local.
 6. Se sincronizan evaluaciones, sanidad, notas, riego, labores y receta.
 7. Los registros pasan a `synced`, quedan `pending` o terminan en `error`.
+
+Las visitas comerciales usan un agregado independiente en `visitas_comerciales`.
+El formulario guarda el registro y su operación `visitas_comerciales:create` en
+una misma transacción SQLite. No depende de productor, parcela ni campaña. La
+outbox conserva su UUID público entre reintentos; la API devuelve el mismo
+registro cuando recibe de nuevo ese UUID del mismo usuario. La reconciliación
+reencola pendientes sin operación y filtra por `owner_user_id` de la sesión.
+Si falla la captura GPS, se informa al agrónomo y se guarda ubicación nula.
+PostgreSQL y API de la spec 109 deben estar disponibles antes de distribuir
+mobile con este formulario.
 
 Cuando ADMIN/ANALISTA unifica dos personas productoras, la API conserva los ID
 internos y públicos anteriores como alias. Un reintento de alta por `publicId`
@@ -101,6 +112,15 @@ se calcula ni ejecuta la baja desde datos posiblemente incompletos. Antes de
 crear otra visita del mismo dia a una parcela, mobile ofrece continuar o ver la
 visita local anterior; si la visita solo existe en servidor, avisa sin ofrecer
 edicion remota. El aviso nunca bloquea un registro nuevo.
+
+Cada apertura explicita de una visita tecnica nueva recibe un UUID de intento.
+El selector y el primer formulario ignoran pulsaciones simultaneas; la insercion
+SQLite consulta ese UUID en la misma transaccion y devuelve la visita local ya
+creada si el agronomo, la parcela y la fecha coinciden. Repetir el intento no
+agrega otra fila ni otra operacion al outbox. Una segunda visita elegida
+expresamente recibe otro UUID. La receta y la hora de fin siguen guardandose en
+la visita original al terminar los pasos; las visitas abiertas se conservan y
+pueden continuarse. No se fusionan automaticamente visitas historicas parecidas.
 
 La migracion SQLite 59 agrega a productores y parcelas el propietario de la
 descarga y una marca de visibilidad. Cada descarga oculta primero el catalogo

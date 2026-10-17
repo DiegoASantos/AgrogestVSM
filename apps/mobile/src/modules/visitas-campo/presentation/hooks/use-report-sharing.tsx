@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Alert } from "react-native";
+import { useRouter } from "expo-router";
 import { releaseCapture } from "react-native-view-shot";
 
 import {
@@ -14,7 +15,7 @@ import { visitaRecetaPdfReportService } from "../../../visita-recetas/services";
 import { visitaPdfReportService } from "../../services/visita-pdf-report.service";
 
 export type ReportKind = "diagnostico" | "receta";
-export type ReportOperation = "preview" | "share-image" | "share-pdf";
+export type ReportOperation = "preview" | "print" | "share-image" | "share-pdf";
 
 export type ActiveReportAction = {
   operation: ReportOperation;
@@ -32,6 +33,7 @@ const REPORT_LABELS: Record<ReportKind, string> = {
 };
 
 export function useReportSharing({ onError }: UseReportSharingOptions) {
+  const router = useRouter();
   const capturerRef = useRef<HtmlReportImageCapturerHandle>(null);
   const activeActionRef = useRef<ActiveReportAction | null>(null);
   const [activeAction, setActiveAction] = useState<ActiveReportAction | null>(null);
@@ -55,7 +57,16 @@ export function useReportSharing({ onError }: UseReportSharingOptions) {
             : visitaRecetaPdfReportService;
 
         if (operation === "preview") {
-          await service.preview(visitaId);
+          if (report === "receta") {
+            router.push({ pathname: "/visitas-campo/[id]/receta-preview", params: { id: visitaId } });
+          } else {
+            await service.preview(visitaId);
+          }
+          return;
+        }
+
+        if (operation === "print") {
+          await visitaRecetaPdfReportService.print(visitaId);
           return;
         }
 
@@ -108,7 +119,7 @@ export function useReportSharing({ onError }: UseReportSharingOptions) {
         setActiveAction(null);
       }
     },
-    [onError]
+    [onError, router]
   );
 
   const previewReport = useCallback(
@@ -146,6 +157,11 @@ export function useReportSharing({ onError }: UseReportSharingOptions) {
     [runReportOperation]
   );
 
+  const printReceta = useCallback(
+    (visitaId: string) => runReportOperation(visitaId, "receta", "print"),
+    [runReportOperation]
+  );
+
   const captureHost = useMemo(
     () => <HtmlReportImageCapturer ref={capturerRef} />,
     []
@@ -155,6 +171,7 @@ export function useReportSharing({ onError }: UseReportSharingOptions) {
     activeAction,
     captureHost,
     previewReport,
+    printReceta,
     promptShareReport
   };
 }

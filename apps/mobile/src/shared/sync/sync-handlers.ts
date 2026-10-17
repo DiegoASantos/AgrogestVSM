@@ -31,6 +31,7 @@ import { riegosRemote } from "../../modules/riegos/services/riegos.remote";
 import type { VisitaRiego } from "../../modules/riegos/types";
 import { visitasCampoRepository } from "../../modules/visitas-campo/repositories/visitas-campo.repository";
 import { visitasCampoRemote } from "../../modules/visitas-campo/services/visitas-campo.remote";
+import { createVisitaComercialRemote, visitasComercialesService } from "../../modules/visitas-comerciales/visitas-comerciales.service";
 import type {
   CreateVisitaCampoDraft,
   UpdateVisitaCampoDraft,
@@ -353,6 +354,25 @@ export async function handleVisitaCampo(
   }
 
   return { status: "skipped" };
+}
+
+async function handleVisitaComercial(
+  entry: SyncOutboxItem,
+  context: SyncHandlerContext = {}
+): Promise<SyncHandlerResult> {
+  const visita = visitasComercialesService.getById(entry.entityLocalId);
+  if (!visita) return { status: "deleted_local" };
+  const response = await createVisitaComercialRemote({
+    publicId: visita.publicId,
+    tipoSujeto: visita.tipoSujeto,
+    nombres: visita.nombres,
+    apellidos: visita.apellidos,
+    descripcion: visita.descripcion,
+    fechaVisita: visita.fechaVisita,
+    ubicacionVisita: visita.ubicacionVisita
+  }, context);
+  visitasComercialesService.markSynced(entry.entityLocalId, response.id);
+  return { status: "synced", serverId: response.id };
 }
 
 export async function handleEvaluacion(
@@ -1013,6 +1033,7 @@ export const entityHandlerMap: Record<
     fotos_comerciales_productor: handleFotoComercial,
   registros_cosecha: handleRegistroCosecha,
   visitas_campo: handleVisitaCampo,
+  visitas_comerciales: handleVisitaComercial,
   visita_evaluaciones: handleEvaluacion,
   visita_observaciones_sanitarias: handleObservacion,
   visita_paso_observaciones: handleStepNote,

@@ -2,12 +2,18 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-17
 ---
 
 # Línea base de seguridad operativa
 
 ## Implementado
+
+- las visitas comerciales toman el autor exclusivamente del JWT; `AGRONOMO`
+  consulta solo las suyas y `ADMIN`/`ANALISTA` pueden consultar y descargar
+  reportes. Nombre, descripción y punto GPS se validan; las respuestas y los
+  reportes llevan `Cache-Control: private, no-store` y no tienen URL pública
+  persistente. La captura local se particiona por usuario de sesión;
 
 - secretos JWT mínimos de 32 caracteres y rechazo de valores predecibles;
 - access token de 15 minutos y refresh token rotado con limite fijo de 150 dias

@@ -11,7 +11,7 @@ import {
   YAxis
 } from "recharts";
 
-import type { DashboardDateRange, VisitasPorAgronomo } from "../types/dashboard.types";
+import type { DashboardDateRange, TipoVisitaDashboard, VisitasPorAgronomo } from "../types/dashboard.types";
 
 type Props = {
   data: VisitasPorAgronomo[];
@@ -19,6 +19,8 @@ type Props = {
   isLoading: boolean;
   range: DashboardDateRange;
   onApply: (range: DashboardDateRange) => void;
+  tipo: TipoVisitaDashboard;
+  onTipoChange: (tipo: TipoVisitaDashboard) => void;
 };
 
 export function ChartVisitasPorAgronomo({
@@ -26,7 +28,9 @@ export function ChartVisitasPorAgronomo({
   errorMessage,
   isLoading,
   range,
-  onApply
+  onApply,
+  tipo,
+  onTipoChange
 }: Props) {
   const [draft, setDraft] = useState(range);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -51,6 +55,15 @@ export function ChartVisitasPorAgronomo({
           Visitas activas registradas en el rango seleccionado.
         </p>
       </div>
+      <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        Tipo de visita
+        <select className="rounded border border-border bg-background px-2 py-1 text-foreground"
+          value={tipo} onChange={(event) => onTipoChange(event.target.value as TipoVisitaDashboard)}>
+          <option value="GENERAL">General</option>
+          <option value="TECNICA">Técnica</option>
+          <option value="COMERCIAL">Comercial</option>
+        </select>
+      </label>
       <DateRangeControls
         draft={draft}
         onChange={setDraft}

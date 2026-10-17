@@ -15,6 +15,13 @@ type VisitasPorMes = {
   mes: string;
   count: number;
 };
+type TipoVisita = "GENERAL" | "TECNICA" | "COMERCIAL";
+function visitSource(tipo: TipoVisita = "GENERAL") {
+  if (tipo === "TECNICA") return "visitas_campo";
+  if (tipo === "COMERCIAL") return "visitas_comerciales";
+  return `(SELECT agronomo_usuario_id, fecha_visita, activo FROM visitas_campo
+    UNION ALL SELECT agronomo_usuario_id, fecha_visita, activo FROM visitas_comerciales)`;
+}
 
 type VisitasPorCampania = {
   campania: string;
@@ -145,7 +152,7 @@ export class DashboardService {
         "agronomistName"
       )
       .addSelect("COUNT(*)", "count")
-      .from("visitas_campo", "v")
+      .from(visitSource(query.tipo), "v")
       .leftJoin("usuarios", "u", "u.id = v.agronomo_usuario_id")
       .where(filters.join(" AND "))
       .setParameters(parameters)
@@ -246,7 +253,7 @@ export class DashboardService {
       this.dataSource
         .createQueryBuilder()
         .select("COUNT(*)", "count")
-        .from("visitas_campo", "v")
+        .from(visitSource(), "v")
         .where("v.activo = true")
         .getRawOne<{ count: string }>()
         .then((r) => Number(r?.count ?? 0)),
@@ -254,7 +261,7 @@ export class DashboardService {
       this.dataSource
         .createQueryBuilder()
         .select("COUNT(*)", "count")
-        .from("visitas_campo", "v")
+        .from(visitSource(), "v")
         .where("v.activo = true")
         .andWhere("v.fecha_visita >= date_trunc('month', CURRENT_DATE)")
         .getRawOne<{ count: string }>()
@@ -352,7 +359,7 @@ export class DashboardService {
     const rows = await this.dataSource
       .createQueryBuilder()
       .select("DISTINCT EXTRACT(YEAR FROM v.fecha_visita)", "year")
-      .from("visitas_campo", "v")
+      .from(visitSource(), "v")
       .where("v.activo = true")
       .orderBy("year", "DESC")
       .getRawMany<{ year: string }>();
@@ -415,7 +422,7 @@ export class DashboardService {
       .createQueryBuilder()
       .select(`TO_CHAR(v.fecha_visita, '${dateFormat}')`, "mes")
       .addSelect("COUNT(*)", "count")
-      .from("visitas_campo", "v")
+      .from(visitSource(period.tipo), "v")
       .where(filters.join(" AND "))
       .setParameters(parameters)
       .groupBy(`TO_CHAR(v.fecha_visita, '${dateFormat}')`)

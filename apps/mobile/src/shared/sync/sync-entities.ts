@@ -11,6 +11,7 @@ export const SYNC_ENTITY_TABLES = {
   fotos_comerciales_productor: "fotos_comerciales_productor",
   registros_cosecha: "registros_cosecha",
   visitas_campo: "visitas_campo",
+  visitas_comerciales: "visitas_comerciales",
   visita_evaluaciones: "visita_evaluaciones",
   visita_observaciones_sanitarias: "visita_observaciones_sanitarias",
   visita_paso_observaciones: "visita_paso_observaciones",

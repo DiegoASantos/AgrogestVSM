@@ -312,6 +312,23 @@ export const SQL_SCHEMA = [
     FOREIGN KEY (phenological_stage_id) REFERENCES etapas_fenologicas(id),
     FOREIGN KEY (sub_etapa_id) REFERENCES sub_etapas(id)
   )`,
+  `CREATE TABLE IF NOT EXISTS visitas_comerciales (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL UNIQUE,
+    server_id TEXT,
+    owner_user_id TEXT NOT NULL,
+    tipo_sujeto TEXT NOT NULL CHECK(tipo_sujeto IN ('PERSONA','FUNDO','ASOCIATIVA','RECORREDOR')),
+    nombres TEXT NOT NULL,
+    apellidos TEXT,
+    descripcion TEXT NOT NULL,
+    fecha_visita TEXT NOT NULL,
+    ubicacion_visita TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending','synced','error')),
+    sync_error_message TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_visitas_comerciales_owner_fecha ON visitas_comerciales(owner_user_id, fecha_visita DESC)`,
   `CREATE TABLE IF NOT EXISTS visita_etapas_fenologicas (
     local_id TEXT PRIMARY KEY NOT NULL,
     visita_local_id TEXT NOT NULL,

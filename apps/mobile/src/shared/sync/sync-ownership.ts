@@ -27,7 +27,8 @@ export function getSyncEntityOwnership(
     entityType === "pagos_cosecha" ||
     entityType === "acreedores_cosecha" ||
     entityType === "registros_cosecha" ||
-    entityType === "fotos_comerciales_productor"
+    entityType === "fotos_comerciales_productor" ||
+    entityType === "visitas_comerciales"
   ) {
     return {
       sql: `AND ${table}.owner_user_id = ?`,

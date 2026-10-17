@@ -7,7 +7,10 @@ import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { pagosService } from "../services/pagos.service";
 import { calculatedAmounts, derivedPrice } from "../domain/calculo-detalle-pago";
 import { RecepcionSystracePicker } from "./recepcion-systrace-picker";
+import { AcreedorCosechaFormModal } from "./acreedor-cosecha-form-modal";
+import { ProductorFormModal } from "../../productores/presentation/productor-form-modal";
 import type {
+  AcreedorCosecha,
   AcreedorPago,
   DetallePagoProductor,
   DetallePagoProductorPayload,
@@ -125,7 +128,7 @@ const statusLabels: Record<PagoProductorStatus, string> = {
   PAGADO: "Pagado",
   ANULADO: "Anulado"
 };
-const discountOptions = ["NO_APLICA", "CLP", "INSUMOS", "COMISION"] as const;
+const discountOptions = ["NO_APLICA", "CLP", "INSUMOS", "COMISION", "ANTICIPO"] as const;
 const observationOptions = [
   "Cuenta bancaria inexistente o equivocada",
   "Datos personales inconsistentes",
@@ -164,6 +167,10 @@ export function PagoProductorFormScreen() {
   const [creditorRevision, setCreditorRevision] = useState(0);
   const [balance, setBalance] = useState<SaldoRecepcionPago | null>(null);
   const [balanceRevision, setBalanceRevision] = useState(0);
+  const [producerModalOpen, setProducerModalOpen] = useState(false);
+  const [creditorModalOpen, setCreditorModalOpen] = useState(false);
+  const [creditorTargetRow, setCreditorTargetRow] = useState<string | null>(null);
+  const [pendingCreditor, setPendingCreditor] = useState<AcreedorCosecha | null>(null);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -376,15 +383,18 @@ export function PagoProductorFormScreen() {
       invalidHeader.reportValidity();
       return;
     }
-    const invalidRow = rows.findIndex(
-      (row) => !unchangedRow(row) && (!row.form.acreedorId || !row.form.supervisorId ||
-        (row.estado === "OBSERVADO" && !observationOptions.includes(row.form.observacion as typeof observationOptions[number])) ||
-        (row.form.tipoDescuento !== "NO_APLICA" && Number(row.form.montoDescuento) <= 0))
-    );
+    const invalidRow = rows.findIndex((row) => !unchangedRow(row) && (
+      !row.form.acreedorId || !row.form.supervisorId ||
+      (row.estado === "OBSERVADO" && !observationOptions.includes(row.form.observacion as typeof observationOptions[number])) ||
+      (row.form.tipoDescuento !== "NO_APLICA" && Number(row.form.montoDescuento) <= 0)
+    ));
     if (invalidRow >= 0) {
-      setError(
-        `Detalle ${invalidRow + 1}: revisa acreedor, supervisor, descuento y observación.`
-      );
+      const row = rows[invalidRow];
+      const reason = !row.form.acreedorId ? "selecciona un acreedor aprobado" :
+        !row.form.supervisorId ? "selecciona un supervisor agrónomo" :
+          row.estado === "OBSERVADO" && !observationOptions.includes(row.form.observacion as typeof observationOptions[number])
+            ? "selecciona una observación" : "ingresa un monto de descuento mayor que cero";
+      setError(`Detalle ${invalidRow + 1}: ${reason}.`);
       form.querySelector(`.${styles.detailsSection}`)?.setAttribute("open", "");
       const cards = form.querySelectorAll<HTMLDetailsElement>(`.${styles.detailCard}`);
       cards[invalidRow]?.setAttribute("open", "");
@@ -568,6 +578,8 @@ export function PagoProductorFormScreen() {
                 ))}
               </select>
             </label>
+            {!isEditing && <button className={styles.secondary} type="button"
+              onClick={() => setProducerModalOpen(true)}>+ Nuevo productor</button>}
             <div className={styles.formGrid}>
               {headerFields.map((item) => field(item.key, item.label, item.type))}
             </div>
@@ -616,10 +628,31 @@ export function PagoProductorFormScreen() {
               {creditors.length === 0 && (
                 <div className={styles.helper}>
                   {header.productorId
-                    ? "Este productor no tiene acreedores aprobados. Regístralos en Mantenimiento y vuelve a esta vista."
+                    ? "Este productor no tiene acreedores aprobados. Crea uno aquí y apruébalo para guardar el pago."
                     : "Selecciona un productor para consultar sus acreedores aprobados."}
                 </div>
               )}
+              {pendingCreditor && pendingCreditor.productorId === header.productorId &&
+                pendingCreditor.estadoAprobacion === "PENDING" && <div className={styles.helper} role="status">
+                  <strong>{pendingCreditor.nombres} {pendingCreditor.apellidos} está pendiente de aprobación.</strong>
+                  <button className={styles.secondary} type="button" disabled={busy} onClick={async () => {
+                    if (!session) return;
+                    setBusy(true); setError("");
+                    try {
+                      const approved = await pagosService.reviewCreditor(session, pendingCreditor.id, "APPROVED");
+                      setPendingCreditor(null);
+                      setCreditorRevision((value) => value + 1);
+                      setRows((current) => current.map((row) => row.localId === creditorTargetRow ? {
+                        ...row, form: { ...row.form, acreedorId: approved.id,
+                          tipoDocumentoProductor: approved.tipoDocumento,
+                          nroDocumentoProductor: approved.nroDocumento }
+                      } : row));
+                      setNotice("Acreedor aprobado y seleccionado en el detalle.");
+                    } catch (cause) {
+                      setError(cause instanceof Error ? cause.message : "No se pudo aprobar el acreedor.");
+                    } finally { setBusy(false); }
+                  }}>Aprobar acreedor</button>
+                </div>}
               {rows.length > 0 && (
                 <div className={styles.tableWrap}>
                   <table className={styles.table}>
@@ -696,6 +729,11 @@ export function PagoProductorFormScreen() {
                               });
                             }}
                           />
+                          <button className={styles.secondary} type="button"
+                            disabled={!header.productorId} onClick={() => {
+                              setCreditorTargetRow(row.localId);
+                              setCreditorModalOpen(true);
+                            }}>+ Nuevo acreedor</button>
                         </div>
                         <label className={styles.field}>
                           <span>Documento del acreedor</span>
@@ -770,7 +808,7 @@ export function PagoProductorFormScreen() {
                                 {!discountOptions.includes(row.form.tipoDescuento as typeof discountOptions[number]) &&
                                   <option value="">Tipo histórico: {row.form.tipoDescuento}</option>}
                                 {discountOptions.map((option) => <option key={option} value={option}>
-                                  {option === "NO_APLICA" ? "No aplica" : option}
+                                  {option === "NO_APLICA" ? "No aplica" : option === "ANTICIPO" ? "Anticipo" : option}
                                 </option>)}
                               </select>
                             </label>
@@ -851,6 +889,48 @@ export function PagoProductorFormScreen() {
           </button>
         </div>
       </form>
+      <ProductorFormModal open={producerModalOpen} session={session}
+        onClose={() => setProducerModalOpen(false)} onSaved={async (created) => {
+          if (!session) return;
+          let catalogRefreshFailed = false;
+          try {
+            setCatalogs(await pagosService.catalogs(session));
+          } catch {
+            catalogRefreshFailed = true;
+            setCatalogs((current) => current ? {
+              ...current,
+              productores: [...current.productores, {
+                id: created.publicId,
+                nombre: [created.firstName, created.lastName].filter(Boolean).join(" "),
+                activo: created.isActive
+              }]
+            } : current);
+          }
+          setHeader((current) => ({ ...current, productorId: created.publicId }));
+          setRows((current) => current.map((row) => ({ ...row,
+            form: { ...row.form, acreedorId: "", nroDocumentoProductor: "" } })));
+          setProducerModalOpen(false);
+          setNotice(catalogRefreshFailed
+            ? "Productor creado y seleccionado. No se pudo actualizar la lista; vuelve a cargarla antes de vincular Systrace."
+            : "Productor creado y seleccionado. Si usas Systrace, vincula su código de origen.");
+        }} />
+      <AcreedorCosechaFormModal open={creditorModalOpen} session={session} catalogs={catalogs}
+        producerId={header.productorId} onClose={() => setCreditorModalOpen(false)}
+        onSaved={async (saved) => {
+          setCreditorModalOpen(false);
+          if (saved.estadoAprobacion === "APPROVED") {
+            setCreditorRevision((value) => value + 1);
+            setRows((current) => current.map((row) => row.localId === creditorTargetRow ? {
+              ...row, form: { ...row.form, acreedorId: saved.id,
+                tipoDocumentoProductor: saved.tipoDocumento,
+                nroDocumentoProductor: saved.nroDocumento }
+            } : row));
+            setNotice("Acreedor seleccionado en el detalle.");
+          } else {
+            setPendingCreditor(saved);
+            setNotice("Acreedor guardado. Apruébalo aquí para usarlo en el pago.");
+          }
+        }} />
     </section>
   );
 }

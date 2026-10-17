@@ -876,6 +876,22 @@ describe("VisitasCampoService", () => {
       return { manager, stageSave };
     }
 
+    it("returns the existing visit when the same public ID is retried", async () => {
+      const existing = makeVisita({ publicId: "retry-public-id" });
+      repo.findOne.mockResolvedValue(existing);
+
+      const result = await service.create(
+        { ...validDto, publicId: "retry-public-id" },
+        { userId: "u1", roles: ["AGRONOMO"] }
+      );
+
+      expect(result.data.id).toBe(existing.id);
+      expect(repo.findOne).toHaveBeenCalledWith(expect.objectContaining({
+        where: { publicId: "retry-public-id" }
+      }));
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
     it("stores both entries and selects the stage with the largest parcel share", async () => {
       const { stageSave } = mockStageReferences();
       const result = await service.create({

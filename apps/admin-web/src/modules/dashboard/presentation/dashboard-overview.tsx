@@ -25,6 +25,7 @@ import type {
   ParcelasPorEtapa,
   VisitasPorAgronomo
 } from "../types/dashboard.types";
+import type { TipoVisitaDashboard } from "../types/dashboard.types";
 import {
   Select,
   SelectContent,
@@ -43,6 +44,8 @@ export function DashboardOverview() {
   const [dashboardPeriod, setDashboardPeriod] = useState<DashboardPeriodFilters>(
     currentDashboardPeriod
   );
+  const [visitChartType, setVisitChartType] = useState<TipoVisitaDashboard>("GENERAL");
+  const [agronomistChartType, setAgronomistChartType] = useState<TipoVisitaDashboard>("GENERAL");
   const [agronomistFilters, setAgronomistFilters] =
     useState<DashboardDateRange>(currentMonthRange);
   const [stageFilters, setStageFilters] = useState<DashboardDateRange>(currentMonthRange);
@@ -59,7 +62,7 @@ export function DashboardOverview() {
       setIsLoading(true);
       setErrorMessage(null);
       try {
-        const resumen = await dashboardService.getResumen(session, filters);
+        const resumen = await dashboardService.getResumen(session, filters, visitChartType);
         setData(resumen);
       } catch (err) {
         const apiError = toApiError(err);
@@ -69,7 +72,7 @@ export function DashboardOverview() {
         setIsLoading(false);
       }
     },
-    [session]
+    [session, visitChartType]
   );
 
   useEffect(() => {
@@ -80,7 +83,7 @@ export function DashboardOverview() {
     if (!session) return;
 
     void loadVisitasPorAgronomo(agronomistFilters);
-  }, [agronomistFilters, session]);
+  }, [agronomistFilters, agronomistChartType, session]);
 
   useEffect(() => {
     if (!session) return;
@@ -151,6 +154,7 @@ export function DashboardOverview() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <div className={`${chartCardClassName} md:col-span-2 xl:col-span-1`}>
+          <VisitTypeSelect value={visitChartType} onChange={setVisitChartType} />
           <ChartVisitasPorMes data={data.charts.visitasPorMes} />
         </div>
         <div className={chartCardClassName}>
@@ -171,6 +175,8 @@ export function DashboardOverview() {
             errorMessage={agronomistsError}
             isLoading={isLoadingAgronomists}
             onApply={setAgronomistFilters}
+            tipo={agronomistChartType}
+            onTipoChange={setAgronomistChartType}
             range={agronomistFilters}
           />
         </div>
@@ -200,7 +206,7 @@ export function DashboardOverview() {
     try {
       setIsLoadingAgronomists(true);
       setAgronomistsError(null);
-      const response = await dashboardService.getVisitasPorAgronomo(session, filters);
+      const response = await dashboardService.getVisitasPorAgronomo(session, filters, agronomistChartType);
       setVisitasPorAgronomo(response.items);
     } catch (err) {
       const apiError = toApiError(err);
@@ -235,6 +241,21 @@ export function DashboardOverview() {
 
 function currentDashboardPeriod(): DashboardPeriodFilters {
   return { year: new Date().getFullYear(), month: null, day: null };
+}
+
+function VisitTypeSelect({ value, onChange }: {
+  value: TipoVisitaDashboard;
+  onChange: (tipo: TipoVisitaDashboard) => void;
+}) {
+  return <label className="mb-3 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+    Tipo de visita
+    <select className="rounded border border-border bg-background px-2 py-1 text-foreground"
+      value={value} onChange={(event) => onChange(event.target.value as TipoVisitaDashboard)}>
+      <option value="GENERAL">General</option>
+      <option value="TECNICA">Técnica</option>
+      <option value="COMERCIAL">Comercial</option>
+    </select>
+  </label>;
 }
 
 function DashboardPeriodFilter({

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 77;
+const LATEST_MIGRATION_VERSION = 78;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1940,6 +1940,17 @@ describe("runMigrations", () => {
       statement.includes("CREATE TABLE IF NOT EXISTS fotos_comerciales_productor"))).toBe(true);
     expect(db.executedStatements.some((statement) =>
       /DROP TABLE (acreedores_cosecha|pagos_cosecha)/u.test(statement))).toBe(false);
+  });
+
+  it("adds commercial visits without changing existing technical visits", () => {
+    const db = createFakeDatabase(77);
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.executedStatements.some((statement) =>
+      statement.includes("CREATE TABLE IF NOT EXISTS visitas_comerciales"))).toBe(true);
+    expect(db.executedStatements.some((statement) =>
+      /DELETE FROM visitas_campo|DROP TABLE visitas_campo/u.test(statement))).toBe(false);
   });
 
   it("reuses an active transaction while applying pending migrations", () => {

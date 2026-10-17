@@ -15,7 +15,7 @@ import {
   normalizeGeoJsonPoint,
   type GeoJsonPointGeometry
 } from "../../../shared/maps/geo";
-import { generateLocalId, generatePublicId } from "../../../shared/utils/local-id";
+import { generateLocalId, generatePublicId, isUuid } from "../../../shared/utils/local-id";
 import type {
   CampaniaCatalogItem,
   CreateVisitaCampoDraft,
@@ -323,9 +323,37 @@ export const visitasCampoRepository = {
     const db = getDatabase();
     const localId = generateLocalId();
     const timestamp = getNowIsoString();
-    const publicId = generatePublicId();
+    if (input.publicId && !isUuid(input.publicId)) {
+      throw new Error("El identificador del intento de visita no es valido.");
+    }
+    const publicId = input.publicId ?? generatePublicId();
+    let resolvedLocalId = localId;
 
     db.withTransactionSync(() => {
+      const existing = db.getFirstSync<{
+        local_id: string;
+        agronomist_user_id: string;
+        parcela_id: string;
+        visit_date: string;
+        is_active: number;
+      }>(
+        `SELECT local_id, agronomist_user_id, parcela_id, visit_date, is_active
+         FROM visitas_campo WHERE public_id = ? LIMIT 1`,
+        publicId
+      );
+      if (existing) {
+        if (
+          existing.agronomist_user_id !== input.agronomistUserId ||
+          existing.parcela_id !== input.parcelaId ||
+          existing.visit_date !== input.visitDate ||
+          existing.is_active !== 1
+        ) {
+          throw new Error("El intento de visita ya pertenece a otro registro.");
+        }
+        resolvedLocalId = existing.local_id;
+        return;
+      }
+
       db.runSync(
         `INSERT INTO visitas_campo (
           local_id,
@@ -397,7 +425,7 @@ export const visitasCampoRepository = {
       });
     });
 
-    const visita = this.getById(localId);
+    const visita = this.getById(resolvedLocalId);
 
     if (!visita) {
       throw new Error("No se pudo guardar la visita local.");

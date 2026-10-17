@@ -9,14 +9,16 @@ import type {
   ParcelasPorEtapa,
   VisitasPorAgronomo
 } from "../types/dashboard.types";
+import type { TipoVisitaDashboard } from "../types/dashboard.types";
 
 export const dashboardService = {
   async getResumen(
     session: AuthSessionInput,
-    filters: DashboardPeriodFilters
+    filters: DashboardPeriodFilters,
+    tipo: TipoVisitaDashboard = "GENERAL"
   ): Promise<DashboardResumen> {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
-    const params = buildDashboardPeriodQuery(filters);
+    const params = `${buildDashboardPeriodQuery(filters)}&tipo=${tipo}`;
 
     return apiRequest<DashboardResumen>(`/dashboard/resumen?${params}`, {
       headers
@@ -25,10 +27,11 @@ export const dashboardService = {
 
   async getVisitasPorAgronomo(
     session: AuthSessionInput,
-    filters: DashboardDateRange
+    filters: DashboardDateRange,
+    tipo: TipoVisitaDashboard = "GENERAL"
   ): Promise<{ items: VisitasPorAgronomo[] }> {
     return apiRequest<{ items: VisitasPorAgronomo[] }>(
-      `/dashboard/visitas-por-agronomo?${buildDateRangeQuery(filters)}`,
+      `/dashboard/visitas-por-agronomo?${buildDateRangeQuery(filters)}&tipo=${tipo}`,
       { headers: createAuthHeaders(session.accessToken, session.tokenType) }
     );
   },

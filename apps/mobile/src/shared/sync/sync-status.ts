@@ -50,6 +50,7 @@ const SYNC_ENTITY_LABELS: Record<SyncEntityType, string> = {
   fotos_comerciales_productor: "Foto comercial del productor",
   registros_cosecha: "Registro de cosecha",
   visitas_campo: "Visita de campo",
+  visitas_comerciales: "Visita comercial",
   visita_evaluaciones: "Evaluacion",
   visita_observaciones_sanitarias: "Plagas y enfermedades",
   visita_paso_observaciones: "Nota de paso",
