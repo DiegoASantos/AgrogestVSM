@@ -9,6 +9,26 @@ type Migration = {
   run?: (db: SQLiteDatabase) => void;
 };
 
+const COMMERCIAL_VISITS_TABLE_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS visitas_comerciales (
+    local_id TEXT PRIMARY KEY NOT NULL,
+    public_id TEXT NOT NULL UNIQUE,
+    server_id TEXT,
+    owner_user_id TEXT NOT NULL,
+    tipo_sujeto TEXT NOT NULL CHECK(tipo_sujeto IN ('PERSONA','FUNDO','ASOCIATIVA','RECORREDOR')),
+    nombres TEXT NOT NULL,
+    apellidos TEXT,
+    descripcion TEXT NOT NULL,
+    fecha_visita TEXT NOT NULL,
+    ubicacion_visita TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending','synced','error')),
+    sync_error_message TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`,
+  "CREATE INDEX IF NOT EXISTS idx_visitas_comerciales_owner_fecha ON visitas_comerciales(owner_user_id, fecha_visita DESC)"
+] as const;
+
 const MIGRATIONS: Migration[] = [
   {
     version: 1,
@@ -1850,25 +1870,7 @@ const MIGRATIONS: Migration[] = [
   },
   {
     version: 78,
-    statements: [
-      `CREATE TABLE IF NOT EXISTS visitas_comerciales (
-        local_id TEXT PRIMARY KEY NOT NULL,
-        public_id TEXT NOT NULL UNIQUE,
-        server_id TEXT,
-        owner_user_id TEXT NOT NULL,
-        tipo_sujeto TEXT NOT NULL CHECK(tipo_sujeto IN ('PERSONA','FUNDO','ASOCIATIVA','RECORREDOR')),
-        nombres TEXT NOT NULL,
-        apellidos TEXT,
-        descripcion TEXT NOT NULL,
-        fecha_visita TEXT NOT NULL,
-        ubicacion_visita TEXT,
-        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending','synced','error')),
-        sync_error_message TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )`,
-      "CREATE INDEX IF NOT EXISTS idx_visitas_comerciales_owner_fecha ON visitas_comerciales(owner_user_id, fecha_visita DESC)"
-    ]
+    statements: COMMERCIAL_VISITS_TABLE_STATEMENTS
   }
 ];
 
@@ -2059,5 +2061,10 @@ export function runMigrations(db: SQLiteDatabase) {
 
       db.execSync(`PRAGMA user_version = ${migration.version}`);
     });
+  }
+
+  // Repair installations that already recorded version 78 but missed the DDL.
+  for (const statement of COMMERCIAL_VISITS_TABLE_STATEMENTS) {
+    db.execSync(statement);
   }
 }

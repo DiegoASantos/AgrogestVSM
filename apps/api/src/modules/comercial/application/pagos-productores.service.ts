@@ -713,14 +713,19 @@ export class PagosProductoresService {
       );
     const supervisor = await manager
       .getRepository(UserEntity)
-      .createQueryBuilder("user")
-      .select(["user.id", "user.publicId", "user.firstName", "user.lastName"])
-      .innerJoin("user.userRoles", "userRole")
+      .createQueryBuilder("supervisor")
+      .select([
+        "supervisor.id",
+        "supervisor.publicId",
+        "supervisor.firstName",
+        "supervisor.lastName"
+      ])
+      .innerJoin("supervisor.userRoles", "userRole")
       .innerJoin("userRole.role", "role", "role.code = :roleCode", {
         roleCode: "AGRONOMO"
       })
-      .where("user.public_id = :publicId", { publicId: dto.supervisorId })
-      .andWhere("user.is_active = true")
+      .where("supervisor.publicId = :publicId", { publicId: dto.supervisorId })
+      .andWhere("supervisor.isActive = true")
       .getOne();
     if (!supervisor) throw new NotFoundException("Supervisor no disponible.");
     return manager.getRepository(DetallePagoProductorEntity).create({

@@ -1,6 +1,9 @@
 import { BadRequestException, ServiceUnavailableException } from "@nestjs/common";
 import { QueryFailedError } from "typeorm";
 import { describe, expect, it, vi } from "vitest";
+import { TipoDocumentoEntity } from "../../tipos-documento/infrastructure/persistence/entities/tipo-documento.entity";
+import { UserEntity } from "../../users/infrastructure/persistence/entities/user.entity";
+import { AcreedorCosechaEntity } from "../infrastructure/persistence/entities/acreedor-cosecha.entity";
 import { DetallePagoProductorEntity } from "../infrastructure/persistence/entities/detalle-pago-productor.entity";
 import { PagoProductorEntity } from "../infrastructure/persistence/entities/pago-productor.entity";
 import { PagosProductoresService } from "./pagos-productores.service";
@@ -11,7 +14,9 @@ const payment = {
   productorId: "20",
   status: "BORRADOR",
   harvestDate: "2026-10-01",
-  harvestReceptionDate: "2026-10-02"
+  harvestReceptionDate: "2026-10-02",
+  crateQuantity: 10,
+  netWeight: "200"
 } as PagoProductorEntity;
 
 function buildService() {
@@ -68,6 +73,62 @@ function buildService() {
 }
 
 describe("PagosProductoresService complete payment", () => {
+  it("filters active supervisors through TypeORM property paths", async () => {
+    const queryBuilder = {
+      select: vi.fn().mockReturnThis(),
+      innerJoin: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      andWhere: vi.fn().mockReturnThis(),
+      getOne: vi.fn(async () => ({ id: "30", publicId: "supervisor-public-id" }))
+    };
+    const manager = {
+      getRepository: vi.fn((entity: unknown) => {
+        if (entity === AcreedorCosechaEntity) {
+          return { findOne: vi.fn(async () => ({
+            id: "40",
+            publicId: "creditor-public-id",
+            productorId: payment.productorId,
+            approvalStatus: "APPROVED",
+            creditorDocumentType: "DNI",
+            creditorDocumentNumber: "12345678"
+          })) };
+        }
+        if (entity === TipoDocumentoEntity) return { findOne: vi.fn(async () => ({ id: "50" })) };
+        if (entity === UserEntity) return { createQueryBuilder: vi.fn(() => queryBuilder) };
+        if (entity === DetallePagoProductorEntity) return { create: vi.fn((value) => value) };
+        throw new Error("Unexpected repository");
+      })
+    };
+    const { service } = buildService();
+    const buildDetail = (service as unknown as {
+      buildDetail: (
+        manager: never,
+        payment: PagoProductorEntity,
+        dto: never
+      ) => Promise<unknown>;
+    }).buildDetail;
+
+    await buildDetail.call(service, manager as never, payment, {
+      acreedorId: "creditor-public-id",
+      supervisorId: "supervisor-public-id",
+      cantidadJabas: 2,
+      precioJaba: "20",
+      precioKilo: "1",
+      precioBase: "JABA",
+      porcentajePeso: "100",
+      aplicaFairtrade: false,
+      tipoDescuento: "NO_APLICA",
+      montoDescuento: "0",
+      detraccion: "0"
+    } as never);
+
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      "supervisor.publicId = :publicId",
+      { publicId: "supervisor-public-id" }
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith("supervisor.isActive = true");
+  });
+
   it("rejects a complete payment with no active detail", async () => {
     const { service, getPersisted } = buildService();
 

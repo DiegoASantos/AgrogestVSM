@@ -91,6 +91,10 @@ registros comerciales existentes; el rollback de API debe mantener lectura de
 datos ya persistidos o restaurar la versión compatible. Verificar migración en
 base vacía y existente con backup previo.
 
+La app reejecuta de forma idempotente el DDL de `visitas_comerciales` al abrir
+SQLite, incluso si `PRAGMA user_version` ya está en 78 o superior. Esto repara
+instalaciones donde el número de versión quedó actualizado pero faltó la tabla.
+
 ## Criterios de aceptación
 
 - [x] CA-001: Técnica sigue funcionando y es la opción inicial.
