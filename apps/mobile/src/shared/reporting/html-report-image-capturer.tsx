@@ -6,7 +6,14 @@ import {
   useRef,
   useState
 } from "react";
-import { ActivityIndicator, Modal, PixelRatio, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  PixelRatio,
+  Platform,
+  StyleSheet,
+  View
+} from "react-native";
 import { captureRef, releaseCapture } from "react-native-view-shot";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
@@ -20,10 +27,7 @@ import {
   parseReportPageReadyMessage,
   parseReportHeightMessage
 } from "./report-image-sizing";
-import {
-  REPORT_IMAGE_MAX_PAGE_HEIGHT,
-  REPORT_IMAGE_WIDTH
-} from "./report-config";
+import { REPORT_IMAGE_MAX_PAGE_HEIGHT, REPORT_IMAGE_WIDTH } from "./report-config";
 
 const CAPTURE_TIMEOUT_MS = 60_000;
 const CAPTURE_SETTLE_MS = 500;
@@ -33,10 +37,29 @@ const pixelRatio = PixelRatio.get();
 const REPORT_SIZE_MESSAGE = "agrogest-report-size";
 const REPORT_PAGE_READY_MESSAGE = "agrogest-report-page-ready";
 
+// WKWebView may suspend animation frames while covered by the loading overlay.
+// Keep the paint opportunity, but do not make bridge messages depend on it.
+const REPORT_PAINT_WAIT_SCRIPT = `
+  var afterReportPaint = function (callback) {
+    var finished = false;
+    var complete = function () {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeout);
+      callback();
+    };
+    var timeout = setTimeout(complete, 250);
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(function () { requestAnimationFrame(complete); });
+    }
+  };
+`;
+
 export const REPORT_IMAGE_CAPTURE_CANCELLED_ERROR = "ReportImageCaptureCancelledError";
 
-const REPORT_MEASUREMENT_SCRIPT = `
+export const REPORT_MEASUREMENT_SCRIPT = `
   (function () {
+    ${REPORT_PAINT_WAIT_SCRIPT}
     var sendHeight = function () {
       var body = document.body;
       var root = document.documentElement;
@@ -67,9 +90,7 @@ const REPORT_MEASUREMENT_SCRIPT = `
       }));
 
       Promise.all([fontReady, imagesReady]).then(function () {
-        requestAnimationFrame(function () {
-          requestAnimationFrame(sendHeight);
-        });
+        afterReportPaint(sendHeight);
       });
     };
 
@@ -78,7 +99,7 @@ const REPORT_MEASUREMENT_SCRIPT = `
 
     if (window.ResizeObserver && document.documentElement) {
       var observer = new ResizeObserver(function () {
-        requestAnimationFrame(sendHeight);
+        afterReportPaint(sendHeight);
       });
       observer.observe(document.documentElement);
       window.addEventListener("beforeunload", function () {
@@ -94,6 +115,12 @@ type PendingCapture = {
   id: number;
   reject: (error: Error) => void;
   resolve: (uris: string[]) => void;
+};
+
+type DismissedCapture = {
+  complete: () => void;
+  cancel: () => void;
+  timeout: ReturnType<typeof setTimeout>;
 };
 
 type PageRender = {
@@ -120,6 +147,7 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
   function HtmlReportImageCapturer(_, ref) {
     const captureViewRef = useRef<View>(null);
     const pendingRef = useRef<PendingCapture | null>(null);
+    const dismissedCaptureRef = useRef<DismissedCapture | null>(null);
     const captureSequenceRef = useRef(0);
     const pageRenderSequenceRef = useRef(0);
     const pageReadyWaiterRef = useRef<PageReadyWaiter | null>(null);
@@ -127,6 +155,32 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
     const [request, setRequest] = useState<PendingCapture | null>(null);
     const [contentHeight, setContentHeight] = useState<number | null>(null);
     const [pageRender, setPageRender] = useState<PageRender | null>(null);
+
+    const completeAfterDismiss = useCallback(
+      (complete: () => void, cancel: () => void) => {
+        if (Platform.OS !== "ios") {
+          complete();
+          return;
+        }
+
+        const timeout = setTimeout(() => {
+          const closing = dismissedCaptureRef.current;
+          if (!closing) return;
+          dismissedCaptureRef.current = null;
+          closing.cancel();
+        }, PAGE_READY_TIMEOUT_MS);
+        dismissedCaptureRef.current = { complete, cancel, timeout };
+      },
+      []
+    );
+
+    const handleDismiss = useCallback(() => {
+      const closing = dismissedCaptureRef.current;
+      if (!closing) return;
+      dismissedCaptureRef.current = null;
+      clearTimeout(closing.timeout);
+      closing.complete();
+    }, []);
 
     const maxPageHeight = getMaxReportLogicalHeight(
       REPORT_IMAGE_WIDTH,
@@ -153,21 +207,43 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
         pendingRef.current = null;
         setRequest(null);
         setContentHeight(null);
-        pending.reject(new Error(message));
+        completeAfterDismiss(
+          () => pending.reject(new Error(message)),
+          () => pending.reject(new Error(message))
+        );
       },
-      [abortPageRender]
+      [abortPageRender, completeAfterDismiss]
     );
 
-    const resolvePending = useCallback((requestId: number, uris: string[]) => {
-      const pending = pendingRef.current;
-      if (pending?.id !== requestId) return;
+    const resolvePending = useCallback(
+      (requestId: number, uris: string[]) => {
+        const pending = pendingRef.current;
+        if (pending?.id !== requestId) return;
 
-      pendingRef.current = null;
-      setRequest(null);
-      setContentHeight(null);
-      setPageRender(null);
-      pending.resolve(uris.map(normalizeCaptureUri));
-    }, []);
+        pendingRef.current = null;
+        setRequest(null);
+        setContentHeight(null);
+        setPageRender(null);
+        completeAfterDismiss(
+          () => pending.resolve(uris.map(normalizeCaptureUri)),
+          () => {
+            for (const uri of uris) {
+              try {
+                releaseCapture(uri);
+              } catch {
+                // Cleanup must not prevent the pending operation from rejecting.
+              }
+            }
+            pending.reject(
+              new Error(
+                "No se pudo cerrar el generador de imagen. Intenta de nuevo o comparte el PDF."
+              )
+            );
+          }
+        );
+      },
+      [completeAfterDismiss]
+    );
 
     const cancelPending = useCallback(() => {
       const pending = pendingRef.current;
@@ -179,15 +255,18 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
       pendingRef.current = null;
       setRequest(null);
       setContentHeight(null);
-      pending.reject(error);
-    }, [abortPageRender]);
+      completeAfterDismiss(
+        () => pending.reject(error),
+        () => pending.reject(error)
+      );
+    }, [abortPageRender, completeAfterDismiss]);
 
     useImperativeHandle(
       ref,
       () => ({
         capture(html: string) {
           const startError = getReportCaptureStartError(
-            pendingRef.current !== null,
+            pendingRef.current !== null || dismissedCaptureRef.current !== null,
             startedCaptureIdsRef.current.size
           );
           if (startError) {
@@ -233,6 +312,12 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
           const error = new Error("La generacion de imagen fue cancelada.");
           error.name = REPORT_IMAGE_CAPTURE_CANCELLED_ERROR;
           pending.reject(error);
+        }
+        const closing = dismissedCaptureRef.current;
+        dismissedCaptureRef.current = null;
+        if (closing) {
+          clearTimeout(closing.timeout);
+          closing.cancel();
         }
       },
       [abortPageRender]
@@ -385,73 +470,91 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
       });
     }
 
-    return request ? (
-      <Modal animationType="none" onRequestClose={cancelPending} transparent visible>
-        <View style={styles.modalRoot}>
-          <View
-            collapsable={false}
-            pointerEvents="none"
-            ref={captureViewRef}
-            style={[
-              styles.captureSurface,
-              {
-                height: pageRender?.height ?? REPORT_IMAGE_MAX_PAGE_HEIGHT,
-                width: REPORT_IMAGE_WIDTH
-              }
-            ]}
-          >
-            <WebView
-              androidLayerType="software"
-              injectedJavaScript={
-                pageRender ? buildPageRenderScript(pageRender) : REPORT_MEASUREMENT_SCRIPT
-              }
-              javaScriptEnabled
-              key={`${request.id}-${pageRender?.renderId ?? "measure"}`}
-              onError={() => {
-                if (pageRender) {
-                  abortPageRender("No se pudo renderizar una pagina del reporte.");
-                  return;
+    // iOS must dismiss its native controller before the caller presents sharing.
+    // Keep Modal mounted so onDismiss can complete the pending promise.
+    return (
+      <Modal
+        animationType="none"
+        onDismiss={handleDismiss}
+        onRequestClose={cancelPending}
+        transparent
+        visible={request !== null}
+      >
+        {request ? (
+          <View style={styles.modalRoot}>
+            <View
+              collapsable={false}
+              pointerEvents="none"
+              ref={captureViewRef}
+              style={[
+                styles.captureSurface,
+                {
+                  height: pageRender?.height ?? REPORT_IMAGE_MAX_PAGE_HEIGHT,
+                  width: REPORT_IMAGE_WIDTH
                 }
-                rejectPending(
-                  request.id,
-                  "No se pudo renderizar el reporte. Intenta nuevamente o comparte el PDF."
-                );
-              }}
-              onMessage={(event) => handleMessage(request.id, event)}
-              originWhitelist={["about:blank"]}
-              scrollEnabled={false}
-              source={{ baseUrl: "about:blank", html: request.html }}
-              style={{
-                backgroundColor: "#ffffff",
-                height: pageRender?.height ?? REPORT_IMAGE_MAX_PAGE_HEIGHT,
-                width: REPORT_IMAGE_WIDTH
-              }}
-            />
-          </View>
-
-          <View style={styles.loadingOverlay}>
-            <View style={styles.loadingCard}>
-              <ActivityIndicator color={theme.colors.primary} size="large" />
-              <AppText variant="label">
-                Generando imagen...
-                {pageRender && pageRender.total > 1
-                  ? ` (${pageRender.index + 1}/${pageRender.total})`
-                  : ""}
-              </AppText>
-              <AppText style={styles.loadingHint} variant="caption">
-                Los reportes extensos pueden tardar unos segundos.
-              </AppText>
-              <AppButton
-                label="Cancelar"
-                onPress={cancelPending}
-                size="small"
-                variant="outline"
+              ]}
+            >
+              <WebView
+                androidLayerType="software"
+                injectedJavaScript={
+                  pageRender
+                    ? buildPageRenderScript(pageRender)
+                    : REPORT_MEASUREMENT_SCRIPT
+                }
+                javaScriptEnabled
+                key={`${request.id}-${pageRender?.renderId ?? "measure"}`}
+                onError={() => {
+                  if (pageRender) {
+                    abortPageRender("No se pudo renderizar una pagina del reporte.");
+                    return;
+                  }
+                  rejectPending(
+                    request.id,
+                    "No se pudo renderizar el reporte. Intenta nuevamente o comparte el PDF."
+                  );
+                }}
+                onMessage={(event) => handleMessage(request.id, event)}
+                onContentProcessDidTerminate={() =>
+                  rejectPending(
+                    request.id,
+                    "El generador de imagen se interrumpio. Intenta de nuevo o comparte el PDF."
+                  )
+                }
+                originWhitelist={["about:blank"]}
+                scrollEnabled={false}
+                source={{ baseUrl: "about:blank", html: request.html }}
+                style={{
+                  backgroundColor: "#ffffff",
+                  height: pageRender?.height ?? REPORT_IMAGE_MAX_PAGE_HEIGHT,
+                  width: REPORT_IMAGE_WIDTH
+                }}
               />
             </View>
+
+            <View style={styles.loadingOverlay}>
+              <View style={styles.loadingCard}>
+                <ActivityIndicator color={theme.colors.primary} size="large" />
+                <AppText variant="label">
+                  Generando imagen...
+                  {pageRender && pageRender.total > 1
+                    ? ` (${pageRender.index + 1}/${pageRender.total})`
+                    : ""}
+                </AppText>
+                <AppText style={styles.loadingHint} variant="caption">
+                  Los reportes extensos pueden tardar unos segundos.
+                </AppText>
+                <AppButton
+                  label="Cancelar"
+                  onPress={cancelPending}
+                  size="small"
+                  variant="outline"
+                />
+              </View>
+            </View>
           </View>
-        </View>
+        ) : null}
       </Modal>
-    ) : null;
+    );
 
     function handleMessage(requestId: number, event: WebViewMessageEvent) {
       if (pendingRef.current?.id !== requestId) return;
@@ -483,9 +586,10 @@ export const HtmlReportImageCapturer = forwardRef<HtmlReportImageCapturerHandle,
   }
 );
 
-function buildPageRenderScript(page: PageRender) {
+export function buildPageRenderScript(page: PageRender) {
   return `
     (function () {
+      ${REPORT_PAINT_WAIT_SCRIPT}
       var waitForAssets = function () {
         var fontReady = document.fonts && document.fonts.ready
           ? document.fonts.ready.catch(function () {})
@@ -509,8 +613,7 @@ function buildPageRenderScript(page: PageRender) {
             body.style.top = "-${page.offsetY}px";
           }
 
-          requestAnimationFrame(function () {
-            requestAnimationFrame(function () {
+          afterReportPaint(function () {
               var hasContent = false;
               if (body) {
                 var walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
@@ -543,7 +646,6 @@ function buildPageRenderScript(page: PageRender) {
                 renderId: ${page.renderId},
                 hasContent: hasContent
               }));
-            });
           });
         });
       };

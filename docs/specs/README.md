@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-19
 ---
 
 # Especificaciones
@@ -43,6 +43,10 @@ en la raíz.
 5. Completar el campo `numero` con el mismo valor.
 
 ## Índice
+
+- [Spec 112: Reparación del arranque SQLite en instalaciones nuevas](112-reparacion-arranque-sqlite-instalacion-nueva.md)
+
+- [Spec 113: Ajustes del Excel de visitas y preparación para iPhone](113-reporte-visitas-y-preparacion-ios.md)
 
 - [Spec 001: Validación geoespacial backend pendiente](001-geodata-validation-backend.md)
 - [Spec 002: Restaurar ejecución de la prueba mobile de recetas](002-fix-mobile-recipe-test-runner.md)

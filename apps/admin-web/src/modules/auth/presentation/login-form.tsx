@@ -145,7 +145,7 @@ export function LoginForm() {
           </div>
 
           <div className="login-field">
-            <label htmlFor="password">Contrasena</label>
+            <label htmlFor="password">Contraseña</label>
             <div className="login-input-shell login-input-shell--password">
               <LockKeyhole size={18} aria-hidden="true" />
               <input

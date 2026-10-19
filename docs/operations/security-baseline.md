@@ -2,7 +2,7 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-19
 ---
 
 # Línea base de seguridad operativa
@@ -167,6 +167,12 @@ fotos y los tokens a interceptación o modificación; el cifrado en reposo no
 protege ese trayecto. Véase R-048 del registro de riesgos. No considerar la
 función lista para datos reales hasta probar un respaldo externo y restauración
 conjunta.
+
+La spec 113 extiende esa aceptación al piloto iOS. La excepción ATS
+`NSAllowsArbitraryLoads` permite HTTP de forma general, también para el fallback
+LAN; no protege el tránsito ni queda restringida a la IP de la API. Revisar
+R-059 y retirar esta excepción al migrar los destinos de producción a HTTPS.
+La firma Apple y la validación física quedan pendientes antes de distribuir IPA.
 
 ## Secretos
 

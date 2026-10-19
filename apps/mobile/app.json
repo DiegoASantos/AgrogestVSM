@@ -3,8 +3,11 @@
     "name": "AgroGest VSM",
     "slug": "agrogest-vsm-mobile-pilot",
     "scheme": "agrogest-vsm",
-    "platforms": ["android"],
-    "version": "0.2.3",
+    "platforms": [
+      "android",
+      "ios"
+    ],
+    "version": "0.2.4",
     "icon": "./assets/images/icon_vsm.png",
     "orientation": "portrait",
     "splash": {
@@ -22,7 +25,7 @@
     },
     "android": {
       "package": "com.diegoasantos.agrogestvsm",
-      "versionCode": 16,
+      "versionCode": 17,
       "icon": "./assets/images/icon_vsm.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive_icon_vsm.png",
@@ -51,11 +54,18 @@
       [
         "expo-location",
         {
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
           "locationWhenInUsePermission": "Permite usar la ubicacion del dispositivo para registrar la ubicacion de la visita de campo."
         }
       ],
       "expo-font",
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -75,6 +85,21 @@
     "updates": {
       "url": "https://u.expo.dev/3451fa28-381f-46bc-8e91-2418748554a1"
     },
-    "ios": {}
+    "ios": {
+      "bundleIdentifier": "com.diegoasantos.agrogestvsm",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "CFBundleLocalizations": [
+          "es",
+          "es"
+        ],
+        "NSLocalNetworkUsageDescription": "Permite conectarse al servidor de AgroGest en la red local de la empresa.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        },
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
   }
 }

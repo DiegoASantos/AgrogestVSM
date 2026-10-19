@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-19
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -23,6 +23,23 @@ Permitir que el técnico registre una visita completa sin conexión y la envíe 
 la API cuando vuelva a tener conectividad.
 
 ## Flujo
+
+### Inicialización y migraciones
+
+`initDatabase()` aplica las migraciones pendientes en orden; cada versión avanza
+solo cuando su transacción termina. La versión vigente es 78. El esquema inicial
+ya incluye las columnas de revisión de acreedores, por lo que la migración 75
+comprueba su existencia con `addColumnIfMissing` antes de agregarlas. Mantiene el
+backfill histórico de `APPROVED` para filas sincronizadas. No recrea tablas ni
+modifica outbox; una base en 78 no repite estas escrituras.
+
+La [spec 112](../specs/112-reparacion-arranque-sqlite-instalacion-nueva.md)
+corrige el bloqueo reproducido en una instalación vacía o detenida en 74 por
+`duplicate column name: approval_status`. Las pruebas con SQLite real cubren
+columnas ausentes, parciales y presentes, conservación de datos y rollback.
+El error real sigue propagándose: no se oculta ni se fuerza `user_version`.
+
+### Escritura y sincronización
 
 1. Las pantallas escriben primero en SQLite.
 2. El repositorio local agrega una operación a `sync_outbox`.

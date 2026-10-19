@@ -427,6 +427,7 @@ export class VisitasCampoService {
       "Fecha de siembra",
       "Edad del cultivo",
       "Nro de hectáreas",
+      "Nro de plantas",
       "Categoría",
       "Hora inicio",
       "Hora fin",
@@ -436,8 +437,7 @@ export class VisitasCampoService {
       "Enfermedades",
       "Nutrición",
       "Humedad del suelo",
-      "Estrés hídrico intencional",
-      "Estado"
+      "Estrés hídrico intencional"
     ];
     const headerRow = worksheet.addRow(headers);
     headerRow.height = 32;
@@ -461,12 +461,11 @@ export class VisitasCampoService {
     }
 
     const reportColumnFills: Record<number, string> = {
-      17: "FFFFF7ED",
-      18: "FFFEF2F2",
-      19: "FFECFDF5",
-      20: "FFEFF6FF",
+      18: "FFFFF7ED",
+      19: "FFFEF2F2",
+      20: "FFECFDF5",
       21: "FFEFF6FF",
-      22: "FFF0FDF4"
+      22: "FFEFF6FF"
     };
     const mergedReportCells: ExcelMergedCell[] = [];
 
@@ -496,12 +495,13 @@ export class VisitasCampoService {
             : "",
           index === 0 ? toWorksheetText(buildParcelaLabel(visita.parcela)) : "",
           index === 0 ? toWorksheetText(visita.fechaSiembra ?? "") : "",
-          index === 0 ? toWorksheetText(formatCropAge(visita.fechaSiembra, visita.fechaVisita)) : "",
+          index === 0 ? formatCropAge(visita.fechaSiembra, visita.fechaVisita) : "",
           index === 0 ? parcelArea ?? "" : "",
+          index === 0 ? visita.nroPlantas ?? "" : "",
           index === 0 ? toWorksheetText(getParcelAreaCategoryName(parcelArea)) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaInicio) : "",
           index === 0 ? toWorksheetText(visita.horaVisitaFin ?? "No registrado") : "",
-          stage ? toWorksheetText(stage.stage) : "",
+          stage ? toWorksheetText(stage.stage.toLocaleUpperCase("es")) : "",
           stage?.parcelPercentage ?? "",
           diagnosis ? toWorksheetText(diagnosis.pest) : "",
           diagnosis ? toWorksheetText(diagnosis.disease) : "",
@@ -511,8 +511,7 @@ export class VisitasCampoService {
             : "",
           index === 0
             ? toWorksheetText(visita.riego?.[0]?.estresHidrico ? "Sí" : "No")
-            : "",
-          index === 0 ? "Activa" : ""
+            : ""
         ]);
       }
 
@@ -534,16 +533,20 @@ export class VisitasCampoService {
           };
           cell.alignment = {
             ...(cell.alignment ?? {}),
-            ...(column >= 15 && column <= 19 ? { horizontal: "center" as const } : {}),
+            ...(column >= 16 && column <= 20 ? { horizontal: "center" as const } : {}),
             vertical: "middle",
             wrapText: true
           };
 
           if (column === 11 && typeof cell.value === "number") {
-            cell.numFmt = "0.####";
+            cell.numFmt = Number.isInteger(cell.value) ? "0" : "0.####";
           }
 
-          if (column === 16 && typeof cell.value === "number") {
+          if ((column === 10 || column === 12) && typeof cell.value === "number") {
+            cell.numFmt = "0";
+          }
+
+          if (column === 17 && typeof cell.value === "number") {
             cell.numFmt = "0.##%";
           }
 
@@ -558,8 +561,7 @@ export class VisitasCampoService {
       }
 
       for (const column of [
-        ...Array.from({ length: 14 }, (_, index) => index + 1),
-        20,
+        ...Array.from({ length: 15 }, (_, index) => index + 1),
         21,
         22
       ]) {
@@ -580,7 +582,7 @@ export class VisitasCampoService {
       }
 
       if (stageRows.length === 1 && lastWorksheetRow > firstWorksheetRow) {
-        for (const column of [15, 16]) {
+        for (const column of [16, 17]) {
           worksheet.mergeCells(firstWorksheetRow, column, lastWorksheetRow, column);
           mergedReportCells.push({
             firstRow: firstWorksheetRow,
@@ -590,7 +592,7 @@ export class VisitasCampoService {
         }
       }
 
-      for (const column of [17, 18, 19]) {
+      for (const column of [18, 19, 20]) {
         const merged = mergeAndCenterSingleDiagnosis(
           worksheet,
           firstWorksheetRow,
@@ -1692,14 +1694,14 @@ function fitExcelReportLayout(
   headers: string[],
   mergedCells: ExcelMergedCell[]
 ) {
-  const compactColumns = new Set([1, 2, 9, 10, 12, 18]);
+  const compactColumns = new Set([1, 2, 9, 10, 12, 13, 19]);
   const widths = headers.map((_, index) => {
     const column = index + 1;
     let width = compactColumns.has(column) ? 14 : 18;
 
     for (let row = 4; row <= worksheet.rowCount; row += 1) {
       const cell = worksheet.getCell(row, column);
-      const text = excelReportDisplayText(cell.value, column === 12);
+      const text = excelReportDisplayText(cell.value, column === 17);
       const longestLine = Math.max(
         0,
         ...text.split(/\r?\n/u).map((line) => Array.from(line).length)
@@ -1725,7 +1727,7 @@ function fitExcelReportLayout(
       height = Math.max(
         height,
         estimateExcelReportCellHeight(
-          excelReportDisplayText(cell.value, column === 12),
+          excelReportDisplayText(cell.value, column === 17),
           widths[column - 1]
         )
       );
@@ -1737,7 +1739,7 @@ function fitExcelReportLayout(
   for (const { firstRow, lastRow, column } of mergedCells) {
     const text = excelReportDisplayText(
       worksheet.getCell(firstRow, column).value,
-      column === 12
+      column === 17
     );
     const requiredHeight = estimateExcelReportCellHeight(text, widths[column - 1]);
     const rows = Array.from({ length: lastRow - firstRow + 1 }, (_, index) =>

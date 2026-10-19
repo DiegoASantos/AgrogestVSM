@@ -2,7 +2,7 @@
 title: Respuesta a incidentes y soporte
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-12
+last_reviewed: 2026-10-19
 ---
 
 # Respuesta a incidentes y soporte
@@ -57,6 +57,21 @@ Guía de logs: `docs/runbooks/observability-logs.md`.
 - limitar accesos;
 - notificar al responsable empresarial;
 - no ocultar ni alterar evidencia.
+
+## Cierre al abrir una instalación nueva de iOS
+
+1. Registrar versión/build, hora y si llegó a mostrar login. Conservar el crash
+   report de iOS, sin publicar datos personales, tokens ni payloads.
+2. No desinstalar, borrar almacenamiento ni forzar `PRAGMA user_version`.
+3. Contrastar con el bootstrap SQLite real. La spec 112 reproduce la colisión
+   de `approval_status` en migración 75 sobre una base vacía, detenida en 74;
+   ese hallazgo local no sustituye la evidencia del dispositivo.
+4. Aplicar la entrega iOS compatible indicada en el
+   [runbook mobile](deploy-mobile-expo.md#recuperación-del-arranque-ios-spec-112).
+   Si el cierre impide activar la OTA, revisar un IPA correctivo para instalar
+   encima con la misma identidad y firma, conservando el almacenamiento.
+5. Confirmar login, reinicio y datos pendientes en el iPhone. Si sigue cerrándose,
+   investigar el crash nuevo antes de dar por resuelta la incidencia.
 
 ## Incidentes de sincronización
 

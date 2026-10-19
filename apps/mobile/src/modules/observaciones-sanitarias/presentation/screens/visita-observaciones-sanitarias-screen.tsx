@@ -93,7 +93,7 @@ const MUERTE_REGRESIVA_IMAGE = require("../../../../../assets/images/muerte_regr
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const OIDIUM_IMAGE = require("../../../../../assets/images/Oidiun.webp");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const ARANITA_ROJA_IMAGE = require("../../../../../assets/images/arañita_roja.webp");
+const ARANITA_ROJA_IMAGE = require("../../../../../assets/images/aranita_roja.webp");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const MOSCA_BLANCA_IMAGE = require("../../../../../assets/images/mosca_blanca.webp");
 // eslint-disable-next-line @typescript-eslint/no-require-imports

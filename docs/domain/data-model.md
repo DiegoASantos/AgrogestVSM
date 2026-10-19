@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-19
 ---
 
 # Modelo del dominio
@@ -245,19 +245,26 @@ visitas dividida entre esos días. La serie diaria suma `area_ha` de las visitas
 del día, tratando el valor nulo como cero. El mapa asociado no reconstruye
 asignaciones históricas: muestra las parcelas activas actualmente asignadas.
 
-El Excel de visitas muestra cada etapa o labor en una fila, con su nombre y el
-porcentaje de parcela en dos columnas. El porcentaje se muestra únicamente
+El Excel de visitas muestra cada etapa o labor en una fila, con su nombre en
+mayúsculas y el porcentaje de parcela en dos columnas. El porcentaje se muestra únicamente
 cuando existe cobertura guardada; si falta, la celda queda vacía. Los avances
 históricos de labor y subetapa no se presentan como cobertura. El ancho de las
 columnas y la altura de las filas se ajustan al contenido del archivo.
 El mismo archivo presenta `Maduración del brote` (o `Maduración de brotes`)
-como `Maduración de yemas` y `Desarrollo del fruto` como `Llenado de fruto`.
+como `MADURACIÓN DE YEMAS` y `Desarrollo del fruto` como `LLENADO DE FRUTO`.
 Estos nombres de presentación no modifican el catálogo ni la captura mobile.
-El Excel agrega fecha de siembra y edad del cultivo en años y meses completos
-hasta la fecha de cada visita. Las hectáreas y la categoría se calculan desde
-el área actual de la parcela con los límites del reporte de parcelas; por eso
+El Excel agrega fecha de siembra y edad del cultivo en años completos hasta la
+fecha de cada visita, como número entero sin decimales (cero antes del primer
+aniversario; vacío ante fechas ausentes, inválidas o posteriores a la visita).
+Las hectáreas y la categoría se calculan desde el área actual de la parcela
+con los límites del reporte de parcelas; por eso
 pueden cambiar al volver a exportar visitas históricas. Un área ausente o
-inválida deja hectáreas vacías y muestra `Sin categoría`.
+inválida deja hectáreas vacías y muestra `Sin categoría`. Las hectáreas enteras
+se muestran sin punto final y las fracciones conservan hasta cuatro decimales.
+Inmediatamente después de hectáreas se incluye `Nro de plantas`, con el dato
+guardado en cada visita, incluido cero; nulo deja la celda vacía. No se usa
+la última visita de la parcela para reemplazar datos históricos. Se elimina
+`Estado` y se mantienen 22 columnas (A:V), filtros y combinaciones por visita.
 
 Entidades hijas:
 

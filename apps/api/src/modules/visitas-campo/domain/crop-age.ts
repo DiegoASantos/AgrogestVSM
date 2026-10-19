@@ -6,7 +6,7 @@ function parseIsoDate(value: string): Date | null {
     : date;
 }
 
-export function formatCropAge(sowingDate: string | null, visitDate: string): string {
+export function formatCropAge(sowingDate: string | null, visitDate: string): number | "" {
   if (!sowingDate) return "";
   const sowing = parseIsoDate(sowingDate);
   const visit = parseIsoDate(visitDate);
@@ -17,7 +17,5 @@ export function formatCropAge(sowingDate: string | null, visitDate: string): str
     visit.getUTCMonth() - sowing.getUTCMonth();
   if (visit.getUTCDate() < sowing.getUTCDate()) completeMonths -= 1;
 
-  const years = Math.floor(completeMonths / 12);
-  const months = completeMonths % 12;
-  return `${years} ${years === 1 ? "año" : "años"}, ${months} ${months === 1 ? "mes" : "meses"}`;
+  return Math.floor(completeMonths / 12);
 }

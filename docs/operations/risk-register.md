@@ -2,7 +2,7 @@
 title: Registro de riesgos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-19
 ---
 
 # Registro de riesgos
@@ -64,6 +64,10 @@ last_reviewed: 2026-10-17
 | R-052 | La búsqueda de acreedores por documento permite a ADMIN/ANALISTA consultar datos bancarios vinculados a otros productores | Alta | Abierto | Spec 107: exigir rol en API, documento completo en cuerpo POST, `no-store`, evitar valores en URL, logs y errores; comprobar permisos y auditoría. Reevaluar el alcance de consulta si se amplían los roles. |
 | R-053 | Mobile puede sincronizar visitas comerciales antes de PostgreSQL 073 y la API compatible | Media | Abierto | Spec 109: desplegar migración y API primero; la outbox conserva el UUID y reintenta. Verificar captura offline y reconciliación antes de distribuir mobile. |
 | R-054 | Visitas técnicas duplicadas ya sincronizadas pueden incluir una visita abierta y otra cerrada con receta | Media | Abierto | Spec 110 evita nuevos duplicados del mismo intento en mobile. Revisar cada pareja histórica con IDs, UUID públicos, hijos y receta antes de corregir datos; no fusionar ni borrar automáticamente. Validar el comportamiento en un dispositivo tras distribuir la actualización. |
+
+| R-059 | El piloto iOS permite HTTP mediante una excepción ATS general | Alta | Aceptado para preparación del piloto por el usuario en spec 113 (2026-10-19) | Primer Ad Hoc 0.2.4 (1) firmado e instalado; el usuario confirma funcionamiento general y envío PNG tras las OTA correctivas de arranque e imágenes. Retirar `NSAllowsArbitraryLoads` tras migrar los destinos fijos de API y fallback a HTTPS. La prueba del piloto no equivale a aprobación de App Store. |
+| R-060 | Una instalación nueva se detiene en SQLite 74 al intentar agregar columnas ya existentes en migración 75; el error de arranque puede cerrar la app | Alta | Mitigado | Spec 112: altas condicionales de columnas, backfill histórico y transacción conservados, pruebas con SQLite real de bootstrap, datos y rollback aprobadas. OTA publicada solo iOS/runtime 0.2.4, grupo `3b04de86-dc68-4367-bc55-1285c2922983`; el usuario confirmó el 2026-10-19 recuperación del arranque y funcionamiento general. No se recibió crash report nativo; se conserva la reproducción SQLite como evidencia técnica. |
+| R-061 | Compartir receta como PNG en iPhone queda en Generando imagen antes de elegir destino | Media | Mitigado | Scripts de WebView dependían de fotogramas que WebKit puede suspender; corrección agrega temporizador sin duplicados, espera el cierre nativo del modal y maneja terminación del proceso. 27 pruebas de reportes, tipos, lint y export iOS aprobados. OTA autorizada, publicada y verificada solo iOS/runtime 0.2.4, grupo `76db3fdf-3603-489b-a3f1-ca04d19b91df`; usuario confirmó el 2026-10-19 que el envío PNG ya funciona en iPhone. Conservar el smoke en nuevas instalaciones. |
 
 ## Revisión
 

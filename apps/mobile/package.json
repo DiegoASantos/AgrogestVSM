@@ -1,7 +1,7 @@
 {
   "name": "@agrogest/mobile",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.4",
   "main": "expo-router/entry",
   "scripts": {
     "prepare:shared": "pnpm --filter @agrogest/utils build && pnpm --filter @agrogest/validation build",

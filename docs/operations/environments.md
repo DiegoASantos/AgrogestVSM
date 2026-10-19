@@ -2,7 +2,7 @@
 title: Entornos
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-07
+last_reviewed: 2026-10-19
 ---
 
 # Entornos
@@ -38,6 +38,11 @@ Entorno objetivo, todavía pendiente de provisionamiento:
 - el panel llama a `/api` en su mismo origen; el proxy de Next.js reenvía esas
   solicitudes al servicio interno `api:3001`;
 - Android mediante Expo EAS, con API en `http://190.119.191.195:5177`;
+- iPhone mediante las specs 113 y 112, con primer build Ad Hoc 0.2.4 (1) firmado
+  e instalado; usuario confirma recuperación del arranque y funcionamiento en
+  iPhone tras la OTA de la spec 112 y del envío PNG tras su OTA correctiva
+  (R-061 mitigado). Perfiles EAS separados para simulador, ad hoc y tienda, con
+  la misma API HTTP del piloto y fallback LAN. Ver [deploy mobile](../runbooks/deploy-mobile-expo.md);
 - actualizaciones OTA por canal de producción cuando son compatibles.
 
 ### Panel web y API en Ubuntu

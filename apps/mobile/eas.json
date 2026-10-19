@@ -4,6 +4,33 @@
     "appVersionSource": "local"
   },
   "build": {
+    "ios-simulator": {
+      "distribution": "internal",
+      "channel": "production",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://190.119.191.195:5177"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "ios-internal": {
+      "distribution": "internal",
+      "channel": "production",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://190.119.191.195:5177"
+      }
+    },
+    "ios-production": {
+      "distribution": "store",
+      "channel": "production",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://190.119.191.195:5177"
+      }
+    },
     "production-apk": {
       "distribution": "internal",
       "channel": "production",

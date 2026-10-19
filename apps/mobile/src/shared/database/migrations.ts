@@ -1785,12 +1785,24 @@ const MIGRATIONS: Migration[] = [
   },
   {
     version: 75,
-    statements: [
-      "ALTER TABLE acreedores_cosecha ADD COLUMN approval_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(approval_status IN ('PENDING','APPROVED','OBSERVED'))",
-      "ALTER TABLE acreedores_cosecha ADD COLUMN source TEXT NOT NULL DEFAULT 'MOBILE' CHECK(source IN ('PRODUCTOR','MOBILE'))",
-      "ALTER TABLE acreedores_cosecha ADD COLUMN review_observation TEXT",
-      "UPDATE acreedores_cosecha SET approval_status = 'APPROVED' WHERE sync_status = 'synced'"
-    ]
+    run: (db) => {
+      addColumnIfMissing(
+        db,
+        "acreedores_cosecha",
+        "approval_status",
+        "TEXT NOT NULL DEFAULT 'PENDING' CHECK(approval_status IN ('PENDING','APPROVED','OBSERVED'))"
+      );
+      addColumnIfMissing(
+        db,
+        "acreedores_cosecha",
+        "source",
+        "TEXT NOT NULL DEFAULT 'MOBILE' CHECK(source IN ('PRODUCTOR','MOBILE'))"
+      );
+      addColumnIfMissing(db, "acreedores_cosecha", "review_observation", "TEXT");
+      db.execSync(
+        "UPDATE acreedores_cosecha SET approval_status = 'APPROVED' WHERE sync_status = 'synced'"
+      );
+    }
   },
   {
     version: 76,

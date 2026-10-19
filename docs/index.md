@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-19
 ---
 
 # Documentación de AgroGest VSM
@@ -44,6 +44,10 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Plantilla de ADR](adr/TEMPLATE.md)
 
 ## Especificaciones
+
+- [Spec 112: Reparación del arranque SQLite en instalaciones nuevas](specs/112-reparacion-arranque-sqlite-instalacion-nueva.md)
+
+- [Spec 113: Ajustes del Excel de visitas y preparación para iPhone](specs/113-reporte-visitas-y-preparacion-ios.md)
 
 - [Política e índice de specs](specs/README.md)
 - [Spec 107: Alta y revisión de productores y acreedores desde pagos](specs/107-alta-revision-acreedores-en-pagos.md)
@@ -182,6 +186,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Respuesta a incidentes](runbooks/incident-response.md)
 - [Despliegue en servidor físico Ubuntu](runbooks/deploy-servidor-ubuntu.md)
 - [Deploy mobile con Expo EAS](runbooks/deploy-mobile-expo.md)
+- [Agregar iPhone e instalar AgroGest por Ad Hoc](runbooks/deploy-mobile-expo.md#agregar-nuevos-iphone-e-instalar-agrogest-por-ad-hoc)
 
 ## Operaciones
 
