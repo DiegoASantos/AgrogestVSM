@@ -5,7 +5,7 @@ numero: 103
 area: mobile, api, admin-web, database, sync, seguridad, operacion
 created: 2026-10-13
 approved_by: usuario mediante instrucción "implementa la spec", 2026-10-13
-implemented_in: API comercial y migración 069; mobile Comercial, SQLite 77 y outbox; admin-web Mantenimiento/Acreedores; docker-compose y runbooks (2026-10-13)
+implemented_in: API comercial y migración 069; mobile Comercial, SQLite 77 y outbox; admin-web Mantenimiento/Acreedores; docker-compose y runbooks (2026-10-13); corrección DTO de búsqueda del listado web (2026-10-19)
 ---
 
 # Spec 103: Fotos comerciales independientes por productor
@@ -147,8 +147,9 @@ decidió conservarlo con conocimiento del riesgo para estas fotos.
 - **API:** `POST /comercial/productores/:productorId/fotos` multipart con UUID
   idempotente en `X-Photo-Id` y archivo JPEG, rol `AGRONOMO` y autorización
   horizontal del productor.
-  `GET /comercial/mantenimiento/productores-con-fotos` devuelve un listado
-  paginado de productores con fotos; `GET
+  `GET /comercial/mantenimiento/productores-con-fotos` acepta `page`, `limit`
+  y `search` opcional (máximo 100 caracteres) y devuelve un listado paginado
+  de productores con fotos; `GET
   /comercial/mantenimiento/productores/:productorId/fotos` devuelve metadatos
   paginados;
   `GET /comercial/mantenimiento/fotos/:publicId/contenido` entrega una imagen,

@@ -13,11 +13,12 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { CurrentAuthUser } from "../../auth/presentation/decorators/current-auth-user.decorator";
 import { Roles } from "../../auth/presentation/decorators/roles.decorator";
 import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { FotosComercialesService } from "../application/fotos-comerciales.service";
+import { FindFotosComercialesProductoresQueryDto } from "./dto/find-fotos-comerciales-productores-query.dto";
+import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 
 @ApiTags("Fotos comerciales por productor")
 @ApiBearerAuth()
@@ -52,8 +53,8 @@ export class FotosComercialesController {
   @Get("mantenimiento/productores-con-fotos")
   @Roles("ADMIN", "ANALISTA")
   @Header("Cache-Control", "no-store")
-  listProducers(@Query() query: PaginationQueryDto, @Query("search") search?: string) {
-    return this.photos.listProducers(query.page, query.take, search ?? "");
+  listProducers(@Query() query: FindFotosComercialesProductoresQueryDto) {
+    return this.photos.listProducers(query.page, query.take, query.search ?? "");
   }
 
   @Get("mantenimiento/productores/:productorId/fotos")
