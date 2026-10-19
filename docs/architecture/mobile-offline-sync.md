@@ -31,7 +31,11 @@ solo cuando su transacción termina. La versión vigente es 78. El esquema inici
 ya incluye las columnas de revisión de acreedores, por lo que la migración 75
 comprueba su existencia con `addColumnIfMissing` antes de agregarlas. Mantiene el
 backfill histórico de `APPROVED` para filas sincronizadas. No recrea tablas ni
-modifica outbox; una base en 78 no repite estas escrituras.
+modifica outbox; una base en 78 no repite estas migraciones ni su backfill.
+La reparación comercial integrada desde la rama remota comprueba además la
+tabla `visitas_comerciales` y su índice con `CREATE IF NOT EXISTS` en cada
+bootstrap, incluso si ya estaba marcada la versión 78. No cambia filas ni
+`user_version`; completa DDL comercial que pudiera faltar.
 
 La [spec 112](../specs/112-reparacion-arranque-sqlite-instalacion-nueva.md)
 corrige el bloqueo reproducido en una instalación vacía o detenida en 74 por

@@ -45,14 +45,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           path: getPathWithoutQuery(request.url),
           statusCode: normalizedException.statusCode,
           errorCode: normalizedException.code,
-          ...(!sensitiveFinancialRoute
-            ? {
-                error:
-                  exception instanceof Error
-                    ? exception
-                    : new Error(normalizedException.message)
-              }
-            : {})
+          ...safeExceptionMetadata(exception)
         },
         "Unhandled HTTP exception"
       );
@@ -204,6 +197,27 @@ export function safeFinancialValidationMessage(details: unknown): string {
       : `Revisa el detalle ${Number(match[2]) + 1}: ${label}.`;
   }
   return "Revisa los campos del formulario.";
+}
+
+function safeExceptionMetadata(exception: unknown) {
+  const errorClass = exception instanceof Error
+    ? exception.constructor.name
+    : typeof exception;
+  const driverError = isRecord(exception) && isRecord(exception.driverError)
+    ? exception.driverError
+    : null;
+  const sqlState = driverError?.code;
+  const constraint = driverError?.constraint;
+
+  return {
+    errorClass,
+    ...(typeof sqlState === "string" && /^[0-9A-Z]{5}$/.test(sqlState)
+      ? { sqlState }
+      : {}),
+    ...(typeof constraint === "string" && /^[a-zA-Z0-9_]+$/.test(constraint)
+      ? { constraint }
+      : {})
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

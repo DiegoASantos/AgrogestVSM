@@ -17,9 +17,8 @@ function SyncRunner() {
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    initDatabase();
-  }, []);
+  // Run SQLite migrations before any routed screen can query the database.
+  initDatabase();
 
   return (
     <SafeAreaProvider>

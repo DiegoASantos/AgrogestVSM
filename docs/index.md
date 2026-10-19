@@ -19,6 +19,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Plantilla de revisión de IA](governance/ai-review-template.md)
 - [Arquitectura general](architecture/overview.md)
 - [Riesgos activos](operations/risk-register.md)
+- [Línea base de seguridad](operations/security-baseline.md)
 
 ## Arquitectura
 
@@ -54,6 +55,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Spec 108: Anticipo como tipo de descuento en pagos de productores](specs/108-anticipo-tipo-descuento-pagos.md)
 - [Spec 109: Visitas comerciales y reportes](specs/109-visitas-comerciales-y-reportes.md)
 - [Spec 110: Idempotencia del registro de visitas técnicas en mobile](specs/110-idempotencia-registro-visitas-tecnicas-mobile.md)
+- [Spec 111: Reporte y navegación de pagos y previsualización de documentos de visita](specs/111-mejoras-pagos-y-previsualizacion-visitas.md)
 - [Plantilla de spec](specs/TEMPLATE.md)
 - [Spec 001: Validación geoespacial backend pendiente](specs/001-geodata-validation-backend.md)
 - [Spec 002: Restaurar prueba mobile de recetas](specs/002-fix-mobile-recipe-test-runner.md)

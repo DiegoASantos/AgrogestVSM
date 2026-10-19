@@ -20,7 +20,7 @@ describe("sensitive financial route detection", () => {
     (path) => expect(isSensitiveFinancialRoute(path)).toBe(false)
   );
 
-  it("does not return or log exception details for a financial route", () => {
+  it("logs only safe error metadata for a financial route", () => {
     const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn() };
     const sent: unknown[] = [];
     const reply = {
@@ -37,13 +37,56 @@ describe("sensitive financial route detection", () => {
       switchToHttp: () => ({ getRequest: () => request, getResponse: () => reply })
     };
 
+    const databaseError = Object.assign(
+      new Error("sensitive database values 123456"),
+      {
+        driverError: {
+          code: "23503",
+          constraint: "fk_payment_creditor"
+        }
+      }
+    );
     new GlobalExceptionFilter(true, logger as never).catch(
-      new Error("sensitive database values"),
+      databaseError,
       host as never
     );
 
     expect(JSON.stringify(sent)).not.toContain("sensitive database values");
     expect(logger.error.mock.calls[0]?.[0]).not.toHaveProperty("error");
+    expect(logger.error.mock.calls[0]?.[0]).toMatchObject({
+      errorClass: "Error",
+      sqlState: "23503",
+      constraint: "fk_payment_creditor"
+    });
+  });
+
+  it("does not log SQL, bound parameters or stack traces on other routes", () => {
+    const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn() };
+    const reply = {
+      header: vi.fn(),
+      status: vi.fn(() => reply),
+      send: vi.fn()
+    };
+    const host = {
+      switchToHttp: () => ({
+        getRequest: () => ({ url: "/notificaciones/operativas", method: "GET", headers: {} }),
+        getResponse: () => reply
+      })
+    };
+    const databaseError = Object.assign(new Error("statement with user details"), {
+      query: "SELECT * FROM usuarios WHERE public_id = $1",
+      parameters: ["private-user-id"],
+      driverError: { code: "42601" }
+    });
+
+    new GlobalExceptionFilter(true, logger as never).catch(databaseError, host as never);
+
+    const loggedException = logger.error.mock.calls[0]?.[0];
+    expect(loggedException).toMatchObject({ errorClass: "Error", sqlState: "42601" });
+    expect(loggedException).not.toHaveProperty("error");
+    expect(JSON.stringify(loggedException)).not.toContain("SELECT");
+    expect(JSON.stringify(loggedException)).not.toContain("private-user-id");
+    expect(JSON.stringify(loggedException)).not.toContain("statement with user details");
   });
 
   it("names only safe payment fields, never submitted values", () => {

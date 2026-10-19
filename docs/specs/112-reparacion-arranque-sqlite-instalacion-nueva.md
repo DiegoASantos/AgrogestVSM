@@ -127,6 +127,14 @@ al bundle anterior reintroduce el bloqueo en instalaciones nuevas/en versión
 
 ## Evidencia de ejecución: 2026-10-19
 
+Al integrar la rama remota para el push, se conserva su reparación idempotente
+de tabla e índice comerciales mediante `CREATE IF NOT EXISTS`, incluso en 78.
+Las pruebas reales distinguen esa comprobación de la repetición de migraciones
+o backfills: no se modifican datos ni versión en una base actualizada. Se añade
+una regresión para esquema comercial ausente con versión ya marcada. La
+corrección local de la migración 75 permanece intacta. Los IDs de riesgos
+locales pasan a R-059/R-060/R-061 para evitar colisiones con riesgos remotos.
+
 - Reproducción original: bootstrap vacío con SQLite real falla con
   `duplicate column name: approval_status`, conserva `user_version = 74`.
 - Corrección: la migración 75 usa `addColumnIfMissing` para las tres columnas

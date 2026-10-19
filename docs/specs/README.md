@@ -158,4 +158,5 @@ en la raíz.
 - [Spec 108: Anticipo como tipo de descuento en pagos de productores](108-anticipo-tipo-descuento-pagos.md)
 - [Spec 109: Visitas comerciales y reportes](109-visitas-comerciales-y-reportes.md)
 - [Spec 110: Idempotencia del registro de visitas técnicas en mobile](110-idempotencia-registro-visitas-tecnicas-mobile.md)
+- [Spec 111: Reporte y navegación de pagos y previsualización de documentos de visita](111-mejoras-pagos-y-previsualizacion-visitas.md)
 - [Plantilla](TEMPLATE.md)

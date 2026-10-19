@@ -1124,7 +1124,7 @@ describe("runMigrations", () => {
     );
   });
 
-  it("does not rerun SQLite migrations when the database is already at the latest version", () => {
+  it("repairs current commercial tables without rerunning versioned migrations", () => {
     const db = createDatabaseBeforeOrganoRefresh();
 
     runMigrations(db as never);
@@ -1133,7 +1133,10 @@ describe("runMigrations", () => {
     runMigrations(db as never);
 
     expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
-    expect(db.executedStatements).toHaveLength(statementsAfterUpgrade);
+    const repairStatements = db.executedStatements.slice(statementsAfterUpgrade);
+    expect(repairStatements).toHaveLength(2);
+    expect(repairStatements[0]).toContain("CREATE TABLE IF NOT EXISTS visitas_comerciales");
+    expect(repairStatements[1]).toContain("idx_visitas_comerciales_owner_fecha");
     expect(db.organosRows).toEqual([
       expect.objectContaining({ organo: "tronco_rama" }),
       expect.objectContaining({ organo: "flor_individual" }),
@@ -1951,6 +1954,17 @@ describe("runMigrations", () => {
       statement.includes("CREATE TABLE IF NOT EXISTS visitas_comerciales"))).toBe(true);
     expect(db.executedStatements.some((statement) =>
       /DELETE FROM visitas_campo|DROP TABLE visitas_campo/u.test(statement))).toBe(false);
+  });
+
+  it("repairs the commercial visits table when the recorded version is already current", () => {
+    const db = createFakeDatabase(LATEST_MIGRATION_VERSION);
+    runMigrations(db as never);
+
+    expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
+    expect(db.executedStatements.some((statement) =>
+      statement.includes("CREATE TABLE IF NOT EXISTS visitas_comerciales"))).toBe(true);
+    expect(db.executedStatements.some((statement) =>
+      statement.includes("idx_visitas_comerciales_owner_fecha"))).toBe(true);
   });
 
   it("reuses an active transaction while applying pending migrations", () => {

@@ -87,7 +87,15 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
   consulta de acreedores aprobados por productor previa a crear el pago. Las
   rutas anteriores siguen disponibles para otros clientes. La API calcula
   pesos e importes de los detalles, conserva fecha de pago por línea y controla
-  atómicamente el saldo de jabas de cada recepción entre distintos pagos.
+  atómicamente el saldo de jabas de cada recepción entre distintos pagos. El
+  listado muestra cada detalle de acreedor con su neto post detracción y número
+  de liquidación; el reporte PDF permite filtrar por productor y fecha de
+  recepción, muestra fecha de pago por detalle cuando existe y presenta filtros
+  y totales con jerarquía visual. Ambos endpoints son exclusivos de ADMIN/ANALISTA.
+
+En el detalle de visitas, diagnóstico y receta se pueden abrir para
+previsualización sin iniciar la impresión; los botones PDF mantienen la acción
+de impresión existente.
 
 El agrónomo comparte desde mobile un enlace general y un código temporal.
 La web pública canjea el código por una sesión corta limitada al productor;

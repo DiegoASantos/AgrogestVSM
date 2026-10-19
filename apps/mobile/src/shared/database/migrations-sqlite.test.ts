@@ -169,6 +169,16 @@ function pendingSnapshot(raw: DatabaseSync) {
   };
 }
 
+function expectOnlyCommercialSchemaChecks(statements: string[]) {
+  expect(
+    statements.every((sql) =>
+      /^CREATE (?:TABLE|INDEX) IF NOT EXISTS (?:visitas_comerciales|idx_visitas_comerciales_owner_fecha)\b/u.test(
+        sql
+      )
+    )
+  ).toBe(true);
+}
+
 afterEach(() => {
   for (const raw of databases.splice(0)) raw.close();
 });
@@ -183,7 +193,7 @@ describe.skipIf(!NativeDatabase)("bootstrap con SQLite real", () => {
 
     statements.length = 0;
     runMigrations(db);
-    expect(statements).toEqual([]);
+    expectOnlyCommercialSchemaChecks(statements);
   });
 
   it.each(["none", "partial", "all"] as const)(
@@ -240,7 +250,34 @@ describe.skipIf(!NativeDatabase)("bootstrap con SQLite real", () => {
       raw.prepare("SELECT * FROM acreedores_cosecha ORDER BY local_id").all()
     ).toEqual(before);
     expect(pendingSnapshot(raw)).toEqual(pending);
-    expect(statements).toEqual([]);
+    expectOnlyCommercialSchemaChecks(statements);
+  });
+
+  it("repara la tabla comercial ausente en 78 sin repetir migraciones ni tocar productores", () => {
+    const { raw, db, statements } = createDatabase();
+    runMigrations(db);
+    raw.exec("DROP TABLE visitas_comerciales");
+    raw
+      .prepare(
+        "INSERT INTO productores (id, public_id, created_at, updated_at) VALUES (?, ?, ?, ?)"
+      )
+      .run("synthetic-existing", "synthetic-public", "2026-10-19", "2026-10-19");
+    const producers = raw.prepare("SELECT * FROM productores").all();
+    statements.length = 0;
+
+    runMigrations(db);
+
+    expect(raw.prepare("PRAGMA user_version").get()?.user_version).toBe(78);
+    expect(raw.prepare("SELECT * FROM productores").all()).toEqual(producers);
+    expect(raw.prepare("SELECT * FROM visitas_comerciales").all()).toEqual([]);
+    expect(
+      raw
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_visitas_comerciales_owner_fecha'"
+        )
+        .get()?.name
+    ).toBe("idx_visitas_comerciales_owner_fecha");
+    expectOnlyCommercialSchemaChecks(statements);
   });
 
   it("revierte una migración fallida sin avanzar la versión y admite reintento", () => {

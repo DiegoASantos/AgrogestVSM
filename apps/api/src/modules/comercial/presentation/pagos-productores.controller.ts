@@ -8,8 +8,10 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  Query
+  Query,
+  Res
 } from "@nestjs/common";
+import type { FastifyReply } from "fastify";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { PaginationQueryDto } from "../../../common/dto/pagination-query.dto";
 import { AllowAnalystMutation } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
@@ -34,6 +36,7 @@ import {
 import { CrearAcreedorAprobadoPagoDto } from "./dto/crear-acreedor-aprobado-pago.dto";
 import { FindAdminAcreedoresCosechaQueryDto } from "./dto/find-admin-acreedores-cosecha-query.dto";
 import { SaldoRecepcionPagoQueryDto } from "./dto/saldo-recepcion-pago-query.dto";
+import { ReportePagosProductoresQueryDto } from "./dto/reporte-pagos-productores-query.dto";
 import {
   CreateAdminAcreedorCosechaDto,
   UpdateAdminAcreedorCosechaDto
@@ -60,6 +63,20 @@ export class PagosProductoresController {
     @Query("estado") estado?: string
   ) {
     return this.pagos.list(pagination, productorId, estado);
+  }
+
+  @Get("productores/reporte-pdf")
+  @Header("Cache-Control", "private, no-store")
+  async exportPaymentsPdf(
+    @Query() query: ReportePagosProductoresQueryDto,
+    @Res() reply: FastifyReply
+  ) {
+    const report = await this.pagos.exportPaymentsPdf(query);
+    return reply
+      .header("Cache-Control", "private, no-store")
+      .header("Content-Disposition", `attachment; filename="${report.fileName}"`)
+      .type("application/pdf")
+      .send(report.content);
   }
 
   @Get("productores/saldo-recepcion")

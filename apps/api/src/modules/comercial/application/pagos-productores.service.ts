@@ -8,6 +8,8 @@ import {
 } from "@nestjs/common";
 import { InjectDataSource } from "@nestjs/typeorm";
 import { DataSource, Not, QueryFailedError, type EntityManager } from "typeorm";
+import pdfmake from "pdfmake";
+import type { Content } from "pdfmake/interfaces";
 import {
   createPaginatedMeta,
   createSuccessResponse
@@ -39,6 +41,7 @@ import type {
   EditarPagoCompletoDto,
   DetallePagoCompletoDto
 } from "../presentation/dto/pago-productor-completo.dto";
+import type { ReportePagosProductoresQueryDto } from "../presentation/dto/reporte-pagos-productores-query.dto";
 
 @Injectable()
 export class PagosProductoresService {
@@ -109,10 +112,124 @@ export class PagosProductoresService {
     if (producerId) builder.andWhere("productor.public_id = :producerId", { producerId });
     if (status) builder.andWhere("payment.status = :status", { status });
     const [payments, total] = await builder.getManyAndCount();
+    const details = payments.length
+      ? await this.dataSource.getRepository(DetallePagoProductorEntity)
+          .createQueryBuilder("detail")
+          .leftJoinAndSelect("detail.creditor", "creditor")
+          .leftJoinAndSelect("detail.producerDocumentType", "producerDocumentType")
+          .leftJoinAndSelect("detail.supervisor", "supervisor")
+          .where("detail.paymentId IN (:...ids)", { ids: payments.map((item) => item.id) })
+          .orderBy("detail.createdAt", "ASC")
+          .addOrderBy("detail.id", "ASC")
+          .getMany()
+      : [];
+    const detailsByPayment = new Map<string, typeof details>();
+    for (const detail of details) {
+      const current = detailsByPayment.get(detail.paymentId) ?? [];
+      current.push(detail);
+      detailsByPayment.set(detail.paymentId, current);
+    }
     return createSuccessResponse(
-      payments.map((payment) => this.toPaymentResponse(payment)),
+      payments.map((payment) => ({
+        ...this.toPaymentResponse(payment),
+        detalles: (detailsByPayment.get(payment.id) ?? []).map((detail) =>
+          this.toDetailResponseFromRelations(detail)
+        )
+      })),
       createPaginatedMeta(total, query.page, query.limit)
     );
+  }
+
+  async exportPaymentsPdf(query: ReportePagosProductoresQueryDto) {
+    if (query.fecha_desde && query.fecha_hasta && query.fecha_desde > query.fecha_hasta)
+      throw new BadRequestException("La fecha hasta debe ser igual o posterior a fecha desde.");
+    const builder = this.dataSource.getRepository(DetallePagoProductorEntity)
+      .createQueryBuilder("detail")
+      .innerJoinAndSelect("detail.payment", "payment")
+      .innerJoinAndSelect("payment.productor", "producer")
+      .innerJoinAndSelect("detail.creditor", "creditor")
+      .innerJoinAndSelect("detail.producerDocumentType", "documentType")
+      .where("payment.status <> :annulled", { annulled: "ANULADO" })
+      .andWhere("detail.status <> :annulled", { annulled: "ANULADO" });
+    if (query.productorId)
+      builder.andWhere("producer.public_id = :producerId", { producerId: query.productorId });
+    if (query.fecha_desde)
+      builder.andWhere("payment.harvestReceptionDate >= :fromDate", { fromDate: query.fecha_desde });
+    if (query.fecha_hasta)
+      builder.andWhere("payment.harvestReceptionDate <= :toDate", { toDate: query.fecha_hasta });
+    const details = await builder.orderBy("payment.harvestReceptionDate", "ASC")
+      .addOrderBy("producer.lastName", "ASC")
+      .addOrderBy("producer.firstName", "ASC")
+      .addOrderBy("payment.id", "ASC")
+      .addOrderBy("detail.id", "ASC")
+      .getMany();
+    pdfmake.addFonts({ Roboto: {
+      normal: require.resolve("pdfmake/fonts/Roboto/Roboto-Regular.ttf"),
+      bold: require.resolve("pdfmake/fonts/Roboto/Roboto-Medium.ttf"),
+      italics: require.resolve("pdfmake/fonts/Roboto/Roboto-Italic.ttf"),
+      bolditalics: require.resolve("pdfmake/fonts/Roboto/Roboto-MediumItalic.ttf")
+    } });
+    const money = (value: string) => `S/ ${Number(value || 0).toFixed(2)}`;
+    const rows = details.map((detail) => {
+      const payment = detail.payment;
+      const producerName = [payment.productor.firstName, payment.productor.lastName]
+        .filter(Boolean).join(" ") || payment.productor.entityType;
+      return [producerName, payment.lot, payment.guideNumber, payment.harvestDate,
+        detail.paymentDate || "—",
+        detail.creditor.creditorDocumentType, detail.creditor.creditorDocumentNumber,
+        [detail.creditor.creditorFirstName, detail.creditor.creditorLastName].filter(Boolean).join(" "),
+        `${Number(detail.subtotal).toFixed(2)} kg`, money(detail.kiloPrice), money(detail.cratePrice),
+        money(detail.totalAfterWithholding)];
+    });
+    const totalCents = details.reduce((sum, detail) => sum + decimalCents(detail.totalAfterWithholding), 0n);
+    const formattedTotal = `${totalCents / 100n}.${String(totalCents % 100n).padStart(2, "0")}`;
+    const receptionRange = query.fecha_desde || query.fecha_hasta
+      ? `${query.fecha_desde || "Inicio"} — ${query.fecha_hasta || "Hoy"}`
+      : "Todas las fechas";
+    const generatedAt = new Intl.DateTimeFormat("es-PE", {
+      dateStyle: "medium", timeStyle: "short", timeZone: "America/Lima"
+    }).format(new Date());
+    const tableHeaders = ["Productor", "Lote", "N.º guía", "Fecha cosecha", "Fecha pago", "Tipo doc.", "N.º doc.",
+      "Acreedor", "Peso neto a pagar", "Precio compra/kg", "Precio compra/jaba", "Neto a cobrar"];
+    const content: Content[] = details.length ? [{
+      table: {
+        headerRows: 1,
+        widths: ["*", 32, 40, 48, 48, 36, 48, "*", 44, 48, 48, 52],
+        body: [tableHeaders.map((text) => ({ text, color: "#FFFFFF", bold: true })), ...rows]
+      },
+      layout: {
+        fillColor: (rowIndex: number) => rowIndex === 0 ? "#176B45" : rowIndex % 2 === 0 ? "#F1F7F3" : null,
+        hLineColor: (rowIndex: number) => rowIndex === 1 ? "#A8CDB7" : "#DCE8E0",
+        vLineWidth: () => 0,
+        hLineWidth: (rowIndex: number) => rowIndex === 1 ? 1 : 0.5,
+        paddingLeft: () => 5,
+        paddingRight: () => 5,
+        paddingTop: (rowIndex: number) => rowIndex === 0 ? 7 : 5,
+        paddingBottom: (rowIndex: number) => rowIndex === 0 ? 7 : 5
+      },
+      fontSize: 6.5
+    }] : [{ text: "No hay detalles para los filtros seleccionados.", margin: [0, 12, 0, 0] as [number, number, number, number] }];
+    const pdf = pdfmake.createPdf({ pageOrientation: "landscape", pageSize: "A4",
+      pageMargins: [28, 34, 28, 34], defaultStyle: { font: "Roboto", fontSize: 8, color: "#26352C" },
+      content: [
+        { text: "AGROGEST VSM  /  COMERCIAL", color: "#176B45", fontSize: 8, bold: true,
+          characterSpacing: 1.1, margin: [0, 0, 0, 5] as [number, number, number, number] },
+        { text: "Reporte de pagos de productores", fontSize: 18, bold: true, color: "#183D2A",
+          margin: [0, 0, 0, 4] as [number, number, number, number] },
+        { text: `Recepción: ${receptionRange}     ·     Productor: ${query.productorId ? "Filtrado" : "Todos"}`,
+          fontSize: 9, color: "#52645A", margin: [0, 0, 0, 3] as [number, number, number, number] },
+        { text: `Generado ${generatedAt}     ·     Importes en soles (S/)`,
+          fontSize: 8, color: "#718078", margin: [0, 0, 0, 14] as [number, number, number, number] },
+        ...content,
+        { table: { widths: ["*"], body: [[{
+          text: `TOTAL GENERAL NETO A COBRAR     S/ ${formattedTotal}`,
+          alignment: "right", bold: true, color: "#155B3B", fontSize: 11
+        }]] },
+          layout: { fillColor: () => "#E8F3EC", hLineWidth: () => 0, vLineWidth: () => 0,
+            paddingLeft: () => 10, paddingRight: () => 10, paddingTop: () => 9, paddingBottom: () => 9 },
+          margin: [0, 12, 0, 0] as [number, number, number, number] }
+      ] });
+    return { fileName: "reporte-pagos-productores.pdf", content: await pdf.getBuffer() };
   }
 
   async findOne(id: string) {
@@ -713,14 +830,19 @@ export class PagosProductoresService {
       );
     const supervisor = await manager
       .getRepository(UserEntity)
-      .createQueryBuilder("user")
-      .select(["user.id", "user.publicId", "user.firstName", "user.lastName"])
-      .innerJoin("user.userRoles", "userRole")
+      .createQueryBuilder("supervisor")
+      .select([
+        "supervisor.id",
+        "supervisor.publicId",
+        "supervisor.firstName",
+        "supervisor.lastName"
+      ])
+      .innerJoin("supervisor.userRoles", "userRole")
       .innerJoin("userRole.role", "role", "role.code = :roleCode", {
         roleCode: "AGRONOMO"
       })
-      .where("user.public_id = :publicId", { publicId: dto.supervisorId })
-      .andWhere("user.is_active = true")
+      .where("supervisor.publicId = :publicId", { publicId: dto.supervisorId })
+      .andWhere("supervisor.isActive = true")
       .getOne();
     if (!supervisor) throw new NotFoundException("Supervisor no disponible.");
     return manager.getRepository(DetallePagoProductorEntity).create({
@@ -1119,4 +1241,12 @@ function isCalendarDate(value: string) {
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day
   );
+}
+
+function decimalCents(value: string) {
+  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(value.trim());
+  if (!match) return 0n;
+  const sign = match[1] === "-" ? -1n : 1n;
+  const fraction = `${match[3] ?? ""}00`.slice(0, 2);
+  return sign * (BigInt(match[2]!) * 100n + BigInt(fraction));
 }

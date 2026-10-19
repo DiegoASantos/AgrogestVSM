@@ -2,7 +2,7 @@ import "reflect-metadata";
 
 import { ForbiddenException, type ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ALLOW_ANALYST_MUTATION_KEY } from "../../auth/presentation/decorators/allow-analyst-mutation.decorator";
 import { REQUIRED_ROLES_KEY } from "../../auth/presentation/decorators/roles.decorator";
@@ -20,6 +20,27 @@ function context(method: "GET" | "POST", roles: string[]): ExecutionContext {
 }
 
 describe("NotificacionesController authorization", () => {
+  it("uses the internal user ID from the access token for persisted reads", () => {
+    const service = {
+      list: vi.fn(),
+      markRead: vi.fn()
+    };
+    const controller = new NotificacionesController(service as never);
+    const user = {
+      sub: "08f7ce89-c638-4b4f-be43-711d4a3ca7da",
+      userId: "1",
+      email: "admin@example.test",
+      roles: ["ADMIN"]
+    };
+    const dto = { productorId: "10", agronomoUsuarioId: "7", fechaVisita: "2026-10-17" };
+
+    controller.list(user, "50", "0");
+    controller.markRead(user, dto);
+
+    expect(service.list).toHaveBeenCalledWith("1", "50", "0");
+    expect(service.markRead).toHaveBeenCalledWith("1", dto);
+  });
+
   it("limits endpoints to admin and analyst and permits analyst to mark only their own read", () => {
     expect(Reflect.getMetadata(REQUIRED_ROLES_KEY, NotificacionesController))
       .toEqual(["ADMIN", "ANALISTA"]);

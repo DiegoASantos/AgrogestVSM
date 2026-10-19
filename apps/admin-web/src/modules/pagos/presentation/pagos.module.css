@@ -120,6 +120,34 @@
 .sectionHeading {
   margin-top: 4px;
 }
+.filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border, #d8e2db);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.filters label {
+  display: grid;
+  gap: 5px;
+  min-width: 170px;
+  color: var(--text-secondary, #4b5c50);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+.filters input,
+.filters select {
+  min-height: 36px;
+  padding: 6px 9px;
+  border: 1px solid var(--border-strong, #cad5ce);
+  border-radius: 7px;
+  background: var(--surface, #fff);
+  color: var(--text, #24382b);
+  font: inherit;
+}
 .sectionHeading h2,
 .detailPanel h2 {
   margin: 0;

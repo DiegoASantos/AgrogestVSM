@@ -461,8 +461,7 @@ export function PagoProductorFormScreen() {
       setRemovedIds([]);
       setBalanceRevision((value) => value + 1);
       setNotice("Pago guardado con todos sus detalles.");
-      if (!paymentId) router.replace(`/pagos/productores/${saved.id}/editar`);
-      else await load();
+      router.replace("/pagos");
     } catch (error) {
       setError(
         error instanceof Error

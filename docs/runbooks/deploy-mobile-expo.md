@@ -39,7 +39,8 @@ telefonos Android.
 
 La spec 113 habilita iPhone con `ios.bundleIdentifier` igual a
 `com.diegoasantos.agrogestvsm`, `buildNumber` inicial `1` y runtime `0.2.4`.
-Conserva Android con el mismo package y `versionCode` 17. Esta configuración
+Conserva Android con el mismo package y `versionCode` 21, retenido al integrar
+la rama remota para evitar retroceder desde builds Android existentes. Esta configuración
 nativa exige un build nuevo; no publicar como OTA para el runtime `0.2.3`.
 El build nativo de simulador verificado el 2026-10-19 declara iOS mínimo 15.1
 en su Info.plist; versiones anteriores de iOS quedan fuera de este target.

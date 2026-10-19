@@ -175,6 +175,17 @@ describe("visitaPdfWebService", () => {
   });
 
   describe("#openDiagnosticPdf", () => {
+    it("opens preview content without starting print", () => {
+      const popup = makeMockPopup();
+      const setTimeout = window.setTimeout;
+
+      openDiagnosticPdf(makeDiagnosticDetail(), popup, false);
+
+      expect(popup._written.at(-1)).toContain("Ficha de Visita de campo");
+      expect(popup.print).not.toHaveBeenCalled();
+      expect(setTimeout).not.toHaveBeenCalled();
+    });
+
     it("should write diagnostic HTML to popup and trigger print after timeout", () => {
       const popup = makeMockPopup();
 

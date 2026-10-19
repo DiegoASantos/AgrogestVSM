@@ -1,5 +1,6 @@
 import type { AuthSession } from "../../auth/types/auth.types";
 import {
+  apiDownload,
   apiRequest,
   apiRequestEnvelope,
   createAuthHeaders
@@ -77,6 +78,15 @@ export const pagosService = {
       items: response.data,
       total: Number(response.meta?.total ?? response.data.length)
     };
+  },
+  downloadReport(session: Auth, filters: { productorId: string; fechaDesde: string; fechaHasta: string }) {
+    const params = new URLSearchParams();
+    if (filters.productorId) params.set("productorId", filters.productorId);
+    if (filters.fechaDesde) params.set("fecha_desde", filters.fechaDesde);
+    if (filters.fechaHasta) params.set("fecha_hasta", filters.fechaHasta);
+    return apiDownload(`/pagos/productores/reporte-pdf?${params.toString()}`, {
+      headers: headers(session)
+    });
   },
   get(session: Auth, id: string) {
     return apiRequest<PagoProductor>(`/pagos/productores/${id}`, {

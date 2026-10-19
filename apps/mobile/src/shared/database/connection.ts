@@ -12,15 +12,17 @@ export function getDatabase() {
     database.execSync("PRAGMA foreign_keys = ON");
   }
 
+  ensureDatabaseInitialized(database);
   return database;
 }
 
 export function initDatabase() {
-  if (isInitialized) {
-    return getDatabase();
-  }
+  return getDatabase();
+}
 
-  const db = getDatabase();
+function ensureDatabaseInitialized(db: SQLiteDatabase) {
+  if (isInitialized) return;
+
   db.execSync("PRAGMA foreign_keys = OFF");
 
   try {
@@ -29,6 +31,4 @@ export function initDatabase() {
   } finally {
     db.execSync("PRAGMA foreign_keys = ON");
   }
-
-  return db;
 }

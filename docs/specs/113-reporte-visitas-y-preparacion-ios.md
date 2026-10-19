@@ -16,6 +16,9 @@ Esta spec fue aprobada e implementada originalmente con el número 111. Al
 integrar la rama remota el 2026-10-19, ese número ya correspondía a la spec de
 pagos y previsualización; se renumeró a 113 conservando alcance, aprobación e
 historial de la implementación. La reparación SQLite mantiene el número 112.
+La integración conserva `android.versionCode = 21` de la rama remota; el código
+17 mencionado en los requisitos corresponde a la preparación inicial local.
+No se genera ni publica una entrega Android durante esta integración.
 
 El usuario solicita corregir el login web, ajustar el Excel de visitas y preparar
 la app para iPhone. Confirma que plantas corresponde a la visita de cada fila,

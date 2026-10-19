@@ -57,6 +57,10 @@ last_reviewed: 2026-10-19
 - `GET /reportes/campos-por-etapas` exige `ADMIN` o `ANALISTA`, valida y
   parametriza el rango inclusivo junto con ingeniero y productor, y no habilita
   acceso a `AGRONOMO`;
+- `GET /pagos/productores/reporte-pdf` exige `ADMIN` o `ANALISTA`, valida los
+  filtros opcionales de productor y fecha de recepción, parametriza la consulta
+  y responde `private, no-store`; al omitir filtros puede consumir memoria en
+  proporción al historial incluido (R-058);
 - `GET` y `PUT /estimaciones/semanas/:fecha` exigen `ADMIN` o `ANALISTA`; el
   `PUT` declara `AllowAnalystMutation`, toma el autor exclusivamente del JWT y
   vuelve a comprobar en base de datos que el actor esté activo y que cada
@@ -103,6 +107,10 @@ last_reviewed: 2026-10-19
   vuelve a autorizar el productor y el registro exige un acreedor de ese mismo
   productor en estado `APPROVED`. Documento y cuenta no se registran en logs ni
   errores.
+- En rutas de pagos, acreedores y errores 5xx generales, los logs registran
+  request ID, clase de error, SQLSTATE y constraint validado como identificador;
+  no registran mensaje, stack, consulta SQL, valores ni payload. La respuesta
+  al cliente sigue genérica.
 - `POST /comercial/productores/:productorId/acceso-acreedores` exige `ADMIN` o
   `AGRONOMO` y autorización horizontal. El código aleatorio dura 180 días, se
   guarda solo como hash y la reemisión revoca el anterior. La sesión derivada

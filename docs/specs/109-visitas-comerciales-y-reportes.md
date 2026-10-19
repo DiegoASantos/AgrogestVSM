@@ -91,6 +91,10 @@ registros comerciales existentes; el rollback de API debe mantener lectura de
 datos ya persistidos o restaurar la versión compatible. Verificar migración en
 base vacía y existente con backup previo.
 
+La app reejecuta de forma idempotente el DDL de `visitas_comerciales` al abrir
+SQLite, incluso si `PRAGMA user_version` ya está en 78 o superior. Esto repara
+instalaciones donde el número de versión quedó actualizado pero faltó la tabla.
+
 ## Criterios de aceptación
 
 - [x] CA-001: Técnica sigue funcionando y es la opción inicial.
@@ -101,6 +105,8 @@ base vacía y existente con backup previo.
   tipo; General produce dos hojas y el PDF comercial descarga un archivo.
 - [x] CA-005: Dashboard coincide con los conteos por tipo y General es la suma.
 - [ ] CA-006: La vista previa de receta no abre impresión; Imprimir sí.
+- [x] CA-007: Toda consulta SQLite ejecuta las migraciones pendientes antes de
+  devolver una conexión a pantallas o servicios.
 
 ## Pruebas
 
