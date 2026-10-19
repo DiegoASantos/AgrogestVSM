@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-19
 related_code:
   - apps/api
   - apps/mobile
@@ -82,6 +82,12 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 - edición y validación inicial de geodatos.
 - revisión Comercial de acreedores para `ADMIN` y `ANALISTA`, con decisión
   auditada; ruta pública `/productor/acreedores` fuera del panel autenticado.
+- galería de fotos por productor desde Acreedores: miniaturas de carga diferida,
+  estados de carga/error con reintento y visor con zoom, flechas y Escape. La
+  presentación compartida `PhotoGallery` recibe el lector autenticado existente,
+  limita las descargas simultáneas y libera los blobs al cerrar la galería o
+  cambiar de cuenta. Está preparada para reutilizarse con visitas comerciales
+  cuando se implemente su consulta de fotos (spec 114, todavía en borrador).
 - formulario de pagos de productores con una sola operación transaccional para
   cabecera y detalles. La API ofrece rutas completas de alta y edición, y una
   consulta de acreedores aprobados por productor previa a crear el pago. Las

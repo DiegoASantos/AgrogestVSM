@@ -46,6 +46,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 
 ## Especificaciones
 
+- [Spec 114: Fotos de visitas comerciales y tipos de productor](specs/114-fotos-visitas-comerciales-y-tipos-productor.md)
+
 - [Spec 112: Reparación del arranque SQLite en instalaciones nuevas](specs/112-reparacion-arranque-sqlite-instalacion-nueva.md)
 
 - [Spec 113: Ajustes del Excel de visitas y preparación para iPhone](specs/113-reporte-visitas-y-preparacion-ios.md)

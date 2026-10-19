@@ -44,6 +44,8 @@ en la raíz.
 
 ## Índice
 
+- [Spec 114: Fotos de visitas comerciales y tipos de productor](114-fotos-visitas-comerciales-y-tipos-productor.md)
+
 - [Spec 112: Reparación del arranque SQLite en instalaciones nuevas](112-reparacion-arranque-sqlite-instalacion-nueva.md)
 
 - [Spec 113: Ajustes del Excel de visitas y preparación para iPhone](113-reporte-visitas-y-preparacion-ios.md)

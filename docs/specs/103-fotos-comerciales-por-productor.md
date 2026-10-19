@@ -5,7 +5,7 @@ numero: 103
 area: mobile, api, admin-web, database, sync, seguridad, operacion
 created: 2026-10-13
 approved_by: usuario mediante instrucción "implementa la spec", 2026-10-13
-implemented_in: API comercial y migración 069; mobile Comercial, SQLite 77 y outbox; admin-web Mantenimiento/Acreedores; docker-compose y runbooks (2026-10-13); corrección DTO de búsqueda del listado web (2026-10-19)
+implemented_in: API comercial y migración 069; mobile Comercial, SQLite 77 y outbox; admin-web Mantenimiento/Acreedores; docker-compose y runbooks (2026-10-13); corrección DTO de búsqueda y galería web con miniaturas/zoom/teclado (2026-10-19)
 ---
 
 # Spec 103: Fotos comerciales independientes por productor
@@ -250,6 +250,21 @@ archivos huérfanos y registros cuyo archivo falte sin declarar cargas exitosas.
 - [x] Variables de ruta, clave, tamaño máximo y monitoreo de almacenamiento.
 
 ## Estado de validación
+
+La mejora de presentación web del 2026-10-19 reutiliza las rutas autenticadas
+existentes. Sustituye los botones de texto por miniaturas de carga diferida y
+un visor compartido con zoom, navegación por flechas, Escape y devolución del
+foco. Se distinguen carga, ausencia de imágenes y errores con reintento; la
+búsqueda espera una pausa breve antes de consultar. Las fotos se descargan con
+sesión, con un máximo de tres solicitudes simultáneas y reutilización entre
+miniatura y visor. Cambiar de productor o cuenta, o cerrar la galería, libera
+sus blobs y descarta respuestas tardías. No cambia API, permisos ni mobile.
+
+La validación de esta mejora cubre 304 pruebas unitarias del panel y tres
+escenarios Playwright con datos sintéticos: miniaturas/zoom/flechas/Tab/Escape
+y restauración del foco, error de consulta con reintento y vista estrecha con
+visor a pantalla completa y búsqueda vacía. Lint, tipos, build web y validación
+documental se ejecutan para cerrar el cambio; no implica despliegue en producción.
 
 La implementación local pasó tipos, lint, builds, validación documental y la
 suite Vitest completa. La prueba en un dispositivo Android con
