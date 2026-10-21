@@ -1,3 +1,4 @@
+import { AllowTreasurer } from "./decorators/allow-treasurer.decorator";
 import {
   Body,
   Controller,
@@ -211,6 +212,7 @@ export class AuthController {
   }
 
   @Get("me")
+  @AllowTreasurer()
   @ApiBearerAuth("access-token")
   @ApiOperation({
     summary: "Devuelve el usuario autenticado actual y sus roles."
@@ -296,6 +298,7 @@ export class AuthController {
   }
 
   @Patch("me")
+  @AllowTreasurer()
   @ApiBearerAuth("access-token")
   @ApiOperation({
     summary: "Actualiza los datos personales y/o contrasena del usuario autenticado."

@@ -86,6 +86,7 @@ export function DuplicadosProductoresScreen() {
         {cases.map((item) => <li className="feature-item" key={item.id}>
           <strong>{item.lesserName} / {item.greaterName}</strong>
           <span>IDs {item.lesserId} y {item.greaterId}. Motivos: {item.reasons.join(", ")}.</span>
+          <span>Registró {item.lesserName}: {item.lesserRecordedBy ?? "No registrado"}. Registró {item.greaterName}: {item.greaterRecordedBy ?? "No registrado"}.</span>
           <div className="actions">
             <button type="button" disabled={busy} onClick={() => void showPreview(item.id, item.lesserId)}>Conservar {item.lesserName}</button>
             <button type="button" disabled={busy} onClick={() => void showPreview(item.id, item.greaterId)}>Conservar {item.greaterName}</button>

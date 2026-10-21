@@ -31,3 +31,19 @@ export type SaveWeekEstimate = {
   agronomoUsuarioId: string;
   visitasEstimadas: number | null;
 };
+
+export type WeekPriceRange = {
+  precioMinimo: number;
+  precioMaximo: number;
+  publicId: string;
+  createdAt: string;
+  updatedAt: string;
+  createdByName: string;
+  updatedByName: string;
+};
+
+export type EstimationWeekPrices = {
+  startDate: string;
+  endDate: string;
+  priceRange: WeekPriceRange | null;
+};

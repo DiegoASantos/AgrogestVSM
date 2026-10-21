@@ -23,6 +23,11 @@ type AuthSeedConfig = {
 
 const AUTH_SEED_ROLES: SeedRoleDefinition[] = [
   {
+    code: "TESORERO_PAGOS",
+    name: "Tesorero Pagos",
+    description: "Gestion de productores, parcelas, acreedores de cosecha y pagos."
+  },
+  {
     code: "ADMIN",
     name: "ADMIN",
     description: "Rol administrador base para desarrollo."

@@ -16,7 +16,7 @@ import {
 
 import { useAuthSession } from "../hooks/use-auth-session";
 import { useTheme } from "../../../shared/hooks/use-theme";
-import { adminRoutes } from "../../../shared/constants/site";
+import { getAdminLandingPath } from "../utils/authorization";
 import { toApiError } from "../../../shared/services";
 import type { LoginErrors, LoginValues } from "../types/auth.types";
 
@@ -27,7 +27,7 @@ const INITIAL_VALUES: LoginValues = {
 
 export function LoginForm() {
   const router = useRouter();
-  const { login, status } = useAuthSession();
+  const { login, status, session } = useAuthSession();
   const { theme, toggleTheme, mounted } = useTheme();
   const [values, setValues] = useState<LoginValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<LoginErrors>({});
@@ -37,9 +37,9 @@ export function LoginForm() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace(adminRoutes.dashboard);
+      router.replace(getAdminLandingPath(session));
     }
-  }, [router, status]);
+  }, [router, status, session]);
 
   return (
     <main className="login-screen">
@@ -230,7 +230,6 @@ export function LoginForm() {
         email: values.email.trim(),
         password: values.password
       });
-      router.replace(adminRoutes.dashboard);
     } catch (error) {
       const apiError = toApiError(error);
       setSubmitError(apiError.message || "No se pudo iniciar sesion.");

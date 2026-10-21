@@ -32,10 +32,11 @@ export const authService = {
   async login(values: LoginValues): Promise<AuthSession> {
     const response = await apiRequest<LoginApiResponse>("/auth/login", {
       method: "POST",
+      recoverSession: false,
       body: values
     });
 
-    const user = await this.getCurrentUser(response.accessToken, response.tokenType);
+    const user = await this.getCurrentUser(response.accessToken, response.tokenType, false);
 
     return {
       accessToken: response.accessToken,
@@ -49,13 +50,15 @@ export const authService = {
   async refresh(refreshToken: string): Promise<RefreshApiResponse> {
     return apiRequest<RefreshApiResponse>("/auth/refresh", {
       method: "POST",
+      recoverSession: false,
       body: { refreshToken }
     });
   },
 
-  async getCurrentUser(accessToken: string, tokenType = "Bearer") {
+  async getCurrentUser(accessToken: string, tokenType = "Bearer", recoverSession = true) {
     try {
       const response = await apiRequest<AuthUserApiResponse>("/auth/me", {
+        recoverSession,
         headers: {
           Authorization: `${tokenType} ${accessToken}`
         }

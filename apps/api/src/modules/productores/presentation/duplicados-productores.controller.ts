@@ -15,7 +15,7 @@ export class DuplicadosProductoresController {
 
   @Get()
   @Header("Cache-Control", "no-store")
-  @ApiOperation({ summary: "Lista posibles personas productoras duplicadas." })
+  @ApiOperation({ summary: "Lista posibles personas productoras duplicadas y el autor de cada ficha." })
   list() { return this.service.list(); }
 
   @Post("escanear")

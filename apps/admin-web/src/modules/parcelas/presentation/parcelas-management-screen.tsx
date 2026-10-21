@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
+import { canAccessAdminPath } from "../../auth/utils/authorization";
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import {
   matchesStatusFilter,
@@ -247,18 +248,18 @@ export function ParcelasManagementScreen() {
           >
             Editar
           </button>
-          <Link
+          {canAccessAdminPath(`/mantenimiento/parcelas/${item.id}/geodatos`, session) ? (<Link
             className="ui-button ui-button--secondary ui-button--compact"
             href={`/mantenimiento/parcelas/${item.id}/geodatos`}
           >
             Geodatos
-          </Link>
-          <Link
+          </Link>) : null}
+          {canAccessAdminPath(`/visitas/parcelas/${item.id}`, session) ? (<Link
             className="ui-button ui-button--ghost ui-button--compact"
             href={`/visitas/parcelas/${item.id}`}
           >
             Historial
-          </Link>
+          </Link>) : null}
           <button
             className="ui-button ui-button--ghost ui-button--compact"
             onClick={() => setItemToDeactivate(item)}
@@ -482,12 +483,12 @@ export function ParcelasManagementScreen() {
             >
               Recargar
             </button>
-            <Link
+            {canAccessAdminPath(adminRoutes.mantenimientoItems.subsectores, session) ? (<Link
               className="ui-button ui-button--secondary"
               href={adminRoutes.mantenimientoItems.subsectores}
             >
               Ver subsectores
-            </Link>
+            </Link>) : null}
             <button
               className="ui-button ui-button--primary"
               onClick={() => {

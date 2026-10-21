@@ -105,7 +105,7 @@ export class ProductoresService {
       email: createProductorDto.email ?? null,
       address: createProductorDto.address ?? null,
       isActive: false,
-      createdByUserId: isAgronomoUser(currentUser) ? currentUser!.userId : null
+      createdByUserId: currentUser?.userId ?? null
     });
 
     try {
@@ -591,5 +591,5 @@ function isAgronomoUser(currentUser?: CurrentUserContext): boolean {
   const hasAnalyst = currentUser.roles.includes("ANALISTA");
   const hasAgronomo = currentUser.roles.includes("AGRONOMO");
 
-  return hasAgronomo && !hasAdmin && !hasAnalyst;
+  return hasAgronomo && !hasAdmin && !hasAnalyst && !currentUser.roles.includes("TESORERO_PAGOS");
 }

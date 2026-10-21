@@ -24,6 +24,58 @@ de firma. EAS reemplaza las reglas de `.gitignore` cuando existe ese archivo;
 mantenerlo actualizado antes de subir un build. El `.easignore` dentro de
 `apps/mobile` no sustituye las reglas de la raíz del repositorio.
 
+### Fallo de carga `ECONNRESET`
+
+`Failed to upload the project tarball` con `read/write ECONNRESET` ocurre durante
+la transferencia a Google Cloud Storage, antes de la compilación remota. El
+100 % del contador representa bytes leídos/enviados por el cliente, no una
+confirmación de almacenamiento del servidor. No requiere cambiar bundle ID,
+certificados ni limpiar datos del teléfono.
+
+El archivo raíz excluye `/.git`: EAS CLI 24.7 conserva por defecto una copia
+superficial del repositorio en el archivo de subida; sus objetos duplicaban
+aproximadamente 21 MiB de recursos en la inspección del 2026-10-19. El código
+mobile, sus imágenes, paquetes compartidos y lockfile deben permanecer en el
+archivo. Esta exclusión no modifica el repositorio de trabajo.
+La regla se escribe sin barra final porque EAS CLI comprueba literalmente
+`.git` para retirar también la copia creada por `git clone`.
+
+En el reintento de esa fecha, la transferencia bajó de 43,7 MB a 22,2 MB y EAS
+confirmó la carga completa en 41 segundos. El
+[build iOS Ad Hoc 1049f96c](https://expo.dev/accounts/diegosv/projects/agrogest-vsm-mobile-pilot/builds/1049f96c-c371-42a0-b6af-d44094e875d3)
+terminó en `FINISHED` con IPA para dispositivo físico, perfil `ios-internal`,
+versión 0.2.4 (1) y runtime 0.2.4. Esto verifica la recuperación de esa carga
+y la compilación firmada, sin atribuir el corte original a una causa de red
+específica que el mensaje `ECONNRESET` no identifica. Ese IPA incorpora las
+correcciones de arranque SQLite y PNG, pero su perfil inicial solo incluía un
+iPhone. Para los dos dispositivos registrados usar el artefacto refirmado
+`12c85152-e472-48b8-8ecd-42af990bb037`, documentado más abajo.
+
+Desde `apps/mobile`, reintentar la compilación iPhone con una sesión de carga
+nueva:
+
+```powershell
+$env:EXPO_NO_DOTENV = '1'
+eas build --platform ios --profile ios-internal
+```
+
+Si vuelve a fallar, comprobar el [estado de Expo](https://status.expo.dev/) y
+probar otra conexión estable. Una respuesta HTTP de Google Storage demuestra
+conectividad, pero no garantiza que termine una subida grande. No reutilizar
+ni versionar la URL firmada del error: contiene autorización temporal de carga.
+No desactivar validación TLS para resolverlo. `--clear-cache` afecta a la
+compilación remota y no corrige un corte durante esta transferencia.
+
+Para inspeccionar qué se enviará sin crear un build remoto, usar una carpeta
+de salida nueva y temporal, fuera del archivo de subida:
+
+```powershell
+eas build:inspect --platform ios --stage archive --profile ios-internal --output ../../tmp/inspeccion-ios
+```
+
+Referencias: [archivo de EAS](https://github.com/expo/fyi/blob/main/eas-build-archive.md)
+y [reglas de exclusión](https://docs.expo.dev/build-reference/easignore/).
+
 ## Generar el primer APK
 
 Desde `apps/mobile`:
@@ -240,6 +292,42 @@ Las OTA compatibles siguen llegando por canal y runtime, pero no sustituyen el
 registro y la firma de un dispositivo nuevo.
 [Referencia de refirmado EAS](https://docs.expo.dev/app-signing/app-credentials/#re-signing-new-credentials).
 
+#### Comprobar el perfil ante un error de integridad
+
+El mensaje de iOS «no se pudo verificar su integridad» puede aparecer si el
+dispositivo no está incluido en el perfil que lleva el IPA, aunque figure en
+`eas device:list`. Un build `FINISHED` no demuestra por sí solo que todos los
+iPhone registrados estén autorizados por su firma.
+
+El 2026-10-19 se compararon los dispositivos de EAS con `ProvisionedDevices`
+del `embedded.mobileprovision` dentro del IPA `1049f96c`: había dos dispositivos
+habilitados en EAS y solo uno en el archivo firmado. El perfil no estaba vencido
+y el identificador de la app era correcto. La reutilización del perfil en modo
+no interactivo había omitido el segundo dispositivo.
+
+Se autenticó el mismo equipo Apple, se reutilizó el certificado vigente y se
+actualizó el perfil seleccionando **ambos dispositivos**. El
+[IPA refirmado 12c85152](https://expo.dev/accounts/diegosv/projects/agrogest-vsm-mobile-pilot/builds/12c85152-e472-48b8-8ecd-42af990bb037)
+terminó en `FINISHED`, perfil `ios-internal`, versión 0.2.4 (1), runtime 0.2.4 y
+destino físico. La inspección del nuevo IPA confirmó:
+
+- dos dispositivos en `ProvisionedDevices` y coincidencia con los dos de EAS;
+- perfil vigente e identidad `com.diegoasantos.agrogestvsm` conservada;
+- mismo hash SHA-256 de `main.jsbundle` que el IPA de origen.
+
+Compartir **el enlace nuevo** y abrirlo en Safari. El enlace del IPA anterior
+sigue entregando su archivo anterior con un solo dispositivo autorizado.
+Los UDID y los archivos usados para verificar el perfil son temporales y no
+se guardan en Git. La comprobación del perfil no sustituye la prueba de
+instalación y arranque en cada iPhone.
+
+Para futuros registros, conservar el flujo interactivo descrito arriba y
+verificar la lista final de `Provisioned devices`. En automatización, el
+refresco explícito con `--refresh-ad-hoc-provisioning-profile` requiere las
+credenciales API de Apple indicadas en la
+[documentación EAS](https://docs.expo.dev/build/internal-distribution/#automation-on-ci-optional);
+`--non-interactive` por sí solo conserva el perfil existente.
+
 #### Límites y problemas frecuentes
 
 Apple permite hasta 100 iPhone por año de membresía dentro de esa familia de
@@ -252,6 +340,7 @@ corresponde a la cuenta, no a diez usuarios configurados en AgroGest.
 | Solo se instaló un perfil | Completar el registro y luego usar el enlace Install del IPA. |
 | IPA aparece como ZIP o vista previa | Abrir en Safari la página de instalación EAS. |
 | No permite instalar en el iPhone nuevo | Revisar UDID, equipo y perfil incluido en ese IPA; registrar en EAS no basta. |
+| No se pudo verificar la integridad del IPA | Comparar el perfil incluido con los dispositivos de EAS; refirmar con la selección completa y compartir el enlace nuevo. |
 | Apple todavía procesa el alta del dispositivo | Esperar la habilitación de Apple y repetir build/refirmado; EAS documenta posibles demoras de 24–72 horas en membresías nuevas o renovadas. |
 | Solicita Modo desarrollador | Activarlo, reiniciar y confirmar, según el paso 4. |
 | Abre y se cierra | Verificar que el build incluya la corrección SQLite 75; conservar evidencia y datos. |

@@ -295,7 +295,7 @@ export class ParcelasService {
   ) {
     if (
       currentUser &&
-      !currentUser.roles.some((role) => role === "ADMIN" || role === "ANALISTA")
+      !currentUser.roles.some((role) => role === "ADMIN" || role === "ANALISTA" || role === "TESORERO_PAGOS")
     ) {
       throw new NotFoundException("Parcela not found.");
     }
@@ -867,7 +867,7 @@ function isAgronomoUser(currentUser?: CurrentUserContext): boolean {
   const hasAnalyst = currentUser.roles.includes("ANALISTA");
   const hasAgronomo = currentUser.roles.includes("AGRONOMO");
 
-  return hasAgronomo && !hasAdmin && !hasAnalyst;
+  return hasAgronomo && !hasAdmin && !hasAnalyst && !currentUser.roles.includes("TESORERO_PAGOS");
 }
 
 function normalizeAreaHectares(value: unknown): string | null {

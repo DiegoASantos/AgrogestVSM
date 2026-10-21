@@ -10,6 +10,8 @@ export type DuplicateCase = {
   greaterId: string;
   lesserName: string;
   greaterName: string;
+  lesserRecordedBy: string | null;
+  greaterRecordedBy: string | null;
   reasons: string[];
   createdAt: string;
 };

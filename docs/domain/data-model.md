@@ -2,7 +2,7 @@
 title: Modelo del dominio
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-19
+last_reviewed: 2026-10-21
 ---
 
 # Modelo del dominio
@@ -62,14 +62,16 @@ continuidad. La confirmacion reinicia el plazo para todos los agronomos. Una
 respuesta negativa desactiva solo las parcelas asignadas al agronomo que la
 registra; el productor puede seguir activo si otros conservan parcelas activas.
 
-La campana web muestra a ADMIN y ANALISTA avisos por productor `persona`
-activo con al menos una parcela activa al cumplir ese plazo de 45 dias. Muestra
-tambien visitas repetidas agrupadas por productor, agronomo y fecha Peru cuando
-hay al menos dos visitas activas, aunque pertenezcan a parcelas distintas. Cada
-usuario lee independientemente esos avisos; el recordatorio de continuidad se
-resuelve con una visita, una confirmacion `si` o la desactivacion. Las visitas
-mobile entran al calculo al sincronizarse. Las visitas historicas se atribuyen
-al productor actual de la parcela, ya que no hay snapshot de esa relacion.
+La campana web separa las visitas repetidas, la revision de identidad, la
+continuidad y el clima. Muestra a ADMIN y ANALISTA avisos por productor
+`persona` activo con al menos una parcela activa al cumplir el plazo de 45 dias.
+Las visitas repetidas se agrupan por productor y fecha Peru cuando hay al menos
+dos visitas activas, aunque intervengan distintos agronomos o parcelas. Cada
+usuario lee independientemente el grupo productor-fecha; el recordatorio de
+continuidad se resuelve con una visita, una confirmacion `si` o la desactivacion.
+Las visitas mobile entran al calculo al sincronizarse. Las visitas historicas
+se atribuyen al productor actual de la parcela, ya que no hay snapshot de esa
+relacion.
 
 Cada parcela puede asignarse a un unico agronomo. Un usuario `AGRONOMO` recibe
 solo los productores con alguna parcela asignada a el y solo sus parcelas,
@@ -77,8 +79,10 @@ incluidos los registros inactivos; los listados ordenan primero los activos.
 Una visita nueva exige que la parcela este activa y asignada al agronomo
 autenticado. `ADMIN` conserva la visibilidad administrativa global.
 
-Los productores creados por un agronomo conservan internamente
-`creado_por_usuario_id`. Esta procedencia permite crear su primera parcela sin
+Las altas nuevas de productores conservan internamente
+`creado_por_usuario_id` del usuario autenticado. Las fichas anteriores pueden
+tenerlo vacio; en la revision de identidad se muestra «No registrado» en ese
+caso. Esta procedencia permite crear la primera parcela de un productor sin
 abrir acceso horizontal: un agronomo solo puede crear o mover una parcela hacia
 un productor que haya creado o que ya tenga alguna parcela asignada a el.
 
@@ -700,6 +704,23 @@ por la spec 078. Cada endpoint requiere rol explícito y la marca
 `AllowAnalystMutation`; el bloqueo global continúa aplicando a todas las demás
 mutaciones. `AGRONOMO` puede consultar reservorios e histórico, pero no crear,
 editar ni eliminar lecturas o estimaciones.
+
+## Precios semanales y Tesorero Pagos
+
+`estimaciones_precios` guarda un único rango general en soles por jaba para cada
+semana de lunes a domingo. Es independiente de las metas por agrónomo y de los
+pagos. Los precios son numeric(12,2), no negativos y mínimo <= máximo. Se auditan
+creación y última modificación; retirar el rango desactiva la fila sin borrarla.
+ADMIN y ANALISTA pueden consultarlo y editarlo en Estimaciones, pestaña Precios
+por jaba. Una semana sin rango activo muestra Sin estimación.
+
+`TESORERO_PAGOS` (Tesorero Pagos) gestiona productores, parcelas (incluyendo
+geodatos y asignación), acreedores de cosecha y pagos. Puede consultar los
+catálogos y agrónomos necesarios para los formularios, sin mantenerlos ni ver
+Seguridad. Por sí solo no accede a dashboard, visitas/historiales, mapas generales,
+Comercial, fotos comerciales, clima, reportes generales ni Estimaciones. Los roles
+adicionales suman sus permisos. El ingreso web es Pagos y conserva perfil propio.
+Su creación no asigna usuarios. Detalles: [spec 115](../specs/115-precios-semanales-y-tesorero-pagos.md).
 
 ## Fotos comerciales
 

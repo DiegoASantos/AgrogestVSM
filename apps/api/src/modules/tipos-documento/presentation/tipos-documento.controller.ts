@@ -1,3 +1,4 @@
+import { AllowTreasurer } from "../../auth/presentation/decorators/allow-treasurer.decorator";
 import {
   Body,
   Controller,
@@ -48,6 +49,7 @@ export class TiposDocumentoController {
   }
 
   @Get()
+  @AllowTreasurer()
   @ApiOperation({ summary: "Lista los tipos de documento." })
   @ApiOkResponse({
     description: "Lista de tipos de documento."
@@ -57,6 +59,7 @@ export class TiposDocumentoController {
   }
 
   @Get(":id")
+  @AllowTreasurer()
   @ApiOperation({ summary: "Obtiene un tipo de documento por id." })
   @ApiParam({
     name: "id",

@@ -4,24 +4,23 @@ import { describe, expect, it, vi } from "vitest";
 
 import { NotificacionesService } from "./notificaciones.service";
 
-const duplicate = {
-  productorId: "10", agronomoUsuarioId: "7", fechaVisita: "2026-10-13"
-};
+const duplicate = { productorId: "10", fechaVisita: "2026-10-13" };
 
 describe("NotificacionesService", () => {
   it("lists historical duplicates and overdue active person producers for the reader", async () => {
     const query = vi.fn().mockResolvedValue([{
-      items: [{ kind: "VISITAS_DUPLICADAS", key: "10:7:2026-10-13" }],
+      items: [{ kind: "VISITAS_DUPLICADAS", key: "10:2026-10-13" }],
       unread_count: "2"
     }]);
     const service = new NotificacionesService({ query } as unknown as DataSource);
 
-    const result = await service.list("31");
+    const result = await service.list("31", undefined, undefined, "VISITAS_DUPLICADAS");
 
-    expect(query.mock.calls[0][1]).toEqual(["31", 50, 0]);
-    expect(query.mock.calls[0][0]).toContain("GROUP BY parcela.productor_id, visita.agronomo_usuario_id, visita.fecha_visita");
+    expect(query.mock.calls[0][1]).toEqual(["31", 50, 0, "VISITAS_DUPLICADAS"]);
+    expect(query.mock.calls[0][0]).toContain("GROUP BY parcela.productor_id, visita.fecha_visita");
+    expect(query.mock.calls[0][0]).toContain("jsonb_agg(DISTINCT");
     expect(query.mock.calls[0][0]).toContain("productor.entidad = 'persona' AND productor.activo = true");
-    expect(query.mock.calls[0][0]).toContain("notificaciones_visitas_leidas leida");
+    expect(query.mock.calls[0][0]).toContain("notificaciones_visitas_productor_leidas leida");
     expect(result.data).toMatchObject({ unreadCount: 2, nextCursor: "1" });
   });
 
@@ -31,6 +30,7 @@ describe("NotificacionesService", () => {
 
     await expect(service.list("31", "51")).rejects.toBeInstanceOf(BadRequestException);
     await expect(service.list("31", "1", "-1")).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.list("31", undefined, undefined, "OTRO")).rejects.toBeInstanceOf(BadRequestException);
     expect(query).not.toHaveBeenCalled();
   });
 
@@ -40,8 +40,9 @@ describe("NotificacionesService", () => {
 
     const result = await service.markRead("31", duplicate);
 
-    expect(query.mock.calls[0][1]).toEqual(["31", "10", "7", "2026-10-13"]);
-    expect(query.mock.calls[0][0]).toContain("HAVING COUNT(*) >= 2");
+    expect(query.mock.calls[0][1]).toEqual(["31", "10", "2026-10-13"]);
+    expect(query.mock.calls[0][0]).toContain("(SELECT COUNT(*) FROM grupo) >= 2");
+    expect(query.mock.calls[0][0]).toContain("notificaciones_visitas_leidas");
     expect(query.mock.calls[0][0]).toContain("ON CONFLICT");
     expect(result.data).toEqual({ read: true });
   });

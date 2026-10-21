@@ -1,7 +1,9 @@
 import { BadRequestException, ForbiddenException, Injectable } from "@nestjs/common";
 import { DataSource, type EntityManager } from "typeorm";
+import { isNumber } from "class-validator";
 
 import type { SaveWeekEstimateItemDto } from "../presentation/dto/save-week-estimates.dto";
+import type { SaveWeekPricesDto } from "../presentation/dto/save-week-prices.dto";
 
 type EstimateWeekRow = {
   agronomistUserId: string;
@@ -27,6 +29,75 @@ export type NormalizedWeek = {
 @Injectable()
 export class EstimacionesService {
   constructor(private readonly dataSource: DataSource) {}
+
+  async getWeekPrices(date: string) {
+    const week = normalizeWeek(date);
+    const rows = await this.dataSource.query<{
+      publicId: string;
+      precioMinimo: string;
+      precioMaximo: string;
+      createdAt: Date | string;
+      updatedAt: Date | string;
+      createdByName: string;
+      updatedByName: string;
+    }[]>(
+      `SELECT e.public_id AS "publicId", e.precio_minimo AS "precioMinimo",
+        e.precio_maximo AS "precioMaximo", e.creado_at AS "createdAt",
+        e.actualizado_at AS "updatedAt",
+        CONCAT_WS(' ', creador.nombres, creador.apellidos) AS "createdByName",
+        CONCAT_WS(' ', editor.nombres, editor.apellidos) AS "updatedByName"
+       FROM estimaciones_precios e
+       INNER JOIN usuarios creador ON creador.id = e.creado_por_usuario_id
+       INNER JOIN usuarios editor ON editor.id = e.actualizado_por_usuario_id
+       WHERE e.fecha_inicio = $1 AND e.activo = true`,
+      [week.startDate]
+    );
+    const row = rows[0];
+    return {
+      ...week,
+      priceRange: row ? {
+        ...row,
+        precioMinimo: Number(row.precioMinimo),
+        precioMaximo: Number(row.precioMaximo)
+      } : null
+    };
+  }
+
+  async saveWeekPrices(date: string, prices: SaveWeekPricesDto, actorUserId: string) {
+    const week = normalizeWeek(date);
+    const { precioMinimo, precioMaximo } = prices;
+    if (precioMinimo !== null || precioMaximo !== null) {
+      if (!isValidPrice(precioMinimo) || !isValidPrice(precioMaximo) ||
+          precioMinimo > precioMaximo) {
+        throw new BadRequestException(
+          "Ingresa ambos precios en soles con hasta dos decimales, mínimo menor o igual al máximo."
+        );
+      }
+    }
+    await this.dataSource.transaction(async (manager) => {
+      await this.ensureActorCanManage(manager, actorUserId);
+      if (precioMinimo === null && precioMaximo === null) {
+        await manager.query(
+          `UPDATE estimaciones_precios SET activo = false,
+             actualizado_por_usuario_id = $2, actualizado_at = now()
+           WHERE fecha_inicio = $1 AND activo = true`,
+          [week.startDate, actorUserId]
+        );
+        return;
+      }
+      await manager.query(
+        `INSERT INTO estimaciones_precios (fecha_inicio, fecha_fin, precio_minimo,
+           precio_maximo, creado_por_usuario_id, actualizado_por_usuario_id)
+         VALUES ($1, $2, $3, $4, $5, $5)
+         ON CONFLICT (fecha_inicio) DO UPDATE SET
+           precio_minimo = EXCLUDED.precio_minimo, precio_maximo = EXCLUDED.precio_maximo,
+           actualizado_por_usuario_id = EXCLUDED.actualizado_por_usuario_id,
+           actualizado_at = now(), activo = true`,
+        [week.startDate, week.endDate, precioMinimo, precioMaximo, actorUserId]
+      );
+    });
+    return this.getWeekPrices(week.startDate);
+  }
 
   async getWeek(date: string) {
     const week = normalizeWeek(date);
@@ -225,6 +296,11 @@ export class EstimacionesService {
       );
     }
   }
+}
+
+function isValidPrice(value: unknown): value is number {
+  return isNumber(value, { maxDecimalPlaces: 2, allowNaN: false, allowInfinity: false }) &&
+    value >= 0 && value <= 9999999999.99;
 }
 
 export function normalizeWeek(value: string): NormalizedWeek {

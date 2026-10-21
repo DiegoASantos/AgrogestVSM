@@ -43,7 +43,7 @@ export class UsersController {
   }
 
   @Get("agronomos")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @ApiOperation({
     summary: "Lista la identidad minima de los agronomos activos para filtros."
   })

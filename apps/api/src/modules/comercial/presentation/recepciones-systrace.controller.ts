@@ -11,7 +11,7 @@ import { VincularProductorSystraceDto } from "./dto/vincular-productor-systrace.
 @ApiTags("Recepciones Systrace para pagos")
 @ApiBearerAuth()
 @Controller("pagos")
-@Roles("ADMIN", "ANALISTA")
+@Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
 export class RecepcionesSystraceController {
   constructor(private readonly recepciones: RecepcionesSystraceService) {}
 

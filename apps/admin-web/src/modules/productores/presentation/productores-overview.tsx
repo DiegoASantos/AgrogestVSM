@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { canAccessAdminPath } from "../../auth/utils/authorization";
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { ConfirmDialog } from "../../../shared/components/confirm-dialog";
 import { DataTable, type DataTableColumn } from "../../../shared/components/data-table";
@@ -118,18 +119,18 @@ export function ProductoresOverview() {
           >
             Editar
           </button>
-          <Link
+          {canAccessAdminPath(`/mantenimiento/productores/${item.id}`, session) ? (<Link
             className="ui-button ui-button--secondary ui-button--compact"
             href={`/mantenimiento/productores/${item.id}`}
           >
             Sectores
-          </Link>
-          <Link
+          </Link>) : null}
+          {canAccessAdminPath(`/visitas/productores/${item.id}`, session) ? (<Link
             className="ui-button ui-button--ghost ui-button--compact"
             href={`/visitas/productores/${item.id}`}
           >
             Historial
-          </Link>
+          </Link>) : null}
           <button
             className="ui-button ui-button--ghost ui-button--compact"
             onClick={() => setItemToDeactivate(item)}
@@ -226,9 +227,9 @@ export function ProductoresOverview() {
               <button className="ui-button ui-button--ghost" onClick={() => void loadData(page)} type="button">
                 Recargar
               </button>
-              <Link className="ui-button ui-button--secondary" href={adminRoutes.mantenimiento}>
+              {canAccessAdminPath(adminRoutes.mantenimiento, session) ? (<Link className="ui-button ui-button--secondary" href={adminRoutes.mantenimiento}>
                 Volver a mantenimiento
-              </Link>
+              </Link>) : null}
               <button className="ui-button ui-button--primary" onClick={() => { setEditing(null); setModalOpen(true); }} type="button">
                 Nuevo productor
               </button>

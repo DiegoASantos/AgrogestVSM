@@ -5,7 +5,7 @@ numero: 087
 area: API y mobile, autenticación
 created: 2026-09-30
 approved_by: Usuario, al solicitar «Implement the plan» el 2026-09-30
-implemented_in: apps/api/src/modules/auth; apps/mobile/src/modules/auth; docker-compose.yml; apps/api/.env.example; JWT expiry configuration regression fix, 2026-10-01
+implemented_in: apps/api/src/modules/auth; apps/mobile/src/modules/auth; docker-compose.yml; apps/api/.env.example; JWT expiry configuration regression fix, 2026-10-01; renovación web en apps/admin-web/src/modules/auth y shared/services/api, 2026-10-21 (working tree)
 ---
 
 # Spec 087: Sesión fija de 150 días
@@ -72,6 +72,59 @@ El usuario móvil debe poder volver a abrir la app, incluso sin red, durante 150
 - Integración HTTP de respuestas de login/refresh y del limitador existente.
 - Escenarios offline-online antes y después de 150 días, más comprobación manual de la sesión web.
 - Lint, tipos y build proporcionales para API y mobile.
+
+### Corrección de regresión del panel web (2026-10-21)
+
+El mantenedor solicita revisar y corregir cierres inesperados durante el uso del
+panel. Esta corrección restaura la renovación web de la sesión ya aprobada; no
+cambia duración, contrato HTTP, almacenamiento, guards, rotación ni revocación.
+
+Evidencia local: el cliente notifica el 401 sin esperar la renovación y después
+lanza el mismo 401 a pantallas que ejecutan logout. El provider inicia un refresh
+por cada 401 (sin exclusión mutua), incluso desde auth/refresh, y elimina la
+sesión ante cualquier fallo de red o servidor. Las renovaciones concurrentes
+pueden usar el mismo refresh y activar la revocación por reutilización de la API.
+
+Requisitos correctivos:
+
+- Esperar una única renovación compartida por pestaña y reintentar una sola vez
+  la petición rechazada por 401, conservando método, cuerpo y cabeceras. Incluir
+  descargas y paginación. Nunca reintentar automáticamente tras fallos de red,
+  403, 5xx o errores de negocio de una mutación.
+- Los endpoints usados para login/refresh y consulta de identidad durante la
+  renovación no invocan recuperación recursiva.
+- Guardar el refresh rotado inmediatamente al recibirlo, antes de consultar el
+  perfil. Conservarlo ante errores transitorios y restaurar al recuperar red.
+- Cerrar sesión solo ante rechazo definitivo 401 o acción explícita. La respuesta
+  tardía de una sesión anterior no restaura ni cierra otra sesión más reciente.
+- Resolver credenciales vigentes en el transporte central para peticiones de la
+  misma sesión. Las renovaciones que solo cambian tokens no cambian el snapshot
+  React de usuario: evitan recargas automáticas que descarten formularios abiertos.
+  Un cambio de identidad/permisos sí actualiza el contexto.
+- Preservar sessionStorage por pestaña y access token solo en memoria, sin logs
+  de credenciales, extensión del plazo ni debilitamiento de la detección de replay.
+
+Pruebas correctivas: 401 simultáneos y tardíos, un solo refresh, replay máximo
+una vez, descargas, conservación de métodos/cuerpos, no recursión en auth,
+refresh 401 frente a 5xx/red, perfil 5xx después de rotar, restauración tras
+interrupción, logout/login durante refresh, sesión revocada y borradores web.
+Rollback: restaurar únicamente el panel anterior; no hay migraciones ni cambios
+de API/mobile. Persisten las reglas y expiraciones de la sesión original.
+
+Validación de la corrección:
+
+- Suite ampliada: 492 casos del panel y autenticación API aprobados. Después de
+  añadir la comprobación previa al replay por cambio de cuenta, los 129 casos de
+  autenticación web/transporte volvieron a pasar, incluido el caso nuevo.
+- Seis escenarios Playwright de sesión aprobados con API simulada: concurrencia,
+  401 tardíos, borradores durante renovación, fallo transitorio, restauración tras
+  interrupción inicial y revocación definitiva. Las cuatro regresiones de precios
+  y Tesorero también pasaron (la primera se repitió tras agotar el tiempo por la
+  compilación inicial del servidor de desarrollo).
+- Revisión de seguridad: no se amplían expiraciones ni se modifica la API; los
+  refresh siguen rotando y un rechazo definitivo elimina la sesión local. El
+  replay solo ocurre tras un 401, nunca tras fallos de red de una mutación.
+- Sin migraciones, cambios mobile, commits ni despliegue.
 
 ## Impacto documental
 

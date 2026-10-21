@@ -506,6 +506,14 @@
   border-bottom: 1px solid var(--border, #dbeafe);
   padding: 4px 4px 12px;
 }
+.operational-notices section + section {
+  border-top: 1px solid var(--border, #dbeafe);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+.operational-notices .notification-panel__empty {
+  padding: 8px;
+}
 .operational-notices h4,
 .operational-notices__climate-heading {
   margin: 8px 8px 10px;

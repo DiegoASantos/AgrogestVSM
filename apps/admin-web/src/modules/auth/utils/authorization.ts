@@ -40,7 +40,32 @@ export function canManageReservoirReadings(session: SessionInput) {
   return isAdminSession(session) || isAnalystSession(session);
 }
 
+export const TREASURER_ROLE_CODE = "TESORERO_PAGOS";
+
+export function isTreasurerSession(session: SessionInput) {
+  return hasRole(session?.user.roles, TREASURER_ROLE_CODE);
+}
+
+export function getAdminLandingPath(session: SessionInput) {
+  return isTreasurerSession(session) && !isAdminOrAnalystSession(session)
+    ? adminRoutes.pagos : adminRoutes.dashboard;
+}
+
+function isTreasurerPath(pathname: string) {
+  return pathname === adminRoutes.perfil || isPaymentsPath(pathname) ||
+    pathname === adminRoutes.mantenimientoItems.productores ||
+    pathname === adminRoutes.mantenimientoItems.parcelas ||
+    /^\/mantenimiento\/parcelas\/[^/]+\/geodatos$/.test(pathname) ||
+    pathname === adminRoutes.mantenimientoItems.acreedoresCosecha;
+}
+
 export function canAccessAdminPath(pathname: string, session: SessionInput) {
+  if (isTreasurerSession(session)) {
+    if (isTreasurerPath(pathname)) return true;
+    const otherRoles = session!.user.roles.filter((role) => role.code.trim().toUpperCase() !== TREASURER_ROLE_CODE);
+    if (otherRoles.length === 0) return false;
+    return canAccessAdminPath(pathname, { user: { ...session!.user, roles: otherRoles } });
+  }
   if (!pathname) {
     return true;
   }

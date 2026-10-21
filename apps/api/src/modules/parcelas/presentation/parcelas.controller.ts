@@ -1,3 +1,4 @@
+import { AllowTreasurer } from "../../auth/presentation/decorators/allow-treasurer.decorator";
 import {
   Body,
   Controller,
@@ -39,7 +40,7 @@ export class ParcelasController {
   constructor(private readonly parcelasService: ParcelasService) {}
 
   @Post()
-  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea una parcela." })
   @ApiCreatedResponse({
@@ -67,6 +68,7 @@ export class ParcelasController {
   }
 
   @Get()
+  @AllowTreasurer()
   @ApiOperation({
     summary: "Lista parcelas con filtros opcionales por sector, subsector y estado."
   })
@@ -96,6 +98,7 @@ export class ParcelasController {
   }
 
   @Get("mapa")
+  @AllowTreasurer()
   @ApiOperation({
     summary:
       "Devuelve un FeatureCollection GeoJSON con las geometrias disponibles de las parcelas."
@@ -132,6 +135,7 @@ export class ParcelasController {
   }
 
   @Get("resumen")
+  @AllowTreasurer()
   @ApiOperation({
     summary: "Devuelve un resumen agregado de parcelas."
   })
@@ -189,6 +193,7 @@ export class ParcelasController {
   }
 
   @Get(":id")
+  @AllowTreasurer()
   @ApiOperation({ summary: "Obtiene una parcela por id." })
   @ApiParam({
     name: "id",
@@ -209,7 +214,7 @@ export class ParcelasController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza una parcela." })
   @ApiParam({
@@ -239,7 +244,7 @@ export class ParcelasController {
   }
 
   @Patch(":id/agronomo")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   @ApiOperation({ summary: "Asigna o desasigna un agronomo a una parcela." })
   @ApiParam({
@@ -270,7 +275,7 @@ export class ParcelasController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente una parcela."

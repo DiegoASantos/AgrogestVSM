@@ -1,3 +1,4 @@
+import { AllowTreasurer } from "../../auth/presentation/decorators/allow-treasurer.decorator";
 import {
   Body,
   Controller,
@@ -37,7 +38,7 @@ export class ProductoresController {
   constructor(private readonly productoresService: ProductoresService) {}
 
   @Post()
-  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   @ApiOperation({ summary: "Crea un productor." })
   @ApiCreatedResponse({
@@ -57,6 +58,7 @@ export class ProductoresController {
   }
 
   @Get()
+  @AllowTreasurer()
   @ApiOperation({ summary: "Lista los productores con paginacion." })
   @ApiOkResponse({
     description: "Lista de productores paginada."
@@ -69,6 +71,7 @@ export class ProductoresController {
   }
 
   @Get(":id/resumen")
+  @AllowTreasurer()
   @ApiOperation({
     summary: "Devuelve un resumen del productor con conteo de sectores y parcelas."
   })
@@ -91,6 +94,7 @@ export class ProductoresController {
   }
 
   @Get(":id/estructura")
+  @AllowTreasurer()
   @ApiOperation({
     summary: "Devuelve la estructura del productor con sectores y parcelas."
   })
@@ -156,6 +160,7 @@ export class ProductoresController {
   }
 
   @Get(":id")
+  @AllowTreasurer()
   @ApiOperation({ summary: "Obtiene un productor por id." })
   @ApiParam({
     name: "id",
@@ -176,7 +181,7 @@ export class ProductoresController {
   }
 
   @Patch(":id")
-  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   @ApiOperation({ summary: "Actualiza un productor." })
   @ApiParam({
@@ -205,7 +210,7 @@ export class ProductoresController {
   }
 
   @Delete(":id")
-  @Roles("ADMIN", "ANALISTA", "AGRONOMO")
+  @Roles("ADMIN", "ANALISTA", "AGRONOMO", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   @ApiOperation({
     summary: "Desactiva logicamente un productor."

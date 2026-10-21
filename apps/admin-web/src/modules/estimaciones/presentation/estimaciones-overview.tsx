@@ -22,6 +22,9 @@ import { ToolbarActions } from "../../../shared/components/toolbar-actions";
 import { adminRoutes } from "../../../shared/constants/site";
 import { toApiError } from "../../../shared/services";
 import { estimacionesService } from "../services/estimaciones.service";
+import { WeekPricesPanel } from "./week-prices-panel";
+import { createPriceDrafts, hasPriceChanges, priceDraftPayload, validatePriceDrafts, type PriceDrafts } from "../utils/week-prices";
+import type { EstimationWeekPrices } from "../types/estimaciones.types";
 import type { EstimationWeekData } from "../types/estimaciones.types";
 import {
   buildEstimateChanges,
@@ -36,6 +39,11 @@ import {
 export function EstimacionesOverview() {
   const { session, logout } = useAuthSession();
   const [selectedWeek, setSelectedWeek] = useState(() => currentWeekStart());
+  const [activeTab, setActiveTab] = useState<"visits" | "prices">("visits");
+  const [priceData, setPriceData] = useState<EstimationWeekPrices | null>(null);
+  const [priceDrafts, setPriceDrafts] = useState<PriceDrafts>({ minimum: "", maximum: "" });
+  const [priceError, setPriceError] = useState<string | null>(null);
+  const [priceSuccess, setPriceSuccess] = useState<string | null>(null);
   const [data, setData] = useState<EstimationWeekData | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +62,7 @@ export function EstimacionesOverview() {
     () => (data ? buildEstimateChanges(data, drafts) : []),
     [data, drafts]
   );
+  const pricesChanged = hasPriceChanges(priceData, priceDrafts);
   const weekLabel = data
     ? formatWeekRange(data.startDate, data.endDate)
     : "Preparando semana";
@@ -62,21 +71,21 @@ export function EstimacionesOverview() {
     <section className="panel-grid report-visits estimations-screen">
       <article className="panel report-visits__hero estimations-hero">
         <ToolbarActions
-          description="Define la meta de cada agrónomo y compárala con las visitas registradas en la misma semana."
+          description="Planifica las visitas y el rango estimado de precio por jaba de cada semana."
           eyebrow="Planificación de campo"
           title="Estimaciones semanales"
           actions={
             <>
               <button
                 className="ui-button ui-button--primary"
-                disabled={isLoading || isSaving || changes.length === 0}
-                onClick={() => void handleSave()}
+                disabled={isLoading || isSaving || (activeTab === "prices" ? !pricesChanged : changes.length === 0)}
+                onClick={() => void (activeTab === "prices" ? handleSavePrices() : handleSave())}
                 type="button"
               >
                 <Save aria-hidden="true" size={16} />
                 {isSaving
                   ? "Guardando…"
-                  : `Guardar cambios${changes.length ? ` (${changes.length})` : ""}`}
+                  : activeTab === "prices" ? "Guardar precios" : `Guardar cambios${changes.length ? ` (${changes.length})` : ""}`}
               </button>
               <Link className="ui-button ui-button--ghost" href={adminRoutes.visitas}>
                 Ver visitas reales
@@ -91,6 +100,14 @@ export function EstimacionesOverview() {
           }
         />
 
+        <div role="tablist" aria-label="Tipo de estimación" className="actions">
+          <button id="visits-tab" role="tab" aria-selected={activeTab === "visits"} aria-controls="visits-panel" type="button"
+            className={`ui-button ${activeTab === "visits" ? "ui-button--primary" : "ui-button--secondary"}`}
+            onClick={() => setActiveTab("visits")}>Visitas</button>
+          <button id="prices-tab" role="tab" aria-selected={activeTab === "prices"} aria-controls="prices-panel" type="button"
+            className={`ui-button ${activeTab === "prices" ? "ui-button--primary" : "ui-button--secondary"}`}
+            onClick={() => setActiveTab("prices")}>Precios por jaba</button>
+        </div>
         <div className="filter-card report-visits__filters estimations-weekbar">
           <div className="filter-card__header">
             <CalendarRange aria-hidden="true" size={16} />
@@ -149,7 +166,7 @@ export function EstimacionesOverview() {
           </div>
         </div>
 
-        {data ? (
+        {activeTab === "visits" && data ? (
           <div
             aria-label="Totales de la semana"
             className="report-metrics estimations-summary"
@@ -204,15 +221,15 @@ export function EstimacionesOverview() {
           <LoadingState description="Calculando metas y visitas reales de la semana." />
         ) : null}
 
-        {!error && !isLoading && data?.rows.length === 0 ? (
+        {!error && !isLoading && activeTab === "visits" && data?.rows.length === 0 ? (
           <EmptyState
             description="Activa un usuario con rol AGRONOMO para comenzar la planificación semanal."
             title="No hay agrónomos para planificar"
           />
         ) : null}
 
-        {!error && !isLoading && data && data.rows.length > 0 ? (
-          <section className="estimations-table-panel">
+        {!error && !isLoading && activeTab === "visits" && data && data.rows.length > 0 ? (
+          <section id="visits-panel" role="tabpanel" aria-labelledby="visits-tab" className="estimations-table-panel">
             <header className="estimations-table-panel__header">
               <div>
                 <h3>Planilla de la semana</h3>
@@ -324,6 +341,13 @@ export function EstimacionesOverview() {
             </div>
           </section>
         ) : null}
+        {!error && !isLoading && activeTab === "prices" && priceData ? (
+          <div id="prices-panel" role="tabpanel" aria-labelledby="prices-tab">
+            <WeekPricesPanel data={priceData} drafts={priceDrafts} isSaving={isSaving}
+              error={priceError} successMessage={priceSuccess}
+              onChange={(next) => { setPriceDrafts(next); setPriceError(null); setPriceSuccess(null); }} />
+          </div>
+        ) : null}
       </article>
     </section>
   );
@@ -336,12 +360,14 @@ export function EstimacionesOverview() {
 
   function changeWeek(nextWeek: string) {
     if (
-      changes.length > 0 &&
+      (changes.length > 0 || pricesChanged) &&
       !window.confirm("Hay cambios sin guardar. ¿Cambiar de semana y descartarlos?")
     ) {
       return;
     }
     setSelectedWeek(nextWeek);
+    setPriceError(null);
+    setPriceSuccess(null);
     setSuccessMessage(null);
     setValidationError(null);
   }
@@ -353,7 +379,11 @@ export function EstimacionesOverview() {
     setValidationError(null);
 
     try {
-      const nextData = await estimacionesService.getWeek(session, week);
+      const [nextData, nextPrices] = await Promise.all([
+        estimacionesService.getWeek(session, week), estimacionesService.getWeekPrices(session, week)
+      ]);
+      setPriceData(nextPrices);
+      setPriceDrafts(createPriceDrafts(nextPrices));
       setData(nextData);
       setDrafts(createEstimateDrafts(nextData));
     } catch (caughtError) {
@@ -367,6 +397,25 @@ export function EstimacionesOverview() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  async function handleSavePrices() {
+    if (!session || !priceData || !pricesChanged) return;
+    const error = validatePriceDrafts(priceDrafts);
+    if (error) { setPriceError(error); return; }
+    setIsSaving(true);
+    setPriceError(null);
+    setPriceSuccess(null);
+    try {
+      const nextPrices = await estimacionesService.saveWeekPrices(session, selectedWeek, priceDraftPayload(priceDrafts));
+      setPriceData(nextPrices);
+      setPriceDrafts(createPriceDrafts(nextPrices));
+      setPriceSuccess(nextPrices.priceRange ? "Precios guardados." : "Estimación de precios retirada.");
+    } catch (caughtError) {
+      const apiError = toApiError(caughtError);
+      if (apiError.statusCode === 401) { logout(); return; }
+      setPriceError(apiError.message);
+    } finally { setIsSaving(false); }
   }
 
   async function handleSave() {

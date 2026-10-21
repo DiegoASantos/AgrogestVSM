@@ -44,6 +44,8 @@ en la raíz.
 
 ## Índice
 
+- [Spec 117: Alertas separadas de visitas e identidad](117-alertas-visitas-identidad.md)
+
 - [Spec 114: Fotos de visitas comerciales y tipos de productor](114-fotos-visitas-comerciales-y-tipos-productor.md)
 
 - [Spec 112: Reparación del arranque SQLite en instalaciones nuevas](112-reparacion-arranque-sqlite-instalacion-nueva.md)
@@ -161,6 +163,7 @@ en la raíz.
 - [Spec 109: Visitas comerciales y reportes](109-visitas-comerciales-y-reportes.md)
 - [Spec 110: Idempotencia del registro de visitas técnicas en mobile](110-idempotencia-registro-visitas-tecnicas-mobile.md)
 - [Spec 111: Reporte y navegación de pagos y previsualización de documentos de visita](111-mejoras-pagos-y-previsualizacion-visitas.md)
-- [Spec 116: Reporte Excel visitas pbi por visita](116-reporte-visitas-pbi-individual.md)
+- [Spec 115: Precios semanales por jaba y Tesorero Pagos](115-precios-semanales-y-tesorero-pagos.md)
 
+- [Spec 116: Reporte Excel visitas pbi por visita](116-reporte-visitas-pbi-individual.md)
 - [Plantilla](TEMPLATE.md)

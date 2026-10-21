@@ -5,6 +5,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags
 } from "@nestjs/swagger";
 
@@ -22,21 +23,23 @@ export class NotificacionesController {
   constructor(private readonly service: NotificacionesService) {}
 
   @Get("operativas")
-  @ApiOperation({ summary: "Avisos de visitas repetidas y productores sin seguimiento." })
+  @ApiOperation({ summary: "Avisos de visitas repetidas y productores sin seguimiento, filtrables por tipo." })
+  @ApiQuery({ name: "kind", required: false, enum: ["VISITAS_DUPLICADAS", "PRODUCTOR_SIN_VISITA"] })
   @ApiOkResponse({ description: "Pagina de avisos operativos y conteo pendiente." })
   @ApiBadRequestResponse({ description: "Paginacion invalida." })
   @ApiForbiddenResponse({ description: "Solo ADMIN y ANALISTA." })
   list(
     @CurrentAuthUser() user: AccessTokenPayload,
     @Query("limit") limit?: string,
-    @Query("cursor") cursor?: string
+    @Query("cursor") cursor?: string,
+    @Query("kind") kind?: string
   ) {
-    return this.service.list(user.userId, limit, cursor);
+    return this.service.list(user.userId, limit, cursor, kind);
   }
 
   @Post("visitas-duplicadas/lectura")
   @AllowAnalystMutation()
-  @ApiOperation({ summary: "Marca como leido un aviso de visitas repetidas para el usuario actual." })
+  @ApiOperation({ summary: "Marca como leido el grupo de visitas del productor y dia para el usuario actual." })
   @ApiOkResponse({ description: "Lectura registrada para el usuario autenticado." })
   @ApiBadRequestResponse({ description: "Identificador o fecha invalida." })
   @ApiNotFoundResponse({ description: "El grupo ya no tiene dos visitas activas." })

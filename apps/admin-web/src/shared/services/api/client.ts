@@ -5,6 +5,7 @@ export type ApiRequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   headers?: Record<string, string>;
+  recoverSession?: boolean;
 };
 
 export type ApiSuccessResponse<T> = {
@@ -42,19 +43,11 @@ export async function apiDownload(
   path: string,
   options: ApiRequestOptions = {}
 ): Promise<ApiDownloadResponse> {
-  const response = await fetch(buildApiUrl(path), {
-    method: options.method ?? "GET",
-    headers: options.headers ?? {},
-    cache: "no-store"
-  });
+  const response = await fetchWithSession(path, options);
 
   if (!response.ok) {
     const rawPayload = await response.text();
     const failure = parseJson(rawPayload) as ApiFailureResponse | null;
-
-    if (response.status === 401 && unauthorizedHandler) {
-      unauthorizedHandler();
-    }
 
     throw new ApiError(
       failure?.error?.message ?? "No se pudo descargar el archivo.",
@@ -69,13 +62,21 @@ export async function apiDownload(
   };
 }
 
-type UnauthorizedHandler = () => void;
+type UnauthorizedHandler = (authorization: string, rejectedRetry?: boolean) => Promise<string | void> | void;
+type AuthorizationResolver = (authorization: string) => string;
 
 let unauthorizedHandler: UnauthorizedHandler | null = null;
+let authorizationResolver: AuthorizationResolver | null = null;
+
+export function setAuthorizationResolver(resolver: AuthorizationResolver | null) {
+  authorizationResolver = resolver;
+  return () => {
+    if (authorizationResolver === resolver) authorizationResolver = null;
+  };
+}
 
 /**
- * Registers a global callback invoked whenever the API returns 401.
- * The AuthSessionProvider uses this to trigger auto-logout.
+ * Waits for session recovery before retrying an authenticated 401 once.
  * Returns an unregister function so effects can clean up on unmount.
  */
 export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
@@ -92,25 +93,13 @@ export async function apiRequestEnvelope<T>(
   path: string,
   options: ApiRequestOptions = {}
 ) {
-  const response = await fetch(buildApiUrl(path), {
-    method: options.method ?? "GET",
-    headers: {
-      ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...(options.headers ?? {})
-    },
-    cache: "no-store",
-    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {})
-  });
+  const response = await fetchWithSession(path, options);
 
   const rawPayload = await response.text();
   const payload = parseJson(rawPayload);
 
   if (!response.ok) {
     const failure = payload as ApiFailureResponse | null;
-
-    if (response.status === 401 && unauthorizedHandler) {
-      unauthorizedHandler();
-    }
 
     throw new ApiError(
       failure?.error?.message ?? "API request failed.",
@@ -126,6 +115,46 @@ export async function apiRequestEnvelope<T>(
   }
 
   return success;
+}
+
+async function fetchWithSession(path: string, options: ApiRequestOptions) {
+  const headers: Record<string, string> = {
+    ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+    ...(options.headers ?? {})
+  };
+  const authorizationKey = Object.keys(headers).find((key) => key.toLowerCase() === "authorization");
+  const canRecover = options.recoverSession !== false && authorizationKey !== undefined;
+  const handler = canRecover ? unauthorizedHandler : null;
+  if (canRecover && authorizationResolver) {
+    headers[authorizationKey] = authorizationResolver(headers[authorizationKey]);
+  }
+  const authorization = authorizationKey ? headers[authorizationKey] : undefined;
+  const init = {
+    method: options.method ?? "GET",
+    headers,
+    cache: "no-store" as const,
+    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {})
+  };
+  const response = await fetch(buildApiUrl(path), init);
+  if (response.status !== 401 || !handler || !authorization) return response;
+  const nextAuthorization = await handler(authorization);
+  if (!nextAuthorization) return response;
+  if (handler !== unauthorizedHandler) {
+    throw new ApiError("La sesión cambió. Reintenta la operación.", 409);
+  }
+  const retryAuthorization = authorizationResolver
+    ? authorizationResolver(nextAuthorization)
+    : nextAuthorization;
+  const retried = await fetch(buildApiUrl(path), {
+    ...init, headers: { ...headers, [authorizationKey!]: retryAuthorization }
+  });
+  if (retried.status === 401) {
+    const newerAuthorization = await handler(retryAuthorization, true);
+    if (newerAuthorization && newerAuthorization !== retryAuthorization) {
+      throw new ApiError("La sesión se renovó durante la operación. Reintenta nuevamente.", 409);
+    }
+  }
+  return retried;
 }
 
 export function createAuthHeaders(accessToken: string, tokenType = "Bearer") {

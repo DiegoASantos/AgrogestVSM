@@ -1,10 +1,23 @@
 import type { AuthSession } from "../../auth/types/auth.types";
 import { apiRequest, createAuthHeaders } from "../../../shared/services";
-import type { EstimationWeekData, SaveWeekEstimate } from "../types/estimaciones.types";
+import type { EstimationWeekData, EstimationWeekPrices, SaveWeekEstimate } from "../types/estimaciones.types";
 
 type AuthSessionInput = Pick<AuthSession, "accessToken" | "tokenType">;
 
 export const estimacionesService = {
+  getWeekPrices(session: AuthSessionInput, date: string) {
+    return apiRequest<EstimationWeekPrices>(`/estimaciones/semanas/${date}/precios`, {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+  },
+
+  saveWeekPrices(session: AuthSessionInput, date: string, prices: { precioMinimo: number | null; precioMaximo: number | null }) {
+    return apiRequest<EstimationWeekPrices>(`/estimaciones/semanas/${date}/precios`, {
+      method: "PUT",
+      headers: createAuthHeaders(session.accessToken, session.tokenType),
+      body: prices
+    });
+  },
   getWeek(session: AuthSessionInput, date: string) {
     return apiRequest<EstimationWeekData>(`/estimaciones/semanas/${date}`, {
       headers: createAuthHeaders(session.accessToken, session.tokenType)

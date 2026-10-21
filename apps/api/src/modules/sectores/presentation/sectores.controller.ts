@@ -1,3 +1,4 @@
+import { AllowTreasurer } from "../../auth/presentation/decorators/allow-treasurer.decorator";
 import {
   Body,
   Controller,
@@ -51,6 +52,7 @@ export class SectoresController {
   }
 
   @Get()
+  @AllowTreasurer()
   @ApiOperation({
     summary: "Lista sectores con filtros opcionales por distrito y estado."
   })
@@ -72,6 +74,7 @@ export class SectoresController {
   }
 
   @Get(":id")
+  @AllowTreasurer()
   @ApiOperation({ summary: "Obtiene un sector por id." })
   @ApiParam({
     name: "id",

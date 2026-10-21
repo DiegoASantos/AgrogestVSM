@@ -185,7 +185,7 @@ describe("setUnauthorizedHandler", () => {
       jsonResponse(failureEnvelope("unauthorized", 401), 401)
     );
 
-    await expect(fetchAllPaginated<unknown>("/productores")).rejects.toThrow();
+    await expect(fetchAllPaginated<unknown>("/productores", { headers: { Authorization: "Bearer fixture-token" } })).rejects.toThrow();
     expect(handler).toHaveBeenCalledOnce();
   });
 
@@ -210,7 +210,7 @@ describe("setUnauthorizedHandler", () => {
       jsonResponse(failureEnvelope("unauthorized", 401), 401)
     );
 
-    await expect(fetchAllPaginated<unknown>("/productores")).rejects.toThrow();
+    await expect(fetchAllPaginated<unknown>("/productores", { headers: { Authorization: "Bearer fixture-token" } })).rejects.toThrow();
     expect(handler).not.toHaveBeenCalled();
   });
 });

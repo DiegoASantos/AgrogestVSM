@@ -2,19 +2,17 @@
 
 import {
   createContext,
-  useCallback,
   useEffect,
   useMemo,
   useState,
   type PropsWithChildren
 } from "react";
 
-import { setUnauthorizedHandler } from "../../../shared/services";
-import { authService } from "../services/auth.service";
+import { setAuthorizationResolver, setUnauthorizedHandler } from "../../../shared/services";
+import { WebSessionManager } from "./web-session-manager";
 import type {
   AuthContextValue,
-  AuthSession,
-  LoginValues
+  AuthSession
 } from "../types/auth.types";
 
 // Only the refresh token is persisted — in sessionStorage (tab-lifetime),
@@ -28,94 +26,42 @@ export function AuthSessionProvider({ children }: PropsWithChildren) {
   const [status, setStatus] = useState<AuthContextValue["status"]>("loading");
   const [session, setSession] = useState<AuthSession | null>(null);
 
-  const logout = useCallback(() => {
-    clearStoredRefreshToken();
-    setSession(null);
-    setStatus("guest");
-  }, []);
-
-  const refreshUser = useCallback(async () => {
-    const storedRefreshToken = readStoredRefreshToken();
-
-    if (!storedRefreshToken) {
-      setSession(null);
-      setStatus("guest");
-      return;
-    }
-
-    try {
-      const refreshed = await authService.refresh(storedRefreshToken);
-      const user = await authService.getCurrentUser(
-        refreshed.accessToken,
-        refreshed.tokenType
-      );
-
-      const nextSession: AuthSession = {
-        accessToken: refreshed.accessToken,
-        refreshToken: refreshed.refreshToken,
-        tokenType: refreshed.tokenType,
-        expiresIn: refreshed.expiresIn,
-        user
-      };
-
-      persistRefreshToken(refreshed.refreshToken);
-      setSession(nextSession);
-      setStatus("authenticated");
-    } catch {
-      logout();
-    }
-  }, [logout]);
+  const [manager] = useState(() => new WebSessionManager({
+    read: readStoredRefreshToken,
+    write: persistRefreshToken,
+    clear: clearStoredRefreshToken
+  }, (next) => {
+    setSession(next);
+    setStatus(next ? "authenticated" : "guest");
+  }));
+  const { login, logout, refreshUser } = manager;
 
   useEffect(() => {
-    void refreshUser();
+    const unregisterRecovery = setUnauthorizedHandler(manager.recover);
+    const unregisterResolver = setAuthorizationResolver(manager.resolveAuthorization);
+    return () => { unregisterRecovery(); unregisterResolver(); };
+  }, [manager]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const restore = () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      void refreshUser().catch((error: unknown) => {
+        // A temporary outage must not delete the saved refresh token or redirect to login.
+        if (!cancelled && (error as { statusCode?: number }).statusCode === 503) {
+          retryTimer = setTimeout(restore, 5000);
+        }
+      });
+    };
+    restore();
+    window.addEventListener("online", restore);
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      window.removeEventListener("online", restore);
+    };
   }, [refreshUser]);
-
-  // Global 401 hook: attempt a silent refresh once; if it fails, log out.
-  useEffect(() => {
-    return setUnauthorizedHandler(() => {
-      const storedRefreshToken = readStoredRefreshToken();
-
-      if (!storedRefreshToken) {
-        clearStoredRefreshToken();
-        setSession(null);
-        setStatus("guest");
-        return;
-      }
-
-      void authService
-        .refresh(storedRefreshToken)
-        .then(async (refreshed) => {
-          const user = await authService.getCurrentUser(
-            refreshed.accessToken,
-            refreshed.tokenType
-          );
-          persistRefreshToken(refreshed.refreshToken);
-          setSession({
-            accessToken: refreshed.accessToken,
-            refreshToken: refreshed.refreshToken,
-            tokenType: refreshed.tokenType,
-            expiresIn: refreshed.expiresIn,
-            user
-          });
-          setStatus("authenticated");
-        })
-        .catch(() => {
-          clearStoredRefreshToken();
-          setSession(null);
-          setStatus("guest");
-        });
-    });
-  }, []);
-
-  const login = useCallback(async (values: LoginValues) => {
-    const nextSession = await authService.login(values);
-
-    persistRefreshToken(nextSession.refreshToken);
-    setSession(nextSession);
-    setStatus("authenticated");
-
-    return nextSession;
-  }, []);
 
   const contextValue = useMemo<AuthContextValue>(
     () => ({

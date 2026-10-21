@@ -1,4 +1,4 @@
-import { IsString, Matches, MaxLength } from "class-validator";
+import { IsOptional, IsString, Matches, MaxLength } from "class-validator";
 
 export class MarcarVisitaDuplicadaLeidaDto {
   @IsString()
@@ -6,10 +6,11 @@ export class MarcarVisitaDuplicadaLeidaDto {
   @Matches(/^[1-9]\d*$/)
   productorId!: string;
 
+  @IsOptional()
   @IsString()
   @MaxLength(19)
   @Matches(/^[1-9]\d*$/)
-  agronomoUsuarioId!: string;
+  agronomoUsuarioId?: string;
 
   @IsString()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)

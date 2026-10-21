@@ -45,7 +45,7 @@ import {
 @ApiTags("Pagos de productores")
 @ApiBearerAuth()
 @Controller("pagos")
-@Roles("ADMIN", "ANALISTA")
+@Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
 export class PagosProductoresController {
   constructor(private readonly pagos: PagosProductoresService) {}
 
@@ -87,7 +87,7 @@ export class PagosProductoresController {
 
   @Post("productores")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   create(
     @Body() dto: CreatePagoProductorDto,
@@ -106,7 +106,7 @@ export class PagosProductoresController {
 
   @Post("productores/completo")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   createComplete(
     @Body() dto: CrearPagoCompletoDto,
@@ -117,7 +117,7 @@ export class PagosProductoresController {
 
   @Patch("productores/:id/completo")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   updateComplete(
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -134,7 +134,7 @@ export class PagosProductoresController {
 
   @Patch("productores/:id")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   update(
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -145,7 +145,7 @@ export class PagosProductoresController {
 
   @Delete("productores/:id")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   remove(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.pagos.remove(id);
@@ -165,7 +165,7 @@ export class PagosProductoresController {
 
   @Post("productores/:id/acreedores-aprobados")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   createApprovedCreditor(
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -177,7 +177,7 @@ export class PagosProductoresController {
 
   @Post("productores/:id/detalles/lote")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   saveDetailsBatch(
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -188,7 +188,7 @@ export class PagosProductoresController {
 
   @Post("productores/:id/detalles")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   createDetail(
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -199,7 +199,7 @@ export class PagosProductoresController {
 
   @Patch("productores/:id/detalles/:detailId")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   updateDetail(
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -211,7 +211,7 @@ export class PagosProductoresController {
 
   @Delete("productores/:id/detalles/:detailId")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   removeDetail(
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -224,7 +224,7 @@ export class PagosProductoresController {
 @ApiTags("Mantenimiento de acreedores de cosecha")
 @ApiBearerAuth()
 @Controller("comercial/mantenimiento/acreedores-cosecha")
-@Roles("ADMIN", "ANALISTA")
+@Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
 export class AdminAcreedoresCosechaController {
   constructor(private readonly acreedores: AdminAcreedoresCosechaService) {}
 
@@ -260,7 +260,7 @@ export class AdminAcreedoresCosechaController {
 
   @Post()
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   create(
     @Body() dto: CreateAdminAcreedorCosechaDto,
@@ -271,7 +271,7 @@ export class AdminAcreedoresCosechaController {
 
   @Patch(":id")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   update(
     @Param("id", new ParseUUIDPipe()) id: string,
@@ -282,7 +282,7 @@ export class AdminAcreedoresCosechaController {
 
   @Delete(":id")
   @Header("Cache-Control", "no-store")
-  @Roles("ADMIN", "ANALISTA")
+  @Roles("ADMIN", "ANALISTA", "TESORERO_PAGOS")
   @AllowAnalystMutation()
   remove(@Param("id", new ParseUUIDPipe()) id: string) {
     return this.acreedores.remove(id);

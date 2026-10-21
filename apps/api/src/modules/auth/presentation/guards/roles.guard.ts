@@ -9,6 +9,7 @@ import { Reflector } from "@nestjs/core";
 import type { AuthenticatedRequest } from "../../types/auth.types";
 import { ALLOW_ANALYST_MUTATION_KEY } from "../decorators/allow-analyst-mutation.decorator";
 import { REQUIRED_ROLES_KEY } from "../decorators/roles.decorator";
+import { ALLOW_TREASURER_KEY } from "../decorators/allow-treasurer.decorator";
 
 const ANALYST_ROLE_CODE = "ANALISTA";
 const ADMIN_ROLE_CODE = "ADMIN";
@@ -25,7 +26,20 @@ export class RolesGuard implements CanActivate {
     ]);
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const userRoles = request.user?.roles ?? [];
+    const allUserRoles = request.user?.roles ?? [];
+    const hasTreasurer = allUserRoles.includes("TESORERO_PAGOS");
+    const allowTreasurer = this.reflector.getAllAndOverride<boolean>(ALLOW_TREASURER_KEY, [
+      context.getHandler(), context.getClass()
+    ]);
+    if (hasTreasurer && (allowTreasurer === true || requiredRoles?.includes("TESORERO_PAGOS"))) {
+      return true;
+    }
+    // Unannotated authenticated endpoints remain available to existing roles,
+    // but must not accidentally grant the new restricted role access.
+    const userRoles = allUserRoles.filter((role) => role !== "TESORERO_PAGOS");
+    if (hasTreasurer && userRoles.length === 0) {
+      throw new ForbiddenException("El rol Tesorero Pagos no puede acceder a este recurso.");
+    }
     const allowAnalystMutation = this.reflector.getAllAndOverride<boolean>(
       ALLOW_ANALYST_MUTATION_KEY,
       [context.getHandler(), context.getClass()]

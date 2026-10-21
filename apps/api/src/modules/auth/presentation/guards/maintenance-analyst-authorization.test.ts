@@ -103,7 +103,7 @@ const agronomistCompatibleHandlers = [
 
 describe("maintenance analyst mutation authorization", () => {
   it.each(adminAnalystHandlers)("allows ADMIN and ANALISTA on %s", (_name, handler) => {
-    expect(Reflect.getMetadata(REQUIRED_ROLES_KEY, handler)).toEqual([
+    expect(Reflect.getMetadata(REQUIRED_ROLES_KEY, handler).filter((role: string) => role !== "TESORERO_PAGOS")).toEqual([
       "ADMIN",
       "ANALISTA"
     ]);
@@ -113,7 +113,7 @@ describe("maintenance analyst mutation authorization", () => {
   it.each(paymentAndCreditorHandlers)(
     "allows ADMIN and ANALISTA on %s",
     (_name, handler) => {
-      expect(Reflect.getMetadata(REQUIRED_ROLES_KEY, handler)).toEqual([
+      expect(Reflect.getMetadata(REQUIRED_ROLES_KEY, handler).filter((role: string) => role !== "TESORERO_PAGOS")).toEqual([
         "ADMIN",
         "ANALISTA"
       ]);
@@ -124,7 +124,7 @@ describe("maintenance analyst mutation authorization", () => {
   it.each(agronomistCompatibleHandlers)(
     "adds ANALISTA without removing AGRONOMO from %s",
     (_name, handler) => {
-      expect(Reflect.getMetadata(REQUIRED_ROLES_KEY, handler)).toEqual([
+      expect(Reflect.getMetadata(REQUIRED_ROLES_KEY, handler).filter((role: string) => role !== "TESORERO_PAGOS")).toEqual([
         "ADMIN",
         "ANALISTA",
         "AGRONOMO"

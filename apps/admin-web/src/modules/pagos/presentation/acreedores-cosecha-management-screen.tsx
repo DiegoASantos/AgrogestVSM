@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { isAdminOrAnalystSession } from "../../auth/utils/authorization";
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { pagosService } from "../services/pagos.service";
 import type { AcreedorCosecha, PagoCatalogs } from "../types/pagos.types";
@@ -81,7 +82,7 @@ export function AcreedoresCosechaManagementScreen() {
       <button className={styles.primary} type="button" onClick={() => { setEditing(null); setIsOpen(true); }}>
         Nuevo acreedor
       </button>
-      <Link className={styles.secondary} href="/mantenimiento/acreedores-cosecha/fotos">Fotos por productor</Link>
+      {isAdminOrAnalystSession(session) ? <Link className={styles.secondary} href="/mantenimiento/acreedores-cosecha/fotos">Fotos por productor</Link> : null}
     </header>
     {message && <p className={styles.success} role="status">{message}</p>}
     {error && <p className={styles.error} role="alert">{error}</p>}

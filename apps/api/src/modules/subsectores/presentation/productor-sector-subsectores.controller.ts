@@ -1,3 +1,4 @@
+import { AllowTreasurer } from "../../auth/presentation/decorators/allow-treasurer.decorator";
 import { Controller, Get, Param } from "@nestjs/common";
 import { ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 
@@ -10,6 +11,7 @@ export class ProductorSectorSubsectoresController {
   constructor(private readonly subsectoresService: SubsectoresService) {}
 
   @Get(":productorId/sectores/:sectorId/subsectores")
+  @AllowTreasurer()
   @ApiOperation({
     summary: "Lista subsectores de un sector usados por un productor."
   })

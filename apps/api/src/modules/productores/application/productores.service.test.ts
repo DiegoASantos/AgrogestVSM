@@ -258,6 +258,15 @@ describe("ProductoresService", () => {
         expect.objectContaining({ createdByUserId: "agronomo-1" })
       );
     });
+
+    it("records the authenticated user for web producer creation", async () => {
+      const { repository, service } = buildService();
+      await service.create({ entityType: "persona", firstName: "Juana", lastName: "Rios" },
+        { userId: "admin-1", roles: ["ADMIN"] });
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ createdByUserId: "admin-1" })
+      );
+    });
   });
 
   describe("derived state", () => {

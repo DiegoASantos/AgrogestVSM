@@ -2,12 +2,28 @@
 title: Línea base de seguridad operativa
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-19
+last_reviewed: 2026-10-21
 ---
 
 # Línea base de seguridad operativa
 
 ## Implementado
+
+- `TESORERO_PAGOS` accede a las operaciones de productores, parcelas, acreedores
+  administrativos y pagos (incluido PDF y recepciones Systrace), y al lookup mínimo
+  de agrónomos y catálogos necesarios. Los handlers sin roles requieren una marca
+  explícita `AllowTreasurer`; el guard deniega por defecto al tesorero sin otros
+  roles. Los roles adicionales conservan sus permisos previos; una operación
+  autorizada de tesorería no queda bloqueada al combinarla con ANALISTA.
+- El panel filtra rutas y enlaces y omite la campana de visitas para tesorería
+  sin permiso de visitas. No se habilitan historiales agronómicos, seguridad,
+  fotos comerciales ni mantenimiento de catálogos auxiliares.
+- Los precios semanales exigen ADMIN/ANALISTA y revalidan actor activo en DB al
+  escribir; los importes y fechas se validan en DTO, servicio y constraints.
+  Las consultas parametrizadas no modifican metas de visitas ni pagos.
+  Rollback a una API anterior requiere retirar asignaciones TESORERO_PAGOS y
+  revocar sus sesiones antes de retirar el guard restrictivo.
+
 
 - las visitas comerciales toman el autor exclusivamente del JWT; `AGRONOMO`
   consulta solo las suyas y `ADMIN`/`ANALISTA` pueden consultar y descargar
@@ -31,6 +47,18 @@ last_reviewed: 2026-10-19
 - mobile conserva acceso a datos locales hasta `sessionExpiresAt` aun sin red;
   la desactivacion de una cuenta se aplica al volver a consultar la API;
 - access token web solo en memoria y refresh token por sesión de pestaña.
+- la recuperación web de 401 espera una renovación única compartida por pestaña
+  y reintenta solo una vez la petición original, incluidas descargas. No aplica
+  recursivamente a login/refresh ni a la consulta de perfil durante la renovación;
+- el refresh rotado se guarda antes de consultar el perfil. Fallos temporales de
+  red/5xx conservan la sesión; al restaurar, se reintenta cada cinco segundos y al
+  volver la conexión. Un 401 definitivo sigue cerrando la sesión;
+- una generación de sesión impide que un refresh tardío restaure una sesión
+  cerrada o que cierre una cuenta iniciada después. Las operaciones pendientes de
+  una sesión anterior no se repiten con las credenciales de otra cuenta;
+- el transporte central resuelve las credenciales vigentes de cada snapshot
+  autorizado. El contexto React mantiene identidad durante una rotación que no
+  cambia el usuario/permisos, evitando recargas que borren formularios abiertos.
 - `ANALISTA` puede mutar únicamente los endpoints de Mantenimiento marcados con
   rol explícito y `AllowAnalystMutation`; el bloqueo global continúa para las
   demás mutaciones y mobile rechaza sesiones con ese rol;
@@ -57,7 +85,7 @@ last_reviewed: 2026-10-19
 - `GET /reportes/campos-por-etapas` exige `ADMIN` o `ANALISTA`, valida y
   parametriza el rango inclusivo junto con ingeniero y productor, y no habilita
   acceso a `AGRONOMO`;
-- `GET /pagos/productores/reporte-pdf` exige `ADMIN` o `ANALISTA`, valida los
+- `GET /pagos/productores/reporte-pdf` exige `ADMIN`, `ANALISTA` o `TESORERO_PAGOS`, valida los
   filtros opcionales de productor y fecha de recepción, parametriza la consulta
   y responde `private, no-store`; al omitir filtros puede consumir memoria en
   proporción al historial incluido (R-058);
@@ -77,7 +105,9 @@ last_reviewed: 2026-10-19
   la consulta de visita del dia devuelve un booleano sin IDs de visitas ajenas;
 - los avisos operativos de la campana web exigen `ADMIN` o `ANALISTA` en la
   API; el registro de lectura utiliza exclusivamente el ID del JWT, verifica
-  que existan dos visitas activas y permite a `ANALISTA` mutar solo esa lectura;
+  que existan dos visitas activas del mismo productor y dia, y permite a
+  `ANALISTA` mutar solo esa lectura. Los casos de identidad muestran el autor
+  de cada ficha solo a estos roles; los datos ausentes no se infieren;
 - catalogos SQLite de productores y parcelas aislados por el usuario de la
   sesion, sin reutilizar como visibles los datos descargados por otra cuenta.
 - outbox y fallos mobile particionados por usuario; un cambio de cuenta no

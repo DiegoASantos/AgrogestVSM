@@ -72,10 +72,14 @@ export class DuplicadosProductoresService {
              c.motivos AS reasons,
              TRIM(CONCAT_WS(' ', a.nombres, a.apellidos)) AS "lesserName",
              TRIM(CONCAT_WS(' ', b.nombres, b.apellidos)) AS "greaterName",
+             NULLIF(TRIM(CONCAT_WS(' ', autor_a.nombres, autor_a.apellidos)), '') AS "lesserRecordedBy",
+             NULLIF(TRIM(CONCAT_WS(' ', autor_b.nombres, autor_b.apellidos)), '') AS "greaterRecordedBy",
              c.creado_at AS "createdAt"
       FROM productor_duplicado_casos c
       JOIN productores a ON a.id = c.productor_menor_id
       JOIN productores b ON b.id = c.productor_mayor_id
+      LEFT JOIN usuarios autor_a ON autor_a.id = a.creado_por_usuario_id
+      LEFT JOIN usuarios autor_b ON autor_b.id = b.creado_por_usuario_id
       WHERE c.estado = 'PENDIENTE'
         AND a.fusionado_en_id IS NULL AND b.fusionado_en_id IS NULL
       ORDER BY c.creado_at DESC, c.id DESC LIMIT 200

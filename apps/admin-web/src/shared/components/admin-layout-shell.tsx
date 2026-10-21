@@ -42,6 +42,7 @@ import {
 import { useAuthSession } from "../../modules/auth/hooks/use-auth-session";
 import {
   canAccessAdminPath,
+  getAdminLandingPath,
   isClimatePath,
   isMaintenancePath,
   isReportsPath,
@@ -297,7 +298,7 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
                 {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
               </button>
             )}
-            <NotificationBell />
+            {canAccessAdminPath(adminRoutes.visitas, session) ? <NotificationBell /> : null}
             <div className="topbar-user-menu">
               <button
                 className="topbar-user-pill"
@@ -362,21 +363,11 @@ export function AdminLayoutShell({ children }: AdminLayoutShellProps) {
                         ? "ADMIN o ANALISTA"
                         : "ADMIN"}
                   </strong>
-                  . Puedes volver al dashboard o continuar con las vistas operativas
-                  habilitadas.
+                  . Usa el menú para acceder a tus módulos habilitados.
                 </p>
                 <div className="actions">
-                  <Link
-                    className="ui-button ui-button--secondary"
-                    href={adminRoutes.dashboard}
-                  >
-                    Ir a dashboard
-                  </Link>
-                  <Link className="ui-button ui-button--ghost" href={adminRoutes.visitas}>
-                    Ir a visitas
-                  </Link>
-                  <Link className="ui-button ui-button--ghost" href={adminRoutes.mapas}>
-                    Ir a mapas
+                  <Link className="ui-button ui-button--secondary" href={getAdminLandingPath(session)}>
+                    Ir al inicio
                   </Link>
                 </div>
               </article>

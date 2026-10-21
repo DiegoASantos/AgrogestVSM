@@ -1,3 +1,4 @@
+import { AllowTreasurer } from "../../auth/presentation/decorators/allow-treasurer.decorator";
 import { Controller, Get, Param } from "@nestjs/common";
 import {
   ApiNotFoundResponse,
@@ -16,6 +17,7 @@ export class ProductorSectoresController {
   constructor(private readonly sectoresService: SectoresService) {}
 
   @Get(":productorId/sectores")
+  @AllowTreasurer()
   @ApiOperation({
     summary: "Lista los sectores asociados a un productor."
   })

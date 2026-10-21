@@ -62,6 +62,16 @@ function fixture(options: { conflictingDocument?: boolean; conflictingCreditor?:
 }
 
 describe("DuplicadosProductoresService", () => {
+  it("includes each producer creator in pending identity cases", async () => {
+    const { service, statements } = fixture();
+    await service.list();
+    const sql = statements.find((statement) => statement.includes("FROM productor_duplicado_casos c"));
+    expect(sql).toContain('AS "lesserRecordedBy"');
+    expect(sql).toContain('AS "greaterRecordedBy"');
+    expect(sql).toContain("LEFT JOIN usuarios autor_a");
+    expect(sql).toContain("LEFT JOIN usuarios autor_b");
+  });
+
   it("permite volver a proponer manualmente un par descartado", async () => {
     const { service, statements } = fixture();
     await service.propose("2", "1");

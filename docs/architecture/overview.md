@@ -63,6 +63,13 @@ Detalle: [Sincronización mobile offline](mobile-offline-sync.md).
 
 `apps/admin-web` usa Next.js App Router:
 
+- `WebSessionManager` mantiene las credenciales actuales en memoria y el refresh
+  en sessionStorage. Comparte una sola renovación entre peticiones concurrentes.
+  El cliente HTTP espera la recuperación de un 401 y repite una sola vez con el
+  token vigente; el perfil React conserva su snapshot si solo cambian tokens.
+  Los errores transitorios no descartan la sesión y el rechazo definitivo sí la
+  cierra. Ver [spec 087](../specs/087-sesion-fija-150-dias.md).
+
 - en el despliegue IDL, `/api/*` del panel reenvía al servicio API dentro de
   Docker Compose; el navegador usa el mismo origen desde la LAN y desde la
   red externa;

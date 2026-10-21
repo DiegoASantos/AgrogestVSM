@@ -12,6 +12,6 @@ describe("UsersController", () => {
         REQUIRED_ROLES_KEY,
         UsersController.prototype.getActiveAgronomists
       )
-    ).toEqual(["ADMIN", "ANALISTA"]);
+    ).toEqual(["ADMIN", "ANALISTA", "TESORERO_PAGOS"]);
   });
 });

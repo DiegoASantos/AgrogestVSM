@@ -20,6 +20,7 @@ import { climaService } from "../../modules/clima/services/clima.service";
 import {
   notificacionesService,
   type OperationalNotice,
+  type OperationalNoticeKind,
   type OperationalNoticesPage
 } from "../../modules/notificaciones/services/notificaciones.service";
 import {
@@ -172,18 +173,27 @@ function severityBadge(severity: string) {
 }
 
 const POLL_INTERVAL = 5 * 60 * 1000;
+const EMPTY_NOTICES: OperationalNoticesPage = { items: [], unreadCount: 0, nextCursor: null };
+const IDENTITY_REASONS: Record<string, string> = {
+  DOCUMENTO: "documento coincidente",
+  NOMBRE: "nombre similar",
+  TELEFONO: "teléfono coincidente",
+  EMAIL: "correo coincidente",
+  REVISION_MANUAL: "revisión manual"
+};
 
 export function NotificationBell() {
   const { session } = useAuthSession();
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
-  const [operational, setOperational] = useState<OperationalNoticesPage>({
-    items: [], unreadCount: 0, nextCursor: null
-  });
+  const [visitNotices, setVisitNotices] = useState<OperationalNoticesPage>(EMPTY_NOTICES);
+  const [continuityNotices, setContinuityNotices] = useState<OperationalNoticesPage>(EMPTY_NOTICES);
   const [operationalOwner, setOperationalOwner] = useState<string | null>(null);
   const [duplicateCases, setDuplicateCases] = useState<DuplicateCase[]>([]);
   const [duplicateOwner, setDuplicateOwner] = useState<string | null>(null);
-  const [operationalError, setOperationalError] = useState("");
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [duplicateError, setDuplicateError] = useState("");
+  const [visitError, setVisitError] = useState("");
+  const [continuityError, setContinuityError] = useState("");
+  const [loadingMore, setLoadingMore] = useState<OperationalNoticeKind | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState<AlertRow | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -195,30 +205,36 @@ export function NotificationBell() {
     if (!session || !isAdminOrAnalystSession(session)) return;
     const token = session.accessToken;
     void Promise.allSettled([
-      notificacionesService.list(session),
+      notificacionesService.list(session, "VISITAS_DUPLICADAS"),
+      notificacionesService.list(session, "PRODUCTOR_SIN_VISITA"),
       duplicadosProductoresService.list(session)
     ])
-      .then(([notices, duplicates]) => {
+      .then(([visits, continuity, duplicates]) => {
         if (sessionTokenRef.current !== token) return;
-        if (notices.status === "fulfilled") {
-          setOperational(notices.value);
-          setOperationalOwner(token);
-          setOperationalError("");
-        } else {
-          setOperationalError("No se pudieron actualizar las notificaciones.");
-        }
+        if (visits.status === "fulfilled") setVisitNotices(visits.value);
+        if (continuity.status === "fulfilled") setContinuityNotices(continuity.value);
+        if (visits.status === "fulfilled" || continuity.status === "fulfilled") setOperationalOwner(token);
+        setVisitError(visits.status === "rejected" ? "No se pudieron actualizar las visitas repetidas." : "");
+        setContinuityError(continuity.status === "rejected" ? "No se pudieron actualizar los recordatorios." : "");
         if (duplicates.status === "fulfilled") {
           setDuplicateCases(duplicates.value);
           setDuplicateOwner(token);
+          setDuplicateError("");
+        } else {
+          setDuplicateError("No se pudieron actualizar los casos de identidad.");
         }
       });
   }, [session]);
 
   useEffect(() => {
-    setOperational({ items: [], unreadCount: 0, nextCursor: null });
+    setVisitNotices(EMPTY_NOTICES);
+    setContinuityNotices(EMPTY_NOTICES);
     setDuplicateCases([]);
     setDuplicateOwner(null);
+    setDuplicateError("");
     setOperationalOwner(null);
+    setVisitError("");
+    setContinuityError("");
     if (!session) return;
     let active = true;
     const fetchAlerts = () => {
@@ -253,40 +269,45 @@ export function NotificationBell() {
   const active = alerts.filter(
     (alert) => alert.status === "ACTIVA" && isAlertFromToday(alert)
   );
-  const visibleOperational = operationalOwner === session?.accessToken
-    ? operational
-    : { items: [], unreadCount: 0, nextCursor: null };
+  const visibleVisits = operationalOwner === session?.accessToken ? visitNotices : EMPTY_NOTICES;
+  const visibleContinuity = operationalOwner === session?.accessToken ? continuityNotices : EMPTY_NOTICES;
   const visibleDuplicates = duplicateOwner === session?.accessToken ? duplicateCases : [];
   const count = active.length + (isAdminOrAnalystSession(session)
-    ? visibleOperational.unreadCount + visibleDuplicates.length
+    ? visibleVisits.unreadCount + visibleContinuity.unreadCount + visibleDuplicates.length
     : 0);
 
   const markOperationalRead = (notice: OperationalNotice) => {
     if (!session) return;
     void notificacionesService.markRead(session, notice)
       .then(fetchOperational)
-      .catch(() => setOperationalError("No se pudo marcar el aviso como leído."));
+      .catch(() => setVisitError("No se pudo marcar el aviso como leído."));
   };
 
-  const loadMore = () => {
-    if (!session || !visibleOperational.nextCursor || loadingMore) return;
+  const loadMore = (kind: OperationalNoticeKind) => {
+    const page = kind === "VISITAS_DUPLICADAS" ? visibleVisits : visibleContinuity;
+    if (!session || !page.nextCursor || loadingMore) return;
     const token = session.accessToken;
-    setLoadingMore(true);
-    void notificacionesService.list(session, visibleOperational.nextCursor)
-      .then((page) => {
+    setLoadingMore(kind);
+    void notificacionesService.list(session, kind, page.nextCursor)
+      .then((nextPage) => {
         if (sessionTokenRef.current !== token) return;
-        setOperational((previous) => ({
-          ...page,
+        const update = (previous: OperationalNoticesPage) => ({
+          ...nextPage,
           items: Array.from(new Map(
-            [...previous.items, ...page.items].map((item) => [`${item.kind}:${item.key}`, item])
+            [...previous.items, ...nextPage.items].map((item) => [`${item.kind}:${item.key}`, item])
           ).values())
-        }));
-        setOperationalError("");
+        });
+        if (kind === "VISITAS_DUPLICADAS") setVisitNotices(update);
+        else setContinuityNotices(update);
+        if (kind === "VISITAS_DUPLICADAS") setVisitError("");
+        else setContinuityError("");
       })
       .catch(() => {
-        if (sessionTokenRef.current === token) setOperationalError("No se pudieron cargar más avisos.");
+        if (sessionTokenRef.current !== token) return;
+        if (kind === "VISITAS_DUPLICADAS") setVisitError("No se pudieron cargar más visitas.");
+        else setContinuityError("No se pudieron cargar más recordatorios.");
       })
-      .finally(() => setLoadingMore(false));
+      .finally(() => setLoadingMore(null));
   };
 
   if (!session) return null;
@@ -318,41 +339,51 @@ export function NotificationBell() {
           </div>
           <div className="notification-panel__body">
             {isAdminOrAnalystSession(session) && (
-              <section className="operational-notices" aria-label="Avisos de visitas">
-                <h4>Productores posiblemente duplicados</h4>
-                {visibleDuplicates.length === 0 && <p>No hay casos pendientes.</p>}
+              <div className="operational-notices">
+                <section aria-label="Revisión de identidad">
+                <h4>Revisión de identidad · {visibleDuplicates.length === 200 ? "200 o más" : visibleDuplicates.length} casos pendientes</h4>
+                {duplicateError && <p className="operational-notices__error" role="status">{duplicateError}</p>}
+                {visibleDuplicates.length === 0 && !duplicateError && <p>No hay casos pendientes.</p>}
                 {visibleDuplicates.slice(0, 5).map((item) => <article className="operational-notice" key={`duplicado:${item.id}`}>
-                  <strong>Revisión de identidad</strong>
-                  <p>{item.lesserName} y {item.greaterName} podrían ser la misma persona.</p>
+                  <strong>{item.lesserName} y {item.greaterName}</strong>
+                  <p>Posible misma persona. Motivos: {item.reasons.map((reason) => IDENTITY_REASONS[reason] ?? reason).join(", ")}.</p>
+                  <p>Registró {item.lesserName}: {item.lesserRecordedBy ?? "No registrado"}. Registró {item.greaterName}: {item.greaterRecordedBy ?? "No registrado"}.</p>
                   <Link href="/mantenimiento/productores/duplicados" onClick={() => setIsOpen(false)}>Revisar caso</Link>
                 </article>)}
-                {visibleDuplicates.length > 5 && <Link href="/mantenimiento/productores/duplicados">Ver los demás casos</Link>}
-                <h4>Avisos de visitas</h4>
-                {operationalError && <p className="operational-notices__error" role="status">{operationalError}</p>}
-                {visibleOperational.items.length === 0 && !operationalError && (
-                  <p className="notification-panel__empty">No hay avisos de visitas pendientes.</p>
+                {visibleDuplicates.length > 5 && <Link href="/mantenimiento/productores/duplicados" onClick={() => setIsOpen(false)}>Ver los demás casos</Link>}
+                </section>
+                <section aria-label="Visitas repetidas">
+                <h4>Visitas repetidas · {visibleVisits.unreadCount} casos</h4>
+                {visitError && <p className="operational-notices__error" role="status">{visitError}</p>}
+                {visibleVisits.items.length === 0 && !visitError && (
+                  <p className="notification-panel__empty">No hay visitas repetidas pendientes.</p>
                 )}
-                {visibleOperational.items.map((notice) => (
+                {visibleVisits.items.map((notice) => (
                   <article className="operational-notice" key={`${notice.kind}:${notice.key}`}>
-                    <strong>
-                      {notice.kind === "VISITAS_DUPLICADAS" ? "Visitas repetidas" : "Productor sin visita reciente"}
-                    </strong>
-                    {notice.kind === "VISITAS_DUPLICADAS" ? (
-                      <>
-                        <p>{notice.productorNombre}: {notice.cantidadVisitas} visitas el {notice.fechaVisita} por {notice.agronomoNombre}.</p>
-                        <button type="button" onClick={() => markOperationalRead(notice)}>Marcar como leída</button>
-                      </>
-                    ) : (
-                      <p>{notice.productorNombre}: 45 días sin visita ni confirmación de continuidad desde {notice.fechaBase}.</p>
-                    )}
+                    <strong>{notice.productorNombre}</strong>
+                    <p>{notice.cantidadVisitas} visitas el {notice.fechaVisita}. Agrónomos: {notice.agronomos.join(", ")}.</p>
+                    <button type="button" onClick={() => markOperationalRead(notice)}>Marcar como leída</button>
                   </article>
                 ))}
-                {visibleOperational.nextCursor && (
-                  <button className="operational-notices__more" type="button" onClick={loadMore} disabled={loadingMore}>
-                    {loadingMore ? "Cargando…" : "Ver más avisos"}
+                {visibleVisits.nextCursor && (
+                  <button className="operational-notices__more" type="button" onClick={() => loadMore("VISITAS_DUPLICADAS")} disabled={loadingMore !== null}>
+                    {loadingMore === "VISITAS_DUPLICADAS" ? "Cargando…" : "Ver más visitas"}
                   </button>
                 )}
-              </section>
+                </section>
+                <section aria-label="Productores sin visita reciente">
+                <h4>Productores sin visita reciente · {visibleContinuity.unreadCount} casos</h4>
+                {continuityError && <p className="operational-notices__error" role="status">{continuityError}</p>}
+                {visibleContinuity.items.length === 0 && !continuityError && <p>No hay casos pendientes.</p>}
+                {visibleContinuity.items.map((notice) => <article className="operational-notice" key={`${notice.kind}:${notice.key}`}>
+                  <strong>{notice.productorNombre}</strong>
+                  <p>45 días sin visita ni confirmación de continuidad desde {notice.fechaBase}.</p>
+                </article>)}
+                {visibleContinuity.nextCursor && <button className="operational-notices__more" type="button" onClick={() => loadMore("PRODUCTOR_SIN_VISITA")} disabled={loadingMore !== null}>
+                  {loadingMore === "PRODUCTOR_SIN_VISITA" ? "Cargando…" : "Ver más productores"}
+                </button>}
+                </section>
+              </div>
             )}
             <h4 className="operational-notices__climate-heading">Alertas climáticas</h4>
             {active.length === 0 ? (

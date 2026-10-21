@@ -9,6 +9,7 @@ type NoticeRow = {
   key: string;
   productorId: string;
   productorNombre: string;
+  agronomos: string[];
   agronomoUsuarioId: string | null;
   agronomoNombre: string | null;
   fechaVisita: string | null;
@@ -23,13 +24,16 @@ type ListRow = { items: NoticeRow[]; unread_count: string };
 const NOTICES_SQL = `
   WITH duplicadas AS (
     SELECT parcela.productor_id AS productor_id,
-           visita.agronomo_usuario_id AS agronomo_usuario_id,
            visita.fecha_visita AS fecha_visita,
-           COUNT(*)::integer AS cantidad
+           COUNT(*)::integer AS cantidad,
+           jsonb_agg(DISTINCT TRIM(CONCAT_WS(' ', agronomo.nombres, agronomo.apellidos))) AS agronomos,
+           MIN(visita.agronomo_usuario_id)::text AS agronomo_usuario_id,
+           string_agg(DISTINCT TRIM(CONCAT_WS(' ', agronomo.nombres, agronomo.apellidos)), ', ') AS agronomo_nombre
     FROM visitas_campo visita
     JOIN parcelas parcela ON parcela.id = visita.parcela_id
+    JOIN usuarios agronomo ON agronomo.id = visita.agronomo_usuario_id
     WHERE visita.activo = true
-    GROUP BY parcela.productor_id, visita.agronomo_usuario_id, visita.fecha_visita
+    GROUP BY parcela.productor_id, visita.fecha_visita
     HAVING COUNT(*) >= 2
   ), elegibles AS (
     SELECT productor.id AS productor_id,
@@ -53,21 +57,20 @@ const NOTICES_SQL = `
       )
   ), avisos AS (
     SELECT 'VISITAS_DUPLICADAS'::text AS kind,
-           CONCAT_WS(':', duplicadas.productor_id, duplicadas.agronomo_usuario_id, duplicadas.fecha_visita) AS key,
+           CONCAT_WS(':', duplicadas.productor_id, duplicadas.fecha_visita) AS key,
            duplicadas.productor_id::text AS "productorId",
            TRIM(CONCAT_WS(' ', productor.nombres, productor.apellidos)) AS "productorNombre",
-           duplicadas.agronomo_usuario_id::text AS "agronomoUsuarioId",
-           TRIM(CONCAT_WS(' ', agronomo.nombres, agronomo.apellidos)) AS "agronomoNombre",
+           duplicadas.agronomos AS agronomos,
+           duplicadas.agronomo_usuario_id AS "agronomoUsuarioId",
+           duplicadas.agronomo_nombre AS "agronomoNombre",
            duplicadas.fecha_visita::text AS "fechaVisita",
            duplicadas.cantidad AS "cantidadVisitas",
            NULL::text AS "fechaBase", NULL::text AS "fechaVencimiento",
            duplicadas.fecha_visita::text AS "sortDate"
     FROM duplicadas
     JOIN productores productor ON productor.id = duplicadas.productor_id
-    JOIN usuarios agronomo ON agronomo.id = duplicadas.agronomo_usuario_id
-    LEFT JOIN notificaciones_visitas_leidas leida
+    LEFT JOIN notificaciones_visitas_productor_leidas leida
       ON leida.usuario_id = $1 AND leida.productor_id = duplicadas.productor_id
-      AND leida.agronomo_usuario_id = duplicadas.agronomo_usuario_id
       AND leida.fecha_visita = duplicadas.fecha_visita
     WHERE leida.usuario_id IS NULL
     UNION ALL
@@ -75,6 +78,7 @@ const NOTICES_SQL = `
            elegibles.productor_id::text AS key,
            elegibles.productor_id::text AS "productorId",
            elegibles.nombre AS "productorNombre",
+           '[]'::jsonb AS agronomos,
            NULL::text AS "agronomoUsuarioId", NULL::text AS "agronomoNombre",
            NULL::text AS "fechaVisita", NULL::integer AS "cantidadVisitas",
            elegibles.fecha_base::text AS "fechaBase",
@@ -82,11 +86,13 @@ const NOTICES_SQL = `
            (elegibles.fecha_base + 45)::text AS "sortDate"
     FROM elegibles
     WHERE elegibles.fecha_base + 45 <= (now() AT TIME ZONE 'America/Lima')::date
+  ), filtrados AS (
+    SELECT * FROM avisos WHERE $4::text IS NULL OR kind = $4::text
   )
   SELECT COALESCE(json_agg(pagina.*), '[]'::json) AS items,
-         (SELECT COUNT(*)::text FROM avisos) AS unread_count
+         (SELECT COUNT(*)::text FROM filtrados) AS unread_count
   FROM (
-    SELECT * FROM avisos ORDER BY "sortDate" DESC, kind, key
+    SELECT * FROM filtrados ORDER BY "sortDate" DESC, kind, key
     LIMIT $2 OFFSET $3
   ) pagina
 `;
@@ -95,10 +101,13 @@ const NOTICES_SQL = `
 export class NotificacionesService {
   constructor(private readonly dataSource: DataSource) {}
 
-  async list(userId: string, rawLimit?: string, rawCursor?: string) {
+  async list(userId: string, rawLimit?: string, rawCursor?: string, kind?: string) {
     const limit = this.parseNumber(rawLimit, 50, 1, 50);
     const offset = this.parseNumber(rawCursor, 0, 0, 1000000);
-    const [row] = await this.dataSource.query(NOTICES_SQL, [userId, limit, offset]) as ListRow[];
+    if (kind !== undefined && kind !== "VISITAS_DUPLICADAS" && kind !== "PRODUCTOR_SIN_VISITA") {
+      throw new BadRequestException("Tipo de aviso invalido.");
+    }
+    const [row] = await this.dataSource.query(NOTICES_SQL, [userId, limit, offset, kind ?? null]) as ListRow[];
     const items = row?.items ?? [];
     const unreadCount = Number(row?.unread_count ?? 0);
     return createSuccessResponse({
@@ -110,7 +119,7 @@ export class NotificacionesService {
 
   async markRead(userId: string, dto: MarcarVisitaDuplicadaLeidaDto) {
     const maxId = 9223372036854775807n;
-    if (BigInt(dto.productorId) > maxId || BigInt(dto.agronomoUsuarioId) > maxId) {
+    if (BigInt(dto.productorId) > maxId) {
       throw new BadRequestException("Identificador fuera de rango.");
     }
     const date = new Date(`${dto.fechaVisita}T00:00:00Z`);
@@ -118,22 +127,30 @@ export class NotificacionesService {
       throw new BadRequestException("Fecha de visita invalida.");
     }
     const result = await this.dataSource.query(`
-      INSERT INTO notificaciones_visitas_leidas
-        (usuario_id, productor_id, agronomo_usuario_id, fecha_visita)
-      SELECT $1, $2, $3, $4::date
-      WHERE EXISTS (
-        SELECT 1
+      WITH grupo AS (
+        SELECT visita.agronomo_usuario_id
         FROM visitas_campo visita
         JOIN parcelas parcela ON parcela.id = visita.parcela_id
         WHERE visita.activo = true AND parcela.productor_id = $2
-          AND visita.agronomo_usuario_id = $3 AND visita.fecha_visita = $4::date
-        GROUP BY parcela.productor_id
-        HAVING COUNT(*) >= 2
-      )
-      ON CONFLICT (usuario_id, productor_id, agronomo_usuario_id, fecha_visita)
-      DO UPDATE SET leido_at = notificaciones_visitas_leidas.leido_at
+          AND visita.fecha_visita = $3::date
+      ), lectura AS (
+      INSERT INTO notificaciones_visitas_productor_leidas
+        (usuario_id, productor_id, fecha_visita)
+      SELECT $1, $2, $3::date
+      WHERE (SELECT COUNT(*) FROM grupo) >= 2
+      ON CONFLICT (usuario_id, productor_id, fecha_visita)
+      DO UPDATE SET leido_at = notificaciones_visitas_productor_leidas.leido_at
       RETURNING usuario_id
-    `, [userId, dto.productorId, dto.agronomoUsuarioId, dto.fechaVisita]) as Array<{ usuario_id: string }>;
+      ), lectura_anterior AS (
+        INSERT INTO notificaciones_visitas_leidas
+          (usuario_id, productor_id, agronomo_usuario_id, fecha_visita)
+        SELECT $1, $2, agronomo_usuario_id, $3::date
+        FROM grupo WHERE EXISTS (SELECT 1 FROM lectura)
+        GROUP BY agronomo_usuario_id
+        ON CONFLICT (usuario_id, productor_id, agronomo_usuario_id, fecha_visita) DO NOTHING
+      )
+      SELECT usuario_id FROM lectura
+    `, [userId, dto.productorId, dto.fechaVisita]) as Array<{ usuario_id: string }>;
     if (result.length === 0) {
       throw new NotFoundException("El aviso de visitas repetidas ya no esta disponible.");
     }
