@@ -3,7 +3,7 @@
 import { Calendar, Download, Filter, Map, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { EmptyState } from "../../../shared/components/empty-state";
@@ -58,6 +58,8 @@ export function VisitasOverview() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportingPbiVisitId, setExportingPbiVisitId] = useState<string | null>(null);
   const [tipoVisita, setTipoVisita] = useState<TipoVisitaFiltro>("GENERAL");
+  const catalogRequestId = useRef(0);
+  const listRequestId = useRef(0);
 
   useEffect(() => {
     setDraftFilters(queryState.filters);
@@ -71,15 +73,16 @@ export function VisitasOverview() {
     }
 
     void loadCatalogs();
-  }, [session]);
+  }, [session, tipoVisita]);
 
   useEffect(() => {
-    if (!session) {
+    if (!session || tipoVisita === "COMERCIAL") {
+      listRequestId.current += 1;
       return;
     }
 
     void loadVisitas(appliedFilters, page);
-  }, [appliedFilters, page, session]);
+  }, [appliedFilters, page, session, tipoVisita]);
 
   const campaignLabels = useMemo(
     () => createOptionLabelMap(catalogs?.campanias ?? []),
@@ -406,12 +409,16 @@ export function VisitasOverview() {
       return;
     }
 
+    const requestId = ++catalogRequestId.current;
     try {
       setIsLoadingCatalogs(true);
       setCatalogError(null);
-      const nextCatalogs = await visitasService.getFilterCatalogs(session);
-      setCatalogs(nextCatalogs);
+      const nextCatalogs = tipoVisita === "COMERCIAL"
+        ? await visitasService.getCommercialFilterCatalogs(session)
+        : await visitasService.getFilterCatalogs(session);
+      if (requestId === catalogRequestId.current) setCatalogs(nextCatalogs);
     } catch (error) {
+      if (requestId !== catalogRequestId.current) return;
       const apiError = toApiError(error);
 
       if (apiError.statusCode === 401) {
@@ -421,7 +428,7 @@ export function VisitasOverview() {
 
       setCatalogError(apiError.message);
     } finally {
-      setIsLoadingCatalogs(false);
+      if (requestId === catalogRequestId.current) setIsLoadingCatalogs(false);
     }
   }
 
@@ -478,6 +485,7 @@ export function VisitasOverview() {
       return;
     }
 
+    const requestId = ++listRequestId.current;
     try {
       setIsLoadingList(true);
       setListError(null);
@@ -487,10 +495,13 @@ export function VisitasOverview() {
         currentPage,
         PAGE_SIZE
       );
-      setItems(response.items);
-      setCount(response.count);
-      setTotalPages(response.totalPages);
+      if (requestId === listRequestId.current) {
+        setItems(response.items);
+        setCount(response.count);
+        setTotalPages(response.totalPages);
+      }
     } catch (error) {
+      if (requestId !== listRequestId.current) return;
       const apiError = toApiError(error);
 
       if (apiError.statusCode === 401) {
@@ -500,7 +511,7 @@ export function VisitasOverview() {
 
       setListError(apiError.message);
     } finally {
-      setIsLoadingList(false);
+      if (requestId === listRequestId.current) setIsLoadingList(false);
     }
   }
 }

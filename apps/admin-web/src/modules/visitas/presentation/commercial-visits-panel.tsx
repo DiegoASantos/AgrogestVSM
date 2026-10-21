@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { toApiError } from "../../../shared/services";
 import { PhotoGallery } from "../../../shared/components/photo-gallery";
+import { ErrorState } from "../../../shared/components/error-state";
 import type { GalleryPhoto } from "../../../shared/utils/photo-resource-cache";
 import type { AuthSession } from "../../auth/types/auth.types";
 import {
@@ -23,7 +24,9 @@ export function CommercialVisitsPanel({
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [selected, setSelected] = useState<VisitaComercial | null>(null);
 
@@ -34,7 +37,9 @@ export function CommercialVisitsPanel({
     if (!session) return;
     let active = true;
     setLoading(true);
-    setError(null);
+    setListError(null);
+    setDownloadError(null);
+    setSelected(null);
     void visitasComercialesService
       .list(session, filters, page)
       .then((result) => {
@@ -44,7 +49,16 @@ export function CommercialVisitsPanel({
         }
       })
       .catch((reason: unknown) => {
-        if (active) setError(toApiError(reason).message);
+        if (active) {
+          setItems([]);
+          setTotal(0);
+          const apiError = toApiError(reason);
+          setListError(apiError.statusCode === 401
+            ? "La sesión no es válida. Inicia sesión nuevamente para consultar las visitas."
+            : apiError.statusCode && apiError.statusCode >= 500
+              ? "No se pudieron cargar las visitas comerciales. Reintenta; si persiste, revisa el servidor."
+              : apiError.message);
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -52,12 +66,12 @@ export function CommercialVisitsPanel({
     return () => {
       active = false;
     };
-  }, [session, filters.startDate, filters.endDate, filters.agronomistUserId, page]);
+  }, [session, filters.startDate, filters.endDate, filters.agronomistUserId, page, attempt]);
 
   async function pdf(visita: VisitaComercial) {
     if (!session) return;
     setDownloading(visita.publicId);
-    setError(null);
+    setDownloadError(null);
     try {
       const report = await visitasComercialesService.downloadPdf(
         session,
@@ -68,7 +82,7 @@ export function CommercialVisitsPanel({
         report.fileName ?? `visita-comercial-${visita.fechaVisita}.pdf`
       );
     } catch (reason) {
-      setError(toApiError(reason).message);
+      setDownloadError(toApiError(reason).message);
     } finally {
       setDownloading(null);
     }
@@ -76,14 +90,24 @@ export function CommercialVisitsPanel({
 
   return (
     <article className="panel report-section">
-      <h2>Visitas comerciales{!loading ? ` (${total})` : ""}</h2>
+      <h2>Visitas comerciales{!loading && !listError ? ` (${total})` : ""}</h2>
       <p>Registros comerciales independientes de las parcelas.</p>
-      {error ? <p className="form-error">{error}</p> : null}
+      {listError ? (
+        <ErrorState
+          description={listError}
+          action={
+            <button className="ui-button ui-button--secondary" type="button" onClick={() => setAttempt((value) => value + 1)}>
+              Reintentar
+            </button>
+          }
+        />
+      ) : null}
+      {downloadError ? <p className="form-error">{downloadError}</p> : null}
       {loading ? <p>Cargando visitas comerciales...</p> : null}
-      {!loading && items.length === 0 ? (
+      {!loading && !listError && items.length === 0 ? (
         <p>No hay visitas comerciales para los filtros seleccionados.</p>
       ) : null}
-      {!loading && items.length > 0 ? (
+      {!loading && !listError && items.length > 0 ? (
         <div className="data-table__wrapper">
           <table className="data-table">
             <thead>
@@ -150,7 +174,7 @@ export function CommercialVisitsPanel({
               ? selected.ubicacionVisita.coordinates.join(", ")
               : "No disponible"}
           </p>
-          {session ? <CommercialVisitPhotos key={selected.id} session={session} visitId={selected.id} /> : null}
+          {session && selected.productorId ? <CommercialVisitPhotos key={selected.id} session={session} visitId={selected.id} /> : null}
           <button
             className="ui-button ui-button--ghost"
             type="button"
@@ -160,7 +184,7 @@ export function CommercialVisitsPanel({
           </button>
         </div>
       ) : null}
-      {total > 20 ? (
+      {!listError && total > 20 ? (
         <div className="flex gap-2 items-center">
           <button
             className="ui-button ui-button--ghost"

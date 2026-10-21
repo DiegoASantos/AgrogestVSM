@@ -5,7 +5,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { QueryFailedError, Repository } from "typeorm";
+import { QueryFailedError, Repository, SelectQueryBuilder } from "typeorm";
 import ExcelJS from "exceljs";
 import pdfmake from "pdfmake";
 import {
@@ -19,6 +19,24 @@ import type { FindVisitasComercialesQueryDto } from "../presentation/dto/find-vi
 import type { ExportVisitasComercialesQueryDto } from "../presentation/dto/export-visitas-comerciales-query.dto";
 import { VisitasCampoService } from "../../visitas-campo/application/visitas-campo.service";
 import { ProductoresService } from "../../productores/application/productores.service";
+
+const LEGACY_VISIT_COLUMNS = [
+  "v.id",
+  "v.publicId",
+  "v.agronomoUsuarioId",
+  "v.tipoSujeto",
+  "v.nombres",
+  "v.apellidos",
+  "v.descripcion",
+  "v.fechaVisita",
+  "v.ubicacionVisita",
+  "v.activo",
+  "v.creadoAt",
+  "v.actualizadoAt",
+  "u.id",
+  "u.firstName",
+  "u.lastName"
+];
 
 @Injectable()
 export class VisitasComercialesService {
@@ -56,10 +74,10 @@ export class VisitasComercialesService {
         qb.andWhere("v.agronomo_usuario_id = :agronomo", {
           agronomo: query.agronomo_usuario_id
         });
-      const visits = await qb
-        .orderBy("v.fecha_visita", "ASC")
-        .addOrderBy("v.id", "ASC")
-        .getMany();
+      const visits = await this.readVisitsWithLegacyFallback(
+        qb.orderBy("v.fecha_visita", "ASC").addOrderBy("v.id", "ASC"),
+        (builder) => builder.getMany()
+      );
       const sheet = workbook.addWorksheet("Comercial");
       sheet.columns = [
         { header: "Fecha", key: "fecha", width: 15 },
@@ -200,12 +218,13 @@ export class VisitasComercialesService {
       qb.andWhere("v.fecha_visita >= :from", { from: query.fecha_desde });
     if (query.fecha_hasta)
       qb.andWhere("v.fecha_visita <= :to", { to: query.fecha_hasta });
-    const [items, total] = await qb
-      .orderBy("v.fecha_visita", "DESC")
-      .addOrderBy("v.id", "DESC")
-      .skip(((query.page ?? 1) - 1) * (query.limit ?? 20))
-      .take(query.limit ?? 20)
-      .getManyAndCount();
+    const [items, total] = await this.readVisitsWithLegacyFallback(
+      qb.orderBy("v.fecha_visita", "DESC")
+        .addOrderBy("v.id", "DESC")
+        .skip(((query.page ?? 1) - 1) * (query.limit ?? 20))
+        .take(query.limit ?? 20),
+      (builder) => builder.getManyAndCount()
+    );
     return createSuccessResponse(
       items.map((item) => this.toResponse(item)),
       createPaginatedMeta(total, query.page, query.limit)
@@ -213,10 +232,19 @@ export class VisitasComercialesService {
   }
 
   async get(publicId: string, user: AccessTokenPayload) {
-    const item = await this.visits.findOne({
-      where: { publicId, activo: true },
-      relations: { agronomoUsuario: true }
-    });
+    let item: VisitaComercialEntity | null;
+    try {
+      item = await this.visits.findOne({
+        where: { publicId, activo: true },
+        relations: { agronomoUsuario: true }
+      });
+    } catch (error) {
+      if (!this.isMissingProducerColumn(error)) throw error;
+      const qb = this.visits.createQueryBuilder("v")
+        .leftJoinAndSelect("v.agronomoUsuario", "u")
+        .where("v.public_id = :publicId AND v.activo = true", { publicId });
+      item = await qb.select(LEGACY_VISIT_COLUMNS).getOne();
+    }
     if (
       !item ||
       (!user.roles.includes("ADMIN") &&
@@ -248,6 +276,25 @@ export class VisitasComercialesService {
       throw new BadRequestException("Ubicación no válida.");
   }
 
+  private async readVisitsWithLegacyFallback<T>(
+    qb: SelectQueryBuilder<VisitaComercialEntity>,
+    read: (builder: SelectQueryBuilder<VisitaComercialEntity>) => Promise<T>
+  ): Promise<T> {
+    try {
+      return await read(qb);
+    } catch (error) {
+      if (!this.isMissingProducerColumn(error)) throw error;
+      return read(qb.select(LEGACY_VISIT_COLUMNS));
+    }
+  }
+
+  private isMissingProducerColumn(error: unknown): boolean {
+    if (!(error instanceof QueryFailedError)) return false;
+    const driverError = error.driverError as { code?: string; message?: string };
+    return driverError?.code === "42703" &&
+      /\bproductor_id\b/.test(driverError.message ?? "");
+  }
+
   private toResponse(item: VisitaComercialEntity) {
     return {
       id: item.id,
@@ -260,7 +307,7 @@ export class VisitasComercialesService {
       fechaVisita: item.fechaVisita,
       ubicacionVisita: item.ubicacionVisita,
       agronomoUsuarioId: item.agronomoUsuarioId,
-      productorId: item.productorId,
+      productorId: item.productorId ?? null,
       agronomoNombre: item.agronomoUsuario
         ? `${item.agronomoUsuario.firstName} ${item.agronomoUsuario.lastName}`.trim()
         : null,

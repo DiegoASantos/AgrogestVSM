@@ -67,6 +67,16 @@ cliente, conservar columnas, imÃ¡genes y operaciones pendientes y corregir
 hacia adelante. Probar cÃ¡mara, galerÃ­a y reconexiÃ³n en dispositivos fÃ­sicos
 antes de distribuir la build.
 
+Si el listado de visitas comerciales responde 500 tras actualizar la API,
+consultar primero el log de `api` y comprobar en PostgreSQL que
+`schema_migrations` contiene `076-visitas-comerciales-productores` y que
+`visitas_comerciales.productor_id` existe. El lector conserva compatibilidad
+con visitas antiguas cuando falta solo esa columna, pero el alta de visitas
+vinculadas y las fotos requieren las migraciones 076 a 078. Aplicar el comando
+de migración de este runbook solo después del preflight y el respaldo.
+Una respuesta 401 indica una sesión ausente o vencida: iniciar sesión en el
+panel y repetir la consulta autenticada antes de diagnosticar un error de DB.
+
 Para habilitar la precarga de recepciones en Pagos, configurar
 `RECEPCION_API_URL` y `SYSTRACE_API_KEY` solo en el entorno privado de la API.
 No colocar la clave en el panel ni en Git. Comprobar conectividad desde el

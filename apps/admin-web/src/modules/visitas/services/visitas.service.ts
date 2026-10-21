@@ -165,6 +165,17 @@ export const visitasService = {
     };
   },
 
+  async getCommercialFilterCatalogs(session: AuthSessionInput): Promise<VisitaFilterCatalogs> {
+    const agronomos = await safeRequestList<AgronomistApiItem>(session, "/usuarios/agronomos");
+    return {
+      productores: [],
+      campanias: [],
+      parcelas: [],
+      sectores: [],
+      agronomos: buildAgronomistOptions(agronomos)
+    };
+  },
+
   async getFullDetail(session: AuthSessionInput, id: string): Promise<VisitaDetailData> {
     const headers = createAuthHeaders(session.accessToken, session.tokenType);
     const detail = await apiRequest<FullDetailApiResponse>(
