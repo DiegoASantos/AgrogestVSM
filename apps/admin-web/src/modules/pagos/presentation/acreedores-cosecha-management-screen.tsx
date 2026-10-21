@@ -7,10 +7,14 @@ import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { pagosService } from "../services/pagos.service";
 import type { AcreedorCosecha, PagoCatalogs } from "../types/pagos.types";
 import { AcreedorCosechaFormModal } from "./acreedor-cosecha-form-modal";
+import { PhotoGallery } from "../../../shared/components/photo-gallery";
+import type { GalleryPhoto } from "../../../shared/utils/photo-resource-cache";
+import type { AuthSession } from "../../auth/types/auth.types";
+import { fotosComercialesService } from "../services/fotos-comerciales.service";
 import styles from "./pagos.module.css";
 
 const statusLabels = {
-  PENDING: "Pendiente de aprobación", APPROVED: "Aprobado", OBSERVED: "Observado"
+  INCOMPLETE: "Falta banco y cuenta", PENDING: "Pendiente de aprobación", APPROVED: "Aprobado", OBSERVED: "Observado"
 };
 
 export function AcreedoresCosechaManagementScreen() {
@@ -21,6 +25,7 @@ export function AcreedoresCosechaManagementScreen() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<AcreedorCosecha | null>(null);
+  const [photoCreditor, setPhotoCreditor] = useState<AcreedorCosecha | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [observation, setObservation] = useState("");
@@ -101,17 +106,20 @@ export function AcreedoresCosechaManagementScreen() {
           <td>{item.nombres} {item.apellidos}</td>
           <td>{item.productorNombre}</td>
           <td>{item.tipoDocumento} {item.nroDocumento}</td>
-          <td>{item.banco}<small>{item.nroCuenta}</small></td>
+          <td>{item.banco ?? "Sin banco"}<small>{item.nroCuenta ?? "Sin cuenta"}</small></td>
           <td><span className={`${styles.status} ${item.estadoAprobacion === "APPROVED"
             ? styles.statusPAGADO : item.estadoAprobacion === "OBSERVED"
               ? styles.statusOBSERVADO : styles.statusPENDIENTE}`}>
             {statusLabels[item.estadoAprobacion]}</span></td>
           <td>{item.origen}</td>
           <td className={styles.actions}>
-            <button type="button" onClick={() => { setEditing(item); setIsOpen(true); }}>Editar</button>
+            <button type="button" onClick={() => { setEditing(item); setIsOpen(true); }}>
+              {item.estadoAprobacion === "INCOMPLETE" ? "Completar cuenta" : "Editar"}
+            </button>
+            {isAdminOrAnalystSession(session) ? <button type="button" onClick={() => setPhotoCreditor(item)}>Ver fotos</button> : null}
             {item.estadoAprobacion === "PENDING" && <button type="button" disabled={busy}
               onClick={() => void review(item, "APPROVED")}>Aprobar</button>}
-            {item.estadoAprobacion !== "OBSERVED" && <button type="button" disabled={busy}
+            {item.estadoAprobacion !== "OBSERVED" && item.estadoAprobacion !== "INCOMPLETE" && <button type="button" disabled={busy}
               onClick={() => { setReviewingId(item.id); setObservation(""); }}>Observar</button>}
             <button type="button" disabled={busy} onClick={() => void remove(item)}>Eliminar</button>
             {reviewingId === item.id && <div>
@@ -124,6 +132,8 @@ export function AcreedoresCosechaManagementScreen() {
           </td>
         </tr>)}</tbody>
       </table></div>}
+    {photoCreditor && session ? <CreditorPhotos key={photoCreditor.id} session={session}
+      creditor={photoCreditor} onClose={() => setPhotoCreditor(null)} /> : null}
     <div className={styles.pagination}>
       <button disabled={page <= 1} type="button" onClick={() => setPage((value) => value - 1)}>Anterior</button>
       <span>{total} perfiles · Página {page} de {Math.max(1, Math.ceil(total / 50))}</span>
@@ -137,4 +147,35 @@ export function AcreedoresCosechaManagementScreen() {
         await load();
       }} />
   </section>;
+}
+
+function CreditorPhotos({ session, creditor, onClose }: {
+  session: AuthSession;
+  creditor: AcreedorCosecha;
+  onClose: () => void;
+}) {
+  const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    void fotosComercialesService.listCreditorPhotos(session, creditor.id, page).then((result) => {
+      if (active) { setPhotos(result.items); setTotal(result.total); }
+    }, () => {
+      if (active) { setPhotos([]); setError("No se pudieron cargar las fotos del acreedor."); }
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [session, creditor.id, page, attempt]);
+  const loadPhoto = useCallback((photo: GalleryPhoto) =>
+    fotosComercialesService.viewCreditorPhoto(session, creditor.id, photo.id),
+    [session, creditor.id]);
+  return <PhotoGallery title={`Fotos de ${creditor.nombres} ${creditor.apellidos}`}
+    photos={photos} total={total} page={page} loading={loading} error={error}
+    loadPhoto={loadPhoto} onPageChange={setPage} onRetry={() => setAttempt((value) => value + 1)}
+    onClose={onClose} />;
 }

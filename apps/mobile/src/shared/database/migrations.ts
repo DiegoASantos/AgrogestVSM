@@ -15,7 +15,8 @@ const COMMERCIAL_VISITS_TABLE_STATEMENTS = [
     public_id TEXT NOT NULL UNIQUE,
     server_id TEXT,
     owner_user_id TEXT NOT NULL,
-    tipo_sujeto TEXT NOT NULL CHECK(tipo_sujeto IN ('PERSONA','FUNDO','ASOCIATIVA','RECORREDOR')),
+    tipo_sujeto TEXT NOT NULL CHECK(tipo_sujeto IN ('PERSONA','FUNDO','ASOCIATIVA','COOPERATIVA','RECORREDOR')),
+    productor_id TEXT,
     nombres TEXT NOT NULL,
     apellidos TEXT,
     descripcion TEXT NOT NULL,
@@ -1883,6 +1884,70 @@ const MIGRATIONS: Migration[] = [
   {
     version: 78,
     statements: COMMERCIAL_VISITS_TABLE_STATEMENTS
+  },
+  {
+    version: 79,
+    run: (db) => {
+      db.execSync("ALTER TABLE visitas_comerciales RENAME TO visitas_comerciales_previous");
+      for (const statement of COMMERCIAL_VISITS_TABLE_STATEMENTS) db.execSync(statement);
+      db.execSync(`INSERT INTO visitas_comerciales (
+        local_id, public_id, server_id, owner_user_id, tipo_sujeto, productor_id,
+        nombres, apellidos, descripcion, fecha_visita, ubicacion_visita,
+        sync_status, sync_error_message, created_at, updated_at
+      ) SELECT local_id, public_id, server_id, owner_user_id, tipo_sujeto, NULL,
+        nombres, apellidos, descripcion, fecha_visita, ubicacion_visita,
+        sync_status, sync_error_message, created_at, updated_at
+      FROM visitas_comerciales_previous`);
+      db.execSync("DROP TABLE visitas_comerciales_previous");
+      db.execSync(COMMERCIAL_VISITS_TABLE_STATEMENTS[1]);
+    }
+  },
+  {
+    version: 80,
+    run: (db) => {
+      addColumnIfMissing(db, "fotos_comerciales_productor", "visita_comercial_id", "TEXT");
+      db.execSync("CREATE INDEX IF NOT EXISTS idx_fotos_comerciales_visita ON fotos_comerciales_productor(owner_user_id, visita_comercial_id, created_at DESC)");
+    }
+  },
+  {
+    version: 81,
+    run: (db) => {
+      db.execSync("PRAGMA defer_foreign_keys = ON");
+      db.execSync(`CREATE TABLE acreedores_cosecha_next (
+        local_id TEXT PRIMARY KEY NOT NULL, public_id TEXT NOT NULL, productor_id TEXT NOT NULL,
+        nombres_acreedor TEXT NOT NULL, apellidos_acreedor TEXT NOT NULL,
+        tipo_documento_acreedor TEXT NOT NULL CHECK(tipo_documento_acreedor IN ('DNI','RUC')),
+        nro_documento_acreedor TEXT NOT NULL,
+        banco TEXT CHECK(banco IN ('INTERBANK','BCP','CAJA_PIURA','BBVA')),
+        nro_cuenta TEXT,
+        server_id TEXT,
+        approval_status TEXT NOT NULL DEFAULT 'PENDING' CHECK(approval_status IN ('INCOMPLETE','PENDING','APPROVED','OBSERVED')),
+        source TEXT NOT NULL DEFAULT 'MOBILE' CHECK(source IN ('PRODUCTOR','MOBILE','ADMIN_WEB')),
+        review_observation TEXT,
+        sync_status TEXT NOT NULL DEFAULT 'pending' CHECK(sync_status IN ('pending','synced','error')),
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL, sync_error_message TEXT,
+        owner_user_id TEXT NOT NULL,
+        catalog_visible INTEGER NOT NULL DEFAULT 1 CHECK(catalog_visible IN (0,1)),
+        CHECK ((approval_status = 'INCOMPLETE' AND banco IS NULL AND nro_cuenta IS NULL)
+          OR (approval_status <> 'INCOMPLETE' AND banco IS NOT NULL AND nro_cuenta IS NOT NULL)),
+        FOREIGN KEY (productor_id) REFERENCES productores(id)
+      )`);
+      db.execSync(`INSERT INTO acreedores_cosecha_next (
+        local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
+        tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta,
+        server_id, approval_status, source, review_observation, sync_status,
+        created_at, updated_at, sync_error_message, owner_user_id, catalog_visible
+      ) SELECT local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
+        tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta,
+        server_id, approval_status, source, review_observation, sync_status,
+        created_at, updated_at, sync_error_message, owner_user_id, catalog_visible
+      FROM acreedores_cosecha`);
+      db.execSync("DROP TABLE acreedores_cosecha");
+      db.execSync("ALTER TABLE acreedores_cosecha_next RENAME TO acreedores_cosecha");
+      db.execSync("CREATE INDEX IF NOT EXISTS idx_acreedores_cosecha_owner_productor ON acreedores_cosecha(owner_user_id, productor_id, catalog_visible, sync_status)");
+      addColumnIfMissing(db, "fotos_comerciales_productor", "acreedor_local_id", "TEXT");
+      db.execSync("CREATE INDEX IF NOT EXISTS idx_fotos_comerciales_acreedor ON fotos_comerciales_productor(owner_user_id, acreedor_local_id, created_at DESC)");
+    }
   }
 ];
 

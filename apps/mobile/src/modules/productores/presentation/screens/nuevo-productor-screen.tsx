@@ -24,16 +24,19 @@ import { prepararNombrePersona, tieneDosApellidos } from "../../domain/normaliza
 import { productoresRepository } from "../../repositories/productores.repository";
 import { tiposDocumentoRepository } from "../../../tipos-documento/repositories/tipos-documento.repository";
 import { generatePublicId } from "../../../../shared/utils/local-id";
+import type { Productor } from "../../types";
 
 const OPCIONES_TIPO_ENTIDAD: AppSelectOption[] = [
   { value: "persona", label: "Persona" },
   { value: "fundo", label: "Fundo" },
-  { value: "cooperativa", label: "Cooperativa" }
+  { value: "asociacion", label: "Asociación" },
+  { value: "cooperativa", label: "Cooperativa" },
+  { value: "recorredor", label: "Recorredor" }
 ];
 
 export function NuevoProductorScreen() {
   const router = useRouter();
-  const [tipoEntidad, setTipoEntidad] = useState<"persona" | "fundo" | "cooperativa">("persona");
+  const [tipoEntidad, setTipoEntidad] = useState<Productor["entityType"]>("persona");
   const [nombres, setNombres] = useState("");
   const [apellidos, setApellidos] = useState("");
   const [tipoDocumentoId, setTipoDocumentoId] = useState<string>("");
@@ -76,7 +79,7 @@ export function NuevoProductorScreen() {
     if (nombresNormalizados.length > 100) {
       return "El nombre no puede superar 100 caracteres.";
     }
-    if (tipoEntidad === "persona" && !tieneDosApellidos(apellidos)) {
+    if ((tipoEntidad === "persona" || tipoEntidad === "recorredor") && !tieneDosApellidos(apellidos)) {
       return "Ingresa los dos apellidos en el mismo campo.";
     }
     if (apellidosNormalizados.length > 100) {
@@ -84,13 +87,13 @@ export function NuevoProductorScreen() {
     }
     const tieneTipo = tipoDocumentoId !== "";
     const tieneNumero = documentoNormalizado !== "";
-    if (tipoEntidad === "persona" && tieneTipo !== tieneNumero) {
+    if ((tipoEntidad === "persona" || tipoEntidad === "recorredor") && tieneTipo !== tieneNumero) {
       return "Tipo y numero de documento deben registrarse juntos.";
     }
     if (tieneTipo && (!Number.isInteger(Number(tipoDocumentoId)) || Number(tipoDocumentoId) < 1)) {
       return "El tipo de documento no es valido.";
     }
-    if (tipoEntidad === "persona" && tieneTipo && tieneNumero) {
+    if ((tipoEntidad === "persona" || tipoEntidad === "recorredor") && tieneTipo && tieneNumero) {
       const tipoDoc = tiposDocumentoRepository.obtenerPorId(Number(tipoDocumentoId));
 
       if (tipoDoc) {
@@ -134,13 +137,13 @@ export function NuevoProductorScreen() {
           publicId: idPublico,
           entityType: tipoEntidad,
           documentTypeId:
-            tipoEntidad === "persona" && tipoDocumentoId
+            (tipoEntidad === "persona" || tipoEntidad === "recorredor") && tipoDocumentoId
               ? Number(tipoDocumentoId)
               : null,
           documentNumber:
-            tipoEntidad === "persona" ? numeroDocumento.trim() || null : null,
-          firstName: tipoEntidad === "persona" ? prepararNombrePersona(nombres) : nombres.trim(),
-          lastName: tipoEntidad === "persona" ? prepararNombrePersona(apellidos) : null,
+            tipoEntidad === "persona" || tipoEntidad === "recorredor" ? numeroDocumento.trim() || null : null,
+          firstName: tipoEntidad === "persona" || tipoEntidad === "recorredor" ? prepararNombrePersona(nombres) : nombres.trim(),
+          lastName: tipoEntidad === "persona" || tipoEntidad === "recorredor" ? prepararNombrePersona(apellidos) : null,
           phone: telefono.trim() || null,
           email: email.trim().toLowerCase() || null,
           address: direccion.trim() || null,
@@ -176,8 +179,8 @@ export function NuevoProductorScreen() {
 
   function construirEtiqueta() {
     const nombreCompleto = [
-      tipoEntidad === "persona" ? prepararNombrePersona(nombres) : nombres.trim(),
-      ...(tipoEntidad === "persona" ? [prepararNombrePersona(apellidos)] : [])
+      tipoEntidad === "persona" || tipoEntidad === "recorredor" ? prepararNombrePersona(nombres) : nombres.trim(),
+      ...(tipoEntidad === "persona" || tipoEntidad === "recorredor" ? [prepararNombrePersona(apellidos)] : [])
     ]
       .filter(Boolean)
       .join(" ")
@@ -185,7 +188,7 @@ export function NuevoProductorScreen() {
     return nombreCompleto || numeroDocumento || "Nuevo productor";
   }
 
-  const esPersona = tipoEntidad === "persona";
+  const esPersona = tipoEntidad === "persona" || tipoEntidad === "recorredor";
   const etiquetaTipoEntidad =
     OPCIONES_TIPO_ENTIDAD.find((o) => o.value === tipoEntidad)?.label ?? "Persona";
   const etiquetaTipoDocumento =

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "./migrations";
 
-const LATEST_MIGRATION_VERSION = 78;
+const LATEST_MIGRATION_VERSION = 81;
 
 type FakeDatabase = {
   currentVersion: number;
@@ -1920,7 +1920,11 @@ describe("runMigrations", () => {
       "UPDATE acreedores_cosecha SET approval_status = 'APPROVED' WHERE sync_status = 'synced'"
     );
     expect(db.executedStatements.some((statement) => statement.includes("ALTER TABLE acreedores_cosecha ADD COLUMN approval_status"))).toBe(true);
-    expect(db.executedStatements.some((statement) => /DELETE FROM acreedores_cosecha|DROP TABLE acreedores_cosecha/u.test(statement))).toBe(false);
+    const copy = db.executedStatements.findIndex((statement) => statement.includes("INSERT INTO acreedores_cosecha_next"));
+    const drop = db.executedStatements.findIndex((statement) => statement === "DROP TABLE acreedores_cosecha");
+    expect(copy).toBeGreaterThan(-1);
+    expect(drop).toBeGreaterThan(copy);
+    expect(db.executedStatements.some((statement) => statement.startsWith("DELETE FROM acreedores_cosecha"))).toBe(false);
   });
 
   it("adds visit stage entries without deleting pending visits", () => {
@@ -1941,8 +1945,8 @@ describe("runMigrations", () => {
     expect(db.currentVersion).toBe(LATEST_MIGRATION_VERSION);
     expect(db.executedStatements.some((statement) =>
       statement.includes("CREATE TABLE IF NOT EXISTS fotos_comerciales_productor"))).toBe(true);
-    expect(db.executedStatements.some((statement) =>
-      /DROP TABLE (acreedores_cosecha|pagos_cosecha)/u.test(statement))).toBe(false);
+    expect(db.executedStatements.some((statement) => statement === "DROP TABLE pagos_cosecha")).toBe(false);
+    expect(db.executedStatements.some((statement) => statement.includes("INSERT INTO acreedores_cosecha_next"))).toBe(true);
   });
 
   it("adds commercial visits without changing existing technical visits", () => {

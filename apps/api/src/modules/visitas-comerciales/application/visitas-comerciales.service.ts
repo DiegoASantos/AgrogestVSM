@@ -18,13 +18,15 @@ import type { CreateVisitaComercialDto } from "../presentation/dto/create-visita
 import type { FindVisitasComercialesQueryDto } from "../presentation/dto/find-visitas-comerciales-query.dto";
 import type { ExportVisitasComercialesQueryDto } from "../presentation/dto/export-visitas-comerciales-query.dto";
 import { VisitasCampoService } from "../../visitas-campo/application/visitas-campo.service";
+import { ProductoresService } from "../../productores/application/productores.service";
 
 @Injectable()
 export class VisitasComercialesService {
   constructor(
     @InjectRepository(VisitaComercialEntity)
     private readonly visits: Repository<VisitaComercialEntity>,
-    private readonly technicalVisits: VisitasCampoService
+    private readonly technicalVisits: VisitasCampoService,
+    private readonly productores: ProductoresService
   ) {}
 
   async exportExcel(query: ExportVisitasComercialesQueryDto, user: AccessTokenPayload) {
@@ -137,11 +139,19 @@ export class VisitasComercialesService {
         throw new ConflictException("La visita pertenece a otro usuario.");
       return createSuccessResponse(this.toResponse(existing));
     }
+    if (dto.productorId) {
+      const selected = (await this.productores.findById(dto.productorId, user)).data;
+      const subjectType = selected.entityType === "asociacion" ? "ASOCIATIVA" : selected.entityType.toUpperCase();
+      if (subjectType !== dto.tipoSujeto) {
+        throw new BadRequestException("El tipo de la visita no coincide con el productor.");
+      }
+    }
     try {
       const saved = await this.visits.save(
         this.visits.create({
           publicId: dto.publicId,
           agronomoUsuarioId: user.userId,
+          productorId: dto.productorId ?? null,
           tipoSujeto: dto.tipoSujeto,
           nombres: dto.nombres.trim(),
           apellidos:
@@ -250,6 +260,7 @@ export class VisitasComercialesService {
       fechaVisita: item.fechaVisita,
       ubicacionVisita: item.ubicacionVisita,
       agronomoUsuarioId: item.agronomoUsuarioId,
+      productorId: item.productorId,
       agronomoNombre: item.agronomoUsuario
         ? `${item.agronomoUsuario.firstName} ${item.agronomoUsuario.lastName}`.trim()
         : null,

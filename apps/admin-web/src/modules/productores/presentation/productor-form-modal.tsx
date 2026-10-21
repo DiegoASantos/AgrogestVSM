@@ -14,6 +14,7 @@ type Form = {
 };
 const empty: Form = { entityType: "persona", documentTypeId: "", documentNumber: "",
   firstName: "", lastName: "", phone: "", email: "", address: "" };
+const isPerson = (type: ProductorEntityType) => type === "persona" || type === "recorredor";
 
 export function ProductorFormModal({ open, session, initial, documentTypeOptions, onClose, onSaved }: {
   open: boolean;
@@ -51,21 +52,21 @@ export function ProductorFormModal({ open, session, initial, documentTypeOptions
     if (!session || busy) return;
     const firstName = form.firstName.trim();
     const lastName = form.lastName.trim();
-    if (form.entityType === "persona" && (!firstName || !lastName)) {
+    if (isPerson(form.entityType) && (!firstName || !lastName)) {
       setError("Nombres y apellidos son obligatorios para personas."); return;
     }
-    if (form.entityType === "persona" && Boolean(form.documentTypeId) !== Boolean(form.documentNumber.trim())) {
+    if (isPerson(form.entityType) && Boolean(form.documentTypeId) !== Boolean(form.documentNumber.trim())) {
       setError("Tipo y número de documento deben registrarse juntos."); return;
     }
-    if (form.entityType !== "persona" && !firstName) { setError("Ingresa el nombre de la entidad."); return; }
+    if (!isPerson(form.entityType) && !firstName) { setError("Ingresa el nombre de la entidad."); return; }
     setBusy(true); setError("");
     try {
       const payload: ProductorPayload = {
         entityType: form.entityType,
-        documentTypeId: form.entityType === "persona" && form.documentTypeId ? Number(form.documentTypeId) : null,
-        documentNumber: form.entityType === "persona" ? form.documentNumber.trim() || null : null,
+        documentTypeId: isPerson(form.entityType) && form.documentTypeId ? Number(form.documentTypeId) : null,
+        documentNumber: isPerson(form.entityType) ? form.documentNumber.trim() || null : null,
         firstName: firstName || null,
-        lastName: form.entityType === "persona" ? lastName || null : null,
+        lastName: isPerson(form.entityType) ? lastName || null : null,
         phone: form.phone.trim() || null,
         email: form.email.trim().toLowerCase() || null,
         address: form.address.trim() || null
@@ -91,15 +92,16 @@ export function ProductorFormModal({ open, session, initial, documentTypeOptions
       <label className="field-group"><span>Entidad</span>
         <select value={form.entityType} onChange={(event) => setForm((current) => ({
           ...current, entityType: event.target.value as ProductorEntityType,
-          documentTypeId: event.target.value === "persona" ? current.documentTypeId : "",
-          documentNumber: event.target.value === "persona" ? current.documentNumber : "",
-          lastName: event.target.value === "persona" ? current.lastName : ""
+          documentTypeId: isPerson(event.target.value as ProductorEntityType) ? current.documentTypeId : "",
+          documentNumber: isPerson(event.target.value as ProductorEntityType) ? current.documentNumber : "",
+          lastName: isPerson(event.target.value as ProductorEntityType) ? current.lastName : ""
         }))}>
           <option value="persona">Persona</option><option value="fundo">Fundo</option>
-          <option value="cooperativa">Cooperativa</option>
+          <option value="asociacion">Asociación</option><option value="cooperativa">Cooperativa</option>
+          <option value="recorredor">Recorredor</option>
         </select>
       </label>
-      {form.entityType === "persona" && <>
+      {isPerson(form.entityType) && <>
         <label className="field-group"><span>Tipo de documento</span>
           <select value={form.documentTypeId} onChange={(event) => change("documentTypeId", event.target.value)}>
             <option value="">Selecciona un tipo</option>
@@ -111,10 +113,10 @@ export function ProductorFormModal({ open, session, initial, documentTypeOptions
         </label>
       </>}
       <div className="field-grid">
-        <label className="field-group"><span>{form.entityType === "persona" ? "Nombres" : "Nombre"}</span>
+        <label className="field-group"><span>{isPerson(form.entityType) ? "Nombres" : "Nombre"}</span>
           <input value={form.firstName} onChange={(event) => change("firstName", event.target.value)} />
         </label>
-        {form.entityType === "persona" && <label className="field-group"><span>Apellidos</span>
+        {isPerson(form.entityType) && <label className="field-group"><span>Apellidos</span>
           <input value={form.lastName} onChange={(event) => change("lastName", event.target.value)} />
         </label>}
       </div>

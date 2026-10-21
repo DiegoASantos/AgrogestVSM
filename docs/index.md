@@ -46,6 +46,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 
 ## Especificaciones
 
+- [Spec 118: Visitas comerciales vinculadas a productores y fotos de acreedores](specs/118-visita-comercial-productores-fotos-acreedores.md)
+
 - [Spec 117: Alertas separadas de visitas e identidad](specs/117-alertas-visitas-identidad.md)
 
 - [Spec 115: Precios semanales por jaba y Tesorero Pagos](specs/115-precios-semanales-y-tesorero-pagos.md)

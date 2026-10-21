@@ -45,5 +45,19 @@ export const fotosComercialesService = {
       { headers: headers(session) }
     );
     return URL.createObjectURL(response.blob);
+  },
+  async listCreditorPhotos(session: Auth, creditorId: string, page: number) {
+    const response = await apiRequestEnvelope<FotoComercial[]>(
+      `/comercial/acreedores/${creditorId}/fotos?page=${page}&limit=20`,
+      { headers: headers(session) }
+    );
+    return { items: response.data, total: Number(response.meta?.total ?? response.data.length) };
+  },
+  async viewCreditorPhoto(session: Auth, creditorId: string, photoId: string) {
+    const response = await apiDownload(
+      `/comercial/acreedores/${creditorId}/fotos/${photoId}/contenido`,
+      { headers: headers(session) }
+    );
+    return URL.createObjectURL(response.blob);
   }
 };

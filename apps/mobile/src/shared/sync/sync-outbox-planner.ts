@@ -12,7 +12,7 @@ const CATALOG_PRIORITY: Partial<Record<SyncOutboxItem["entityType"], number>> = 
   parcelas: 2,
   pagos_cosecha: 3,
   acreedores_cosecha: 3,
-  fotos_comerciales_productor: 3,
+  fotos_comerciales_productor: 4,
   registros_cosecha: 4,
   visitas_comerciales: 3
 };

@@ -6,19 +6,23 @@ import { getNowIsoString } from "../../../shared/database/sqlite-utils";
 import { insertSyncOutboxEntry } from "../../../shared/database/sync-outbox";
 import { generateLocalId, generatePublicId } from "../../../shared/utils/local-id";
 import { productoresRepository } from "../../productores/repositories/productores.repository";
+export type HarvestCreditorIdentityInput = Omit<HarvestCreditorInput, "bank" | "accountNumber"> & {
+  bank: HarvestCreditorInput["bank"] | null;
+  accountNumber: string | null;
+};
 import {
   getAcreedoresCosecha,
   type AcreedorCosechaRemote
 } from "./acreedores-cosecha.remote";
 
-export type AcreedorCosecha = HarvestCreditorInput & {
+export type AcreedorCosecha = HarvestCreditorIdentityInput & {
   localId: string;
   publicId: string;
   serverId: string | null;
   syncStatus: "pending" | "synced" | "error";
   catalogVisible: boolean;
-  approvalStatus: "PENDING" | "APPROVED" | "OBSERVED";
-  source: "PRODUCTOR" | "MOBILE";
+  approvalStatus: "INCOMPLETE" | "PENDING" | "APPROVED" | "OBSERVED";
+  source: "PRODUCTOR" | "MOBILE" | "ADMIN_WEB";
   reviewObservation: string | null;
 };
 
@@ -30,8 +34,8 @@ type AcreedorCosechaRow = {
   apellidos_acreedor: string;
   tipo_documento_acreedor: "DNI" | "RUC";
   nro_documento_acreedor: string;
-  banco: HarvestCreditorInput["bank"];
-  nro_cuenta: string;
+  banco: HarvestCreditorInput["bank"] | null;
+  nro_cuenta: string | null;
   server_id: string | null;
   sync_status: "pending" | "synced" | "error";
   catalog_visible: number;
@@ -59,22 +63,47 @@ export function getAcreedoresCosechaLocales(productorId: string): AcreedorCosech
     .map(toAcreedor);
 }
 
-export function saveAcreedorCosecha(input: HarvestCreditorInput) {
+export function saveAcreedorCosecha(input: HarvestCreditorIdentityInput, producerDocument?: { productorId: string; typeId: number; number: string }) {
   const db = getDatabase();
   const ownerUserId = getCatalogSessionUserId(db);
   if (!ownerUserId) throw new Error("No hay una sesion autenticada.");
+  const ownedProducer = db.getFirstSync<{ id: string }>(
+    `SELECT id FROM productores WHERE id = ? AND catalog_owner_user_id = ?
+     AND (catalog_visible = 1 OR created_locally = 1)`,
+    input.productorId, ownerUserId
+  );
+  if (!ownedProducer || (producerDocument && producerDocument.productorId !== input.productorId)) {
+    throw new Error("El productor no esta disponible para este acreedor.");
+  }
 
   const localId = generateLocalId();
   const publicId = generatePublicId();
   const now = getNowIsoString();
 
   db.withTransactionSync(() => {
+    if (producerDocument) {
+      const productor = productoresRepository.getById(producerDocument.productorId);
+      if (!productor || productor.entityType !== "persona" ||
+        (productor.documentNumber && productor.documentNumber !== producerDocument.number) ||
+        (productor.documentTypeId && productor.documentTypeId !== producerDocument.typeId)) {
+        throw new Error("El documento del productor no coincide con el acreedor.");
+      }
+      const update = db.runSync(
+        `UPDATE productores SET document_type_id = ?, document_number = ?, updated_at = ?, sync_status = 'pending'
+         WHERE id = ? AND catalog_owner_user_id = ?`,
+        producerDocument.typeId, producerDocument.number, now, productor.id, ownerUserId
+      );
+      if (update.changes !== 1) throw new Error("No se pudo actualizar el documento del productor.");
+      if (productor.serverId) insertSyncOutboxEntry(db, {
+        entityType: "productores", entityLocalId: productor.id, operation: "update", createdAt: now
+      });
+    }
     db.runSync(
       `INSERT INTO acreedores_cosecha (
         local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
         tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta,
-        server_id, sync_status, created_at, updated_at, sync_error_message, owner_user_id, catalog_visible
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'pending', ?, ?, NULL, ?, 1)`,
+        server_id, sync_status, created_at, updated_at, sync_error_message, owner_user_id, catalog_visible, approval_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 'pending', ?, ?, NULL, ?, 1, ?)`,
       localId,
       publicId,
       input.productorId,
@@ -86,7 +115,8 @@ export function saveAcreedorCosecha(input: HarvestCreditorInput) {
       input.accountNumber,
       now,
       now,
-      ownerUserId
+      ownerUserId,
+      input.bank && input.accountNumber ? "PENDING" : "INCOMPLETE"
     );
     insertSyncOutboxEntry(db, {
       entityType: "acreedores_cosecha",
@@ -97,6 +127,26 @@ export function saveAcreedorCosecha(input: HarvestCreditorInput) {
   });
 
   return localId;
+}
+
+export function completarAcreedorCosecha(localId: string, bank: HarvestCreditorInput["bank"], accountNumber: string) {
+  const db = getDatabase();
+  const owner = getCatalogSessionUserId(db);
+  if (!owner || !/^\d{1,30}$/.test(accountNumber)) throw new Error("Cuenta inválida.");
+  const creditor = db.getFirstSync<{ approval_status: string }>(
+    "SELECT approval_status FROM acreedores_cosecha WHERE local_id = ? AND owner_user_id = ?",
+    localId, owner
+  );
+  if (creditor?.approval_status !== "INCOMPLETE") throw new Error("El acreedor ya tiene cuenta registrada.");
+  const now = getNowIsoString();
+  db.withTransactionSync(() => {
+    db.runSync(`UPDATE acreedores_cosecha SET banco = ?, nro_cuenta = ?, approval_status = 'PENDING',
+      sync_status = 'pending', updated_at = ? WHERE local_id = ? AND owner_user_id = ?`,
+      bank, accountNumber, now, localId, owner);
+    insertSyncOutboxEntry(db, {
+      entityType: "acreedores_cosecha", entityLocalId: localId, operation: "update", createdAt: now
+    });
+  });
 }
 
 export async function refreshAcreedoresCosecha(productorId: string) {
@@ -166,7 +216,7 @@ function upsertRemoteCreditor(
       `SELECT local_id FROM acreedores_cosecha
        WHERE productor_id = ? AND owner_user_id = ? AND server_id IS NULL
          AND tipo_documento_acreedor = ? AND nro_documento_acreedor = ?
-         AND banco = ? AND nro_cuenta = ? LIMIT 1`,
+         AND banco IS ? AND nro_cuenta IS ? LIMIT 1`,
       productorId,
       ownerUserId,
       creditor.creditorDocumentType,

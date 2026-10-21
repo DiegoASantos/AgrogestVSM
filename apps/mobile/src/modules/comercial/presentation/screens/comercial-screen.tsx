@@ -1,7 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, Share, StyleSheet, Switch, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Image, Modal, Pressable, ScrollView, Share, StyleSheet, Switch, View } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { File, Paths } from "expo-file-system";
 import { harvestRecordSchema, type HarvestCreditorInput } from "@agrogest/validation";
 
 import {
@@ -21,11 +23,16 @@ import { productoresService } from "../../../productores/services/productores.se
 import type { Productor } from "../../../productores/types";
 import { tiposDocumentoRepository } from "../../../tipos-documento/repositories/tipos-documento.repository";
 import { ApiError, ApiOfflineModeError, ApiTimeoutError } from "../../../../shared/services";
+import { apiRequest, apiRequestBinary } from "../../../../shared/services/api/client";
+import { getCatalogSessionUserId } from "../../../../shared/database/catalog-session";
+import { getDatabase } from "../../../../shared/database/connection";
 import {
   getAcreedoresCosechaLocales,
+  completarAcreedorCosecha,
   refreshAcreedoresCosecha,
   saveAcreedorCosecha,
-  type AcreedorCosecha
+  type AcreedorCosecha,
+  type HarvestCreditorIdentityInput
 } from "../../services/acreedores-cosecha.service";
 import { issueProducerCreditorAccess } from "../../services/acreedores-cosecha.remote";
 import { saveRegistroCosecha } from "../../services/registros-cosecha.service";
@@ -36,7 +43,7 @@ import {
   type CreditorPendingField
 } from "./creditor-autofill";
 import { isProducerWebUrlAllowed } from "./producer-web-url";
-import { FotosComercialesCard } from "./fotos-comerciales-card";
+import { guardarFotoComercial, getFotosComercialesLocales, leerFotoComercialParaSync, type FotoComercialLocal } from "../../services/fotos-comerciales.service";
 
 const DOCUMENTOS: AppSelectOption[] = [
   { value: "DNI", label: "DNI" },
@@ -79,6 +86,14 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
   const [documento, setDocumento] = useState("");
   const [banco, setBanco] = useState("");
   const [cuenta, setCuenta] = useState("");
+  const [fotosAcreedor, setFotosAcreedor] = useState<ImagePicker.ImagePickerAsset[]>([]);
+  const [acreedorFotosPendientesId, setAcreedorFotosPendientesId] = useState<string | null>(null);
+  const [acreedorFotoExistenteId, setAcreedorFotoExistenteId] = useState<string | null>(null);
+  const [acreedorEnEdicionId, setAcreedorEnEdicionId] = useState<string | null>(null);
+  const [acreedorFotosVisible, setAcreedorFotosVisible] = useState<AcreedorCosecha | null>(null);
+  const [fotosVisibles, setFotosVisibles] = useState<Array<{ publicId: string; local?: FotoComercialLocal }>>([]);
+  const [fotoVisibleUri, setFotoVisibleUri] = useState<string | null>(null);
+  const fotoTemporalRef = useRef<File | null>(null);
   const [acreedores, setAcreedores] = useState<AcreedorCosecha[]>([]);
   const [acreedorPagoId, setAcreedorPagoId] = useState("");
   const [jabas, setJabas] = useState("");
@@ -94,6 +109,9 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
     () => getAutofillForProductor(selectedProductor),
     [selectedProductor]
   );
+  useEffect(() => () => {
+    if (fotoTemporalRef.current?.exists) fotoTemporalRef.current.delete();
+  }, []);
   const isCreditorProductorPersona = acreedorEsProductor && creditorAutofill !== null;
   const pendingCreditorFields = getPendingCreditorFields(creditorAutofill);
   const recoveredCreditorName = [creditorAutofill?.firstName, creditorAutofill?.lastName]
@@ -104,7 +122,7 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
       acreedores.filter((acreedor) => acreedor.approvalStatus === "APPROVED").map((acreedor) => ({
         value: acreedor.localId,
         label: formatCreditorName(acreedor),
-        helper: `${acreedor.bank} · ${maskAccount(acreedor.accountNumber)}`
+        helper: `${acreedor.bank ?? ""} · ${maskAccount(acreedor.accountNumber ?? "")}`
       })),
     [acreedores]
   );
@@ -161,8 +179,8 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
     async (query: string, page: number, pageSize: number) => {
       const offset = (page - 1) * pageSize;
       const [items, total] = await Promise.all([
-        productoresService.searchWithVisibleParcelas(query, pageSize, offset),
-        productoresService.countWithVisibleParcelas(query)
+        productoresService.searchByName(query, pageSize, offset),
+        productoresService.countByName(query)
       ]);
 
       return { options: items.map(toProductorOption), total };
@@ -279,7 +297,14 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
   }
 
   async function handleProductorSelection(option: AppPaginatedSelectOption) {
+    if (acreedorFotosPendientesId) {
+      Alert.alert("Fotos pendientes", "Reintenta guardar las fotos antes de cambiar de productor.");
+      return;
+    }
     setError(null);
+    setAcreedorFotoExistenteId(null);
+    setAcreedorEnEdicionId(null);
+    setFotosAcreedor([]);
 
     try {
       const nextProductor = await productoresService.getById(option.value);
@@ -319,7 +344,19 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
     applyCreditorAutofill(selectedProductor);
   }
 
-  function guardarAcreedor() {
+  async function guardarAcreedor() {
+    if (acreedorFotosPendientesId) {
+      await guardarFotosDelAcreedor(acreedorFotosPendientesId);
+      return;
+    }
+    if (acreedorFotoExistenteId) {
+      if (!fotosAcreedor.length) {
+        setError("Selecciona al menos una foto para este acreedor.");
+        return;
+      }
+      await guardarFotosDelAcreedor(acreedorFotoExistenteId);
+      return;
+    }
     const validation = validateAcreedorCosecha({
       productorId,
       creditorFirstName: nombres,
@@ -328,7 +365,7 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
       creditorDocumentNumber: documento.replace(/\s/g, ""),
       bank: banco,
       accountNumber: cuenta.replace(/\s/g, "")
-    });
+    }, fotosAcreedor.length > 0 && !acreedorEnEdicionId);
 
     if (typeof validation === "string") {
       setError(validation);
@@ -336,18 +373,151 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
     }
 
     try {
-      saveAcreedorCosecha(validation);
+      if (acreedorEnEdicionId) {
+        if (!validation.bank || !validation.accountNumber) {
+          setError("Completa banco y cuenta para solicitar aprobación.");
+          return;
+        }
+        completarAcreedorCosecha(acreedorEnEdicionId, validation.bank, validation.accountNumber);
+        setAcreedorEnEdicionId(null);
+        Alert.alert("Cuenta guardada", "El acreedor quedó pendiente de aprobación.");
+      } else {
+        let producerDocument: { productorId: string; typeId: number; number: string } | undefined;
+        if (acreedorEsProductor && selectedProductor?.entityType === "persona") {
+          const storedType = selectedProductor.documentTypeId
+            ? tiposDocumentoRepository.obtenerPorId(selectedProductor.documentTypeId)?.code
+            : null;
+          if ((storedType && storedType !== validation.creditorDocumentType) ||
+            (selectedProductor.documentNumber && selectedProductor.documentNumber !== validation.creditorDocumentNumber)) {
+            setError("El documento ingresado no coincide con el del productor.");
+            return;
+          }
+          if (!selectedProductor.documentTypeId || !selectedProductor.documentNumber) {
+            const documentType = tiposDocumentoRepository.obtenerTodos()
+              .find((item) => item.code === validation.creditorDocumentType);
+            if (!documentType) {
+              setError("No se encontró el tipo de documento. Sincroniza los catálogos.");
+              return;
+            }
+            producerDocument = {
+              productorId: selectedProductor.id,
+              typeId: documentType.id,
+              number: validation.creditorDocumentNumber
+            };
+          }
+        }
+        const savedId = saveAcreedorCosecha(validation, producerDocument);
+        if (producerDocument) setSelectedProductor({
+          ...selectedProductor!, documentTypeId: producerDocument.typeId,
+          documentNumber: producerDocument.number
+        });
+        if (fotosAcreedor.length) {
+          setAcreedorFotosPendientesId(savedId);
+          await guardarFotosDelAcreedor(savedId);
+        } else {
+          Alert.alert("Acreedor guardado", "El perfil quedó pendiente de aprobación. Puedes agregar otro acreedor.");
+        }
+      }
       setAcreedores(getAcreedoresCosechaLocales(productorId));
-      Alert.alert(
-        "Acreedor guardado",
-        "El perfil quedó pendiente de aprobación. Puedes agregar otro acreedor."
-      );
       setError(null);
       setBanco("");
       setCuenta("");
     } catch {
       setError("No se pudo guardar el acreedor localmente.");
     }
+  }
+
+  async function guardarFotosDelAcreedor(localId: string) {
+    const failed: ImagePicker.ImagePickerAsset[] = [];
+    for (const asset of fotosAcreedor) {
+      try { await guardarFotoComercial(productorId, asset, null, localId); }
+      catch { failed.push(asset); }
+    }
+    setFotosAcreedor(failed);
+    setAcreedores(getAcreedoresCosechaLocales(productorId));
+    if (failed.length) {
+      setAcreedorFotosPendientesId(localId);
+      Alert.alert("Acreedor guardado", `${failed.length} foto(s) no se pudieron guardar. Reintenta sin duplicar el acreedor.`);
+      return;
+    }
+    setAcreedorFotosPendientesId(null);
+    setAcreedorFotoExistenteId(null);
+    Alert.alert("Acreedor y fotos guardados", "Se sincronizarán cuando haya conexión. Completa banco y cuenta para solicitar aprobación.");
+  }
+
+  async function elegirFotosAcreedor(camera: boolean) {
+    if (fotosAcreedor.length >= 10) {
+      Alert.alert("Limite de fotos", "Puedes agregar hasta 10 fotos a la vez.");
+      return;
+    }
+    if (camera) {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) return Alert.alert("Permiso de cámara", "Permite usar la cámara para tomar fotos.");
+    }
+    const result = camera
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 1, exif: false })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: 10 - fotosAcreedor.length, quality: 1, exif: false });
+    if (!result.canceled) setFotosAcreedor((current) => [...current, ...result.assets].slice(0, 10));
+  }
+
+  async function mostrarFotosAcreedor(acreedor: AcreedorCosecha) {
+    const owner = getCatalogSessionUserId(getDatabase());
+    if (!owner) return;
+    setAcreedorFotosVisible(acreedor);
+    const local = getFotosComercialesLocales(acreedor.productorId)
+      .filter((photo) => photo.acreedorLocalId === acreedor.localId);
+    const photos = new Map<string, { publicId: string; local?: FotoComercialLocal }>(
+      local.map((photo) => [photo.publicId, { publicId: photo.publicId, local: photo }])
+    );
+    if (acreedor.serverId) {
+      try {
+        const remote = await apiRequest<Array<{ publicId: string }>>(
+          `/comercial/acreedores/${acreedor.serverId}/fotos?page=1&limit=100`
+        );
+        if (getCatalogSessionUserId(getDatabase()) !== owner) return;
+        for (const photo of remote) {
+          if (!photos.has(photo.publicId)) photos.set(photo.publicId, { publicId: photo.publicId });
+        }
+      } catch {
+        // Las fotos locales continúan disponibles sin conexión.
+      }
+    }
+    setFotosVisibles([...photos.values()]);
+  }
+
+  async function abrirFotoAcreedor(photo: { publicId: string; local?: FotoComercialLocal }) {
+    const owner = getCatalogSessionUserId(getDatabase());
+    if (!owner || !acreedorFotosVisible) return;
+    try {
+      if (fotoTemporalRef.current?.exists) fotoTemporalRef.current.delete();
+      let temporary: File;
+      if (photo.local?.fileName) {
+        temporary = await leerFotoComercialParaSync(photo.local, owner);
+      } else if (acreedorFotosVisible.serverId) {
+        const bytes = await apiRequestBinary(
+          `/comercial/acreedores/${acreedorFotosVisible.serverId}/fotos/${photo.publicId}/contenido`
+        );
+        temporary = new File(Paths.cache, `${photo.publicId}.jpg`);
+        temporary.create({ overwrite: true });
+        temporary.write(bytes);
+      } else throw new Error("La foto aún no está disponible.");
+      if (getCatalogSessionUserId(getDatabase()) !== owner) {
+        if (temporary.exists) temporary.delete();
+        return;
+      }
+      fotoTemporalRef.current = temporary;
+      setFotoVisibleUri(temporary.uri);
+    } catch (reason) {
+      Alert.alert("No se pudo abrir la foto", reason instanceof Error ? reason.message : "Inténtalo de nuevo.");
+    }
+  }
+
+  function cerrarFotosAcreedor() {
+    setFotoVisibleUri(null);
+    setAcreedorFotosVisible(null);
+    setFotosVisibles([]);
+    if (fotoTemporalRef.current?.exists) fotoTemporalRef.current.delete();
+    fotoTemporalRef.current = null;
   }
 
   function openCosecha() {
@@ -411,11 +581,11 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
         <AppCard style={styles.sectionCard}>
           <SectionHeader
             icon="leaf-outline"
-            subtitle="Elige un productor con parcelas asignadas a tu usuario."
+            subtitle="Elige un productor asignado o creado por ti."
             title="Productor de la cosecha"
           />
           <AppPaginatedSelectField
-            emptyMessage="No tienes productores con parcelas disponibles. Sincroniza tus catalogos cuando tengas internet."
+            emptyMessage="No tienes productores disponibles. Sincroniza tus catálogos cuando tengas internet."
             icon="person-outline"
             isOpen={openProductor}
             label="Productor"
@@ -433,7 +603,6 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
 
         {step === "acreedores" ? (
           <>
-            <FotosComercialesCard productorId={productorId} />
             <AppCard style={styles.sectionCard}>
               <SectionHeader
                 icon="people-outline"
@@ -471,20 +640,43 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
                       <View style={styles.creditorRowText}>
                         <AppText variant="label">{formatCreditorName(acreedor)}</AppText>
                         <AppText variant="caption">
-                          {acreedor.bank} · {maskAccount(acreedor.accountNumber)}
+                          {acreedor.bank ?? "Sin banco"} · {acreedor.accountNumber ? maskAccount(acreedor.accountNumber) : "Sin cuenta"}
                         </AppText>
                         <AppText variant="caption">
-                          {acreedor.approvalStatus === "APPROVED"
+                          {acreedor.approvalStatus === "INCOMPLETE"
+                            ? "Falta banco y cuenta"
+                            : acreedor.approvalStatus === "APPROVED"
                             ? "Aprobado"
                             : acreedor.approvalStatus === "OBSERVED"
                               ? "Observado"
                               : "Pendiente de aprobación"}
                         </AppText>
+                        {acreedor.approvalStatus === "INCOMPLETE" ? (
+                          <AppButton label="Completar cuenta" variant="outline" size="small" onPress={() => {
+                            setAcreedorEnEdicionId(acreedor.localId);
+                            setAcreedorFotoExistenteId(null);
+                            setAcreedorEsProductor(false);
+                            setNombres(acreedor.creditorFirstName);
+                            setApellidos(acreedor.creditorLastName);
+                            setTipo(acreedor.creditorDocumentType);
+                            setDocumento(acreedor.creditorDocumentNumber);
+                            setBanco("");
+                            setCuenta("");
+                            setFotosAcreedor([]);
+                          }} />
+                        ) : null}
+                        <AppButton label="Agregar foto" variant="outline" size="small" onPress={() => {
+                          setAcreedorFotoExistenteId(acreedor.localId);
+                          setAcreedorEnEdicionId(null);
+                          setFotosAcreedor([]);
+                        }} />
+                        <AppButton label="Ver fotos" variant="outline" size="small" onPress={() => void mostrarFotosAcreedor(acreedor)} />
                       </View>
                     </View>
                   ))}
                 </View>
               ) : null}
+              {!acreedorFotoExistenteId ? <>
               <View style={styles.switchCard}>
                 <View style={styles.switchTextArea}>
                   <AppText style={styles.switchTitle} variant="label">
@@ -497,7 +689,7 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
                 <Switch
                   accessibilityLabel="El acreedor es el productor"
                   accessibilityRole="switch"
-                  disabled={!selectedProductor}
+                  disabled={!selectedProductor || !!acreedorEnEdicionId}
                   ios_backgroundColor={theme.colors.border}
                   onValueChange={handleAcreedorEsProductorChange}
                   thumbColor={
@@ -558,6 +750,7 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
                 <AppInput
                   label="Nombres del acreedor"
                   value={nombres}
+                  editable={!acreedorEnEdicionId}
                   onChangeText={(value) => {
                     setNombres(value);
                     setAutofilledFields((current) => ({ ...current, firstName: false }));
@@ -570,6 +763,7 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
                 <AppInput
                   label="Apellidos del acreedor"
                   value={apellidos}
+                  editable={!acreedorEnEdicionId}
                   onChangeText={(value) => {
                     setApellidos(value);
                     setAutofilledFields((current) => ({ ...current, lastName: false }));
@@ -583,6 +777,7 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
                   label="Tipo de documento"
                   placeholder="Selecciona"
                   options={DOCUMENTOS}
+                  disabled={!!acreedorEnEdicionId}
                   isOpen={openTipo}
                   onToggle={() => setOpenTipo((value) => !value)}
                   onClose={() => setOpenTipo(false)}
@@ -602,6 +797,7 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
                 <AppInput
                   label="Numero de documento"
                   value={documento}
+                  editable={!acreedorEnEdicionId}
                   onChangeText={(value) => {
                     setDocumento(value.replace(/\D/g, ""));
                     setAutofilledFields((current) => ({
@@ -613,9 +809,29 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
                   placeholder={tipo === "DNI" ? "8 digitos" : "11 digitos"}
                 />
               ) : null}
+              </> : null}
+              {!acreedorEnEdicionId ? (
+                <View style={styles.creditorPhotos}>
+                  <AppText variant="label">Fotos del acreedor (opcionales)</AppText>
+                  <AppText variant="caption">{acreedorFotoExistenteId
+                    ? "Las fotos se asociarán al acreedor seleccionado arriba."
+                    : "Para guardar fotos, completa nombres, apellidos y documento. Banco y cuenta pueden añadirse después."}</AppText>
+                  <AppButton label="Tomar foto" variant="outline" onPress={() => void elegirFotosAcreedor(true)} disabled={!productorId || !!acreedorFotosPendientesId} />
+                  <AppButton label="Elegir de galería" variant="outline" onPress={() => void elegirFotosAcreedor(false)} disabled={!productorId || !!acreedorFotosPendientesId} />
+                  {fotosAcreedor.map((foto, index) => (
+                    <View key={`${foto.uri}-${index}`} style={styles.creditorPhotoRow}>
+                      <Image source={{ uri: foto.uri }} style={styles.creditorPhotoPreview} />
+                      <AppText variant="caption">Foto {index + 1}</AppText>
+                      <Pressable onPress={() => setFotosAcreedor((current) => current.filter((_, itemIndex) => itemIndex !== index))}>
+                        <AppText variant="label">Quitar</AppText>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </AppCard>
 
-            <AppCard style={styles.sectionCard}>
+            {!acreedorFotoExistenteId ? <AppCard style={styles.sectionCard}>
               <SectionHeader
                 icon="card-outline"
                 subtitle="Ingresa la cuenta bancaria o el CCI del acreedor."
@@ -642,12 +858,12 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
                 maxLength={30}
                 placeholder="Hasta 30 digitos"
               />
-            </AppCard>
+            </AppCard> : null}
 
             <AppButton
-              label="Guardar acreedor"
               icon="person-add-outline"
-              onPress={guardarAcreedor}
+              onPress={() => void guardarAcreedor()}
+              label={acreedorFotosPendientesId ? "Reintentar fotos" : acreedorFotoExistenteId ? "Guardar fotos" : acreedorEnEdicionId ? "Guardar cuenta" : "Guardar acreedor"}
             />
 
             <AppButton
@@ -743,6 +959,19 @@ export function ComercialScreen({ step = "acreedores" }: ComercialScreenProps) {
           </AppText>
         ) : null}
       </FormScrollView>
+      <Modal visible={!!acreedorFotosVisible} transparent onRequestClose={cerrarFotosAcreedor}>
+        <View style={styles.creditorPhotoModal}>
+          <AppText variant="heading">Fotos de {acreedorFotosVisible?.creditorFirstName} {acreedorFotosVisible?.creditorLastName}</AppText>
+          <ScrollView style={styles.creditorPhotoList}>
+            {fotosVisibles.length === 0 ? <AppText variant="caption">No hay fotos para este acreedor.</AppText> : null}
+            {fotosVisibles.map((photo, index) => (
+              <AppButton key={photo.publicId} label={`Abrir foto ${index + 1}`} variant="outline" onPress={() => void abrirFotoAcreedor(photo)} />
+            ))}
+          </ScrollView>
+          {fotoVisibleUri ? <Image source={{ uri: fotoVisibleUri }} style={styles.creditorPhotoLarge} resizeMode="contain" /> : null}
+          <AppButton label="Cerrar" onPress={cerrarFotosAcreedor} />
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -1060,13 +1289,20 @@ const styles = StyleSheet.create({
   },
   calendarSelectedText: { color: theme.colors.textInverse },
   calendarDisabled: { opacity: 0.35 },
+  creditorPhotos: { gap: 8 },
+  creditorPhotoRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  creditorPhotoPreview: { width: 58, height: 58, borderRadius: 8 },
+  creditorPhotoModal: { flex: 1, margin: 20, padding: 16, gap: 12, borderRadius: 16, backgroundColor: theme.colors.surface },
+  creditorPhotoList: { maxHeight: 180 },
+  creditorPhotoLarge: { flex: 1, width: "100%" },
   helper: { color: theme.colors.textMuted },
   error: { color: theme.colors.error }
 });
 
 function validateAcreedorCosecha(
-  input: AcreedorCosechaFormInput
-): HarvestCreditorInput | string {
+  input: AcreedorCosechaFormInput,
+  allowIdentityOnly = false
+): HarvestCreditorIdentityInput | string {
   if (!input.productorId.trim()) {
     return "Selecciona un productor.";
   }
@@ -1080,17 +1316,24 @@ function validateAcreedorCosecha(
     return `El ${input.creditorDocumentType} debe tener ${documentLength} digitos.`;
   }
 
-  if (!BANCOS.some((bank) => bank.value === input.bank)) {
+  if (Boolean(input.bank) !== Boolean(input.accountNumber)) {
+    return "Completa banco y cuenta juntos.";
+  }
+  if (!input.bank && !allowIdentityOnly) {
+    return "Selecciona banco y cuenta para guardar el acreedor sin fotos.";
+  }
+  if (input.bank && !BANCOS.some((bank) => bank.value === input.bank)) {
     return "Selecciona un banco valido.";
   }
 
-  if (!/^\d{1,30}$/.test(input.accountNumber)) {
+  if (input.accountNumber && !/^\d{1,30}$/.test(input.accountNumber)) {
     return "Ingresa un numero de cuenta o CCI de hasta 30 digitos.";
   }
 
   return {
     ...input,
-    bank: input.bank as HarvestCreditorInput["bank"],
+    bank: input.bank ? input.bank as HarvestCreditorInput["bank"] : null,
+    accountNumber: input.accountNumber || null,
     productorId: input.productorId.trim(),
     creditorFirstName: input.creditorFirstName.trim(),
     creditorLastName: input.creditorLastName.trim()

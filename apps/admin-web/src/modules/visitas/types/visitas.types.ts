@@ -287,7 +287,7 @@ export type ProductorVisitasHistory = {
   productor: {
     id: string;
     publicId: string;
-    entityType: "persona" | "fundo" | "cooperativa";
+    entityType: "persona" | "fundo" | "asociacion" | "cooperativa" | "recorredor";
     documentTypeId: number | null;
     documentNumber: string | null;
     firstName: string | null;
@@ -398,7 +398,7 @@ export type TipoRiegoLookupItem = LookupItem & {
 export type ProductorLookupItem = {
   id: string;
   publicId: string;
-  entityType: "persona" | "fundo" | "cooperativa";
+  entityType: "persona" | "fundo" | "asociacion" | "cooperativa" | "recorredor";
   documentNumber: string | null;
   firstName: string | null;
   lastName: string | null;

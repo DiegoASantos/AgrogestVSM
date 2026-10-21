@@ -6,9 +6,13 @@ import { getNowIsoString } from "../../shared/database/sqlite-utils";
 import { apiRequest, type ApiRequestContext } from "../../shared/services";
 import { generateLocalId, generatePublicId } from "../../shared/utils/local-id";
 import type { GeoJsonPointGeometry } from "../../shared/maps/geo";
+import { productoresRepository } from "../productores/repositories/productores.repository";
+import type { Productor } from "../productores/types";
 
-export type TipoSujetoComercial = "PERSONA" | "FUNDO" | "ASOCIATIVA" | "RECORREDOR";
+export type TipoSujetoComercial = "PERSONA" | "FUNDO" | "ASOCIATIVA" | "COOPERATIVA" | "RECORREDOR";
 export type VisitaComercialDraft = {
+  productorId?: string | null;
+  crearProductor?: boolean;
   tipoSujeto: TipoSujetoComercial;
   nombres: string;
   apellidos?: string | null;
@@ -27,6 +31,7 @@ type Row = {
   local_id: string;
   public_id: string;
   server_id: string | null;
+  productor_id: string | null;
   tipo_sujeto: TipoSujetoComercial;
   nombres: string;
   apellidos: string | null;
@@ -41,6 +46,7 @@ function map(row: Row): VisitaComercialLocal {
     id: row.local_id,
     publicId: row.public_id,
     serverId: row.server_id,
+    productorId: row.productor_id,
     tipoSujeto: row.tipo_sujeto,
     nombres: row.nombres,
     apellidos: row.apellidos,
@@ -65,19 +71,67 @@ export const visitasComercialesService = {
       (person && !draft.apellidos?.trim())
     )
       throw new Error("Completa el nombre, los apellidos requeridos y la descripción.");
+    if (draft.crearProductor && (draft.nombres.trim().length > 100 || (draft.apellidos?.trim().length ?? 0) > 100)) {
+      throw new Error("Los datos del productor deben tener como máximo 100 caracteres.");
+    }
+    if (!draft.crearProductor && !draft.productorId) {
+      throw new Error("Selecciona un productor antes de guardar la visita.");
+    }
     const localId = generateLocalId();
     const publicId = generatePublicId();
     const now = getNowIsoString();
+    const entityType: Productor["entityType"] = draft.tipoSujeto === "ASOCIATIVA"
+      ? "asociacion"
+      : draft.tipoSujeto.toLowerCase() as Productor["entityType"];
+    if (!draft.crearProductor && draft.productorId) {
+      const selected = db.getFirstSync<{ entity_type: Productor["entityType"] }>(
+        `SELECT entity_type FROM productores WHERE id = ? AND catalog_owner_user_id = ?
+         AND (catalog_visible = 1 OR created_locally = 1)`,
+        draft.productorId, owner
+      );
+      if (!selected || selected.entity_type !== entityType) {
+        throw new Error("El productor no esta disponible o no coincide con el tipo de visita.");
+      }
+    }
+    let productorId = draft.productorId ?? null;
     db.withTransactionSync(() => {
+      if (draft.crearProductor) {
+        productorId = generateLocalId();
+        productoresRepository.insert({
+          id: productorId,
+          publicId: generatePublicId(),
+          entityType,
+          firstName: draft.nombres.trim(),
+          lastName: person ? draft.apellidos!.trim() : null,
+          documentTypeId: null,
+          documentNumber: null,
+          phone: null,
+          email: null,
+          address: null,
+          isActive: false,
+          createdAt: now,
+          updatedAt: now,
+          serverId: null,
+          syncStatus: "pending",
+          syncErrorMessage: null
+        });
+        insertSyncOutboxEntry(db, {
+          entityType: "productores",
+          entityLocalId: productorId,
+          operation: "create",
+          createdAt: now
+        });
+      }
       db.runSync(
         `INSERT INTO visitas_comerciales
-          (local_id, public_id, owner_user_id, tipo_sujeto, nombres, apellidos,
+          (local_id, public_id, owner_user_id, tipo_sujeto, productor_id, nombres, apellidos,
            descripcion, fecha_visita, ubicacion_visita, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         localId,
         publicId,
         owner,
         draft.tipoSujeto,
+        productorId,
         draft.nombres.trim(),
         person ? draft.apellidos!.trim() : null,
         draft.descripcion.trim(),

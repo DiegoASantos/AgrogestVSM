@@ -1,4 +1,4 @@
-export type ProductorEntityType = "persona" | "fundo" | "cooperativa";
+export type ProductorEntityType = "persona" | "fundo" | "asociacion" | "cooperativa" | "recorredor";
 
 export type ProductorListItem = {
   id: string;

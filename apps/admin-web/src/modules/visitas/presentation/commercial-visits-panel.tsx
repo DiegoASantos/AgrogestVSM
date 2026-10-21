@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuthSession } from "../../auth/hooks/use-auth-session";
 import { toApiError } from "../../../shared/services";
+import { PhotoGallery } from "../../../shared/components/photo-gallery";
+import type { GalleryPhoto } from "../../../shared/utils/photo-resource-cache";
+import type { AuthSession } from "../../auth/types/auth.types";
 import {
   downloadBlob,
   visitasComercialesService,
@@ -147,6 +150,7 @@ export function CommercialVisitsPanel({
               ? selected.ubicacionVisita.coordinates.join(", ")
               : "No disponible"}
           </p>
+          {session ? <CommercialVisitPhotos key={selected.id} session={session} visitId={selected.id} /> : null}
           <button
             className="ui-button ui-button--ghost"
             type="button"
@@ -181,4 +185,29 @@ export function CommercialVisitsPanel({
       ) : null}
     </article>
   );
+}
+
+function CommercialVisitPhotos({ session, visitId }: { session: AuthSession; visitId: string }) {
+  const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    void visitasComercialesService.listPhotos(session, visitId, page).then((result) => {
+      if (active) { setPhotos(result.items); setTotal(result.total); }
+    }, () => {
+      if (active) { setPhotos([]); setError("No se pudieron cargar las fotos de la visita."); }
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [session, visitId, page, attempt]);
+  const loadPhoto = useCallback((photo: GalleryPhoto) =>
+    visitasComercialesService.viewPhoto(session, visitId, photo.id), [session, visitId]);
+  return <PhotoGallery title="Evidencia fotográfica" description="Fotos adjuntas a esta visita comercial."
+    photos={photos} total={total} page={page} loading={loading} error={error}
+    loadPhoto={loadPhoto} onPageChange={setPage} onRetry={() => setAttempt((value) => value + 1)} />;
 }

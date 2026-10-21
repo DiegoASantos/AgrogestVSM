@@ -17,6 +17,8 @@ import type { AccessTokenPayload } from "../../auth/types/auth.types";
 import { ProductoresService } from "../../productores/application/productores.service";
 import { ProductorEntity } from "../../productores/infrastructure/persistence/entities/productor.entity";
 import { FotoComercialProductorEntity } from "../infrastructure/persistence/entities/foto-comercial-productor.entity";
+import { VisitaComercialEntity } from "../../visitas-comerciales/infrastructure/persistence/entities/visita-comercial.entity";
+import { AcreedorCosechaEntity } from "../infrastructure/persistence/entities/acreedor-cosecha.entity";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -41,14 +43,35 @@ export class FotosComercialesService {
     return producer;
   }
 
-  async upload(producer: ProductorEntity, publicId: string, input: Buffer, userId: string) {
+  async assertVisitAccess(visitId: string, user: AccessTokenPayload, write = false) {
+    if (!/^[1-9]\d*$/.test(visitId)) throw new BadRequestException("Identificador de visita inválido.");
+    const visit = await this.dataSource.getRepository(VisitaComercialEntity).findOne({
+      where: { id: visitId, activo: true }
+    });
+    if (!visit || (write && visit.agronomoUsuarioId !== user.userId) ||
+      (!write && !user.roles.includes("ADMIN") && !user.roles.includes("ANALISTA") && visit.agronomoUsuarioId !== user.userId)) {
+      throw new NotFoundException("Visita comercial no encontrada.");
+    }
+    if (!visit.productorId) throw new BadRequestException("La visita no tiene productor vinculado.");
+    return visit;
+  }
+
+  async assertCreditorAccess(creditorId: string, user: AccessTokenPayload) {
+    if (!/^[1-9]\d*$/.test(creditorId)) throw new BadRequestException("Identificador de acreedor inválido.");
+    const creditor = await this.dataSource.getRepository(AcreedorCosechaEntity).findOne({ where: { id: creditorId } });
+    if (!creditor || creditor.mergedIntoId) throw new NotFoundException("Acreedor no encontrado.");
+    const producer = await this.assertProducerAccess(creditor.productorId, user);
+    return { creditor, producer };
+  }
+
+  async upload(producer: ProductorEntity, publicId: string, input: Buffer, userId: string, visitId: string | null = null, creditorId: string | null = null) {
     if (!UUID.test(publicId)) throw new BadRequestException("Identificador de foto inválido.");
     if (input.length === 0 || input.length > MAX_BYTES) {
       throw new BadRequestException("La foto supera el tamaño permitido.");
     }
     const originalSha256 = sha256(input);
     const existing = await this.photos.findOne({ where: { publicId } });
-    if (existing) return createSuccessResponse(await this.assertIdempotent(existing, producer.id, originalSha256));
+    if (existing) return createSuccessResponse(await this.assertIdempotent(existing, producer.id, originalSha256, visitId, creditorId));
 
     let normalized: Buffer;
     try {
@@ -86,6 +109,8 @@ export class FotosComercialesService {
       const saved = await this.photos.save(this.photos.create({
         publicId,
         productorId: producer.id,
+        visitaComercialId: visitId,
+        acreedorId: creditorId,
         createdByUserId: userId,
         storageKey,
         originalSha256,
@@ -101,7 +126,7 @@ export class FotosComercialesService {
       await unlink(temporary).catch(() => undefined);
       await unlink(destination).catch(() => undefined);
       const canonical = await this.photos.findOne({ where: { publicId } });
-      if (canonical) return createSuccessResponse(await this.assertIdempotent(canonical, producer.id, originalSha256));
+      if (canonical) return createSuccessResponse(await this.assertIdempotent(canonical, producer.id, originalSha256, visitId, creditorId));
       throw error;
     }
   }
@@ -147,6 +172,44 @@ export class FotosComercialesService {
     );
   }
 
+  async listForVisit(visitId: string, page: number, limit: number, user: AccessTokenPayload) {
+    await this.assertVisitAccess(visitId, user);
+    const [photos, total] = await this.photos.findAndCount({
+      where: { visitaComercialId: visitId },
+      order: { createdAt: "DESC", id: "DESC" },
+      take: limit,
+      skip: (page - 1) * limit
+    });
+    return createSuccessResponse(photos.map((photo) => this.toResponse(photo)),
+      createPaginatedMeta(total, page, limit));
+  }
+
+  async readForVisit(visitId: string, publicId: string, user: AccessTokenPayload) {
+    await this.assertVisitAccess(visitId, user);
+    const photo = await this.photos.findOne({ where: { publicId, visitaComercialId: visitId } });
+    if (!photo) throw new NotFoundException("Foto no encontrada.");
+    return this.read(publicId, user.userId);
+  }
+
+  async listForCreditor(creditorId: string, page: number, limit: number, user: AccessTokenPayload) {
+    await this.assertCreditorAccess(creditorId, user);
+    const [photos, total] = await this.photos.findAndCount({
+      where: { acreedorId: creditorId },
+      order: { createdAt: "DESC", id: "DESC" },
+      take: limit,
+      skip: (page - 1) * limit
+    });
+    return createSuccessResponse(photos.map((photo) => this.toResponse(photo)),
+      createPaginatedMeta(total, page, limit));
+  }
+
+  async readForCreditor(creditorId: string, publicId: string, user: AccessTokenPayload) {
+    await this.assertCreditorAccess(creditorId, user);
+    const photo = await this.photos.findOne({ where: { publicId, acreedorId: creditorId } });
+    if (!photo) throw new NotFoundException("Foto no encontrada.");
+    return this.read(publicId, user.userId);
+  }
+
   async read(publicId: string, userId: string): Promise<Buffer> {
     const photo = await this.photos.findOne({ where: { publicId } });
     if (!photo) throw new NotFoundException("Foto no encontrada.");
@@ -181,8 +244,8 @@ export class FotosComercialesService {
     return { directory: resolve(directory), key: Buffer.from(keyHex, "hex") };
   }
 
-  private async assertIdempotent(photo: FotoComercialProductorEntity, producerId: string, hash: string) {
-    if (photo.productorId !== producerId || photo.originalSha256.trim() !== hash) {
+  private async assertIdempotent(photo: FotoComercialProductorEntity, producerId: string, hash: string, visitId: string | null, creditorId: string | null) {
+    if (photo.productorId !== producerId || (photo.visitaComercialId ?? null) !== visitId || (photo.acreedorId ?? null) !== creditorId || photo.originalSha256.trim() !== hash) {
       throw new ConflictException("El identificador de foto ya pertenece a otro contenido.");
     }
     const { directory } = this.storage();

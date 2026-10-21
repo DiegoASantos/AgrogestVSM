@@ -44,6 +44,8 @@ en la raíz.
 
 ## Índice
 
+- [Spec 118: Visitas comerciales vinculadas a productores y fotos de acreedores](118-visita-comercial-productores-fotos-acreedores.md)
+
 - [Spec 117: Alertas separadas de visitas e identidad](117-alertas-visitas-identidad.md)
 
 - [Spec 114: Fotos de visitas comerciales y tipos de productor](114-fotos-visitas-comerciales-y-tipos-productor.md)

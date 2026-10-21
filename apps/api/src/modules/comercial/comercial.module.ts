@@ -4,6 +4,7 @@ import { ProductoresModule } from "../productores/productores.module";
 import { AuthModule } from "../auth/auth.module";
 import { ProductorEntity } from "../productores/infrastructure/persistence/entities/productor.entity";
 import { UserEntity } from "../users/infrastructure/persistence/entities/user.entity";
+import { VisitaComercialEntity } from "../visitas-comerciales/infrastructure/persistence/entities/visita-comercial.entity";
 import { ComercialService } from "./application/comercial.service";
 import { PagosProductoresService } from "./application/pagos-productores.service";
 import { AdminAcreedoresCosechaService } from "./application/admin-acreedores-cosecha.service";
@@ -28,7 +29,7 @@ import { ProducerCodeThrottlerGuard } from "./presentation/producer-code-throttl
 import { AdminAcreedoresCosechaController, PagosProductoresController } from "./presentation/pagos-productores.controller";
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PagoCosechaEntity, AcreedorCosechaEntity, RegistroCosechaEntity, InvitacionAcreedorProductorEntity, RevisionAcreedorCosechaEntity, PagoProductorEntity, DetallePagoProductorEntity, FotoComercialProductorEntity, VinculoProductorSystraceEntity, ProductorEntity, UserEntity]),
+    TypeOrmModule.forFeature([PagoCosechaEntity, AcreedorCosechaEntity, RegistroCosechaEntity, InvitacionAcreedorProductorEntity, RevisionAcreedorCosechaEntity, PagoProductorEntity, DetallePagoProductorEntity, FotoComercialProductorEntity, VinculoProductorSystraceEntity, ProductorEntity, UserEntity, VisitaComercialEntity]),
     ProductoresModule,
     AuthModule
   ],

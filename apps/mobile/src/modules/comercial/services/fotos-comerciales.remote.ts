@@ -21,3 +21,37 @@ export function subirFotoComercial(
     }
   );
 }
+
+export function subirFotoDeVisitaComercial(
+  visitaServerId: string,
+  photoPublicId: string,
+  uri: string,
+  context: ApiRequestContext = {}
+) {
+  const form = new FormData();
+  form.append("file", { uri, name: "foto.jpg", type: "image/jpeg" } as unknown as Blob);
+  return apiRequest<UploadResponse>(`/comercial/visitas/${visitaServerId}/fotos`, {
+    method: "POST",
+    body: form,
+    headers: { "X-Photo-Id": photoPublicId },
+    timeoutMs: 90_000,
+    ...context
+  });
+}
+
+export function subirFotoDeAcreedor(
+  acreedorServerId: string,
+  photoPublicId: string,
+  uri: string,
+  context: ApiRequestContext = {}
+) {
+  const form = new FormData();
+  form.append("file", { uri, name: "foto.jpg", type: "image/jpeg" } as unknown as Blob);
+  return apiRequest<UploadResponse>(`/comercial/acreedores/${acreedorServerId}/fotos`, {
+    method: "POST",
+    body: form,
+    headers: { "X-Photo-Id": photoPublicId },
+    timeoutMs: 90_000,
+    ...context
+  });
+}

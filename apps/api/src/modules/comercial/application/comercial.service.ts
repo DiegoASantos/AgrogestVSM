@@ -18,9 +18,7 @@ type CreditorFields = Pick<
   | "creditorLastName"
   | "creditorDocumentType"
   | "creditorDocumentNumber"
-  | "bank"
-  | "accountNumber"
->;
+> & { bank: NonNullable<AcreedorCosechaEntity["bank"]>; accountNumber: string };
 @Injectable()
 export class ComercialService {
   constructor(
@@ -92,6 +90,66 @@ export class ComercialService {
     return createSuccessResponse(await this.ensureCreditor(dto, user.userId));
   }
 
+  async createCreditorIdentity(
+    dto: Pick<CreateAcreedorCosechaDto, "productorId" | "publicId" | "creditorFirstName" | "creditorLastName" | "creditorDocumentType" | "creditorDocumentNumber">,
+    user: AccessTokenPayload
+  ) {
+    this.assertDocumentLength(dto);
+    const canonical = await this.productores.findById(dto.productorId, user);
+    const existingId = dto.publicId
+      ? await this.acreedores.findOne({ where: { publicId: dto.publicId } })
+      : null;
+    if (existingId) {
+      if (existingId.productorId !== canonical.data.id) throw new ConflictException("El perfil pertenece a otro productor.");
+      if (existingId.creditorFirstName !== dto.creditorFirstName ||
+        existingId.creditorLastName !== dto.creditorLastName ||
+        existingId.creditorDocumentType !== dto.creditorDocumentType ||
+        existingId.creditorDocumentNumber !== dto.creditorDocumentNumber) {
+        throw new ConflictException("El identificador del acreedor pertenece a otra identidad.");
+      }
+      return createSuccessResponse(existingId);
+    }
+    const identity = await this.acreedores.findOne({ where: {
+      productorId: canonical.data.id,
+      creditorDocumentType: dto.creditorDocumentType,
+      creditorDocumentNumber: dto.creditorDocumentNumber,
+      approvalStatus: "INCOMPLETE"
+    } });
+    if (identity) {
+      if (identity.creditorFirstName !== dto.creditorFirstName ||
+        identity.creditorLastName !== dto.creditorLastName) {
+        throw new ConflictException("El documento pertenece a otra identidad de acreedor.");
+      }
+      return createSuccessResponse(identity);
+    }
+    return createSuccessResponse(await this.acreedores.save(this.acreedores.create({
+      ...dto,
+      productorId: canonical.data.id,
+      bank: null,
+      accountNumber: null,
+      approvalStatus: "INCOMPLETE",
+      source: "MOBILE",
+      createdByUserId: user.userId
+    })));
+  }
+
+  async completeCreditor(id: string, bank: AcreedorCosechaEntity["bank"], accountNumber: string, user: AccessTokenPayload) {
+    if (!/^[1-9]\d*$/.test(id)) throw new BadRequestException("Identificador de acreedor invÃ¡lido.");
+    const creditor = await this.acreedores.findOne({ where: { id } });
+    if (!creditor) throw new NotFoundException("Acreedor no encontrado.");
+    await this.productores.findById(creditor.productorId, user);
+    if (!bank || !/^\d{1,30}$/.test(accountNumber)) throw new BadRequestException("Completa banco y cuenta válidos.");
+    if (creditor.approvalStatus !== "INCOMPLETE") {
+      if (creditor.bank === bank && creditor.accountNumber === accountNumber) return createSuccessResponse(creditor);
+      throw new ConflictException("El acreedor ya tiene cuenta registrada.");
+    }
+    creditor.bank = bank;
+    creditor.accountNumber = accountNumber;
+    creditor.approvalStatus = "PENDING";
+    creditor.updatedAt = new Date();
+    return createSuccessResponse(await this.acreedores.save(creditor));
+  }
+
   async findCreditors(productorId: string, user: AccessTokenPayload) {
     const canonical = await this.productores.findById(productorId, user);
     return createSuccessResponse(
@@ -140,8 +198,8 @@ export class ComercialService {
       creditorLastName: creditor.creditorLastName,
       creditorDocumentType: creditor.creditorDocumentType,
       creditorDocumentNumber: creditor.creditorDocumentNumber,
-      bank: creditor.bank,
-      accountNumber: creditor.accountNumber,
+      bank: creditor.bank!,
+      accountNumber: creditor.accountNumber!,
       createdByUserId: user.userId
     });
 

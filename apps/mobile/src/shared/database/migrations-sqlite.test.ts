@@ -184,16 +184,49 @@ afterEach(() => {
 });
 
 describe.skipIf(!NativeDatabase)("bootstrap con SQLite real", () => {
-  it("inicializa una instalación vacía hasta 78 y permite volver a abrirla", () => {
+  it("inicializa una instalación vacía hasta 81 y permite volver a abrirla", () => {
     const { raw, db, statements } = createDatabase();
     runMigrations(db);
-    expect(raw.prepare("PRAGMA user_version").get()?.user_version).toBe(78);
+    expect(raw.prepare("PRAGMA user_version").get()?.user_version).toBe(81);
     raw.exec("PRAGMA foreign_keys = ON");
     expect(raw.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
 
     statements.length = 0;
     runMigrations(db);
     expectOnlyCommercialSchemaChecks(statements);
+  });
+
+  it("accepts linked visits and identity-only creditors after migration", () => {
+    const { raw, db } = createDatabase();
+    runMigrations(db);
+    const now = "2026-10-21T00:00:00.000Z";
+    raw.prepare("INSERT INTO productores (id, public_id, created_at, updated_at) VALUES (?, ?, ?, ?)")
+      .run("new-producer", "new-producer-public", now, now);
+    raw.prepare(`INSERT INTO visitas_comerciales
+      (local_id, public_id, owner_user_id, tipo_sujeto, productor_id, nombres,
+       descripcion, fecha_visita, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run("new-visit", "new-visit-public", "owner", "COOPERATIVA", "new-producer",
+        "Cooperativa sintetica", "Visita sintetica", "2026-10-21", now, now);
+    raw.prepare(`INSERT INTO acreedores_cosecha
+      (local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
+       tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta,
+       approval_status, created_at, updated_at, owner_user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, 'INCOMPLETE', ?, ?, ?)`)
+      .run("new-creditor", "new-creditor-public", "new-producer", "Maria", "Prueba",
+        "DNI", "12345678", now, now, "owner");
+
+    expect(raw.prepare("SELECT productor_id, tipo_sujeto FROM visitas_comerciales WHERE local_id = 'new-visit'").get())
+      .toMatchObject({ productor_id: "new-producer", tipo_sujeto: "COOPERATIVA" });
+    expect(raw.prepare("SELECT approval_status, banco, nro_cuenta FROM acreedores_cosecha WHERE local_id = 'new-creditor'").get())
+      .toMatchObject({ approval_status: "INCOMPLETE", banco: null, nro_cuenta: null });
+    expect(raw.prepare("PRAGMA table_info(fotos_comerciales_productor)").all().map((column) => column.name))
+      .toEqual(expect.arrayContaining(["visita_comercial_id", "acreedor_local_id"]));
+    runMigrations(db);
+    expect(raw.prepare("SELECT COUNT(*) AS total FROM visitas_comerciales WHERE local_id = 'new-visit'").get()?.total).toBe(1);
+    expect(raw.prepare("SELECT COUNT(*) AS total FROM acreedores_cosecha WHERE local_id = 'new-creditor'").get()?.total).toBe(1);
+    raw.exec("PRAGMA foreign_keys = ON");
+    expect(raw.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   });
 
   it.each(["none", "partial", "all"] as const)(
@@ -212,7 +245,7 @@ describe.skipIf(!NativeDatabase)("bootstrap con SQLite real", () => {
 
       runMigrations(db);
 
-      expect(raw.prepare("PRAGMA user_version").get()?.user_version).toBe(78);
+      expect(raw.prepare("PRAGMA user_version").get()?.user_version).toBe(81);
       expect(pendingSnapshot(raw)).toEqual(pending);
       const creditors = raw
         .prepare("SELECT * FROM acreedores_cosecha ORDER BY local_id")
@@ -231,7 +264,7 @@ describe.skipIf(!NativeDatabase)("bootstrap con SQLite real", () => {
     }
   );
 
-  it("no cambia estados ni pendientes de una base que ya estaba en 78", () => {
+  it("no cambia estados ni pendientes de una base que ya estaba en 81", () => {
     const { raw, db, statements } = createDatabase();
     runMigrations(db);
     seedPendingData(raw);
@@ -253,7 +286,7 @@ describe.skipIf(!NativeDatabase)("bootstrap con SQLite real", () => {
     expectOnlyCommercialSchemaChecks(statements);
   });
 
-  it("repara la tabla comercial ausente en 78 sin repetir migraciones ni tocar productores", () => {
+  it("repara la tabla comercial ausente en 81 sin repetir migraciones ni tocar productores", () => {
     const { raw, db, statements } = createDatabase();
     runMigrations(db);
     raw.exec("DROP TABLE visitas_comerciales");
@@ -267,7 +300,7 @@ describe.skipIf(!NativeDatabase)("bootstrap con SQLite real", () => {
 
     runMigrations(db);
 
-    expect(raw.prepare("PRAGMA user_version").get()?.user_version).toBe(78);
+    expect(raw.prepare("PRAGMA user_version").get()?.user_version).toBe(81);
     expect(raw.prepare("SELECT * FROM productores").all()).toEqual(producers);
     expect(raw.prepare("SELECT * FROM visitas_comerciales").all()).toEqual([]);
     expect(
@@ -299,7 +332,7 @@ describe.skipIf(!NativeDatabase)("bootstrap con SQLite real", () => {
 
     failOn(null);
     runMigrations(db);
-    expect(raw.prepare("PRAGMA user_version").get()?.user_version).toBe(78);
+    expect(raw.prepare("PRAGMA user_version").get()?.user_version).toBe(81);
     expect(pendingSnapshot(raw)).toEqual(pending);
   });
 });

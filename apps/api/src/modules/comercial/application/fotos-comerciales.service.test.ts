@@ -77,6 +77,14 @@ describe("FotosComercialesService", () => {
     await expect(service.upload(producer, photoId, input, "8")).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
+  it("keeps a photo bound to its visit or creditor on idempotent retries", async () => {
+    await service.upload(producer, photoId, input, "8", "11");
+    expect(saved).toMatchObject({ visitaComercialId: "11", acreedorId: null });
+    expect((await service.upload(producer, photoId, input, "8", "11")).data.publicId).toBe(photoId);
+    await expect(service.upload(producer, photoId, input, "8", null, "12"))
+      .rejects.toBeInstanceOf(ConflictException);
+  });
+
   it("rejects a tampered encrypted file before serving it", async () => {
     await service.upload(producer, photoId, input, "8");
     await writeFile(join(directory, saved!.storageKey + ".enc"), "tampered");

@@ -1,11 +1,11 @@
 import { evaluacionesRepository } from "../../modules/evaluaciones/repositories/evaluaciones.repository";
-import { createAcreedorCosecha } from "../../modules/comercial/services/acreedores-cosecha.remote";
+import { createAcreedorCosecha, completeAcreedorCosechaRemote } from "../../modules/comercial/services/acreedores-cosecha.remote";
 import {
   getFotosComercialesLocales,
   leerFotoComercialParaSync,
   marcarFotoComercialSincronizada
 } from "../../modules/comercial/services/fotos-comerciales.service";
-import { subirFotoComercial } from "../../modules/comercial/services/fotos-comerciales.remote";
+import { subirFotoComercial, subirFotoDeVisitaComercial, subirFotoDeAcreedor } from "../../modules/comercial/services/fotos-comerciales.remote";
 import { createRegistroCosecha } from "../../modules/comercial/services/registros-cosecha.remote";
 import { evaluacionesRemote } from "../../modules/evaluaciones/services/evaluaciones.remote";
 import type { VisitaEvaluacion } from "../../modules/evaluaciones/types";
@@ -90,7 +90,11 @@ type PagoCosechaRow = {
   nro_cuenta: string;
 };
 
-type AcreedorCosechaRow = PagoCosechaRow;
+type AcreedorCosechaRow = Omit<PagoCosechaRow, "banco" | "nro_cuenta"> & {
+  banco: PagoCosechaRow["banco"] | null;
+  nro_cuenta: string | null;
+  server_id: string | null;
+};
 
 type RegistroCosechaRow = {
   local_id: string;
@@ -110,7 +114,7 @@ async function handlePagoCosecha(
   const db = getDatabase();
   const pago = db.getFirstSync<PagoCosechaRow>(
     `SELECT local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
-       tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta
+       tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta, server_id
      FROM pagos_cosecha
      WHERE local_id = ?`,
     entry.entityLocalId
@@ -158,7 +162,7 @@ async function handleAcreedorCosecha(
   const db = getDatabase();
   const acreedor = db.getFirstSync<AcreedorCosechaRow>(
     `SELECT local_id, public_id, productor_id, nombres_acreedor, apellidos_acreedor,
-       tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta
+       tipo_documento_acreedor, nro_documento_acreedor, banco, nro_cuenta, server_id
      FROM acreedores_cosecha WHERE local_id = ?`,
     entry.entityLocalId
   );
@@ -167,6 +171,16 @@ async function handleAcreedorCosecha(
 
   const productor = productoresRepository.getById(acreedor.productor_id);
   if (!productor?.serverId) return { status: "skipped" };
+
+  if (entry.operation === "update" && acreedor.server_id) {
+    if (!acreedor.banco || !acreedor.nro_cuenta) return { status: "skipped" };
+    const response = await completeAcreedorCosechaRemote(
+      acreedor.server_id, acreedor.banco, acreedor.nro_cuenta, context
+    );
+    db.runSync(`UPDATE acreedores_cosecha SET approval_status = ?, sync_status = 'synced',
+      sync_error_message = NULL WHERE local_id = ?`, response.approvalStatus, entry.entityLocalId);
+    return { status: "synced", serverId: response.id };
+  }
 
   const response = await createAcreedorCosecha(
     {
@@ -250,13 +264,23 @@ async function handleFotoComercial(
   const db = getDatabase();
   const owner = entry.ownerUserId;
   if (!owner) return { status: "skipped" };
-  const row = db.getFirstSync<{ productor_id: string }>(
-    "SELECT productor_id FROM fotos_comerciales_productor WHERE local_id = ? AND owner_user_id = ?",
+  const row = db.getFirstSync<{ productor_id: string; visita_comercial_id: string | null; acreedor_local_id: string | null }>(
+    "SELECT productor_id, visita_comercial_id, acreedor_local_id FROM fotos_comerciales_productor WHERE local_id = ? AND owner_user_id = ?",
     entry.entityLocalId, owner
   );
   if (!row) return { status: "deleted_local" };
   const producer = productoresRepository.getById(row.productor_id);
   if (!producer?.serverId) return { status: "skipped" };
+  const visit = row.visita_comercial_id
+    ? visitasComercialesService.getById(row.visita_comercial_id)
+    : null;
+  if (row.visita_comercial_id && !visit?.serverId) return { status: "skipped" };
+  const creditor = row.acreedor_local_id
+    ? db.getFirstSync<{ server_id: string | null }>(
+      "SELECT server_id FROM acreedores_cosecha WHERE local_id = ? AND owner_user_id = ?",
+      row.acreedor_local_id, owner
+    ) : null;
+  if (row.acreedor_local_id && !creditor?.server_id) return { status: "skipped" };
   const photo = getFotosComercialesLocales(row.productor_id).find(
     (item) => item.localId === entry.entityLocalId
   );
@@ -266,9 +290,11 @@ async function handleFotoComercial(
     if (getCatalogSessionUserId(db) !== owner) {
       throw new ApiRequestAbortedError("La sesión cambió durante la carga.");
     }
-    const response = await subirFotoComercial(
-      producer.serverId, photo.publicId, temporary.uri, context
-    );
+    const response = creditor?.server_id
+      ? await subirFotoDeAcreedor(creditor.server_id, photo.publicId, temporary.uri, context)
+      : visit?.serverId
+        ? await subirFotoDeVisitaComercial(visit.serverId, photo.publicId, temporary.uri, context)
+        : await subirFotoComercial(producer.serverId, photo.publicId, temporary.uri, context);
     if (response.publicId !== photo.publicId || !response.id) {
       throw new Error("La API no confirmó la identidad de la foto.");
     }
@@ -362,8 +388,13 @@ async function handleVisitaComercial(
 ): Promise<SyncHandlerResult> {
   const visita = visitasComercialesService.getById(entry.entityLocalId);
   if (!visita) return { status: "deleted_local" };
+  const productor = visita.productorId
+    ? productoresRepository.getById(visita.productorId)
+    : null;
+  if (visita.productorId && !productor?.serverId) return { status: "skipped" };
   const response = await createVisitaComercialRemote({
     publicId: visita.publicId,
+    productorId: productor?.serverId ?? null,
     tipoSujeto: visita.tipoSujeto,
     nombres: visita.nombres,
     apellidos: visita.apellidos,

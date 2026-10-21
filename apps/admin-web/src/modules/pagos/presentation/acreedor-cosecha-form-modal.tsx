@@ -15,7 +15,7 @@ const emptyForm: Form = {
 const fieldsFrom = (item: AcreedorCosecha, productorId: string): Form => ({
   productorId, nombres: item.nombres, apellidos: item.apellidos,
   tipoDocumento: item.tipoDocumento, nroDocumento: item.nroDocumento,
-  banco: item.banco, nroCuenta: item.nroCuenta
+  banco: item.banco ?? "BCP", nroCuenta: item.nroCuenta ?? ""
 });
 
 export function AcreedorCosechaFormModal({ open, session, catalogs, producerId, initial,
@@ -146,7 +146,7 @@ export function AcreedorCosechaFormModal({ open, session, catalogs, producerId, 
           {matches.map((item) => <button className={styles.secondary} key={item.id} type="button"
             onClick={() => choose(item)}>
             {item.nombres} {item.apellidos} · {item.productorNombre} · {item.banco} ·
-            cuenta terminada en {item.nroCuenta.slice(-4)}
+            cuenta terminada en {item.nroCuenta?.slice(-4) ?? "sin registrar"}
           </button>)}
         </div>}
         {chosen && <p className={styles.helper}>

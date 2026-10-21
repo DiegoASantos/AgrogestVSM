@@ -27,7 +27,7 @@ function repository(overrides: Record<string, unknown> = {}) {
 describe("VisitasComercialesService", () => {
   it("requires last names for a person and keeps the authenticated author", async () => {
     const repo = repository();
-    const service = new VisitasComercialesService(repo as never, {} as never);
+    const service = new VisitasComercialesService(repo as never, {} as never, {} as never);
     await expect(service.create({ ...base, apellidos: "" }, user)).rejects.toThrow(
       "apellidos"
     );
@@ -42,10 +42,21 @@ describe("VisitasComercialesService", () => {
     const repo = repository({
       findOne: vi.fn().mockResolvedValue({ ...base, id: "42", agronomoUsuarioId: "7" })
     });
-    const service = new VisitasComercialesService(repo as never, {} as never);
+    const service = new VisitasComercialesService(repo as never, {} as never, {} as never);
     expect((await service.create(base, user)).data.id).toBe("42");
     expect(repo.save).not.toHaveBeenCalled();
     await expect(service.create(base, admin)).rejects.toThrow("otro usuario");
+  });
+
+  it("links a cooperative visit to an accessible producer", async () => {
+    const repo = repository();
+    const producers = { findById: vi.fn(async () => ({
+      data: { id: "5", entityType: "cooperativa" }
+    })) };
+    const service = new VisitasComercialesService(repo as never, {} as never, producers as never);
+    await service.create({ ...base, tipoSujeto: "COOPERATIVA", productorId: "5", apellidos: null }, user);
+    expect(producers.findById).toHaveBeenCalledWith("5", user);
+    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ productorId: "5" }));
   });
 
   it("filters an agronomist's list to their own records", async () => {
@@ -62,6 +73,7 @@ describe("VisitasComercialesService", () => {
     };
     const service = new VisitasComercialesService(
       repository({ createQueryBuilder: () => queryBuilder }) as never,
+      {} as never,
       {} as never
     );
     await service.list(
@@ -83,7 +95,7 @@ describe("VisitasComercialesService", () => {
         agronomoUsuario: { firstName: "Carlos", lastName: "Pérez" }
       })
     });
-    const service = new VisitasComercialesService(repo as never, {} as never);
+    const service = new VisitasComercialesService(repo as never, {} as never, {} as never);
     const report = await service.exportPdf(base.publicId, admin);
     expect(report.fileName).toContain("visita-comercial-2026-10-17");
     expect(report.content.subarray(0, 4).toString()).toBe("%PDF");
@@ -111,7 +123,8 @@ describe("VisitasComercialesService", () => {
     };
     const service = new VisitasComercialesService(
       repo as never,
-      technicalService as never
+      technicalService as never,
+      {} as never
     );
     const report = await service.exportExcel(
       {

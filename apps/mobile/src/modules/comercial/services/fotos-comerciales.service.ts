@@ -21,6 +21,8 @@ export type FotoComercialLocal = {
   localId: string;
   publicId: string;
   productorId: string;
+  visitaComercialId: string | null;
+  acreedorLocalId: string | null;
   fileName: string | null;
   sha256Original: string;
   sizeBytes: number;
@@ -34,6 +36,8 @@ type Row = {
   local_id: string;
   public_id: string;
   productor_id: string;
+  visita_comercial_id: string | null;
+  acreedor_local_id: string | null;
   file_name: string | null;
   sha256_original: string;
   tamano_bytes: number;
@@ -48,7 +52,7 @@ export function getFotosComercialesLocales(productorId: string): FotoComercialLo
   const owner = getCatalogSessionUserId(db);
   if (!owner) return [];
   return db.getAllSync<Row>(
-    `SELECT local_id, public_id, productor_id, file_name, sha256_original,
+    `SELECT local_id, public_id, productor_id, visita_comercial_id, acreedor_local_id, file_name, sha256_original,
        tamano_bytes, server_id, sync_status, sync_error_message, created_at
      FROM fotos_comerciales_productor
      WHERE productor_id = ? AND owner_user_id = ?
@@ -59,6 +63,8 @@ export function getFotosComercialesLocales(productorId: string): FotoComercialLo
     localId: row.local_id,
     publicId: row.public_id,
     productorId: row.productor_id,
+    visitaComercialId: row.visita_comercial_id,
+    acreedorLocalId: row.acreedor_local_id,
     fileName: row.file_name,
     sha256Original: row.sha256_original,
     sizeBytes: row.tamano_bytes,
@@ -69,10 +75,24 @@ export function getFotosComercialesLocales(productorId: string): FotoComercialLo
   }));
 }
 
-export async function guardarFotoComercial(productorId: string, asset: ImagePickerAsset) {
+export function getFotosDeVisitaComercialLocales(visitaId: string): FotoComercialLocal[] {
+  const db = getDatabase();
+  const owner = getCatalogSessionUserId(db);
+  if (!owner) return [];
+  const rows = db.getAllSync<{ productor_id: string }>(
+    "SELECT DISTINCT productor_id FROM fotos_comerciales_productor WHERE visita_comercial_id = ? AND owner_user_id = ?",
+    visitaId, owner
+  );
+  return rows.flatMap((row) => getFotosComercialesLocales(row.productor_id))
+    .filter((photo) => photo.visitaComercialId === visitaId);
+}
+
+export async function guardarFotoComercial(productorId: string, asset: ImagePickerAsset, visitaComercialId: string | null = null, acreedorLocalId: string | null = null) {
+  if (visitaComercialId && acreedorLocalId) throw new Error("La foto debe pertenecer a una sola sección.");
   const db = getDatabase();
   const owner = getCatalogSessionUserId(db);
   if (!owner) throw new Error("Inicia sesión antes de guardar fotos.");
+  assertLocalPhotoOwnership(db, owner, productorId, visitaComercialId, acreedorLocalId);
   const image = ImageManipulator.manipulate(asset.uri);
   if (asset.width > 3000 || asset.height > 3000) {
     image.resize(asset.width >= asset.height ? { width: 3000 } : { height: 3000 });
@@ -105,13 +125,17 @@ export async function guardarFotoComercial(productorId: string, asset: ImagePick
     file.create();
     file.write(encrypted);
     const now = getNowIsoString();
+    if (getCatalogSessionUserId(db) !== owner) {
+      throw new ApiRequestAbortedError("La sesión cambió durante la preparación de la foto.");
+    }
     db.withTransactionSync(() => {
+      assertLocalPhotoOwnership(db, owner, productorId, visitaComercialId, acreedorLocalId);
       db.runSync(
         `INSERT INTO fotos_comerciales_productor (
-          local_id, public_id, productor_id, owner_user_id, file_name,
+          local_id, public_id, productor_id, visita_comercial_id, acreedor_local_id, owner_user_id, file_name,
           sha256_original, tamano_bytes, sync_status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-        localId, publicId, productorId, owner, fileName, hash, bytes.length, now, now
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+        localId, publicId, productorId, visitaComercialId, acreedorLocalId, owner, fileName, hash, bytes.length, now, now
       );
       insertSyncOutboxEntry(db, {
         entityType: "fotos_comerciales_productor",
@@ -139,6 +163,34 @@ export async function guardarFotoComercial(productorId: string, asset: ImagePick
     } catch {
       // Expo puede retirar su copia temporal antes que la app.
     }
+  }
+}
+
+function assertLocalPhotoOwnership(
+  db: ReturnType<typeof getDatabase>, owner: string, productorId: string,
+  visitaComercialId: string | null, acreedorLocalId: string | null
+) {
+  const producer = db.getFirstSync<{ id: string }>(
+    `SELECT id FROM productores WHERE id = ? AND catalog_owner_user_id = ?
+     AND (catalog_visible = 1 OR created_locally = 1)`,
+    productorId, owner
+  );
+  if (!producer) throw new Error("El productor no esta disponible para esta foto.");
+  if (visitaComercialId) {
+    const visit = db.getFirstSync<{ local_id: string }>(
+      `SELECT local_id FROM visitas_comerciales WHERE local_id = ?
+       AND productor_id = ? AND owner_user_id = ?`,
+      visitaComercialId, productorId, owner
+    );
+    if (!visit) throw new Error("La visita no corresponde al productor seleccionado.");
+  }
+  if (acreedorLocalId) {
+    const creditor = db.getFirstSync<{ local_id: string }>(
+      `SELECT local_id FROM acreedores_cosecha WHERE local_id = ?
+       AND productor_id = ? AND owner_user_id = ?`,
+      acreedorLocalId, productorId, owner
+    );
+    if (!creditor) throw new Error("El acreedor no corresponde al productor seleccionado.");
   }
 }
 

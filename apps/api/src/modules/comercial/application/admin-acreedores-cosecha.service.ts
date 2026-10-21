@@ -102,6 +102,11 @@ export class AdminAcreedoresCosechaService {
     const documentType = dto.tipoDocumento ?? creditor.creditorDocumentType;
     const documentNumber = dto.nroDocumento ?? creditor.creditorDocumentNumber;
     this.assertDocumentNumber(documentType, documentNumber);
+    const nextBank = dto.banco ?? creditor.bank;
+    const nextAccount = dto.nroCuenta ?? creditor.accountNumber;
+    if (Boolean(nextBank) !== Boolean(nextAccount)) {
+      throw new ConflictException("Completa banco y cuenta juntos.");
+    }
     const producer = dto.productorId ? await this.findProducer(dto.productorId) : null;
     Object.assign(creditor, {
       ...(producer ? { productorId: producer.id } : {}),
@@ -115,7 +120,7 @@ export class AdminAcreedoresCosechaService {
         : {}),
       ...(dto.banco !== undefined ? { bank: dto.banco } : {}),
       ...(dto.nroCuenta !== undefined ? { accountNumber: dto.nroCuenta } : {}),
-      ...(creditor.approvalStatus !== "PENDING"
+      ...(nextBank && nextAccount && creditor.approvalStatus !== "PENDING"
         ? {
             approvalStatus: "PENDING",
             reviewedByUserId: null,

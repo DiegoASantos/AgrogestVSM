@@ -2,7 +2,7 @@ import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 import { ParcelaEntity } from "../../../../parcelas/infrastructure/persistence/entities/parcela.entity";
 
-export const PRODUCTOR_ENTITY_TYPES = ["persona", "fundo", "cooperativa"] as const;
+export const PRODUCTOR_ENTITY_TYPES = ["persona", "fundo", "asociacion", "cooperativa", "recorredor"] as const;
 export type ProductorEntityType = (typeof PRODUCTOR_ENTITY_TYPES)[number];
 
 @Entity({ name: "productores" })

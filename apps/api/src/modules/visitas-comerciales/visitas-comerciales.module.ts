@@ -4,9 +4,10 @@ import { VisitasComercialesService } from "./application/visitas-comerciales.ser
 import { VisitaComercialEntity } from "./infrastructure/persistence/entities/visita-comercial.entity";
 import { VisitasComercialesController } from "./presentation/visitas-comerciales.controller";
 import { VisitasCampoModule } from "../visitas-campo/visitas-campo.module";
+import { ProductoresModule } from "../productores/productores.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([VisitaComercialEntity]), VisitasCampoModule],
+  imports: [TypeOrmModule.forFeature([VisitaComercialEntity]), VisitasCampoModule, ProductoresModule],
   controllers: [VisitasComercialesController],
   providers: [VisitasComercialesService],
   exports: [VisitasComercialesService]

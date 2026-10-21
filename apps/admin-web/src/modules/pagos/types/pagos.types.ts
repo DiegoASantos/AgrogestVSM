@@ -150,9 +150,9 @@ export type AcreedorCosecha = {
   apellidos: string;
   tipoDocumento: "DNI" | "RUC";
   nroDocumento: string;
-  banco: "INTERBANK" | "BCP" | "CAJA_PIURA" | "BBVA";
-  nroCuenta: string;
-  estadoAprobacion: "PENDING" | "APPROVED" | "OBSERVED";
+  banco: "INTERBANK" | "BCP" | "CAJA_PIURA" | "BBVA" | null;
+  nroCuenta: string | null;
+  estadoAprobacion: "INCOMPLETE" | "PENDING" | "APPROVED" | "OBSERVED";
   origen: "PRODUCTOR" | "MOBILE" | "ADMIN_WEB";
   observacionRevision: string | null;
   creadoAt: string;
@@ -169,4 +169,6 @@ export type AcreedorCosechaPayload = Omit<
   | "observacionRevision"
   | "creadoAt"
   | "actualizadoAt"
->;
+  | "banco"
+  | "nroCuenta"
+> & { banco: NonNullable<AcreedorCosecha["banco"]>; nroCuenta: string };

@@ -12,7 +12,8 @@ export type VisitaComercial = {
   id: string;
   publicId: string;
   tipoVisita: "COMERCIAL";
-  tipoSujeto: "PERSONA" | "FUNDO" | "ASOCIATIVA" | "RECORREDOR";
+  tipoSujeto: "PERSONA" | "FUNDO" | "ASOCIATIVA" | "COOPERATIVA" | "RECORREDOR";
+  productorId: string | null;
   nombres: string;
   apellidos: string | null;
   descripcion: string;
@@ -48,6 +49,19 @@ export const visitasComercialesService = {
     return apiRequest<VisitaComercial>(`/visitas-comerciales/${publicId}`, {
       headers: createAuthHeaders(session.accessToken, session.tokenType)
     });
+  },
+  async listPhotos(session: Session, visitId: string, page: number) {
+    const response = await apiRequestEnvelope<Array<{ id: string; publicId: string; createdAt: string }>>(
+      `/comercial/visitas/${visitId}/fotos?page=${page}&limit=20`,
+      { headers: createAuthHeaders(session.accessToken, session.tokenType) }
+    );
+    return { items: response.data, total: Number(response.meta?.total ?? response.data.length) };
+  },
+  async viewPhoto(session: Session, visitId: string, photoId: string) {
+    const response = await apiDownload(`/comercial/visitas/${visitId}/fotos/${photoId}/contenido`, {
+      headers: createAuthHeaders(session.accessToken, session.tokenType)
+    });
+    return URL.createObjectURL(response.blob);
   },
   downloadPdf(session: Session, publicId: string) {
     return apiDownload(`/visitas-comerciales/${publicId}/reporte-pdf`, {

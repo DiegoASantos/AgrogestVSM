@@ -17,7 +17,7 @@ export interface Usuario {
 export interface Productor {
   id: EntityId;
   publicId: string;
-  entityType: "persona" | "fundo" | "cooperativa";
+  entityType: "persona" | "fundo" | "asociacion" | "cooperativa" | "recorredor";
   documentTypeId: number | null;
   documentNumber: string | null;
   firstName: string | null;

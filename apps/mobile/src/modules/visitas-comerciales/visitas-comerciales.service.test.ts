@@ -32,7 +32,7 @@ import { visitasComercialesService } from "./visitas-comerciales.service";
 describe("visitasComercialesService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getFirstSync.mockReturnValue({
+    const visitRow = {
       local_id: "local-1",
       public_id: "11111111-1111-4111-8111-111111111111",
       server_id: null,
@@ -44,11 +44,17 @@ describe("visitasComercialesService", () => {
       ubicacion_visita: null,
       sync_status: "pending",
       sync_error_message: null
-    });
+    };
+    getFirstSync.mockImplementation((sql: string) =>
+      sql.includes("SELECT entity_type FROM productores")
+        ? { entity_type: "persona" }
+        : visitRow
+    );
   });
 
   it("persists a visit without GPS and queues exactly one root operation", () => {
     const visit = visitasComercialesService.create({
+      productorId: "producer-1",
       tipoSujeto: "PERSONA",
       nombres: "Ana",
       apellidos: "López",
@@ -62,6 +68,7 @@ describe("visitasComercialesService", () => {
       "11111111-1111-4111-8111-111111111111",
       "user-7",
       "PERSONA",
+      "producer-1",
       "Ana",
       "López",
       "Visita",
@@ -93,6 +100,19 @@ describe("visitasComercialesService", () => {
     expect(runSync).not.toHaveBeenCalled();
   });
 
+  it("requires an owned producer for a new visit", () => {
+    expect(() => visitasComercialesService.create({
+      tipoSujeto: "FUNDO", nombres: "Fundo", descripcion: "Visita", fechaVisita: "2026-10-17"
+    })).toThrow("Selecciona un productor");
+    getFirstSync.mockImplementation((sql: string) =>
+      sql.includes("SELECT entity_type FROM productores") ? null : { local_id: "local-1" });
+    expect(() => visitasComercialesService.create({
+      productorId: "producer-2", tipoSujeto: "FUNDO", nombres: "Fundo",
+      descripcion: "Visita", fechaVisita: "2026-10-17"
+    })).toThrow("no esta disponible");
+    expect(runSync).not.toHaveBeenCalled();
+  });
+
   it("marks a synced visit without changing its public ID", () => {
     visitasComercialesService.markSynced("local-1", "42");
     expect(runSync).toHaveBeenCalledWith(
@@ -103,7 +123,7 @@ describe("visitasComercialesService", () => {
   });
 
   it("requeues a failed visit with its original local and public IDs", () => {
-    getFirstSync.mockReturnValue({ ...getFirstSync(), sync_status: "error" });
+    getFirstSync.mockReturnValue({ ...getFirstSync("SELECT * FROM visitas_comerciales"), sync_status: "error" });
     expect(visitasComercialesService.retry("local-1")).toBe(true);
     expect(deleteFailure).toHaveBeenCalledWith(
       expect.anything(),

@@ -8,7 +8,7 @@ import {
 } from "typeorm";
 import { UserEntity } from "../../../../users/infrastructure/persistence/entities/user.entity";
 
-export type TipoSujetoComercial = "PERSONA" | "FUNDO" | "ASOCIATIVA" | "RECORREDOR";
+export type TipoSujetoComercial = "PERSONA" | "FUNDO" | "ASOCIATIVA" | "COOPERATIVA" | "RECORREDOR";
 
 @Entity({ name: "visitas_comerciales" })
 @Index("idx_visitas_comerciales_fecha", ["fechaVisita", "id"], { where: "activo = true" })
@@ -33,6 +33,9 @@ export class VisitaComercialEntity {
   @ManyToOne(() => UserEntity)
   @JoinColumn({ name: "agronomo_usuario_id" })
   agronomoUsuario!: UserEntity;
+
+  @Column({ name: "productor_id", type: "bigint", nullable: true })
+  productorId!: string | null;
 
   @Column({ name: "tipo_sujeto", type: "varchar", length: 12 })
   tipoSujeto!: TipoSujetoComercial;

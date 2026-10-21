@@ -88,6 +88,34 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   return success.data;
 }
 
+export async function apiRequestBinary(path: string, context: ApiRequestContext = {}) {
+  if (!isNetworkRequestAllowed("standard")) throw new ApiOfflineModeError();
+  const url = await buildApiUrl(path);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), context.timeoutMs ?? DEFAULT_API_TIMEOUT_MS);
+  const abort = () => controller.abort();
+  context.signal?.addEventListener("abort", abort, { once: true });
+  try {
+    const request = () => fetch(url, {
+      headers: { Authorization: `Bearer ${getApiToken() ?? ""}` },
+      signal: controller.signal
+    });
+    let response = await request();
+    if (response.status === 401 && await refreshApiToken({ signal: controller.signal })) {
+      response = await request();
+    }
+    if (!response.ok) throw new ApiError("No se pudo cargar la foto.", response.status);
+    const content = new Uint8Array(await response.arrayBuffer());
+    if (content.length === 0 || content.length > 10 * 1024 * 1024) {
+      throw new ApiError("La foto supera el tamaño permitido.", 413);
+    }
+    return content;
+  } finally {
+    clearTimeout(timeout);
+    context.signal?.removeEventListener("abort", abort);
+  }
+}
+
 export async function apiRequestAllPages<T>(
   path: string,
   context: ApiRequestContext = {}

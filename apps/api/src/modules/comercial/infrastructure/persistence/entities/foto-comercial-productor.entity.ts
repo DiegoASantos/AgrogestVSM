@@ -14,6 +14,12 @@ export class FotoComercialProductorEntity {
   @Column({ name: "productor_id", type: "bigint" })
   productorId!: string;
 
+  @Column({ name: "visita_comercial_id", type: "bigint", nullable: true })
+  visitaComercialId!: string | null;
+
+  @Column({ name: "acreedor_id", type: "bigint", nullable: true })
+  acreedorId!: string | null;
+
   @ManyToOne(() => ProductorEntity, { onDelete: "RESTRICT" })
   @JoinColumn({ name: "productor_id" })
   productor?: ProductorEntity;

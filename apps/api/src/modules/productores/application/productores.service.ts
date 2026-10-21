@@ -83,7 +83,7 @@ export class ProductoresService {
     this.validateProducerInput(entityType, createProductorDto);
 
     if (
-      entityType === "persona" &&
+      (entityType === "persona" || entityType === "recorredor") &&
       createProductorDto.documentTypeId &&
       createProductorDto.documentNumber
     ) {
@@ -96,11 +96,11 @@ export class ProductoresService {
     const productor = this.productoresRepository.create({
       entityType,
       documentTypeId:
-        entityType === "persona" ? (createProductorDto.documentTypeId ?? null) : null,
+        entityType === "persona" || entityType === "recorredor" ? (createProductorDto.documentTypeId ?? null) : null,
       documentNumber:
-        entityType === "persona" ? (createProductorDto.documentNumber ?? null) : null,
+        entityType === "persona" || entityType === "recorredor" ? (createProductorDto.documentNumber ?? null) : null,
       firstName: createProductorDto.firstName ?? null,
-      lastName: entityType === "persona" ? (createProductorDto.lastName ?? null) : null,
+      lastName: entityType === "persona" || entityType === "recorredor" ? (createProductorDto.lastName ?? null) : null,
       phone: createProductorDto.phone ?? null,
       email: createProductorDto.email ?? null,
       address: createProductorDto.address ?? null,
@@ -130,11 +130,11 @@ export class ProductoresService {
 
     if (isAgronomoUser(currentUser)) {
       queryBuilder.andWhere(
-        `EXISTS (
+        `(productor.creado_por_usuario_id = :currentUserId OR EXISTS (
           SELECT 1 FROM parcelas p
           WHERE p.productor_id = productor.id
             AND p.agronomo_usuario_id = :currentUserId
-        )`,
+        ))`,
         { currentUserId: currentUser!.userId }
       );
     }
@@ -324,7 +324,7 @@ export class ProductoresService {
       lastName: nextLastName
     });
 
-    if (nextEntityType === "persona" && nextDocumentTypeId && nextDocumentNumber) {
+    if ((nextEntityType === "persona" || nextEntityType === "recorredor") && nextDocumentTypeId && nextDocumentNumber) {
       await this.ensureUniqueDocument(
         nextDocumentTypeId,
         nextDocumentNumber,
@@ -339,22 +339,22 @@ export class ProductoresService {
       ...(updateProductorDto.documentTypeId !== undefined
         ? {
             documentTypeId:
-              nextEntityType === "persona" ? updateProductorDto.documentTypeId : null
+              nextEntityType === "persona" || nextEntityType === "recorredor" ? updateProductorDto.documentTypeId : null
           }
         : {}),
       ...(updateProductorDto.documentNumber !== undefined
         ? {
             documentNumber:
-              nextEntityType === "persona" ? updateProductorDto.documentNumber : null
+              nextEntityType === "persona" || nextEntityType === "recorredor" ? updateProductorDto.documentNumber : null
           }
         : {}),
       ...(updateProductorDto.firstName !== undefined
         ? { firstName: updateProductorDto.firstName }
         : {}),
-      ...(updateProductorDto.lastName !== undefined && nextEntityType === "persona"
+      ...(updateProductorDto.lastName !== undefined && (nextEntityType === "persona" || nextEntityType === "recorredor")
         ? { lastName: updateProductorDto.lastName }
         : {}),
-      ...(nextEntityType !== "persona"
+      ...(nextEntityType !== "persona" && nextEntityType !== "recorredor"
         ? { documentTypeId: null, documentNumber: null, lastName: null }
         : {}),
       ...(updateProductorDto.phone !== undefined
@@ -497,7 +497,7 @@ export class ProductoresService {
       throw new BadRequestException("El nombre del productor es obligatorio.");
     }
 
-    if (entityType === "persona") {
+    if (entityType === "persona" || entityType === "recorredor") {
       if (!input.lastName) {
         throw new BadRequestException("Los apellidos son obligatorios para personas.");
       }

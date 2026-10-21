@@ -188,8 +188,23 @@ export function NewVisitaSelectorScreen() {
             size="small"
             icon="person-add-outline"
           />
+          <AppButton
+            label="Crear parcela"
+            onPress={() => {
+              if (productorId) {
+                router.push({
+                  pathname: "/productores/agregar-parcela",
+                  params: { productorId }
+                });
+              }
+            }}
+            disabled={!productorId}
+            variant="outline"
+            size="small"
+            icon="add-circle-outline"
+          />
           <AppText variant="caption" style={styles.accionNuevoProductorTexto}>
-            Si el productor no aparece en la lista, crealo primero.
+            Busca al productor antes de crear otro. Selecciónalo para agregarle una parcela.
           </AppText>
         </View>
 
@@ -406,10 +421,17 @@ export function NewVisitaSelectorScreen() {
     const parcelaCount = (await parcelasService.getByProductorId(value)).length;
 
     if (parcelaCount === 0) {
-      clearSelection();
+      setProductorId(value);
+      setSectorId("");
+      setSubsectorId("");
+      setParcelaId("");
+      setSectores([]);
+      setSubsectores([]);
+      setParcelas([]);
+      setOpenCatalog(null);
       Alert.alert(
         "Productor sin parcela",
-        "Este productor no tiene una parcela asociada. Desea agregar una ahora?",
+        "Este productor no tiene una parcela asociada. Puedes crearla ahora o usar el botón Crear parcela.",
         [
           { text: "Cancelar", style: "cancel" },
           {

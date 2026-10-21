@@ -32,6 +32,8 @@ import type {
 const PRODUCTOR_ENTITY_LABELS: Record<ProductorEntityType, string> = {
   persona: "Persona",
   fundo: "Fundo",
+  asociacion: "Asociación",
+  recorredor: "Recorredor",
   cooperativa: "Cooperativa"
 };
 const PAGE_SIZE = 10;

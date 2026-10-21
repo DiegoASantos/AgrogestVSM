@@ -1,6 +1,6 @@
 ---
 title: Fotos de visitas comerciales y tipos de productor
-status: draft
+status: cancelled
 numero: 114
 area: mobile, api, admin-web, database, sync, seguridad
 created: 2026-10-19
@@ -11,6 +11,9 @@ implemented_in:
 # Spec 114: Fotos de visitas comerciales y tipos de productor
 
 ## Contexto
+
+Este borrador fue reemplazado por la [spec 118](118-visita-comercial-productores-fotos-acreedores.md),
+aprobada para integrar los nuevos requisitos de productores y acreedores.
 
 El usuario solicita adjuntar imágenes dentro del formulario de visita comercial
 que contiene tipo de productor, nombre y descripción, con una experiencia similar

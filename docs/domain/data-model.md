@@ -23,11 +23,11 @@ Una parcela pertenece a un productor y a un sector. Puede tener dos puntos
 GeoJSON independientes: `referencePoint` identifica el acceso principal al
 predio y `parcelReferencePoint` identifica la ubicación interna de la parcela.
 Ambos son opcionales, pueden coincidir y no sustituyen la geometría
-MultiPolygon. Un productor puede representar una
-persona, un fundo o una cooperativa. Las personas requieren `nombres` y
-`apellidos`; el tipo y numero de documento son opcionales y deben registrarse
-juntos cuando se informan. Fundos y cooperativas usan `nombres` como nombre de
-la entidad y no requieren documento.
+MultiPolygon. Un productor puede representar una persona, un fundo, una
+asociacion, una cooperativa o un recorredor. Personas y recorredores requieren
+`nombres` y `apellidos`; el tipo y numero de documento son opcionales y deben
+registrarse juntos cuando se informan. Fundos, asociaciones y cooperativas usan
+`nombres` como nombre de la entidad y no requieren documento.
 
 En el alta mobile de una persona se solicitan ambos apellidos en un solo campo
 obligatorio, con al menos dos partes separadas por espacios. Se normaliza cada
@@ -74,8 +74,9 @@ se atribuyen al productor actual de la parcela, ya que no hay snapshot de esa
 relacion.
 
 Cada parcela puede asignarse a un unico agronomo. Un usuario `AGRONOMO` recibe
-solo los productores con alguna parcela asignada a el y solo sus parcelas,
-incluidos los registros inactivos; los listados ordenan primero los activos.
+los productores con alguna parcela asignada a el y los que creo personalmente,
+aun si todavia no tienen parcela; solo recibe sus parcelas asignadas. Los
+listados ordenan primero los registros activos.
 Una visita nueva exige que la parcela este activa y asignada al agronomo
 autenticado. `ADMIN` conserva la visibilidad administrativa global.
 
@@ -107,11 +108,13 @@ Restricciones territoriales relevantes:
 ## Comercial
 
 Un productor puede tener varios acreedores de cosecha. Cada perfil identifica
-al acreedor por nombres, apellidos, DNI o RUC, banco y cuenta o CCI; la
-combinacion exacta no se duplica para ese productor. Los perfiles son
+al acreedor por nombres, apellidos, DNI o RUC. Banco y cuenta o CCI pueden
+completarse despues de guardar la identidad y sus fotos; mientras falten, el
+perfil queda `INCOMPLETE`. La combinacion exacta no se duplica para ese
+productor. Los perfiles son
 consultables por ADMIN o AGRONOMO que mantenga acceso horizontal al productor.
 
-Cada perfil tiene `PENDING`, `APPROVED` u `OBSERVED` y origen de captura inicial
+Cada perfil tiene `INCOMPLETE`, `PENDING`, `APPROVED` u `OBSERVED` y origen de captura inicial
 `PRODUCTOR`, `MOBILE` o `ADMIN_WEB`. Un perfil nuevo queda pendiente. `ADMIN` o `ANALISTA`
 revisa los datos completos, aprueba o registra una observación; cada decisión
 conserva revisor, fecha y nota en `revisiones_acreedor_cosecha`. Solo un perfil
@@ -130,10 +133,14 @@ usuario creador y auditoria para idempotencia offline. No persiste un total
 calculado. `pagos_cosecha` se conserva como contrato legado mientras las
 instalaciones anteriores terminan de sincronizar.
 
+Completar banco y cuenta en mobile o admin web mueve un perfil `INCOMPLETE` a
+`PENDING` para revision. Si el productor persona es tambien acreedor, la
+captura de su identidad exige documento y actualiza su ficha de productor.
+
 Mobile mantiene perfiles y registros por `owner_user_id`, con estado de
 sincronizacion, identificadores locales/remotos y cache visible de la sesion.
-Mobile conserva el formulario de acreedores como captura alternativa del
-agrónomo; la edición de perfiles se realiza desde la web pública del productor.
+Mobile permite capturar la identidad y fotos del acreedor, y completar banco y
+cuenta mas tarde. La web publica del productor conserva su propia edicion.
 
 El mantenimiento administrativo también permite a `ADMIN` y `ANALISTA` crear,
 editar y consultar acreedores de cosecha. Los creados desde esa pantalla tienen
@@ -724,11 +731,17 @@ Su creación no asigna usuarios. Detalles: [spec 115](../specs/115-precios-seman
 
 ## Fotos comerciales
 
-`fotos_comerciales_productor` relaciona una o varias fotos con un productor,
-sin FK a acreedores. Guarda autor, fecha, UUID idempotente, nombre opaco del
+`fotos_comerciales_productor` relaciona una o varias fotos con un productor;
+puede vincularlas a una visita o a un acreedor. Guarda autor, fecha, UUID
+idempotente y nombre opaco del
 archivo, hashes y metadatos de cifrado. Los bytes cifrados residen en el volumen
 privado de API; la tabla `fotos_comerciales_accesos` registra cada consulta de
 contenido con usuario y fecha. La baja lógica del productor conserva las fotos.
+
+Una visita comercial nueva referencia al productor, aunque las visitas
+anteriores conservan `productor_id` nulo. La evidencia de visita es opcional.
+Las fotos comerciales nuevas pueden asociarse a una visita o a un acreedor;
+las anteriores conservan esos vinculos nulos.
 
 ## Fuente estructural
 

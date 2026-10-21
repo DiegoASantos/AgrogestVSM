@@ -18,6 +18,7 @@ export const TIPOS_SUJETO_COMERCIAL = [
   "PERSONA",
   "FUNDO",
   "ASOCIATIVA",
+  "COOPERATIVA",
   "RECORREDOR"
 ] as const;
 
@@ -25,6 +26,12 @@ export class CreateVisitaComercialDto {
   @ApiProperty({ format: "uuid" })
   @IsUUID("4")
   publicId!: string;
+
+  @ApiPropertyOptional({ description: "ID del productor vinculado; opcional para clientes anteriores." })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[1-9]\d*$/)
+  productorId?: string;
 
   @ApiProperty({ enum: TIPOS_SUJETO_COMERCIAL })
   @IsIn(TIPOS_SUJETO_COMERCIAL)

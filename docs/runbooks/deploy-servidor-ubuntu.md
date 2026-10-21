@@ -2,7 +2,7 @@
 title: Despliegue en servidor físico Ubuntu
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-21
 ---
 
 # Despliegue en servidor físico Ubuntu
@@ -54,6 +54,18 @@ con datos sintéticos antes de distribuirlo. El tráfico público continúa por
 HTTP según la decisión registrada en R-048.
 
 ## Despliegue
+
+Para la spec 118, aplicar primero las migraciones PostgreSQL 076 a 078 y
+publicar la API antes de distribuir mobile o actualizar el panel. Confirmar
+que una visita anterior sin `productor_id` sigue consultable, que una visita
+nueva admite `COOPERATIVA` y que un acreedor `INCOMPLETE` no se puede aprobar
+ni asignar a pagos. Verificar conjuntamente el respaldo de la base, el volumen
+cifrado de fotos comerciales y la clave custodiada antes de habilitar fotos de
+visita o acreedor. Mobile aplica SQLite 79 a 81 al abrir; comprobar una base
+existente con outbox pendiente y una instalaciÃ³n vacÃ­a. Ante reversiÃ³n del
+cliente, conservar columnas, imÃ¡genes y operaciones pendientes y corregir
+hacia adelante. Probar cÃ¡mara, galerÃ­a y reconexiÃ³n en dispositivos fÃ­sicos
+antes de distribuir la build.
 
 Para habilitar la precarga de recepciones en Pagos, configurar
 `RECEPCION_API_URL` y `SYSTRACE_API_KEY` solo en el entorno privado de la API.

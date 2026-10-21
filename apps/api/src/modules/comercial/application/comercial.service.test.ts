@@ -24,6 +24,15 @@ const dto = {
   accountNumber: "1912345678901234567890"
 };
 
+const identityDto = {
+  publicId: dto.publicId,
+  productorId: dto.productorId,
+  creditorFirstName: dto.creditorFirstName,
+  creditorLastName: dto.creditorLastName,
+  creditorDocumentType: dto.creditorDocumentType,
+  creditorDocumentNumber: dto.creditorDocumentNumber
+};
+
 function buildPayment(overrides: Partial<PagoCosechaEntity> = {}): PagoCosechaEntity {
   return {
     id: "9",
@@ -208,6 +217,36 @@ describe("ComercialService", () => {
     const { acreedores, service } = buildService();
     await service.createCreditor(dto, user);
     expect(acreedores.create).toHaveBeenCalledWith(expect.objectContaining({ approvalStatus: "PENDING", source: "MOBILE" }));
+  });
+
+  it("creates identity-only creditors without bank details", async () => {
+    const { acreedores, service } = buildService();
+    await service.createCreditorIdentity(identityDto, user);
+    expect(acreedores.create).toHaveBeenCalledWith(expect.objectContaining({
+      approvalStatus: "INCOMPLETE", bank: null, accountNumber: null,
+      createdByUserId: user.userId
+    }));
+  });
+
+  it("rejects an identity replay with changed document", async () => {
+    const { acreedores, service } = buildService();
+    acreedores.findOne.mockResolvedValue(buildCreditor({ approvalStatus: "INCOMPLETE" }));
+    await expect(service.createCreditorIdentity({
+      ...identityDto, creditorDocumentNumber: "87654321"
+    }, user)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("completes an incomplete creditor and leaves it pending review", async () => {
+    const { acreedores, productores, service } = buildService();
+    acreedores.findOne.mockResolvedValue(buildCreditor({
+      approvalStatus: "INCOMPLETE", bank: null, accountNumber: null
+    }));
+    const result = await service.completeCreditor("10", "BCP", "123456789", user);
+    expect(productores.findById).toHaveBeenCalledWith("1", user);
+    expect(acreedores.save).toHaveBeenCalledWith(expect.objectContaining({
+      approvalStatus: "PENDING", bank: "BCP", accountNumber: "123456789"
+    }));
+    expect(result.data.approvalStatus).toBe("PENDING");
   });
 
   it("rejects a new harvest when the creditor is pending", async () => {

@@ -18,7 +18,7 @@ import {
 
 export { PAGO_COSECHA_BANKS, PAGO_COSECHA_DOCUMENT_TYPES };
 export type { PagoCosechaBank, PagoCosechaDocumentType };
-export type CreditorApprovalStatus = "PENDING" | "APPROVED" | "OBSERVED";
+export type CreditorApprovalStatus = "INCOMPLETE" | "PENDING" | "APPROVED" | "OBSERVED";
 export type CreditorSource = "PRODUCTOR" | "MOBILE" | "ADMIN_WEB";
 
 @Entity({ name: "acreedores_cosecha" })
@@ -61,10 +61,10 @@ export class AcreedorCosechaEntity {
   creditorDocumentNumber!: string;
 
   @Column({ name: "banco", type: "varchar", length: 20 })
-  bank!: PagoCosechaBank;
+  bank!: PagoCosechaBank | null;
 
   @Column({ name: "nro_cuenta", type: "varchar", length: 30 })
-  accountNumber!: string;
+  accountNumber!: string | null;
 
   @Column({ name: "creado_por_usuario_id", type: "bigint", nullable: true })
   createdByUserId!: string | null;

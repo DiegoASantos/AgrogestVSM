@@ -2,7 +2,7 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-19
+last_reviewed: 2026-10-21
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
@@ -776,16 +776,19 @@ privado de la app. El handler espera el `server_id` del productor, descifra a un
 temporal de caché, carga una foto por petición y borra el temporal. El UUID de
 foto permanece estable ante reintentos. Solo al confirmar el mismo UUID remoto
 se marca `synced` y se retira el archivo local cifrado. Los pendientes de otro
-usuario permanecen aislados al cambiar de sesión. Las fotos no crean acreedores
-ni son un requisito para registrar datos comerciales.
+usuario permanecen aislados al cambiar de sesión. Desde la spec 118, la misma
+cola distingue fotos generales históricas, evidencia de visita comercial y
+fotos de acreedor mediante referencias locales opcionales. Una foto de visita
+espera al productor y a la visita; una foto de acreedor espera al productor y
+al perfil de acreedor. El UUID y la verificación de propietario se conservan.
 
 ## Acreedores y registros de cosecha
 
 Comercial separa el perfil `acreedores_cosecha` del hijo
 `registros_cosecha`. Ambos se guardan con su operacion `create` en la misma
-transaccion SQLite. El selector lista exclusivamente productores del catalogo
-de la sesion que tienen al menos una parcela visible; una parcela inactiva
-permanece valida porque sigue asignada.
+transaccion SQLite. El selector lista productores visibles del catálogo de la
+sesión, incluidos los creados por el usuario sin parcela; una parcela inactiva
+permanece válida porque sigue asignada.
 
 Los acreedores se descargan al elegir el productor, se limitan por
 `owner_user_id` y `catalog_visible`, y nunca sustituyen una fila pendiente. El
@@ -804,6 +807,26 @@ cosecha exigen `APPROVED`; la API repite la validación. Si una revisión poster
 bloquea un perfil, un registro anterior conserva su instantánea y una operación
 pendiente de cosecha puede quedar en `error` para reintento tras aprobación.
 La emisión del código del productor es solo en línea y no entra en la outbox.
+
+SQLite 81 permite el estado `INCOMPLETE`: nombres, apellidos y documento están
+presentes, pero banco y cuenta son nulos. La foto del acreedor se vincula a ese
+perfil. Completar ambos campos crea una operación `update`, que la API confirma
+antes de pasar a `PENDING`; el selector de cosecha continúa exigiendo
+`APPROVED`. Si el acreedor es el productor persona y falta su documento, el
+guardado local actualiza primero `productores` y encola su sincronización antes
+de la del acreedor. Las filas pendientes no se sustituyen al recargar catálogo.
+
+## Visitas comerciales vinculadas
+
+SQLite 79 amplía los tipos y agrega `productor_id` a la visita comercial sin
+alterar visitas anteriores. Un productor creado en este formulario y la visita
+se guardan en una transacción local con sus operaciones outbox. La visita espera
+el ID remoto del productor. SQLite 80 agrega el vínculo de las fotos a la visita;
+su handler espera la confirmación remota del productor y de la visita. La foto
+se normaliza y cifra con el mecanismo comercial existente. Guardar sin fotos
+continúa siendo válido.
+
+## Compatibilidad de pagos de cosecha
 
 `pagos_cosecha` y su handler permanecen como compatibilidad para operaciones
 creadas con la primera version. No se modifican sus filas ni entradas de outbox;
