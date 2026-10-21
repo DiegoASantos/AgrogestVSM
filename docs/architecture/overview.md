@@ -2,7 +2,7 @@
 title: Arquitectura general
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-19
+last_reviewed: 2026-10-21
 related_code:
   - apps/api
   - apps/mobile
@@ -147,6 +147,10 @@ su porcentaje de cobertura de la parcela o avance de labor. Conserva el orden
 de captura y usa la etapa escalar como referencia para visitas históricas sin
 filas de distribución. Los agregados siguen calculándose directamente en SQL,
 sin sumar las filas de etapas, para contar cada visita una sola vez.
+La tabla administrativa de visitas técnicas permite descargar por fila un Excel
+`visitas pbi.xlsx`: una hoja por productor con los bloques de campo y receta de
+esa visita, y el bloque de cosecha/transporte vacío. La API restringe la
+descarga a la visita activa identificada y mantiene la autenticación global.
 
 El reporte de estimaciones genera una serie continua de semanas completas para
 comparar las metas activas de `estimaciones_visitas` con las visitas activas

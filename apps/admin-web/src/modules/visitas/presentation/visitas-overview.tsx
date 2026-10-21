@@ -56,6 +56,7 @@ export function VisitasOverview() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportingPbiVisitId, setExportingPbiVisitId] = useState<string | null>(null);
   const [tipoVisita, setTipoVisita] = useState<TipoVisitaFiltro>("GENERAL");
 
   useEffect(() => {
@@ -349,6 +350,8 @@ export function VisitasOverview() {
             getMapHref={(visita) => buildAdminMapHref({ visitaId: visita.id })}
             items={items}
             detailQuery={searchQuery}
+            onDownloadPbi={(visita) => void handleExportPbiExcel(visita.id)}
+            exportingPbiVisitId={exportingPbiVisitId}
             parcelaContexts={parcelaContexts}
             pagination={{
               loading: isLoadingList,
@@ -443,6 +446,30 @@ export function VisitasOverview() {
       setExportError(apiError.message);
     } finally {
       setIsExporting(false);
+    }
+  }
+
+  async function handleExportPbiExcel(visitId: string) {
+    if (!session || exportingPbiVisitId) {
+      return;
+    }
+
+    try {
+      setExportingPbiVisitId(visitId);
+      setExportError(null);
+      const report = await visitasService.exportPbiExcelReport(session, visitId);
+      downloadBlob(report.blob, report.fileName ?? "visitas pbi.xlsx");
+    } catch (error) {
+      const apiError = toApiError(error);
+
+      if (apiError.statusCode === 401) {
+        logout();
+        return;
+      }
+
+      setExportError(apiError.message);
+    } finally {
+      setExportingPbiVisitId(null);
     }
   }
 

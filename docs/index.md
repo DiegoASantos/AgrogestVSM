@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-19
+last_reviewed: 2026-10-21
 ---
 
 # Documentación de AgroGest VSM
@@ -45,6 +45,8 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Plantilla de ADR](adr/TEMPLATE.md)
 
 ## Especificaciones
+
+- [Spec 116: Reporte Excel visitas pbi por visita](specs/116-reporte-visitas-pbi-individual.md)
 
 - [Spec 114: Fotos de visitas comerciales y tipos de productor](specs/114-fotos-visitas-comerciales-y-tipos-productor.md)
 

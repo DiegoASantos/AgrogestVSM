@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Download } from "lucide-react";
 
 import {
   DataTable,
@@ -23,6 +24,8 @@ type VisitasTableProps = {
   getMapHref?: (visita: VisitaCampo) => string;
   detailQuery?: string;
   pagination?: DataTablePagination;
+  onDownloadPbi?: (visita: VisitaCampo) => void;
+  exportingPbiVisitId?: string | null;
 };
 
 export function VisitasTable({
@@ -37,7 +40,9 @@ export function VisitasTable({
   showProducerAndSector = false,
   getMapHref,
   detailQuery = "",
-  pagination
+  pagination,
+  onDownloadPbi,
+  exportingPbiVisitId = null
 }: VisitasTableProps) {
   const columns: DataTableColumn<VisitaCampo>[] = [
     ...(showProducerAndSector
@@ -170,6 +175,18 @@ export function VisitasTable({
           >
             Ver detalle
           </Link>
+          {onDownloadPbi ? (
+            <button
+              className="ui-button ui-button--ghost ui-button--compact"
+              disabled={Boolean(exportingPbiVisitId)}
+              onClick={() => onDownloadPbi(visita)}
+              title="Descargar reporte visitas pbi de esta visita"
+              type="button"
+            >
+              <Download size={14} />
+              {exportingPbiVisitId === visita.id ? "Generando..." : "Visitas PBI"}
+            </button>
+          ) : null}
           {getMapHref ? (
             <Link
               className="ui-button ui-button--ghost ui-button--compact"

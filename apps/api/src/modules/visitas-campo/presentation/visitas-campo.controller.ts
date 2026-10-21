@@ -160,6 +160,24 @@ export class VisitasCampoController {
       .send(report.content);
   }
 
+  @Get(":id/reporte-pbi-excel")
+  @ApiOperation({ summary: "Exporta una visita de campo al formato Excel visitas pbi." })
+  @ApiParam({ name: "id", type: String, example: "1" })
+  @ApiProduces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+  @ApiOkResponse({ description: "Archivo Excel individual de la visita." })
+  @ApiNotFoundResponse({ description: "La visita activa no existe." })
+  async exportVisitaPbiExcel(
+    @Param("id", ParseEntityIdPipe) id: string,
+    @Res() reply: FastifyReply
+  ) {
+    const report = await this.visitasCampoService.exportPbiExcelReport(id);
+
+    return reply
+      .header("Content-Disposition", `attachment; filename="${report.fileName}"`)
+      .type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .send(report.content);
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Obtiene una visita de campo por id." })
   @ApiParam({

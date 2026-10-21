@@ -37,6 +37,7 @@ import { VisitaEvaluacionEntity } from "../../visita-evaluaciones/infrastructure
 import { VisitaLaborCulturalEntity } from "../../visita-labores-culturales/infrastructure/persistence/entities/visita-labor-cultural.entity";
 import { VisitaObservacionSanitariaEntity } from "../../visita-observaciones-sanitarias/infrastructure/persistence/entities/visita-observacion-sanitaria.entity";
 import { VisitaRiegoEntity } from "../../visita-riegos/infrastructure/persistence/entities/visita-riego.entity";
+import { VisitaRecetaEntity } from "../../visita-recetas/infrastructure/persistence/entities/visita-receta.entity";
 import { CreateVisitaCampoDto } from "../presentation/dto/create-visita-campo.dto";
 import { ExportVisitasExcelQueryDto } from "../presentation/dto/export-visitas-excel-query.dto";
 import { FindHistorialVisitasProductorQueryDto } from "../presentation/dto/find-historial-visitas-productor-query.dto";
@@ -113,7 +114,9 @@ export class VisitasCampoService {
     @InjectRepository(VisitaLaborCulturalEntity)
     private readonly visitaLaboresRepository: Repository<VisitaLaborCulturalEntity>,
     @InjectRepository(VisitaCalificacionEntity)
-    private readonly visitaCalificacionesRepository: Repository<VisitaCalificacionEntity>
+    private readonly visitaCalificacionesRepository: Repository<VisitaCalificacionEntity>,
+    @InjectRepository(VisitaRecetaEntity)
+    private readonly visitaRecetasRepository: Repository<VisitaRecetaEntity>
   ) {}
 
   async create(
@@ -616,6 +619,141 @@ export class VisitasCampoService {
     return {
       content: Buffer.from(await workbook.xlsx.writeBuffer()),
       fileName: `reporte-visitas_${query.fecha_desde}_${query.fecha_hasta}.xlsx`
+    };
+  }
+
+  async exportPbiExcelReport(id: string): Promise<VisitasExcelReport> {
+    const visita = await this.visitasCampoRepository.findOne({
+      where: { id, isActive: true },
+      relations: {
+        etapaFenologica: true,
+        phenologicalStages: { stage: true, subStage: true },
+        evaluaciones: { nutrient: true },
+        observacionesSanitarias: {
+          plagaEnfermedad: true
+        },
+        riego: true,
+        labores: { laborCultural: true },
+        parcela: { productor: true }
+      }
+    });
+
+    if (!visita) {
+      throw new NotFoundException("Visita de campo not found.");
+    }
+
+    const receta = await this.visitaRecetasRepository.findOne({
+      where: { visitaId: id },
+      relations: [
+        "mezclas",
+        "mezclas.productos",
+        "fitosanidad",
+        "fertilizacion",
+        "riego",
+        "labores"
+      ]
+    });
+    const productor = visita.parcela?.productor;
+    const productorLabel = buildProductorLabel(productor);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "AgroGest VSM";
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet(sanitizeWorksheetName(productorLabel));
+    worksheet.properties.defaultRowHeight = 22;
+    worksheet.mergeCells("A1:Z1");
+    worksheet.getCell("A1").value = "Reporte visitas pbi";
+    worksheet.getCell("A1").font = { bold: true, size: 15, color: { argb: "FFFFFFFF" } };
+    worksheet.getCell("A1").fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF166534" }
+    };
+    worksheet.getCell("A1").alignment = { horizontal: "center", vertical: "middle" };
+    worksheet.getRow(1).height = 28;
+    worksheet.mergeCells("F2:L2");
+    worksheet.mergeCells("M2:W2");
+    worksheet.getCell("F2").value = "PLAGA/ENFERMEDAD";
+    worksheet.getCell("M2").value = "RECOMENDACIONES";
+    for (const address of ["F2", "M2"]) {
+      worksheet.getCell(address).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      worksheet.getCell(address).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF2F6B4F" }
+      };
+      worksheet.getCell(address).alignment = { horizontal: "center", vertical: "middle" };
+    }
+
+    const visitHeaders = [
+      "Semana", "Fecha", "Etapa Fenológica", "Evaluación Campo", "% Floración",
+      "Estado", "Hoja de visita", "Trips", "Oídium", "Antracnosis", "Lasiodiplodia",
+      "Queresesas", "Gusano-Chinches", "Mosca de la Fruta", "Otros (especificar)",
+      "Riego", "Agoste", "Horqueteo", "Enzunchado", "Deshierbo",
+      "Recojo de Frutos Caídos", "Trampas - Mosca de la fruta", "Fertilización - Suelo",
+      "Aplicación Nutricional", "Aplicación Fitosanitaria", "Comentario"
+    ];
+    addPbiHeaderRow(worksheet, 3, visitHeaders);
+
+    const visitRow = buildPbiVisitRow(visita, receta);
+    visitRow.forEach((value, index) => {
+      worksheet.getCell(4, index + 1).value = value;
+      if (typeof value === "string") {
+        worksheet.getCell(4, index + 1).value = toWorksheetText(value);
+      }
+      worksheet.getCell(4, index + 1).alignment = {
+        vertical: "middle",
+        horizontal: index === 1 || index === 5 ? "center" : "left",
+        wrapText: true
+      };
+    });
+    worksheet.getCell("B4").numFmt = "dd/mm/yyyy";
+    worksheet.getCell("A12").value = "Total";
+    worksheet.getRow(12).font = { bold: true };
+    worksheet.getRow(12).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFE2E8F0" }
+    };
+
+    const recipeHeaders = [
+      "Semana", "Fecha", "Producto", "Ingrediente", "Dosis", "Motivo", "Frecuencia", "Comentario"
+    ];
+    addPbiHeaderRow(worksheet, 14, recipeHeaders);
+    const recipeRows = buildPbiRecipeRows(visita, receta);
+    recipeRows.forEach((row, rowIndex) => {
+      row.forEach((value, columnIndex) => {
+        worksheet.getCell(15 + rowIndex, 1 + columnIndex).value =
+          typeof value === "string" ? toWorksheetText(value) : value;
+        worksheet.getCell(15 + rowIndex, 1 + columnIndex).alignment = {
+          vertical: "middle",
+          wrapText: true
+        };
+      });
+      worksheet.getCell(15 + rowIndex, 2).numFmt = "dd/mm/yyyy";
+    });
+
+    addPbiHeaderRow(worksheet, 57, [
+      "Semana", "Fecha", "PLACA DEL CARRO", "CHOFER", "JEFE DE CUADRILLA",
+      "IMEI", "N° GPS", "JABAS PROYECTADAS", "JABAS COSECHADAS"
+    ]);
+    for (let row = 58; row <= 66; row += 1) {
+      worksheet.getRow(row).height = 22;
+    }
+    worksheet.getColumn(1).width = 12;
+    worksheet.getColumn(2).width = 14;
+    for (let column = 3; column <= 26; column += 1) {
+      worksheet.getColumn(column).width = column === 4 || column === 26 ? 32 : 22;
+    }
+    for (let column = 3; column <= 9; column += 1) {
+      worksheet.getColumn(column).width = column === 4 || column === 8 ? 30 : 22;
+    }
+    worksheet.views = [{ state: "frozen", ySplit: 3 }];
+    worksheet.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1 };
+
+    return {
+      content: Buffer.from(await workbook.xlsx.writeBuffer()),
+      fileName: "visitas pbi.xlsx"
     };
   }
 
@@ -1810,6 +1948,239 @@ function mergeAndCenterSingleDiagnosis(
 
 function toWorksheetText(value: string) {
   return /^[=+\-@]/u.test(value) ? `'${value}` : value;
+}
+
+function addPbiHeaderRow(worksheet: ExcelJS.Worksheet, rowNumber: number, headers: string[]) {
+  const row = worksheet.getRow(rowNumber);
+  row.values = headers;
+  row.height = 36;
+  row.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF2F6B4F" }
+    };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FFFFFFFF" } },
+      left: { style: "thin", color: { argb: "FFFFFFFF" } },
+      bottom: { style: "thin", color: { argb: "FFFFFFFF" } },
+      right: { style: "thin", color: { argb: "FFFFFFFF" } }
+    };
+  });
+}
+
+function sanitizeWorksheetName(value: string) {
+  const safeName = value
+    .replaceAll("\\", " ")
+    .replaceAll("/", " ")
+    .replaceAll("*", " ")
+    .replaceAll("?", " ")
+    .replaceAll(":", " ")
+    .replaceAll("[", " ")
+    .replaceAll("]", " ")
+    .replace(/^'+|'+$/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(0, 31);
+  return safeName || "Productor";
+}
+
+function buildPbiVisitRow(
+  visita: VisitaCampoEntity,
+  receta: VisitaRecetaEntity | null
+): Array<string | number | Date | null> {
+  const stages = [...(visita.phenologicalStages ?? [])]
+    .sort((left, right) => left.order - right.order)
+    .map((entry) => {
+      const stageName = entry.stage?.name ?? "";
+      const subStageName = entry.subStage?.name;
+      return [stageName, subStageName].filter(Boolean).join(" - ");
+    })
+    .filter(Boolean);
+  if (stages.length === 0 && visita.etapaFenologica?.name) {
+    stages.push(visita.etapaFenologica.name);
+  }
+
+  const evaluations = (visita.evaluaciones ?? []).map((evaluation) => {
+    const nutrientName = evaluation.nutrient?.name;
+    const description = nutrientName ?? evaluation.description;
+    const percent = evaluation.percentage === null ? "" : ` (${evaluation.percentage}%)`;
+    return `${description}${percent}`;
+  });
+  const flowering = (visita.evaluaciones ?? []).find((evaluation) =>
+    normalizePbiText(evaluation.description).includes("floracion")
+  );
+  const row: Array<string | number | Date | null> = [
+    getIsoWeekNumber(visita.fechaVisita),
+    dateOnlyToExcelDate(visita.fechaVisita),
+    stages.join("; "),
+    evaluations.join("; "),
+    flowering?.percentage === null || flowering?.percentage === undefined
+      ? null
+      : Number(flowering.percentage) / 100,
+    null,
+    visita.nroFicha?.trim() || buildFriendlyVisitNumber(visita.id),
+    ...Array.from({ length: 8 }, () => null),
+    ...Array.from({ length: 10 }, () => null),
+    visita.observacionGeneral
+  ];
+
+  for (const observation of visita.observacionesSanitarias ?? []) {
+    const name = observation.plagaEnfermedad?.name ?? "";
+    const column = pbiDiagnosisColumn(name);
+    if (column === null) {
+      continue;
+    }
+    const value = observation.incidencePercentage === null
+      ? name
+      : `${name} (${observation.incidencePercentage}%)`;
+    row[column] = appendPbiValue(row[column], value);
+  }
+
+  const recipeActions: Array<{ column: number; value: string | null | undefined }> = [];
+  if (receta?.riego?.tipoRecomendacion) {
+    recipeActions.push({ column: 15, value: receta.riego.tipoRecomendacion });
+  }
+  for (const labor of receta?.labores ?? []) {
+    const laborName = labor.labor ?? "";
+    const column = pbiLaborColumn(laborName);
+    if (column !== null) {
+      recipeActions.push({ column, value: laborName });
+    }
+  }
+  for (const fertilizer of receta?.fertilizacion ?? []) {
+    const column = normalizePbiText(fertilizer.viaAplicacion) === "edafica" ? 22 : 23;
+    recipeActions.push({
+      column,
+      value: fertilizer.fertilizanteNombre ?? fertilizer.nutrienteNombre
+    });
+  }
+  const phytosanitaryProducts = (receta?.mezclas ?? []).flatMap((mixture) => mixture.productos ?? []);
+  const products = phytosanitaryProducts.length > 0
+    ? phytosanitaryProducts
+    : receta?.fitosanidad ?? [];
+  for (const product of products) {
+    recipeActions.push({
+      column: 24,
+      value: product.marcaProductoNombre ?? product.ingredienteActivoNombre ?? product.objetivoNombre
+    });
+  }
+  for (const action of recipeActions) {
+    if (action.value) {
+      row[action.column] = appendPbiValue(row[action.column], action.value);
+    }
+  }
+
+  return row;
+}
+
+function buildPbiRecipeRows(visita: VisitaCampoEntity, receta: VisitaRecetaEntity | null) {
+  const week = getIsoWeekNumber(visita.fechaVisita);
+  const date = dateOnlyToExcelDate(visita.fechaVisita);
+  const rows: Array<Array<string | number | Date | null>> = [];
+  for (const mixture of [...(receta?.mezclas ?? [])].sort((left, right) => left.numero - right.numero)) {
+    for (const product of mixture.productos ?? []) {
+      rows.push([
+        week,
+        date,
+        product.marcaProductoNombre ?? product.ingredienteActivoNombre ?? "",
+        product.ingredienteActivoNombre ?? product.objetivoNombre ?? "",
+        formatPbiDose(product.dosisProducto, product.unidadDosis, mixture.volumenAplicacion),
+        [product.objetivoNombre, product.enfoque].filter(Boolean).join(" - "),
+        mixture.frecuenciaDosis ?? "",
+        ""
+      ]);
+    }
+  }
+  if ((receta?.mezclas ?? []).every((mixture) => (mixture.productos ?? []).length === 0)) {
+    for (const product of receta?.fitosanidad ?? []) {
+      rows.push([
+        week,
+        date,
+        product.marcaProductoNombre ?? product.ingredienteActivoNombre ?? "",
+        product.ingredienteActivoNombre ?? product.objetivoNombre ?? "",
+        formatPbiDose(product.dosisProducto, product.unidadDosis, product.volumenAplicacion),
+        [product.objetivoNombre, product.enfoque].filter(Boolean).join(" - "),
+        "",
+        ""
+      ]);
+    }
+  }
+  for (const fertilizer of receta?.fertilizacion ?? []) {
+    rows.push([
+      week,
+      date,
+      fertilizer.fertilizanteNombre ?? "",
+      fertilizer.nutrienteNombre ?? "",
+      formatPbiDose(fertilizer.dosis, fertilizer.unidadDosis, fertilizer.volumenAplicacion),
+      fertilizer.viaAplicacion,
+      "",
+      ""
+    ]);
+  }
+  return rows;
+}
+
+function formatPbiDose(
+  dose: number | null | undefined,
+  unit: string | null | undefined,
+  volume: number | null | undefined
+) {
+  if (dose === null || dose === undefined) {
+    return "";
+  }
+  const denominator = volume ? ` / ${volume} L` : "";
+  return `${dose}${unit ? ` ${unit}` : ""}${denominator}`;
+}
+
+function pbiDiagnosisColumn(name: string) {
+  const value = normalizePbiText(name);
+  if (value.includes("trip")) return 7;
+  if (value.includes("oidium")) return 8;
+  if (value.includes("antracnosis")) return 9;
+  if (value.includes("lasiodiplodia")) return 10;
+  if (value.includes("queres") || value.includes("cochinilla")) return 11;
+  if (value.includes("gusano") || value.includes("chinche")) return 12;
+  if (value.includes("mosca de la fruta")) return 13;
+  return name ? 14 : null;
+}
+
+function pbiLaborColumn(value: string) {
+  const name = normalizePbiText(value);
+  if (name.includes("agoste")) return 16;
+  if (name.includes("horquete")) return 17;
+  if (name.includes("enzunch")) return 18;
+  if (name.includes("deshierb")) return 19;
+  if (name.includes("frutos caidos") || name.includes("recojo")) return 20;
+  if (name.includes("trampa") || name.includes("mosca")) return 21;
+  return null;
+}
+
+function normalizePbiText(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/gu, "")
+    .trim()
+    .toLowerCase();
+}
+
+function appendPbiValue(current: string | number | Date | null, value: string) {
+  return current ? `${current}; ${value}` : value;
+}
+
+function getIsoWeekNumber(value: string) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  const day = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+function dateOnlyToExcelDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 function buildFriendlyVisitNumber(id: string) {

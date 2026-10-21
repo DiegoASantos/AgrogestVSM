@@ -175,6 +175,25 @@ describe("visitasService", () => {
     });
   });
 
+  describe("#exportPbiExcelReport", () => {
+    it("downloads the PBI workbook for the selected visit ID", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(""),
+        blob: () => Promise.resolve(new Blob(["xlsx"])),
+        headers: new Headers({
+          "content-disposition": 'attachment; filename="visitas pbi.xlsx"'
+        })
+      });
+
+      const report = await visitasService.exportPbiExcelReport(session, "visit/15");
+
+      expectGetRequest(fetchMock, "/visitas-campo/visit%2F15/reporte-pbi-excel");
+      expect(report.fileName).toBe("visitas pbi.xlsx");
+    });
+  });
+
   describe("#getFilterCatalogs", () => {
     it("should fetch productores, campanias, parcelas, sectores, and the restricted agronomist lookup in parallel", async () => {
       fetchMock

@@ -94,6 +94,13 @@ type FullDetailApiResponse = {
 };
 
 export const visitasService = {
+  async exportPbiExcelReport(session: AuthSessionInput, visitId: string) {
+    return apiDownload(
+      `/visitas-campo/${encodeURIComponent(visitId)}/reporte-pbi-excel`,
+      { headers: createAuthHeaders(session.accessToken, session.tokenType) }
+    );
+  },
+
   async exportExcelReport(
     session: AuthSessionInput,
     filters: Pick<VisitaListFilters, "agronomistUserId" | "startDate" | "endDate">

@@ -113,11 +113,13 @@ function makeFindQuery(overrides: Record<string, unknown> = {}) {
 
 describe("VisitasCampoService", () => {
   let repo: RepoMock;
+  let recipeRepo: RepoMock;
   let service: VisitasCampoService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     repo = makeRepo();
+    recipeRepo = makeRepo();
     service = new VisitasCampoService(
       repo as never,
       repo as never,
@@ -132,7 +134,8 @@ describe("VisitasCampoService", () => {
       repo as never,
       repo as never,
       repo as never,
-      repo as never
+      repo as never,
+      recipeRepo as never
     );
   });
 
@@ -791,6 +794,117 @@ describe("VisitasCampoService", () => {
           where: expect.objectContaining({ agronomoUsuarioId: "current-agronomist" })
         })
       );
+    });
+  });
+
+  describe("#exportPbiExcelReport", () => {
+    it("should create one producer sheet with visit, recipe, and empty harvest tables", async () => {
+      repo.findOne.mockResolvedValue({
+        ...makeVisita({
+          id: "15",
+          nroFicha: "F-015",
+          fechaVisita: "2026-06-15",
+          observacionGeneral: "=Ramas nuevas",
+          etapaFenologica: { name: "Floración" } as never,
+          phenologicalStages: [],
+          evaluaciones: [],
+          observacionesSanitarias: [
+            {
+              incidencePercentage: "12.50",
+              plagaEnfermedad: { name: "Trips" } as never
+            } as never
+          ],
+          labores: [],
+          riego: [],
+          parcela: {
+            productor: {
+              firstName: "Rosa",
+              lastName: "Garcia / Pedrera",
+              documentNumber: null
+            } as never
+          } as never
+        })
+      });
+      recipeRepo.findOne.mockResolvedValue({
+        mezclas: [
+          {
+            numero: 1,
+            frecuenciaDosis: "Cada 7 días",
+            volumenAplicacion: 200,
+            productos: [
+              {
+                marcaProductoNombre: "Producto seguro",
+                ingredienteActivoNombre: "Ingrediente",
+                dosisProducto: 500,
+                unidadDosis: "ml",
+                objetivoNombre: "Trips",
+                enfoque: "reactivo"
+              }
+            ]
+          }
+        ],
+        fitosanidad: [],
+        fertilizacion: [],
+        riego: null,
+        labores: []
+      });
+
+      const report = await service.exportPbiExcelReport("15");
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(report.content as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+
+      expect(report.fileName).toBe("visitas pbi.xlsx");
+      expect(workbook.worksheets).toHaveLength(1);
+      const worksheet = workbook.worksheets[0];
+      expect(worksheet.name).toBe("Garcia Pedrera Rosa");
+      expect(worksheet.getCell("A3").value).toBe("Semana");
+      expect(worksheet.getCell("Z3").value).toBe("Comentario");
+      expect(worksheet.getCell("B4").value).toBeInstanceOf(Date);
+      expect(worksheet.getCell("C4").value).toBe("Floración");
+      expect(worksheet.getCell("H4").value).toBe("Trips (12.50%)");
+      expect(worksheet.getCell("Z4").value).toBe("'=Ramas nuevas");
+      expect(worksheet.getCell("A14").value).toBe("Semana");
+      expect(worksheet.getCell("C15").value).toBe("Producto seguro");
+      expect(worksheet.getCell("G15").value).toBe("Cada 7 días");
+      expect(worksheet.getCell("A57").value).toBe("Semana");
+      expect(worksheet.getCell("A58").value).toBeNull();
+      expect(worksheet.getCell("I66").value).toBeNull();
+      expect(recipeRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { visitaId: "15" } })
+      );
+    });
+
+    it("should reject missing or inactive visits without querying recipe data", async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await expect(service.exportPbiExcelReport("404")).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(recipeRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it("should sanitize producer worksheet names to Excel's 31 character limit", async () => {
+      repo.findOne.mockResolvedValue({
+        ...makeVisita({
+          parcela: {
+            productor: {
+              firstName: "Nombre largo",
+              lastName: "Apellido/Muy:Largo?Con*Caracteres[Invalid]",
+              documentNumber: null
+            } as never
+          } as never
+        })
+      });
+      recipeRepo.findOne.mockResolvedValue(null);
+
+      const report = await service.exportPbiExcelReport("1");
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(report.content as unknown as Parameters<typeof workbook.xlsx.load>[0]);
+      const sheetName = workbook.worksheets[0].name;
+
+      expect(sheetName.length).toBeLessThanOrEqual(31);
+      for (const invalidCharacter of ["\\", "/", "*", "?", ":", "[", "]"]) {
+        expect(sheetName).not.toContain(invalidCharacter);
+      }
     });
   });
 
