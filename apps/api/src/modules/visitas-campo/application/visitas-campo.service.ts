@@ -1605,6 +1605,7 @@ export class VisitasCampoService {
     return {
       id: visitaEvaluacion.id,
       visitaId: visitaEvaluacion.visitaId,
+      nutrientId: visitaEvaluacion.nutrientId,
       order: visitaEvaluacion.order,
       incidencePercentage: visitaEvaluacion.incidencePercentage,
       percentage: visitaEvaluacion.percentage,
@@ -1670,6 +1671,9 @@ export class VisitasCampoService {
       modulo: calificacion.modulo,
       puntaje: calificacion.puntaje,
       observacion: calificacion.observacion,
+      justificado: calificacion.justificado,
+      categoriaJustificacion: calificacion.categoriaJustificacion,
+      motivoJustificacion: calificacion.motivoJustificacion,
       createdAt: calificacion.createdAt,
       updatedAt: calificacion.updatedAt
     };

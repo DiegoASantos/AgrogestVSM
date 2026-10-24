@@ -13,6 +13,10 @@ const cleanupPhoto = vi.fn();
 vi.mock("../../modules/comercial/services/fotos-comerciales.service", () => ({
   limpiarFotosComercialesSincronizadas: cleanupPhoto
 }));
+const cleanupStorage = vi.fn().mockResolvedValue(undefined);
+vi.mock("../database/local-storage-cleanup", () => ({
+  limpiarAlmacenamientoLocal: cleanupStorage
+}));
 
 const getPendingOutboxEntries = vi.fn();
 const deleteOutboxEntry = vi.fn();
@@ -264,6 +268,7 @@ describe("processOutbox", () => {
 
     expect(result).toMatchObject({ processed: 0, skipped: 0, errors: 0 });
     expect(enqueueVisitaUpdateRepairOnce).toHaveBeenCalledOnce();
+    expect(cleanupStorage).not.toHaveBeenCalled();
   });
 
   it("continues draining the outbox when the visit repair is deferred", async () => {
@@ -278,6 +283,7 @@ describe("processOutbox", () => {
     expect(handlerVisita).toHaveBeenCalledOnce();
     expect(deleteOutboxEntry).toHaveBeenCalledWith(1);
     expect(result).toMatchObject({ processed: 1, skipped: 0, errors: 0 });
+    expect(cleanupStorage).toHaveBeenCalledOnce();
   });
 
   it("reconciles orphaned pending rows only for the authenticated owner", async () => {

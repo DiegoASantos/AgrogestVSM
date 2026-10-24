@@ -12,6 +12,7 @@ import { AppState } from "react-native";
 
 import { useAuthSession } from "../../modules/auth/hooks/use-auth-session";
 import { initDatabase } from "../database/connection";
+import { limpiarAlmacenamientoLocal } from "../database/local-storage-cleanup";
 import { apiRequest } from "../services";
 import { scheduleSync } from "../sync/sync-requests";
 import {
@@ -20,6 +21,7 @@ import {
   type SyncManagerState
 } from "../sync/sync-manager";
 import { createDefaultSyncManager } from "../sync/sync-state-store";
+import { debugLog } from "../utils/debug-log";
 import { getNetworkPreference, saveNetworkPreference } from "./connectivity-preference";
 import { setConnectivityPolicySnapshot } from "./connectivity-policy";
 import type {
@@ -62,6 +64,11 @@ export function ConnectivityProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     const db = initDatabase();
+    void limpiarAlmacenamientoLocal().catch((error) => {
+      debugLog("Storage", "Automatic cleanup deferred", {
+        name: error instanceof Error ? error.name : "unknown"
+      });
+    });
     const nextManagerState = managerRef.current.getState();
     const nextPreference = getNetworkPreference(userId, db);
     const nextQuality = managerRef.current.evaluateConnection(

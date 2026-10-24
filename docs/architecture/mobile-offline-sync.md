@@ -2,10 +2,11 @@
 title: Sincronización mobile offline
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-21
+last_reviewed: 2026-10-24
 related_code:
   - apps/mobile/src/shared/database
   - apps/mobile/src/shared/connectivity
+  - apps/mobile/src/shared/database/local-storage-cleanup.ts
   - apps/mobile/src/shared/sync
   - apps/mobile/src/shared/services/api
   - apps/mobile/src/modules/auth
@@ -545,6 +546,27 @@ radiacion acumulada en `MJ/m²`. Los campos nuevos son aditivos y opcionales en
 mobile para que una cache JSON anterior siga siendo legible y muestre ausencia
 en lugar de cero.
 
+### Retención del almacenamiento local
+
+La app ejecuta mantenimiento local al iniciar y luego de una sincronización
+exitosa, como máximo una vez cada 24 horas. Conserva las visitas técnicas de
+los últimos 90 días calendario en `America/Lima`. Solo purga visitas anteriores
+al corte cuando la visita y todas sus entidades sincronizables están en estado
+`synced` y no tienen referencias en `sync_outbox` ni `sync_failures`; los
+detalles se eliminan mediante las claves foráneas con cascada. Una inconsistencia
+o estado pendiente/fallido conserva el agregado completo. El servidor no se
+modifica.
+
+El mismo mantenimiento elimina las cachés climáticas vencidas por `expires_at`
+y temporales de fotos remotas con UUID en `Paths.cache` que superen 24 horas.
+Las fotos comerciales durables siguen el ciclo de vida existente: se retiran
+del almacenamiento durable local solo tras confirmación del servidor y sin
+operaciones pendientes/fallidas. Si hubo eliminaciones de SQLite, se ejecuta
+checkpoint del WAL y compactación fuera de la transacción; una marca en
+`app_meta` permite reintentar si la compactación falla. La limpieza no purga
+borradores, pagos, cosecha, visitas comerciales, catálogos, productores ni
+parcelas, y sus errores no bloquean el inicio ni el sync.
+
 Los catálogos de receta `ingredientes_activos`, `marcas_producto` y
 `fertilizantes` se descargan desde la API, pero también admiten altas offline
 desde mobile. Cada alta se guarda con `sync_status = 'pending'` y genera una
@@ -833,3 +855,26 @@ creadas con la primera version. No se modifican sus filas ni entradas de outbox;
 la API las convierte en perfiles reutilizables al recibirlas. Por eso los datos
 legados aparecen en el nuevo selector tras una sincronizacion y descarga
 exitosa, sin arriesgar pendientes anteriores.
+
+## Recuperación entre dispositivos
+
+El agrónomo puede recuperar desde Inicio los agregados sincronizados de los
+últimos 30 días. `GET /mobile/recuperacion` obtiene la identidad del JWT, limita
+visitas técnicas y comerciales por agrónomo, y pagos y cosechas por creador. La
+API pagina hasta 50 agregados completos, firma el cursor con el secreto JWT y lo
+vincula a la cuenta y al snapshot. La respuesta usa `Cache-Control: private,
+no-store`; el endpoint exige rol `AGRONOMO` y limita solicitudes.
+
+Mobile actualiza catálogos antes de la primera página, importa cada página junto
+con su cursor en una transacción SQLite y marca las filas recibidas como
+`synced` sin crear outbox. El cursor se guarda por cuenta en `app_meta` para
+reanudar después de un cierre o desconexión. Si falta una dependencia, la
+transacción revierte y la misma página se puede reintentar. Filas existentes con
+pendientes, errores, operaciones de outbox, fallos o borradores locales se
+conservan; una copia remota ya importada se omite para mantener idempotencia.
+
+La recuperación no descarga fotos ni evidencias. Los datos que no alcanzaron a
+sincronizarse desde el dispositivo anterior no están disponibles para restaurar.
+El asistente se ofrece una vez por cuenta y dispositivo, y la opción
+`Recuperar últimos 30 días` permanece en Inicio para reintentar o actualizar la
+copia local.

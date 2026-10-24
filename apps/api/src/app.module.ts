@@ -32,6 +32,7 @@ import { VisitasCampoModule } from "./modules/visitas-campo/visitas-campo.module
 import { VisitasComercialesModule } from "./modules/visitas-comerciales/visitas-comerciales.module";
 import { EstimacionesModule } from "./modules/estimaciones/estimaciones.module";
 import { ComercialModule } from "./modules/comercial/comercial.module";
+import { MobileRecoveryModule } from "./modules/mobile-recovery/mobile-recovery.module";
 
 @Module({
   imports: [
@@ -66,7 +67,8 @@ import { ComercialModule } from "./modules/comercial/comercial.module";
     DashboardModule,
     ReportesModule,
     EstimacionesModule,
-    ComercialModule
+    ComercialModule,
+    MobileRecoveryModule
   ]
 })
 export class AppModule {}

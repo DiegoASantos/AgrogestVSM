@@ -17,6 +17,7 @@ import {
   type SyncOutboxItem
 } from "../database/sync-outbox";
 import { getDatabase } from "../database/connection";
+import { limpiarAlmacenamientoLocal } from "../database/local-storage-cleanup";
 import { getNowIsoString } from "../database/sqlite-utils";
 import { getApiToken } from "../services/api/auth-store";
 import {
@@ -108,7 +109,16 @@ const ROOT_ENTITY_TYPES = new Set<string>([
 export function processOutbox(
   options: ProcessOutboxOptions = {}
 ): Promise<ProcessOutboxResult> {
-  return runWithSyncMutationLock(() => processOutboxUnlocked(options));
+  return runWithSyncMutationLock(() => processOutboxUnlocked(options)).then((result) => {
+    if (result.successfulRequests > 0) {
+      void limpiarAlmacenamientoLocal().catch((error) => {
+        debugLog("Storage", "Post-sync cleanup deferred", {
+          name: error instanceof Error ? error.name : "unknown"
+        });
+      });
+    }
+    return result;
+  });
 }
 
 async function processOutboxUnlocked(

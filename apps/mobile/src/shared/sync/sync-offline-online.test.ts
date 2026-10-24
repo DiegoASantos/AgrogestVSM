@@ -45,6 +45,9 @@ vi.mock("../../modules/comercial/services/fotos-comerciales.service", () => ({
   marcarFotoComercialSincronizada: vi.fn(),
   limpiarFotosComercialesSincronizadas: vi.fn()
 }));
+vi.mock("../database/local-storage-cleanup", () => ({
+  limpiarAlmacenamientoLocal: vi.fn().mockResolvedValue(undefined)
+}));
 vi.mock("../../modules/comercial/services/fotos-comerciales.remote", () => ({
   subirFotoComercial: vi.fn()
 }));

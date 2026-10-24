@@ -44,6 +44,7 @@ import {
 } from "../../../../shared/sync";
 import { appUpdateService } from "../../../../shared/updates/app-update.service";
 import { useAuthSession } from "../../../auth/hooks/use-auth-session";
+import { mobileRecoveryService } from "../../../recovery/services/mobile-recovery.service";
 import { ClimateDashboard } from "../../../clima/presentation/components/climate-dashboard";
 import { parcelasService } from "../../../parcelas/services/parcelas.service";
 import { parcelasRepository } from "../../../parcelas/repositories/parcelas.repository";
@@ -94,6 +95,9 @@ export function HomeScreen() {
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [isRetryingFailures, setIsRetryingFailures] = useState(false);
   const [isRefreshingCatalogs, setIsRefreshingCatalogs] = useState(false);
+  const [isRecoveringActivity, setIsRecoveringActivity] = useState(false);
+  const [recoveryProgress, setRecoveryProgress] = useState(0);
+  const [recoveryCounts, setRecoveryCounts] = useState<Record<string, number> | null>(null);
   const [isAppUpdateReady, setIsAppUpdateReady] = useState(false);
   const [isApplyingAppUpdate, setIsApplyingAppUpdate] = useState(false);
   const [appUpdateError, setAppUpdateError] = useState<string | null>(null);
@@ -138,6 +142,46 @@ export function HomeScreen() {
   }, [loadSyncState, session.accessToken]);
 
   useFocusEffect(loadDashboard);
+
+  const recoverRecentActivity = useCallback(async () => {
+    const userId = session.user?.userId;
+    if (!userId || !isOnline || isRecoveringActivity) return;
+    setIsRecoveringActivity(true);
+    setRecoveryProgress(0);
+    try {
+      let completed = false;
+      let recovered = 0;
+      while (!completed) {
+        const page = await mobileRecoveryService.recoverPage(userId);
+        recovered += page.recovered;
+        setRecoveryCounts(page.counts);
+        completed = page.completed;
+        setRecoveryProgress(recovered);
+      }
+      Alert.alert("Recuperación lista", `Se recuperaron ${recovered} actividades sincronizadas de los últimos 30 días.`);
+    } catch (error) {
+      Alert.alert(
+        "No se completó la recuperación",
+        error instanceof Error ? `${error.message} Puedes reintentar desde Inicio.` : "Intenta nuevamente cuando tengas conexión."
+      );
+    } finally {
+      setIsRecoveringActivity(false);
+    }
+  }, [isOnline, isRecoveringActivity, session.user?.userId]);
+
+  useEffect(() => {
+    const userId = session.user?.userId;
+    if (!isAuthenticated || !userId || !session.user?.roles.includes("AGRONOMO") || mobileRecoveryService.isPrompted(userId)) return;
+    mobileRecoveryService.markPrompted(userId);
+    Alert.alert(
+      "¿Recuperar tu actividad reciente?",
+      "Puedes traer a este dispositivo las visitas, pagos y cosechas sincronizadas de los últimos 30 días. Se requiere conexión a Internet.",
+      [
+        { text: "Después", style: "cancel" },
+        { text: "Recuperar", onPress: () => { void recoverRecentActivity(); } }
+      ]
+    );
+  }, [isAuthenticated, recoverRecentActivity, session.user?.roles, session.user?.userId]);
 
   const loadContinuity = useCallback(() => {
     if (!isOnline || !session.user?.roles.includes("AGRONOMO") ||
@@ -617,6 +661,30 @@ export function HomeScreen() {
               isSyncing={isManualSyncing}
               pendingCount={syncCounts.pendingCount}
             />
+            {session.user?.roles.includes("AGRONOMO") ? (
+              <>
+              <Pressable
+                accessibilityRole="button"
+                disabled={!isOnline || isRecoveringActivity || onlineSessionStatus === "reauth_required"}
+                onPress={() => { void recoverRecentActivity(); }}
+                style={({ pressed }) => [
+                  styles.recoveryButton,
+                  pressed && styles.pressed,
+                  (!isOnline || isRecoveringActivity || onlineSessionStatus === "reauth_required") && styles.manualSyncButtonDisabled
+                ]}
+              >
+                {isRecoveringActivity ? <ActivityIndicator color="#08643f" /> : <Ionicons color="#08643f" name="cloud-download-outline" size={20} />}
+                <AppText style={styles.recoveryButtonText} variant="label">
+                  {isRecoveringActivity ? `Recuperando actividad (${recoveryProgress})...` : "Recuperar últimos 30 días"}
+                </AppText>
+              </Pressable>
+              {recoveryCounts ? (
+                <AppText style={styles.recoverySummary} variant="caption">
+                  Últimos 30 días: {recoveryCounts.visita_tecnica ?? 0} visitas técnicas, {recoveryCounts.visita_comercial ?? 0} comerciales, {recoveryCounts.pago_cosecha ?? 0} pagos y {recoveryCounts.registro_cosecha ?? 0} registros de cosecha.
+                </AppText>
+              ) : null}
+              </>
+            ) : null}
             {onlineSessionStatus === "reauth_required" ? (
               <View style={styles.reauthBanner}>
                 <View style={styles.reauthCopy}>
@@ -1763,6 +1831,28 @@ const styles = StyleSheet.create({
   manualSyncButtonText: {
     color: "#ffffff",
     fontSize: 15
+  },
+  recoveryButton: {
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#9bc8ad",
+    backgroundColor: "#f0f8f3",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+    paddingHorizontal: 14,
+    marginTop: 12
+  },
+  recoveryButtonText: {
+    color: "#08643f",
+    fontWeight: "700"
+  },
+  recoverySummary: {
+    color: "#52645a",
+    lineHeight: 18,
+    marginTop: 7
   },
   refreshCatalogsButton: {
     minHeight: 47,

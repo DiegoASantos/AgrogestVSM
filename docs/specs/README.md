@@ -2,7 +2,7 @@
 title: Política e índice de especificaciones
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-21
+last_reviewed: 2026-10-24
 ---
 
 # Especificaciones
@@ -43,6 +43,10 @@ en la raíz.
 5. Completar el campo `numero` con el mismo valor.
 
 ## Índice
+
+- [Spec 120: Recuperación de actividad sincronizada en un dispositivo mobile nuevo](120-recuperacion-actividad-sincronizada-mobile.md)
+
+- [Spec 119: Retención del almacenamiento local en mobile](119-retencion-almacenamiento-local-mobile.md)
 
 - [Spec 118: Visitas comerciales vinculadas a productores y fotos de acreedores](118-visita-comercial-productores-fotos-acreedores.md)
 

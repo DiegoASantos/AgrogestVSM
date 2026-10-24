@@ -2,7 +2,7 @@
 title: Índice de documentación
 status: active
 owner: mantenimiento
-last_reviewed: 2026-10-21
+last_reviewed: 2026-10-24
 ---
 
 # Documentación de AgroGest VSM
@@ -19,6 +19,7 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Plantilla de revisión de IA](governance/ai-review-template.md)
 - [Arquitectura general](architecture/overview.md)
 - [Riesgos activos](operations/risk-register.md)
+- [Recuperación de mobile en un dispositivo nuevo](runbooks/mobile-device-recovery.md)
 - [Línea base de seguridad](operations/security-baseline.md)
 
 ## Arquitectura
@@ -45,6 +46,10 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 - [Plantilla de ADR](adr/TEMPLATE.md)
 
 ## Especificaciones
+
+- [Spec 120: Recuperación de actividad sincronizada en un dispositivo mobile nuevo](specs/120-recuperacion-actividad-sincronizada-mobile.md)
+
+- [Spec 119: Retención del almacenamiento local en mobile](specs/119-retencion-almacenamiento-local-mobile.md)
 
 - [Spec 118: Visitas comerciales vinculadas a productores y fotos de acreedores](specs/118-visita-comercial-productores-fotos-acreedores.md)
 
