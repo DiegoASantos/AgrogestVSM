@@ -87,7 +87,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.diegoasantos.agrogestvsm",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": false,
       "infoPlist": {
         "CFBundleLocalizations": [

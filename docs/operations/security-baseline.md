@@ -164,6 +164,17 @@ Variables:
 - `LOGIN_RATE_LIMIT_BLOCK_MS`;
 - `APP_TRUST_PROXY`.
 
+El login limita cada pareja de IP y correo normalizado a cinco solicitudes por
+minuto y aplica adicionalmente un máximo de 30 solicitudes por IP y minuto.
+El bloqueo predeterminado dura un minuto; `LOGIN_RATE_LIMIT_BLOCK_MS` puede
+sobrescribirlo. El panel debe conectarse a la API desde una dirección fija y
+exclusiva configurada en `APP_TRUSTED_PROXY_IP`; la API solo confía en las
+cabeceras de origen de esa dirección. Mantener `APP_TRUST_PROXY=false` y no
+usar confianza global con la API expuesta públicamente. El proxy elimina las
+cabeceras de origen recibidas antes de añadir la IP de su conexión. El límite
+por IP puede afectar a usuarios detrás de NAT y los contadores son locales a
+cada instancia y se reinician al reiniciar el proceso.
+
 La configuración inicial permite cinco intentos por minuto y bloquea cinco
 minutos. El almacenamiento es en memoria: es suficiente para la instancia única
 de API desplegada con Docker Compose, pero debe migrarse a almacenamiento

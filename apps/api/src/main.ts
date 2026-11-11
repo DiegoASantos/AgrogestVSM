@@ -23,7 +23,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
-      trustProxy: environment.APP_TRUST_PROXY
+      trustProxy: environment.APP_TRUSTED_PROXY_IP || false
     }),
     {
       logger: false

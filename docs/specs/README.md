@@ -48,6 +48,9 @@ en la raíz.
 
 - [Spec 119: Retención del almacenamiento local en mobile](119-retencion-almacenamiento-local-mobile.md)
 
+- [Spec 121: Restaurar asignaciones de parcelas desde un backup](121-restaurar-asignaciones-de-parcelas-desde-backup.md)
+- [Spec 122: Límite de inicio de sesión por IP y usuario](122-limite-login-ip-usuario.md)
+
 - [Spec 118: Visitas comerciales vinculadas a productores y fotos de acreedores](118-visita-comercial-productores-fotos-acreedores.md)
 
 - [Spec 117: Alertas separadas de visitas e identidad](117-alertas-visitas-identidad.md)

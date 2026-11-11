@@ -51,6 +51,9 @@ el vault de Obsidian. Git conserva su historial. No existe otro vault canónico.
 
 - [Spec 119: Retención del almacenamiento local en mobile](specs/119-retencion-almacenamiento-local-mobile.md)
 
+- [Spec 121: Restaurar asignaciones de parcelas desde un backup](specs/121-restaurar-asignaciones-de-parcelas-desde-backup.md)
+- [Spec 122: Límite de inicio de sesión por IP y usuario](specs/122-limite-login-ip-usuario.md)
+
 - [Spec 118: Visitas comerciales vinculadas a productores y fotos de acreedores](specs/118-visita-comercial-productores-fotos-acreedores.md)
 
 - [Spec 117: Alertas separadas de visitas e identidad](specs/117-alertas-visitas-identidad.md)

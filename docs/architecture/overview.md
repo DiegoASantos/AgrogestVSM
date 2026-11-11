@@ -38,8 +38,8 @@ Mobile online ───┘
 - adaptador WeatherLink v2 para observaciones Davis historicas consultadas bajo
   demanda en rangos cerrados de hasta siete dias, con cache efimera y
   credenciales aisladas del navegador y del dispositivo movil;
-- rate limiting de login y del intercambio de código de productor por IP y
-  hash de código;
+- rate limiting de login por IP y correo, más un límite general por IP; el
+  intercambio de código de productor conserva sus límites por IP y código;
 - Swagger solo en desarrollo.
 
 Los módulos se organizan por dominio con capas de aplicación, persistencia y

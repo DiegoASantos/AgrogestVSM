@@ -9,6 +9,7 @@ import {
   DEFAULT_JWT_REFRESH_EXPIRES_IN
 } from "../common/constants/application.constants";
 import type { EnvironmentVariables, NodeEnvironment } from "./environment.types";
+import { isIP } from "node:net";
 
 export function validateEnvironment(
   config: Record<string, unknown>
@@ -34,6 +35,11 @@ function buildEnvironmentVariables(
   );
   const weatherLinkApiKey = getOptionalString(source.WEATHERLINK_API_KEY);
   const weatherLinkApiSecret = getOptionalString(source.WEATHERLINK_API_SECRET);
+  const trustedProxyIp = parseTrustedProxyIp(source.APP_TRUSTED_PROXY_IP);
+  const trustProxy = parseBoolean(source.APP_TRUST_PROXY, "APP_TRUST_PROXY", false);
+  if (trustProxy && !trustedProxyIp) {
+    throw new Error("APP_TRUST_PROXY requires APP_TRUSTED_PROXY_IP; global proxy trust is not allowed.");
+  }
 
   if (weatherLinkEnabled && (!weatherLinkApiKey || !weatherLinkApiSecret)) {
     throw new Error(
@@ -49,11 +55,8 @@ function buildEnvironmentVariables(
       source.APP_PORT !== undefined ? "APP_PORT" : "PORT",
       DEFAULT_APP_PORT
     ),
-    APP_TRUST_PROXY: parseBoolean(
-      source.APP_TRUST_PROXY,
-      "APP_TRUST_PROXY",
-      nodeEnv === "production"
-    ),
+    APP_TRUST_PROXY: trustProxy,
+    APP_TRUSTED_PROXY_IP: trustedProxyIp,
     LOG_LEVEL: parseLogLevel(source.LOG_LEVEL),
     CORS_ALLOWED_ORIGINS: parseAllowedOrigins(source.CORS_ALLOWED_ORIGINS),
     COST_BUILD_API_KEY: getOptionalString(source.COST_BUILD_API_KEY),
@@ -96,7 +99,7 @@ function buildEnvironmentVariables(
     LOGIN_RATE_LIMIT_BLOCK_MS: parsePositiveInteger(
       source.LOGIN_RATE_LIMIT_BLOCK_MS,
       "LOGIN_RATE_LIMIT_BLOCK_MS",
-      300_000
+      60_000
     ),
     WEATHERLINK_ENABLED: weatherLinkEnabled,
     WEATHERLINK_API_KEY: weatherLinkApiKey,
@@ -124,6 +127,12 @@ function buildEnvironmentVariables(
       30_000
     )
   };
+}
+
+function parseTrustedProxyIp(value: unknown): string {
+  const ip = String(value ?? "").trim();
+  if (ip && !isIP(ip)) throw new Error("APP_TRUSTED_PROXY_IP must be a single IP address.");
+  return ip;
 }
 
 function parseCommercialPhotoKey(value: unknown): string {

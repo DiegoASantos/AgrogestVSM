@@ -16,13 +16,13 @@ describe("validateEnvironment", () => {
       NODE_ENV: "production"
     });
 
-    expect(result.APP_TRUST_PROXY).toBe(true);
+    expect(result.APP_TRUST_PROXY).toBe(false);
     expect(result.DB_SSL_REJECT_UNAUTHORIZED).toBe(true);
     expect(result.JWT_ACCESS_EXPIRES_IN).toBe("15m");
     expect(result.JWT_REFRESH_EXPIRES_IN).toBe("150d");
     expect(result.LOGIN_RATE_LIMIT_TTL_MS).toBe(60_000);
     expect(result.LOGIN_RATE_LIMIT_MAX).toBe(5);
-    expect(result.LOGIN_RATE_LIMIT_BLOCK_MS).toBe(300_000);
+    expect(result.LOGIN_RATE_LIMIT_BLOCK_MS).toBe(60_000);
   });
 
   it("accepts explicit rate-limit and proxy settings", () => {
@@ -62,6 +62,12 @@ describe("validateEnvironment", () => {
         LOGIN_RATE_LIMIT_MAX: "0"
       })
     ).toThrow("LOGIN_RATE_LIMIT_MAX must be a positive integer.");
+  });
+
+  it("accepts only one explicit trusted proxy address", () => {
+    expect(validateEnvironment({ ...REQUIRED_ENV, APP_TRUSTED_PROXY_IP: "192.0.2.10" }).APP_TRUSTED_PROXY_IP).toBe("192.0.2.10");
+    expect(() => validateEnvironment({ ...REQUIRED_ENV, APP_TRUSTED_PROXY_IP: "192.0.2.0/24" })).toThrow("APP_TRUSTED_PROXY_IP must be a single IP address.");
+    expect(() => validateEnvironment({ ...REQUIRED_ENV, APP_TRUST_PROXY: "true" })).toThrow("global proxy trust is not allowed");
   });
 
   it("rejects invalid log levels", () => {

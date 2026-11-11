@@ -5,6 +5,7 @@ export type EnvironmentVariables = {
   APP_HOST: string;
   APP_PORT: number;
   APP_TRUST_PROXY: boolean;
+  APP_TRUSTED_PROXY_IP: string;
   LOG_LEVEL: string;
   CORS_ALLOWED_ORIGINS: string[];
   COST_BUILD_API_KEY: string;

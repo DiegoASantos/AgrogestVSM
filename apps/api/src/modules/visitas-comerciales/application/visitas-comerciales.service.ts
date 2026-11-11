@@ -75,7 +75,7 @@ export class VisitasComercialesService {
           agronomo: query.agronomo_usuario_id
         });
       const visits = await this.readVisitsWithLegacyFallback(
-        qb.orderBy("v.fecha_visita", "ASC").addOrderBy("v.id", "ASC"),
+        qb.orderBy("v.fechaVisita", "ASC").addOrderBy("v.id", "ASC"),
         (builder) => builder.getMany()
       );
       const sheet = workbook.addWorksheet("Comercial");
@@ -219,7 +219,7 @@ export class VisitasComercialesService {
     if (query.fecha_hasta)
       qb.andWhere("v.fecha_visita <= :to", { to: query.fecha_hasta });
     const [items, total] = await this.readVisitsWithLegacyFallback(
-      qb.orderBy("v.fecha_visita", "DESC")
+      qb.orderBy("v.fechaVisita", "DESC")
         .addOrderBy("v.id", "DESC")
         .skip(((query.page ?? 1) - 1) * (query.limit ?? 20))
         .take(query.limit ?? 20),

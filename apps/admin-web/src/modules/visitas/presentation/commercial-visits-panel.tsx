@@ -14,6 +14,16 @@ import {
   type VisitasComercialesFilters
 } from "../services/visitas-comerciales.service";
 
+function getGoogleMapsRoute(location: VisitaComercial["ubicacionVisita"]) {
+  if (!location) return null;
+  const [longitude, latitude] = location.coordinates;
+  const destination = `${latitude},${longitude}`;
+  return {
+    destination,
+    url: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
+  };
+}
+
 export function CommercialVisitsPanel({
   filters
 }: {
@@ -29,6 +39,7 @@ export function CommercialVisitsPanel({
   const [attempt, setAttempt] = useState(0);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [selected, setSelected] = useState<VisitaComercial | null>(null);
+  const googleMapsRoute = getGoogleMapsRoute(selected?.ubicacionVisita ?? null);
 
   useEffect(() => {
     setPage(1);
@@ -168,13 +179,23 @@ export function CommercialVisitsPanel({
           <p>
             Fecha: {selected.fechaVisita} · Tipo: {selected.tipoSujeto}
           </p>
-          <p>
-            Ubicación:{" "}
-            {selected.ubicacionVisita
-              ? selected.ubicacionVisita.coordinates.join(", ")
-              : "No disponible"}
-          </p>
-          {session && selected.productorId ? <CommercialVisitPhotos key={selected.id} session={session} visitId={selected.id} /> : null}
+          {googleMapsRoute ? (
+            <p>
+              Ubicación: {googleMapsRoute.destination} ·{" "}
+              <a href={googleMapsRoute.url} target="_blank" rel="noreferrer">
+                Ver ruta en Google Maps
+              </a>
+            </p>
+          ) : <p>Ubicación: No disponible</p>}
+          {session && selected.productorId ? (
+            <CommercialVisitPhotos
+              key={selected.id}
+              session={session}
+              visitId={selected.id}
+            />
+          ) : (
+            <p>No hay imágenes asociadas a esta visita.</p>
+          )}
           <button
             className="ui-button ui-button--ghost"
             type="button"

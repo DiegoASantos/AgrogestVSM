@@ -12,6 +12,7 @@ import { RefreshSessionsService } from "./application/refresh-sessions.service";
 import { UserRolesService } from "./application/user-roles.service";
 import { RefreshSessionEntity } from "./infrastructure/persistence/entities/refresh-session.entity";
 import { UserRoleEntity } from "./infrastructure/persistence/entities/user-role.entity";
+import { LoginThrottlerStorage } from "./infrastructure/login-throttler.storage";
 import { AccessTokenGuard } from "./presentation/guards/access-token.guard";
 import { RolesGuard } from "./presentation/guards/roles.guard";
 import { LoginThrottlerGuard } from "./presentation/guards/login-throttler.guard";
@@ -29,13 +30,14 @@ import { UserRolesController } from "./presentation/user-roles.controller";
     TypeOrmModule.forFeature([UserRoleEntity, RefreshSessionEntity]),
     ThrottlerModule.forRootAsync({
       inject: [AppConfigService],
-      useFactory: (appConfig: AppConfigService) => [
-        {
+      useFactory: (appConfig: AppConfigService) => ({
+        storage: new LoginThrottlerStorage(),
+        throttlers: [{
           ttl: appConfig.loginRateLimit.ttlMs,
           limit: appConfig.loginRateLimit.max,
           blockDuration: appConfig.loginRateLimit.blockDurationMs
-        }
-      ]
+        }]
+      })
     }),
     UsersModule,
     RolesModule

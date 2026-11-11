@@ -31,6 +31,14 @@ services:
       JWT_ACCESS_EXPIRES_IN: "15m"
       JWT_REFRESH_EXPIRES_IN: "150d"
       COMERCIAL_PHOTOS_DIR: /var/lib/agrogest/commercial-photos
+      APP_TRUST_PROXY: "false"
+      APP_TRUSTED_PROXY_IP: "10.243.1.2"
+      LOGIN_RATE_LIMIT_TTL_MS: "60000"
+      LOGIN_RATE_LIMIT_MAX: "5"
+      LOGIN_RATE_LIMIT_BLOCK_MS: "60000"
+    networks:
+      - default
+      - web_api
     volumes:
       - agrogest_commercial_photos:/var/lib/agrogest/commercial-photos
     ports:
@@ -52,6 +60,9 @@ services:
         NEXT_PUBLIC_ENVIRONMENT_LABEL: ""
     ports:
       - "5176:3000"
+    networks:
+      web_api:
+        ipv4_address: 10.243.1.2
     restart: unless-stopped
     depends_on:
       api:
@@ -60,3 +71,9 @@ services:
 volumes:
   agrogest_produccion_data:
   agrogest_commercial_photos:
+
+networks:
+  web_api:
+    ipam:
+      config:
+        - subnet: 10.243.1.0/29
